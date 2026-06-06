@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Silva Salud Fatiga</title>
+
+<meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
+
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#0a1f40">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Silva Salud Fatiga">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,600;1,9..40,700&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:        #0e2a56;
+    --navy-deep:   #0a1f40;
+    --navy-card:   #13316a;
+    --navy-line:   rgba(255,255,255,0.10);
+    --orange:      #f47a1f;
+    --orange-2:    #f7941d;
+    --card:        #ffffff;
+    --text:        #16233d;
+    --text-soft:   #525d73;
+    --text-muted:  #7b8499;
+    --green:       #1aa672;
+    --green-soft:  #e6f7f0;
+    --radius:      18px;
+    --radius-sm:   13px;
+    --shadow-sm:   0 1px 3px rgba(5,20,50,0.10);
+    --shadow-md:   0 8px 24px rgba(5,20,50,0.18);
+  }
+
+  html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background:
+      radial-gradient(ellipse 120% 60% at 50% 0%, rgba(28,74,150,0.55) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 50% at 100% 100%, rgba(244,122,31,0.10) 0%, transparent 55%),
+      linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top) 0 0;
+  }
+
+  .wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 1.1rem 1.05rem 6rem; }
+
+  /* ── Hero ── */
+  .hero { text-align: center; padding: 0.6rem 0 1.4rem; animation: fadeUp .4s ease both; }
+  .logo-box { width: 104px; height: 104px; margin: 0 auto 0.95rem; border-radius: 24px;
+    background: linear-gradient(160deg,#1a378f,#0a1f5e); display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12); padding: 14px; }
+  .logo-box img { width: 100%; height: 100%; object-fit: contain; }
+  .hero h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .hero .sub { font-style: italic; font-weight: 700; font-size: 1.02rem;
+    color: var(--orange); margin-top: 0.1rem; letter-spacing: -0.01em; }
+  .hero p { font-size: 0.82rem; color: rgba(255,255,255,0.62); line-height: 1.55; max-width: 330px; margin: 0.7rem auto 0; }
+
+  /* ── Profile chip ── */
+  .profile-chip { display: flex; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.07);
+    border: 1px solid var(--navy-line); border-radius: var(--radius); padding: 0.75rem 0.85rem;
+    margin-bottom: 1.5rem; backdrop-filter: blur(6px); animation: fadeUp .4s ease .05s both; }
+  .profile-chip .pc-avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(150deg, var(--orange), var(--orange-2)); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1rem; color: #fff; box-shadow: 0 4px 12px rgba(244,122,31,0.4); }
+  .profile-chip .pc-text { flex: 1; min-width: 0; }
+  .profile-chip .pc-name { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .profile-chip .pc-emp { font-size: 0.74rem; color: rgba(255,255,255,0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc-edit { background: rgba(255,255,255,0.1); border: 1px solid var(--navy-line); color: #fff; border-radius: 10px;
+    padding: 0.45rem 0.7rem; font-size: 0.74rem; font-weight: 600; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; transition: background .15s; }
+  .pc-edit:hover { background: rgba(255,255,255,0.18); }
+  .pc-edit svg { width: 13px; height: 13px; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 1.7rem; animation: fadeUp .4s ease .1s both; }
+  .sec-head { padding: 0 0.3rem 0.7rem; }
+  .sec-title { font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em; display:flex; align-items:center; gap:.5rem; }
+  .sec-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 4px rgba(244,122,31,0.18); }
+  .sec-sub { font-size: 0.76rem; color: rgba(255,255,255,0.55); margin-top: 0.18rem; padding-left: 1rem; }
+
+  .stack { display: flex; flex-direction: column; gap: 0.6rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+  /* ── Report buttons (row) ── */
+  .item { position: relative; }
+  .rbtn { display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 0.85rem 0.95rem;
+    background: var(--card); border: 1.5px solid transparent; border-radius: var(--radius); text-decoration: none;
+    color: var(--text); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s; text-align: left; }
+  .rbtn:active { transform: scale(0.985); }
+  .rbtn .ic { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rbtn .ic svg { width: 22px; height: 22px; }
+  .rbtn .tx { flex: 1; min-width: 0; }
+  .rbtn .tt { display: block; font-size: 0.92rem; font-weight: 600; color: var(--text); }
+  .rbtn .ds { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem; }
+  .rbtn .st { flex-shrink: 0; display: flex; align-items: center; }
+  .rbtn .chev { color: #c4ccda; }
+  .badge { display: none; align-items: center; gap: 0.3rem; background: var(--green-soft); color: var(--green);
+    font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+  .badge svg { width: 13px; height: 13px; }
+
+  /* Done state */
+  .item.done .rbtn { border-color: var(--green); background: #f6fdfa; }
+  .item.done .rbtn .chev { display: none; }
+  .item.done .badge { display: inline-flex; }
+
+  .undo { display: none; margin: 0.4rem 0.3rem 0.1rem auto; background: none; border: none;
+    color: rgba(255,255,255,0.65); font-family: inherit; font-size: 0.74rem; font-weight: 600; cursor: pointer;
+    padding: 0.2rem 0.4rem; align-items: center; gap: 0.3rem; }
+  .undo:hover { color: #fff; text-decoration: underline; }
+  .undo svg { width: 12px; height: 12px; }
+  .item.done .undo { display: inline-flex; }
+
+  /* ── Sensaciones tiles (grid) ── */
+  .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 0.55rem; padding: 1rem 0.9rem;
+    background: var(--card); border: 1.5px solid transparent; border-radius: var(--radius); text-decoration: none;
+    color: var(--text); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .14s ease; position: relative; min-height: 118px; }
+  .tile:active { transform: scale(0.985); }
+  .tile .ic { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .tile .ic svg { width: 21px; height: 21px; }
+  .tile .tt { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+  .tile .ds { font-size: 0.72rem; color: var(--text-muted); margin-top: -0.25rem; }
+  .tile .badge { position: absolute; top: 0.7rem; right: 0.7rem; }
+  .item.done .tile { border-color: var(--green); background: #f6fdfa; }
+
+  /* ── Install button ── */
+  .install { display: none; align-items: center; gap: 0.85rem; width: 100%; padding: 0.9rem 1rem; margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); border: none; border-radius: var(--radius);
+    color: #fff; cursor: pointer; box-shadow: 0 8px 22px rgba(244,122,31,0.4); font-family: inherit; text-align: left;
+    animation: fadeUp .4s ease both; }
+  .install .ic { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .install .ic svg { width: 22px; height: 22px; }
+  .install .tx { flex: 1; }
+  .install .tt { display: block; font-weight: 700; font-size: 0.92rem; }
+  .install .ds { display: block; font-size: 0.74rem; opacity: 0.9; margin-top: 0.05rem; }
+
+  /* ── Footer ── */
+  .foot { text-align: center; margin-top: 2.5rem; padding-top: 1.4rem; border-top: 2px solid var(--orange); }
+  .foot .fbrand { font-style: italic; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.04em; color: #fff; }
+  .foot .fnote { font-size: 0.72rem; color: rgba(255,255,255,0.5); margin-top: 0.35rem; line-height: 1.5; }
+  .foot .ver { display: inline-block; margin-top: 0.55rem; font-size: 0.7rem; font-weight: 700; color: var(--orange);
+    background: rgba(244,122,31,0.12); border: 1px solid rgba(244,122,31,0.3); padding: 0.18rem 0.6rem; border-radius: 999px; }
+
+  /* ── Setup overlay ── */
+  .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; padding: 1.2rem; animation: fadeIn .25s ease; }
+  .overlay.show { display: flex; }
+  .sheet { width: 100%; max-width: 410px; background: var(--card); border-radius: 24px; padding: 1.6rem 1.4rem 1.5rem;
+    color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; }
+  .sheet h2 { font-size: 1.22rem; font-weight: 700; letter-spacing: -0.01em; }
+  .sheet .lead { font-size: 0.83rem; color: var(--text-soft); margin-top: 0.35rem; line-height: 1.5; }
+  .field { margin-top: 1.1rem; }
+  .field label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-soft); margin-bottom: 0.35rem; }
+  .field input { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #dfe4ec; border-radius: 12px;
+    font-size: 0.95rem; font-family: inherit; color: var(--text); background: #fafbfd; transition: border-color .15s; }
+  .field input:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .field .err { color: #d63031; font-size: 0.72rem; margin-top: 0.3rem; display: none; }
+  .field.invalid input { border-color: #d63031; }
+  .field.invalid .err { display: block; }
+  .save-btn { width: 100%; margin-top: 1.4rem; padding: 0.9rem; border: none; border-radius: 13px;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-weight: 700; font-size: 0.95rem;
+    font-family: inherit; cursor: pointer; box-shadow: 0 6px 18px rgba(244,122,31,0.38); transition: transform .12s; }
+  .save-btn:active { transform: scale(0.98); }
+  .cancel-btn { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: none; background: none; color: var(--text-muted);
+    font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .privacy { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 1rem; line-height: 1.5; }
+
+  /* ── iOS modal ── */
+  .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
+    align-items: flex-end; justify-content: center; padding: 1rem; animation: fadeIn .25s ease; }
+  .ios-modal.show { display: flex; }
+  .ios-card { background: #fff; color: var(--text); width: 100%; max-width: 410px; border-radius: 22px; padding: 1.5rem 1.4rem;
+    position: relative; box-shadow: 0 14px 44px rgba(0,0,0,0.3); animation: slideUp .3s ease; }
+  .ios-card .x { position: absolute; top: 1rem; right: 1rem; width: 30px; height: 30px; border: none; border-radius: 50%;
+    background: #f0f2f5; color: var(--text-soft); font-weight: 700; cursor: pointer; }
+  .ios-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .ios-card p { font-size: 0.84rem; color: var(--text-soft); margin-bottom: 0.9rem; }
+  .ios-card ol { margin-left: 1.1rem; font-size: 0.85rem; line-height: 1.9; }
+  .ios-card svg { vertical-align: middle; color: #007aff; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; left: 50%; bottom: 1.4rem; transform: translateX(-50%) translateY(120%);
+    background: #16233d; color: #fff; padding: 0.7rem 1.1rem; border-radius: 12px; font-size: 0.84rem; font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35); z-index: 1100; display: flex; align-items: center; gap: 0.5rem;
+    transition: transform .35s cubic-bezier(.2,.8,.2,1); max-width: 90vw; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast svg { width: 16px; height: 16px; color: #38d39f; flex-shrink: 0; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app" style="display:none;">
+
+  <header class="hero">
+    <div class="logo-box"><img src="logo.png" alt="Silva Salud"></div>
+    <h1>Silva Salud</h1>
+    <div class="sub">Portal de Fatiga</div>
+    <p>Gestión de Seguridad Operacional (SMS). Reporta tu estado y EVA registrará tus indicadores automáticamente.</p>
+  </header>
+
+  <div class="profile-chip">
+    <div class="pc-avatar" id="pcAvatar">–</div>
+    <div class="pc-text">
+      <div class="pc-name" id="pcName">—</div>
+      <div class="pc-emp" id="pcEmp">—</div>
+    </div>
+    <button class="pc-edit" onclick="openSetup(true)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+      Editar
+    </button>
+  </div>
+
+  <button id="installBtn" class="install">
+    <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+    <div class="tx"><span class="tt">Instalar la app</span><span class="ds">Añadir Silva Salud Fatiga a tu inicio</span></div>
+  </button>
+
+  <main id="sections"></main>
+
+  <footer class="foot">
+    <div class="fbrand">AEROAMBULANCIA SILVA</div>
+    <div class="fnote">Sistema SMS de Gestión de Fatiga &amp; IA EVA Virtual</div>
+    <span class="ver" id="verTag">Versión 1.0</span>
+  </footer>
+
+</div>
+
+<!-- Setup overlay -->
+<div class="overlay" id="setup">
+  <div class="sheet">
+    <h2 id="setupTitle">Bienvenido 👋</h2>
+    <p class="lead" id="setupLead">Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.</p>
+    <div class="field" id="fName">
+      <label for="inName">Nombre y apellido</label>
+      <input id="inName" type="text" autocomplete="name" placeholder="Ej: Juan Pérez" maxlength="60">
+      <div class="err">Por favor ingresá tu nombre y apellido.</div>
+    </div>
+    <div class="field" id="fEmp">
+      <label for="inEmp">Empresa</label>
+      <input id="inEmp" type="text" autocomplete="organization" placeholder="Ej: Aerolíneas del Sur" maxlength="60">
+      <div class="err">Por favor ingresá tu empresa.</div>
+    </div>
+    <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;">Cancelar</button>
+    <p class="privacy">🔒 Tus datos no se envían a ningún servidor. Se guardan solo en tu teléfono.</p>
+  </div>
+</div>
+
+<!-- iOS install modal -->
+<div class="ios-modal" id="iosModal">
+  <div class="ios-card">
+    <button class="x" onclick="hide('iosModal')">✕</button>
+    <h3>Instalar en iPhone</h3>
+    <p>Para agregar esta app a tu pantalla de inicio:</p>
+    <ol>
+      <li>Tocá el botón <strong>Compartir</strong>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        en la barra de Safari.</li>
+      <li>Deslizá y elegí <strong>"Agregar a inicio"</strong>
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg"></span></div>
+
+<script>
+/* ════════════════ CONFIG ════════════════ */
+const APP_VERSION = '1.0';                 // ← Subí este número en cada actualización
+const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
+
+// Iconos SVG reutilizables
+const I = {
+  homeOut:  '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/><path d="M16 6h5M18.5 3.5 21 6l-2.5 2.5"/>',
+  planeIn:  '<path d="M2 22h20"/><path d="M3.5 16.5 21 11l-1-3-5 1-6-6-2 .6 3.5 5.4-4 1.2-2-1.5-1.5.5z"/>',
+  planeOut: '<path d="M2 22h20"/><path d="M22 11 4 16l1-3 5-1 4-7 2 .5-2 6.5 4-1 1.5-2 1.5.5z"/>',
+  homeIn:   '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  moon:     '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  bed:      '<path d="M2 18v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5"/><path d="M2 18h20"/><path d="M6 11V8a2 2 0 0 1 2-2h3v5"/><path d="M22 11V8"/>',
+  battery:  '<rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/>',
+  bolt:     '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  brain:    '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 17.5a2.5 2.5 0 0 1-.95-4.81A2.5 2.5 0 0 1 4 8a2.5 2.5 0 0 1 2.96-3.44A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 17.5a2.5 2.5 0 0 0 .95-4.81A2.5 2.5 0 0 0 20 8a2.5 2.5 0 0 0-2.96-3.44A2.5 2.5 0 0 0 14.5 2z"/>',
+  dizzy:    '<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><path d="m7.5 8 3 3M10.5 8l-3 3M13.5 8l3 3M16.5 8l-3 3"/>'
+};
+
+/* ════════════════ SECCIONES ════════════════ */
+const SECTIONS = [
+  {
+    id:'operacional', title:'Data Operacional', sub:'Notificar evento por chat de WhatsApp', layout:'stack',
+    items:[
+      {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado al aeropuerto', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo'},
+      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Arribo para iniciar el turno',     icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *llegando al aeropuerto* para iniciar mi turno de vuelo'},
+      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno operativo',       icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *saliendo del aeropuerto* tras finalizar mi turno de vuelo'},
+      {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',               icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *llegando a casa* tras finalizar mi turno de vuelo'}
+    ]
+  },
+  {
+    id:'descanso', title:'Medición de Descanso', sub:'Test KSS y SLL vía WhatsApp', layout:'stack',
+    items:[
+      {id:'desc_lleg_aero', label:'Llegando al aeropuerto', desc:'Iniciar test KSS y SLL', icon:I.moon, ic:'#e7eefb', icc:'#2d6cdf', kind:'test', verb:'estoy *llegando al aeropuerto*'},
+      {id:'desc_lleg_casa', label:'Llegando a casa',        desc:'Iniciar test KSS y SLL', icon:I.bed,  ic:'#e7eefb', icc:'#2d6cdf', kind:'test', verb:'estoy *llegando a casa*'}
+    ]
+  },
+  {
+    id:'sensaciones', title:'Sensaciones Personales', sub:'Reportá tu condición actual de turno', layout:'grid',
+    items:[
+      {id:'sen_cansancio', label:'Cansancio', desc:'Agotamiento físico',     icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', kind:'feel', feel:'Cansancio / Fatiga'},
+      {id:'sen_estres',    label:'Estrés',    desc:'Sobrecarga operativa',    icon:I.bolt,    ic:'#feecec', icc:'#e0322f', kind:'feel', feel:'Estrés / Sobrecarga Operativa'},
+      {id:'sen_ansiedad',  label:'Ansiedad',  desc:'Falta de foco / presión', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', kind:'feel', feel:'Ansiedad / Falta de Foco'},
+      {id:'sen_malestar',  label:'Malestar',  desc:'Indisposición física',    icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', kind:'feel', feel:'Malestar / Indisposición Física'}
+    ]
+  }
+];
+
+/* ════════════════ STORAGE ════════════════ */
+const K_PROFILE = 'silva_fatiga_profile_v1';
+const K_REPORTS = 'silva_fatiga_reports_v1';
+
+function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
+function setProfile(p){ localStorage.setItem(K_PROFILE, JSON.stringify(p)); }
+
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function getReports(){
+  let r; try { r = JSON.parse(localStorage.getItem(K_REPORTS)) || {}; } catch(e){ r = {}; }
+  const t = todayStr(); let changed = false;
+  for (const id in r){ if (r[id].date !== t){ delete r[id]; changed = true; } }   // reset diario
+  if (changed) localStorage.setItem(K_REPORTS, JSON.stringify(r));
+  return r;
+}
+function saveReports(r){ localStorage.setItem(K_REPORTS, JSON.stringify(r)); }
+
+/* ════════════════ MENSAJES ════════════════ */
+function buildMessage(item){
+  const p = getProfile() || {nombre:'', empresa:''};
+  const base = `Hola EVA, me encuentro reportando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}. `;
+  if (item.kind === 'feel')
+    return base + `Registro una sensación personal de *${item.feel}* durante mi turno actual de vuelo. Por favor, asísteme e inicia el test de seguridad correspondiente de inmediato.`;
+  if (item.kind === 'test')
+    return base + `Notifico que ${item.verb}. Por favor, asísteme e inicia el *Test de Medición de Descanso (KSS y SLL)* correspondiente de inmediato.`;
+  return base + `Notifico que ${item.verb}.`;
+}
+function waUrl(item){
+  return `https://api.whatsapp.com/send/?phone=${EVA_PHONE}&text=${encodeURIComponent(buildMessage(item))}&type=phone_number&app_absent=0`;
+}
+
+/* ════════════════ RENDER ════════════════ */
+const checkSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+const chevSVG  = '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+const undoSVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>';
+
+function renderSections(){
+  const root = document.getElementById('sections');
+  root.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const s = document.createElement('section');
+    s.className = 'section';
+    s.innerHTML = `<div class="sec-head"><div class="sec-title"><span class="dot"></span>${sec.title}</div><div class="sec-sub">${sec.sub}</div></div>`;
+    const cont = document.createElement('div');
+    cont.className = sec.layout === 'grid' ? 'grid2' : 'stack';
+    sec.items.forEach(it => cont.appendChild(buildItem(it, sec.layout)));
+    s.appendChild(cont);
+    root.appendChild(s);
+  });
+  refreshStates();
+}
+
+function buildItem(it, layout){
+  const wrap = document.createElement('div');
+  wrap.className = 'item';
+  wrap.dataset.id = it.id;
+
+  const a = document.createElement('a');
+  a.className = layout === 'grid' ? 'tile' : 'rbtn';
+  a.href = waUrl(it);
+  a.target = '_blank';
+  a.rel = 'noopener';
+
+  const iconHtml = `<div class="ic" style="background:${it.ic};color:${it.icc}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${it.icon}</svg></div>`;
+  const badge = `<span class="badge" data-badge>${checkSVG}<span data-time></span></span>`;
+
+  if (layout === 'grid'){
+    a.innerHTML = `${iconHtml}<div class="tt">${it.label}</div><div class="ds">${it.desc}</div>${badge}`;
+  } else {
+    a.innerHTML = `${iconHtml}<div class="tx"><span class="tt">${it.label}</span><span class="ds">${it.desc}</span></div><div class="st">${badge}${chevSVG}</div>`;
+  }
+
+  a.addEventListener('click', () => mark(it.id));   // navega (abre WhatsApp) y marca
+
+  const undo = document.createElement('button');
+  undo.className = 'undo';
+  undo.innerHTML = `${undoSVG}Marcar como no enviado`;
+  undo.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); unmark(it.id); });
+
+  wrap.appendChild(a);
+  wrap.appendChild(undo);
+  return wrap;
+}
+
+function mark(id){
+  const r = getReports();
+  const d = new Date();
+  const time = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  r[id] = { date: todayStr(), time, ts: d.getTime() };
+  saveReports(r);
+  setTimeout(refreshStates, 60);           // tras abrir WhatsApp
+  showToast('Reporte registrado · ' + time);
+}
+function unmark(id){
+  const r = getReports();
+  delete r[id];
+  saveReports(r);
+  refreshStates();
+}
+
+function refreshStates(){
+  const r = getReports();
+  document.querySelectorAll('.item').forEach(el => {
+    const id = el.dataset.id;
+    const rep = r[id];
+    if (rep){
+      el.classList.add('done');
+      const t = el.querySelector('[data-time]');
+      if (t) t.textContent = rep.time;
+    } else {
+      el.classList.remove('done');
+    }
+  });
+}
+
+/* ════════════════ PERFIL / SETUP ════════════════ */
+function paintProfile(){
+  const p = getProfile();
+  if (!p) return;
+  document.getElementById('pcName').textContent = p.nombre;
+  document.getElementById('pcEmp').textContent  = p.empresa;
+  const initials = p.nombre.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('pcAvatar').textContent = initials || '–';
+}
+
+let editing = false;
+function openSetup(isEdit){
+  editing = !!isEdit;
+  const p = getProfile() || {nombre:'',empresa:''};
+  document.getElementById('inName').value = p.nombre;
+  document.getElementById('inEmp').value  = p.empresa;
+  document.getElementById('setupTitle').textContent = isEdit ? 'Editar mis datos' : 'Bienvenido 👋';
+  document.getElementById('setupLead').textContent = isEdit
+    ? 'Actualizá tu nombre o empresa. Se aplicará a tus próximos reportes.'
+    : 'Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
+  document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
+  document.getElementById('fName').classList.remove('invalid');
+  document.getElementById('fEmp').classList.remove('invalid');
+  document.getElementById('setup').classList.add('show');
+}
+function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
+
+function saveProfile(){
+  const nombre = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
+  const empresa = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
+  let ok = true;
+  document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
+  document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
+  if (!ok) return;
+  setProfile({ nombre, empresa });
+  paintProfile();
+  renderSections();           // re-genera hrefs con datos nuevos
+  closeSetup();
+  showToast(editing ? 'Datos actualizados' : '¡Listo! Ya podés reportar');
+}
+
+/* ════════════════ TOAST ════════════════ */
+let toastT;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+
+/* ════════════════ INSTALL (PWA) ════════════════ */
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+const isMobile = window.innerWidth <= 820;
+
+if (isIOS && !isStandalone && isMobile) installBtn.style.display = 'flex';
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); deferredPrompt = e;
+  if (!isStandalone) installBtn.style.display = 'flex';
+});
+installBtn.addEventListener('click', async () => {
+  if (isIOS) { document.getElementById('iosModal').classList.add('show'); return; }
+  if (deferredPrompt){
+    deferredPrompt.prompt();
+    const res = await deferredPrompt.userChoice;
+    if (res.outcome === 'accepted') installBtn.style.display = 'none';
+    deferredPrompt = null;
+  }
+});
+window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; deferredPrompt = null; });
+document.getElementById('iosModal').addEventListener('click', (e)=>{ if(e.target.id==='iosModal') hide('iosModal'); });
+
+/* ════════════════ INIT ════════════════ */
+document.getElementById('verTag').textContent = 'Versión ' + APP_VERSION;
+document.getElementById('app').style.display = 'block';
+
+if (getProfile()){
+  paintProfile();
+  renderSections();
+} else {
+  renderSections();
+  openSetup(false);
+}
+
+// Si la app estuvo abierta y cambió el día, resetea al volver al foco
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshStates(); });
+
+/* ════════════════ SERVICE WORKER (auto-update sin cache vieja) ════════════════ */
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.update();
+      setInterval(() => reg.update(), 60 * 60 * 1000);  // chequea cada hora
+    }).catch(()=>{});
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return; refreshing = true; window.location.reload();
+    });
+  });
+}
+</script>
+</body>
+</html>
