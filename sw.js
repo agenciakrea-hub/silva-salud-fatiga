@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -12,9 +12,7 @@ const ASSETS = [
   './manifest.json',
   './logo.png',
   './icon-192.png',
-  './icon-512.png',
-  './icon-maskable-512.png',
-  './apple-touch-icon.png'
+  './icon-512.png'
 ];
 
 // Instala y activa de inmediato la nueva versión
