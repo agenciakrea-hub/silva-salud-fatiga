@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v10';
+const VERSION = 'v12';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -11,8 +11,8 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './logo.png',
-  './icon-192.png',
-  './icon-512.png'
+  './ic192v2.png',
+  './ic512v2.png'
 ];
 
 // Instala y activa de inmediato la nueva versión

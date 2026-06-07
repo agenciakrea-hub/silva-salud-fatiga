@@ -7,9 +7,9 @@
 
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
 
-<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="ic192v2.png">
+<link rel="icon" type="image/png" sizes="192x192" href="ic192v2.png">
+<link rel="icon" type="image/png" sizes="512x512" href="ic512v2.png">
 <link rel="manifest" href="manifest.json">
 
 <meta name="theme-color" content="#0a1f40">
@@ -167,7 +167,10 @@
     display: none; align-items: center; justify-content: center; padding: 1.2rem; animation: fadeIn .25s ease; }
   .overlay.show { display: flex; }
   .sheet { width: 100%; max-width: 410px; background: var(--card); border-radius: 24px; padding: 1.6rem 1.4rem 1.5rem;
-    color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; }
+    color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; max-height: 90vh; overflow-y: auto; }
+  .consent-sub { font-size: 0.98rem; font-weight: 700; color: var(--text); margin-top: 1.2rem; }
+  .consent-text { font-size: 0.81rem; color: var(--text-soft); line-height: 1.55; margin-top: 0.55rem; }
+  .consent-text strong { color: var(--text); }
   .sheet h2 { font-size: 1.22rem; font-weight: 700; letter-spacing: -0.01em; }
   .sheet .lead { font-size: 0.83rem; color: var(--text-soft); margin-top: 0.35rem; line-height: 1.5; }
   .field { margin-top: 1.1rem; }
@@ -253,6 +256,20 @@
 
 </div>
 
+<!-- Consentimiento (primera vez) -->
+<div class="overlay" id="consent">
+  <div class="sheet">
+    <h2>Consentimiento para Evaluación de Bienestar y Fatiga</h2>
+    <p class="lead">Al participar en este estudio, usted autoriza el tratamiento y análisis de sus datos personales relacionados con las evaluaciones de salud, fatiga, sueño y estrés (conforme a los estándares del programa FRMS).</p>
+    <h3 class="consent-sub">Su privacidad es nuestra prioridad</h3>
+    <p class="consent-text"><strong>Confidencialidad:</strong> Toda la información recolectada será tratada de forma estrictamente confidencial.</p>
+    <p class="consent-text"><strong>Uso:</strong> Los datos se utilizarán exclusivamente con fines de gestión de riesgos, prevención de fatiga y mejora de su bienestar ocupacional.</p>
+    <p class="consent-text"><strong>Voluntariedad:</strong> Su participación es voluntaria y puede retirar su consentimiento en cualquier momento sin penalización.</p>
+    <p class="consent-text">Al hacer clic en el botón "Aceptar", usted confirma que ha leído esta información, comprende el propósito de la recolección de datos y otorga su consentimiento expreso para participar en estas pruebas.</p>
+    <button class="save-btn" onclick="acceptConsent()">Aceptar y continuar</button>
+  </div>
+</div>
+
 <!-- Setup overlay -->
 <div class="overlay" id="setup">
   <div class="sheet">
@@ -263,10 +280,25 @@
       <input id="inName" type="text" autocomplete="name" placeholder="Ej: Juan Pérez" maxlength="60">
       <div class="err">Por favor ingresá tu nombre y apellido.</div>
     </div>
+    <div class="field" id="fCed">
+      <label for="inCed">Número de cédula</label>
+      <input id="inCed" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12.345.678" maxlength="20">
+      <div class="err">Por favor ingresá tu número de cédula.</div>
+    </div>
     <div class="field" id="fEmp">
       <label for="inEmp">Empresa</label>
       <input id="inEmp" type="text" autocomplete="organization" placeholder="Ej: Aerolíneas del Sur" maxlength="60">
       <div class="err">Por favor ingresá tu empresa.</div>
+    </div>
+    <div class="field" id="fDep">
+      <label for="inDep">Departamento</label>
+      <input id="inDep" type="text" autocomplete="off" placeholder="Ej: Operaciones de Vuelo" maxlength="60">
+      <div class="err">Por favor ingresá tu departamento.</div>
+    </div>
+    <div class="field" id="fCargo">
+      <label for="inCargo">Cargo</label>
+      <input id="inCargo" type="text" autocomplete="organization-title" placeholder="Ej: Piloto" maxlength="60">
+      <div class="err">Por favor ingresá tu cargo.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;">Cancelar</button>
@@ -308,7 +340,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '1.9';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.1';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 
 // Iconos SVG reutilizables
@@ -330,26 +362,26 @@ const SECTIONS = [
   {
     id:'operacional', title:'Data Operacional', sub:'Notificar evento por chat de WhatsApp', layout:'grid',
     items:[
-      {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo'},
-      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Inicio de turno',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *llegando al aeropuerto* para iniciar mi turno de vuelo'},
-      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno',   icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *saliendo del aeropuerto* tras finalizar mi turno de vuelo'},
-      {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', kind:'op', verb:'estoy *llegando a casa* tras finalizar mi turno de vuelo'}
+      {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.'},
+      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Inicio de turno',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto* para iniciar mi turno de vuelo.'},
+      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno',   icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo del aeropuerto* tras finalizar mi turno de vuelo.'},
+      {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.'}
     ]
   },
   {
-    id:'descanso', title:'Medición de Descanso', sub:'Test KSS y SLL vía WhatsApp', layout:'grid',
+    id:'descanso', title:'Medición de Descanso', sub:'Test KSS y Perelli SP vía WhatsApp', layout:'grid',
     items:[
-      {id:'desc_lleg_aero', label:'Llegando al aeropuerto', desc:'Iniciar test KSS y SLL', icon:I.moon, ic:'#e7eefb', icc:'#2d6cdf', kind:'test', verb:'estoy *llegando al aeropuerto*'},
-      {id:'desc_lleg_casa', label:'Llegando a casa',        desc:'Iniciar test KSS y SLL', icon:I.bed,  ic:'#e7eefb', icc:'#2d6cdf', kind:'test', verb:'estoy *llegando a casa*'}
+      {id:'desc_lleg_aero', label:'Llegando al aeropuerto', desc:'Iniciar Test Escala KSS', icon:I.moon, ic:'#e7eefb', icc:'#2d6cdf', msg:'Notifico que estoy *llegando al aeropuerto*. Por favor, asísteme e inicia el *Test de Escala KSS* correspondiente de inmediato.'},
+      {id:'desc_lleg_casa', label:'Llegando a casa',        desc:'Iniciar Test Perelli SP', icon:I.bed,  ic:'#e7eefb', icc:'#2d6cdf', msg:'Notifico que *terminé mi turno*. Por favor, asísteme e inicia el *Test (Perelli SP)* correspondiente de inmediato.'}
     ]
   },
   {
     id:'sensaciones', title:'Sensaciones Personales', sub:'Reportá tu condición actual de turno', layout:'grid',
     items:[
-      {id:'sen_cansancio', label:'Cansancio', desc:'Agotamiento físico',     icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', kind:'feel', feel:'Cansancio / Fatiga'},
-      {id:'sen_estres',    label:'Estrés',    desc:'Sobrecarga operativa',    icon:I.bolt,    ic:'#feecec', icc:'#e0322f', kind:'feel', feel:'Estrés / Sobrecarga Operativa'},
-      {id:'sen_ansiedad',  label:'Ansiedad',  desc:'Falta de foco / presión', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', kind:'feel', feel:'Ansiedad / Falta de Foco'},
-      {id:'sen_malestar',  label:'Malestar',  desc:'Indisposición física',    icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', kind:'feel', feel:'Malestar / Indisposición Física'}
+      {id:'sen_cansancio', label:'Cansancio', desc:'Agotamiento físico',     icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
+      {id:'sen_estres',    label:'Estrés',    desc:'Sobrecarga operativa',    icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
+      {id:'sen_ansiedad',  label:'Ansiedad',  desc:'Falta de foco / presión', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
+      {id:'sen_malestar',  label:'Malestar',  desc:'Indisposición física',    icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'}
     ]
   }
 ];
@@ -357,6 +389,10 @@ const SECTIONS = [
 /* ════════════════ STORAGE ════════════════ */
 const K_PROFILE = 'silva_fatiga_profile_v1';
 const K_REPORTS = 'silva_fatiga_reports_v1';
+const K_CONSENT = 'silva_fatiga_consent_v1';
+
+function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
+function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
 
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
 function setProfile(p){ localStorage.setItem(K_PROFILE, JSON.stringify(p)); }
@@ -374,13 +410,9 @@ function saveReports(r){ localStorage.setItem(K_REPORTS, JSON.stringify(r)); }
 
 /* ════════════════ MENSAJES ════════════════ */
 function buildMessage(item){
-  const p = getProfile() || {nombre:'', empresa:''};
-  const base = `Hola EVA, me encuentro reportando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}. `;
-  if (item.kind === 'feel')
-    return base + `Registro una sensación personal de *${item.feel}* durante mi turno actual.`;
-  if (item.kind === 'test')
-    return base + `Notifico que ${item.verb}. Por favor, asísteme e inicia el *Test de Medición de Descanso (KSS y SLL)* correspondiente de inmediato.`;
-  return base + `Notifico que ${item.verb}.`;
+  const p = getProfile() || {nombre:'', empresa:'', cedula:'', departamento:'', cargo:''};
+  const base = `Hola EVA, me encuentro reportando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}, ${p.cedula}, ${p.departamento}, y ${p.cargo}. `;
+  return base + item.msg;
 }
 function waUrl(item){
   return `https://api.whatsapp.com/send/?phone=${EVA_PHONE}&text=${encodeURIComponent(buildMessage(item))}&type=phone_number&app_absent=0`;
@@ -476,7 +508,7 @@ function paintProfile(){
   const p = getProfile();
   if (!p) return;
   document.getElementById('pcName').textContent = p.nombre;
-  document.getElementById('pcEmp').textContent  = p.empresa;
+  document.getElementById('pcEmp').textContent  = [p.empresa, p.cargo].filter(Boolean).join(' · ');
   const initials = p.nombre.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('pcAvatar').textContent = initials || '–';
 }
@@ -484,28 +516,36 @@ function paintProfile(){
 let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
-  const p = getProfile() || {nombre:'',empresa:''};
-  document.getElementById('inName').value = p.nombre;
-  document.getElementById('inEmp').value  = p.empresa;
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',departamento:'',cargo:''};
+  document.getElementById('inName').value  = p.nombre;
+  document.getElementById('inCed').value   = p.cedula || '';
+  document.getElementById('inEmp').value   = p.empresa;
+  document.getElementById('inDep').value   = p.departamento || '';
+  document.getElementById('inCargo').value = p.cargo || '';
   document.getElementById('setupTitle').textContent = isEdit ? 'Editar mis datos' : 'Bienvenido 👋';
   document.getElementById('setupLead').textContent = isEdit
-    ? 'Actualizá tu nombre o empresa. Se aplicará a tus próximos reportes.'
+    ? 'Actualizá tus datos. Se aplicarán a tus próximos reportes.'
     : 'Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
-  document.getElementById('fName').classList.remove('invalid');
-  document.getElementById('fEmp').classList.remove('invalid');
+  ['fName','fCed','fEmp','fDep','fCargo'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   document.getElementById('setup').classList.add('show');
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
 
 function saveProfile(){
   const nombre = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
+  const cedula = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
   const empresa = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
+  const departamento = document.getElementById('inDep').value.trim().replace(/\s+/g,' ');
+  const cargo = document.getElementById('inCargo').value.trim().replace(/\s+/g,' ');
   let ok = true;
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
+  document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
+  document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
+  document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
   if (!ok) return;
-  setProfile({ nombre, empresa });
+  setProfile({ nombre, cedula, empresa, departamento, cargo });
   paintProfile();
   renderSections();           // re-genera hrefs con datos nuevos
   closeSetup();
@@ -567,7 +607,8 @@ if (getProfile()){
   renderSections();
 } else {
   renderSections();
-  openSetup(false);
+  if (hasConsent()) openSetup(false);
+  else document.getElementById('consent').classList.add('show');
 }
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
