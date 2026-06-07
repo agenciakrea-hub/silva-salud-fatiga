@@ -340,7 +340,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.1';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.2';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 
 // Iconos SVG reutilizables
@@ -602,13 +602,17 @@ window.addEventListener('appinstalled', () => { installBtn.style.display = 'none
 document.getElementById('verTag').textContent = 'Versión ' + APP_VERSION;
 document.getElementById('app').style.display = 'block';
 
-if (getProfile()){
-  paintProfile();
-  renderSections();
-} else {
-  renderSections();
-  if (hasConsent()) openSetup(false);
-  else document.getElementById('consent').classList.add('show');
+const _prof = getProfile();
+renderSections();
+if (_prof) paintProfile();
+
+// Perfil completo = tiene todos los datos nuevos (cédula, depto, cargo)
+const _complete = _prof && _prof.nombre && _prof.cedula && _prof.empresa && _prof.departamento && _prof.cargo;
+
+// Forzar consentimiento + carga de datos a quien no esté completo (incluye usuarios viejos)
+if (!_complete){
+  if (!hasConsent()) document.getElementById('consent').classList.add('show');
+  else openSetup(false);
 }
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
