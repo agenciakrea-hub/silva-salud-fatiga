@@ -67,7 +67,7 @@ function saveReports(r){ localStorage.setItem(K_REPORTS, JSON.stringify(r)); }
 /* ════════════════ MENSAJES ════════════════ */
 function buildMessage(item){
   const p = getProfile() || {nombre:'', empresa:''};
-  const base = `Hola EVA, me encuentro reportando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}. `;
+  const base = `Hola EVA, me encuentro notificando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}. `;
   if (item.kind === 'feel')
     return base + `Registro una sensación personal de *${item.feel}* durante mi turno actual de vuelo. Por favor, asísteme e inicia el test de seguridad correspondiente de inmediato.`;
   if (item.kind === 'test')
