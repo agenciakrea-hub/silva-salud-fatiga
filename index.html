@@ -97,13 +97,11 @@
   .stack { display: flex; flex-direction: column; gap: 0.6rem; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; grid-auto-rows: 1fr; }
   .grid2 .item { display: flex; flex-direction: column; }
-  .grid2 .item.undo-top { flex-direction: column-reverse; }
-  .grid2 .item.undo-top .undo { margin: 0.1rem 0.3rem 0.45rem auto; }
   .grid2 .tile { flex: 1; width: 100%; }
 
   /* ── Report buttons (row) ── */
   .item { position: relative; }
-  .rbtn { display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 0.85rem 0.95rem;
+  .rbtn { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem; width: 100%; padding: 0.85rem 0.95rem;
     background: var(--card); border: 1.5px solid transparent; border-radius: var(--radius); text-decoration: none;
     color: var(--text); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s; text-align: left; }
   .rbtn:active { transform: scale(0.985); }
@@ -123,11 +121,11 @@
   .item.done .rbtn .chev { display: none; }
   .item.done .badge { display: inline-flex; }
 
-  .undo { display: none; margin: 0.4rem 0.3rem 0.1rem auto; background: none; border: none;
-    color: rgba(255,255,255,0.65); font-family: inherit; font-size: 0.74rem; font-weight: 600; cursor: pointer;
-    padding: 0.2rem 0.4rem; align-items: center; gap: 0.3rem; }
-  .undo:hover { color: #fff; text-decoration: underline; }
-  .undo svg { width: 12px; height: 12px; }
+  .undo { display: none; align-items: center; justify-content: center; position: absolute; top: 0.6rem; right: 0.6rem;
+    width: 26px; height: 26px; border-radius: 50%; padding: 0; margin: 0; background: rgba(26,166,114,0.12);
+    border: none; color: var(--green); cursor: pointer; }
+  .undo:hover { background: rgba(26,166,114,0.22); }
+  .undo svg { width: 13px; height: 13px; flex-shrink: 0; }
   .item.done .undo { display: inline-flex; }
 
   /* ── Sensaciones tiles (grid) ── */
@@ -139,7 +137,6 @@
   .tile .ic svg { width: 21px; height: 21px; }
   .tile .tt { font-size: 0.92rem; font-weight: 700; color: var(--text); }
   .tile .ds { font-size: 0.72rem; color: var(--text-muted); margin-top: -0.25rem; }
-  .tile .badge { position: absolute; top: 0.7rem; right: 0.7rem; }
   .item.done .tile { border-color: var(--green); background: #e7f7ef; }
 
   /* ── Install button ── */
@@ -340,7 +337,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.3';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.4';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 
 // Iconos SVG reutilizables
@@ -354,7 +351,8 @@ const I = {
   battery:  '<rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/>',
   bolt:     '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
   brain:    '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 17.5a2.5 2.5 0 0 1-.95-4.81A2.5 2.5 0 0 1 4 8a2.5 2.5 0 0 1 2.96-3.44A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 17.5a2.5 2.5 0 0 0 .95-4.81A2.5 2.5 0 0 0 20 8a2.5 2.5 0 0 0-2.96-3.44A2.5 2.5 0 0 0 14.5 2z"/>',
-  dizzy:    '<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><path d="m7.5 8 3 3M10.5 8l-3 3M13.5 8l3 3M16.5 8l-3 3"/>'
+  dizzy:    '<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><path d="m7.5 8 3 3M10.5 8l-3 3M13.5 8l3 3M16.5 8l-3 3"/>',
+  sad:      '<circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/>'
 };
 
 /* ════════════════ SECCIONES ════════════════ */
@@ -363,25 +361,21 @@ const SECTIONS = [
     id:'operacional', title:'Data Operacional', sub:'Notificar evento por chat de WhatsApp', layout:'grid',
     items:[
       {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.'},
-      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Inicio de turno',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto* para iniciar mi turno de vuelo.'},
-      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno',   icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo del aeropuerto* tras finalizar mi turno de vuelo.'},
+      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Inicio de turno',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto*. Por favor, asísteme e inicia el *Test de Escala KSS* correspondiente de inmediato.'},
+      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno',   icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que *terminé mi turno*. Por favor, asísteme e inicia el *Test (Perelli SP)* correspondiente de inmediato.'},
       {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.'}
-    ]
-  },
-  {
-    id:'descanso', title:'Medición de Descanso', sub:'Test KSS y Perelli SP vía WhatsApp', layout:'grid',
-    items:[
-      {id:'desc_lleg_aero', label:'Llegando al aeropuerto', desc:'Iniciar Test Escala KSS', icon:I.moon, ic:'#e7eefb', icc:'#2d6cdf', msg:'Notifico que estoy *llegando al aeropuerto*. Por favor, asísteme e inicia el *Test de Escala KSS* correspondiente de inmediato.'},
-      {id:'desc_lleg_casa', label:'Llegando a casa',        desc:'Iniciar Test Perelli SP', icon:I.bed,  ic:'#e7eefb', icc:'#2d6cdf', msg:'Notifico que *terminé mi turno*. Por favor, asísteme e inicia el *Test (Perelli SP)* correspondiente de inmediato.'}
     ]
   },
   {
     id:'sensaciones', title:'Sensaciones Personales', sub:'Reportá tu condición actual de turno', layout:'grid',
     items:[
-      {id:'sen_cansancio', label:'Cansancio', desc:'Agotamiento físico',     icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
-      {id:'sen_estres',    label:'Estrés',    desc:'Sobrecarga operativa',    icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
-      {id:'sen_ansiedad',  label:'Ansiedad',  desc:'Falta de foco / presión', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
-      {id:'sen_malestar',  label:'Malestar',  desc:'Indisposición física',    icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'}
+      {id:'sen_cansancio',   label:'Cansancio',     desc:'Agotamiento físico',      icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
+      {id:'sen_estres',      label:'Estrés',        desc:'Sobrecarga operativa',     icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
+      {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
+      {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
+      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.'},
+      {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.'},
+      {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.'}
     ]
   }
 ];
@@ -443,7 +437,6 @@ function buildItem(it, layout, i){
   const wrap = document.createElement('div');
   wrap.className = 'item';
   wrap.dataset.id = it.id;
-  if (layout === 'grid' && i < 2) wrap.classList.add('undo-top');  // fila superior: deshacer arriba
 
   const a = document.createElement('a');
   a.className = layout === 'grid' ? 'tile' : 'rbtn';
@@ -464,11 +457,13 @@ function buildItem(it, layout, i){
 
   const undo = document.createElement('button');
   undo.className = 'undo';
-  undo.innerHTML = `${undoSVG}Marcar como no enviado`;
+  undo.innerHTML = undoSVG;
+  undo.title = 'Marcar como no enviado';
+  undo.setAttribute('aria-label', 'Marcar como no enviado');
   undo.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); unmark(it.id); });
 
+  a.appendChild(undo);   // queda dentro de la tarjeta blanca, no afuera
   wrap.appendChild(a);
-  wrap.appendChild(undo);
   return wrap;
 }
 
