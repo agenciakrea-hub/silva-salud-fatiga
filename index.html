@@ -67,7 +67,7 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12); padding: 14px; }
   .logo-box img { width: 100%; height: 100%; object-fit: contain; }
   .hero h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
-  .hero .sub { font-style: italic; font-weight: 700; font-size: 1.02rem;
+  .hero .sub { font-weight: 700; font-size: 1.02rem;
     color: var(--orange); margin-top: 0.1rem; letter-spacing: -0.01em; }
   .hero p { font-size: 0.82rem; color: rgba(255,255,255,0.62); line-height: 1.55; max-width: 330px; margin: 0.7rem auto 0; }
 
@@ -86,7 +86,8 @@
   .pc-edit:hover { background: rgba(255,255,255,0.18); }
   .pc-edit svg { width: 13px; height: 13px; }
 
-  .portal-name { font-size: 1.4rem; font-weight: 800; font-style: italic; color: var(--orange); margin: 0 0.3rem 1.2rem; letter-spacing: -0.01em; }
+  .portal-name { font-size: 1.4rem; font-weight: 800; color: var(--orange); margin: 0 0.3rem 1.2rem; letter-spacing: -0.01em;
+    animation: fadeUp .4s ease .07s both; }
 
   /* ── Section ── */
   .section { margin-bottom: 1.7rem; animation: fadeUp .4s ease .1s both; }
@@ -193,6 +194,21 @@
     font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
   .privacy { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 1rem; line-height: 1.5; }
 
+  /* ── Test interactivo (prueba) ── */
+  #testOverlay .sheet { min-height: 600px; display: flex; flex-direction: column; }
+  .test-progress { width: 100%; height: 6px; background: #eef1f5; border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
+  .test-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--orange), var(--orange-2)); border-radius: 999px; transition: width .3s ease; }
+  .test-count { font-size: 0.74rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+  #testQuestion { min-height: 4.6rem; display: flex; align-items: center; }
+  .test-options { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.2rem; margin-bottom: 0.6rem; flex: 1; }
+  .test-opt { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.75rem 0.9rem; border: 1.5px solid #eef1f5;
+    border-radius: 13px; background: #fafbfd; cursor: pointer; font-family: inherit; text-align: left; transition: transform .1s ease, border-color .15s; }
+  .test-opt:active { transform: scale(0.98); border-color: var(--orange); }
+  .test-opt .dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+  .test-opt .lbl { font-size: 0.86rem; font-weight: 600; color: var(--text); }
+  .wa-send-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .wa-send-btn svg { width: 18px; height: 18px; }
+
   /* ── iOS / Android modal ── */
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
     align-items: flex-end; justify-content: center; padding: 1rem; animation: fadeIn .25s ease; }
@@ -233,7 +249,7 @@
     <p>Gestión de Seguridad Operacional (SMS). Reporta tu estado y EVA registrará tus indicadores automáticamente.</p>
   </header>
 
-  <div class="portal-name" id="portalName">Portal de Fatiga</div>
+  <div class="portal-name" id="portalName">Hola</div>
 
   <main id="sections"></main>
 
@@ -376,11 +392,22 @@
   </div>
 </div>
 
+<!-- Test interactivo dentro de la app (prueba — si no convence, se sacan estos 30 líneas y el botón vuelve a abrir WhatsApp directo) -->
+<div class="overlay" id="testOverlay">
+  <div class="sheet">
+    <div class="test-progress"><div class="test-progress-bar" id="testProgressBar"></div></div>
+    <p class="test-count" id="testCount">Pregunta 1 de 15</p>
+    <h2 id="testQuestion">—</h2>
+    <div class="test-options" id="testOptions"></div>
+    <button class="cancel-btn" onclick="cerrarTest()">Cancelar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg"></span></div>
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.5';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.6';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -419,7 +446,7 @@ const SECTIONS = [
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.'},
       {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.'},
-      {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.'}
+      {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'}
     ]
   }
 ];
@@ -496,9 +523,13 @@ function buildItem(it, layout, i){
 
   const a = document.createElement('a');
   a.className = layout === 'grid' ? 'tile' : 'rbtn';
-  a.href = waUrl(it);
-  a.target = '_blank';
-  a.rel = 'noopener';
+  if (it.testFlow){
+    a.href = 'javascript:void(0)';
+  } else {
+    a.href = waUrl(it);
+    a.target = '_blank';
+    a.rel = 'noopener';
+  }
 
   const iconHtml = `<div class="ic" style="background:${it.ic};color:${it.icc}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${it.icon}</svg></div>`;
   const badge = `<span class="badge" data-badge>${checkSVG}Hecho · <span data-time></span></span>`;
@@ -509,7 +540,10 @@ function buildItem(it, layout, i){
     a.innerHTML = `${iconHtml}<div class="tx"><span class="tt">${it.label}</span><span class="ds">${it.desc}</span></div><div class="st">${badge}${chevSVG}</div>`;
   }
 
-  a.addEventListener('click', () => mark(it.id));   // navega (abre WhatsApp) y marca
+  a.addEventListener('click', (e) => {
+    if (it.testFlow){ e.preventDefault(); abrirTest(it); return; }   // abre el cuestionario en la app, en vez de ir directo a WhatsApp
+    mark(it.id);
+  });
 
   const wa = document.createElement('span');
   wa.className = 'wa-flag';
@@ -545,6 +579,69 @@ function unmark(id){
   refreshStates();
 }
 
+/* ════════════════ TEST INTERACTIVO (PRUEBA) ════════════════ */
+const TEST_DEPRESION = [
+  'Estado de ánimo bajo (tristeza, desánimo, sensación de inutilidad)',
+  'Sensación de culpa',
+  'Pensamientos sobre la muerte o sobre hacerte daño',
+  'Insomnio o problemas para dormir',
+  'En tu trabajo y actividades: fatiga, debilidad o pérdida de interés en lo que hacés',
+  'Lentitud para pensar o hablar, dificultad para concentrarte, menor actividad',
+  'Agitación o inquietud',
+  'Tensión interna, irritabilidad o preocupación por pequeñas cosas',
+  'Signos físicos de ansiedad (boca seca, palpitaciones, dolor de cabeza, suspiros, sudoración)',
+  'Molestias gastrointestinales o digestivas',
+  'Molestias físicas generales (pesadez, dolores corporales, falta de energía)',
+  'Cambios en el deseo sexual o alteraciones menstruales',
+  'Preocupación excesiva por tu salud',
+  'Pérdida de peso',
+  'Conciencia de cómo te estás sintiendo'
+];
+const TEST_ESCALA  = ['Nunca','Pocas veces al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+const TEST_COLORES = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
+
+let testItem = null, testIdx = 0, testRespuestas = [];
+
+function abrirTest(it){
+  testItem = it; testIdx = 0; testRespuestas = [];
+  document.getElementById('testOverlay').classList.add('show');
+  renderTestPaso();
+}
+function cerrarTest(){
+  document.getElementById('testOverlay').classList.remove('show');
+  testItem = null;
+}
+function renderTestPaso(){
+  const total = TEST_DEPRESION.length;
+  document.getElementById('testCount').textContent = `Pregunta ${testIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (testIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = TEST_DEPRESION[testIdx];
+  document.getElementById('testOptions').innerHTML = TEST_ESCALA.map((lbl, i) => `
+    <button type="button" class="test-opt" onclick="responderTest(${i})">
+      <span class="dot" style="background:${TEST_COLORES[i]}"></span>
+      <span class="lbl">${lbl}</span>
+    </button>`).join('');
+}
+function responderTest(valor){
+  testRespuestas.push(valor);
+  testIdx++;
+  if (testIdx >= TEST_DEPRESION.length) renderTestFinal();
+  else renderTestPaso();
+}
+function renderTestFinal(){
+  document.getElementById('testCount').textContent = `Completaste las ${TEST_DEPRESION.length} preguntas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus respuestas a EVA por WhatsApp.';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarTest()">${waSVG}Enviar</button>`;
+}
+function finalizarTest(){
+  const resumen = TEST_DEPRESION.map((preg, i) => `${i + 1}. ${preg}: ${testRespuestas[i]}`).join('\n');
+  const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(testItem.id);
+}
+
 function refreshStates(){
   const r = getReports();
   document.querySelectorAll('.item').forEach(el => {
@@ -569,7 +666,7 @@ function paintProfile(){
   const initials = p.nombre.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('pcAvatar').textContent = initials || '–';
   const primerNombre = p.nombre.trim().split(/\s+/)[0];
-  document.getElementById('portalName').textContent = primerNombre ? 'Portal de ' + primerNombre : 'Portal de Fatiga';
+  document.getElementById('portalName').textContent = primerNombre ? 'Hola, ' + primerNombre : 'Hola';
 }
 
 let editing = false;
