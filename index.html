@@ -447,7 +447,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.10';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.11';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -472,8 +472,8 @@ const SECTIONS = [
     id:'operacional', title:'Data Operacional', sub:'Notificar evento por chat de WhatsApp', layout:'grid',
     items:[
       {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.'},
-      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Inicio de turno',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto*. Por favor, asísteme e inicia el *Test de Escala KSS* correspondiente de inmediato.'},
-      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Cierre del turno',   icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que *terminé mi turno*. Por favor, asísteme e inicia el *Test (Perelli SP)* correspondiente de inmediato.'},
+      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Test KSS + notificación',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto*.', testFlow:'kss',     baseNotification:'Notifico que estoy *llegando al aeropuerto*.'},
+      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Test Perelli + notificación', icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que *terminé mi turno*.',                testFlow:'perelli', baseNotification:'Notifico que *terminé mi turno*.'},
       {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.'}
     ]
   },
@@ -484,9 +484,9 @@ const SECTIONS = [
       {id:'sen_estres',      label:'Estrés',        desc:'Sobrecarga operativa',     icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
-      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
-      {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
-      {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'}
+      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
+      {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
+      {id:'sen_depresion',   label:'Depresión',     desc:'Test depresión · luego a WhatsApp',  icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'}
     ]
   }
 ];
@@ -857,7 +857,10 @@ function renderPerelliFinal(){
 }
 function finalizarPerelli(){
   const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad] = perelliState.answers;
-  const msg = `Completé el *Test de Fatiga (Perelli SP)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}`;
+  const testResult = `Completé el *Test de Fatiga (Perelli SP)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}`;
+  const msg = perelliState.item.baseNotification
+    ? `${perelliState.item.baseNotification}\n\n${testResult}`
+    : testResult;
   const itemFinal = { ...perelliState.item, msg };
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
@@ -945,8 +948,11 @@ function renderKssFinal(){
 }
 function finalizarKss(){
   const [fase, nivelAlerta, horasSuenio, tipoOp, comentario] = kssState.answers;
-  let msg = `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de alerta (KSS 1–9):* ${nivelAlerta}\n\n*Horas de sueño (24 h):* ${horasSuenio}\n\n*Tipo de operación:* ${tipoOp}`;
-  if (comentario) msg += `\n\n*Comentario:* ${comentario}`;
+  let testResult = `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de alerta (KSS 1–9):* ${nivelAlerta}\n\n*Horas de sueño (24 h):* ${horasSuenio}\n\n*Tipo de operación:* ${tipoOp}`;
+  if (comentario) testResult += `\n\n*Comentario:* ${comentario}`;
+  const msg = kssState.item.baseNotification
+    ? `${kssState.item.baseNotification}\n\n${testResult}`
+    : testResult;
   const itemFinal = { ...kssState.item, msg };
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
