@@ -209,6 +209,22 @@
   .wa-send-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
   .wa-send-btn svg { width: 18px; height: 18px; }
 
+  /* Multi-choice y rating-grid (Test Perelli SP) */
+  .test-opt.sel { border-color: var(--orange); background: #fff8f3; }
+  .rating-grid { display: flex; flex-direction: column; flex: 1; }
+  .rating-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 0; border-bottom: 1px solid #eef1f5; }
+  .rating-row:last-child { border-bottom: none; }
+  .rating-lbl { font-size: 0.82rem; font-weight: 600; color: var(--text); flex: 1; min-width: 0; }
+  .rating-btns { display: flex; gap: 0.3rem; flex-shrink: 0; }
+  .rate-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #e0e4ec; background: #f5f6f9;
+    font-size: 0.8rem; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all .12s; padding: 0; font-family: inherit; }
+  .rate-btn.on { border-color: var(--orange); background: var(--orange); color: #fff; }
+  .test-next-btn { width: 100%; margin-top: auto; padding: 0.85rem; border: none; border-radius: 13px;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-weight: 700; font-size: 0.92rem;
+    font-family: inherit; cursor: pointer; box-shadow: 0 4px 14px rgba(244,122,31,0.32); transition: transform .12s; }
+  .test-next-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+  .test-next-btn:not(:disabled):active { transform: scale(0.98); }
+
   /* ── iOS / Android modal ── */
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
     align-items: flex-end; justify-content: center; padding: 1rem; animation: fadeIn .25s ease; }
@@ -407,7 +423,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.6';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.7';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -445,7 +461,7 @@ const SECTIONS = [
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.'},
-      {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.'},
+      {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
       {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'}
     ]
   }
@@ -601,15 +617,21 @@ const TEST_ESCALA  = ['Nunca','Pocas veces al año o menos','Una vez al mes o me
 const TEST_COLORES = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
 
 let testItem = null, testIdx = 0, testRespuestas = [];
+let perelliState = null;
 
 function abrirTest(it){
-  testItem = it; testIdx = 0; testRespuestas = [];
   document.getElementById('testOverlay').classList.add('show');
-  renderTestPaso();
+  if (it.testFlow === 'perelli'){
+    perelliState = { item:it, stepIdx:0, answers:[], currentMultiSelected:new Set(), currentGridRatings:{} };
+    renderPerelliStep();
+  } else {
+    testItem = it; testIdx = 0; testRespuestas = [];
+    renderTestPaso();
+  }
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null;
+  testItem = null; perelliState = null;
 }
 function renderTestPaso(){
   const total = TEST_DEPRESION.length;
@@ -640,6 +662,140 @@ function finalizarTest(){
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
   mark(testItem.id);
+}
+
+// ── Fatiga · Perelli SP ───────────────────────────────────────────────────────
+const PERELLI_STEPS = [
+  {
+    type:'single', question:'¿En qué fase del vuelo te encontrás actualmente?',
+    options:['Pre-vuelo','Durante el vuelo (primera mitad)','Durante el vuelo (segunda mitad)','Post-vuelo inmediato','Post-vuelo (+2 horas)']
+  },
+  {
+    type:'single', question:'¿Cómo calificarías tu estado general de fatiga actual?',
+    options:['1 · Completamente alerta, despierto/a','2 · Muy fresco/a, buen nivel de energía','3 · Bien, normal','4 · Un poco fatigado/a, rendimiento levemente afectado','5 · Moderadamente fatigado/a, esfuerzo para mantener la concentración','6 · Extremadamente fatigado/a, funcionamiento comprometido','7 · Completamente exhausto/a, capacidad operacional severamente afectada'],
+    colors:['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f']
+  },
+  {
+    type:'multi', question:'¿Qué síntomas de fatiga experimentás actualmente? Elegí uno o varios.',
+    options:['Dificultad para concentrarte','Pesadez en los párpados','Bostezos frecuentes','Irritabilidad o cambios de humor','Dolores musculares','Visión borrosa o dificultad para enfocar','Lentitud en las reacciones','Ninguno de los anteriores'],
+    noneIdx:7
+  },
+  {
+    type:'rating-grid', question:'¿Cómo afecta tu fatiga a estas funciones? (1 = no la afecta · 5 = severa)',
+    items:['Toma de decisiones','Comunicación','Monitoreo de instrumentos','Coordinación de crew','Manejo de emergencias'],
+    scale:5
+  },
+  {
+    type:'single', question:'¿Cómo fue la calidad de tu sueño en las últimas 24 h?',
+    options:['Excelente (descansado/a al despertar)','Buena (sueño reparador)','Regular (sueño interrumpido o ligero)','Mala (sueño insuficiente o no reparador)','Muy mala (prácticamente sin dormir)'],
+    colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
+  },
+  {
+    type:'multi', question:'¿Qué factores han contribuido más a tu fatiga actual? Elegí uno o varios.',
+    options:['Horario de trabajo irregular','Vuelos nocturnos','Cambios de huso horario','Alta carga de trabajo','Estrés operacional','Factores personales o familiares','Condiciones ambientales (ruido, turbulencia)','Otros']
+  },
+  {
+    type:'single', question:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
+    options:['1 · Óptima, sin limitaciones','2 · Levemente disminuida, casi normal','3 · Moderadamente disminuida, precaución recomendada','4 · Significativamente disminuida, rendimiento comprometido','5 · Muy comprometida'],
+    colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
+  }
+];
+
+function renderPerelliStep(){
+  const { stepIdx } = perelliState;
+  const step = PERELLI_STEPS[stepIdx];
+  const total = PERELLI_STEPS.length;
+  document.getElementById('testCount').textContent = `Pregunta ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  perelliState.currentMultiSelected = new Set();
+  perelliState.currentGridRatings = {};
+  if (step.type === 'single') renderPerelliSingle(step);
+  else if (step.type === 'multi') renderPerelliMulti(step);
+  else if (step.type === 'rating-grid') renderPerelliGrid(step);
+}
+function perelliAdvance(answer){
+  perelliState.answers.push(answer);
+  perelliState.stepIdx++;
+  if (perelliState.stepIdx >= PERELLI_STEPS.length) renderPerelliFinal();
+  else renderPerelliStep();
+}
+function renderPerelliSingle(step){
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
+    const bg = step.colors ? step.colors[i] : '#c9d1df';
+    return `<button type="button" class="test-opt" onclick="perelliPickSingle(${i})"><span class="dot" style="background:${bg}"></span><span class="lbl">${opt}</span></button>`;
+  }).join('');
+}
+function perelliPickSingle(i){
+  perelliAdvance(PERELLI_STEPS[perelliState.stepIdx].options[i]);
+}
+function renderPerelliMulti(step){
+  const noneIdx = step.noneIdx !== undefined ? step.noneIdx : -1;
+  const opts = step.options.map((opt, i) =>
+    `<button type="button" class="test-opt" id="pmopt_${i}" onclick="perelliToggleMulti(${i},${noneIdx})"><span class="dot" style="background:#c9d1df" id="pmdot_${i}"></span><span class="lbl">${opt}</span></button>`
+  ).join('');
+  document.getElementById('testOptions').innerHTML = opts +
+    `<button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceMulti()">Siguiente →</button>`;
+}
+function perelliToggleMulti(idx, noneIdx){
+  const sel = perelliState.currentMultiSelected;
+  const step = PERELLI_STEPS[perelliState.stepIdx];
+  if (idx === noneIdx){ sel.clear(); sel.add(idx); }
+  else { if (sel.has(noneIdx)) sel.delete(noneIdx); sel.has(idx) ? sel.delete(idx) : sel.add(idx); }
+  step.options.forEach((_, i) => {
+    const btn = document.getElementById('pmopt_' + i);
+    const dot = document.getElementById('pmdot_' + i);
+    if (!btn) return;
+    btn.classList.toggle('sel', sel.has(i));
+    if (dot) dot.style.background = sel.has(i) ? 'var(--orange)' : '#c9d1df';
+  });
+  const nb = document.getElementById('perelliNextBtn');
+  if (nb) nb.disabled = sel.size === 0;
+}
+function perelliAdvanceMulti(){
+  const step = PERELLI_STEPS[perelliState.stepIdx];
+  const selected = [...perelliState.currentMultiSelected].map(i => step.options[i]);
+  perelliAdvance(selected.join(', '));
+}
+function renderPerelliGrid(step){
+  const rows = step.items.map((item, i) => {
+    const btns = Array.from({length:step.scale}, (_,v) =>
+      `<button type="button" class="rate-btn" id="pgb_${i}_${v+1}" onclick="perelliRate(${i},${v+1})">${v+1}</button>`
+    ).join('');
+    return `<div class="rating-row"><span class="rating-lbl">${item}</span><div class="rating-btns">${btns}</div></div>`;
+  }).join('');
+  document.getElementById('testOptions').innerHTML =
+    `<div class="rating-grid">${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">Siguiente →</button>`;
+}
+function perelliRate(itemIdx, val){
+  perelliState.currentGridRatings[itemIdx] = val;
+  const step = PERELLI_STEPS[perelliState.stepIdx];
+  for (let v = 1; v <= step.scale; v++){
+    const btn = document.getElementById(`pgb_${itemIdx}_${v}`);
+    if (btn) btn.classList.toggle('on', v === val);
+  }
+  const nb = document.getElementById('perelliNextBtn');
+  if (nb) nb.disabled = !step.items.every((_, i) => perelliState.currentGridRatings[i] !== undefined);
+}
+function perelliAdvanceGrid(){
+  const step = PERELLI_STEPS[perelliState.stepIdx];
+  const summary = step.items.map((item, i) => `${item}: ${perelliState.currentGridRatings[i]}`).join(', ');
+  perelliAdvance(summary);
+}
+function renderPerelliFinal(){
+  document.getElementById('testCount').textContent = `Completaste las ${PERELLI_STEPS.length} preguntas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus resultados a EVA por WhatsApp.';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarPerelli()">${waSVG}Enviar</button>`;
+}
+function finalizarPerelli(){
+  const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad] = perelliState.answers;
+  const msg = `Completé el *Test de Fatiga (Perelli SP)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}`;
+  const itemFinal = { ...perelliState.item, msg };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(perelliState.item.id);
+  perelliState = null;
 }
 
 function refreshStates(){
