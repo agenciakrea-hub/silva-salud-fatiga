@@ -240,6 +240,11 @@
   .otros-input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #e0e4ec; border-radius: 11px;
     font-family: inherit; font-size: 0.86rem; color: var(--text); background: #fafbfd; }
   .otros-input:focus { outline: none; border-color: var(--orange); }
+  /* Comentario opcional (KSS) */
+  .kss-comment { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #e0e4ec; border-radius: 13px;
+    font-family: inherit; font-size: 0.86rem; color: var(--text); background: #fafbfd;
+    resize: none; line-height: 1.5; margin-bottom: 0.6rem; }
+  .kss-comment:focus { outline: none; border-color: var(--orange); }
 
   /* ── iOS / Android modal ── */
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
@@ -442,7 +447,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.8';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.9';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -479,7 +484,7 @@ const SECTIONS = [
       {id:'sen_estres',      label:'Estrés',        desc:'Sobrecarga operativa',     icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
-      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.'},
+      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Iniciar Test Escala KSS',  icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:'Fatiga',        desc:'Iniciar Test Perelli SP',  icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
       {id:'sen_depresion',   label:'Depresión',     desc:'Iniciar Test de Depresión',icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'}
     ]
@@ -637,12 +642,16 @@ const TEST_COLORES = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f
 
 let testItem = null, testIdx = 0, testRespuestas = [];
 let perelliState = null;
+let kssState = null;
 
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
   if (it.testFlow === 'perelli'){
     perelliState = { item:it, stepIdx:0, answers:[], currentMultiSelected:new Set(), currentGridRatings:{} };
     renderPerelliStep();
+  } else if (it.testFlow === 'kss'){
+    kssState = { item:it, stepIdx:0, answers:[] };
+    renderKssStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
     renderTestPaso();
@@ -650,7 +659,7 @@ function abrirTest(it){
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null; perelliState = null;
+  testItem = null; perelliState = null; kssState = null;
 }
 function updateBackBtn(enabled){
   const btn = document.getElementById('testBackBtn');
@@ -659,6 +668,8 @@ function updateBackBtn(enabled){
 function retrocederTest(){
   if (perelliState !== null){
     if (perelliState.stepIdx > 0){ perelliState.stepIdx--; perelliState.answers.pop(); renderPerelliStep(); }
+  } else if (kssState !== null){
+    if (kssState.stepIdx > 0){ kssState.stepIdx--; kssState.answers.pop(); renderKssStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -851,6 +862,94 @@ function finalizarPerelli(){
   window.open(waUrl(itemFinal), '_blank');
   mark(perelliState.item.id);
   perelliState = null;
+}
+
+// ── Somnolencia · Escala KSS ─────────────────────────────────────────────────
+const KSS_STEPS = [
+  {
+    type:'single', question:'¿En qué fase del vuelo te encuentras actualmente?',
+    options:['Pre-vuelo','Durante el vuelo','Post-vuelo','En descanso','En standby']
+  },
+  {
+    type:'single', question:'¿Cómo describirías tu nivel de alerta en este momento?',
+    options:[
+      '1 · Extremadamente alerta',
+      '2 · Muy alerta',
+      '3 · Alerta',
+      '4 · Bastante alerta',
+      '5 · Ni alerta ni somnoliento',
+      '6 · Algunos signos de somnolencia',
+      '7 · Somnoliento, sin esfuerzo para permanecer despierto',
+      '8 · Somnoliento, con esfuerzo para permanecer despierto',
+      '9 · Muy somnoliento, gran esfuerzo, luchando contra el sueño'
+    ],
+    colors:['#1aa672','#4cbb5e','#8cc830','#c0d416','#e8c400','#f0930f','#f2640f','#d92b2b','#b30000']
+  },
+  {
+    type:'single', question:'¿Cuántas horas dormiste en las últimas 24 h?',
+    options:['Menos de 4 horas','Entre 4 y 6 horas','Entre 6 y 8 horas','Más de 8 horas'],
+    colors:['#e0322f','#f0930f','#5fb84a','#1aa672']
+  },
+  {
+    type:'single', question:'¿Cuál es el tipo de operación actual?',
+    options:['Vuelo corto (1–3 h)','Vuelo medio (3–6 h)','Vuelo largo sin pernocta','Vuelo largo con pernocta','En tierra o administrativo']
+  },
+  {
+    type:'optional-text', question:'¿Quieres agregar algún comentario adicional? (opcional)',
+    placeholder:'Escribe aquí tu comentario...', maxlength:200
+  }
+];
+
+function renderKssStep(){
+  const { stepIdx } = kssState;
+  const step = KSS_STEPS[stepIdx];
+  const total = KSS_STEPS.length;
+  updateBackBtn(stepIdx > 0);
+  document.getElementById('testCount').textContent = `Pregunta ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  if (step.type === 'single') renderKssSingle(step);
+  else if (step.type === 'optional-text') renderKssComment(step);
+}
+function kssAdvance(answer){
+  kssState.answers.push(answer);
+  kssState.stepIdx++;
+  if (kssState.stepIdx >= KSS_STEPS.length) renderKssFinal();
+  else renderKssStep();
+}
+function renderKssSingle(step){
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
+    const bg = step.colors ? step.colors[i] : '#c9d1df';
+    return `<button type="button" class="test-opt" onclick="kssPickSingle(${i})"><span class="dot" style="background:${bg}"></span><span class="lbl">${opt}</span></button>`;
+  }).join('');
+}
+function kssPickSingle(i){
+  kssAdvance(KSS_STEPS[kssState.stepIdx].options[i]);
+}
+function renderKssComment(step){
+  document.getElementById('testOptions').innerHTML =
+    `<textarea class="kss-comment" id="kssComment" rows="4" maxlength="${step.maxlength}" placeholder="${step.placeholder}"></textarea>
+     <button type="button" class="test-next-btn" onclick="kssAdvanceComment()">Continuar →</button>`;
+}
+function kssAdvanceComment(){
+  kssAdvance((document.getElementById('kssComment')?.value || '').trim());
+}
+function renderKssFinal(){
+  updateBackBtn(true);
+  document.getElementById('testCount').textContent = `Completaste las ${KSS_STEPS.length} preguntas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus resultados a EVA por WhatsApp.';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarKss()">${waSVG}Enviar</button>`;
+}
+function finalizarKss(){
+  const [fase, nivelAlerta, horasSuenio, tipoOp, comentario] = kssState.answers;
+  let msg = `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n*Fase del vuelo:* ${fase}\n\n*Nivel de alerta (KSS 1–9):* ${nivelAlerta}\n\n*Horas de sueño (24 h):* ${horasSuenio}\n\n*Tipo de operación:* ${tipoOp}`;
+  if (comentario) msg += `\n\n*Comentario:* ${comentario}`;
+  const itemFinal = { ...kssState.item, msg };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(kssState.item.id);
+  kssState = null;
 }
 
 function refreshStates(){
