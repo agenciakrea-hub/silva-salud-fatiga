@@ -211,19 +211,35 @@
 
   /* Multi-choice y rating-grid (Test Perelli SP) */
   .test-opt.sel { border-color: var(--orange); background: #fff8f3; }
-  .rating-grid { display: flex; flex-direction: column; flex: 1; }
-  .rating-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 0; border-bottom: 1px solid #eef1f5; }
-  .rating-row:last-child { border-bottom: none; }
-  .rating-lbl { font-size: 0.82rem; font-weight: 600; color: var(--text); flex: 1; min-width: 0; }
-  .rating-btns { display: flex; gap: 0.3rem; flex-shrink: 0; }
-  .rate-btn { width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid #e0e4ec; background: #f5f6f9;
-    font-size: 0.8rem; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all .12s; padding: 0; font-family: inherit; }
-  .rate-btn.on { border-color: var(--orange); background: var(--orange); color: #fff; }
   .test-next-btn { width: 100%; margin-top: auto; padding: 0.85rem; border: none; border-radius: 13px;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-weight: 700; font-size: 0.92rem;
     font-family: inherit; cursor: pointer; box-shadow: 0 4px 14px rgba(244,122,31,0.32); transition: transform .12s; }
   .test-next-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
   .test-next-btn:not(:disabled):active { transform: scale(0.98); }
+  /* Pie del test: Atrás + Cancelar */
+  .test-foot { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+  .test-foot .cancel-btn { flex: 1; margin-top: 0; text-align: center; }
+  .back-btn { padding: 0.65rem 0.9rem; border: 1.5px solid #e0e4ec; background: #f5f6f9;
+    color: var(--text-muted); border-radius: 12px; font-family: inherit; font-size: 0.82rem;
+    font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .back-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  /* Tabla de impacto (Perelli SP) */
+  .rtable { display: flex; flex-direction: column; flex: 1; }
+  .rtable-head, .rtable-row { display: grid; grid-template-columns: 1fr repeat(5, 32px); gap: 4px; align-items: center; }
+  .rtable-head { padding-bottom: 0.45rem; border-bottom: 2px solid #eef1f5; margin-bottom: 0.15rem; }
+  .rtable-hcell { font-size: 0.58rem; font-weight: 700; text-align: center; line-height: 1.2; word-break: break-word; }
+  .rtable-lbl { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+  .rtable-row { padding: 0.4rem 0; border-bottom: 1px solid #eef1f5; }
+  .rtable-row:last-child { border-bottom: none; }
+  .rtable-cell { width: 32px; height: 32px; border-radius: 7px; border: 2px solid #e0e4ec;
+    background: transparent; cursor: pointer; transition: all .12s; padding: 0; }
+  .rtable-cell.on { background: var(--cell-color); border-color: var(--cell-color); }
+  .rtable-cell:not(.on):hover { border-color: var(--cell-color); }
+  /* Input "Otros" dentro de multi-selección */
+  .otros-input-wrap { margin-top: 0.4rem; }
+  .otros-input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #e0e4ec; border-radius: 11px;
+    font-family: inherit; font-size: 0.86rem; color: var(--text); background: #fafbfd; }
+  .otros-input:focus { outline: none; border-color: var(--orange); }
 
   /* ── iOS / Android modal ── */
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
@@ -415,7 +431,10 @@
     <p class="test-count" id="testCount">Pregunta 1 de 15</p>
     <h2 id="testQuestion">—</h2>
     <div class="test-options" id="testOptions"></div>
-    <button class="cancel-btn" onclick="cerrarTest()">Cancelar</button>
+    <div class="test-foot">
+      <button class="back-btn" id="testBackBtn" disabled onclick="retrocederTest()">← Atrás</button>
+      <button class="cancel-btn" onclick="cerrarTest()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -423,7 +442,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.7';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.8';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -633,8 +652,21 @@ function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
   testItem = null; perelliState = null;
 }
+function updateBackBtn(enabled){
+  const btn = document.getElementById('testBackBtn');
+  if (btn) btn.disabled = !enabled;
+}
+function retrocederTest(){
+  if (perelliState !== null){
+    if (perelliState.stepIdx > 0){ perelliState.stepIdx--; perelliState.answers.pop(); renderPerelliStep(); }
+  } else if (testItem !== null){
+    if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
+  }
+}
+
 function renderTestPaso(){
   const total = TEST_DEPRESION.length;
+  updateBackBtn(testIdx > 0);
   document.getElementById('testCount').textContent = `Pregunta ${testIdx + 1} de ${total}`;
   document.getElementById('testProgressBar').style.width = (testIdx / total * 100) + '%';
   document.getElementById('testQuestion').textContent = TEST_DEPRESION[testIdx];
@@ -651,6 +683,7 @@ function responderTest(valor){
   else renderTestPaso();
 }
 function renderTestFinal(){
+  updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${TEST_DEPRESION.length} preguntas`;
   document.getElementById('testProgressBar').style.width = '100%';
   document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus respuestas a EVA por WhatsApp.';
@@ -667,7 +700,7 @@ function finalizarTest(){
 // ── Fatiga · Perelli SP ───────────────────────────────────────────────────────
 const PERELLI_STEPS = [
   {
-    type:'single', question:'¿En qué fase del vuelo te encontrás actualmente?',
+    type:'single', question:'¿En qué fase del vuelo te encuentras actualmente?',
     options:['Pre-vuelo','Durante el vuelo (primera mitad)','Durante el vuelo (segunda mitad)','Post-vuelo inmediato','Post-vuelo (+2 horas)']
   },
   {
@@ -676,12 +709,12 @@ const PERELLI_STEPS = [
     colors:['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f']
   },
   {
-    type:'multi', question:'¿Qué síntomas de fatiga experimentás actualmente? Elegí uno o varios.',
+    type:'multi', question:'¿Qué síntomas de fatiga experimentas actualmente? Elige uno o varios.',
     options:['Dificultad para concentrarte','Pesadez en los párpados','Bostezos frecuentes','Irritabilidad o cambios de humor','Dolores musculares','Visión borrosa o dificultad para enfocar','Lentitud en las reacciones','Ninguno de los anteriores'],
     noneIdx:7
   },
   {
-    type:'rating-grid', question:'¿Cómo afecta tu fatiga a estas funciones? (1 = no la afecta · 5 = severa)',
+    type:'rating-grid', question:'¿Cómo afecta tu fatiga actual a cada una de estas funciones?',
     items:['Toma de decisiones','Comunicación','Monitoreo de instrumentos','Coordinación de crew','Manejo de emergencias'],
     scale:5
   },
@@ -691,12 +724,13 @@ const PERELLI_STEPS = [
     colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
   },
   {
-    type:'multi', question:'¿Qué factores han contribuido más a tu fatiga actual? Elegí uno o varios.',
-    options:['Horario de trabajo irregular','Vuelos nocturnos','Cambios de huso horario','Alta carga de trabajo','Estrés operacional','Factores personales o familiares','Condiciones ambientales (ruido, turbulencia)','Otros']
+    type:'multi', question:'¿Qué factores han contribuido más a tu fatiga actual? Elige uno o varios.',
+    options:['Horario de trabajo irregular','Vuelos nocturnos','Cambios de huso horario','Alta carga de trabajo','Estrés operacional','Factores personales o familiares','Condiciones ambientales (ruido, turbulencia)','Otros'],
+    otrosIdx:7
   },
   {
     type:'single', question:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
-    options:['1 · Óptima, sin limitaciones','2 · Levemente disminuida, casi normal','3 · Moderadamente disminuida, precaución recomendada','4 · Significativamente disminuida, rendimiento comprometido','5 · Muy comprometida'],
+    options:['Óptima, sin limitaciones','Levemente disminuida, casi normal','Moderadamente disminuida, precaución recomendada','Significativamente disminuida, rendimiento comprometido','Muy comprometida'],
     colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
   }
 ];
@@ -705,6 +739,7 @@ function renderPerelliStep(){
   const { stepIdx } = perelliState;
   const step = PERELLI_STEPS[stepIdx];
   const total = PERELLI_STEPS.length;
+  updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = `Pregunta ${stepIdx + 1} de ${total}`;
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
   document.getElementById('testQuestion').textContent = step.question;
@@ -734,7 +769,10 @@ function renderPerelliMulti(step){
   const opts = step.options.map((opt, i) =>
     `<button type="button" class="test-opt" id="pmopt_${i}" onclick="perelliToggleMulti(${i},${noneIdx})"><span class="dot" style="background:#c9d1df" id="pmdot_${i}"></span><span class="lbl">${opt}</span></button>`
   ).join('');
-  document.getElementById('testOptions').innerHTML = opts +
+  const otrosHtml = step.otrosIdx !== undefined
+    ? `<div class="otros-input-wrap" id="otrosInputWrap" style="display:none"><input type="text" id="otrosTxt" class="otros-input" maxlength="50" placeholder="¿Cuál? (máx. 50 caracteres)"></div>`
+    : '';
+  document.getElementById('testOptions').innerHTML = opts + otrosHtml +
     `<button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceMulti()">Siguiente →</button>`;
 }
 function perelliToggleMulti(idx, noneIdx){
@@ -749,23 +787,35 @@ function perelliToggleMulti(idx, noneIdx){
     btn.classList.toggle('sel', sel.has(i));
     if (dot) dot.style.background = sel.has(i) ? 'var(--orange)' : '#c9d1df';
   });
+  if (step.otrosIdx !== undefined){
+    const wrap = document.getElementById('otrosInputWrap');
+    if (wrap) wrap.style.display = sel.has(step.otrosIdx) ? 'block' : 'none';
+  }
   const nb = document.getElementById('perelliNextBtn');
   if (nb) nb.disabled = sel.size === 0;
 }
 function perelliAdvanceMulti(){
   const step = PERELLI_STEPS[perelliState.stepIdx];
-  const selected = [...perelliState.currentMultiSelected].map(i => step.options[i]);
+  const selected = [...perelliState.currentMultiSelected].map(i => {
+    if (step.otrosIdx !== undefined && i === step.otrosIdx){
+      const txt = (document.getElementById('otrosTxt')?.value || '').trim();
+      return txt ? `Otros: ${txt}` : 'Otros';
+    }
+    return step.options[i];
+  });
   perelliAdvance(selected.join(', '));
 }
 function renderPerelliGrid(step){
-  const rows = step.items.map((item, i) => {
-    const btns = Array.from({length:step.scale}, (_,v) =>
-      `<button type="button" class="rate-btn" id="pgb_${i}_${v+1}" onclick="perelliRate(${i},${v+1})">${v+1}</button>`
-    ).join('');
-    return `<div class="rating-row"><span class="rating-lbl">${item}</span><div class="rating-btns">${btns}</div></div>`;
-  }).join('');
+  const GRID_COLORS = ['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f'];
+  const GRID_HDRS   = ['No la<br>afecta','Leve','Moderado','Alto','Severo'];
+  const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_COLORS[i]}">${h}</div>`).join('')}</div>`;
+  const rows = step.items.map((item, ri) =>
+    `<div class="rtable-row"><div class="rtable-lbl">${item}</div>${GRID_COLORS.map((color,v)=>
+      `<button type="button" class="rtable-cell" id="pgb_${ri}_${v+1}" style="--cell-color:${color}" onclick="perelliRate(${ri},${v+1})"></button>`
+    ).join('')}</div>`
+  ).join('');
   document.getElementById('testOptions').innerHTML =
-    `<div class="rating-grid">${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">Siguiente →</button>`;
+    `<div class="rtable">${headRow}${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">Siguiente →</button>`;
 }
 function perelliRate(itemIdx, val){
   perelliState.currentGridRatings[itemIdx] = val;
@@ -778,11 +828,16 @@ function perelliRate(itemIdx, val){
   if (nb) nb.disabled = !step.items.every((_, i) => perelliState.currentGridRatings[i] !== undefined);
 }
 function perelliAdvanceGrid(){
+  const GRID_LABELS = ['No afecta','Leve','Moderado','Alto','Severo'];
   const step = PERELLI_STEPS[perelliState.stepIdx];
-  const summary = step.items.map((item, i) => `${item}: ${perelliState.currentGridRatings[i]}`).join(', ');
+  const summary = step.items.map((item, i) => {
+    const v = perelliState.currentGridRatings[i];
+    return `${item}: ${GRID_LABELS[v-1]} (${v})`;
+  }).join(', ');
   perelliAdvance(summary);
 }
 function renderPerelliFinal(){
+  updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${PERELLI_STEPS.length} preguntas`;
   document.getElementById('testProgressBar').style.width = '100%';
   document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus resultados a EVA por WhatsApp.';
