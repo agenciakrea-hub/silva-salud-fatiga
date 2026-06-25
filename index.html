@@ -468,7 +468,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.24';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -525,6 +525,7 @@ const SHEETS_ESTRES_URL   = 'https://script.google.com/macros/s/AKfycbw357Ohz9OW
 const SHEETS_ANSIEDAD_URL     = 'https://script.google.com/macros/s/AKfycbzxMKyyeschmPakyMiTOVXAXWTuW2_QAPLG2Hw6_ZAoQDQXN_15EEOhRbmetBIwkGSs/exec';
 const SHEETS_OPERACIONAL_URL  = 'https://script.google.com/macros/s/AKfycbzPyz40zNGQE0uiDHGYPuO8ZGzKipBVHNSe1JjAp6LfquPBiF8RVDQZKFeGNQpXxoOGZw/exec';
 const SHEETS_GASTRO_URL       = 'https://script.google.com/macros/s/AKfycby-J2oLAYKPQwYe-2Dr2thcbKnd8U4EMLx6NohZTncQV2eNyBJpy0JhNFcKsSNx0c-B/exec';
+const SHEETS_DEPRESION_URL    = ''; // pendiente — pegar URL al desplegar
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -685,6 +686,7 @@ let kssState = null;
 let estresState = null;
 let ansiedadState = null;
 let gastroState = null;
+let depresionState = null;
 
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
@@ -703,6 +705,9 @@ function abrirTest(it){
   } else if (it.testFlow === 'gastro'){
     gastroState = { item:it, stepIdx:0, answers:[] };
     renderGastroStep();
+  } else if (it.testFlow === 'depresion'){
+    depresionState = { item:it, stepIdx:0, answers:[] };
+    renderDepresionStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
     renderTestPaso();
@@ -710,7 +715,7 @@ function abrirTest(it){
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null; gastroState = null;
+  testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null; gastroState = null; depresionState = null;
 }
 function updateBackBtn(enabled){
   const btn = document.getElementById('testBackBtn');
@@ -727,6 +732,8 @@ function retrocederTest(){
     if (ansiedadState.stepIdx > 0){ ansiedadState.stepIdx--; ansiedadState.answers.pop(); renderAnsiedadStep(); }
   } else if (gastroState !== null){
     if (gastroState.stepIdx > 0){ gastroState.stepIdx--; gastroState.answers.pop(); renderGastroStep(); }
+  } else if (depresionState !== null){
+    if (depresionState.stepIdx > 0){ depresionState.stepIdx--; depresionState.answers.pop(); renderDepresionStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -1012,6 +1019,27 @@ const _GO = ['0 · Muy en desacuerdo','1 · En desacuerdo','2 · De acuerdo'];
 const _GC = ['#1aa672','#e8c400','#e0322f'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
+const DEPRESION_SINTOMAS = [
+  'Humor deprimido (tristeza, depresión, desamparo, inutilidad)',
+  'Sensación de culpabilidad',
+  'Suicidio',
+  'Insomnio',
+  'Trabajo y actividades — fatiga o debilidad relacionadas con su actividad, trabajo o aficiones. Pérdida de interés manifestada por desatención, indecisión y vacilación.',
+  'Inhibición (lentitud de pensamiento y de palabra, empeoramiento de la concentración, actividad motora disminuida)',
+  'Agitación',
+  'Ansiedad psíquica — Tensión subjetiva e irritabilidad. Preocupación por pequeñas cosas.',
+  'Ansiedad somática — Signos fisiológicos: gastrointestinales, cardiovasculares, respiratorios, frecuencia urinaria, sudoración.',
+  'Síntomas somáticos gastrointestinales',
+  'Síntomas somáticos generales',
+  'Síntomas genitales — Pérdida de la libido, trastornos menstruales.',
+  'Hipocondría — Preocupado por su salud, se lamenta constantemente, ideas delirantes hipocondríacas.',
+  'Pérdida de peso',
+  'Insight (conciencia de enfermedad) — Se da cuenta de que está deprimido y enfermo.'
+];
+const _DO = ['0 · Nunca','1 · Pocas veces al año o menos','2 · Una vez al mes o menos','3 · Unas pocas veces al mes','4 · Una vez a la semana','5 · Unas pocas veces a la semana','6 · Todos los días'];
+const _DC = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
+const DEPRESION_STEPS = DEPRESION_SINTOMAS.map(s => ({ type:'single', question:s, options:_DO, colors:_DC }));
+
 function renderKssStep(){
   const { stepIdx } = kssState;
   const step = KSS_STEPS[stepIdx];
@@ -1237,6 +1265,55 @@ function finalizarGastro(){
   window.open(waUrl(itemFinal), '_blank');
   mark(gastroState.item.id);
   gastroState = null;
+}
+
+// ── Test de Depresión (HAM-D) ────────────────────────────────────
+function renderDepresionStep(){
+  const { stepIdx } = depresionState;
+  const step = DEPRESION_STEPS[stepIdx];
+  const total = DEPRESION_STEPS.length;
+  updateBackBtn(stepIdx > 0);
+  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
+    const lbl = opt.replace(/^\d+ · /, '');
+    return `<button type="button" class="test-opt" onclick="depresionPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${lbl}</span></button>`;
+  }).join('');
+}
+function depresionPickSingle(i){ depresionAdvance(DEPRESION_STEPS[depresionState.stepIdx].options[i]); }
+function depresionAdvance(answer){
+  depresionState.answers.push(answer);
+  depresionState.stepIdx++;
+  if (depresionState.stepIdx >= DEPRESION_STEPS.length) renderDepresionFinal();
+  else renderDepresionStep();
+}
+function renderDepresionFinal(){
+  updateBackBtn(true);
+  document.getElementById('testCount').textContent = `Completaste los ${DEPRESION_STEPS.length} síntomas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test de Depresión?';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarDepresion()">${waSVG}Enviar</button>`;
+}
+function finalizarDepresion(){
+  const DEPRESION_LABELS = ['Nunca','Pocas veces al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+  const ratings = depresionState.answers.map(a => { const n = parseInt(a); return `${n} = ${DEPRESION_LABELS[n]}`; });
+  if (SHEETS_DEPRESION_URL) {
+    const p = getProfile() || {};
+    const params = new URLSearchParams({
+      nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'',
+      sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||''
+    });
+    ratings.forEach((r,i) => params.set('s'+i, r));
+    fetch(SHEETS_DEPRESION_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+  }
+  const details = DEPRESION_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
+  const msg = `Completé el *Test de Depresión* desde el portal web.\n\n${details}`;
+  const itemFinal = { ...depresionState.item, msg };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(depresionState.item.id);
+  depresionState = null;
 }
 
 function refreshStates(){
