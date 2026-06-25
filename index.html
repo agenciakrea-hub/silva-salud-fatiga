@@ -375,7 +375,7 @@
       <div class="err">Por favor ingresá tu nombre y apellido.</div>
     </div>
     <div class="field" id="fCed">
-      <label for="inCed">Número de cédula</label>
+      <label for="inCed">Número de cédula <span style="font-weight:400;color:#888">(opcional)</span></label>
       <input id="inCed" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12.345.678" maxlength="20">
       <div class="err">Por favor ingresá tu número de cédula.</div>
     </div>
@@ -468,7 +468,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.28';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.29';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -764,7 +764,7 @@ function finalizarTest(){
   if (SHEETS_DEPRESION_URL) {
     const p = getProfile() || {};
     const params = new URLSearchParams({
-      nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'',
+      nombre:p.nombre||'', cedula:p.cedula||'', empresa:p.empresa||'', dpto:p.departamento||'',
       sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||''
     });
     testRespuestas.forEach((r, i) => params.set('s'+i, r));
@@ -928,7 +928,7 @@ function finalizarPerelli(){
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
     fetch(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
-      nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'',
+      nombre: p.nombre||'', cedula: p.cedula||'', empresa: p.empresa||'', dpto: p.departamento||'',
       sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'',
       fase, nivel_fatiga: nivelFatiga, sintomas, funciones,
       calidad_suenio: calidadSuenio, factores, capacidad
@@ -1197,8 +1197,8 @@ function finalizarAnsiedad(){
   const ratings = ansiedadState.answers.map(a => { const n = parseInt(a); return `${n} = ${ANSIEDAD_LABELS[n]}`; });
   if (SHEETS_ANSIEDAD_URL) {
     const p = getProfile() || {};
-    const obj = { nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'',
-      sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||'' };
+    const obj = { nombre:p.nombre||'', cedula:p.cedula||'', empresa:p.empresa||'', dpto:p.departamento||'',
+      sexo:p.sexo||'', edad:p.edad||'', cargo:p.cargo||'', telefono:p.telefono||'' };
     ratings.forEach((r,i) => { obj['s'+i] = r; });
     fetch(SHEETS_ANSIEDAD_URL + '?' + new URLSearchParams(obj), { mode:'no-cors' }).catch(() => {});
   }
@@ -1244,8 +1244,8 @@ function finalizarGastro(){
   if (SHEETS_GASTRO_URL) {
     const p = getProfile() || {};
     const params = new URLSearchParams({
-      nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'',
-      sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||''
+      nombre:p.nombre||'', cedula:p.cedula||'', empresa:p.empresa||'', dpto:p.departamento||'',
+      sexo:p.sexo||'', edad:p.edad||'', cargo:p.cargo||'', telefono:p.telefono||''
     });
     ratings.forEach((r,i) => params.set('s'+i, r));
     fetch(SHEETS_GASTRO_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
@@ -1319,7 +1319,7 @@ function saveProfile(){
   const telefono     = document.getElementById('inTelefono').value.trim();
   let ok = true;
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
-  document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
+  // cedula es opcional
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
@@ -1390,7 +1390,7 @@ if (_prof) paintProfile();
 document.getElementById('cloudSyncBtn').href = LINK_TRYVITAL;
 
 // Perfil completo = tiene todos los datos nuevos (cédula, depto, cargo)
-const _complete = _prof && _prof.nombre && _prof.cedula && _prof.empresa && _prof.departamento && _prof.cargo;
+const _complete = _prof && _prof.nombre && _prof.empresa && _prof.departamento && _prof.cargo;
 
 // Forzar consentimiento + carga de datos a quien no esté completo (incluye usuarios viejos)
 if (!_complete){
