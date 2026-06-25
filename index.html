@@ -375,9 +375,13 @@
       <div class="err">Por favor ingresá tu nombre y apellido.</div>
     </div>
     <div class="field" id="fCed">
-      <label for="inCed">Identificador de Piloto / Cédula <span style="font-weight:400;color:#888">(opcional)</span></label>
+      <label for="inCed">Número de cédula</label>
       <input id="inCed" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12.345.678" maxlength="20">
       <div class="err">Por favor ingresá tu número de cédula.</div>
+    </div>
+    <div class="field" id="fPiloto">
+      <label for="inPiloto">Identificador de Piloto <span style="font-weight:400;color:#888">(opcional)</span></label>
+      <input id="inPiloto" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 987654" maxlength="20">
     </div>
     <div class="field" id="fEmp">
       <label for="inEmp">Empresa</label>
@@ -468,7 +472,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.31';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.32';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -784,7 +788,7 @@ const PERELLI_STEPS = [
   },
   {
     type:'single', question:'¿Cómo calificarías tu estado general de fatiga actual?',
-    options:['1 · Completamente alerta, despierto/a','2 · Muy fresco/a, buen nivel de energía','3 · Bien, normal','4 · Un poco fatigado/a, rendimiento levemente afectado','5 · Moderadamente fatigado/a, esfuerzo para mantener la concentración','6 · Extremadamente fatigado/a, funcionamiento comprometido','7 · Completamente exhausto/a, capacidad operacional severamente afectada'],
+    options:['1 = Completamente alerta, despierto/a','2 = Muy fresco/a, buen nivel de energía','3 = Bien, normal','4 = Un poco fatigado/a, rendimiento levemente afectado','5 = Moderadamente fatigado/a, esfuerzo para mantener la concentración','6 = Extremadamente fatigado/a, funcionamiento comprometido','7 = Completamente exhausto/a, capacidad operacional severamente afectada'],
     colors:['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f']
   },
   {
@@ -842,7 +846,7 @@ function perelliAdvance(answer){
 function renderPerelliSingle(step){
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
     const bg  = step.colors ? step.colors[i] : '#c9d1df';
-    const lbl = opt.replace(/^\d+ · /, '');
+    const lbl = opt.replace(/^\d+ = /, '');
     return `<button type="button" class="test-opt" onclick="perelliPickSingle(${i})"><span class="dot" style="background:${bg}"></span><span class="lbl">${lbl}</span></button>`;
   }).join('');
 }
@@ -942,7 +946,7 @@ function finalizarPerelli(){
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
     fetch(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
-      nombre: p.nombre||'', cedula: p.cedula||'', empresa: p.empresa||'', dpto: p.departamento||'',
+      nombre: p.nombre||'', cedula: p.id_piloto||'', empresa: p.empresa||'', dpto: p.departamento||'',
       sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'',
       fase, nivel_fatiga: nivelFatiga, sintomas, funciones,
       calidad_suenio: calidadSuenio, factores, capacidad, comentarios: comentarios||''
@@ -970,15 +974,15 @@ const KSS_STEPS = [
   {
     type:'single', question:'¿Cómo describirías tu nivel de alerta en este momento?',
     options:[
-      '1 · Extremadamente alerta',
-      '2 · Muy alerta',
-      '3 · Alerta',
-      '4 · Bastante alerta',
-      '5 · Ni alerta ni somnoliento',
-      '6 · Algunos signos de somnolencia',
-      '7 · Somnoliento, sin esfuerzo para permanecer despierto',
-      '8 · Somnoliento, con esfuerzo para permanecer despierto',
-      '9 · Muy somnoliento, gran esfuerzo, luchando contra el sueño'
+      '1 = Extremadamente alerta',
+      '2 = Muy alerta',
+      '3 = Alerta',
+      '4 = Bastante alerta',
+      '5 = Ni alerta ni somnoliento',
+      '6 = Algunos signos de somnolencia',
+      '7 = Somnoliento, sin esfuerzo para permanecer despierto',
+      '8 = Somnoliento, con esfuerzo para permanecer despierto',
+      '9 = Muy somnoliento, gran esfuerzo, luchando contra el sueño'
     ],
     colors:['#1aa672','#4cbb5e','#8cc830','#c0d416','#e8c400','#f0930f','#f2640f','#d92b2b','#b30000']
   },
@@ -1011,7 +1015,7 @@ const ESTRES_SINTOMAS = [
   'No querer levantarse por la mañana',
   'Sudoración o palpitaciones'
 ];
-const _EO = ['0 · Nunca','1 · Raramente','2 · Una vez al mes o menos','3 · Unas pocas veces al mes','4 · Una vez a la semana','5 · Unas pocas veces a la semana','6 · Todos los días'];
+const _EO = ['0 = Nunca','1 = Raramente','2 = Una vez al mes o menos','3 = Unas pocas veces al mes','4 = Una vez a la semana','5 = Unas pocas veces a la semana','6 = Todos los días'];
 const _EC = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
 const ESTRES_STEPS = ESTRES_SINTOMAS.map(s => ({ type:'single', question:s, options:_EO, colors:_EC }));
 
@@ -1024,7 +1028,7 @@ const ANSIEDAD_SINTOMAS = [
   'Indigestión o molestias estomacales','Pérdida de la conciencia o desmayo',
   'Rostro sonrojado','Sudoración (no debido al calor)'
 ];
-const _AO = ['0 · No ha estado presente','1 · Levemente, no me ha molestado','2 · Moderadamente, pero lo pude superar','3 · Severamente, difícil lo soporté'];
+const _AO = ['0 = No ha estado presente','1 = Levemente, no me ha molestado','2 = Moderadamente, pero lo pude superar','3 = Severamente, difícil lo soporté'];
 const _AC = ['#1aa672','#e8c400','#f0930f','#e0322f'];
 const ANSIEDAD_STEPS = ANSIEDAD_SINTOMAS.map(s => ({ type:'single', question:s, options:_AO, colors:_AC }));
 
@@ -1042,7 +1046,7 @@ const GASTRO_SINTOMAS = [
   'Dolor en ganglios/aftas/piernas inquietas/fascitis plantar/candidiasis/asma/síndrome premenstrual',
   'Antecedentes de cirugía de vesícula y/o hipotiroidismo de Hashimoto'
 ];
-const _GO = ['0 · Muy en desacuerdo','1 · En desacuerdo','2 · De acuerdo'];
+const _GO = ['0 = Muy en desacuerdo','1 = En desacuerdo','2 = De acuerdo'];
 const _GC = ['#1aa672','#e8c400','#e0322f'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
@@ -1066,7 +1070,7 @@ function kssAdvance(answer){
 function renderKssSingle(step){
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
     const bg  = step.colors ? step.colors[i] : '#c9d1df';
-    const lbl = opt.replace(/^\d+ · /, '');
+    const lbl = opt.replace(/^\d+ = /, '');
     return `<button type="button" class="test-opt" onclick="kssPickSingle(${i})"><span class="dot" style="background:${bg}"></span><span class="lbl">${lbl}</span></button>`;
   }).join('');
 }
@@ -1095,7 +1099,7 @@ function finalizarKss(){
   if (SHEETS_KSS_URL) {
     const p = getProfile() || {};
     const kssNum = parseInt(nivelAlerta);
-    const kssLabel = nivelAlerta.replace(/^\d+ · /, '');
+    const kssLabel = nivelAlerta.replace(/^\d+ = /, '');
     const params = new URLSearchParams({
       nombre:     p.nombre       || '',
       cedula:     p.cedula       || '',
@@ -1138,7 +1142,7 @@ function renderEstresStep(){
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
   document.getElementById('testQuestion').textContent = step.question;
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
-    const lbl = opt.replace(/^\d+ · /, '');
+    const lbl = opt.replace(/^\d+ = /, '');
     return `<button type="button" class="test-opt" onclick="estresPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${lbl}</span></button>`;
   }).join('');
 }
@@ -1189,7 +1193,7 @@ function renderAnsiedadStep(){
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
   document.getElementById('testQuestion').textContent = step.question;
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
-    `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ · /,'')}</span></button>`
+    `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ = /,'')}</span></button>`
   ).join('');
 }
 function ansiedadPickSingle(i){ ansiedadAdvance(ANSIEDAD_STEPS[ansiedadState.stepIdx].options[i]); }
@@ -1235,7 +1239,7 @@ function renderGastroStep(){
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
   document.getElementById('testQuestion').textContent = step.question;
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
-    `<button type="button" class="test-opt" onclick="gastroPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ · /,'')}</span></button>`
+    `<button type="button" class="test-opt" onclick="gastroPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ = /,'')}</span></button>`
   ).join('');
 }
 function gastroPickSingle(i){ gastroAdvance(GASTRO_STEPS[gastroState.stepIdx].options[i]); }
@@ -1303,9 +1307,10 @@ function paintProfile(){
 let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
-  const p = getProfile() || {nombre:'',empresa:'',cedula:'',departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
   document.getElementById('inName').value     = p.nombre;
   document.getElementById('inCed').value      = p.cedula      || '';
+  document.getElementById('inPiloto').value   = p.id_piloto   || '';
   document.getElementById('inEmp').value      = p.empresa;
   document.getElementById('inDep').value      = p.departamento|| '';
   document.getElementById('inCargo').value    = p.cargo       || '';
@@ -1317,7 +1322,7 @@ function openSetup(isEdit){
     ? 'Actualizá tus datos. Se aplicarán a tus próximos reportes.'
     : 'Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
-  ['fName','fCed','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+  ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   document.getElementById('setup').classList.add('show');
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
@@ -1325,6 +1330,7 @@ function closeSetup(){ document.getElementById('setup').classList.remove('show')
 function saveProfile(){
   const nombre       = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
   const cedula       = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
+  const id_piloto    = document.getElementById('inPiloto').value.trim().replace(/\s+/g,' ');
   const empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
   const departamento = document.getElementById('inDep').value.trim().replace(/\s+/g,' ');
   const cargo        = document.getElementById('inCargo').value.trim().replace(/\s+/g,' ');
@@ -1333,7 +1339,7 @@ function saveProfile(){
   const telefono     = document.getElementById('inTelefono').value.trim();
   let ok = true;
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
-  // cedula es opcional
+  document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
@@ -1341,7 +1347,7 @@ function saveProfile(){
   document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
   document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
   if (!ok) return;
-  setProfile({ nombre, cedula, empresa, departamento, cargo, sexo, edad, telefono });
+  setProfile({ nombre, cedula, id_piloto, empresa, departamento, cargo, sexo, edad, telefono });
   paintProfile();
   renderSections();           // re-genera hrefs con datos nuevos
   closeSetup();
@@ -1403,16 +1409,13 @@ renderSections();
 if (_prof) paintProfile();
 document.getElementById('cloudSyncBtn').href = LINK_TRYVITAL;
 
-// Perfil completo = tiene todos los datos nuevos (cédula, depto, cargo)
-const _complete = _prof && _prof.nombre && _prof.empresa && _prof.departamento && _prof.cargo;
+// Perfil completo = tiene todos los campos obligatorios (incluye cédula)
+const _complete = _prof && _prof.nombre && _prof.cedula && _prof.empresa && _prof.departamento && _prof.cargo;
 
 // Forzar consentimiento + carga de datos a quien no esté completo (incluye usuarios viejos)
 if (!_complete){
   if (!hasConsent()) document.getElementById('consent').classList.add('show');
   else openSetup(false);
-} else if (_prof && !_prof.cedula) {
-  // Perfil completo pero cédula vacía (campo opcional agregado luego): pedir que la complete
-  openSetup(true);
 }
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
