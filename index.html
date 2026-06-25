@@ -447,7 +447,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.18';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.19';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -471,10 +471,10 @@ const SECTIONS = [
   {
     id:'operacional', title:'Data Operacional', sub:'Notificar evento por chat de WhatsApp', layout:'grid',
     items:[
-      {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.'},
-      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Test KSS + notificación',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto*.', testFlow:'kss',     baseNotification:'Notifico que estoy *llegando al aeropuerto*.'},
-      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Test Perelli + notificación', icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que *terminé mi turno*.',                testFlow:'perelli', baseNotification:'Notifico que *terminé mi turno*.'},
-      {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.'}
+      {id:'op_salir_casa', label:'Saliendo de casa',       desc:'Inicio de traslado', icon:I.homeOut,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.', operacionalCampo:'salida_casa'},
+      {id:'op_lleg_aero',  label:'Llegando al aeropuerto',  desc:'Test KSS + notificación',    icon:I.planeIn,  ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando al aeropuerto*.', testFlow:'kss',     baseNotification:'Notifico que estoy *llegando al aeropuerto*.', operacionalCampo:'llegada_aero'},
+      {id:'op_salir_aero', label:'Saliendo de aeropuerto',  desc:'Test Perelli + notificación', icon:I.planeOut, ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que *terminé mi turno*.',                testFlow:'perelli', baseNotification:'Notifico que *terminé mi turno*.', operacionalCampo:'salida_aero'},
+      {id:'op_lleg_casa',  label:'Llegando a casa',         desc:'Fin de la jornada',  icon:I.homeIn,   ic:'#fff1e6', icc:'#f47a1f', msg:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.', operacionalCampo:'llegada_casa'}
     ]
   },
   {
@@ -499,7 +499,8 @@ const K_CONSENT = 'silva_fatiga_consent_v1';
 // Google Sheets webhooks (Apps Script desplegado como aplicación web)
 const SHEETS_KSS_URL   = 'https://script.google.com/macros/s/AKfycbxkksBqTDMqXlN6BtCfgdvau1Jgd98CIp-klJ28NcKpDBFILmM1trgFm1ngW-rKMxDtVg/exec';
 const SHEETS_ESTRES_URL   = 'https://script.google.com/macros/s/AKfycbw357Ohz9OWgGoyIF_HBEbiriGY92Qs6T_cIEVbP2bgshlI5Sh0_mXel_FO90rzJ_tV/exec';
-const SHEETS_ANSIEDAD_URL = 'https://script.google.com/macros/s/AKfycbzxMKyyeschmPakyMiTOVXAXWTuW2_QAPLG2Hw6_ZAoQDQXN_15EEOhRbmetBIwkGSs/exec';
+const SHEETS_ANSIEDAD_URL     = 'https://script.google.com/macros/s/AKfycbzxMKyyeschmPakyMiTOVXAXWTuW2_QAPLG2Hw6_ZAoQDQXN_15EEOhRbmetBIwkGSs/exec';
+const SHEETS_OPERACIONAL_URL  = ''; // pegar URL del script de Data Operacional después de desplegar
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -526,6 +527,13 @@ function buildMessage(item){
 }
 function waUrl(item){
   return `https://api.whatsapp.com/send/?phone=${EVA_PHONE}&text=${encodeURIComponent(buildMessage(item))}&type=phone_number&app_absent=0`;
+}
+function enviarOperacional(campo){
+  if (!SHEETS_OPERACIONAL_URL || !campo) return;
+  const p = getProfile() || {};
+  fetch(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
+    nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'', campo
+  }), { mode:'no-cors' }).catch(() => {});
 }
 
 /* ════════════════ WEARABLES (TRYVITAL) ════════════════ */
@@ -586,7 +594,8 @@ function buildItem(it, layout, i){
   }
 
   a.addEventListener('click', (e) => {
-    if (it.testFlow){ e.preventDefault(); abrirTest(it); return; }   // abre el cuestionario en la app, en vez de ir directo a WhatsApp
+    if (it.testFlow){ e.preventDefault(); abrirTest(it); return; }
+    if (it.operacionalCampo) enviarOperacional(it.operacionalCampo);
     mark(it.id);
   });
 
@@ -882,6 +891,7 @@ function finalizarPerelli(){
   const itemFinal = { ...perelliState.item, msg };
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
+  enviarOperacional(perelliState.item.operacionalCampo);
   mark(perelliState.item.id);
   perelliState = null;
 }
@@ -1027,6 +1037,7 @@ function finalizarKss(){
   const itemFinal = { ...kssState.item, msg };
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
+  enviarOperacional(kssState.item.operacionalCampo);
   mark(kssState.item.id);
   kssState = null;
 }
