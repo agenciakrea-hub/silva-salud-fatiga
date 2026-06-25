@@ -375,7 +375,7 @@
       <div class="err">Por favor ingresá tu nombre y apellido.</div>
     </div>
     <div class="field" id="fCed">
-      <label for="inCed">Número de cédula <span style="font-weight:400;color:#888">(opcional)</span></label>
+      <label for="inCed">Identificador de Piloto / Cédula <span style="font-weight:400;color:#888">(opcional)</span></label>
       <input id="inCed" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12.345.678" maxlength="20">
       <div class="err">Por favor ingresá tu número de cédula.</div>
     </div>
@@ -468,7 +468,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.30';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.31';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -811,6 +811,10 @@ const PERELLI_STEPS = [
     type:'single', question:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
     options:['Óptima, sin limitaciones','Levemente disminuida, casi normal','Moderadamente disminuida, precaución recomendada','Significativamente disminuida, rendimiento comprometido','Muy comprometida'],
     colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
+  },
+  {
+    type:'text-input', question:'¿Tenés algún comentario adicional sobre tu estado actual?',
+    placeholder:'Opcional · máx. 200 caracteres', maxlength:200
   }
 ];
 
@@ -827,6 +831,7 @@ function renderPerelliStep(){
   if (step.type === 'single') renderPerelliSingle(step);
   else if (step.type === 'multi') renderPerelliMulti(step);
   else if (step.type === 'rating-grid') renderPerelliGrid(step);
+  else if (step.type === 'text-input') renderPerelliTextInput(step);
 }
 function perelliAdvance(answer){
   perelliState.answers.push(answer);
@@ -916,6 +921,15 @@ function perelliAdvanceGrid(){
   }).join(', ');
   perelliAdvance(summary);
 }
+function renderPerelliTextInput(step){
+  document.getElementById('testOptions').innerHTML =
+    `<textarea id="perelliTxt" class="otros-input" maxlength="${step.maxlength}" placeholder="${step.placeholder}" style="height:90px;width:100%;box-sizing:border-box"></textarea>
+     <button type="button" class="test-next-btn" onclick="perelliAdvanceText()" style="margin-top:8px">Siguiente →</button>`;
+}
+function perelliAdvanceText(){
+  const val = (document.getElementById('perelliTxt')?.value || '').trim();
+  perelliAdvance(val);
+}
 function renderPerelliFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${PERELLI_STEPS.length} preguntas`;
@@ -924,17 +938,17 @@ function renderPerelliFinal(){
   document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarPerelli()">${waSVG}Enviar</button>`;
 }
 function finalizarPerelli(){
-  const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad] = perelliState.answers;
+  const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad, comentarios] = perelliState.answers;
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
     fetch(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
       nombre: p.nombre||'', cedula: p.cedula||'', empresa: p.empresa||'', dpto: p.departamento||'',
       sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'',
       fase, nivel_fatiga: nivelFatiga, sintomas, funciones,
-      calidad_suenio: calidadSuenio, factores, capacidad
+      calidad_suenio: calidadSuenio, factores, capacidad, comentarios: comentarios||''
     }), { mode:'no-cors' }).catch(() => {});
   }
-  const details = `*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}`;
+  const details = `*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}${comentarios ? '\n\n*Comentarios:* ' + comentarios : ''}`;
   const base = perelliState.item.baseNotification;
   const msg = base
     ? `${base} Se adjunta el *Test de Fatiga (Perelli SP)* completado desde el portal web.\n\n${details}`
