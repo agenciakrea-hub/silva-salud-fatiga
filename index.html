@@ -447,7 +447,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.16';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.17';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -482,7 +482,7 @@ const SECTIONS = [
     items:[
       {id:'sen_cansancio',   label:'Cansancio',     desc:'Agotamiento físico',      icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
       {id:'sen_estres',      label:'Estrés',        desc:'Test Estrés · luego a WhatsApp',  icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
-      {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
+      {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Test Ansiedad · luego a WhatsApp', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Por favor, asísteme e inicia el *Test de Ansiedad (BAI)* para registrar mi nivel actual.', testFlow:'ansiedad'},
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
@@ -498,7 +498,8 @@ const K_CONSENT = 'silva_fatiga_consent_v1';
 
 // Google Sheets webhooks (Apps Script desplegado como aplicación web)
 const SHEETS_KSS_URL   = 'https://script.google.com/macros/s/AKfycbxkksBqTDMqXlN6BtCfgdvau1Jgd98CIp-klJ28NcKpDBFILmM1trgFm1ngW-rKMxDtVg/exec';
-const SHEETS_ESTRES_URL = 'https://script.google.com/macros/s/AKfycbw357Ohz9OWgGoyIF_HBEbiriGY92Qs6T_cIEVbP2bgshlI5Sh0_mXel_FO90rzJ_tV/exec';
+const SHEETS_ESTRES_URL   = 'https://script.google.com/macros/s/AKfycbw357Ohz9OWgGoyIF_HBEbiriGY92Qs6T_cIEVbP2bgshlI5Sh0_mXel_FO90rzJ_tV/exec';
+const SHEETS_ANSIEDAD_URL = ''; // pegar URL del script de Ansiedad después de desplegar
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -648,6 +649,7 @@ let testItem = null, testIdx = 0, testRespuestas = [];
 let perelliState = null;
 let kssState = null;
 let estresState = null;
+let ansiedadState = null;
 
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
@@ -660,6 +662,9 @@ function abrirTest(it){
   } else if (it.testFlow === 'estres'){
     estresState = { item:it, stepIdx:0, answers:[] };
     renderEstresStep();
+  } else if (it.testFlow === 'ansiedad'){
+    ansiedadState = { item:it, stepIdx:0, answers:[] };
+    renderAnsiedadStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
     renderTestPaso();
@@ -667,7 +672,7 @@ function abrirTest(it){
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null; perelliState = null; kssState = null; estresState = null;
+  testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null;
 }
 function updateBackBtn(enabled){
   const btn = document.getElementById('testBackBtn');
@@ -680,6 +685,8 @@ function retrocederTest(){
     if (kssState.stepIdx > 0){ kssState.stepIdx--; kssState.answers.pop(); renderKssStep(); }
   } else if (estresState !== null){
     if (estresState.stepIdx > 0){ estresState.stepIdx--; estresState.answers.pop(); renderEstresStep(); }
+  } else if (ansiedadState !== null){
+    if (ansiedadState.stepIdx > 0){ ansiedadState.stepIdx--; ansiedadState.answers.pop(); renderAnsiedadStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -933,6 +940,19 @@ const _EO = ['0 · Nunca','1 · Raramente','2 · Una vez al mes o menos','3 · U
 const _EC = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
 const ESTRES_STEPS = ESTRES_SINTOMAS.map(s => ({ type:'single', question:s, options:_EO, colors:_EC }));
 
+const ANSIEDAD_SINTOMAS = [
+  'Adormecimiento o cosquilleo','Sentirse acalorado','Debilidad en las piernas',
+  'Incapacidad para relajarse','Miedo de que suceda lo peor','Mareo','Taquicardia',
+  'Inquietud','Sentirse aterrorizado','Nerviosismo','Sensación de ahogo',
+  'Manos temblorosas','Escalofríos','Miedo a perder el control',
+  'Dificultad para respirar','Miedo a morir','Sentirse asustado',
+  'Indigestión o molestias estomacales','Pérdida de la conciencia o desmayo',
+  'Rostro sonrojado','Sudoración (no debido al calor)'
+];
+const _AO = ['0 · No ha estado presente','1 · Levemente, no me ha molestado','2 · Moderadamente, pero lo pude superar','3 · Severamente, difícil lo soporté'];
+const _AC = ['#1aa672','#e8c400','#f0930f','#e0322f'];
+const ANSIEDAD_STEPS = ANSIEDAD_SINTOMAS.map(s => ({ type:'single', question:s, options:_AO, colors:_AC }));
+
 function renderKssStep(){
   const { stepIdx } = kssState;
   const step = KSS_STEPS[stepIdx];
@@ -1059,6 +1079,51 @@ function finalizarEstres(){
   window.open(waUrl(itemFinal), '_blank');
   mark(estresState.item.id);
   estresState = null;
+}
+
+// ── Test de Ansiedad (BAI) ──────────────────────────────────────
+function renderAnsiedadStep(){
+  const { stepIdx } = ansiedadState;
+  const step = ANSIEDAD_STEPS[stepIdx];
+  const total = ANSIEDAD_STEPS.length;
+  updateBackBtn(stepIdx > 0);
+  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
+    `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ · /,'')}</span></button>`
+  ).join('');
+}
+function ansiedadPickSingle(i){ ansiedadAdvance(ANSIEDAD_STEPS[ansiedadState.stepIdx].options[i]); }
+function ansiedadAdvance(answer){
+  ansiedadState.answers.push(answer);
+  ansiedadState.stepIdx++;
+  if (ansiedadState.stepIdx >= ANSIEDAD_STEPS.length) renderAnsiedadFinal();
+  else renderAnsiedadStep();
+}
+function renderAnsiedadFinal(){
+  updateBackBtn(true);
+  document.getElementById('testCount').textContent = `Completaste los ${ANSIEDAD_STEPS.length} síntomas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test de Ansiedad?';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarAnsiedad()">${waSVG}Enviar</button>`;
+}
+function finalizarAnsiedad(){
+  const ANSIEDAD_LABELS = ['No ha estado presente','Levemente, no me ha molestado','Moderadamente, pero lo pude superar','Severamente, difícil lo soporté'];
+  const ratings = ansiedadState.answers.map(a => { const n = parseInt(a); return `${n} = ${ANSIEDAD_LABELS[n]}`; });
+  if (SHEETS_ANSIEDAD_URL) {
+    const p = getProfile() || {};
+    const obj = { nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'' };
+    ratings.forEach((r,i) => { obj['s'+i] = r; });
+    fetch(SHEETS_ANSIEDAD_URL + '?' + new URLSearchParams(obj), { mode:'no-cors' }).catch(() => {});
+  }
+  const details = ANSIEDAD_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
+  const msg = `Completé el *Test de Ansiedad (BAI)* desde el portal web.\n\n${details}`;
+  const itemFinal = { ...ansiedadState.item, msg };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(ansiedadState.item.id);
+  ansiedadState = null;
 }
 
 function refreshStates(){
