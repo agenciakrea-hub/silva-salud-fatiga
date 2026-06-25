@@ -447,7 +447,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.14';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.15';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -481,7 +481,7 @@ const SECTIONS = [
     id:'sensaciones', title:'Sensaciones Personales', sub:'Reportá tu condición actual de turno', layout:'grid',
     items:[
       {id:'sen_cansancio',   label:'Cansancio',     desc:'Agotamiento físico',      icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
-      {id:'sen_estres',      label:'Estrés',        desc:'Sobrecarga operativa',     icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Registro una sensación personal de *Estrés / Sobrecarga Operativa* durante mi turno actual.'},
+      {id:'sen_estres',      label:'Estrés',        desc:'Test Estrés · luego a WhatsApp',  icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Falta de foco / presión',  icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Registro una sensación personal de *Ansiedad / Falta de Foco* durante mi turno actual.'},
       {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
@@ -497,7 +497,8 @@ const K_REPORTS = 'silva_fatiga_reports_v1';
 const K_CONSENT = 'silva_fatiga_consent_v1';
 
 // Google Sheets webhooks (Apps Script desplegado como aplicación web)
-const SHEETS_KSS_URL = 'https://script.google.com/macros/s/AKfycbxkksBqTDMqXlN6BtCfgdvau1Jgd98CIp-klJ28NcKpDBFILmM1trgFm1ngW-rKMxDtVg/exec';
+const SHEETS_KSS_URL   = 'https://script.google.com/macros/s/AKfycbxkksBqTDMqXlN6BtCfgdvau1Jgd98CIp-klJ28NcKpDBFILmM1trgFm1ngW-rKMxDtVg/exec';
+const SHEETS_ESTRES_URL = ''; // pegar URL del script de Estrés después de desplegar
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -646,6 +647,7 @@ const TEST_COLORES = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f
 let testItem = null, testIdx = 0, testRespuestas = [];
 let perelliState = null;
 let kssState = null;
+let estresState = null;
 
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
@@ -655,6 +657,9 @@ function abrirTest(it){
   } else if (it.testFlow === 'kss'){
     kssState = { item:it, stepIdx:0, answers:[] };
     renderKssStep();
+  } else if (it.testFlow === 'estres'){
+    estresState = { item:it, stepIdx:0, answers:[] };
+    renderEstresStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
     renderTestPaso();
@@ -662,7 +667,7 @@ function abrirTest(it){
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null; perelliState = null; kssState = null;
+  testItem = null; perelliState = null; kssState = null; estresState = null;
 }
 function updateBackBtn(enabled){
   const btn = document.getElementById('testBackBtn');
@@ -673,6 +678,8 @@ function retrocederTest(){
     if (perelliState.stepIdx > 0){ perelliState.stepIdx--; perelliState.answers.pop(); renderPerelliStep(); }
   } else if (kssState !== null){
     if (kssState.stepIdx > 0){ kssState.stepIdx--; kssState.answers.pop(); renderKssStep(); }
+  } else if (estresState !== null){
+    if (estresState.stepIdx > 0){ estresState.stepIdx--; estresState.answers.pop(); renderEstresStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -908,6 +915,24 @@ const KSS_STEPS = [
   }
 ];
 
+const ESTRES_SINTOMAS = [
+  'Imposibilidad de conciliar el sueño',
+  'Jaquecas y dolor de cabeza',
+  'Indigestiones o molestias gastrointestinales',
+  'Sensación de cansancio extremo o agotamiento',
+  'Comer, beber o fumar más de lo habitual',
+  'Disminución del interés sexual',
+  'Respiración entrecortada o sensación de ahogo',
+  'Disminución del apetito',
+  'Temblores musculares o tics nerviosos',
+  'Pinchazos o dolores en distintas partes del cuerpo',
+  'No querer levantarse por la mañana',
+  'Sudoración o palpitaciones'
+];
+const _EO = ['0 · Nunca','1 · Raramente','2 · Una vez al mes o menos','3 · Unas pocas veces al mes','4 · Una vez a la semana','5 · Unas pocas veces a la semana','6 · Todos los días'];
+const _EC = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
+const ESTRES_STEPS = ESTRES_SINTOMAS.map(s => ({ type:'single', question:s, options:_EO, colors:_EC }));
+
 function renderKssStep(){
   const { stepIdx } = kssState;
   const step = KSS_STEPS[stepIdx];
@@ -984,6 +1009,56 @@ function finalizarKss(){
   window.open(waUrl(itemFinal), '_blank');
   mark(kssState.item.id);
   kssState = null;
+}
+
+// ── Test de Estrés ──────────────────────────────────────────────
+function renderEstresStep(){
+  const { stepIdx } = estresState;
+  const step = ESTRES_STEPS[stepIdx];
+  const total = ESTRES_STEPS.length;
+  updateBackBtn(stepIdx > 0);
+  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
+    const lbl = opt.replace(/^\d+ · /, '');
+    return `<button type="button" class="test-opt" onclick="estresPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${lbl}</span></button>`;
+  }).join('');
+}
+function estresPickSingle(i){ estresAdvance(ESTRES_STEPS[estresState.stepIdx].options[i]); }
+function estresAdvance(answer){
+  estresState.answers.push(answer);
+  estresState.stepIdx++;
+  if (estresState.stepIdx >= ESTRES_STEPS.length) renderEstresFinal();
+  else renderEstresStep();
+}
+function renderEstresFinal(){
+  updateBackBtn(true);
+  document.getElementById('testCount').textContent = `Completaste los ${ESTRES_STEPS.length} síntomas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test de Estrés?';
+  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarEstres()">${waSVG}Enviar</button>`;
+}
+function finalizarEstres(){
+  const FREQ_LABELS = ['Nunca','Raramente','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+  const ratings = estresState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
+  if (SHEETS_ESTRES_URL) {
+    const p = getProfile() || {};
+    const params = new URLSearchParams({
+      nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'',
+      s0:ratings[0],  s1:ratings[1],  s2:ratings[2],  s3:ratings[3],
+      s4:ratings[4],  s5:ratings[5],  s6:ratings[6],  s7:ratings[7],
+      s8:ratings[8],  s9:ratings[9],  s10:ratings[10], s11:ratings[11]
+    });
+    fetch(SHEETS_ESTRES_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+  }
+  const details = ESTRES_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
+  const msg = `Completé el *Test de Estrés* desde el portal web.\n\n${details}`;
+  const itemFinal = { ...estresState.item, msg };
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(estresState.item.id);
+  estresState = null;
 }
 
 function refreshStates(){
