@@ -468,7 +468,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.25';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.26';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -525,6 +525,7 @@ const SHEETS_ESTRES_URL   = 'https://script.google.com/macros/s/AKfycbw357Ohz9OW
 const SHEETS_ANSIEDAD_URL     = 'https://script.google.com/macros/s/AKfycbzxMKyyeschmPakyMiTOVXAXWTuW2_QAPLG2Hw6_ZAoQDQXN_15EEOhRbmetBIwkGSs/exec';
 const SHEETS_OPERACIONAL_URL  = 'https://script.google.com/macros/s/AKfycbzPyz40zNGQE0uiDHGYPuO8ZGzKipBVHNSe1JjAp6LfquPBiF8RVDQZKFeGNQpXxoOGZw/exec';
 const SHEETS_GASTRO_URL       = 'https://script.google.com/macros/s/AKfycby-J2oLAYKPQwYe-2Dr2thcbKnd8U4EMLx6NohZTncQV2eNyBJpy0JhNFcKsSNx0c-B/exec';
+const SHEETS_DEPRESION_URL    = 'https://script.google.com/macros/s/AKfycbwaquR7YhfSZ1BwVvfetcyRlUEAQhTpkWmDm7d_VGFAjhqeeGQJvJhX8-OIVHR-Wklx/exec';
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -759,6 +760,15 @@ function renderTestFinal(){
 }
 function finalizarTest(){
   const resumen = TEST_DEPRESION.map((preg, i) => `${i + 1}. ${preg}: ${testRespuestas[i]}`).join('\n');
+  if (SHEETS_DEPRESION_URL) {
+    const p = getProfile() || {};
+    const params = new URLSearchParams({
+      nombre:p.nombre||'', empresa:p.empresa||'', dpto:p.departamento||'',
+      sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||''
+    });
+    testRespuestas.forEach((r, i) => params.set('s'+i, r));
+    fetch(SHEETS_DEPRESION_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+  }
   const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
