@@ -180,9 +180,10 @@
   .sheet .lead { font-size: 0.83rem; color: var(--text-soft); margin-top: 0.35rem; line-height: 1.5; }
   .field { margin-top: 1.1rem; }
   .field label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-soft); margin-bottom: 0.35rem; }
-  .field input { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #dfe4ec; border-radius: 12px;
+  .field input, .field select { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #dfe4ec; border-radius: 12px;
     font-size: 0.95rem; font-family: inherit; color: var(--text); background: #fafbfd; transition: border-color .15s; }
-  .field input:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.9rem center; padding-right: 2.2rem; }
   .field .err { color: #d63031; font-size: 0.72rem; margin-top: 0.3rem; display: none; }
   .field.invalid input { border-color: #d63031; }
   .field.invalid .err { display: block; }
@@ -391,6 +392,23 @@
     <div class="field" id="fCargo">
       <label for="inCargo">Cargo</label>
       <input id="inCargo" type="text" autocomplete="organization-title" placeholder="Ej: Piloto" maxlength="60">
+    </div>
+    <div class="field">
+      <label for="inSexo">Sexo <span style="font-weight:400;opacity:.55">(opcional)</span></label>
+      <select id="inSexo">
+        <option value="">— Sin especificar —</option>
+        <option value="Masculino">Masculino</option>
+        <option value="Femenino">Femenino</option>
+        <option value="Prefiero no indicar">Prefiero no indicar</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="inEdad">Edad <span style="font-weight:400;opacity:.55">(opcional)</span></label>
+      <input id="inEdad" type="number" inputmode="numeric" min="18" max="99" placeholder="Ej: 35" maxlength="3">
+    </div>
+    <div class="field">
+      <label for="inTelefono">Teléfono <span style="font-weight:400;opacity:.55">(opcional)</span></label>
+      <input id="inTelefono" type="tel" autocomplete="tel" placeholder="Ej: +58 412 1234567" maxlength="20">
       <div class="err">Por favor ingresá tu cargo.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
@@ -447,7 +465,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.20';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.21';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -1167,12 +1185,15 @@ function paintProfile(){
 let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
-  const p = getProfile() || {nombre:'',empresa:'',cedula:'',departamento:'',cargo:''};
-  document.getElementById('inName').value  = p.nombre;
-  document.getElementById('inCed').value   = p.cedula || '';
-  document.getElementById('inEmp').value   = p.empresa;
-  document.getElementById('inDep').value   = p.departamento || '';
-  document.getElementById('inCargo').value = p.cargo || '';
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
+  document.getElementById('inName').value     = p.nombre;
+  document.getElementById('inCed').value      = p.cedula      || '';
+  document.getElementById('inEmp').value      = p.empresa;
+  document.getElementById('inDep').value      = p.departamento|| '';
+  document.getElementById('inCargo').value    = p.cargo       || '';
+  document.getElementById('inSexo').value     = p.sexo        || '';
+  document.getElementById('inEdad').value     = p.edad        || '';
+  document.getElementById('inTelefono').value = p.telefono    || '';
   document.getElementById('setupTitle').textContent = isEdit ? 'Editar mis datos' : 'Bienvenido 👋';
   document.getElementById('setupLead').textContent = isEdit
     ? 'Actualizá tus datos. Se aplicarán a tus próximos reportes.'
@@ -1184,11 +1205,14 @@ function openSetup(isEdit){
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
 
 function saveProfile(){
-  const nombre = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
-  const cedula = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
-  const empresa = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
+  const nombre       = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
+  const cedula       = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
+  const empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
   const departamento = document.getElementById('inDep').value.trim().replace(/\s+/g,' ');
-  const cargo = document.getElementById('inCargo').value.trim().replace(/\s+/g,' ');
+  const cargo        = document.getElementById('inCargo').value.trim().replace(/\s+/g,' ');
+  const sexo         = document.getElementById('inSexo').value;
+  const edad         = document.getElementById('inEdad').value.trim();
+  const telefono     = document.getElementById('inTelefono').value.trim();
   let ok = true;
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
   document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
@@ -1196,7 +1220,7 @@ function saveProfile(){
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
   if (!ok) return;
-  setProfile({ nombre, cedula, empresa, departamento, cargo });
+  setProfile({ nombre, cedula, empresa, departamento, cargo, sexo, edad, telefono });
   paintProfile();
   renderSections();           // re-genera hrefs con datos nuevos
   closeSetup();
