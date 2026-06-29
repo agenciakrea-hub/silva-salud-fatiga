@@ -193,6 +193,16 @@
   .save-btn:active { transform: scale(0.98); }
   .cancel-btn { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: none; background: none; color: var(--text-muted);
     font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .pilot-banner { margin-top: 1.2rem; border: 2px solid #dfe4ec; border-radius: 14px; overflow: hidden; transition: border-color .15s, background .15s; }
+  .pilot-banner.active { border-color: var(--orange); background: #fff6ef; }
+  .pilot-banner label { display: flex; align-items: center; gap: 0.85rem; padding: 0.95rem 1rem; cursor: pointer; }
+  .pilot-banner .pbi { font-size: 1.5rem; flex-shrink: 0; }
+  .pilot-banner .pbt { flex: 1; }
+  .pilot-banner .pbt strong { display: block; font-size: 0.88rem; font-weight: 700; color: var(--text); }
+  .pilot-banner .pbt span { display: block; font-size: 0.76rem; color: var(--text-soft); margin-top: 0.2rem; line-height: 1.4; }
+  .pilot-banner input[type=checkbox] { display: none; }
+  .pilot-check { width: 22px; height: 22px; border: 2px solid #dfe4ec; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+  .pilot-banner.active .pilot-check { background: var(--orange); border-color: var(--orange); color: #fff; font-size: 12px; font-weight: 700; }
   .privacy { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 1rem; line-height: 1.5; }
 
   /* ── Test interactivo (prueba) ── */
@@ -369,6 +379,17 @@
   <div class="sheet">
     <h2 id="setupTitle">Bienvenido 👋</h2>
     <p class="lead" id="setupLead">Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.</p>
+    <div class="pilot-banner" id="pilotBanner">
+      <label for="inEsPiloto">
+        <span class="pbi">✈</span>
+        <span class="pbt">
+          <strong>Soy piloto de aerolínea externa</strong>
+          <span>No se mostrará la sección de Data Operacional (registro de horarios)</span>
+        </span>
+        <span class="pilot-check" id="pilotCheckIcon"></span>
+        <input type="checkbox" id="inEsPiloto" onchange="document.getElementById('pilotBanner').classList.toggle('active',this.checked);document.getElementById('pilotCheckIcon').textContent=this.checked?'✓':'';">
+      </label>
+    </div>
     <div class="field" id="fName">
       <label for="inName">Nombre y apellido</label>
       <input id="inName" type="text" autocomplete="name" placeholder="Ej: Juan Pérez" maxlength="60">
@@ -472,7 +493,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.37';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.38';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -586,8 +607,10 @@ const waSVG    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 function renderSections(){
   const root = document.getElementById('sections');
+  const _p = getProfile();
   root.innerHTML = '';
   SECTIONS.forEach(sec => {
+    if (sec.id === 'operacional' && _p && _p.esPiloto) return;
     const s = document.createElement('section');
     s.className = 'section';
     s.innerHTML = `<div class="sec-head"><div class="sec-title"><span class="dot"></span>${sec.title}</div><div class="sec-sub">${sec.sub}</div></div>`;
@@ -1307,7 +1330,11 @@ function paintProfile(){
 let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
-  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
+  const ep = !!p.esPiloto;
+  document.getElementById('inEsPiloto').checked = ep;
+  document.getElementById('pilotBanner').classList.toggle('active', ep);
+  document.getElementById('pilotCheckIcon').textContent = ep ? '✓' : '';
   document.getElementById('inName').value     = p.nombre;
   document.getElementById('inCed').value      = p.cedula      || '';
   document.getElementById('inPiloto').value   = p.id_piloto   || '';
@@ -1329,6 +1356,7 @@ function closeSetup(){ document.getElementById('setup').classList.remove('show')
 
 function saveProfile(){
   const nombre       = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
+  const esPiloto     = document.getElementById('inEsPiloto').checked;
   const cedula       = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
   const id_piloto    = document.getElementById('inPiloto').value.trim().replace(/\s+/g,' ');
   const empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
@@ -1347,7 +1375,7 @@ function saveProfile(){
   document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
   document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
   if (!ok) return;
-  setProfile({ nombre, cedula, id_piloto, empresa, departamento, cargo, sexo, edad, telefono });
+  setProfile({ nombre, cedula, id_piloto, esPiloto, empresa, departamento, cargo, sexo, edad, telefono });
   paintProfile();
   renderSections();           // re-genera hrefs con datos nuevos
   closeSetup();
