@@ -500,7 +500,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.42';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.43';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -616,9 +616,12 @@ const waSVG    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function renderSections(){
   const root = document.getElementById('sections');
   const _p = getProfile();
+  const pilot = _p && !!_p.esPiloto;
+  const sleep = document.getElementById('sleepSection');
+  if (sleep) sleep.style.display = pilot ? 'none' : '';
   root.innerHTML = '';
   SECTIONS.forEach(sec => {
-    if (sec.id === 'operacional' && _p && _p.esPiloto) return;
+    if (sec.id === 'operacional' && pilot) return;
     const s = document.createElement('section');
     s.className = 'section';
     s.innerHTML = `<div class="sec-head"><div class="sec-title"><span class="dot"></span>${sec.title}</div><div class="sec-sub">${sec.sub}</div></div>`;
@@ -1180,15 +1183,15 @@ const _GC = ['#1aa672','#e8c400','#e0322f'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
 const CANSANCIO_SINTOMAS = [
-  'Me siento emocionalmente agotado/a por mi trabajo',
-  'Me siento cansado/a al final de la jornada de trabajo',
-  'Me siento fatigado/a cuando me levanto por la mañana y tengo que enfrentarme a otro día de trabajo',
-  'Trabajar con personas todo el día me supone un esfuerzo',
-  'Me siento quemado/a por mi trabajo',
-  'Me siento frustrado/a en mi trabajo',
-  'Creo que estoy trabajando demasiado',
-  'Trabajar directamente con personas me produce estrés',
-  'Me siento acabado/a en mi trabajo, al límite de mis posibilidades'
+  'Me siento emocionalmente agotado/a por mi trabajo.',
+  'Me siento cansado al final de la jornada de trabajo.',
+  'Cuando me levanto por la mañana y me enfrento a otra jornada de trabajo me siento fatigado.',
+  'Siento que trabajar todo el día con clientes supone un gran esfuerzo y me cansa.',
+  'Siento que mi trabajo me está desgastando. Me siento quemado por mi trabajo.',
+  'Me siento frustrado/a en mi trabajo.',
+  'Creo que trabajo demasiado.',
+  'Trabajar directamente con clientes me produce estrés.',
+  'Me siento acabado en mi trabajo, al límite de mis posibilidades.'
 ];
 const _CO = ['0 = Nunca','1 = Alguna vez al año o menos','2 = Una vez al mes o menos','3 = Unas pocas veces al mes','4 = Una vez a la semana','5 = Unas pocas veces a la semana','6 = Todos los días'];
 const CANSANCIO_STEPS = CANSANCIO_SINTOMAS.map(s => ({ type:'single', question:s, options:_CO, colors:_EC }));
@@ -1492,8 +1495,7 @@ function finalizarCansancio(){
   if (SHEETS_CANSANCIO_URL) {
     const p = getProfile() || {};
     const params = new URLSearchParams({
-      nombre: p.nombre||'', cedula: p.cedula||'', empresa: p.empresa||'', dpto: p.departamento||'',
-      sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||''
+      nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||''
     });
     ratings.forEach((r, i) => params.set('s'+i, r));
     fetch(SHEETS_CANSANCIO_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
