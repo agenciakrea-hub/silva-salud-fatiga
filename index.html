@@ -222,6 +222,10 @@
   .test-opt .lbl { font-size: 0.86rem; font-weight: 600; color: var(--text); }
   .wa-send-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
   .wa-send-btn svg { width: 18px; height: 18px; }
+  .test-result-block { text-align:center; padding:0.4rem 0 1.1rem; }
+  .result-badge { display:inline-flex; flex-direction:column; align-items:center; gap:0.25rem; border-radius:16px; padding:0.9rem 1.6rem; min-width:200px; }
+  .result-cat { font-size:1.08rem; font-weight:800; line-height:1.25; }
+  .result-sub { font-size:0.78rem; font-weight:700; opacity:0.9; }
 
   /* Multi-choice y rating-grid (Test Perelli SP) */
   .test-opt.sel { border-color: var(--orange); background: #fff8f3; }
@@ -496,7 +500,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.40';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.41';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -718,6 +722,73 @@ let estresState = null;
 let ansiedadState = null;
 let gastroState = null;
 
+// ── Resultado estimado ───────────────────────────────────────────────────────
+const RANGES_DEPRESION = [
+  {max:18,  label:'Indeterminada',         color:'#1aa672'},
+  {max:36,  label:'Posible',               color:'#5fb84a'},
+  {max:42,  label:'Probable',              color:'#e8c400'},
+  {max:54,  label:'Muy probable',          color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+];
+const RANGES_GASTRO = [
+  {max:5,   label:'Indeterminada',         color:'#1aa672'},
+  {max:9,   label:'Posible',               color:'#5fb84a'},
+  {max:11,  label:'Probable',              color:'#e8c400'},
+  {max:13,  label:'Muy probable',          color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+];
+const RANGES_KSS = [
+  {max:4,   label:'Alerta',                color:'#1aa672'},
+  {max:7,   label:'Somnolencia Leve',      color:'#e8c400'},
+  {max:1e9, label:'Somnolencia Grave',     color:'#e0322f'}
+];
+const RANGES_ANSIEDAD = [
+  {max:10,  label:'Indeterminada',         sub:'Estados de no ansiedad',  color:'#1aa672'},
+  {max:19,  label:'Posible',               sub:'Ansiedad Leve',           color:'#5fb84a'},
+  {max:26,  label:'Probable',              sub:'Ansiedad Moderada',       color:'#e8c400'},
+  {max:36,  label:'Muy probable',          sub:'Ansiedad Moderada Grave', color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', sub:'Ansiedad Severa',         color:'#e0322f'}
+];
+const RANGES_ESTRES = [
+  {max:12,  label:'Indeterminada',         color:'#1aa672'},
+  {max:24,  label:'Posible',               sub:'Sin estrés',              color:'#5fb84a'},
+  {max:36,  label:'Probable',              sub:'Estrés leve',             color:'#e8c400'},
+  {max:60,  label:'Muy probable',          sub:'Estrés medio',            color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', sub:'Estrés alto',             color:'#e0322f'}
+];
+const RANGES_PERELLI = [
+  {max:3.4, label:'Indeterminada',         color:'#1aa672'},
+  {max:6,   label:'Posible',               color:'#5fb84a'},
+  {max:7.3, label:'Probable',              color:'#e8c400'},
+  {max:8.7, label:'Muy probable',          color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+];
+function getCategory(ranges, score){
+  return ranges.find(r => score < r.max) || ranges[ranges.length-1];
+}
+function resultCardHTML(cat){
+  return `<div class="test-result-block"><div class="result-badge" style="background:${cat.color}20;border:2px solid ${cat.color}"><span class="result-cat" style="color:${cat.color}">${cat.label}</span>${cat.sub ? `<span class="result-sub" style="color:${cat.color}">${cat.sub}</span>` : ''}</div></div>`;
+}
+function resultBtnHTML(fn){
+  const pilot = !!(getProfile()||{}).esPiloto;
+  return pilot
+    ? `<button type="button" class="save-btn" style="background:var(--orange);color:#fff" onclick="${fn}()">✓ Registrar resultado</button>`
+    : `<button type="button" class="save-btn wa-send-btn" onclick="${fn}()">${waSVG}Enviar a EVA</button>`;
+}
+function scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad){
+  const nf = parseInt(nivelFatiga) || 1;
+  const nfScore = (nf - 1) / 6 * 2;
+  const funcParts = (funciones || '').split(', ');
+  const funcScore = funcParts.reduce((s, p) => {
+    const m = p.match(/: (\d)/); const v = m ? parseInt(m[1]) : 1;
+    return s + (v - 1) * 0.5;
+  }, 0);
+  const calidadOpts = ['Excelente','Bueno','Regular','Malo','Muy malo'];
+  const ci = calidadOpts.indexOf(calidadSuenio);
+  const cap = parseInt(capacidad) || 1;
+  return Math.round((nfScore + funcScore + (ci >= 0 ? ci * 0.5 : 0) + (cap - 1) * 0.5) * 10) / 10;
+}
+
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
   if (it.testFlow === 'perelli'){
@@ -786,8 +857,10 @@ function renderTestFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${TEST_DEPRESION.length} preguntas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus respuestas a EVA por WhatsApp.';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarTest()">${waSVG}Enviar</button>`;
+  const score = testRespuestas.reduce((s, r) => s + parseInt(r), 0);
+  const cat = getCategory(RANGES_DEPRESION, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarTest');
 }
 function finalizarTest(){
   const resumen = TEST_DEPRESION.map((preg, i) => `${i + 1}. ${preg}: ${testRespuestas[i]} = ${TEST_ESCALA[testRespuestas[i]]}`).join('\n');
@@ -800,10 +873,16 @@ function finalizarTest(){
     testRespuestas.forEach((r, i) => params.set('s'+i, r + ' = ' + TEST_ESCALA[r]));
     fetch(SHEETS_DEPRESION_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
   }
-  const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  mark(testItem.id);
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(testItem.id);
+    showToast('Test registrado');
+  } else {
+    const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    mark(testItem.id);
+  }
 }
 
 // ── Fatiga · Perelli SP ───────────────────────────────────────────────────────
@@ -964,8 +1043,11 @@ function renderPerelliFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${PERELLI_STEPS.length} preguntas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus resultados a EVA por WhatsApp.';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarPerelli()">${waSVG}Enviar</button>`;
+  const [, nivelFatiga,, funciones, calidadSuenio,, capacidad] = perelliState.answers;
+  const score = scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad);
+  const cat = getCategory(RANGES_PERELLI, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarPerelli');
 }
 function finalizarPerelli(){
   const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad, comentarios] = perelliState.answers;
@@ -983,12 +1065,19 @@ function finalizarPerelli(){
   const msg = base
     ? `${base} Se adjunta el *Test de Fatiga (Perelli SP)* completado desde el portal web.\n\n${details}`
     : `Completé el *Test de Fatiga (Perelli SP)* desde el portal web.\n\n${details}`;
-  const itemFinal = { ...perelliState.item, msg };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  enviarOperacional(perelliState.item.operacionalCampo);
-  mark(perelliState.item.id);
-  perelliState = null;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(perelliState.item.id);
+    showToast('Test registrado');
+    perelliState = null;
+  } else {
+    const itemFinal = { ...perelliState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    enviarOperacional(perelliState.item.operacionalCampo);
+    mark(perelliState.item.id);
+    perelliState = null;
+  }
 }
 
 // ── Somnolencia · Escala KSS ─────────────────────────────────────────────────
@@ -1115,8 +1204,10 @@ function renderKssFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste las ${KSS_STEPS.length} preguntas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = 'Listo. Tocá el botón para enviarle tus resultados a EVA por WhatsApp.';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarKss()">${waSVG}Enviar</button>`;
+  const kssNum = parseInt(kssState.answers[1]) || 1;
+  const cat = getCategory(RANGES_KSS, kssNum);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarKss');
 }
 function finalizarKss(){
   const [fase, nivelAlerta, horasSuenio, tipoOp, comentario] = kssState.answers;
@@ -1150,12 +1241,19 @@ function finalizarKss(){
   const msg = base
     ? `${base} Se adjunta el *Test de Somnolencia (Escala KSS)* completado desde el portal web.\n\n${details}`
     : `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n${details}`;
-  const itemFinal = { ...kssState.item, msg };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  enviarOperacional(kssState.item.operacionalCampo);
-  mark(kssState.item.id);
-  kssState = null;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(kssState.item.id);
+    showToast('Test registrado');
+    kssState = null;
+  } else {
+    const itemFinal = { ...kssState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    enviarOperacional(kssState.item.operacionalCampo);
+    mark(kssState.item.id);
+    kssState = null;
+  }
 }
 
 // ── Test de Estrés ──────────────────────────────────────────────
@@ -1183,8 +1281,10 @@ function renderEstresFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste los ${ESTRES_STEPS.length} síntomas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test de Estrés?';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarEstres()">${waSVG}Enviar</button>`;
+  const score = estresState.answers.reduce((s, a) => s + parseInt(a), 0);
+  const cat = getCategory(RANGES_ESTRES, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarEstres');
 }
 function finalizarEstres(){
   const FREQ_LABELS = ['Nunca','Raramente','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
@@ -1202,11 +1302,18 @@ function finalizarEstres(){
   }
   const details = ESTRES_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Estrés* desde el portal web.\n\n${details}`;
-  const itemFinal = { ...estresState.item, msg };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  mark(estresState.item.id);
-  estresState = null;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(estresState.item.id);
+    showToast('Test registrado');
+    estresState = null;
+  } else {
+    const itemFinal = { ...estresState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    mark(estresState.item.id);
+    estresState = null;
+  }
 }
 
 // ── Test de Ansiedad (BAI) ──────────────────────────────────────
@@ -1233,8 +1340,10 @@ function renderAnsiedadFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste los ${ANSIEDAD_STEPS.length} síntomas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test de Ansiedad?';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarAnsiedad()">${waSVG}Enviar</button>`;
+  const score = ansiedadState.answers.reduce((s, a) => s + parseInt(a), 0);
+  const cat = getCategory(RANGES_ANSIEDAD, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarAnsiedad');
 }
 function finalizarAnsiedad(){
   const ANSIEDAD_LABELS = ['No ha estado presente','Levemente, no me ha molestado','Moderadamente, pero lo pude superar','Severamente, difícil lo soporté'];
@@ -1248,11 +1357,18 @@ function finalizarAnsiedad(){
   }
   const details = ANSIEDAD_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Ansiedad (BAI)* desde el portal web.\n\n${details}`;
-  const itemFinal = { ...ansiedadState.item, msg };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  mark(ansiedadState.item.id);
-  ansiedadState = null;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(ansiedadState.item.id);
+    showToast('Test registrado');
+    ansiedadState = null;
+  } else {
+    const itemFinal = { ...ansiedadState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    mark(ansiedadState.item.id);
+    ansiedadState = null;
+  }
 }
 
 // ── Test Gastrointestinal ────────────────────────────────────────
@@ -1279,8 +1395,10 @@ function renderGastroFinal(){
   updateBackBtn(true);
   document.getElementById('testCount').textContent = `Completaste los ${GASTRO_STEPS.length} síntomas`;
   document.getElementById('testProgressBar').style.width = '100%';
-  document.getElementById('testQuestion').textContent = '¿Confirmás el envío del Test Gastrointestinal?';
-  document.getElementById('testOptions').innerHTML = `<button type="button" class="save-btn wa-send-btn" onclick="finalizarGastro()">${waSVG}Enviar</button>`;
+  const score = gastroState.answers.reduce((s, a) => s + parseInt(a), 0);
+  const cat = getCategory(RANGES_GASTRO, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarGastro');
 }
 function finalizarGastro(){
   const GASTRO_LABELS = ['Muy en desacuerdo','En desacuerdo','De acuerdo'];
@@ -1296,11 +1414,18 @@ function finalizarGastro(){
   }
   const details = GASTRO_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test Gastrointestinal* desde el portal web.\n\n${details}`;
-  const itemFinal = { ...gastroState.item, msg };
-  document.getElementById('testOverlay').classList.remove('show');
-  window.open(waUrl(itemFinal), '_blank');
-  mark(gastroState.item.id);
-  gastroState = null;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(gastroState.item.id);
+    showToast('Test registrado');
+    gastroState = null;
+  } else {
+    const itemFinal = { ...gastroState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    mark(gastroState.item.id);
+    gastroState = null;
+  }
 }
 
 function refreshStates(){
