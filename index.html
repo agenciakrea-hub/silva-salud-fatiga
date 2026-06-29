@@ -500,7 +500,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.41';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.42';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
@@ -534,10 +534,10 @@ const SECTIONS = [
   {
     id:'sensaciones', title:'Sensaciones Personales', sub:'Reportá tu condición actual de turno', layout:'grid',
     items:[
-      {id:'sen_cansancio',   label:'Cansancio',     desc:'Agotamiento físico',      icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Registro una sensación personal de *Cansancio / Fatiga* durante mi turno actual.'},
+      {id:'sen_cansancio',   label:'Cansancio',     desc:'Test Cansancio · luego a WhatsApp', icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Por favor, asísteme e inicia el *Test de Cansancio* para registrar mi nivel actual.', testFlow:'cansancio'},
       {id:'sen_estres',      label:'Estrés',        desc:'Test Estrés · luego a WhatsApp',  icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Test Ansiedad · luego a WhatsApp', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Por favor, asísteme e inicia el *Test de Ansiedad (BAI)* para registrar mi nivel actual.', testFlow:'ansiedad'},
-      {id:'sen_malestar',    label:'Malestar',      desc:'Indisposición física',     icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Registro una sensación personal de *Malestar / Indisposición Física* durante mi turno actual.'},
+      {id:'sen_malestar',    label:'Malestar',      desc:'Test Gastro · luego a WhatsApp',   icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
       {id:'sen_depresion',   label:'Depresión',     desc:'Test depresión · luego a WhatsApp',  icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
@@ -559,6 +559,7 @@ const SHEETS_OPERACIONAL_URL  = 'https://script.google.com/macros/s/AKfycbzPyz40
 const SHEETS_GASTRO_URL       = 'https://script.google.com/macros/s/AKfycby-J2oLAYKPQwYe-2Dr2thcbKnd8U4EMLx6NohZTncQV2eNyBJpy0JhNFcKsSNx0c-B/exec';
 const SHEETS_DEPRESION_URL    = 'https://script.google.com/macros/s/AKfycbwaquR7YhfSZ1BwVvfetcyRlUEAQhTpkWmDm7d_VGFAjhqeeGQJvJhX8-OIVHR-Wklx/exec';
 const SHEETS_PERELLI_URL      = 'https://script.google.com/macros/s/AKfycbx5LdYyTEBNFS-ZvOsc9Jzzf41wbWHS7hYoqJLfp9nu53ZuA058hKfChkjuHVQxAeb-hA/exec';
+const SHEETS_CANSANCIO_URL    = '';  // pendiente deploy
 
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
@@ -721,6 +722,7 @@ let kssState = null;
 let estresState = null;
 let ansiedadState = null;
 let gastroState = null;
+let cansancioState = null;
 
 // ── Resultado estimado ───────────────────────────────────────────────────────
 const RANGES_DEPRESION = [
@@ -761,6 +763,13 @@ const RANGES_PERELLI = [
   {max:6,   label:'Posible',               color:'#5fb84a'},
   {max:7.3, label:'Probable',              color:'#e8c400'},
   {max:8.7, label:'Muy probable',          color:'#f0930f'},
+  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+];
+const RANGES_CANSANCIO = [
+  {max:7,   label:'Indeterminada',         color:'#1aa672'},
+  {max:13,  label:'Posible',               color:'#5fb84a'},
+  {max:19,  label:'Probable',              color:'#e8c400'},
+  {max:36,  label:'Muy probable',          color:'#f0930f'},
   {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
 ];
 function getCategory(ranges, score){
@@ -806,6 +815,9 @@ function abrirTest(it){
   } else if (it.testFlow === 'gastro'){
     gastroState = { item:it, stepIdx:0, answers:[] };
     renderGastroStep();
+  } else if (it.testFlow === 'cansancio'){
+    cansancioState = { item:it, stepIdx:0, answers:[] };
+    renderCansancioStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
     renderTestPaso();
@@ -813,7 +825,7 @@ function abrirTest(it){
 }
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
-  testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null; gastroState = null;
+  testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null; gastroState = null; cansancioState = null;
 }
 function updateBackBtn(enabled){
   const btn = document.getElementById('testBackBtn');
@@ -830,6 +842,8 @@ function retrocederTest(){
     if (ansiedadState.stepIdx > 0){ ansiedadState.stepIdx--; ansiedadState.answers.pop(); renderAnsiedadStep(); }
   } else if (gastroState !== null){
     if (gastroState.stepIdx > 0){ gastroState.stepIdx--; gastroState.answers.pop(); renderGastroStep(); }
+  } else if (cansancioState !== null){
+    if (cansancioState.stepIdx > 0){ cansancioState.stepIdx--; cansancioState.answers.pop(); renderCansancioStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -1165,6 +1179,20 @@ const _GO = ['0 = Muy en desacuerdo','1 = En desacuerdo','2 = De acuerdo'];
 const _GC = ['#1aa672','#e8c400','#e0322f'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
+const CANSANCIO_SINTOMAS = [
+  'Me siento emocionalmente agotado/a por mi trabajo',
+  'Me siento cansado/a al final de la jornada de trabajo',
+  'Me siento fatigado/a cuando me levanto por la mañana y tengo que enfrentarme a otro día de trabajo',
+  'Trabajar con personas todo el día me supone un esfuerzo',
+  'Me siento quemado/a por mi trabajo',
+  'Me siento frustrado/a en mi trabajo',
+  'Creo que estoy trabajando demasiado',
+  'Trabajar directamente con personas me produce estrés',
+  'Me siento acabado/a en mi trabajo, al límite de mis posibilidades'
+];
+const _CO = ['0 = Nunca','1 = Alguna vez al año o menos','2 = Una vez al mes o menos','3 = Unas pocas veces al mes','4 = Una vez a la semana','5 = Unas pocas veces a la semana','6 = Todos los días'];
+const CANSANCIO_STEPS = CANSANCIO_SINTOMAS.map(s => ({ type:'single', question:s, options:_CO, colors:_EC }));
+
 function renderKssStep(){
   const { stepIdx } = kssState;
   const step = KSS_STEPS[stepIdx];
@@ -1425,6 +1453,64 @@ function finalizarGastro(){
     window.open(waUrl(itemFinal), '_blank');
     mark(gastroState.item.id);
     gastroState = null;
+  }
+}
+
+// ── Test de Cansancio (Agotamiento Emocional · MBI-EE) ─────────────
+function renderCansancioStep(){
+  const { stepIdx } = cansancioState;
+  const step = CANSANCIO_STEPS[stepIdx];
+  const total = CANSANCIO_STEPS.length;
+  updateBackBtn(stepIdx > 0);
+  document.getElementById('testCount').textContent = `Pregunta ${stepIdx + 1} de ${total}`;
+  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
+    const lbl = opt.replace(/^\d+ = /, '');
+    return `<button type="button" class="test-opt" onclick="cansancioPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${lbl}</span></button>`;
+  }).join('');
+}
+function cansancioPickSingle(i){ cansancioAdvance(CANSANCIO_STEPS[cansancioState.stepIdx].options[i]); }
+function cansancioAdvance(answer){
+  cansancioState.answers.push(answer);
+  cansancioState.stepIdx++;
+  if (cansancioState.stepIdx >= CANSANCIO_STEPS.length) renderCansancioFinal();
+  else renderCansancioStep();
+}
+function renderCansancioFinal(){
+  updateBackBtn(true);
+  document.getElementById('testCount').textContent = `Completaste las ${CANSANCIO_STEPS.length} preguntas`;
+  document.getElementById('testProgressBar').style.width = '100%';
+  const score = cansancioState.answers.reduce((s, a) => s + parseInt(a), 0);
+  const cat = getCategory(RANGES_CANSANCIO, score);
+  document.getElementById('testQuestion').textContent = 'Resultado estimado de tu test:';
+  document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarCansancio');
+}
+function finalizarCansancio(){
+  const FREQ_LABELS = ['Nunca','Alguna vez al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+  const ratings = cansancioState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
+  if (SHEETS_CANSANCIO_URL) {
+    const p = getProfile() || {};
+    const params = new URLSearchParams({
+      nombre: p.nombre||'', cedula: p.cedula||'', empresa: p.empresa||'', dpto: p.departamento||'',
+      sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||''
+    });
+    ratings.forEach((r, i) => params.set('s'+i, r));
+    fetch(SHEETS_CANSANCIO_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+  }
+  const details = CANSANCIO_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
+  const msg = `Completé el *Test de Cansancio / Agotamiento Emocional* desde el portal web.\n\n${details}`;
+  if ((getProfile()||{}).esPiloto) {
+    document.getElementById('testOverlay').classList.remove('show');
+    mark(cansancioState.item.id);
+    showToast('Test registrado');
+    cansancioState = null;
+  } else {
+    const itemFinal = { ...cansancioState.item, msg };
+    document.getElementById('testOverlay').classList.remove('show');
+    window.open(waUrl(itemFinal), '_blank');
+    mark(cansancioState.item.id);
+    cansancioState = null;
   }
 }
 
