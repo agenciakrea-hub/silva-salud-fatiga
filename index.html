@@ -447,6 +447,50 @@
   .rank-item { cursor: pointer; }
   .rank-item:active { background: #f7f9fc; }
 
+  /* Ver contraseña */
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 2.6rem; }
+  .pw-eye { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); border: none; background: none; cursor: pointer; font-size: 1.05rem; opacity: .5; padding: .2rem; line-height: 1; }
+  .pw-eye.on { opacity: 1; }
+
+  /* Barra recordar credenciales */
+  .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
+    background: #16233d; color: #fff; border-radius: 14px; padding: .85rem 1rem; box-shadow: 0 12px 30px rgba(0,0,0,.35); z-index: 5;
+    display: flex; flex-direction: column; gap: .6rem; opacity: 0; visibility: hidden; transition: transform .3s cubic-bezier(.2,.8,.2,1), opacity .25s; }
+  .dash-remember.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
+  .dash-remember span { font-size: .84rem; font-weight: 600; }
+  .dr-btns { display: flex; gap: .5rem; }
+  .dr-btns button { flex: 1; padding: .55rem; border: none; border-radius: 9px; font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
+  .dr-yes { background: var(--orange); color: #fff; }
+  .dr-no { background: rgba(255,255,255,.14); color: #fff; }
+
+  /* Barra de contexto (breadcrumb) */
+  .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
+  .ctx-back { border: 1.5px solid var(--orange); background: #fff6ef; color: var(--orange); border-radius: 9px; padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
+  .ctx-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .ctx-chip { display: inline-flex; align-items: center; gap: .3rem; background: #eef2f8; color: var(--text); border-radius: 999px; padding: .28rem .6rem; font-size: .74rem; font-weight: 700; }
+  .ctx-chip.ctx-period { background: #eaf1ff; color: #2d5bb8; }
+  .ctx-chip.ctx-person { background: #fff1e6; color: var(--orange); }
+  .ctx-chip b { cursor: pointer; font-weight: 800; opacity: .55; padding: 0 .1rem; }
+  .ctx-chip b:hover { opacity: 1; }
+
+  /* Caja de ayuda por sección */
+  .dash-help { background: #f3f7ff; border: 1px solid #dbe6fb; border-radius: 11px; padding: .6rem .75rem; font-size: .78rem; line-height: 1.5; color: #3a4a66; margin-bottom: 1rem; }
+  .dash-help b { color: var(--text); }
+
+  /* Subtítulos de alertas: legibles */
+  .db-sub2 { font-size: .8rem; font-weight: 800; color: var(--text); margin: 1rem 0 .5rem; padding-left: .55rem; border-left: 3px solid var(--orange); }
+  .db-sub2-dep { border-left-color: #2d6cdf; }
+  .db-sub2-per { border-left-color: var(--orange); }
+
+  /* Filas / tarjetas clickeables */
+  .heat-row { cursor: pointer; }
+  .heat-row:active .hname { color: var(--orange); }
+  .heat-row .hname { transition: color .12s; }
+  .alert-card { cursor: pointer; border-radius: 8px; transition: background .12s; }
+  .alert-card:active { background: #f7f9fc; }
+  .alert-card .ac-name { color: var(--text); }
+
   @media (max-width: 600px) {
     #portalOverlay { padding: 0; }
     .sheet.portal { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
@@ -698,15 +742,21 @@
       </div>
 
       <div id="portalSup" class="portal-pane" style="display:none">
-        <div class="field"><label for="pEmpresa">Empresa</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Ej: IAIM"></div>
-        <div class="field"><label for="pPass">Contraseña</label><input id="pPass" type="password" autocomplete="off" placeholder="Contraseña de tu empresa"></div>
+        <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
+        <div class="field"><label for="pPass">Contraseña</label>
+          <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
+            <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña">👁</button></div>
+        </div>
         <div class="portal-err" id="portalErr"></div>
         <button class="save-btn" onclick="portalLoginSupervisor()">Entrar</button>
 
         <div class="admin-sep">
           <button type="button" class="admin-toggle" onclick="toggleAdminLogin()">Administrador / Desarrollador</button>
           <div id="adminBox" style="display:none">
-            <div class="field"><label for="pAdminPass">Contraseña de administrador</label><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (empresa * en Accesos)"></div>
+            <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
+              <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
+                <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña">👁</button></div>
+            </div>
             <div class="portal-err" id="adminErr"></div>
             <button class="save-btn" onclick="portalLoginAdmin()">Entrar como administrador</button>
           </div>
@@ -734,6 +784,14 @@
       </div>
     </div>
 
+    <div class="dash-remember" id="dashRemember">
+      <span>¿Recordar usuario y contraseña en este dispositivo?</span>
+      <div class="dr-btns">
+        <button class="dr-yes" onclick="dashSaveCreds()">Recordar</button>
+        <button class="dr-no" onclick="dismissRemember()">Ahora no</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -741,7 +799,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.49';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.50';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1882,22 +1940,32 @@ const MOCK_DASH = [
 ];
 
 let DASH = null;
-let DASH_TIMER = null;   // auto-refresh mientras el panel está abierto
+let DASH_TIMER = null;           // auto-refresh mientras el panel está abierto
+let DASH_PENDING_CREDS = null;   // credenciales a ofrecer recordar
+const K_DASH_CREDS = 'silva_dash_creds_v1';
+function dashGetCreds(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS)); } catch(e){ return null; } }
 
 function openPortal(){
   document.getElementById('portalGate').style.display = '';
   document.getElementById('portalDash').style.display = 'none';
-  portalMode('emp');
   const p = getProfile();
   document.getElementById('portalEmpHint').textContent = (p && p.nombre)
     ? 'Vas a ver los registros de ' + p.nombre + (DASH_DEMO ? ' (datos de ejemplo)' : '') + '.'
     : 'Completá tu perfil para ver tus estadísticas.';
-  if (p && p.empresa) document.getElementById('pEmpresa').value = p.empresa;
   document.getElementById('portalErr').textContent = '';
+  const c = dashGetCreds();
+  if (c && c.usuario){                                   // credenciales recordadas → prefill + modo supervisor
+    document.getElementById('pEmpresa').value = c.usuario;
+    document.getElementById('pPass').value = c.pass || '';
+    portalMode('sup');
+  } else {
+    portalMode('emp');
+    if (p && p.empresa) document.getElementById('pEmpresa').value = p.empresa;
+  }
   document.getElementById('portalOverlay').classList.add('show');
 }
-function closePortal(){ stopDashAutoRefresh(); document.getElementById('portalOverlay').classList.remove('show'); }
-function portalBackToGate(){ stopDashAutoRefresh(); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
+function closePortal(){ stopDashAutoRefresh(); dismissRemember(); document.getElementById('portalOverlay').classList.remove('show'); }
+function portalBackToGate(){ stopDashAutoRefresh(); dismissRemember(); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
 function portalMode(m){
   document.getElementById('ptabEmp').classList.toggle('active', m==='emp');
   document.getElementById('ptabSup').classList.toggle('active', m==='sup');
@@ -1933,24 +2001,35 @@ function portalLoginEmpleado(){
     .catch(() => showToast('No se pudo conectar'));
 }
 function portalLoginSupervisor(){
-  const empresa = document.getElementById('pEmpresa').value.trim();
+  const usuario = document.getElementById('pEmpresa').value.trim();
   const pass = document.getElementById('pPass').value.trim();
   const errEl = document.getElementById('portalErr'); errEl.textContent = '';
-  if (!empresa || !pass){ errEl.textContent = 'Completá empresa y contraseña.'; return; }
-  const params = { action:'supervisor', empresa, pass };
+  if (!usuario || !pass){ errEl.textContent = 'Completá usuario y contraseña.'; return; }
+  const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass };  // empresa = compat con endpoint viejo
   dashRequest(params)
     .then(d => {
       if (!d || !d.ok){ errEl.textContent = (d && d.error) || 'Acceso incorrecto.'; return; }
-      onDashData(d, d.rol==='admin' ? 'Todas las empresas' : empresa, params);
+      const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || usuario);
+      onDashData(d, label, params);
+      offerRemember(usuario, pass);
     })
     .catch(() => { errEl.textContent = 'No se pudo conectar.'; });
 }
+function togglePw(id, btn){ const el = document.getElementById(id); if (!el) return; const show = el.type==='password'; el.type = show?'text':'password'; if (btn) btn.classList.toggle('on', show); }
+function offerRemember(usuario, pass){
+  const saved = dashGetCreds();
+  if (saved && saved.usuario === usuario && saved.pass === pass) return;   // ya está guardado
+  DASH_PENDING_CREDS = { usuario:usuario, pass:pass };
+  document.getElementById('dashRemember').classList.add('show');
+}
+function dashSaveCreds(){ if (DASH_PENDING_CREDS) localStorage.setItem(K_DASH_CREDS, JSON.stringify(DASH_PENDING_CREDS)); document.getElementById('dashRemember').classList.remove('show'); showToast('Guardado en este dispositivo'); }
+function dismissRemember(){ document.getElementById('dashRemember').classList.remove('show'); }
 function toggleAdminLogin(){ const b = document.getElementById('adminBox'); b.style.display = (b.style.display==='none') ? '' : 'none'; }
 function portalLoginAdmin(){
   const pass = document.getElementById('pAdminPass').value.trim();
   const errEl = document.getElementById('adminErr'); errEl.textContent = '';
   if (!pass){ errEl.textContent = 'Ingresá la contraseña.'; return; }
-  const params = { action:'supervisor', empresa:'*', pass };
+  const params = { action:'supervisor', usuario:'*', empresa:'*', pass };
   dashRequest(params)
     .then(d => {
       if (!d || !d.ok){ errEl.textContent = (d && d.error) || 'Contraseña incorrecta.'; return; }
@@ -2109,21 +2188,50 @@ function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'�
 function renderDash(){
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
-  if (!rows.length){ body.innerHTML = '<div class="dash-empty">Sin registros para este filtro.</div>'; return; }
+  const ctx = dashContext();
+  if (!rows.length){ body.innerHTML = ctx + '<div class="dash-empty">Sin registros para este filtro.</div>'; return; }
   let html;
   if (DASH.tab === 'comparar') html = renderComparar(rows);
   else if (DASH.tab === 'individual') html = renderIndividual(rows);
   else if (DASH.tab === 'evolucion') html = renderEvolucion(rows);
   else if (DASH.tab === 'comentarios') html = renderComentarios(rows);
   else html = renderResumen(rows);
-  body.innerHTML = html;
+  body.innerHTML = ctx + html;
 }
 
-/* ── RESUMEN: promedios + radar + alertas / (o detalle si hay 1 persona) ── */
+/* ── Barra de contexto: dónde estás parado + navegación sin desloguear ── */
+function dashContext(){
+  const perLabel = (DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0] || ['','Todo'])[1];
+  let chips = '<span class="ctx-chip ctx-period">📅 ' + perLabel + '</span>';
+  if (DASH.rol !== 'empleado' && DASH.f.emp) chips += '<span class="ctx-chip">🏢 ' + esc(DASH.f.emp) + ' <b onclick="dashClear(\'emp\')">×</b></span>';
+  if (DASH.f.dep) chips += '<span class="ctx-chip">🗂 ' + esc(DASH.f.dep) + ' <b onclick="dashClear(\'dep\')">×</b></span>';
+  if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">👤 ' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
+  const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep))
+    ? '<button class="ctx-back" onclick="dashClearOne()">‹ Volver</button>' : '';
+  return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
+}
+function dashClear(level){
+  if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
+  else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
+  else if (level==='per'){ DASH.f.per=''; }
+  buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
+}
+function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
+function dashDrill(level, value){
+  if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; }
+  else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
+  DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
+}
+function dashDrillIdx(i){ const n = DASH._heatNames && DASH._heatNames[i]; if (n != null) dashDrill(DASH._heatLevel, n); }
+
+/* ── RESUMEN: promedios + barras + radar + alertas / (o detalle si hay 1 persona) ── */
 function renderResumen(rows){
   const single = DASH.rol === 'empleado' || !!DASH.f.per;
   const who = DASH.f.per ? esc(DASH.f.per)
             : (DASH.rol==='empleado' ? '' : (DASH.f.dep ? esc(DASH.f.dep) : (DASH.f.emp ? esc(DASH.f.emp) : 'todo el grupo')));
+  const help = dashHelp(single
+    ? 'Detalle de <b>' + (DASH.f.per ? esc(DASH.f.per) : 'la selección') + '</b>. Los números son el promedio de sus tests. Usá <b>‹ Volver</b> arriba para regresar sin cerrar sesión.'
+    : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
   let head = '<div class="dash-block"><div class="db-title">Promedios' + (who ? (' · ' + who) : '') + '</div>' +
     '<div class="db-sub">Promedio de los ' + rows.length + ' registro(s) del período seleccionado</div>' +
     '<div class="kpi-grid">';
@@ -2134,11 +2242,38 @@ function renderResumen(rows){
       '<div class="kref">ref ' + ref + (over?' · ▲':'') + '</div></div>';
   });
   head += '</div></div>';
+  const bars = '<div class="dash-block"><div class="db-title">Grupo vs. Referencia</div>' +
+    '<div class="db-sub">Barra de color = promedio actual · barra gris = valor de referencia (normal)</div>' +
+    dashGroupedBars(rows) + '</div>';
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
-    '<div class="db-sub">Cada eje ÷ su referencia (anillo punteado = normal)</div>' + dashRadar(series) + '</div>';
+    '<div class="db-sub">Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.</div>' + dashRadar(series) + '</div>';
   const extra = single ? (dashHistory(rows) + dashPersonComments()) : dashAlerts(rows);
-  return head + radar + extra;
+  return help + head + bars + radar + extra;
+}
+function dashHelp(text){ return '<div class="dash-help">💡 ' + text + '</div>'; }
+
+/* ── Barras agrupadas: promedio del grupo vs referencia por métrica ── */
+function dashGroupedBars(rows){
+  const items = DASH.metrics.map(m => ({ m, label:METRIC_LABELS[m]||m, grupo:dashAvg(rows,m)||0, ref:DASH.ref[m] }));
+  const W=340, H=200, padL=26, padR=8, padT=12, padB=52, iw=W-padL-padR, ih=H-padT-padB;
+  const maxV = Math.max.apply(null, items.map(i=>Math.max(i.grupo, i.ref)).concat([1])) * 1.15;
+  const n = items.length, gw = iw/n, bw = Math.min(16, gw*0.32);
+  const y = v => padT + (1 - v/maxV)*ih, base = padT + ih;
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="#e6eaf0"/>';
+  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="#7b8499">0</text>';
+  items.forEach((it,i) => {
+    const cx = padL + gw*i + gw/2, over = it.grupo > it.ref, col = over ? '#e0322f' : (METRIC_COLORS[it.m]||'#2d6cdf');
+    svg += '<rect x="'+(cx-bw-1).toFixed(1)+'" y="'+y(it.grupo).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.grupo)).toFixed(1)+'" rx="1.5" fill="'+col+'"/>';
+    svg += '<rect x="'+(cx+1).toFixed(1)+'" y="'+y(it.ref).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.ref)).toFixed(1)+'" rx="1.5" fill="#c9d2e0"/>';
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="#525d73" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(it.label)+'</text>';
+  });
+  svg += '</svg>';
+  const legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:#2d6cdf"></span>Promedio</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#c9d2e0"></span>Referencia</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#e0322f"></span>Sobre lo normal</span></div>';
+  return '<div class="radar-wrap">' + svg + legend + '</div>';
 }
 
 /* ── COMPARAR: heatmap + radar comparado + torta + dona + estadística ── */
@@ -2146,18 +2281,21 @@ function renderComparar(rows){
   const groupKey = (DASH.rol === 'admin' && !DASH.f.emp) ? 'empresa' : 'departamento';
   const g = dashGroup(rows, groupKey);
   const names = Object.keys(g).filter(n => n !== '—').sort();
+  DASH._heatNames = names;
+  DASH._heatLevel = (groupKey === 'empresa') ? 'emp' : 'dep';
 
+  const help = dashHelp('Compará ' + (groupKey==='empresa'?'las empresas':'los departamentos') + ' entre sí. Cada celda es el promedio de esa métrica: <b style="color:#1aa672">verde</b> = bien, <b style="color:#d63031">rojo</b> = sobre lo normal. <b>Tocá una fila</b> para entrar a ese ' + groupKey + '.');
   let heat = '<div class="dash-block"><div class="db-title">Comparativa por ' + groupKey + '</div>' +
-    '<div class="db-sub">Promedio por métrica · verde = bajo, rojo = sobre la referencia</div>' +
     '<div class="heat-scroll"><table class="heat"><thead><tr><th class="hname"></th>' +
     DASH.metrics.map(m=>'<th>'+(METRIC_LABELS[m]||m)+'</th>').join('') + '</tr></thead><tbody>';
-  names.forEach(n => {
-    heat += '<tr><td class="hname">' + esc(n) + '</td>' + DASH.metrics.map(m => {
+  names.forEach((n,i) => {
+    heat += '<tr class="heat-row" onclick="dashDrillIdx(' + i + ')"><td class="hname">' + esc(n) + ' ›</td>' + DASH.metrics.map(m => {
       const a = dashAvg(g[n], m), ref = DASH.ref[m];
       return '<td class="cell" style="background:' + heatColor(a, ref) + '">' + (a==null?'—':a.toFixed(0)) + '</td>';
     }).join('') + '</tr>';
   });
   heat += '</tbody></table></div></div>';
+  heat = help + heat;
 
   const series = names.slice(0,5).map((n,i) => ({ name:n, color:PIE_PALETTE[i%PIE_PALETTE.length], get:m=>dashAvg(g[n],m) }));
   const radar = series.length ? ('<div class="dash-block"><div class="db-title">Perfil comparado</div>' +
@@ -2195,8 +2333,9 @@ function renderIndividual(rows){
       '<div class="rank-val ' + (over?'over':'ok') + '">' + fmt(x.val) + ' ›</div></div>';
   }).join('');
   if (!items.length) list = '<div class="dash-empty">Sin datos por persona.</div>';
-  return '<div class="dash-block"><div class="db-title">Ranking individual</div>' +
-    '<div class="db-sub">' + (composite ? 'Índice global (1.00× = en la media). ' : 'Promedio por persona · ref ' + ref + '. ') + 'Tocá a alguien para ver su detalle.</div>' +
+  const help = dashHelp('Ranking de personas ordenado de mayor a menor. ' + (composite ? 'El <b>índice global</b> resume las 6 métricas: 1.00× = justo en la media, más alto = peor.' : 'Elegí la métrica arriba.') + ' <b>Tocá a una persona</b> para ver su detalle completo.');
+  return help + '<div class="dash-block"><div class="db-title">Ranking individual</div>' +
+    '<div class="db-sub">' + (composite ? 'Índice global (1.00× = en la media)' : 'Promedio por persona · referencia ' + ref) + '</div>' +
     dashMetricPicker('pickInd', m, true) + list + '</div>';
 }
 
@@ -2204,16 +2343,18 @@ function renderIndividual(rows){
 function renderEvolucion(rows){
   const m = DASH.pickEvo, picker = dashMetricPicker('pickEvo', m, true);
   if (m === '__all__'){
-    return '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-      '<div class="db-sub">Promedio mensual ÷ referencia (1.0 = en la media)</div>' + picker + dashEvoMulti(rows) + '</div>';
+    const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses (AA-MM).');
+    return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
+      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>';
   }
   const ref = DASH.ref[m], buckets = {};
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
   const keys = Object.keys(buckets).sort();
   const points = keys.map(k => ({ label:k, value:dashMean(buckets[k]), n:buckets[k].length }));
   const chart = points.length ? dashLineChart(points, ref) : '<div class="lc-empty">Sin fechas suficientes para graficar.</div>';
-  return '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-    '<div class="db-sub">Promedio mensual · línea punteada = referencia (' + ref + ')</div>' + picker + chart + '</div>';
+  const help = dashHelp('Promedio de <b>' + (METRIC_LABELS[m]||m) + '</b> por mes. La <b>línea punteada</b> es la referencia (' + ref + '): si los puntos suben por encima, ese mes estuvo peor que lo normal. Eje horizontal = meses (AA-MM).');
+  return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
+    '<div class="db-sub">Promedio mensual de ' + (METRIC_LABELS[m]||m) + ' · punteada = referencia (' + ref + ')</div>' + picker + chart + '</div>';
 }
 
 /* ── COMENTARIOS adicionales ── */
@@ -2229,15 +2370,18 @@ function renderComentarios(rows){
     if (DASH.f.per && c.persona !== DASH.f.per) return false;
     if (rng.desde && c.fecha < rng.desde) return false;
     if (rng.hasta && c.fecha > rng.hasta) return false;
-    return String(c.texto||'').trim() !== '';
+    return esComentarioValido(c.texto);
   }).sort((a,b) => a.fecha < b.fecha ? 1 : -1);
-  if (!list.length) return '<div class="dash-block"><div class="db-title">Comentarios adicionales</div><div class="dash-empty">Sin comentarios para este filtro.</div></div>';
-  return '<div class="dash-block"><div class="db-title">Comentarios adicionales (' + list.length + ')</div>' +
+  if (!list.length) return dashHelp('Acá aparecen los comentarios que las personas escribieron al completar sus tests, respetando los filtros de arriba.') + '<div class="dash-block"><div class="db-title">Comentarios adicionales</div><div class="dash-empty">Sin comentarios para este filtro.</div></div>';
+  return dashHelp('Comentarios que las personas escribieron al completar sus tests. Respetan el período, departamento y empleado que tengas filtrados arriba.') +
+    '<div class="dash-block"><div class="db-title">Comentarios adicionales (' + list.length + ')</div>' +
     list.slice(0,100).map(cmtCard).join('') + '</div>';
 }
+// Ignora comentarios vacíos o que son solo "no"/"No" (gente que no quiso comentar pero no dejó vacío)
+function esComentarioValido(t){ const s = String(t||'').trim().toLowerCase(); return s !== '' && s !== 'no' && s !== 'no.' && s !== 'ninguno' && s !== 'n/a'; }
 function dashPersonComments(){
   if (!DASH.comentarios || !DASH.f.per) return '';
-  const cs = DASH.comentarios.filter(c => c.persona === DASH.f.per && String(c.texto||'').trim() !== '')
+  const cs = DASH.comentarios.filter(c => c.persona === DASH.f.per && esComentarioValido(c.texto))
     .sort((a,b) => a.fecha < b.fecha ? 1 : -1);
   if (!cs.length) return '';
   return '<div class="dash-block"><div class="db-title">Comentarios</div>' + cs.slice(0,40).map(cmtCard).join('') + '</div>';
@@ -2399,17 +2543,21 @@ function dashAlerts(rows){
     }).filter(x => x.over.length).sort((a,b) => b.score - a.score);
   }
   const deptos = build('departamento'), personas = build('persona');
+  DASH._alertDep = deptos.map(x=>x.name);
+  DASH._alertPer = personas.map(x=>x.name);
   if (!deptos.length && !personas.length)
     return '<div class="dash-block"><div class="db-title">Sobre la referencia</div><div class="dash-ok">✓ Nada por encima de la media.</div></div>';
-  function group(title, items){
+  function group(title, items, type){
     if (!items.length) return '';
-    return '<div class="db-sub2">' + title + '</div>' + items.slice(0,15).map(x =>
-      '<div class="alert-card"><div class="ac-name">' + esc(x.name) + '</div><div class="ac-badges">' +
+    return '<div class="db-sub2 db-sub2-' + type + '">' + title + '</div>' + items.slice(0,15).map((x,i) =>
+      '<div class="alert-card" onclick="' + (type==='dep' ? "dashDrill('dep', DASH._alertDep["+i+"])" : "dashGoPerson(DASH._alertPer["+i+"])") + '">' +
+      '<div class="ac-name">' + esc(x.name) + ' ›</div><div class="ac-badges">' +
       x.over.map(o => '<span class="ac-badge">' + (METRIC_LABELS[o.m]||o.m) + ' <b>' + o.a.toFixed(1) + '</b><i>/' + o.ref + '</i></span>').join('') +
       '</div></div>').join('');
   }
   return '<div class="dash-block"><div class="db-title">⚠ Por encima de la media de referencia</div>' +
-    group('Departamentos', deptos) + group('Empleados', personas) + '</div>';
+    dashHelp('Quiénes superan lo normal en alguna métrica, ordenados por gravedad. <b>Tocá</b> cualquiera para ver su detalle.') +
+    group('Departamentos', deptos, 'dep') + group('Empleados', personas, 'per') + '</div>';
 }
 
 function dashHistory(rows){
