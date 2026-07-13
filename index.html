@@ -468,6 +468,20 @@
   .sup-notice { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 12px; padding: .7rem .85rem; font-size: .8rem; line-height: 1.5; color: #8a4b12; margin: 1.2rem 0 .2rem; }
   .sup-notice strong { color: #6b3a0e; }
 
+  /* Informe IA */
+  .informe-btn { max-width: 340px; margin: 0 auto 1rem; display: block; }
+  .informe-empty { text-align: center; color: var(--text-muted); font-size: .84rem; padding: 1.4rem 1rem; line-height: 1.5; }
+  .informe-loading { text-align: center; color: var(--orange); font-weight: 700; font-size: .86rem; padding: 1.4rem 1rem; }
+  .informe-aviso { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 10px; padding: .55rem .7rem; font-size: .78rem; color: #8a4b12; margin-bottom: .7rem; }
+  .informe-box { background: #fbfcfe; border: 1px solid #e9edf3; border-radius: 14px; padding: 1rem 1.1rem; color: var(--text); }
+  .informe-box h4 { font-size: .92rem; font-weight: 800; color: var(--navy); margin: 1rem 0 .35rem; }
+  .informe-box h4:first-child { margin-top: 0; }
+  .informe-box p { font-size: .86rem; line-height: 1.6; color: var(--text-soft); margin: .4rem 0; }
+  .informe-box ul { margin: .3rem 0 .6rem 1.1rem; }
+  .informe-box li { font-size: .85rem; line-height: 1.55; color: var(--text-soft); margin: .2rem 0; }
+  .informe-box b { color: var(--text); }
+  .informe-meta { font-size: .68rem; color: var(--text-muted); text-align: right; margin-top: .5rem; }
+
   /* Barra recordar credenciales */
   .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
     background: #16233d; color: #fff; border-radius: 14px; padding: .85rem 1rem; box-shadow: 0 12px 30px rgba(0,0,0,.35); z-index: 5;
@@ -831,7 +845,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2119,15 +2133,15 @@ function portalLoginAdmin(){
     .catch(() => { errEl.textContent = 'No se pudo conectar.'; });
 }
 
-const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', comentarios:'Comentarios' };
+const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', comentarios:'Comentarios', informe:'Informe IA' };
 
 function onDashData(d, scopeLabel, params){
   if (!d || !d.ok){ showToast((d && d.error) || 'Error al cargar'); return; }
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
-  const tabs = (d.rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios'];
+  const tabs = (d.rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe'];
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, scope:scopeLabel,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
-           pickInd:metrics[0], pickEvo:'__all__',
+           pickInd:metrics[0], pickEvo:'__all__', _informe:null,
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros) };
   document.getElementById('dashScope').textContent = scopeLabel + (DASH_DEMO ? ' · ejemplo' : '');
   buildDashTabs();
@@ -2276,6 +2290,7 @@ function renderDash(){
   else if (DASH.tab === 'individual') html = renderIndividual(rows);
   else if (DASH.tab === 'evolucion') html = renderEvolucion(rows);
   else if (DASH.tab === 'comentarios') html = renderComentarios(rows);
+  else if (DASH.tab === 'informe') html = renderInforme(rows);
   else html = renderResumen(rows);
   body.innerHTML = ctx + html;
 }
@@ -2473,6 +2488,89 @@ function cmtCard(c){
   return '<div class="cmt-item"><div class="cmt-head"><span class="cmt-name">' + esc(c.persona||'—') + '</span>' +
     '<span class="cmt-date">' + esc(c.fecha||'') + (c.tipo ? (' · ' + esc(c.tipo)) : '') + '</span></div>' +
     '<div class="cmt-text">' + esc(c.texto) + '</div></div>';
+}
+
+/* ── INFORME IA (Gemini) ── */
+function renderInforme(rows){
+  const help = dashHelp('Un informe escrito por inteligencia artificial que analiza estos datos junto con los documentos de referencia (metodología de los tests). ' +
+    (DASH.rol==='admin' ? 'Como administrador podés generarlo cuando quieras.' : 'Se puede generar <b>1 por semana</b> por empresa.'));
+  const btn = '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>';
+  const out = '<div id="informeOut">' + (DASH._informe ? dashInformeHTML(DASH._informe) : '<div class="informe-empty">Todavía no generaste el informe de esta selección. Ajustá los filtros de arriba y tocá “Generar informe”.</div>') + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' +
+    '<div class="db-sub">Análisis escrito de ' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + ' según los datos y la metodología de los documentos.</div>' +
+    btn + out + '</div>';
+}
+function dashGenerarInforme(){
+  const btn = document.getElementById('informeBtn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Generando informe… (puede tardar hasta ~40s)';
+  document.getElementById('informeOut').innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
+  stopDashAutoRefresh();                                   // pausa el refresco mientras genera
+  const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass, resumen: dashBuildSummary(dashFiltered()) };
+  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled = false; btn.textContent = 'Generar informe'; startDashAutoRefresh();
+      if (!d || !d.ok){ document.getElementById('informeOut').innerHTML = '<div class="informe-empty">' + esc((d && d.error) || 'No se pudo generar el informe.') + '</div>'; return; }
+      DASH._informe = { texto:d.informe, fecha:d.generado, proximo:d.proximo, aviso:d.aviso };
+      document.getElementById('informeOut').innerHTML = dashInformeHTML(DASH._informe);
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Generar informe'; startDashAutoRefresh(); document.getElementById('informeOut').innerHTML = '<div class="informe-empty">Sin conexión o el servidor tardó demasiado. Reintentá.</div>'; });
+}
+function dashInformeHTML(inf){
+  let meta = '';
+  if (inf.aviso) meta += '<div class="informe-aviso">' + esc(inf.aviso) + '</div>';
+  const foot = (inf.fecha ? 'Generado: ' + esc(inf.fecha) : '') + (inf.proximo ? ' · Próximo disponible: ' + esc(inf.proximo) : '');
+  return meta + '<div class="informe-box">' + dashMdLite(inf.texto) + '</div>' + (foot ? '<div class="informe-meta">' + foot + '</div>' : '');
+}
+// Markdown-lite: **negrita**, *itálica*, ## títulos, viñetas
+function dashMdLite(t){
+  const lines = String(t||'').split('\n');
+  let html = '', inList = false;
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g,'$1<i>$2</i>');
+  lines.forEach(ln => {
+    const l = ln.trim();
+    if (/^#{1,6}\s/.test(l)){ if(inList){html+='</ul>';inList=false;} html += '<h4>'+inline(l.replace(/^#{1,6}\s/,''))+'</h4>'; }
+    else if (/^([-*]|\d+\.)\s/.test(l)){ if(!inList){html+='<ul>';inList=true;} html += '<li>'+inline(l.replace(/^([-*]|\d+\.)\s/,''))+'</li>'; }
+    else if (l===''){ if(inList){html+='</ul>';inList=false;} }
+    else { if(inList){html+='</ul>';inList=false;} html += '<p>'+inline(l)+'</p>'; }
+  });
+  if (inList) html += '</ul>';
+  return html;
+}
+function dashRound(x){ return x==null ? null : Math.round(x*10)/10; }
+function dashBuildSummary(rows){
+  const rng = dashEffectiveRange();
+  const metricas = DASH.metrics.map(m => {
+    const v = dashVals(rows, m), media = dashMean(v);
+    return { metrica:METRIC_LABELS[m]||m, media:dashRound(media), mediana:dashRound(dashMedian(v)), desviacion:dashRound(dashStd(v)),
+             maximo: v.length ? Math.max.apply(null,v) : null, referencia:DASH.ref[m], n:v.length, sobreReferencia: media!=null && media>DASH.ref[m] };
+  });
+  const gd = dashGroup(rows.filter(r=>r.departamento), 'departamento');
+  const departamentos = Object.keys(gd).map(n => ({ nombre:n, n:gd[n].length,
+    medias: DASH.metrics.reduce((o,m) => { o[METRIC_LABELS[m]||m] = dashRound(dashAvg(gd[n],m)); return o; }, {}) }));
+  const alertas = [];
+  ['departamento','persona'].forEach(lvl => {
+    const g = dashGroup(rows.filter(r=>r[lvl]), lvl);
+    Object.keys(g).forEach(n => DASH.metrics.forEach(m => { const a = dashAvg(g[n],m);
+      if (a!=null && a>DASH.ref[m]) alertas.push({ tipo:(lvl==='departamento'?'Departamento':'Empleado'), nombre:n, metrica:METRIC_LABELS[m]||m, valor:dashRound(a), referencia:DASH.ref[m] }); }));
+  });
+  alertas.sort((a,b) => (b.valor/b.referencia) - (a.valor/a.referencia));
+  const comentarios = (DASH.comentarios||[]).filter(c => {
+    if (DASH.f.emp && c.empresa!==DASH.f.emp) return false;
+    if (DASH.f.dep && c.departamento!==DASH.f.dep) return false;
+    if (DASH.f.per && c.persona!==DASH.f.per) return false;
+    if (rng.desde && c.fecha<rng.desde) return false;
+    if (rng.hasta && c.fecha>rng.hasta) return false;
+    return esComentarioValido(c.texto);
+  }).map(c => ({ persona:c.persona, fecha:c.fecha, tipo:c.tipo, texto:c.texto })).slice(0,60);
+  return {
+    empresa: DASH.scope,
+    periodo: { label:(DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0]||['','Todo'])[1], desde:rng.desde||null, hasta:rng.hasta||null },
+    filtros: { departamento:DASH.f.dep||'(todos)', empleado:DASH.f.per||'(todos)' },
+    nRegistros: rows.length, referencias: DASH.ref,
+    metricas: metricas, departamentos: departamentos, alertas: alertas.slice(0,25), comentarios: comentarios
+  };
 }
 
 function dashMetricPicker(field, current, includeAll){
