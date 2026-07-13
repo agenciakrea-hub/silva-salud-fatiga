@@ -450,8 +450,23 @@
   /* Ver contraseña */
   .pw-wrap { position: relative; }
   .pw-wrap input { padding-right: 2.6rem; }
-  .pw-eye { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); border: none; background: none; cursor: pointer; font-size: 1.05rem; opacity: .5; padding: .2rem; line-height: 1; }
+  .pw-eye { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: #16233d; opacity: .45; padding: .2rem; line-height: 0; display: flex; }
   .pw-eye.on { opacity: 1; }
+
+  /* Combobox del setup (empresa / departamento) */
+  .combo { position: relative; }
+  .combo-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 6; background: #fff; border: 1.5px solid #dfe4ec; border-top: none; border-radius: 0 0 12px 12px; max-height: 210px; overflow-y: auto; display: none; box-shadow: 0 10px 24px rgba(5,20,50,.14); }
+  .combo-panel.show { display: block; }
+  .combo-opt, .combo-add, .combo-empty { padding: .62rem .8rem; font-size: .88rem; }
+  .combo-opt, .combo-add { cursor: pointer; }
+  .combo-add { color: var(--orange); font-weight: 700; border-bottom: 1px solid #eef1f5; }
+  .combo-opt { color: var(--text); border-bottom: 1px solid #f4f6f9; }
+  .combo-opt:hover, .combo-add:hover { background: #f5f7fb; }
+  .combo-empty { color: var(--text-muted); font-size: .8rem; }
+
+  /* Aviso de supervisor en el setup */
+  .sup-notice { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 12px; padding: .7rem .85rem; font-size: .8rem; line-height: 1.5; color: #8a4b12; margin: 1.2rem 0 .2rem; }
+  .sup-notice strong { color: #6b3a0e; }
 
   /* Barra recordar credenciales */
   .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
@@ -619,7 +634,18 @@
           <strong>Personal de aviación</strong>
         </span>
         <span class="pilot-check" id="pilotCheckIcon"></span>
-        <input type="checkbox" id="inEsPiloto" onchange="document.getElementById('pilotBanner').classList.toggle('active',this.checked);document.getElementById('pilotCheckIcon').textContent=this.checked?'✓':'';">
+        <input type="checkbox" id="inEsPiloto" onchange="onPilotToggle(this)">
+      </label>
+    </div>
+    <div class="pilot-banner" id="supBanner">
+      <label for="inEsSupervisor">
+        <span class="pbi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        <span class="pbt">
+          <span class="opt-tag">Opcional</span>
+          <strong>Supervisor</strong>
+        </span>
+        <span class="pilot-check" id="supCheckIcon"></span>
+        <input type="checkbox" id="inEsSupervisor" onchange="onSupervisorToggle(this)">
       </label>
     </div>
     <div class="field" id="fName">
@@ -632,18 +658,24 @@
       <input id="inCed" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 12.345.678" maxlength="20">
       <div class="err">Por favor ingresá tu número de cédula.</div>
     </div>
-    <div class="field" id="fPiloto">
+    <div class="field" id="fPiloto" style="display:none">
       <label for="inPiloto">Identificador de Piloto <span style="font-weight:400;color:#888">(opcional)</span></label>
       <input id="inPiloto" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 987654" maxlength="20">
     </div>
     <div class="field" id="fEmp">
       <label for="inEmp">Empresa</label>
-      <input id="inEmp" type="text" autocomplete="organization" placeholder="Ej: Aerolíneas del Sur" maxlength="60">
+      <div class="combo" id="comboEmp">
+        <input id="inEmp" type="text" autocomplete="off" placeholder="Elegí de la lista o agregá" maxlength="60" oninput="comboFilter('Emp')" onfocus="comboOpen('Emp')" onblur="comboBlur('Emp')">
+        <div class="combo-panel" id="panelEmp"></div>
+      </div>
       <div class="err">Por favor ingresá tu empresa.</div>
     </div>
     <div class="field" id="fDep">
       <label for="inDep">Departamento</label>
-      <input id="inDep" type="text" autocomplete="off" placeholder="Ej: Operaciones de Vuelo" maxlength="60">
+      <div class="combo" id="comboDep">
+        <input id="inDep" type="text" autocomplete="off" placeholder="Elegí de la lista o agregá" maxlength="60" oninput="comboFilter('Dep')" onfocus="comboOpen('Dep')" onblur="comboBlur('Dep')">
+        <div class="combo-panel" id="panelDep"></div>
+      </div>
       <div class="err">Por favor ingresá tu departamento.</div>
     </div>
     <div class="field" id="fCargo">
@@ -671,9 +703,9 @@
       <span class="err">Campo requerido</span>
       <div class="err">Por favor ingresá tu cargo.</div>
     </div>
+    <div class="sup-notice" id="supNotice" style="display:none">Como supervisor, vas a necesitar la <strong>contraseña de tu empresa</strong> para entrar al panel de supervisor. Recordá pedírsela a tu administrador.</div>
     <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;">Cancelar</button>
-    <p class="privacy">🔒 Tus datos no se envían a ningún servidor. Se guardan solo en tu teléfono.</p>
   </div>
 </div>
 
@@ -745,7 +777,7 @@
         <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
         <div class="field"><label for="pPass">Contraseña</label>
           <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
-            <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña">👁</button></div>
+            <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
         </div>
         <div class="portal-err" id="portalErr"></div>
         <button class="save-btn" onclick="portalLoginSupervisor()">Entrar</button>
@@ -755,7 +787,7 @@
           <div id="adminBox" style="display:none">
             <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
               <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
-                <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña">👁</button></div>
+                <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
             </div>
             <div class="portal-err" id="adminErr"></div>
             <button class="save-btn" onclick="portalLoginAdmin()">Entrar como administrador</button>
@@ -799,7 +831,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.50';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.51';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1846,11 +1878,17 @@ function paintProfile(){
 let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
-  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:true,departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
-  const ep = !!p.esPiloto;
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:true,esSupervisor:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:''};
+  const ep = !!p.esPiloto, es = !!p.esSupervisor;
   document.getElementById('inEsPiloto').checked = ep;
   document.getElementById('pilotBanner').classList.toggle('active', ep);
   document.getElementById('pilotCheckIcon').textContent = ep ? '✓' : '';
+  document.getElementById('fPiloto').style.display = ep ? '' : 'none';          // ID de piloto solo si es personal de aviación
+  document.getElementById('inEsSupervisor').checked = es;
+  document.getElementById('supBanner').classList.toggle('active', es);
+  document.getElementById('supCheckIcon').textContent = es ? '✓' : '';
+  document.getElementById('supNotice').style.display = es ? '' : 'none';
+  loadSetupLists();                                                             // trae empresas (Accesos) y departamentos existentes
   document.getElementById('inName').value     = p.nombre;
   document.getElementById('inCed').value      = p.cedula      || '';
   document.getElementById('inPiloto').value   = p.id_piloto   || '';
@@ -1873,6 +1911,7 @@ function closeSetup(){ document.getElementById('setup').classList.remove('show')
 function saveProfile(){
   const nombre       = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
   const esPiloto     = document.getElementById('inEsPiloto').checked;
+  const esSupervisor = document.getElementById('inEsSupervisor').checked;
   const cedula       = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
   const id_piloto    = document.getElementById('inPiloto').value.trim().replace(/\s+/g,' ');
   const empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
@@ -1891,12 +1930,54 @@ function saveProfile(){
   document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
   document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
   if (!ok) return;
-  setProfile({ nombre, cedula, id_piloto, esPiloto, empresa, departamento, cargo, sexo, edad, telefono });
+  setProfile({ nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono });
   paintProfile();
   renderSections();           // re-genera hrefs con datos nuevos
   closeSetup();
   showToast(editing ? 'Datos actualizados' : '¡Listo! Ya podés reportar');
 }
+
+/* ════════════════ SETUP: toggles + combobox empresa/departamento ════════════════ */
+function onPilotToggle(el){
+  document.getElementById('pilotBanner').classList.toggle('active', el.checked);
+  document.getElementById('pilotCheckIcon').textContent = el.checked ? '✓' : '';
+  document.getElementById('fPiloto').style.display = el.checked ? '' : 'none';
+}
+function onSupervisorToggle(el){
+  document.getElementById('supBanner').classList.toggle('active', el.checked);
+  document.getElementById('supCheckIcon').textContent = el.checked ? '✓' : '';
+  document.getElementById('supNotice').style.display = el.checked ? '' : 'none';
+}
+
+const SETUP_LISTS = { empresas: [], departamentos: [] };
+let SETUP_LISTS_LOADED = false;
+function loadSetupLists(){
+  if (SETUP_LISTS_LOADED || !SHEETS_DASHBOARD_URL) return;   // sin endpoint no hay listas (queda como texto libre)
+  SETUP_LISTS_LOADED = true;
+  fetch(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; } })
+    .catch(() => { SETUP_LISTS_LOADED = false; });
+}
+function comboBuild(which){
+  const inp = document.getElementById('in' + which);
+  const panel = document.getElementById('panel' + which);
+  const val = inp.value.trim();
+  const list = which === 'Emp' ? SETUP_LISTS.empresas : SETUP_LISTS.departamentos;
+  const low = val.toLowerCase();
+  const filtered = list.filter(x => x.toLowerCase().indexOf(low) !== -1);
+  let html = '';
+  if (val && !list.some(x => x.toLowerCase() === low))
+    html += '<div class="combo-add" data-v="' + esc(val) + '" onmousedown="comboPick(\'' + which + '\',this.dataset.v)">+ Agregar “' + esc(val) + '”</div>';
+  html += filtered.slice(0,30).map(x => '<div class="combo-opt" data-v="' + esc(x) + '" onmousedown="comboPick(\'' + which + '\',this.dataset.v)">' + esc(x) + '</div>').join('');
+  if (!html) html = '<div class="combo-empty">Escribí el nombre para agregarlo</div>';
+  panel.innerHTML = html;
+  panel.classList.add('show');
+}
+function comboOpen(which){ comboBuild(which); }
+function comboFilter(which){ comboBuild(which); }
+function comboPick(which, v){ document.getElementById('in' + which).value = v; document.getElementById('panel' + which).classList.remove('show'); }
+function comboBlur(which){ setTimeout(function(){ const p = document.getElementById('panel' + which); if (p) p.classList.remove('show'); }, 150); }
 
 /* ════════════════ TOAST ════════════════ */
 let toastT;
@@ -2202,12 +2283,12 @@ function renderDash(){
 /* ── Barra de contexto: dónde estás parado + navegación sin desloguear ── */
 function dashContext(){
   const perLabel = (DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0] || ['','Todo'])[1];
-  let chips = '<span class="ctx-chip ctx-period">📅 ' + perLabel + '</span>';
-  if (DASH.rol !== 'empleado' && DASH.f.emp) chips += '<span class="ctx-chip">🏢 ' + esc(DASH.f.emp) + ' <b onclick="dashClear(\'emp\')">×</b></span>';
-  if (DASH.f.dep) chips += '<span class="ctx-chip">🗂 ' + esc(DASH.f.dep) + ' <b onclick="dashClear(\'dep\')">×</b></span>';
-  if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">👤 ' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
+  let chips = '<span class="ctx-chip ctx-period">' + perLabel + '</span>';
+  if (DASH.rol !== 'empleado' && DASH.f.emp) chips += '<span class="ctx-chip">' + esc(DASH.f.emp) + ' <b onclick="dashClear(\'emp\')">×</b></span>';
+  if (DASH.f.dep) chips += '<span class="ctx-chip">' + esc(DASH.f.dep) + ' <b onclick="dashClear(\'dep\')">×</b></span>';
+  if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
   const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep))
-    ? '<button class="ctx-back" onclick="dashClearOne()">‹ Volver</button>' : '';
+    ? '<button class="ctx-back" onclick="dashClearOne()">‹ Quitar filtro</button>' : '';
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
 }
 function dashClear(level){
@@ -2230,7 +2311,9 @@ function renderResumen(rows){
   const who = DASH.f.per ? esc(DASH.f.per)
             : (DASH.rol==='empleado' ? '' : (DASH.f.dep ? esc(DASH.f.dep) : (DASH.f.emp ? esc(DASH.f.emp) : 'todo el grupo')));
   const help = dashHelp(single
-    ? 'Detalle de <b>' + (DASH.f.per ? esc(DASH.f.per) : 'la selección') + '</b>. Los números son el promedio de sus tests. Usá <b>‹ Volver</b> arriba para regresar sin cerrar sesión.'
+    ? (DASH.f.per
+        ? 'Detalle de <b>' + esc(DASH.f.per) + '</b>: el promedio de sus tests. Tocá <b>‹ Quitar filtro</b> arriba para volver al grupo.'
+        : 'Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).')
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
   let head = '<div class="dash-block"><div class="db-title">Promedios' + (who ? (' · ' + who) : '') + '</div>' +
     '<div class="db-sub">Promedio de los ' + rows.length + ' registro(s) del período seleccionado</div>' +
@@ -2251,7 +2334,7 @@ function renderResumen(rows){
   const extra = single ? (dashHistory(rows) + dashPersonComments()) : dashAlerts(rows);
   return help + head + bars + radar + extra;
 }
-function dashHelp(text){ return '<div class="dash-help">💡 ' + text + '</div>'; }
+function dashHelp(text){ return '<div class="dash-help">' + text + '</div>'; }
 
 /* ── Barras agrupadas: promedio del grupo vs referencia por métrica ── */
 function dashGroupedBars(rows){
