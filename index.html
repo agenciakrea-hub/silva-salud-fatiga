@@ -314,7 +314,13 @@
   #portalDash { display: flex; flex-direction: column; min-height: 0; flex: 1; }
   .dash-top { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.2rem .85rem; border-bottom: 1px solid #eef1f5; flex-shrink: 0; }
   .portal-back { width: 36px; height: 36px; border: 1.5px solid #e0e4ec; background: #f5f6f9; border-radius: 10px; font-size: 1.15rem; color: var(--text-soft); cursor: pointer; flex-shrink: 0; }
-  .dash-scope { flex: 1; font-weight: 800; font-size: 1.05rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dash-scope-wrap { flex: 1; min-width: 0; }
+  .dash-scope { font-weight: 800; font-size: 1.05rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dash-updated { font-size: .64rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dash-refresh { width: 34px; height: 34px; border: 1.5px solid #e0e4ec; background: #f5f6f9; border-radius: 10px; color: var(--text-soft); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .dash-refresh svg { width: 16px; height: 16px; }
+  .dash-refresh.spin svg { animation: dashspin .7s linear infinite; }
+  @keyframes dashspin { to { transform: rotate(360deg); } }
   .dash-top .portal-x { position: static; flex-shrink: 0; }
   .dash-tabs { display: flex; gap: .35rem; padding: .65rem 1.2rem; border-bottom: 1px solid #eef1f5; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
   .dash-tabs::-webkit-scrollbar { display: none; }
@@ -651,7 +657,13 @@
     <div id="portalDash" style="display:none">
       <div class="dash-top">
         <button class="portal-back" onclick="portalBackToGate()">←</button>
-        <div class="dash-scope" id="dashScope">—</div>
+        <div class="dash-scope-wrap">
+          <div class="dash-scope" id="dashScope">—</div>
+          <div class="dash-updated" id="dashUpdated"></div>
+        </div>
+        <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
         <button class="portal-x" onclick="closePortal()">✕</button>
       </div>
       <div class="dash-tabs" id="dashTabs"></div>
@@ -668,7 +680,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.47';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.48';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1806,6 +1818,7 @@ const MOCK_DASH = [
 ];
 
 let DASH = null;
+let DASH_TIMER = null;   // auto-refresh mientras el panel está abierto
 
 function openPortal(){
   document.getElementById('portalGate').style.display = '';
@@ -1819,8 +1832,8 @@ function openPortal(){
   document.getElementById('portalErr').textContent = '';
   document.getElementById('portalOverlay').classList.add('show');
 }
-function closePortal(){ document.getElementById('portalOverlay').classList.remove('show'); }
-function portalBackToGate(){ document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
+function closePortal(){ stopDashAutoRefresh(); document.getElementById('portalOverlay').classList.remove('show'); }
+function portalBackToGate(){ stopDashAutoRefresh(); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
 function portalMode(m){
   document.getElementById('ptabEmp').classList.toggle('active', m==='emp');
   document.getElementById('ptabSup').classList.toggle('active', m==='sup');
@@ -1831,8 +1844,8 @@ function portalMode(m){
 // Pide datos al endpoint (o responde con el mock si no hay URL configurada)
 function dashRequest(params){
   if (!DASH_DEMO){
-    const qs = new URLSearchParams(params).toString();
-    return fetch(SHEETS_DASHBOARD_URL + '?' + qs).then(r => r.json());
+    const qs = new URLSearchParams(params).toString() + '&_=' + Date.now();   // cache-buster: nunca respuesta pegada
+    return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json());
   }
   return new Promise(res => {
     const ref = { kss:6, estres:36, ansiedad:25, fatiga:9, gastro:11, depresion:42 };
@@ -1850,8 +1863,9 @@ function dashRequest(params){
 
 function portalLoginEmpleado(){
   const p = getProfile() || {};
-  dashRequest({ action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' })
-    .then(d => onDashData(d, p.nombre || 'Mis registros'))
+  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
+  dashRequest(params)
+    .then(d => onDashData(d, p.nombre || 'Mis registros', params))
     .catch(() => showToast('No se pudo conectar'));
 }
 function portalLoginSupervisor(){
@@ -1859,30 +1873,74 @@ function portalLoginSupervisor(){
   const pass = document.getElementById('pPass').value.trim();
   const errEl = document.getElementById('portalErr'); errEl.textContent = '';
   if (!empresa || !pass){ errEl.textContent = 'Completá empresa y contraseña.'; return; }
-  dashRequest({ action:'supervisor', empresa, pass })
+  const params = { action:'supervisor', empresa, pass };
+  dashRequest(params)
     .then(d => {
       if (!d || !d.ok){ errEl.textContent = (d && d.error) || 'Acceso incorrecto.'; return; }
-      onDashData(d, d.rol==='admin' ? 'Todas las empresas' : empresa);
+      onDashData(d, d.rol==='admin' ? 'Todas las empresas' : empresa, params);
     })
     .catch(() => { errEl.textContent = 'No se pudo conectar.'; });
 }
 
 const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución' };
 
-function onDashData(d, scopeLabel){
+function onDashData(d, scopeLabel, params){
   if (!d || !d.ok){ showToast((d && d.error) || 'Error al cargar'); return; }
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
   const tabs = (d.rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion'];
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, scope:scopeLabel,
            f:{desde:'',hasta:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
-           pickInd:metrics[0], pickEvo:metrics[0] };
+           pickInd:metrics[0], pickEvo:metrics[0],
+           params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros) };
   document.getElementById('dashScope').textContent = scopeLabel + (DASH_DEMO ? ' · ejemplo' : '');
   buildDashTabs();
   buildDashFilters();
   renderDash();
+  updateDashUpdated();
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
+  startDashAutoRefresh();
 }
+
+// Re-consulta el endpoint y actualiza en vivo (manual=true muestra avisos)
+function dashRefresh(manual){
+  if (!DASH || !DASH.params) return;
+  const btn = document.getElementById('dashRefreshBtn');
+  if (btn) btn.classList.add('spin');
+  const keep = { desde:DASH.f.desde, hasta:DASH.f.hasta, dep:DASH.f.dep, per:DASH.f.per };
+  dashRequest(DASH.params).then(d => {
+    if (btn) btn.classList.remove('spin');
+    if (!d || !d.ok){ if (manual) showToast('No se pudo actualizar'); return; }
+    DASH.updated = Date.now(); updateDashUpdated();
+    const sig = JSON.stringify(d.registros);
+    const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
+    if (!changed){ if (manual) showToast('Ya estaba al día'); return; }   // sin cambios → no re-renderiza (no salta el scroll)
+    const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
+    DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros; DASH.rawSig = sig;
+    if (metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = metrics[0] || null;
+    if (metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = metrics[0] || null;
+    buildDashFilters();
+    setFilterValues(keep);
+    dashFilterChange();   // sincroniza filtros del DOM y re-renderiza la pestaña actual
+    if (manual) showToast('Actualizado');
+  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast('Sin conexión'); });
+}
+function setFilterValues(f){
+  const set = (id,v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
+  set('dashDesde', f.desde); set('dashHasta', f.hasta); set('dashDep', f.dep); set('dashPer', f.per);
+}
+function updateDashUpdated(){
+  const e = document.getElementById('dashUpdated');
+  if (!e || !DASH) return;
+  const d = new Date(DASH.updated), p = n => String(n).padStart(2,'0');
+  e.textContent = 'Actualizado ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + (DASH_DEMO ? '' : ' · auto 30s');
+}
+function startDashAutoRefresh(){
+  stopDashAutoRefresh();
+  if (DASH_DEMO) return;                                    // en modo ejemplo no hay endpoint que consultar
+  DASH_TIMER = setInterval(function(){ dashRefresh(false); }, 30000);
+}
+function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH_TIMER = null; } }
 
 function buildDashTabs(){
   document.getElementById('dashTabs').innerHTML = DASH.tabs.map(t =>
@@ -2189,7 +2247,16 @@ if (!_complete){
 }
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
-document.addEventListener('visibilitychange', () => { if (!document.hidden){ refreshStates(); hideToast(); } });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden){
+    refreshStates(); hideToast();
+    // Si el panel está abierto, refrescá al volver el foco a la app
+    if (DASH && document.getElementById('portalOverlay').classList.contains('show')
+        && document.getElementById('portalDash').style.display !== 'none'){
+      dashRefresh(false);
+    }
+  }
+});
 document.getElementById('toast').addEventListener('click', hideToast);   // tocar el aviso para cerrarlo
 
 /* ════════════════ SERVICE WORKER (auto-update sin cache vieja) ════════════════ */
