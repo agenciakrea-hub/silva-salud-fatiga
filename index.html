@@ -468,6 +468,24 @@
   .sup-notice { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 12px; padding: .7rem .85rem; font-size: .8rem; line-height: 1.5; color: #8a4b12; margin: 1.2rem 0 .2rem; }
   .sup-notice strong { color: #6b3a0e; }
 
+  /* Test de Reacción (PVT) */
+  .pvt-sheet { text-align: center; }
+  .pvt-steps { text-align: left; font-size: .85rem; color: var(--text-soft); line-height: 1.6; margin: 1rem 0 1.3rem; padding-left: 1.1rem; }
+  .pvt-steps li { margin: .25rem 0; }
+  .pvt-progress { height: 6px; background: #eef1f5; border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
+  .pvt-progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--orange), var(--orange-2)); transition: width .2s linear; }
+  .pvt-stage { height: 320px; background: #0e2a56; border-radius: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .pvt-msg { color: #fff; font-size: 1.1rem; font-weight: 700; padding: 1rem; }
+  .pvt-circle { width: 160px; height: 160px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800; box-shadow: 0 0 45px rgba(244,122,31,.65); }
+  .pvt-hint { font-size: .78rem; color: var(--text-muted); margin: .75rem 0 .4rem; }
+  .pvt-result-big { font-size: 2.6rem; font-weight: 800; color: var(--navy); line-height: 1; margin-top: .4rem; }
+  .pvt-result-lbl { font-size: .78rem; color: var(--text-muted); margin-bottom: .3rem; }
+  .pvt-verdict { font-size: .92rem; font-weight: 700; margin: .5rem 0 1rem; }
+  .pvt-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin: 1rem 0 .4rem; }
+  .pvt-stat { background: #f7f9fc; border: 1.5px solid #e9edf3; border-radius: 12px; padding: .55rem .4rem; }
+  .pvt-stat .v { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+  .pvt-stat .k { font-size: .62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .02em; margin-top: .1rem; }
+
   /* Informe IA */
   .informe-btn { max-width: 340px; margin: 0 auto 1rem; display: block; }
   .informe-empty { text-align: center; color: var(--text-muted); font-size: .84rem; padding: 1.4rem 1rem; line-height: 1.5; }
@@ -841,11 +859,47 @@
   </div>
 </div>
 
+<!-- Test de Reacción (PVT) -->
+<div class="overlay" id="pvtOverlay">
+  <div class="sheet pvt-sheet">
+
+    <div id="pvtIntro">
+      <h2>Test de Reacción (PVT)</h2>
+      <p class="lead">Mide tu fatiga de forma objetiva por tu tiempo de reacción. Es la única prueba que no depende de lo que respondas.</p>
+      <ul class="pvt-steps">
+        <li>Mantené el dedo listo sobre la pantalla.</li>
+        <li>Cuando aparezca el <strong>círculo naranja</strong>, tocá lo más rápido posible.</li>
+        <li>No toques antes de que aparezca (cuenta como error).</li>
+        <li>Dura unos <strong>90 segundos</strong>. Buscá un lugar sin distracciones.</li>
+      </ul>
+      <button class="save-btn" onclick="pvtStart()">Empezar</button>
+      <button class="cancel-btn" onclick="closePVT()">Cancelar</button>
+    </div>
+
+    <div id="pvtRun" style="display:none">
+      <div class="pvt-progress"><div class="pvt-progress-bar" id="pvtBar"></div></div>
+      <div class="pvt-stage" id="pvtStage" onpointerdown="pvtTap(event)">
+        <div class="pvt-msg" id="pvtMsg">Esperá el círculo…</div>
+        <div class="pvt-circle" id="pvtCircle" style="display:none"><span id="pvtMs">0</span> ms</div>
+      </div>
+      <div class="pvt-hint">Tocá apenas veas el círculo naranja</div>
+      <button class="cancel-btn" onclick="closePVT()">Cancelar</button>
+    </div>
+
+    <div id="pvtDone" style="display:none">
+      <h2>Resultado</h2>
+      <div id="pvtSummary"></div>
+      <button class="save-btn" onclick="closePVT()">Listo</button>
+    </div>
+
+  </div>
+</div>
+
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg"></span></div>
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.53';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.54';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -886,6 +940,7 @@ const SECTIONS = [
       {id:'sen_malestar',    label:'Malestar',      desc:'Test Gastro · luego a WhatsApp',   icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
       {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
+      {id:'sen_pvt',         label:'Test de Reacción', desc:'PVT · mide fatiga objetiva',      icon:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>', ic:'#fff1e6', icc:'#f47a1f', pvtFlow:true},
       {id:'sen_depresion',   label:'Depresión',     desc:'Test depresión · luego a WhatsApp',  icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
       {id:'sen_gastro',      label:'Gastrointestinal', desc:'Test Gastro · luego a WhatsApp', icon:I.pill,    ic:'#e8f5e9', icc:'#2e7d32', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
     ]
@@ -968,6 +1023,127 @@ function enviarOperacional(campo){
   }));
 }
 
+/* ════════════════ TEST DE REACCIÓN (PVT) ════════════════ */
+const PVT_DURATION_MS = 90000;                 // duración total ~90s
+const PVT_ISI_MIN = 1000, PVT_ISI_MAX = 4000;  // intervalo aleatorio entre estímulos
+const PVT_LAPSE_MS = 355;                      // > 355 ms = lapso (umbral PVT-B)
+const PVT_MIN_RT = 100;                        // < 100 ms = anticipación (salida en falso)
+let pvtState = null;
+
+function openPVT(item){
+  pvtState = { item:item, rts:[], falsos:0, startMs:0, stimMs:0, awaiting:false, ended:false, isiTimer:null, raf:null, tick:null };
+  document.getElementById('pvtIntro').style.display = '';
+  document.getElementById('pvtRun').style.display = 'none';
+  document.getElementById('pvtDone').style.display = 'none';
+  document.getElementById('pvtOverlay').classList.add('show');
+}
+function closePVT(){ pvtCleanup(); document.getElementById('pvtOverlay').classList.remove('show'); pvtState = null; }
+function pvtCleanup(){
+  if (!pvtState) return;
+  if (pvtState.isiTimer) clearTimeout(pvtState.isiTimer);
+  if (pvtState.tick) clearTimeout(pvtState.tick);
+  if (pvtState.raf) cancelAnimationFrame(pvtState.raf);
+  pvtState.isiTimer = pvtState.tick = pvtState.raf = null;
+}
+function pvtStart(){
+  document.getElementById('pvtIntro').style.display = 'none';
+  document.getElementById('pvtRun').style.display = '';
+  pvtState.startMs = performance.now();
+  pvtState.rts = []; pvtState.falsos = 0; pvtState.ended = false;
+  pvtScheduleNext();
+  pvtTick();
+}
+function pvtScheduleNext(){
+  if (!pvtState || pvtState.ended) return;
+  pvtState.awaiting = false;
+  document.getElementById('pvtCircle').style.display = 'none';
+  document.getElementById('pvtMsg').textContent = 'Esperá…';
+  const isi = PVT_ISI_MIN + Math.random() * (PVT_ISI_MAX - PVT_ISI_MIN);
+  pvtState.isiTimer = setTimeout(function(){
+    if (!pvtState || pvtState.ended) return;
+    pvtState.awaiting = true;
+    pvtState.stimMs = performance.now();
+    document.getElementById('pvtMsg').textContent = '';
+    document.getElementById('pvtCircle').style.display = '';
+    pvtCounter();
+  }, isi);
+}
+function pvtCounter(){
+  if (!pvtState || !pvtState.awaiting || pvtState.ended) return;
+  document.getElementById('pvtMs').textContent = Math.round(performance.now() - pvtState.stimMs);
+  pvtState.raf = requestAnimationFrame(pvtCounter);
+}
+function pvtTap(e){
+  if (e && e.preventDefault) e.preventDefault();
+  if (!pvtState || pvtState.ended) return;
+  const now = performance.now();
+  if (!pvtState.awaiting){                                   // tocó antes del estímulo
+    if (pvtState.isiTimer) clearTimeout(pvtState.isiTimer);
+    pvtState.falsos++; pvtFlash('¡Muy pronto!', '#e0322f'); pvtScheduleNext(); return;
+  }
+  if (pvtState.raf) cancelAnimationFrame(pvtState.raf);
+  const rt = Math.round(now - pvtState.stimMs);
+  if (rt < PVT_MIN_RT){ pvtState.falsos++; pvtFlash('¡Muy pronto!', '#e0322f'); pvtScheduleNext(); return; }
+  pvtState.rts.push(rt);
+  pvtFlash(rt + ' ms', rt > PVT_LAPSE_MS ? '#e8a400' : '#38d39f');
+  if (performance.now() - pvtState.startMs >= PVT_DURATION_MS){ pvtEnd(); return; }
+  pvtScheduleNext();
+}
+function pvtFlash(text, color){
+  document.getElementById('pvtCircle').style.display = 'none';
+  const msg = document.getElementById('pvtMsg');
+  msg.textContent = text; msg.style.color = color;
+  setTimeout(function(){ if (msg) msg.style.color = '#fff'; }, 450);
+}
+function pvtTick(){
+  if (!pvtState || pvtState.ended) return;
+  const elapsed = performance.now() - pvtState.startMs;
+  document.getElementById('pvtBar').style.width = Math.min(100, elapsed / PVT_DURATION_MS * 100) + '%';
+  if (elapsed >= PVT_DURATION_MS && !pvtState.awaiting){ pvtEnd(); return; }   // se acabó el tiempo (espera a responder el estímulo actual)
+  pvtState.tick = setTimeout(pvtTick, 200);
+}
+function pvtEnd(){
+  if (!pvtState || pvtState.ended) return;
+  pvtState.ended = true; pvtCleanup();
+  const rts = pvtState.rts, n = rts.length;
+  const sorted = rts.slice().sort(function(a,b){ return a - b; });
+  const mean = n ? Math.round(rts.reduce(function(a,b){ return a + b; }, 0) / n) : 0;
+  const median = n ? Math.round(n % 2 ? sorted[(n-1)/2] : (sorted[n/2-1] + sorted[n/2]) / 2) : 0;
+  const m = { validas:n, rt_prom:mean, rt_min:n?sorted[0]:0, rt_max:n?sorted[n-1]:0, rt_mediana:median, lapsos:rts.filter(function(r){ return r > PVT_LAPSE_MS; }).length, falsos:pvtState.falsos };
+  pvtSend(m);
+  document.getElementById('pvtRun').style.display = 'none';
+  document.getElementById('pvtDone').style.display = '';
+  document.getElementById('pvtSummary').innerHTML = pvtSummaryHTML(m);
+  if (pvtState.item) mark(pvtState.item.id);
+}
+function pvtSummaryHTML(m){
+  let verdict, vcol;
+  if (m.validas < 3){ verdict = 'Muy pocas respuestas para evaluar'; vcol = 'var(--text-muted)'; }
+  else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = 'Buen estado de alerta'; vcol = 'var(--green)'; }
+  else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = 'Alerta moderada'; vcol = '#e8a400'; }
+  else { verdict = 'Signos de fatiga / baja alerta'; vcol = '#e0322f'; }
+  return '<div class="pvt-result-lbl">Tiempo de reacción promedio</div>' +
+    '<div class="pvt-result-big">' + m.rt_prom + ' <span style="font-size:1rem;color:var(--text-muted)">ms</span></div>' +
+    '<div class="pvt-verdict" style="color:' + vcol + '">' + verdict + '</div>' +
+    '<div class="pvt-stats">' +
+      '<div class="pvt-stat"><div class="v">' + m.validas + '</div><div class="k">Respuestas</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.lapsos + '</div><div class="k">Lapsos</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.rt_min + '</div><div class="k">Más rápido</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.rt_mediana + '</div><div class="k">Mediana</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.rt_max + '</div><div class="k">Más lento</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.falsos + '</div><div class="k">En falso</div></div>' +
+    '</div>' +
+    '<p class="pvt-hint">Un lapso es una reacción de más de ' + PVT_LAPSE_MS + ' ms — más lapsos indican más fatiga.</p>';
+}
+function pvtSend(m){
+  const p = getProfile() || {};
+  if (!SHEETS_DASHBOARD_URL) return;
+  enviarConCola(SHEETS_DASHBOARD_URL + '?' + new URLSearchParams({
+    action:'pvt', nombre:p.nombre||'', empresa:p.empresa||'', departamento:p.departamento||'',
+    validas:m.validas, rt_prom:m.rt_prom, rt_min:m.rt_min, rt_max:m.rt_max, rt_mediana:m.rt_mediana, lapsos:m.lapsos, falsos:m.falsos
+  }));
+}
+
 /* ════════════════ WEARABLES (TRYVITAL) ════════════════ */
 function activarFlujoApple(){
   const guia = document.getElementById('guiaApple');
@@ -1013,7 +1189,7 @@ function buildItem(it, layout, i){
 
   const a = document.createElement('a');
   a.className = layout === 'grid' ? 'tile' : 'rbtn';
-  if (it.testFlow){
+  if (it.testFlow || it.pvtFlow){
     a.href = 'javascript:void(0)';
   } else {
     a.href = waUrl(it);
@@ -1032,6 +1208,7 @@ function buildItem(it, layout, i){
 
   a.addEventListener('click', (e) => {
     if (it.testFlow){ e.preventDefault(); abrirTest(it); return; }
+    if (it.pvtFlow){ e.preventDefault(); openPVT(it); return; }
     if (it.operacionalCampo) enviarOperacional(it.operacionalCampo);
     mark(it.id);
   });
