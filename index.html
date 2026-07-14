@@ -171,6 +171,7 @@
   .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86); backdrop-filter: blur(6px);
     display: none; align-items: center; justify-content: center; padding: 1.2rem; animation: fadeIn .25s ease; }
   .overlay.show { display: flex; }
+  body.modal-open { overflow: hidden; }   /* evita scrollear el fondo con un overlay abierto */
   .sheet { width: 100%; max-width: 410px; background: var(--card); border-radius: 24px; padding: 1.6rem 1.4rem 1.5rem;
     color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; max-height: 90vh; overflow-y: auto; }
   .consent-sub { font-size: 0.98rem; font-weight: 700; color: var(--text); margin-top: 1.2rem; }
@@ -899,7 +900,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1099,7 +1100,8 @@ function pvtTick(){
   if (!pvtState || pvtState.ended) return;
   const elapsed = performance.now() - pvtState.startMs;
   document.getElementById('pvtBar').style.width = Math.min(100, elapsed / PVT_DURATION_MS * 100) + '%';
-  if (elapsed >= PVT_DURATION_MS && !pvtState.awaiting){ pvtEnd(); return; }   // se acabó el tiempo (espera a responder el estímulo actual)
+  // se acabó el tiempo: cierra al responder el estímulo actual, o a la fuerza tras 8s de gracia si nunca responde
+  if (elapsed >= PVT_DURATION_MS && (!pvtState.awaiting || elapsed >= PVT_DURATION_MS + 8000)){ pvtEnd(); return; }
   pvtState.tick = setTimeout(pvtTick, 200);
 }
 function pvtEnd(){
@@ -1110,13 +1112,19 @@ function pvtEnd(){
   const mean = n ? Math.round(rts.reduce(function(a,b){ return a + b; }, 0) / n) : 0;
   const median = n ? Math.round(n % 2 ? sorted[(n-1)/2] : (sorted[n/2-1] + sorted[n/2]) / 2) : 0;
   const m = { validas:n, rt_prom:mean, rt_min:n?sorted[0]:0, rt_max:n?sorted[n-1]:0, rt_mediana:median, lapsos:rts.filter(function(r){ return r > PVT_LAPSE_MS; }).length, falsos:pvtState.falsos };
-  pvtSend(m);
   document.getElementById('pvtRun').style.display = 'none';
   document.getElementById('pvtDone').style.display = '';
   document.getElementById('pvtSummary').innerHTML = pvtSummaryHTML(m);
-  if (pvtState.item) mark(pvtState.item.id);
+  if (n >= 1){                          // solo registra si hubo al menos una reacción real
+    pvtSend(m);
+    if (pvtState.item) mark(pvtState.item.id);
+  }
 }
 function pvtSummaryHTML(m){
+  if (m.validas === 0){
+    return '<div class="pvt-verdict" style="color:#e0322f">No registramos ninguna reacción</div>' +
+      '<p class="pvt-hint">¿Tocaste el círculo naranja cuando apareció? Volvé a intentarlo cuando puedas prestar atención a la pantalla.</p>';
+  }
   let verdict, vcol;
   if (m.validas < 3){ verdict = 'Muy pocas respuestas para evaluar'; vcol = 'var(--text-muted)'; }
   else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = 'Buen estado de alerta'; vcol = 'var(--green)'; }
@@ -2996,6 +3004,11 @@ renderSections();
 if (_prof) paintProfile();
 document.getElementById('cloudSyncBtn').href = LINK_TRYVITAL;
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
+
+// Bloqueo de scroll del fondo: si hay algún overlay abierto, el body no scrollea
+function syncScrollLock(){ document.body.classList.toggle('modal-open', !!document.querySelector('.overlay.show, .ios-modal.show')); }
+const _scrollObs = new MutationObserver(syncScrollLock);
+document.querySelectorAll('.overlay, .ios-modal').forEach(el => _scrollObs.observe(el, { attributes:true, attributeFilter:['class'] }));
 
 // Perfil completo = tiene todos los campos obligatorios (incluye cédula)
 const _complete = _prof && _prof.nombre && _prof.cedula && _prof.empresa && _prof.departamento && _prof.cargo;
