@@ -845,7 +845,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.52';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.53';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -924,6 +924,32 @@ function getReports(){
 }
 function saveReports(r){ localStorage.setItem(K_REPORTS, JSON.stringify(r)); }
 
+/* ════════════════ COLA DE REINTENTOS ════════════════
+   Si el envío de un test falla por falta de conexión (no llega ni a
+   Google), se guarda acá y se reintenta solo al volver la conexión o
+   al reabrir la app. Evita perder datos en silencio. */
+const K_PENDING = 'silva_fatiga_pending_v1';
+function getPending(){ try { return JSON.parse(localStorage.getItem(K_PENDING)) || []; } catch(e){ return []; } }
+function setPending(arr){ try { localStorage.setItem(K_PENDING, JSON.stringify(arr)); } catch(e){} }
+
+function enviarConCola(url){
+  fetch(url, { mode:'no-cors' }).catch(() => {
+    const q = getPending();
+    q.push({ url, ts: Date.now() });
+    setPending(q.slice(-50));   // tope de 50 pendientes
+  });
+}
+function flushPending(){
+  const q = getPending();
+  if (!q.length) return;
+  const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;   // descarta pendientes de más de 7 días
+  const vigentes = q.filter(x => (Date.now() - x.ts) < MAX_EDAD);
+  setPending([]);   // se re-encolan solos si vuelven a fallar
+  vigentes.forEach(x => enviarConCola(x.url));
+}
+window.addEventListener('online', flushPending);
+setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
+
 /* ════════════════ MENSAJES ════════════════ */
 function buildMessage(item){
   const p = getProfile() || {nombre:'', empresa:'', cedula:'', departamento:'', cargo:''};
@@ -936,10 +962,10 @@ function waUrl(item){
 function enviarOperacional(campo){
   if (!SHEETS_OPERACIONAL_URL || !campo) return;
   const p = getProfile() || {};
-  fetch(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
+  enviarConCola(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
     nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'',
     sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'', campo
-  }), { mode:'no-cors' }).catch(() => {});
+  }));
 }
 
 /* ════════════════ WEARABLES (TRYVITAL) ════════════════ */
@@ -1234,7 +1260,7 @@ function finalizarTest(){
       sexo:p.sexo||'', edad:p.edad||'', telefono:p.telefono||''
     });
     testRespuestas.forEach((r, i) => params.set('s'+i, r + ' = ' + TEST_ESCALA[r]));
-    fetch(SHEETS_DEPRESION_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_DEPRESION_URL + '?' + params);
   }
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
@@ -1416,12 +1442,12 @@ function finalizarPerelli(){
   const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad, comentarios] = perelliState.answers;
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
-    fetch(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
+    enviarConCola(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
       nombre: p.nombre||'', id_piloto: p.id_piloto||'', empresa: p.empresa||'', dpto: p.departamento||'',
       sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'',
       fase, nivel_fatiga: nivelFatiga, sintomas, funciones,
       calidad_suenio: calidadSuenio, factores, capacidad, comentarios: comentarios||''
-    }), { mode:'no-cors' }).catch(() => {});
+    }));
   }
   const details = `*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}${comentarios ? '\n\n*Comentarios:* ' + comentarios : ''}`;
   const base = perelliState.item.baseNotification;
@@ -1608,7 +1634,7 @@ function finalizarKss(){
       tipoOp:     tipoOp,
       comentario: comentario || ''
     });
-    fetch(SHEETS_KSS_URL + '?' + params, { mode: 'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_KSS_URL + '?' + params);
   }
 
   // Mensaje WhatsApp (texto completo, sin cambios)
@@ -1675,7 +1701,7 @@ function finalizarEstres(){
       s4:ratings[4],  s5:ratings[5],  s6:ratings[6],  s7:ratings[7],
       s8:ratings[8],  s9:ratings[9],  s10:ratings[10], s11:ratings[11]
     });
-    fetch(SHEETS_ESTRES_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_ESTRES_URL + '?' + params);
   }
   const details = ESTRES_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Estrés* desde el portal web.\n\n${details}`;
@@ -1730,7 +1756,7 @@ function finalizarAnsiedad(){
     const obj = { nombre:p.nombre||'', cedula:p.cedula||'', empresa:p.empresa||'', dpto:p.departamento||'',
       sexo:p.sexo||'', edad:p.edad||'', cargo:p.cargo||'', telefono:p.telefono||'' };
     ratings.forEach((r,i) => { obj['s'+i] = r; });
-    fetch(SHEETS_ANSIEDAD_URL + '?' + new URLSearchParams(obj), { mode:'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_ANSIEDAD_URL + '?' + new URLSearchParams(obj));
   }
   const details = ANSIEDAD_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Ansiedad (BAI)* desde el portal web.\n\n${details}`;
@@ -1787,7 +1813,7 @@ function finalizarGastro(){
       sexo:p.sexo||'', edad:p.edad||'', cargo:p.cargo||'', telefono:p.telefono||''
     });
     ratings.forEach((r,i) => params.set('s'+i, r));
-    fetch(SHEETS_GASTRO_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_GASTRO_URL + '?' + params);
   }
   const details = GASTRO_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test Gastrointestinal* desde el portal web.\n\n${details}`;
@@ -1844,7 +1870,7 @@ function finalizarCansancio(){
       nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||''
     });
     ratings.forEach((r, i) => params.set('s'+i, r));
-    fetch(SHEETS_CANSANCIO_URL + '?' + params, { mode:'no-cors' }).catch(() => {});
+    enviarConCola(SHEETS_CANSANCIO_URL + '?' + params);
   }
   const details = CANSANCIO_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Cansancio / Agotamiento Emocional* desde el portal web.\n\n${details}`;
@@ -2792,6 +2818,7 @@ const _prof = getProfile();
 renderSections();
 if (_prof) paintProfile();
 document.getElementById('cloudSyncBtn').href = LINK_TRYVITAL;
+flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
 
 // Perfil completo = tiene todos los campos obligatorios (incluye cédula)
 const _complete = _prof && _prof.nombre && _prof.cedula && _prof.empresa && _prof.departamento && _prof.cargo;
