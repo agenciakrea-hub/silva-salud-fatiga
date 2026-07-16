@@ -986,7 +986,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.61';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.62';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2557,11 +2557,21 @@ function dashUpdateDemoBtn(){
   btn.textContent = DASH.demoMode ? '← Mi empresa' : 'Ver ejemplo';
   btn.classList.toggle('on', DASH.demoMode);
 }
+// Luminancia 0..1 de un color hex (para no aceptar colores de marca demasiado claros)
+function dashLuminance(hex){
+  let h = hex.replace('#','');
+  if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+  h = h.slice(0,6);
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  if ([r,g,b].some(isNaN)) return 1;
+  return (0.299*r + 0.587*g + 0.114*b) / 255;
+}
 // Personalización por empresa: color de acento (sólo dentro del panel) + logo opcional
 function dashApplyMarca(marca){
   const portal = document.querySelector('#portalOverlay .sheet.portal');
   if (portal){
-    if (marca && marca.color && /^#[0-9a-fA-F]{3,8}$/.test(marca.color)){
+    // Sólo aplicamos el color si es lo bastante oscuro para que texto blanco encima se lea (evita marcas ilegibles)
+    if (marca && marca.color && /^#[0-9a-fA-F]{3,8}$/.test(marca.color) && dashLuminance(marca.color) < 0.62){
       portal.style.setProperty('--orange', marca.color);
       portal.style.setProperty('--orange-2', marca.color);
     } else { portal.style.removeProperty('--orange'); portal.style.removeProperty('--orange-2'); }
