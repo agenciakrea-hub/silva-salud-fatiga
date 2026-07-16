@@ -328,6 +328,10 @@
   .dash-scope-wrap { flex: 1; min-width: 0; }
   .dash-scope { font-weight: 800; font-size: 1.05rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dash-updated { font-size: .64rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px; }
+  .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: #fff6ef; color: var(--orange); border-radius: 999px;
+    padding: .34rem .7rem; font-family: inherit; font-weight: 700; font-size: .74rem; cursor: pointer; white-space: nowrap; }
+  .dash-demo.on { background: var(--orange); color: #fff; }
   .dash-refresh { width: 34px; height: 34px; border: 1.5px solid #e0e4ec; background: #f5f6f9; border-radius: 10px; color: var(--text-soft); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
   .dash-refresh svg { width: 16px; height: 16px; }
   .dash-refresh.spin svg { animation: dashspin .7s linear infinite; }
@@ -338,6 +342,10 @@
   .dtab { padding: .52rem .95rem; border: none; background: #f1f3f7; border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .86rem; color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .dtab.active { background: var(--navy); color: #fff; }
   .dash-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 1.1rem 1.2rem 2.2rem; scrollbar-gutter: stable; }
+
+  /* Página única: secciones apiladas con separador */
+  .dash-sec { scroll-margin-top: 8px; }
+  .dash-sec + .dash-sec { margin-top: .4rem; padding-top: 1.2rem; border-top: 2px solid #eef1f5; }
 
   .dash-filters { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.1rem; }
   .df-row { display: flex; gap: .5rem; }
@@ -899,10 +907,12 @@
     <div id="portalDash" style="display:none">
       <div class="dash-top">
         <button class="portal-back" onclick="portalBackToGate()">←</button>
+        <img id="dashBrandLogo" class="dash-brand-logo" alt="" style="display:none">
         <div class="dash-scope-wrap">
           <div class="dash-scope" id="dashScope">—</div>
           <div class="dash-updated" id="dashUpdated"></div>
         </div>
+        <button class="dash-demo" id="dashDemoBtn" onclick="dashToggleDemo()" style="display:none"></button>
         <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -970,7 +980,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.59';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.60';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2345,8 +2355,8 @@ function openPortal(){
   }
   document.getElementById('portalOverlay').classList.add('show');
 }
-function closePortal(){ stopDashAutoRefresh(); dismissRemember(); document.getElementById('portalOverlay').classList.remove('show'); }
-function portalBackToGate(){ stopDashAutoRefresh(); dismissRemember(); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
+function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); }
+function portalBackToGate(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
 function portalMode(m){
   document.getElementById('ptabEmp').classList.toggle('active', m==='emp');
   document.getElementById('ptabSup').classList.toggle('active', m==='sup');
@@ -2434,11 +2444,15 @@ function onDashData(d, scopeLabel, params){
   const pvt = d.pvt || null;
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length));
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
+           demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
            pickInd:metrics[0], pickEvo:'__all__',
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
-  document.getElementById('dashScope').textContent = scopeLabel + (DASH_DEMO ? ' · ejemplo' : '');
+  const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
+  document.getElementById('dashScope').textContent = nombreVisible + (DASH_DEMO ? ' · ejemplo' : '');
+  dashApplyMarca(d.marca);
+  dashUpdateDemoBtn();
   buildDashTabs();
   buildDashFilters();
   renderDash();
@@ -2446,6 +2460,47 @@ function onDashData(d, scopeLabel, params){
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
   startDashAutoRefresh();
+}
+
+// ── Empresa Demo: cualquier supervisor logueado puede verla sin re-login ──
+let DEMO_BACK = null;
+function dashToggleDemo(){
+  if (!DASH || !DASH.params || DASH_DEMO) return;
+  stopDashAutoRefresh();
+  if (!DASH.demoMode){
+    DEMO_BACK = { scope: DASH.scope, params: Object.assign({}, DASH.params) };
+    const p = Object.assign({}, DASH.params, { demo:'1' });
+    dashRequest(p).then(d => { if (d && d.ok){ onDashData(d, 'Empresa Demo', p); } else { showToast('No se pudo abrir el ejemplo'); startDashAutoRefresh(); } })
+      .catch(() => { showToast('Sin conexión'); startDashAutoRefresh(); });
+  } else {
+    const b = DEMO_BACK || { scope:'Mi empresa', params:Object.assign({}, DASH.params) };
+    const p = Object.assign({}, b.params); delete p.demo;
+    dashRequest(p).then(d => { if (d && d.ok) onDashData(d, b.scope, p); else startDashAutoRefresh(); })
+      .catch(() => { showToast('Sin conexión'); startDashAutoRefresh(); });
+  }
+}
+function dashUpdateDemoBtn(){
+  const btn = document.getElementById('dashDemoBtn');
+  if (!btn) return;
+  if (DASH_DEMO || DASH.rol === 'empleado'){ btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  btn.textContent = DASH.demoMode ? '← Mi empresa' : 'Ver ejemplo';
+  btn.classList.toggle('on', DASH.demoMode);
+}
+// Personalización por empresa: color de acento (sólo dentro del panel) + logo opcional
+function dashApplyMarca(marca){
+  const portal = document.querySelector('#portalOverlay .sheet.portal');
+  if (portal){
+    if (marca && marca.color && /^#[0-9a-fA-F]{3,8}$/.test(marca.color)){
+      portal.style.setProperty('--orange', marca.color);
+      portal.style.setProperty('--orange-2', marca.color);
+    } else { portal.style.removeProperty('--orange'); portal.style.removeProperty('--orange-2'); }
+  }
+  const logoEl = document.getElementById('dashBrandLogo');
+  if (logoEl){
+    if (marca && marca.logo && /^https?:\/\//.test(marca.logo)){ logoEl.src = marca.logo; logoEl.style.display = ''; logoEl.onerror = function(){ logoEl.style.display='none'; }; }
+    else logoEl.style.display = 'none';
+  }
 }
 
 // Re-consulta el endpoint y actualiza en vivo (manual=true muestra avisos)
@@ -2491,12 +2546,31 @@ function startDashAutoRefresh(){
 }
 function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH_TIMER = null; } }
 
+// Orden de secciones en la página única (Informe destacado, 2do). Comparar/Individual se ocultan
+// cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
+function dashOrderedTabs(){
+  let orden = ['resumen','informe','comparar','individual','evolucion','pvt','comentarios'];
+  if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
+  return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
+}
 function buildDashTabs(){
-  document.getElementById('dashTabs').innerHTML = DASH.tabs.map(t =>
-    '<button class="dtab ' + (t===DASH.tab?'active':'') + '" onclick="dashSetTab(\'' + t + '\')">' + TAB_LABELS[t] + '</button>'
+  document.getElementById('dashTabs').innerHTML = dashOrderedTabs().map(t =>
+    '<button class="dtab" data-tab="' + t + '" onclick="dashScrollTo(\'' + t + '\')">' + TAB_LABELS[t] + '</button>'
   ).join('');
 }
-function dashSetTab(t){ DASH.tab = t; buildDashTabs(); renderDash(); document.getElementById('dashScroll').scrollTop = 0; }
+function dashScrollTo(t){
+  const sec = document.getElementById('dsec-' + t), scroll = document.getElementById('dashScroll');
+  if (sec && scroll){
+    const top = sec.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+    scroll.scrollTo({ top: Math.max(0, top - 6), behavior:'smooth' });
+  }
+  dashHighlightTab(t);
+}
+function dashHighlightTab(t){
+  const chips = document.querySelectorAll('#dashTabs .dtab');
+  chips.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === t));
+}
+function dashSetTab(t){ dashScrollTo(t); }   // compat con llamadas viejas
 
 function buildDashFilters(){
   const showGroup = DASH.rol !== 'empleado';
@@ -2578,20 +2652,41 @@ function dashAvg(rows, m){ return dashMean(dashVals(rows,m)); }
 function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'—'; (g[k]=g[k]||[]).push(r); }); return g; }
 
 /* ── Router de pestañas ── */
+let _dashSpy = null;
 function renderDash(){
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
-  const ctx = dashContext();
-  if (DASH.tab === 'pvt'){ body.innerHTML = ctx + renderPVT(); return; }   // PVT tiene su propio dataset (no depende de Calc_Data)
-  if (!rows.length){ body.innerHTML = ctx + '<div class="dash-empty">Sin registros para este filtro.</div>'; return; }
-  let html;
-  if (DASH.tab === 'comparar') html = renderComparar(rows);
-  else if (DASH.tab === 'individual') html = renderIndividual(rows);
-  else if (DASH.tab === 'evolucion') html = renderEvolucion(rows);
-  else if (DASH.tab === 'comentarios') html = renderComentarios(rows);
-  else if (DASH.tab === 'informe') html = renderInforme(rows);
-  else html = renderResumen(rows);
-  body.innerHTML = ctx + html;
+  buildDashTabs();                                   // los chips siempre reflejan las secciones visibles
+  const ord = dashOrderedTabs();
+  // Aviso de pocos datos: no oculta nada, sólo advierte que puede no ser representativo
+  const aviso = (rows.length && rows.length < 3)
+    ? dashWarn('Hay pocos registros para este filtro (' + rows.length + '). Los promedios y tendencias pueden no ser representativos todavía.')
+    : '';
+  const secciones = ord.map(t => {
+    let html;
+    if (t === 'pvt') html = renderPVT();                              // dataset propio
+    else if (t === 'informe') html = renderInforme(rows);            // historial propio
+    else if (!rows.length) html = '<div class="dash-empty">Sin registros de tests para este filtro.</div>';
+    else if (t === 'comparar') html = renderComparar(rows);
+    else if (t === 'individual') html = renderIndividual(rows);
+    else if (t === 'evolucion') html = renderEvolucion(rows);
+    else if (t === 'comentarios') html = renderComentarios(rows);
+    else html = renderResumen(rows);
+    return '<section class="dash-sec" id="dsec-' + t + '" data-tab="' + t + '">' + html + '</section>';
+  }).join('');
+  body.innerHTML = dashContext() + aviso + secciones;
+  dashWireScrollspy();
+}
+// Resalta el chip de la sección que está a la vista mientras se scrollea
+function dashWireScrollspy(){
+  if (_dashSpy) _dashSpy.disconnect();
+  const scroll = document.getElementById('dashScroll');
+  const secs = Array.prototype.slice.call(document.querySelectorAll('#dashBody .dash-sec'));
+  if (!scroll || !secs.length) return;
+  _dashSpy = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){ if (en.isIntersecting) dashHighlightTab(en.target.getAttribute('data-tab')); });
+  }, { root: scroll, rootMargin: '0px 0px -75% 0px', threshold: 0 });
+  secs.forEach(function(s){ _dashSpy.observe(s); });
 }
 
 /* ── Barra de contexto: dónde estás parado + navegación sin desloguear ── */
@@ -2684,6 +2779,12 @@ function renderComparar(rows){
   const names = Object.keys(g).filter(n => n !== '—').sort();
   DASH._heatNames = names;
   DASH._heatLevel = (groupKey === 'empresa') ? 'emp' : 'dep';
+
+  const titulo = '<div class="dash-block"><div class="db-title">Comparativa por ' + groupKey + '</div>';
+  // Comparar necesita al menos 2 grupos; con 1 solo (o ninguno con nombre) no tiene sentido
+  if (names.length < 2){
+    return titulo + dashWarn('Se necesitan al menos 2 ' + (groupKey==='empresa'?'empresas':'departamentos') + ' con datos para comparar. Por ahora hay ' + names.length + '. Mirá el Resumen para ver el detalle de lo que ya cargaron.') + '</div>';
+  }
 
   const help = dashHelp('Compará ' + (groupKey==='empresa'?'las empresas':'los departamentos') + ' entre sí. Cada celda es el promedio de esa métrica: <b style="color:#1aa672">verde</b> = bien, <b style="color:#d63031">rojo</b> = sobre lo normal. <b>Tocá una fila</b> para entrar a ese ' + groupKey + '.');
   let heat = '<div class="dash-block"><div class="db-title">Comparativa por ' + groupKey + '</div>' +
