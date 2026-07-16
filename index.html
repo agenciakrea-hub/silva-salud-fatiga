@@ -530,6 +530,18 @@
     color: var(--orange); border-radius: 10px; font-family: inherit; font-weight: 700; font-size: .86rem; cursor: pointer; }
   .inf-share:active { transform: scale(.99); }
 
+  /* Objetivo del análisis (opcional) */
+  .inf-obj { background: #f7f9fc; border: 1px solid #e6eaf2; border-radius: 12px; padding: .8rem; margin: .2rem 0 1rem; }
+  .inf-obj-t { font-size: .84rem; font-weight: 800; color: var(--text); margin-bottom: .5rem; }
+  .inf-obj-t span { font-weight: 600; color: var(--text-muted); font-size: .76rem; }
+  .inf-obj-txt { width: 100%; min-height: 62px; padding: .6rem .7rem; border: 1.5px solid #dfe4ec; border-radius: 10px;
+    font-family: inherit; font-size: .88rem; color: var(--text); background: #fff; resize: vertical; line-height: 1.45; }
+  .inf-obj-txt:focus { outline: none; border-color: var(--orange); }
+  .inf-obj-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
+  .inf-obj-row label { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
+  .inf-obj-row label span { font-weight: 500; color: var(--text-muted); }
+  .inf-obj-row input[type=date] { padding: .5rem .6rem; border: 1.5px solid #dfe4ec; border-radius: 9px; font-family: inherit; font-size: .88rem; color: var(--text); background: #fff; }
+
   /* Barra recordar credenciales */
   .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
     background: #16233d; color: #fff; border-radius: 14px; padding: .85rem 1rem; box-shadow: 0 12px 30px rgba(0,0,0,.35); z-index: 5;
@@ -958,7 +970,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2424,7 +2436,7 @@ function onDashData(d, scopeLabel, params){
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
            pickInd:metrics[0], pickEvo:'__all__',
-           _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{},
+           _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
   document.getElementById('dashScope').textContent = scopeLabel + (DASH_DEMO ? ' · ejemplo' : '');
   buildDashTabs();
@@ -2875,13 +2887,20 @@ function renderInforme(rows){
   const btn = bloqueado
     ? '<button class="save-btn informe-btn" disabled title="Ya se generó uno hoy">Próximo disponible: ' + esc(DASH._informesProximo) + '</button>'
     : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>';
-  const sub = '<div class="db-sub">Análisis de <b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b> según los datos y la metodología.</div>';
+  const sub = '<div class="db-sub">Análisis de <b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b>: tendencias, picos y patrones según los datos y la metodología.</div>';
+  // Objetivo opcional: si se pone una fecha de cambio, el informe compara antes/después (como correlación, no causa)
+  const obj = '<div class="inf-obj">' +
+    '<div class="inf-obj-t">Objetivo del análisis <span>· opcional</span></div>' +
+    '<textarea id="infObjetivo" class="inf-obj-txt" maxlength="500" placeholder="Ej: el 10/07 pasamos a horario rotativo. Quiero ver el efecto en los indicadores." oninput="DASH._objetivo=this.value">' + esc(DASH._objetivo||'') + '</textarea>' +
+    '<div class="inf-obj-row"><label>Fecha del cambio <span>(compara antes/después)</span></label>' +
+    '<input type="date" id="infObjetivoFecha" value="' + esc(DASH._objetivoFecha||'') + '" onchange="DASH._objetivoFecha=this.value"></div>' +
+    '</div>';
   const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
   let hist;
   if (!DASH._informesLoaded) hist = '<div class="informe-loading">Cargando informes previos…</div>';
   else if (!DASH._informes.length) hist = '<div class="informe-empty">Todavía no hay informes generados para esta empresa. Tocá “Generar informe” para crear el primero.</div>';
   else hist = '<div class="db-sub2">Historial (' + DASH._informes.length + ')</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
-  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + btn + out + hist + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + obj + btn + out + hist + '</div>';
 }
 function dashLoadInformes(){
   DASH._informes = DASH._informes || [];
@@ -2927,7 +2946,8 @@ function dashGenerarInforme(){
   const out = document.getElementById('informeOut');
   if (out) out.innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
   stopDashAutoRefresh();
-  const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass, resumen: dashBuildSummary(dashFiltered()) };
+  const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass,
+    resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) };
   fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
@@ -2961,12 +2981,65 @@ function dashMdLite(t){
   return html;
 }
 function dashRound(x){ return x==null ? null : Math.round(x*10)/10; }
-function dashBuildSummary(rows){
+// Lunes de la semana de una fecha ISO (yyyy-mm-dd)
+function dashWeekStart(fechaISO){
+  const d = new Date(String(fechaISO).slice(0,10) + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  const off = (d.getDay() + 6) % 7;   // 0 = lunes
+  d.setDate(d.getDate() - off);
+  return d;
+}
+function dashWeekLabel(d){ const p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear(); }
+// Tendencia de una métrica: serie semanal + pendiente + cambio % + semana pico + dirección.
+// Se precalcula acá (no se confía en que la IA "vea" la tendencia en una tabla de números).
+function dashTrend(rows, m){
+  const buckets = {};
+  rows.forEach(r => { if (r[m]!=null && r.fecha){ const ws = dashWeekStart(r.fecha); if(!ws) return; const k = ws.getTime(); (buckets[k] = buckets[k] || {t:ws, vals:[]}).vals.push(r[m]); } });
+  const semanas = Object.keys(buckets).map(k=>buckets[k]).sort((a,b)=>a.t-b.t)
+    .map(b => ({ ts:b.t.getTime(), semana:dashWeekLabel(b.t), valor:dashMean(b.vals), n:b.vals.length }));
+  if (!semanas.length) return null;
+  const pico = semanas.reduce((mx,s)=> s.valor>mx.valor ? s : mx, semanas[0]);
+  let pendienteSemanal = 0, cambioPorcentual = null, direccion = 'estable';
+  if (semanas.length >= 2){
+    const ys = semanas.map(s=>s.valor), n = ys.length;
+    let sx=0,sy=0,sxy=0,sxx=0;
+    ys.forEach((y,i)=>{ sx+=i; sy+=y; sxy+=i*y; sxx+=i*i; });
+    const den = n*sxx - sx*sx;
+    pendienteSemanal = den ? (n*sxy - sx*sy)/den : 0;   // pendiente por regresión lineal (unidades por semana)
+    const primero = ys[0], ultimo = ys[ys.length-1];
+    cambioPorcentual = Math.abs(primero) > 0.01 ? Math.round((ultimo - primero)/Math.abs(primero)*100) : (ultimo>0 ? 100 : 0);
+    const ref = DASH.ref[m] || 1, banda = Math.max(ref*0.03, 0.05);   // zona muerta: cambios chicos = "estable"
+    direccion = pendienteSemanal > banda ? 'en aumento' : (pendienteSemanal < -banda ? 'en descenso' : 'estable');
+  }
+  return {
+    semanas: semanas.map(s=>({ semana:s.semana, valor:dashRound(s.valor), n:s.n })),
+    semanaPico: { semana:pico.semana, valor:dashRound(pico.valor) },
+    pendienteSemanal: dashRound(pendienteSemanal), cambioPorcentual: cambioPorcentual, direccion: direccion,
+    primera: dashRound(semanas[0].valor), ultima: dashRound(semanas[semanas.length-1].valor)
+  };
+}
+// Comparación antes/después de una fecha de corte (para el "objetivo del análisis")
+function dashComparacion(rows, fechaCorte){
+  const corte = String(fechaCorte).slice(0,10);
+  const antes = rows.filter(r => r.fecha && r.fecha < corte);
+  const despues = rows.filter(r => r.fecha && r.fecha >= corte);
+  const met = DASH.metrics.map(m => {
+    const a = dashAvg(antes, m), d = dashAvg(despues, m);
+    let cambioPct = null;
+    if (a!=null && d!=null) cambioPct = Math.abs(a) > 0.01 ? Math.round((d-a)/Math.abs(a)*100) : (d>0?100:0);
+    return { metrica:METRIC_LABELS[m]||m, antes:dashRound(a), despues:dashRound(d),
+             cambio:(a!=null&&d!=null)?dashRound(d-a):null, cambioPorcentual:cambioPct };
+  });
+  return { fechaCorte:corte, nAntes:antes.length, nDespues:despues.length, metricas:met };
+}
+function dashBuildSummary(rows, opts){
+  opts = opts || {};
   const rng = dashEffectiveRange();
   const metricas = DASH.metrics.map(m => {
     const v = dashVals(rows, m), media = dashMean(v);
     return { metrica:METRIC_LABELS[m]||m, media:dashRound(media), mediana:dashRound(dashMedian(v)), desviacion:dashRound(dashStd(v)),
-             maximo: v.length ? Math.max.apply(null,v) : null, referencia:DASH.ref[m], n:v.length, sobreReferencia: media!=null && media>DASH.ref[m] };
+             maximo: v.length ? Math.max.apply(null,v) : null, referencia:DASH.ref[m], n:v.length, sobreReferencia: media!=null && media>DASH.ref[m],
+             tendencia: dashTrend(rows, m) };
   });
   const gd = dashGroup(rows.filter(r=>r.departamento), 'departamento');
   const departamentos = Object.keys(gd).map(n => ({ nombre:n, n:gd[n].length,
@@ -2986,13 +3059,16 @@ function dashBuildSummary(rows){
     if (rng.hasta && c.fecha>rng.hasta) return false;
     return esComentarioValido(c.texto);
   }).map(c => ({ persona:c.persona, fecha:c.fecha, tipo:c.tipo, texto:c.texto })).slice(0,60);
-  return {
+  const out = {
     empresa: DASH.scope,
     periodo: { label:(DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0]||['','Todo'])[1], desde:rng.desde||null, hasta:rng.hasta||null },
     filtros: { departamento:DASH.f.dep||'(todos)', empleado:DASH.f.per||'(todos)' },
     nRegistros: rows.length, referencias: DASH.ref,
     metricas: metricas, departamentos: departamentos, alertas: alertas.slice(0,25), comentarios: comentarios
   };
+  if (opts.objetivo && String(opts.objetivo).trim()) out.objetivo = String(opts.objetivo).trim().slice(0,500);
+  if (opts.objetivoFecha) out.comparacion = dashComparacion(rows, opts.objetivoFecha);
+  return out;
 }
 
 function dashMetricPicker(field, current, includeAll){
