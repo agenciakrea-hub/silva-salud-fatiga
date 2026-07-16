@@ -343,6 +343,17 @@
   .dtab.active { background: var(--navy); color: #fff; }
   .dash-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 1.1rem 1.2rem 2.2rem; scrollbar-gutter: stable; }
 
+  /* Glosario colapsable */
+  .gloss { margin-bottom: 1rem; }
+  .gloss-t { width: 100%; text-align: left; background: #f1f3f7; border: 1px solid #e6eaf2; border-radius: 10px;
+    padding: .55rem .8rem; font-family: inherit; font-weight: 700; font-size: .84rem; color: var(--text-soft); cursor: pointer; }
+  .gloss-t:hover { background: #eaeef4; }
+  .gloss-body { border: 1px solid #e6eaf2; border-top: none; border-radius: 0 0 10px 10px; padding: .3rem .8rem .5rem; }
+  .gloss-i { padding: .5rem 0; border-bottom: 1px solid #f0f2f5; }
+  .gloss-i:last-child { border-bottom: none; }
+  .gloss-i b { display: block; font-size: .84rem; color: var(--text); }
+  .gloss-i span { display: block; font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .1rem; }
+
   /* Página única: secciones apiladas con separador */
   .dash-sec { scroll-margin-top: 8px; }
   .dash-sec + .dash-sec { margin-top: .4rem; padding-top: 1.2rem; border-top: 2px solid #eef1f5; }
@@ -986,7 +997,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.62';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.63';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1053,8 +1064,11 @@ const SHEETS_CANSANCIO_URL    = 'https://script.google.com/macros/s/AKfycbzG61Ep
 function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
 function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
 
+// Guardado seguro: en modo privado / sin espacio, localStorage.setItem tira excepción.
+// Si falla, avisamos con un toast en vez de romper toda la app.
+function lsSet(key, val){ try { localStorage.setItem(key, val); return true; } catch(e){ try { showToast('No se pudo guardar en este dispositivo'); } catch(_){} return false; } }
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
-function setProfile(p){ localStorage.setItem(K_PROFILE, JSON.stringify(p)); }
+function setProfile(p){ return lsSet(K_PROFILE, JSON.stringify(p)); }
 
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -1062,10 +1076,10 @@ function getReports(){
   let r; try { r = JSON.parse(localStorage.getItem(K_REPORTS)) || {}; } catch(e){ r = {}; }
   const t = todayStr(); let changed = false;
   for (const id in r){ if (r[id].date !== t){ delete r[id]; changed = true; } }   // reset diario
-  if (changed) localStorage.setItem(K_REPORTS, JSON.stringify(r));
+  if (changed) lsSet(K_REPORTS, JSON.stringify(r));
   return r;
 }
-function saveReports(r){ localStorage.setItem(K_REPORTS, JSON.stringify(r)); }
+function saveReports(r){ return lsSet(K_REPORTS, JSON.stringify(r)); }
 
 /* ════════════════ COLA DE REINTENTOS ════════════════
    Si el envío de un test falla por falta de conexión (no llega ni a
@@ -2510,6 +2524,7 @@ function dashTabsFor(rol, hasPvt){
 
 function onDashData(d, scopeLabel, params){
   if (!d || !d.ok){ showToast((d && d.error) || 'Error al cargar'); return; }
+  dashMergeNombres(d.registros, d.pvt || []);                                    // une variantes del mismo nombre
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
   const pvt = d.pvt || null;
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length));
@@ -2517,7 +2532,7 @@ function onDashData(d, scopeLabel, params){
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
            pickInd:metrics[0], pickEvo:'__all__',
-           _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
+           _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'', _glossaryOpen:false,
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   document.getElementById('dashScope').textContent = nombreVisible + (DASH_DEMO ? ' · ejemplo' : '');
@@ -2592,6 +2607,7 @@ function dashRefresh(manual){
   dashRequest(DASH.params).then(d => {
     if (btn) btn.classList.remove('spin');
     if (!d || !d.ok){ if (manual) showToast('No se pudo actualizar'); return; }
+    dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
     const pvt = d.pvt || null;
     const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]);
@@ -2723,6 +2739,49 @@ function dashFiltered(){
   });
 }
 
+/* ── Unificar variantes del mismo nombre (acentos/mayúsculas/espacios) ── */
+function dashNorm(s){ return String(s||'').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
+// "José Pérez" y "Jose Perez" → un solo sujeto. Nombre visible = la variante más frecuente y más prolija.
+function dashNiceness(s){   // puntúa cuán "bien escrita" está una variante
+  let n = 0;
+  if (/[A-ZÁÉÍÓÚÑ]/.test(s)) n += 2;              // tiene mayúsculas (nombre propio)
+  if (s !== s.toUpperCase()) n += 1;              // no está TODO en mayúsculas
+  if (/[áéíóúñÁÉÍÓÚÑ]/.test(s)) n += 1;           // conserva los acentos
+  if (/\s{2,}/.test(s)) n -= 2;                   // espacios dobles = feo
+  return n;
+}
+function dashMergeNombres(){
+  const arrays = Array.prototype.slice.call(arguments).filter(Boolean);
+  const conteo = {};
+  arrays.forEach(arr => arr.forEach(r => { const p = String(r.persona||'').trim(); if (!p) return;
+    const k = dashNorm(p); (conteo[k] = conteo[k] || {}); conteo[k][p] = (conteo[k][p]||0)+1; }));
+  const canon = {};
+  Object.keys(conteo).forEach(k => { const vs = Object.keys(conteo[k]);
+    vs.sort((a,b) => (conteo[k][b]-conteo[k][a]) || (dashNiceness(b)-dashNiceness(a)) || (b.length-a.length));
+    canon[k] = vs[0].replace(/\s+/g,' ').trim(); });   // el visible queda con espacios simples
+  arrays.forEach(arr => arr.forEach(r => { const p = String(r.persona||'').trim(); if (!p) return;
+    const c = canon[dashNorm(p)]; if (c) r.persona = c; }));
+}
+
+/* ── Glosario de indicadores (colapsable) ── */
+function dashGlossary(){
+  const open = !!DASH._glossaryOpen;
+  const items = [
+    ['Somnolencia (KSS)','Escala Karolinska (1 a 9): cuán alerta o somnolienta está la persona. Más alto = más somnolencia.'],
+    ['Estrés','Cuestionario de síntomas de estrés (12 ítems). Más alto = más estrés.'],
+    ['Ansiedad (BAI)','Inventario de Ansiedad de Beck (21 ítems). Más alto = más ansiedad.'],
+    ['Fatiga (Perelli SP)','Escala SAMN-Perelli de fatiga operacional (0 a ~10). Más alto = más fatiga.'],
+    ['Gastrointestinal','Síntomas gastrointestinales asociados a estrés y fatiga.'],
+    ['Depresión','Cuestionario de síntomas depresivos (15 ítems).'],
+    ['Cansancio','Agotamiento emocional / burnout (9 ítems).'],
+    ['PVT','Test de Reacción: mide la fatiga de forma objetiva por el tiempo de reacción en ms. Validado por NASA, Harvard y Walter Reed.'],
+    ['Referencia','El umbral por encima del cual el indicador necesita atención. Lo que está en rojo lo supera.']
+  ];
+  const body = open ? '<div class="gloss-body">' + items.map(i => '<div class="gloss-i"><b>'+esc(i[0])+'</b><span>'+esc(i[1])+'</span></div>').join('') + '</div>' : '';
+  return '<div class="gloss"><button class="gloss-t" onclick="dashToggleGlossary()">Glosario de indicadores ' + (open?'▴':'▾') + '</button>' + body + '</div>';
+}
+function dashToggleGlossary(){ DASH._glossaryOpen = !DASH._glossaryOpen; renderDash(); }
+
 /* ── Helpers estadísticos ── */
 function dashVals(rows, m){ return rows.map(r=>r[m]).filter(x=>x!=null); }
 function dashMean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
@@ -2754,7 +2813,7 @@ function renderDash(){
     else html = renderResumen(rows);
     return '<section class="dash-sec" id="dsec-' + t + '" data-tab="' + t + '">' + html + '</section>';
   }).join('');
-  body.innerHTML = dashContext() + aviso + secciones;
+  body.innerHTML = dashContext() + dashGlossary() + aviso + secciones;
   dashWireScrollspy();
 }
 // Resalta el chip de la sección que está a la vista mientras se scrollea
