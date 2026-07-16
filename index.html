@@ -515,6 +515,21 @@
   .informe-box b { color: var(--text); }
   .informe-meta { font-size: .68rem; color: var(--text-muted); text-align: right; margin-top: .5rem; }
 
+  /* Historial de informes (colapsable) */
+  .inf-hist { display: flex; flex-direction: column; gap: .5rem; }
+  .inf-card { border: 1px solid #e6eaf2; border-radius: 12px; overflow: hidden; background: #fff; }
+  .inf-head { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .7rem .8rem; background: #f7f9fc;
+    border: none; cursor: pointer; font-family: inherit; text-align: left; }
+  .inf-head:hover { background: #f0f4fa; }
+  .inf-headtx { flex: 1; min-width: 0; }
+  .inf-date { font-size: .82rem; font-weight: 800; color: var(--text); }
+  .inf-prev { font-size: .76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: .12rem; }
+  .inf-caret { font-size: .76rem; font-weight: 700; color: var(--orange); flex-shrink: 0; }
+  .inf-body { padding: .8rem; }
+  .inf-share { margin-top: .7rem; width: 100%; padding: .65rem; border: 1.5px solid var(--orange); background: #fff6ef;
+    color: var(--orange); border-radius: 10px; font-family: inherit; font-weight: 700; font-size: .86rem; cursor: pointer; }
+  .inf-share:active { transform: scale(.99); }
+
   /* Barra recordar credenciales */
   .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
     background: #16233d; color: #fff; border-radius: 14px; padding: .85rem 1rem; box-shadow: 0 12px 30px rgba(0,0,0,.35); z-index: 5;
@@ -943,9 +958,9 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.56';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
-const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbxXrTzTbkgTASCqx2t68PZx5qqqEMbruLyJdQEFrxJ0uerH144h6xa89z3frDB0dutC/exec';
+const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
 
 // Iconos SVG reutilizables
@@ -2267,8 +2282,8 @@ function hide(id){ document.getElementById(id).classList.remove('show'); }
 
 /* ════════════════ PORTAL / DASHBOARD ════════════════ */
 const DASH_DEMO = !SHEETS_DASHBOARD_URL;    // sin URL configurada → datos de ejemplo
-const METRIC_LABELS = { kss:'Somnolencia', estres:'Estrés', ansiedad:'Ansiedad', fatiga:'Fatiga', gastro:'Gastro', depresion:'Depresión' };
-const METRIC_COLORS = { kss:'#2d6cdf', estres:'#e0322f', ansiedad:'#7c5cc4', fatiga:'#f47a1f', gastro:'#1aa672', depresion:'#e8a400' };
+const METRIC_LABELS = { kss:'Somnolencia', estres:'Estrés', ansiedad:'Ansiedad', fatiga:'Fatiga', gastro:'Gastro', depresion:'Depresión', cansancio:'Cansancio' };
+const METRIC_COLORS = { kss:'#2d6cdf', estres:'#e0322f', ansiedad:'#7c5cc4', fatiga:'#f47a1f', gastro:'#1aa672', depresion:'#e8a400', cansancio:'#0fb5b0' };
 const PIE_PALETTE   = ['#f47a1f','#2d6cdf','#1aa672','#7c5cc4','#e0322f','#e8a400','#0fb5b0','#9c6b3f'];
 const DASH_PERIODS  = [['all','Todo'],['dia','Día'],['semana','Semana'],['mes','Mes'],['trimestre','Trimestre'],['semestre','Semestre'],['anio','Año'],['custom','Personalizado']];
 
@@ -2334,8 +2349,8 @@ function dashRequest(params){
     return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json());
   }
   return new Promise(res => {
-    const ref = { kss:6, estres:36, ansiedad:25, fatiga:9, gastro:11, depresion:42 };
-    const met = ['kss','estres','ansiedad','fatiga','gastro','depresion'];
+    const ref = { kss:6, estres:36, ansiedad:25, fatiga:7.3, gastro:11, depresion:42, cansancio:19 };
+    const met = ['kss','estres','ansiedad','fatiga','gastro','depresion','cansancio'];
     if (params.action === 'empleado'){
       res({ ok:true, rol:'empleado', referencia:ref, metricas:met, registros: MOCK_DASH.filter(r=>r.persona==='Maria Gonzalez') });
     } else {
@@ -2408,7 +2423,8 @@ function onDashData(d, scopeLabel, params){
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length));
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
-           pickInd:metrics[0], pickEvo:'__all__', _informe:null,
+           pickInd:metrics[0], pickEvo:'__all__',
+           _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{},
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
   document.getElementById('dashScope').textContent = scopeLabel + (DASH_DEMO ? ' · ejemplo' : '');
   buildDashTabs();
@@ -2850,38 +2866,84 @@ function renderPVT(){
 }
 function dashGoPvtIdx(i){ const n = DASH._pvtNames && DASH._pvtNames[i]; if (n==null) return; DASH.f.per = n; buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0; }
 
-/* ── INFORME IA (Gemini) ── */
+/* ── INFORME IA (Gemini): generar + historial + compartir ── */
 function renderInforme(rows){
-  const help = dashHelp('Un informe escrito por inteligencia artificial que analiza estos datos junto con los documentos de referencia (metodología de los tests). ' +
-    (DASH.rol==='admin' ? 'Como administrador podés generarlo cuando quieras.' : 'Se puede generar <b>1 por semana</b> por empresa.'));
-  const btn = '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>';
-  const out = '<div id="informeOut">' + (DASH._informe ? dashInformeHTML(DASH._informe) : '<div class="informe-empty">Todavía no generaste el informe de esta selección. Ajustá los filtros de arriba y tocá “Generar informe”.</div>') + '</div>';
-  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' +
-    '<div class="db-sub">Análisis escrito de ' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + ' según los datos y la metodología de los documentos.</div>' +
-    btn + out + '</div>';
+  if (!DASH._informesLoaded && !DASH._informesLoading) dashLoadInformes();   // trae el historial la 1ra vez
+  const help = dashHelp('Un informe escrito por inteligencia artificial que analiza estos datos junto con la metodología de los tests: <b>tendencias, picos y patrones</b>. ' +
+    (DASH.rol==='admin' ? 'Como administrador podés generarlo sin límite.' : 'Se puede generar <b>1 por día</b> por empresa.'));
+  const bloqueado = DASH.rol!=='admin' && DASH._informesProximo;
+  const btn = bloqueado
+    ? '<button class="save-btn informe-btn" disabled title="Ya se generó uno hoy">Próximo disponible: ' + esc(DASH._informesProximo) + '</button>'
+    : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>';
+  const sub = '<div class="db-sub">Análisis de <b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b> según los datos y la metodología.</div>';
+  const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
+  let hist;
+  if (!DASH._informesLoaded) hist = '<div class="informe-loading">Cargando informes previos…</div>';
+  else if (!DASH._informes.length) hist = '<div class="informe-empty">Todavía no hay informes generados para esta empresa. Tocá “Generar informe” para crear el primero.</div>';
+  else hist = '<div class="db-sub2">Historial (' + DASH._informes.length + ')</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + btn + out + hist + '</div>';
+}
+function dashLoadInformes(){
+  DASH._informes = DASH._informes || [];
+  if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
+  DASH._informesLoading = true;
+  const qs = new URLSearchParams({ action:'informes', usuario: DASH.params.usuario || DASH.params.empresa || '', empresa: DASH.scope || '', pass: DASH.params.pass || '' }).toString() + '&_=' + Date.now();
+  fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json()).then(d => {
+    DASH._informesLoading = false; DASH._informesLoaded = true;
+    if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; }
+    if (DASH.tab === 'informe') renderDash();
+  }).catch(() => { DASH._informesLoading = false; DASH._informesLoaded = true; if (DASH.tab === 'informe') renderDash(); });
+}
+// Primera línea de texto útil del informe, para el preview colapsado
+function informePreview(txt){
+  const lineas = String(txt||'').split('\n').map(s=>s.replace(/[#*_>-]/g,'').trim()).filter(Boolean);
+  const l = lineas.find(x => x.length > 12) || lineas[0] || 'Informe';
+  return l.length > 90 ? l.slice(0,90) + '…' : l;
+}
+function dashInformeCard(inf){
+  const exp = !!(DASH._infExp && DASH._infExp[inf.id]);
+  const head = '<button class="inf-head" onclick="dashToggleInforme(\'' + inf.id + '\')">' +
+    '<div class="inf-headtx"><div class="inf-date">' + esc(inf.fecha || '') + '</div>' +
+    (exp ? '' : '<div class="inf-prev">' + esc(informePreview(inf.texto)) + '</div>') + '</div>' +
+    '<span class="inf-caret">' + (exp ? 'Ocultar ▴' : 'Ver ▾') + '</span></button>';
+  const body = exp
+    ? '<div class="inf-body"><div class="informe-box">' + dashMdLite(inf.texto) + '</div>' +
+      '<button class="inf-share" onclick="dashShareInforme(\'' + inf.id + '\')">Compartir informe</button></div>'
+    : '';
+  return '<div class="inf-card">' + head + body + '</div>';
+}
+function dashToggleInforme(id){ DASH._infExp = DASH._infExp || {}; DASH._infExp[id] = !DASH._infExp[id]; renderDash(); }
+function dashShareInforme(id){
+  const inf = (DASH._informes || []).find(x => x.id === id);
+  if (!inf) return;
+  const texto = 'Informe · Aeroambulancias Silva' + (inf.fecha ? ' (' + inf.fecha + ')' : '') + '\n\n' + inf.texto;
+  if (navigator.share){ navigator.share({ title:'Informe · Aeroambulancias Silva', text:texto }).catch(()=>{}); }
+  else if (navigator.clipboard){ navigator.clipboard.writeText(texto).then(()=>showToast('Informe copiado al portapapeles')).catch(()=>showToast('No se pudo copiar')); }
+  else showToast('Compartir no está disponible en este navegador');
 }
 function dashGenerarInforme(){
   const btn = document.getElementById('informeBtn');
-  if (!btn) return;
-  btn.disabled = true; btn.textContent = 'Generando informe… (puede tardar hasta ~40s)';
-  document.getElementById('informeOut').innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
-  stopDashAutoRefresh();                                   // pausa el refresco mientras genera
+  if (btn){ btn.disabled = true; btn.textContent = 'Generando informe… (puede tardar ~40s)'; }
+  const out = document.getElementById('informeOut');
+  if (out) out.innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
+  stopDashAutoRefresh();
   const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass, resumen: dashBuildSummary(dashFiltered()) };
   fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
-      btn.disabled = false; btn.textContent = 'Generar informe'; startDashAutoRefresh();
-      if (!d || !d.ok){ document.getElementById('informeOut').innerHTML = '<div class="informe-empty">' + esc((d && d.error) || 'No se pudo generar el informe.') + '</div>'; return; }
-      DASH._informe = { texto:d.informe, fecha:d.generado, proximo:d.proximo, aviso:d.aviso };
-      document.getElementById('informeOut').innerHTML = dashInformeHTML(DASH._informe);
+      startDashAutoRefresh();
+      if (!d || !d.ok){
+        if (d && d.limitado){ DASH._informesProximo = d.proximo || null; renderDash(); }
+        else if (out) out.innerHTML = '<div class="informe-aviso">' + esc((d && d.error) || 'No se pudo generar el informe.') + '</div>';
+        return;
+      }
+      DASH._informes = DASH._informes || [];
+      DASH._informes.unshift({ id:d.id, fecha:d.generado, texto:d.informe });   // el más nuevo arriba
+      DASH._infExp = DASH._infExp || {}; DASH._infExp[d.id] = true;              // recién generado → abierto
+      DASH._informesProximo = d.proximo || null;
+      renderDash();
     })
-    .catch(() => { btn.disabled = false; btn.textContent = 'Generar informe'; startDashAutoRefresh(); document.getElementById('informeOut').innerHTML = '<div class="informe-empty">Sin conexión o el servidor tardó demasiado. Reintentá.</div>'; });
-}
-function dashInformeHTML(inf){
-  let meta = '';
-  if (inf.aviso) meta += '<div class="informe-aviso">' + esc(inf.aviso) + '</div>';
-  const foot = (inf.fecha ? 'Generado: ' + esc(inf.fecha) : '') + (inf.proximo ? ' · Próximo disponible: ' + esc(inf.proximo) : '');
-  return meta + '<div class="informe-box">' + dashMdLite(inf.texto) + '</div>' + (foot ? '<div class="informe-meta">' + foot + '</div>' : '');
+    .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintentá.</div>'; });
 }
 // Markdown-lite: **negrita**, *itálica*, ## títulos, viñetas
 function dashMdLite(t){
