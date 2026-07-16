@@ -810,7 +810,13 @@
       <span class="err">Campo requerido</span>
       <div class="err">Por favor ingresá tu cargo.</div>
     </div>
-    <div class="sup-notice" id="supNotice" style="display:none">Como supervisor, vas a necesitar la <strong>contraseña de tu empresa</strong> para entrar al panel de supervisor. Recordá pedírsela a tu administrador.</div>
+    <div class="sup-notice" id="supNotice" style="display:none">Como supervisor, ingresá la <strong>contraseña de tu empresa</strong> (te la da tu administrador). Queda guardada en este dispositivo para entrar directo a las estadísticas.</div>
+    <div class="field" id="fSupPass" style="display:none">
+      <label for="inSupPass">Contraseña de supervisor</label>
+      <div class="pw-wrap"><input id="inSupPass" type="password" autocomplete="off" placeholder="Contraseña de tu empresa">
+        <button type="button" class="pw-eye" onclick="togglePw('inSupPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="err">Ingresá la contraseña de supervisor.</div>
+    </div>
     <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;">Cancelar</button>
   </div>
@@ -980,7 +986,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.60';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.61';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2196,6 +2202,9 @@ function openSetup(isEdit){
   document.getElementById('supBanner').classList.toggle('active', es);
   document.getElementById('supCheckIcon').textContent = es ? '✓' : '';
   document.getElementById('supNotice').style.display = es ? '' : 'none';
+  document.getElementById('fSupPass').style.display = es ? '' : 'none';
+  const _cr = dashGetCreds();
+  document.getElementById('inSupPass').value = (es && _cr && _cr.pass) ? _cr.pass : '';   // prefill si ya está guardada
   loadSetupLists();                                                             // trae empresas (Accesos) y departamentos existentes
   document.getElementById('inName').value     = p.nombre;
   document.getElementById('inCed').value      = p.cedula      || '';
@@ -2211,7 +2220,7 @@ function openSetup(isEdit){
     ? 'Actualizá tus datos. Se aplicarán a tus próximos reportes.'
     : 'Antes de empezar, completá tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
-  ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+  ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   document.getElementById('setup').classList.add('show');
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
@@ -2228,6 +2237,7 @@ function saveProfile(){
   const sexo         = document.getElementById('inSexo').value;
   const edad         = document.getElementById('inEdad').value.trim();
   const telefono     = document.getElementById('inTelefono').value.trim();
+  const supPass      = document.getElementById('inSupPass').value.trim();
   let ok = true;
   // Todos los datos son obligatorios. El ID de piloto solo se exige si es personal de aviación.
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
@@ -2239,13 +2249,44 @@ function saveProfile(){
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
   document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
   document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
+  const fSupPass = document.getElementById('fSupPass');
+  fSupPass.classList.toggle('invalid', esSupervisor && !supPass); if (esSupervisor && !supPass) ok=false;
+  if (esSupervisor) fSupPass.querySelector('.err').textContent = 'Ingresá la contraseña de supervisor.';
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
-  setProfile({ nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono });
-  paintProfile();
-  renderSections();           // re-genera hrefs con datos nuevos
-  closeSetup();
-  showToast(editing ? 'Datos actualizados' : '¡Listo! Ya podés reportar');
+
+  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono };
+  const finalizar = () => { setProfile(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya podés reportar'); };
+
+  if (esSupervisor && supPass){
+    // La contraseña de supervisor se verifica contra el endpoint ANTES de guardarla en el dispositivo.
+    const btn = document.querySelector('#setup .save-btn');
+    if (btn){ btn.disabled = true; btn.textContent = 'Verificando contraseña…'; }
+    validarSupervisorCreds(empresa, supPass).then(res => {
+      if (btn){ btn.disabled = false; btn.textContent = 'Guardar y continuar'; }
+      if (res === 'bad'){
+        fSupPass.classList.add('invalid');
+        fSupPass.querySelector('.err').textContent = 'Contraseña o empresa incorrecta. Revisá con tu administrador.';
+        fSupPass.scrollIntoView({behavior:'smooth', block:'center'});
+        return;
+      }
+      dashSaveCredsValues(empresa, supPass);                         // guarda usuario+contraseña en este dispositivo
+      if (res === 'unknown') showToast('Guardado (no se pudo verificar la contraseña ahora)');
+      finalizar();
+    });
+    return;
+  }
+
+  if (!esSupervisor){ try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }   // dejó de ser supervisor → no auto-login
+  finalizar();
 }
+// Verifica usuario+contraseña de supervisor contra el endpoint. 'ok' | 'bad' | 'unknown' (sin conexión)
+function validarSupervisorCreds(usuario, pass){
+  if (DASH_DEMO) return Promise.resolve('unknown');
+  const qs = new URLSearchParams({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass }).toString() + '&_=' + Date.now();
+  return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json())
+    .then(d => (d && d.ok) ? 'ok' : 'bad').catch(() => 'unknown');
+}
+function dashSaveCredsValues(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
 
 /* ════════════════ SETUP: toggles + combobox empresa/departamento ════════════════ */
 function onPilotToggle(el){
@@ -2257,6 +2298,8 @@ function onSupervisorToggle(el){
   document.getElementById('supBanner').classList.toggle('active', el.checked);
   document.getElementById('supCheckIcon').textContent = el.checked ? '✓' : '';
   document.getElementById('supNotice').style.display = el.checked ? '' : 'none';
+  document.getElementById('fSupPass').style.display = el.checked ? '' : 'none';
+  if (!el.checked) document.getElementById('fSupPass').classList.remove('invalid');
 }
 
 const SETUP_LISTS = { empresas: [], departamentos: [] };
@@ -2337,6 +2380,17 @@ const K_DASH_CREDS = 'silva_dash_creds_v1';
 function dashGetCreds(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS)); } catch(e){ return null; } }
 
 function openPortal(){
+  document.getElementById('portalOverlay').classList.add('show');
+  const p = getProfile();
+  const c = dashGetCreds();
+  // Auto-login: supervisor con contraseña guardada entra DIRECTO a la empresa (sin pasar por el gate)
+  if (p && p.esSupervisor && c && c.usuario && c.pass){
+    portalAutoLoginSupervisor(c);
+    return;
+  }
+  openPortalGate();
+}
+function openPortalGate(){
   document.getElementById('portalGate').style.display = '';
   document.getElementById('portalDash').style.display = 'none';
   const p = getProfile();
@@ -2353,7 +2407,23 @@ function openPortal(){
     portalMode('emp');
     if (p && p.empresa) document.getElementById('pEmpresa').value = p.empresa;
   }
-  document.getElementById('portalOverlay').classList.add('show');
+}
+// Entra directo a la empresa del supervisor con las credenciales guardadas. Si ya no son válidas, cae al gate.
+function portalAutoLoginSupervisor(c){
+  document.getElementById('portalGate').style.display = 'none';
+  document.getElementById('portalDash').style.display = '';
+  document.getElementById('dashScope').textContent = 'Cargando…';
+  const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:c.pass };
+  dashRequest(params).then(d => {
+    if (!d || !d.ok){                                    // contraseña cambiada / usuario borrado → volver al gate
+      try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+      openPortalGate();
+      document.getElementById('portalErr').textContent = 'Revisá tu contraseña de supervisor (cambió o expiró).';
+      return;
+    }
+    const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || c.usuario);
+    onDashData(d, label, params);
+  }).catch(() => { openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintentá.'; });
 }
 function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); }
 function portalBackToGate(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalDash').style.display='none'; document.getElementById('portalGate').style.display=''; }
