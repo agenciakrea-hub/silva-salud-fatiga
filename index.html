@@ -830,7 +830,7 @@
     <div class="field" id="fEmp">
       <label for="inEmp">Empresa</label>
       <div class="combo" id="comboEmp">
-        <input id="inEmp" type="text" autocomplete="off" placeholder="Elige de la lista o agrega" maxlength="60" oninput="comboFilter('Emp')" onfocus="comboOpen('Emp')" onblur="comboBlur('Emp')">
+        <input id="inEmp" type="text" autocomplete="off" placeholder="Elige tu empresa de la lista" maxlength="60" oninput="comboFilter('Emp')" onfocus="comboOpen('Emp')" onblur="comboBlur('Emp')">
         <div class="combo-panel" id="panelEmp"></div>
       </div>
       <div class="err">Por favor ingresa tu empresa.</div>
@@ -1049,7 +1049,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.66';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.67';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -2297,7 +2297,7 @@ function saveProfile(){
   const esSupervisor = document.getElementById('inEsSupervisor').checked;
   const cedula       = document.getElementById('inCed').value.trim().replace(/\s+/g,' ');
   const id_piloto    = document.getElementById('inPiloto').value.trim().replace(/\s+/g,' ');
-  const empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
+  let   empresa      = document.getElementById('inEmp').value.trim().replace(/\s+/g,' ');
   const departamento = document.getElementById('inDep').value.trim().replace(/\s+/g,' ');
   const cargo        = document.getElementById('inCargo').value.trim().replace(/\s+/g,' ');
   const sexo         = document.getElementById('inSexo').value;
@@ -2310,6 +2310,20 @@ function saveProfile(){
   document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
   document.getElementById('fPiloto').classList.toggle('invalid', esPiloto && !id_piloto); if(esPiloto && !id_piloto) ok=false;
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
+  // Empresa: debe ser una de la lista oficial (Accesos). Evita variantes mal escritas ("Aer. silva",
+  // "Silva C.A.®", etc.) que después ensucian el CH y hacen que registros no matcheen. Si la lista se
+  // pudo cargar del endpoint, exigimos que la empresa esté en ella; y la normalizamos a la escritura
+  // oficial. Si no hay conexión (lista vacía), no bloqueamos para no dejar a nadie sin poder guardar.
+  if (empresa && SETUP_LISTS.empresas && SETUP_LISTS.empresas.length){
+    const oficial = SETUP_LISTS.empresas.find(e => dashNorm(e) === dashNorm(empresa));
+    if (oficial){ empresa = oficial; }                    // corrige a la escritura oficial
+    else {
+      document.getElementById('fEmp').classList.add('invalid');
+      const errEmp = document.getElementById('fEmp').querySelector('.err');
+      if (errEmp) errEmp.textContent = 'Elige tu empresa de la lista. Si no aparece, avísale a tu administrador.';
+      ok = false;
+    }
+  }
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
