@@ -866,7 +866,11 @@
       <label for="inTelefono">Teléfono</label>
       <input id="inTelefono" type="tel" autocomplete="tel" placeholder="Ej: +58 412 1234567" maxlength="20">
       <span class="err">Campo requerido</span>
-      <div class="err">Por favor ingresa tu cargo.</div>
+    </div>
+    <div class="field" id="fEmail">
+      <label for="inEmail">Email</label>
+      <input id="inEmail" type="email" autocomplete="email" inputmode="email" placeholder="Ej: nombre@correo.com" maxlength="80">
+      <div class="err">Ingresa un email válido.</div>
     </div>
     <div class="sup-notice" id="supNotice" style="display:none">Como supervisor, ingresa la <strong>contraseña de tu empresa</strong> (te la da tu administrador). Queda guardada en este dispositivo para entrar directo a las estadísticas.</div>
     <div class="field" id="fSupPass" style="display:none">
@@ -1049,7 +1053,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.67';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.68';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZCI6ImM1Y2E4OGEyMzQxZDQ1M2U0MzU1YTIzZjNiOTZhNWEzMjdjOTY3NDciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiAiaWQtc2lnbmVyLXN0Zy11c0B2aXRhbC1pZC1zdGctdXMuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCAiYXVkIjogImh0dHBzOi8vYXBpLnNhbmRib3gudHJ5dml0YWwuaW8vdjIvbGluayIsICJpYXQiOiAxNzc5ODM5OTMwLCAiZXhwIjogMTc3OTg0MzUzMCwgInN1YiI6ICJhMThlYTYyMi1mNWMzLTRjZjMtYTc4YS1lZWQxMTM2MzNhZjciLCAidXNlcl9pZCI6ICI5NDhmMTEyNy02OWFiLTQ0MGUtOWRiOS1iN2ZlYTNjZDg1NGMiLCAidGVhbV9pZCI6ICJkMjQ1NTMxNC03YzAxLTRkZGUtYTVhMy0wODg4ZGMwNTJhN2UifQ.J5LDp87fJjSUv9mdmK4HVx3R8GqfnQgk9ue3osPVTR7U2kGszk0IWhmpzufoeW_yViurWjkK71dZzUuJuu1iLBHjy9xKD8IrUvqrTAFKkCtP7cCnKB9ZzwCyugfg8liNsDrx7oXFKGpyLcmeQMrR5rez4nHQC8M8Gqh7nKz3QGcX3wSsQK3U0MBpz4_NLnXYJNwM6zfM2vpmUkyfn7-tpTDZ5YqIrPR4-0rac4p5UXkNQ475a3UWWSG8oMwNN7n_J3sYCwwV1l4JDypIzuDTZsdyU5NVOoljEnFSzqC5an-XQU1CDzALs6UPNpRr-m4RjKYxMDpEPDsPw7njwooZOw&env=sandbox&region=us'; // Link de vinculación TryVital (wearables)
@@ -1121,6 +1125,63 @@ function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e)
 function lsSet(key, val){ try { localStorage.setItem(key, val); return true; } catch(e){ try { showToast('No se pudo guardar en este dispositivo'); } catch(_){} return false; } }
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
 function setProfile(p){ return lsSet(K_PROFILE, JSON.stringify(p)); }
+
+/* ── Registro de personas en la hoja "Registrados Fatiga" del CH ──
+   Manda el perfil + la info del dispositivo que el navegador permite leer (el mail lo escribe
+   la persona; el mail del teléfono NO se puede leer desde una web). Deduplica por cédula en el
+   endpoint. Sólo se envía cuando el perfil cambió (firma), para no repetir en cada apertura. */
+const K_REG_SIG = 'silva_fatiga_reg_sig_v1';
+
+// Lo que el navegador SÍ deja ver: tipo de dispositivo, sistema, navegador, modelo (sólo Android),
+// si está instalada como app, idioma, zona horaria y pantalla. Nada de esto identifica de más.
+async function capturarDispositivo(){
+  const ua = navigator.userAgent || '';
+  const esIOS = /iPad|iPhone|iPod/.test(ua) || (/(Macintosh)/.test(ua) && 'ontouchend' in document);
+  const esAnd = /Android/.test(ua);
+  const info = {
+    dispositivo: esIOS ? 'iPhone/iPad' : (esAnd ? 'Android' : 'Escritorio/Otro'),
+    sistema: '', modelo: '', navegador: '',
+    instalada: (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) ? 'Sí' : 'No',
+    idioma: navigator.language || '',
+    zona: (function(){ try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){ return ''; } })(),
+    pantalla: (screen.width && screen.height) ? (screen.width + '×' + screen.height) : '',
+    ua: ua
+  };
+  let m;
+  if (esIOS && (m = ua.match(/OS (\d+[_.]\d+)/))) info.sistema = 'iOS ' + m[1].replace(/_/g,'.');
+  else if (esAnd && (m = ua.match(/Android ([\d.]+)/))) info.sistema = 'Android ' + m[1];
+  else if ((m = ua.match(/Windows NT ([\d.]+)/))) info.sistema = 'Windows ' + m[1];
+  else if (/Mac OS X/.test(ua)) info.sistema = 'macOS';
+  if (/EdgiOS|Edg\//.test(ua)) info.navegador = 'Edge';
+  else if (/CriOS|Chrome\//.test(ua)) info.navegador = 'Chrome';
+  else if (/FxiOS|Firefox\//.test(ua)) info.navegador = 'Firefox';
+  else if (/Safari\//.test(ua)) info.navegador = 'Safari';
+  // Modelo (sólo Android/Chrome, best-effort vía Client Hints)
+  try {
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues){
+      const h = await navigator.userAgentData.getHighEntropyValues(['model','platform','platformVersion']);
+      if (h.model) info.modelo = h.model;
+      if (!info.sistema && h.platform && h.platformVersion) info.sistema = h.platform + ' ' + h.platformVersion;
+    }
+  } catch(e){}
+  return info;
+}
+
+// Envía el registro al endpoint sólo si el perfil cambió desde la última vez (firma en localStorage).
+async function sincronizarRegistro(perfil){
+  if (!SHEETS_DASHBOARD_URL || !perfil || !perfil.cedula || !perfil.email) return;   // sin datos clave no registra
+  const sig = JSON.stringify(perfil) + '|' + (navigator.userAgent || '');
+  let prev = ''; try { prev = localStorage.getItem(K_REG_SIG) || ''; } catch(e){}
+  if (sig === prev) return;   // ya sincronizado y sin cambios
+  try {
+    const dispositivo = await capturarDispositivo();
+    const payload = Object.assign({ action:'registro' }, perfil, { dispositivo: dispositivo });
+    fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })
+      .then(r => r.json())
+      .then(d => { if (d && d.ok){ try { localStorage.setItem(K_REG_SIG, sig); } catch(e){} } })
+      .catch(() => {});   // si falla, se reintenta en la próxima apertura (la firma no se guarda)
+  } catch(e){}
+}
 
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -2281,12 +2342,13 @@ function openSetup(isEdit){
   document.getElementById('inSexo').value     = p.sexo        || '';
   document.getElementById('inEdad').value     = p.edad        || '';
   document.getElementById('inTelefono').value = p.telefono    || '';
+  document.getElementById('inEmail').value    = p.email       || '';
   document.getElementById('setupTitle').textContent = isEdit ? 'Editar mis datos' : 'Bienvenido 👋';
   document.getElementById('setupLead').textContent = isEdit
     ? 'Actualiza tus datos. Se aplicarán a tus próximos reportes.'
     : 'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
-  ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+  ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fEmail','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   document.getElementById('setup').classList.add('show');
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
@@ -2303,6 +2365,7 @@ function saveProfile(){
   const sexo         = document.getElementById('inSexo').value;
   const edad         = document.getElementById('inEdad').value.trim();
   const telefono     = document.getElementById('inTelefono').value.trim();
+  const email        = document.getElementById('inEmail').value.trim();
   const supPass      = document.getElementById('inSupPass').value.trim();
   let ok = true;
   // Todos los datos son obligatorios. El ID de piloto solo se exige si es personal de aviación.
@@ -2329,13 +2392,15 @@ function saveProfile(){
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
   document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
   document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);   // email obligatorio y con formato válido
+  document.getElementById('fEmail').classList.toggle('invalid', !emailOk); if(!emailOk) ok=false;
   const fSupPass = document.getElementById('fSupPass');
   fSupPass.classList.toggle('invalid', esSupervisor && !supPass); if (esSupervisor && !supPass) ok=false;
   if (esSupervisor) fSupPass.querySelector('.err').textContent = 'Ingresa la contraseña de supervisor.';
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
 
-  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono };
-  const finalizar = () => { setProfile(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar'); };
+  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono, email };
+  const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar'); };
 
   if (esSupervisor && supPass){
     // La contraseña de supervisor se verifica contra el endpoint ANTES de guardarla en el dispositivo.
@@ -3671,12 +3736,16 @@ document.querySelectorAll('.overlay, .ios-modal').forEach(el => _scrollObs.obser
 // Si a un perfil viejo le falta cualquiera, se le vuelve a pedir todo.
 function perfilCompleto(p){
   if (!p) return false;
-  const base = p.nombre && p.cedula && p.empresa && p.departamento && p.cargo && p.sexo && p.edad && p.telefono;
+  const base = p.nombre && p.cedula && p.empresa && p.departamento && p.cargo && p.sexo && p.edad && p.telefono && p.email;
   if (!base) return false;
   if (p.esPiloto && !p.id_piloto) return false;
   return true;
 }
 const _complete = perfilCompleto(_prof);
+
+// Backfill/actualización: si el perfil está completo, lo registra en la hoja (sólo si cambió).
+// Así los ya registrados quedan en "Registrados Fatiga" al abrir la app actualizada, sin molestar.
+if (_complete) sincronizarRegistro(_prof);
 
 // Forzar consentimiento + carga de datos a quien no esté completo (incluye usuarios viejos)
 if (!_complete){
