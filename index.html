@@ -770,7 +770,9 @@
   .col-tabla { display: flex; flex-direction: column; gap: 0.6rem; }
   .ct-fila { display: grid; grid-template-columns: 6.5em 1fr auto auto; gap: 0.55rem; align-items: center; }
   .ct-lbl { font-size: 0.84rem; font-weight: 700; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ct-track { height: 17px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
+  .ct-track { position: relative; height: 17px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
+  .ct-ref-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #16233d; opacity: .55; z-index: 1; }
+  .ct-nota { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.6rem; line-height: 1.45; }
   .ct-track .bar-fill { height: 100%; border-radius: 999px; background: var(--green); }
   .ct-track .bar-fill.over { background: #e0322f; }
   .ct-val { font-size: 0.88rem; font-weight: 800; color: var(--text); min-width: 2.6em; text-align: right; }
@@ -839,9 +841,16 @@
     .hh-full { font-size: 1.4rem; }
     .hh-line { font-size: 1rem; margin-top: 0.3rem; }
 
-    .grid2 { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    /* Dos columnas reales: las secciones y el panel de actividad se reparten el ancho.
+       display:contents hace que las secciones de #sections sean items del grid. */
+    .home-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.2rem; align-items: start; }
+    #sections { display: contents; }
+    .home-cols > .section, #sections > .section { margin-bottom: 2.2rem; }
+    .section + .section { border-top: none; padding-top: 0; }   /* en columnas la línea divisoria molesta */
+    .grid2 { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    /* El botón de instalar no ocupa todo el ancho de la pantalla */
+    .install { max-width: 520px; }
     .section { margin-bottom: 2.5rem; }
-    .section + .section { padding-top: 2.2rem; }
     .sec-title { font-size: 1.42rem; }
     .sec-sub { font-size: 0.95rem; }
     .tile { min-height: 152px; padding: 1.3rem 1.25rem; }
@@ -866,10 +875,24 @@
     .bn-center .bn-fab { width: 64px; height: 64px; margin-top: -28px; }
     .bn-center .bn-fab svg { width: 30px; height: 30px; }
   }
-  /* Pantallas muy anchas: 4 columnas */
+  /* Pantallas muy anchas: más aire y 3 tarjetas por fila dentro de cada columna */
   @media (min-width: 1280px) {
     .wrap, .bottom-nav { max-width: 1240px; }
-    .grid2 { grid-template-columns: repeat(4, 1fr); }
+    .grid2 { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ── Panel de estadísticas en escritorio: ventana ancha y contenido en 2 columnas ── */
+  @media (min-width: 1000px) {
+    .sheet.portal { max-width: 1180px; height: 92vh; max-height: 92vh; }
+    .dash-scroll { padding: 1.5rem 2rem 2.6rem; }
+    /* Los bloques del panel se reparten en dos columnas, aprovechando el ancho */
+    .dash-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.8rem; align-items: start; }
+    .dash-sec > .dash-help, .dash-sec > .dash-warn, .dash-sec > .dash-empty { grid-column: 1 / -1; }
+    .dash-2col { display: contents; }              /* ya quedan repartidos por el grid */
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
+    .dash-filters .df-row { flex: 1; min-width: 280px; }
+    .dash-filters .period-chips { width: 100%; }
   }
 
   /* ═══════════ ANIMACIONES (suaves y sobrias) ═══════════ */
@@ -1033,6 +1056,7 @@
       <div class="tx"><span class="tt">Instalar la app</span><span class="ds">Añadir Silva Salud Fatiga a tu inicio</span></div>
     </button>
 
+    <div class="home-cols">
     <main id="sections"></main>
 
     <!-- Panel de actividad (estilo GitHub): cuánto vienes registrando -->
@@ -1056,6 +1080,7 @@
         </div>
       </div>
     </section>
+    </div>
   </div>
 
   <!-- ═══════════════ VISTA MÁS ═══════════════ -->
@@ -1484,7 +1509,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.74';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.75';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2872,6 +2897,9 @@ function marcarStatsActivo(on){
 // lo que corresponde según el tipo de usuario (empleado → sus registros; supervisor → elector).
 function irAEstadisticas(){
   const rev = document.getElementById('statsReveal');
+  // La onda que tapa la pantalla es para celular. En escritorio el panel abre como ventana,
+  // así que taparlo todo de blanco quedaría raro: ahí abre directo.
+  if (window.innerWidth >= 900){ abrirDestinoEstadisticas(); return; }
   if (rev){
     rev.classList.remove('on');
     void rev.offsetWidth;                                  // reinicia la animación
@@ -4018,14 +4046,50 @@ function renderPVT(){
       }).join('') + '</div>';
   }
   let evo = '';
-  if (dashMonthsCount(pv) >= 2){
-    const buckets = {}; pv.forEach(r => { if (r.rt_prom!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r.rt_prom); } });
-    const keys = Object.keys(buckets).sort();
-    const points = keys.map(k => ({ label:k, value: buckets[k].reduce((a,b)=>a+b,0)/buckets[k].length }));
-    evo = '<div class="dash-block"><div class="db-title">Evolución del tiempo de reacción</div>' +
-      '<div class="db-sub">RT promedio por mes (ms) · punteada = umbral de fatiga (355 ms)</div>' + dashLineChart(points, 355) + '</div>';
+  const grafico = dashPvtEvolucion(pv);
+  if (grafico){
+    evo = '<div class="dash-block"><div class="db-title">Cómo evolucionó la reacción</div>' +
+      '<div class="db-sub">Cada punto es un test. Cuanto más abajo, más rápido reaccionó (mejor).</div>' +
+      dashHelp('El <b>tiempo de reacción</b> es cuánto tardas en responder, medido en milisegundos (ms). <b>Cuanto más bajo, mejor.</b> No hace falta entender los números: fíjate en el color de la franja donde caen los puntos — <b style="color:#1aa672">verde</b> es un buen estado, <b style="color:#b8860b">amarillo</b> es intermedio y <b style="color:#d63031">rojo</b> son señales de fatiga.') +
+      grafico + '</div>';
   }
   return info + kpis + body + evo;
+}
+
+/* Evolución del PVT: un punto por test (no promedios mensuales) sobre franjas de color,
+   para que se entienda de un vistazo sin saber de milisegundos. */
+function dashPvtEvolucion(pv){
+  const pts = pv.filter(r => r.rt_prom != null && r.rt_prom > 0 && r.fecha)
+    .map(r => ({ f:r.fecha, v:r.rt_prom }))
+    .sort((a,b) => (a.f < b.f ? -1 : 1));
+  if (pts.length < 2) return '';
+  const W=340,H=205,padL=30,padR=42,padT=14,padB=34,iw=W-padL-padR,ih=H-padT-padB;
+  const maxV = Math.max(520, Math.max.apply(null, pts.map(p=>p.v)) * 1.1);
+  const x = i => pts.length > 1 ? padL + i/(pts.length-1)*iw : padL + iw/2;
+  const y = v => padT + (1 - Math.min(v, maxV)/maxV)*ih;
+  const banda = (v1,v2,color) => '<rect x="'+padL+'" y="'+y(v2).toFixed(1)+'" width="'+iw+'" height="'+Math.max(0,(y(v1)-y(v2))).toFixed(1)+'" fill="'+color+'"/>';
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += banda(0,300,'#e6f7f0') + banda(300,400,'#fff8e6') + banda(400,maxV,'#feecec');
+  svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(150)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#1aa672">Bien</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(350)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#b8860b">Medio</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(Math.min(maxV-40,470))+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#d63031">Fatiga</text>';
+  const d = pts.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  svg += '<path d="'+d+'" fill="none" stroke="#16233d" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach((p,i) => {
+    const c = p.v < 300 ? '#1aa672' : (p.v < 400 ? '#e8a400' : '#e0322f');
+    svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+c+'" stroke="#fff" stroke-width="1.2"><title>'+esc(p.f)+': '+p.v+' ms</title></circle>';
+  });
+  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+Math.round(maxV)+'</text>';
+  svg += '<text x="3" y="'+(padT+ih)+'" font-size="8" fill="#7b8499">0 ms</text>';
+  svg += '<text x="'+padL+'" y="'+(H-8)+'" font-size="8" fill="#7b8499">'+esc(pts[0].f)+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+(H-8)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(pts[pts.length-1].f)+'</text>';
+  svg += '</svg>';
+  const leyenda = '<div class="radar-legend">' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#1aa672"></span>Menos de 300 ms · bien</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#e8a400"></span>300 a 400 ms · intermedio</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#e0322f"></span>Más de 400 ms · señales de fatiga</span></div>';
+  return '<div class="radar-wrap">' + svg + leyenda + '</div>';
 }
 function dashGoPvtIdx(i){ const n = DASH._pvtNames && DASH._pvtNames[i]; if (n==null) return; DASH.f.per = n; buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0; }
 
@@ -4399,18 +4463,22 @@ function dashLineaTiempo(rows, m){
 
 /* ── COLUMNAS tipo tabla: todas las métricas con su barra y su valor ── */
 function dashColumnas(rows){
+  // La referencia se dibuja al 65% de la barra: así un valor que la supera se VE que la supera
+  // (antes todo lo que pasaba la referencia se recortaba al 100% y parecía igual).
+  const REF_PCT = 65;
   let html = '<div class="col-tabla">';
   DASH.metrics.forEach(m => {
     const a = dashAvg(rows, m), ref = DASH.ref[m];
-    const pct = (a!=null && ref) ? Math.max(3, Math.min(100, a/ref*100)) : 0;
-    const over = a!=null && a>ref;
+    const pct = (a != null && ref) ? Math.max(3, Math.min(100, (a/ref) * REF_PCT)) : 0;
+    const over = a != null && a > ref;
     html += '<div class="ct-fila">' +
       '<span class="ct-lbl">' + (METRIC_LABELS[m]||m) + '</span>' +
-      '<span class="ct-track"><i class="bar-fill' + (over?' over':'') + '" style="width:'+pct.toFixed(0)+'%"></i></span>' +
+      '<span class="ct-track"><i class="ct-ref-mark" style="left:'+REF_PCT+'%"></i>' +
+        '<i class="bar-fill' + (over?' over':'') + '" style="width:'+pct.toFixed(0)+'%"></i></span>' +
       '<span class="ct-val' + (over?' over':'') + '">' + (a==null?'—':a.toFixed(1)) + '</span>' +
       '<span class="ct-ref">/' + ref + '</span></div>';
   });
-  return html + '</div>';
+  return html + '</div><div class="ct-nota">La marca vertical es el valor de referencia. Si la barra la pasa, está por encima de lo normal.</div>';
 }
 
 /* ── Color de celda del heatmap según ratio con la referencia ── */
