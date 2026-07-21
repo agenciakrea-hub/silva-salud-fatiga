@@ -452,7 +452,9 @@
   .pchip.active { background: var(--orange); border-color: var(--orange); color: #fff; }
 
   /* Login admin */
-  .admin-sep { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px dashed #d8dee8; text-align: center; }
+  /* El acceso de administrador va abajo de todo, pegado al borde inferior del panel */
+  #portalSup { display: flex; flex-direction: column; min-height: 100%; }
+  .admin-sep { margin-top: auto; padding-top: 1.1rem; border-top: 1px dashed #d8dee8; text-align: center; }
   .admin-toggle { background: none; border: none; font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
   #adminBox { margin-top: .8rem; text-align: left; }
 
@@ -764,9 +766,30 @@
   .bn-item.bn-center.active .bn-fab { background: linear-gradient(150deg, var(--orange), var(--orange-2)); color: #fff;
     box-shadow: 0 6px 18px rgba(244,122,31,0.55); }
 
+  /* Tabla de columnas: métrica · barra · valor · referencia */
+  .col-tabla { display: flex; flex-direction: column; gap: 0.6rem; }
+  .ct-fila { display: grid; grid-template-columns: 6.5em 1fr auto auto; gap: 0.55rem; align-items: center; }
+  .ct-lbl { font-size: 0.84rem; font-weight: 700; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ct-track { height: 17px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
+  .ct-track .bar-fill { height: 100%; border-radius: 999px; background: var(--green); }
+  .ct-track .bar-fill.over { background: #e0322f; }
+  .ct-val { font-size: 0.88rem; font-weight: 800; color: var(--text); min-width: 2.6em; text-align: right; }
+  .ct-val.over { color: #d63031; }
+  .ct-ref { font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
+  html.texto-grande .ct-fila { grid-template-columns: 1fr auto auto; }
+  html.texto-grande .ct-track { grid-column: 1 / -1; }
+
   /* Panel de actividad estilo GitHub */
   .act-card { background: var(--card); border-radius: var(--radius); padding: 0.95rem 1rem; box-shadow: var(--shadow-sm); }
-  .act-grid { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
+  .act-ayuda { font-size: 0.82rem; line-height: 1.5; color: var(--text-soft); margin-bottom: 0.85rem; }
+  .act-ayuda strong { color: var(--text); }
+  .act-wrap { display: flex; gap: 0.45rem; }
+  .act-dias { display: flex; flex-direction: column; gap: 3px; padding-top: 1.15rem; flex-shrink: 0; }
+  .act-dias span { height: 13px; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); line-height: 13px; white-space: nowrap; }
+  .act-scroll { flex: 1; min-width: 0; overflow-x: auto; }
+  .act-meses { display: flex; gap: 3px; margin-bottom: 0.2rem; }
+  .act-mes { width: 13px; flex-shrink: 0; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+  .act-grid { display: flex; gap: 3px; padding-bottom: 2px; }
   .act-col { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
   .act-d { width: 13px; height: 13px; border-radius: 3px; background: #eef1f5; display: block; flex-shrink: 0; }
   .act-d.l1 { background: #ffe0c2; }
@@ -869,43 +892,108 @@
     border-radius: 50%; background: #fff;
     animation: ondaEstadisticas .46s cubic-bezier(.4,0,.2,1) forwards; }
 
+  /* ── Control de tamaño de letra (deslizador grande, fácil de usar) ── */
+  .texto-ctrl { display: block; cursor: default; }
+  .texto-ctrl .tc-head { display: flex; align-items: center; gap: 0.85rem; }
+  .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.9rem; }
+  .tc-slider .tc-a { font-weight: 800; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
+  .tc-slider .tc-a.chico { font-size: 0.95rem; }
+  .tc-slider .tc-a.grande { font-size: 1.7rem; }
+  .tc-slider input[type=range] { flex: 1; min-width: 0; height: 40px; -webkit-appearance: none; appearance: none;
+    background: transparent; cursor: pointer; }
+  .tc-slider input[type=range]::-webkit-slider-runnable-track { height: 12px; border-radius: 999px;
+    background: #e2e8f2; border: 1px solid #d5dce8; }
+  .tc-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+    width: 34px; height: 34px; margin-top: -12px; border-radius: 50%; border: 3px solid #fff;
+    background: linear-gradient(150deg, var(--orange), var(--orange-2)); box-shadow: 0 3px 10px rgba(244,122,31,.5); }
+  .tc-slider input[type=range]::-moz-range-track { height: 12px; border-radius: 999px; background: #e2e8f2; border: 1px solid #d5dce8; }
+  .tc-slider input[type=range]::-moz-range-thumb { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff;
+    background: var(--orange); box-shadow: 0 3px 10px rgba(244,122,31,.5); }
+  .tc-slider-grande { margin-top: 1.3rem; }
+  .tc-valor { text-align: center; font-weight: 800; color: var(--orange); font-size: 1.02rem; margin-top: 0.15rem; }
+
+  /* Pantalla inicial de tamaño de letra: ejemplos para tantear */
+  .tp-demo { background: #f5f7fb; border: 1px solid #e9edf3; border-radius: 15px; padding: 1rem 1.1rem; margin-top: 1.1rem; }
+  .tp-demo-tit { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--text-muted); margin-bottom: 0.35rem; }
+  .tp-demo-tx { font-size: 0.95rem; line-height: 1.6; color: var(--text); margin-bottom: 1.1rem; }
+  .tp-demo-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+  .tp-bar { display: flex; align-items: center; gap: 0.6rem; }
+  .tp-bar .tp-lbl { font-size: 0.85rem; font-weight: 700; color: var(--text-soft); width: 5.2em; flex-shrink: 0; }
+  .tp-bar .tp-track { flex: 1; height: 15px; background: #e6ebf3; border-radius: 999px; overflow: hidden; }
+  .tp-bar .tp-track i { display: block; height: 100%; border-radius: 999px; background: var(--orange); }
+  .tp-bar .tp-val { font-size: 0.85rem; font-weight: 800; color: var(--text); width: 2.4em; text-align: right; flex-shrink: 0; }
+
+  /* ── Con letra grande el layout se adapta (que no se rompan las cajas) ── */
+  html.texto-grande .grid2 { grid-template-columns: 1fr; }
+  html.texto-grande .tile { min-height: 0; }
+  html.texto-grande .hh-full, html.texto-grande .hh-line { white-space: normal; }
+  html.texto-grande .bn-item { font-size: 0.62rem; }
+  @media (min-width: 900px) { html.texto-grande .grid2 { grid-template-columns: repeat(2, 1fr); } }
+
   @keyframes barraCreceX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+  @keyframes tortaGira   { from { opacity: 0; transform: rotate(-160deg) scale(.55); } to { opacity: 1; transform: rotate(0) scale(1); } }
+  @keyframes creceCentro { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+
   @media (prefers-reduced-motion: no-preference) {
-    /* Los bloques del panel esperan quietos y se animan CUANDO ENTRAN EN PANTALLA al scrollear
-       (un observador les pone la clase .anim-in). */
+    /* Los bloques del panel esperan quietos y se animan CUANDO ENTRAN EN PANTALLA al scrollear. */
     .anim-target { opacity: 0; }
-    .anim-target.anim-in { animation: graficoEntra .5s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target.anim-in { animation: graficoEntra .8s cubic-bezier(.22,.61,.36,1) both; }
 
     /* KPIs: escalonados dentro del bloque */
     .anim-target .kpi { opacity: 0; }
-    .anim-target.anim-in .kpi { animation: graficoEntra .42s cubic-bezier(.22,.61,.36,1) both; }
-    .anim-target.anim-in .kpi:nth-child(2){animation-delay:.05s} .anim-target.anim-in .kpi:nth-child(3){animation-delay:.10s}
-    .anim-target.anim-in .kpi:nth-child(4){animation-delay:.15s} .anim-target.anim-in .kpi:nth-child(5){animation-delay:.20s}
-    .anim-target.anim-in .kpi:nth-child(6){animation-delay:.25s} .anim-target.anim-in .kpi:nth-child(7){animation-delay:.30s}
+    .anim-target.anim-in .kpi { animation: graficoEntra .7s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target.anim-in .kpi:nth-child(2){animation-delay:.09s} .anim-target.anim-in .kpi:nth-child(3){animation-delay:.18s}
+    .anim-target.anim-in .kpi:nth-child(4){animation-delay:.27s} .anim-target.anim-in .kpi:nth-child(5){animation-delay:.36s}
+    .anim-target.anim-in .kpi:nth-child(6){animation-delay:.45s} .anim-target.anim-in .kpi:nth-child(7){animation-delay:.54s}
 
-    /* Barras del gráfico: crecen desde la base */
+    /* BARRAS: crecen desde la base, una detrás de otra */
     .anim-target .linechart rect { transform-box: fill-box; transform-origin: center bottom; transform: scaleY(0); }
-    .anim-target.anim-in .linechart rect { animation: barraCrece .65s cubic-bezier(.22,.61,.36,1) both; }
-    /* Líneas de evolución: se dibujan solas */
+    .anim-target.anim-in .linechart rect { animation: barraCrece 1.05s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target.anim-in .linechart rect:nth-of-type(2){animation-delay:.06s} .anim-target.anim-in .linechart rect:nth-of-type(3){animation-delay:.12s}
+    .anim-target.anim-in .linechart rect:nth-of-type(4){animation-delay:.18s} .anim-target.anim-in .linechart rect:nth-of-type(5){animation-delay:.24s}
+    .anim-target.anim-in .linechart rect:nth-of-type(6){animation-delay:.30s} .anim-target.anim-in .linechart rect:nth-of-type(7){animation-delay:.36s}
+
+    /* LÍNEAS (evolución y línea simple): se dibujan solas de izquierda a derecha */
     .anim-target .linechart polyline, .anim-target .linechart path { stroke-dasharray: 2400; stroke-dashoffset: 2400; }
-    .anim-target.anim-in .linechart polyline, .anim-target.anim-in .linechart path { animation: lineaDibuja 1.05s ease both; }
+    .anim-target.anim-in .linechart polyline, .anim-target.anim-in .linechart path { animation: lineaDibuja 1.8s ease both; }
     .anim-target .linechart circle { opacity: 0; }
-    .anim-target.anim-in .linechart circle { animation: apareceSuave .45s cubic-bezier(.22,.61,.36,1) both; animation-delay: .4s; }
-    /* Radar y tortas: escala mínima */
-    .anim-target .radar-wrap svg polygon, .anim-target .pie-wrap svg { transform-box: fill-box; transform-origin: center; opacity: 0; }
-    .anim-target.anim-in .radar-wrap svg polygon, .anim-target.anim-in .pie-wrap svg { animation: apareceSuave .55s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target.anim-in .linechart circle { animation: apareceSuave .6s cubic-bezier(.22,.61,.36,1) both; animation-delay: .9s; }
+
+    /* TORTA / DONA: gira y se va llenando, con las porciones apareciendo en orden */
+    .anim-target .pie-wrap svg { opacity: 0; transform-origin: center; }
+    .anim-target.anim-in .pie-wrap svg { animation: tortaGira 1.15s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target .pie-wrap svg .pie-slice { opacity: 0; }
+    .anim-target.anim-in .pie-wrap svg .pie-slice { animation: apareceSuave .5s ease both; }
+    .anim-target.anim-in .pie-slice:nth-of-type(2){animation-delay:.10s} .anim-target.anim-in .pie-slice:nth-of-type(3){animation-delay:.20s}
+    .anim-target.anim-in .pie-slice:nth-of-type(4){animation-delay:.30s} .anim-target.anim-in .pie-slice:nth-of-type(5){animation-delay:.40s}
+    .anim-target.anim-in .pie-slice:nth-of-type(6){animation-delay:.50s} .anim-target.anim-in .pie-slice:nth-of-type(7){animation-delay:.60s}
+
+    /* RADAR: el polígono crece desde el centro y después aparecen los puntos */
+    .anim-target .radar-serie { transform-box: fill-box; transform-origin: center; opacity: 0; transform: scale(0); }
+    .anim-target.anim-in .radar-serie { animation: creceCentro 1.1s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target .radar-pt { opacity: 0; }
+    .anim-target.anim-in .radar-pt { animation: apareceSuave .5s ease both; animation-delay: .75s; }
+
+    /* HEATMAP: las celdas aparecen por filas */
+    .anim-target .heat .cell { opacity: 0; }
+    .anim-target.anim-in .heat .cell { animation: apareceSuave .55s ease both; }
+    .anim-target.anim-in .heat tr:nth-child(2) .cell{animation-delay:.07s} .anim-target.anim-in .heat tr:nth-child(3) .cell{animation-delay:.14s}
+    .anim-target.anim-in .heat tr:nth-child(4) .cell{animation-delay:.21s} .anim-target.anim-in .heat tr:nth-child(5) .cell{animation-delay:.28s}
+
     /* Barras HTML (grupo vs referencia): crecen hacia la derecha */
     .anim-target .bar-fill { transform: scaleX(0); transform-origin: left center; }
-    .anim-target.anim-in .bar-fill { animation: barraCreceX .6s cubic-bezier(.22,.61,.36,1) both; }
+    .anim-target.anim-in .bar-fill { animation: barraCreceX 1s cubic-bezier(.22,.61,.36,1) both; }
+
     /* Filas de listas: escalonadas dentro del bloque */
     .anim-target .rank-item, .anim-target .alert-card, .anim-target .heat-row, .anim-target .hist-item { opacity: 0; }
     .anim-target.anim-in .rank-item, .anim-target.anim-in .alert-card,
-    .anim-target.anim-in .heat-row, .anim-target.anim-in .hist-item { animation: graficoEntra .36s ease both; }
-    .anim-target.anim-in .rank-item:nth-child(2),.anim-target.anim-in .alert-card:nth-child(2){animation-delay:.04s}
-    .anim-target.anim-in .rank-item:nth-child(3),.anim-target.anim-in .alert-card:nth-child(3){animation-delay:.08s}
-    .anim-target.anim-in .rank-item:nth-child(4),.anim-target.anim-in .alert-card:nth-child(4){animation-delay:.12s}
-    .anim-target.anim-in .rank-item:nth-child(5),.anim-target.anim-in .alert-card:nth-child(5){animation-delay:.16s}
+    .anim-target.anim-in .heat-row, .anim-target.anim-in .hist-item { animation: graficoEntra .6s ease both; }
+    .anim-target.anim-in .rank-item:nth-child(2),.anim-target.anim-in .alert-card:nth-child(2){animation-delay:.07s}
+    .anim-target.anim-in .rank-item:nth-child(3),.anim-target.anim-in .alert-card:nth-child(3){animation-delay:.14s}
+    .anim-target.anim-in .rank-item:nth-child(4),.anim-target.anim-in .alert-card:nth-child(4){animation-delay:.21s}
+    .anim-target.anim-in .rank-item:nth-child(5),.anim-target.anim-in .alert-card:nth-child(5){animation-delay:.28s}
   }
   /* Sin animación disponible → todo visible igual (nunca dejar contenido oculto) */
   @media (prefers-reduced-motion: reduce) { .anim-target, .anim-target * { opacity: 1 !important; } }
@@ -954,10 +1042,17 @@
         <div class="sec-sub">Registros y tests que completaste</div>
       </div>
       <div class="act-card">
-        <div class="act-grid" id="actGrid"></div>
+        <p class="act-ayuda"><strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más oscuro</strong>, más hiciste ese día.</p>
+        <div class="act-wrap">
+          <div class="act-dias"><span></span><span>Lun</span><span></span><span>Mié</span><span></span><span>Vie</span><span></span></div>
+          <div class="act-scroll">
+            <div class="act-meses" id="actMeses"></div>
+            <div class="act-grid" id="actGrid"></div>
+          </div>
+        </div>
         <div class="act-foot">
           <span id="actResumen">—</span>
-          <span class="act-leyenda">Menos<i class="act-d l0"></i><i class="act-d l1"></i><i class="act-d l2"></i><i class="act-d l3"></i><i class="act-d l4"></i>Más</span>
+          <span class="act-leyenda">Nada<i class="act-d l0"></i><i class="act-d l1"></i><i class="act-d l2"></i><i class="act-d l3"></i><i class="act-d l4"></i>Mucho</span>
         </div>
       </div>
     </section>
@@ -980,11 +1075,18 @@
       <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
-    <button type="button" class="rbtn mas-item" onclick="ciclarTamanoTexto()">
-      <div class="ic" style="background:#eceefc;color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
-      <div class="tx"><span class="tt">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
-      <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
-    </button>
+    <div class="rbtn mas-item texto-ctrl">
+      <div class="tc-head">
+        <div class="ic" style="background:#eceefc;color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
+        <div class="tx"><span class="tt">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
+      </div>
+      <div class="tc-slider">
+        <span class="tc-a chico">A</span>
+        <input type="range" id="sldTexto" min="0" max="3" step="1" value="1"
+               oninput="fijarTamanoTexto(this.value)" aria-label="Tamaño del texto">
+        <span class="tc-a grande">A</span>
+      </div>
+    </div>
 
     <div class="mas-sep">Sueño &amp; Descanso</div>
     <div class="stack">
@@ -1047,6 +1149,35 @@
 <!-- Onda naranja que cubre la pantalla al tocar Estadísticas -->
 <div class="stats-reveal" id="statsReveal" aria-hidden="true"><span class="sr-circle"></span></div>
 
+
+<!-- Paso 1 (solo la primera vez): elegir el tamaño de letra con ejemplos reales -->
+<div class="overlay" id="textoOverlay">
+  <div class="sheet">
+    <h2>¿Cómo lo lees mejor?</h2>
+    <p class="lead">Ajusta el tamaño de la letra hasta que lo veas cómodo. Puedes cambiarlo cuando quieras desde <strong>Más</strong>.</p>
+
+    <div class="tp-demo">
+      <div class="tp-demo-tit">Texto de ejemplo</div>
+      <p class="tp-demo-tx">Reporta tu estado antes de comenzar el turno. Así podemos cuidar tu descanso y tu seguridad.</p>
+      <div class="tp-demo-tit">Gráfico de ejemplo</div>
+      <div class="tp-demo-chart">
+        <div class="tp-bar"><span class="tp-lbl">Estrés</span><span class="tp-track"><i style="width:62%"></i></span><span class="tp-val">31</span></div>
+        <div class="tp-bar"><span class="tp-lbl">Fatiga</span><span class="tp-track"><i style="width:78%;background:#e0322f"></i></span><span class="tp-val">8.1</span></div>
+        <div class="tp-bar"><span class="tp-lbl">Sueño</span><span class="tp-track"><i style="width:45%;background:#1aa672"></i></span><span class="tp-val">5</span></div>
+      </div>
+    </div>
+
+    <div class="tc-slider tc-slider-grande">
+      <span class="tc-a chico">A</span>
+      <input type="range" id="sldTextoInicio" min="0" max="3" step="1" value="1"
+             oninput="fijarTamanoTexto(this.value)" aria-label="Tamaño del texto">
+      <span class="tc-a grande">A</span>
+    </div>
+    <div class="tc-valor" id="sldTextoInicioVal">Normal</div>
+
+    <button class="save-btn" onclick="confirmarTamanoTexto()">Continuar</button>
+  </div>
+</div>
 
 <!-- Consentimiento (primera vez) -->
 <div class="overlay" id="consent">
@@ -1353,7 +1484,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -1807,14 +1938,19 @@ function renderActividad(){
   const cont = document.getElementById('actGrid');
   if (!cont) return;
   const act = getActividad();
-  const SEMANAS = 15;
+  const SEMANAS = 13;
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   // La última columna termina en el sábado de esta semana, así cada columna es una semana
   const fin = new Date(hoy); fin.setDate(hoy.getDate() + (6 - hoy.getDay()));
   const inicio = new Date(fin); inicio.setDate(fin.getDate() - SEMANAS * 7 + 1);
   const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  let html = '', total = 0, activos = 0;
+  let html = '', meses = '', total = 0, activos = 0, mesPrevio = -1;
   for (let s = 0; s < SEMANAS; s++){
+    // Etiqueta del mes arriba de la columna donde empieza un mes nuevo
+    const primerDia = new Date(inicio); primerDia.setDate(inicio.getDate() + s * 7);
+    meses += '<span class="act-mes">' + (primerDia.getMonth() !== mesPrevio ? MESES[primerDia.getMonth()] : '') + '</span>';
+    mesPrevio = primerDia.getMonth();
     html += '<div class="act-col">';
     for (let d = 0; d < 7; d++){
       const f = new Date(inicio); f.setDate(inicio.getDate() + s * 7 + d);
@@ -1823,16 +1959,21 @@ function renderActividad(){
       const futuro = f > hoy;
       if (!futuro){ total += n; if (n > 0) activos++; }
       const nivel = futuro ? 'fut' : (n === 0 ? 'l0' : n === 1 ? 'l1' : n === 2 ? 'l2' : n <= 4 ? 'l3' : 'l4');
-      html += '<i class="act-d ' + nivel + '" title="' + key + ': ' + n + '"></i>';
+      const dia = f.getDate() + ' de ' + MESES[f.getMonth()];
+      const detalle = futuro ? '' : (n === 0 ? dia + ': sin registros' : dia + ': ' + n + (n === 1 ? ' registro' : ' registros'));
+      html += '<i class="act-d ' + nivel + '" title="' + detalle + '"></i>';
     }
     html += '</div>';
   }
   cont.innerHTML = html;
-  cont.scrollLeft = cont.scrollWidth;   // arranca mostrando lo más reciente
+  const cm = document.getElementById('actMeses');
+  if (cm) cm.innerHTML = meses;
+  const sc = cont.parentElement;
+  if (sc) sc.scrollLeft = sc.scrollWidth;   // arranca mostrando lo más reciente
   const res = document.getElementById('actResumen');
   if (res) res.textContent = total === 0
-    ? 'Todavía no hay registros'
-    : total + (total === 1 ? ' registro' : ' registros') + ' en ' + activos + (activos === 1 ? ' día' : ' días');
+    ? 'Todavía no registraste nada'
+    : total + (total === 1 ? ' registro' : ' registros') + ' en ' + activos + (activos === 1 ? ' día activo' : ' días activos');
 }
 function unmark(id){
   const r = getReports();
@@ -2753,25 +2894,32 @@ function abrirDestinoEstadisticas(){
 // Funciones todavía no disponibles (wearables): aviso breve, mismo estilo que el resto de avisos.
 function enDesarrollo(){ showToast('Función en desarrollo'); }
 
-/* ── Tamaño del texto (accesibilidad): 4 niveles, se recuerda en el dispositivo ──
+/* ── Tamaño del texto (accesibilidad) ──
+   4 posiciones: una MÁS CHICA que la normal, la normal, y dos más grandes.
    Como toda la app usa rem, alcanza con cambiar el tamaño base del documento. */
 const K_TEXTO = 'silva_fatiga_texto_v1';
-const TEXTO_NIVELES = [ {k:'Normal', v:100}, {k:'Grande', v:118}, {k:'Muy grande', v:136}, {k:'Máximo', v:155} ];
+const TEXTO_NIVELES = [ {k:'Pequeño', v:90}, {k:'Normal', v:100}, {k:'Grande', v:118}, {k:'Muy grande', v:135} ];
+const TEXTO_POR_DEFECTO = 1;
+function textoYaElegido(){ try { return localStorage.getItem(K_TEXTO) !== null; } catch(e){ return false; } }
 function nivelTextoActual(){
-  let n = 0; try { n = parseInt(localStorage.getItem(K_TEXTO) || '0', 10) || 0; } catch(e){}
+  let n = TEXTO_POR_DEFECTO;
+  try { const g = localStorage.getItem(K_TEXTO); if (g !== null) n = parseInt(g, 10); } catch(e){}
+  if (isNaN(n)) n = TEXTO_POR_DEFECTO;
   return Math.min(Math.max(n, 0), TEXTO_NIVELES.length - 1);
 }
 function aplicarTamanoTexto(){
   const n = nivelTextoActual();
   document.documentElement.style.fontSize = TEXTO_NIVELES[n].v + '%';
+  document.documentElement.classList.toggle('texto-grande', n >= 2);   // el layout se adapta
   const lbl = document.getElementById('txtTamanoLbl');
-  if (lbl) lbl.textContent = TEXTO_NIVELES[n].k + ' · toca para cambiar';
+  if (lbl) lbl.textContent = TEXTO_NIVELES[n].k;
+  ['sldTexto', 'sldTextoInicio'].forEach(id => { const s = document.getElementById(id); if (s) s.value = String(n); });
+  ['sldTextoVal', 'sldTextoInicioVal'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = TEXTO_NIVELES[n].k; });
 }
-function ciclarTamanoTexto(){
-  const n = (nivelTextoActual() + 1) % TEXTO_NIVELES.length;
+function fijarTamanoTexto(n){
+  n = Math.min(Math.max(parseInt(n, 10) || 0, 0), TEXTO_NIVELES.length - 1);
   try { localStorage.setItem(K_TEXTO, String(n)); } catch(e){}
   aplicarTamanoTexto();
-  showToast('Texto: ' + TEXTO_NIVELES[n].k);
 }
 
 /* ── Botón "atrás" del celular: navega dentro de la app en vez de cerrarla ──
@@ -3603,8 +3751,32 @@ function renderResumen(rows){
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
     '<div class="db-sub">Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.</div>' + dashRadar(series) + '</div>';
-  const extra = single ? (dashHistory(rows) + dashPersonComments()) : dashAlerts(rows);
+  const extra = single ? (dashPersonalExtra(rows) + dashHistory(rows) + dashPersonComments()) : dashAlerts(rows);
   return help + head + bars + radar + extra;
+}
+
+/* Gráficos extra de la vista personal (una sola persona): comparativa, evolución,
+   línea de tiempo y distribución, para que no quede solo el promedio. */
+function dashPersonalExtra(rows){
+  const conDatos = DASH.metrics.filter(m => dashVals(rows, m).length);
+  const principal = conDatos[0];
+  let html = '<div class="dash-block"><div class="db-title">Tus indicadores vs. lo normal</div>' +
+    '<div class="db-sub">100% = justo en el valor de referencia</div>' + dashColumnas(rows) + '</div>';
+  if (dashMonthsCount(rows) >= 2){
+    html += '<div class="dash-block"><div class="db-title">Cómo vas mes a mes</div>' +
+      '<div class="db-sub">Cada indicador ÷ su referencia (1.0 = valor normal)</div>' + dashEvoMulti(rows) + '</div>';
+  }
+  if (principal && rows.length >= 2){
+    html += '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
+      '<div class="db-sub">Tus registros de ' + (METRIC_LABELS[principal]||principal) + ', uno por uno</div>' +
+      dashLineaTiempo(rows, principal) + '</div>';
+  }
+  if (principal && rows.length >= 3){
+    html += '<div class="dash-block"><div class="db-title">Distribución</div>' +
+      '<div class="db-sub">En qué valores se concentran tus registros de ' + (METRIC_LABELS[principal]||principal) + '</div>' +
+      dashHistograma(rows, principal) + '</div>';
+  }
+  return html;
 }
 // Ayuda contraída: un ícono ⓘ discreto que, al tocarlo, despliega la explicación. Siempre
 // arranca cerrado (usa <details> nativo, sin estado en JS) para que el panel quede limpio.
@@ -3725,7 +3897,9 @@ function renderEvolucion(rows){
   if (m === '__all__'){
     const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses (AA-MM).');
     return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>';
+      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>' +
+      '<div class="dash-block"><div class="db-title">Comparativa de indicadores</div>' +
+      '<div class="db-sub">Cada indicador contra su referencia (100% = justo en lo normal)</div>' + dashColumnas(rows) + '</div>';
   }
   const ref = DASH.ref[m], buckets = {};
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
@@ -3734,7 +3908,11 @@ function renderEvolucion(rows){
   const chart = points.length ? dashLineChart(points, ref) : '<div class="lc-empty">Sin fechas suficientes para graficar.</div>';
   const help = dashHelp('Promedio de <b>' + (METRIC_LABELS[m]||m) + '</b> por mes. La <b>línea punteada</b> es la referencia (' + ref + '): si los puntos suben por encima, ese mes estuvo peor que lo normal. Eje horizontal = meses (AA-MM).');
   return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-    '<div class="db-sub">Promedio mensual de ' + (METRIC_LABELS[m]||m) + ' · punteada = referencia (' + ref + ')</div>' + picker + chart + '</div>';
+    '<div class="db-sub">Promedio mensual de ' + (METRIC_LABELS[m]||m) + ' · punteada = referencia (' + ref + ')</div>' + picker + chart + '</div>' +
+    '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
+    '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[m]||m) + ', uno por uno</div>' + dashLineaTiempo(rows, m) + '</div>' +
+    '<div class="dash-block"><div class="db-title">Distribución</div>' +
+    '<div class="db-sub">En qué valores se concentran los registros de ' + (METRIC_LABELS[m]||m) + '</div>' + dashHistograma(rows, m) + '</div>';
 }
 
 /* ── COMENTARIOS adicionales ── */
@@ -4065,7 +4243,7 @@ function dashPie(items, opts){
   else items.forEach(it => {
     const frac = it.value/total, a2 = ang + frac*2*Math.PI;
     const x1=cx+R*Math.cos(ang), y1=cy+R*Math.sin(ang), x2=cx+R*Math.cos(a2), y2=cy+R*Math.sin(a2);
-    svg += '<path d="M'+cx+' '+cy+' L'+x1.toFixed(1)+' '+y1.toFixed(1)+' A'+R+' '+R+' 0 '+(frac>0.5?1:0)+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+' Z" fill="'+it.color+'"/>';
+    svg += '<path class="pie-slice" d="M'+cx+' '+cy+' L'+x1.toFixed(1)+' '+y1.toFixed(1)+' A'+R+' '+R+' 0 '+(frac>0.5?1:0)+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+' Z" fill="'+it.color+'"/>';
     ang = a2;
   });
   if (donut) svg += '<circle cx="100" cy="100" r="46" fill="#fff"/>';
@@ -4144,8 +4322,8 @@ function dashRadar(series){
   });
   series.forEach(s => {
     const pts = M.map((m,i)=>{ const a=s.get(m), ref=DASH.ref[m], norm=(a!=null&&ref)?a/ref:0, rr=rad(norm); return (cx+rr*Math.cos(ang(i))).toFixed(1)+','+(cy+rr*Math.sin(ang(i))).toFixed(1); }).join(' ');
-    svg += '<polygon points="'+pts+'" fill="'+s.color+'" fill-opacity="0.13" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>';
-    M.forEach((m,i)=>{ const a=s.get(m), ref=DASH.ref[m], norm=(a!=null&&ref)?a/ref:0, rr=rad(norm); svg += '<circle cx="'+(cx+rr*Math.cos(ang(i))).toFixed(1)+'" cy="'+(cy+rr*Math.sin(ang(i))).toFixed(1)+'" r="2.6" fill="'+s.color+'"/>'; });
+    svg += '<polygon class="radar-serie" points="'+pts+'" fill="'+s.color+'" fill-opacity="0.13" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>';
+    M.forEach((m,i)=>{ const a=s.get(m), ref=DASH.ref[m], norm=(a!=null&&ref)?a/ref:0, rr=rad(norm); svg += '<circle class="radar-pt" cx="'+(cx+rr*Math.cos(ang(i))).toFixed(1)+'" cy="'+(cy+rr*Math.sin(ang(i))).toFixed(1)+'" r="2.6" fill="'+s.color+'"/>'; });
   });
   svg += '</svg>';
   let legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:#16233d;opacity:.6"></span>Referencia</span>';
@@ -4171,6 +4349,68 @@ function dashLineChart(points, ref){
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxV.toFixed(0)+'</text>';
   svg += '<text x="3" y="'+(padT+ih)+'" font-size="8" fill="#7b8499">0</text>';
   return svg + '</svg>';
+}
+
+/* ── HISTOGRAMA: cuántos registros cayeron en cada rango de valores ── */
+function dashHistograma(rows, m){
+  const vals = dashVals(rows, m);
+  if (vals.length < 3) return '<div class="lc-empty">Se necesitan al menos 3 registros.</div>';
+  const ref = DASH.ref[m] || 1;
+  const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  const NB = 6, paso = ((max - min) / NB) || 1;
+  const bins = new Array(NB).fill(0);
+  vals.forEach(v => { let i = Math.floor((v - min) / paso); if (i >= NB) i = NB - 1; if (i < 0) i = 0; bins[i]++; });
+  const W=340,H=195,padL=26,padR=10,padT=14,padB=44,iw=W-padL-padR,ih=H-padT-padB;
+  const maxC = Math.max.apply(null, bins) || 1, bw = iw/NB, base = padT+ih;
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="#e6eaf0"/>';
+  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxC+'</text><text x="3" y="'+base+'" font-size="8" fill="#7b8499">0</text>';
+  bins.forEach((c,i) => {
+    const h = (c/maxC)*ih, x = padL + i*bw + bw*0.12, w = bw*0.76, centro = min + paso*(i+0.5);
+    const col = centro > ref ? '#e0322f' : (METRIC_COLORS[m]||'#2d6cdf');
+    svg += '<rect x="'+x.toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
+    svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base+12)+'" font-size="7" fill="#7b8499" text-anchor="middle">'+(min+paso*i).toFixed(0)+'–'+(min+paso*(i+1)).toFixed(0)+'</text>';
+    if (c) svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base-h-3).toFixed(1)+'" font-size="8" font-weight="700" fill="#525d73" text-anchor="middle">'+c+'</text>';
+  });
+  svg += '</svg>';
+  return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">Cantidad de registros por rango de '+(METRIC_LABELS[m]||m)+'</span></div></div>';
+}
+
+/* ── LÍNEA DE TIEMPO: cada registro como un punto sobre el eje del tiempo ── */
+function dashLineaTiempo(rows, m){
+  const pts = rows.filter(r => r.fecha && r[m]!=null)
+    .map(r => ({ t:new Date(r.fecha).getTime(), v:r[m], f:r.fecha }))
+    .filter(p => !isNaN(p.t)).sort((a,b) => a.t - b.t);
+  if (pts.length < 2) return '<div class="lc-empty">Se necesitan al menos 2 registros con fecha.</div>';
+  const ref = DASH.ref[m] || 1;
+  const t0 = pts[0].t, t1 = pts[pts.length-1].t, span = (t1 - t0) || 1;
+  const W=340,H=175,padL=26,padR=12,padT=12,padB=34,iw=W-padL-padR,ih=H-padT-padB;
+  const maxV = Math.max(ref, Math.max.apply(null, pts.map(p=>p.v))) * 1.15;
+  const x = t => padL + (t-t0)/span*iw, y = v => padT + (1 - v/maxV)*ih;
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
+  svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
+  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.4" fill="'+(p.v>ref?'#e0322f':'#f47a1f')+'" opacity=".9"><title>'+esc(p.f)+': '+p.v+'</title></circle>'; });
+  svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="#7b8499">'+esc(pts[0].f)+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(pts[pts.length-1].f)+'</text>';
+  svg += '</svg>';
+  return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">Cada punto es un registro · la punteada es la referencia</span></div></div>';
+}
+
+/* ── COLUMNAS tipo tabla: todas las métricas con su barra y su valor ── */
+function dashColumnas(rows){
+  let html = '<div class="col-tabla">';
+  DASH.metrics.forEach(m => {
+    const a = dashAvg(rows, m), ref = DASH.ref[m];
+    const pct = (a!=null && ref) ? Math.max(3, Math.min(100, a/ref*100)) : 0;
+    const over = a!=null && a>ref;
+    html += '<div class="ct-fila">' +
+      '<span class="ct-lbl">' + (METRIC_LABELS[m]||m) + '</span>' +
+      '<span class="ct-track"><i class="bar-fill' + (over?' over':'') + '" style="width:'+pct.toFixed(0)+'%"></i></span>' +
+      '<span class="ct-val' + (over?' over':'') + '">' + (a==null?'—':a.toFixed(1)) + '</span>' +
+      '<span class="ct-ref">/' + ref + '</span></div>';
+  });
+  return html + '</div>';
 }
 
 /* ── Color de celda del heatmap según ratio con la referencia ── */
@@ -4293,10 +4533,23 @@ const _complete = perfilCompleto(_prof);
 // Así los ya registrados quedan en "Registrados Fatiga" al abrir la app actualizada, sin molestar.
 if (_complete) sincronizarRegistro(_prof);
 
-// Forzar consentimiento + carga de datos a quien no esté completo (incluye usuarios viejos)
-if (!_complete){
+// Arranque por pasos: 1) tamaño de letra (solo la primera vez) → 2) consentimiento → 3) datos.
+// Se le pide a TODO el que no tenga el perfil completo, incluidos los ya registrados
+// (ahora hay datos obligatorios nuevos, como el email).
+function seguirTrasTamanoTexto(){
+  if (perfilCompleto(getProfile())) return;              // ya está todo cargado: no molestamos
   if (!hasConsent()) document.getElementById('consent').classList.add('show');
   else openSetup(false);
+}
+function confirmarTamanoTexto(){
+  if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
+  document.getElementById('textoOverlay').classList.remove('show');
+  seguirTrasTamanoTexto();
+}
+if (!textoYaElegido() && !_complete){
+  document.getElementById('textoOverlay').classList.add('show');   // primer paso
+} else if (!_complete){
+  seguirTrasTamanoTexto();
 }
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
