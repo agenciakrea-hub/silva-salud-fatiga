@@ -326,6 +326,8 @@
   /* ── Portal / Dashboard ── */
   .sheet.portal { position: relative; max-width: 560px; width: 100%; height: 88vh; max-height: 88vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
   #portalGate { padding: 1.7rem 1.5rem 1.5rem; overflow-y: auto; }
+  .portal-gate-card { }                 /* en celular es solo un contenedor; en escritorio es la tarjeta */
+  .pg-logo { display: none; }           /* el logo del login sólo se muestra en escritorio */
   .portal-x { position: absolute; top: 1rem; right: 1rem; width: 32px; height: 32px; border: none; border-radius: 50%; background: #f0f2f5; color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
   .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: #fff; border: 1.5px solid #e6eaf2; border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
@@ -555,6 +557,9 @@
   /* Informe IA */
   .informe-btn { max-width: 340px; margin: 0 auto 1rem; display: block; }
   .informe-empty { text-align: center; color: var(--text-muted); font-size: .84rem; padding: 1.4rem 1rem; line-height: 1.5; }
+  .informe-demo-nota { background: #fff6ef; border: 1px solid #f6d9bd; border-radius: 12px; padding: .85rem 1rem;
+    font-size: .84rem; line-height: 1.5; color: var(--text-soft); margin-bottom: 1rem; }
+  .informe-demo-nota b { color: var(--text); }
   .informe-loading { text-align: center; color: var(--orange); font-weight: 700; font-size: .86rem; padding: 1.4rem 1rem; }
   .informe-aviso { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 10px; padding: .55rem .7rem; font-size: .78rem; color: #8a4b12; margin-bottom: .7rem; }
   .informe-box { background: #fbfcfe; border: 1px solid #e9edf3; border-radius: 14px; padding: 1rem 1.1rem; color: var(--text); }
@@ -938,9 +943,18 @@
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
-    /* El login del panel (gate) es pantalla completa: centramos el formulario en una columna
-       angosta en vez de estirarlo de borde a borde. */
-    #portalGate { width: min(460px, 100%); margin-left: auto; margin-right: auto; padding-top: 3.4rem; }
+    /* El login del panel (gate) en escritorio: fondo azul de marca a pantalla completa con el
+       formulario dentro de una TARJETA blanca centrada (login de producto, no un formulario
+       suelto estirado en blanco). */
+    #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3rem;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 28% 18%, #1a3a76 0%, #0c2350 55%, #081b3d 100%); }
+    .portal-gate-card { width: min(430px, 100%); margin: auto; background: #fff;
+      border-radius: 24px; padding: 2.7rem 2.3rem 2.4rem; box-shadow: 0 30px 80px rgba(0,0,0,0.4); }
+    .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
+    #portalGate h2 { text-align: center; font-size: 1.55rem; }
+    #portalGate .lead { text-align: center; margin-top: .45rem; }
+    .portal-x { background: rgba(255,255,255,0.92); color: #0c2350; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
   }
   /* Muy ancho: tres columnas de bloques para no dejar huecos enormes */
   @media (min-width: 1500px) {
@@ -1439,6 +1453,8 @@
     <!-- GATE (login) -->
     <div id="portalGate">
       <button class="portal-x" onclick="closePortal()">✕</button>
+      <div class="portal-gate-card">
+      <img class="pg-logo" src="logo.png" alt="Silva Salud">
       <h2>Panel de estadísticas</h2>
       <p class="lead">Consulta los indicadores de bienestar y fatiga.</p>
 
@@ -1479,6 +1495,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /.portal-gate-card -->
     </div>
 
     <!-- DASHBOARD -->
@@ -1584,7 +1601,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.80';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.81';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3233,6 +3250,43 @@ const METRIC_COLORS = { kss:'#2d6cdf', estres:'#e0322f', ansiedad:'#7c5cc4', fat
 const PIE_PALETTE   = ['#f47a1f','#2d6cdf','#1aa672','#7c5cc4','#e0322f','#e8a400','#0fb5b0','#9c6b3f'];
 const DASH_PERIODS  = [['all','Todo'],['dia','Día'],['semana','Semana'],['mes','Mes'],['trimestre','Trimestre'],['semestre','Semestre'],['anio','Año'],['custom','Personalizado']];
 
+// Informe de EJEMPLO para la Empresa Demo: así, al explorar la demostración, se ve cómo queda
+// un informe de IA ya generado (en una empresa real, el informe lo escribe la IA con sus datos).
+const INFORME_DEMO = {
+  id: 'demo-ejemplo',
+  fecha: 'Informe de ejemplo',
+  texto: [
+    '# Informe Ejecutivo de Análisis de Riesgo Psicosocial y Fatiga',
+    '',
+    '**Fecha de emisión:** Informe de ejemplo',
+    '',
+    '## Introducción',
+    'Este informe fue elaborado por el sistema de análisis de inteligencia artificial de AEROAMBULANCIAS SILVA, entrenado con documentación oficial sobre salud ocupacional, gestión de la fatiga (FRMS) y riesgo psicosocial. Su propósito es analizar los datos aportados por la empresa para identificar tendencias y posibles situaciones de riesgo. Los hallazgos y recomendaciones tienen carácter orientativo.',
+    '',
+    '## Panorama general',
+    'En el período analizado, el conjunto de indicadores se mantiene en general por debajo de sus valores de referencia. El estrés y el cansancio muestran una tendencia leve al alza en el departamento de Operaciones, mientras que el resto del grupo se mantiene estable.',
+    '',
+    '## Tendencias y picos por indicador',
+    '- **Estrés:** en aumento (+18% de la primera a la última semana). El pico se observa en la última semana del período, todavía por debajo de la referencia.',
+    '- **Cansancio:** en aumento leve, concentrado en el personal de turnos rotativos.',
+    '- **Ansiedad, Gastrointestinal y Depresión:** estables y dentro de lo normal.',
+    '',
+    '## Patrones y comportamiento dominante',
+    'El patrón dominante es un incremento gradual del estrés y el cansancio en Operaciones, coincidente con las semanas de mayor carga de vuelos. No se observan valores por encima de la referencia de forma sostenida.',
+    '',
+    '## Departamentos y personas a seguir de cerca',
+    'Se sugiere seguir de cerca al departamento de **Operaciones**, en particular a quienes acumulan más turnos consecutivos, por la tendencia al alza del estrés y el cansancio.',
+    '',
+    '## Recomendaciones concretas y accionables',
+    '1. Revisar la distribución de turnos en Operaciones para evitar acumulación de jornadas consecutivas.',
+    '2. Reforzar las pausas de descanso en las semanas de mayor actividad.',
+    '3. Repetir los tests luego de aplicar los ajustes para confirmar si la tendencia se estabiliza.',
+    '',
+    '## Consideraciones',
+    'Este análisis tiene carácter orientativo y no reemplaza la evaluación de un profesional de la salud. Describe correlaciones observadas en los datos, no relaciones de causa y efecto. La información es confidencial.'
+  ].join('\n')
+};
+
 // Datos de ejemplo (subconjunto real de Calc_Data) para ver el panel sin el endpoint desplegado
 const MOCK_DASH = [
   {empresa:'Aerocentro', departamento:'Operaciones',    persona:'Maria Gonzalez',    fecha:'2022-08-31', kss:null, estres:14, ansiedad:4,  fatiga:1,  gastro:0,  depresion:9},
@@ -4202,9 +4256,11 @@ function renderInforme(rows){
   const help = dashHelp('Un informe escrito por inteligencia artificial que analiza estos datos junto con la metodología de los tests: <b>tendencias, picos y patrones</b>. ' +
     (DASH.rol==='admin' ? 'Como administrador puedes generarlo sin límite.' : 'Se puede generar <b>1 por día</b> por empresa.'));
   const bloqueado = DASH.rol!=='admin' && DASH._informesProximo;
-  const btn = bloqueado
-    ? '<button class="save-btn informe-btn" disabled title="Ya se generó uno hoy">Próximo disponible: ' + esc(DASH._informesProximo) + '</button>'
-    : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>';
+  const btn = DASH.demoMode
+    ? '<div class="informe-demo-nota">Estás en la <b>demostración</b>. Abajo tienes un <b>informe de ejemplo</b> ya generado para que veas cómo queda. En una empresa real, aquí generas informes con IA a partir de tus propios datos.</div>'
+    : (bloqueado
+      ? '<button class="save-btn informe-btn" disabled title="Ya se generó uno hoy">Próximo disponible: ' + esc(DASH._informesProximo) + '</button>'
+      : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>');
   const sub = '<div class="db-sub">Análisis de <b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b>: tendencias, picos y patrones según los datos y la metodología.</div>';
   // Objetivo opcional: si se pone una fecha de cambio, el informe compara antes/después (como correlación, no causa)
   const obj = '<div class="inf-obj">' +
@@ -4213,15 +4269,23 @@ function renderInforme(rows){
     '<div class="inf-obj-row"><label>Fecha del cambio <span>(compara antes/después)</span></label>' +
     '<input type="date" id="infObjetivoFecha" value="' + esc(DASH._objetivoFecha||'') + '" onchange="DASH._objetivoFecha=this.value"></div>' +
     '</div>';
+  const objBlock = DASH.demoMode ? '' : obj;    // en la demo el objetivo no aplica (no se genera nada)
   const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
   let hist;
   if (!DASH._informesLoaded) hist = '<div class="informe-loading">Cargando informes previos…</div>';
   else if (!DASH._informes.length) hist = '<div class="informe-empty">Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.</div>';
   else hist = '<div class="db-sub2">Historial (' + DASH._informes.length + ')</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
-  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + obj + btn + out + hist + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + objBlock + btn + out + hist + '</div>';
 }
 function dashLoadInformes(){
   DASH._informes = DASH._informes || [];
+  // En la demostración mostramos un informe DE EJEMPLO ya generado y desplegado, para que se vea
+  // cómo queda un informe de IA (la demo no tiene usuario/clave para pedir el historial real).
+  if (DASH.demoMode){
+    DASH._informes = [INFORME_DEMO];
+    DASH._infExp = DASH._infExp || {}; DASH._infExp[INFORME_DEMO.id] = true;   // arranca abierto
+    DASH._informesLoaded = true; return;
+  }
   if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
   DASH._informesLoading = true;
   const payload = { action:'informes', usuario: DASH.params.usuario || DASH.params.empresa || '', empresa: DASH.scope || '', pass: DASH.params.pass || '' };
