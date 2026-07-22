@@ -1130,7 +1130,12 @@
     cursor: pointer; flex-shrink: 0; box-shadow: 0 4px 12px rgba(244,122,31,.35); }
   .gest-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
   .gest-scroll > * { max-width: 860px; margin-left: auto; margin-right: auto; }
-  .gest-intro { font-size: .82rem; color: var(--text-soft); line-height: 1.5; margin-bottom: .9rem; }
+  .gest-intro { font-size: .82rem; color: var(--text-soft); line-height: 1.5; margin-bottom: .7rem; }
+  .gest-sync { font-size: .76rem; font-weight: 700; line-height: 1.4; margin-bottom: .8rem; min-height: 0; }
+  .gest-sync:empty { margin-bottom: 0; }
+  .gest-sync.on { color: var(--text-muted); }
+  .gest-sync.ok { color: #1aa672; }
+  .gest-sync.off { color: #b8860b; }
 
   .gest-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin-bottom: 1rem; }
   .gs-card { background: #fff; border: 1px solid #e6eaf2; border-radius: 14px; padding: .7rem .5rem; text-align: center; }
@@ -1640,7 +1645,8 @@
       <button class="gest-new" onclick="gestNueva()">+ Nueva</button>
     </div>
     <div class="gest-scroll" id="gestScroll">
-      <p class="gest-intro">Registro de gestiones del servicio médico: qué se detectó, qué acción se tomó y su seguimiento en el tiempo. Se guarda en este dispositivo.</p>
+      <p class="gest-intro">Registro de gestiones del servicio médico: qué se detectó, qué acción se tomó y su seguimiento en el tiempo. Se guarda en el servidor y se comparte con tu equipo.</p>
+      <div id="gestSync" class="gest-sync"></div>
       <div id="gestSummary"></div>
       <div class="gest-tools">
         <input id="gestSearch" class="gest-search" type="text" placeholder="Buscar por título, persona, nota…" oninput="gestSetQuery(this.value)">
@@ -1718,7 +1724,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.83';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.84';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4916,7 +4922,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
    Cuaderno de gestión por empresa: registrar qué se detectó, qué acción se tomó y su seguimiento
    en el tiempo. Editable, con estado/prioridad, se pueden fijar (pin) los importantes y anotar
    seguimientos con fecha. Se guarda en el dispositivo (localStorage) y persiste entre sesiones. */
-const K_GESTIONES = 'silva_fatiga_gestiones_v1';
+const K_GESTIONES = 'silva_fatiga_gestiones_v2';
 const GEST = { filtro:'all', q:'', exp:{} };
 const GEST_ESTADOS = [
   { k:'abierta',     t:'Abierta',        c:'#e0322f', bg:'#feecec' },
@@ -4935,14 +4941,60 @@ function gestPinSvg(on){ return '<svg viewBox="0 0 24 24" width="17" height="17"
 // Alcance (empresa) actual. El registro es por empresa: cada una tiene su propio cuaderno.
 function gestEmpresaActual(){ return (DASH && (DASH.f.emp || DASH.scope)) || 'General'; }
 function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
-function gestLoadAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
-function gestSaveAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
-function gestList(){ const all = gestLoadAll(); return Array.isArray(all[gestKey()]) ? all[gestKey()] : []; }
-function gestSaveList(list){ const all = gestLoadAll(); all[gestKey()] = list; gestSaveAll(all); }
-function gestFind(id){ return gestList().find(g=>g.id===id) || null; }
-function gestUpsert(g){ const list = gestList(); const i = list.findIndex(x=>x.id===g.id);
-  g.actualizada = Date.now(); if (i>=0) list[i]=g; else list.unshift(g); gestSaveList(list); }
+// ── Almacén local (cache + cola de pendientes) ──
+// Estructura por empresa: { items:[...], up:{id:1}, del:{id:1} }. El SHEET es la fuente de verdad;
+// localStorage es cache para ver al instante y para no perder cambios sin conexión (se sincronizan
+// al reconectar). up = gestiones por subir; del = gestiones por borrar en el servidor.
+function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
+function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
+function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); }
+function gestList(){ return gestStore().items.slice(); }
+function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
+function gestUpsert(g){ const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
+  if(i>=0) s.items[i]=g; else s.items.unshift(g); s.up[g.id]=1; delete s.del[g.id]; gestSaveStore(s); gestScheduleSync(); }
+// Usado por la limpieza de gestiones en blanco al cerrar: reconcilia con la cola de borrados.
+function gestSaveList(list){ const s=gestStore();
+  s.items.forEach(g=>{ if(!list.some(x=>x.id===g.id)){ delete s.up[g.id]; s.del[g.id]=1; } });
+  s.items=list; gestSaveStore(s); gestScheduleSync(); }
 function gestNewId(){ return 'g' + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
+
+/* ── Sincronización con el sheet (vía endpoint) ──
+   Se sincroniza solo cuando hay credenciales (supervisor/admin); en modo demostración o sin
+   conexión queda solo local. push = sube pendientes; pull = trae del servidor y superpone lo
+   local pendiente (lo local gana hasta confirmarse). */
+let _gestSyncT = null;
+function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL; }
+function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || '') }, extra||{}); }
+function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
+function gestPost(body){ return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
+function gestPush(){
+  if(!gestCanSync()) return Promise.resolve();
+  const s=gestStore(); const jobs=[];
+  Object.keys(s.up).forEach(id=>{ const g=s.items.find(x=>x.id===id);
+    if(!g){ delete s.up[id]; return; }
+    jobs.push(gestPost(gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; gestSaveStore(s2); } }).catch(()=>{})); });
+  Object.keys(s.del).forEach(id=>{
+    jobs.push(gestPost(gestAuth({ action:'gestion_borrar', id:id }))
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; gestSaveStore(s2); } }).catch(()=>{})); });
+  gestSaveStore(s);
+  return Promise.all(jobs);
+}
+function gestPull(){
+  if(!gestCanSync()) return Promise.resolve(false);
+  return gestPost(gestAuth({ action:'gestiones' })).then(d=>{
+    if(!d || !d.ok || !Array.isArray(d.gestiones)) return false;
+    const s=gestStore();
+    let items = d.gestiones.filter(g => g && g.id && !s.del[g.id]);   // el servidor es base; saca los borrados localmente
+    Object.keys(s.up).forEach(id=>{                                    // superpone lo local pendiente (aún sin confirmar)
+      const lg = s.items.find(x=>x.id===id); if(!lg) return;
+      const i = items.findIndex(x=>x.id===id); if(i>=0) items[i]=lg; else items.unshift(lg);
+    });
+    s.items = items; gestSaveStore(s);
+    return true;
+  }).catch(()=>false);
+}
 function gestFechaTs(ts){ if(!ts) return ''; const d = new Date(ts); const p=n=>String(n).padStart(2,'0');
   return d.getDate() + ' ' + MESES_ABR[d.getMonth()] + ' ' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 
@@ -4967,9 +5019,25 @@ function openGestiones(){
   GEST.q=''; const s=document.getElementById('gestSearch'); if(s) s.value='';
   document.getElementById('gestionesOverlay').classList.add('show');
   document.body.classList.add('modal-open');
-  renderGestiones();
+  renderGestiones();                          // muestra la copia local al instante
   navPush();
   const sc=document.getElementById('gestScroll'); if(sc) sc.scrollTop = 0;
+  if (gestCanSync()){
+    gestSyncStatus('sync');
+    gestPull().then(ok => { renderGestiones(); return gestPush().then(() => ok); })
+      .then(ok => gestSyncStatus(ok ? 'ok' : 'off'))
+      .catch(() => gestSyncStatus('off'));
+  } else {
+    gestSyncStatus('local');
+  }
+}
+// Estado de sincronización visible (para que se entienda si está en el sheet o solo local).
+function gestSyncStatus(st){
+  const el = document.getElementById('gestSync'); if(!el) return;
+  if (st==='sync'){ el.textContent = 'Sincronizando con el servidor…'; el.className = 'gest-sync on'; }
+  else if (st==='ok'){ el.textContent = 'Sincronizado con el servidor · compartido con tu equipo'; el.className = 'gest-sync ok'; }
+  else if (st==='off'){ el.textContent = 'Sin conexión: se guardó en este dispositivo y se sincronizará al reconectar.'; el.className = 'gest-sync off'; }
+  else { el.textContent = ''; el.className = 'gest-sync'; }   // 'local' (demo / sin credenciales): sin ruido
 }
 function closeGestiones(){
   // Limpia gestiones totalmente en blanco (creadas con "+ Nueva" pero sin escribir nada), para
