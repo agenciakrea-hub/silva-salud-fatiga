@@ -881,10 +881,15 @@
     .grid2 { grid-template-columns: repeat(3, 1fr); }
   }
 
-  /* ── Panel de estadísticas en escritorio: ventana ancha y contenido en 2 columnas ── */
-  @media (min-width: 1000px) {
-    .sheet.portal { max-width: 1180px; height: 92vh; max-height: 92vh; }
-    .dash-scroll { padding: 1.5rem 2rem 2.6rem; }
+  /* ── Panel de estadísticas en escritorio: PANTALLA COMPLETA (para que la onda blanca
+     tape todo y luego la ventana también tape todo — no una ventana flotante), con el
+     contenido distribuido en dos columnas y centrado como una app de escritorio. ── */
+  @media (min-width: 900px) {
+    #portalOverlay { padding: 0; }
+    .sheet.portal { max-width: 100%; width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    /* El cuerpo con scroll centra su contenido y le da aire, sin estirarlo de borde a borde */
+    .dash-scroll { padding: 1.6rem 2.4rem 3rem; }
+    .dash-scroll > * { max-width: 1300px; margin-left: auto; margin-right: auto; }
     /* Los bloques del panel se reparten en dos columnas, aprovechando el ancho */
     .dash-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.8rem; align-items: start; }
     .dash-sec > .dash-help, .dash-sec > .dash-warn, .dash-sec > .dash-empty { grid-column: 1 / -1; }
@@ -893,6 +898,10 @@
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
+  }
+  /* Muy ancho: tres columnas de bloques para no dejar huecos enormes */
+  @media (min-width: 1500px) {
+    .dash-sec { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 
   /* ═══════════ ANIMACIONES (suaves y sobrias) ═══════════ */
@@ -1509,7 +1518,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2897,9 +2906,8 @@ function marcarStatsActivo(on){
 // lo que corresponde según el tipo de usuario (empleado → sus registros; supervisor → elector).
 function irAEstadisticas(){
   const rev = document.getElementById('statsReveal');
-  // La onda que tapa la pantalla es para celular. En escritorio el panel abre como ventana,
-  // así que taparlo todo de blanco quedaría raro: ahí abre directo.
-  if (window.innerWidth >= 900){ abrirDestinoEstadisticas(); return; }
+  // La onda blanca tapa toda la pantalla y, como el panel ahora abre a pantalla completa
+  // (también en escritorio), la ventana tapa todo al terminar la onda: la transición cierra bien.
   if (rev){
     rev.classList.remove('on');
     void rev.offsetWidth;                                  // reinicia la animación
@@ -3511,20 +3519,27 @@ function buildDashFilters(){
   }
   if (showGroup){
     let rows = DASH.registros;
-    if (DASH.rol === 'admin'){
-      const emps = uniqSorted(rows, 'empresa');
+    const esAdmin = DASH.rol === 'admin';
+    if (esAdmin){
+      // El "*" es el comodín del administrador, no una empresa real: nunca va en la lista.
+      const emps = uniqSorted(rows, 'empresa').filter(x => x !== '*');
       html += '<div class="df-row"><div class="df"><label>Empresa</label><select id="dashEmp" onchange="dashFilterChange(\'emp\')"><option value="">Todas</option>' +
         emps.map(x=>optSel(x, DASH.f.emp)).join('') + '</select></div></div>';
       if (DASH.f.emp) rows = rows.filter(r=>r.empresa===DASH.f.emp);
     }
-    const deps = uniqSorted(rows, 'departamento');
-    const rowsPer = DASH.f.dep ? rows.filter(r=>r.departamento===DASH.f.dep) : rows;
-    const pers = uniqSorted(rowsPer, 'persona');
-    html += '<div class="df-row">' +
-      '<div class="df"><label>Departamento</label><select id="dashDep" onchange="dashFilterChange(\'dep\')"><option value="">Todos</option>' +
-        deps.map(x=>optSel(x, DASH.f.dep)).join('') + '</select></div>' +
-      '<div class="df"><label>Empleado</label><select id="dashPer" onchange="dashFilterChange(\'per\')"><option value="">Todos</option>' +
-        pers.map(x=>optSel(x, DASH.f.per)).join('') + '</select></div></div>';
+    // Departamento/empleado sólo tienen sentido dentro de UNA empresa: los departamentos son los
+    // de esa empresa, no la mezcla de todas. Para el admin sin empresa elegida no se muestran
+    // (mezclaría "Operaciones" de una empresa con la de otra). El supervisor ya está acotado a la suya.
+    if (!esAdmin || DASH.f.emp){
+      const deps = uniqSorted(rows, 'departamento');
+      const rowsPer = DASH.f.dep ? rows.filter(r=>r.departamento===DASH.f.dep) : rows;
+      const pers = uniqSorted(rowsPer, 'persona');
+      html += '<div class="df-row">' +
+        '<div class="df"><label>Departamento</label><select id="dashDep" onchange="dashFilterChange(\'dep\')"><option value="">Todos</option>' +
+          deps.map(x=>optSel(x, DASH.f.dep)).join('') + '</select></div>' +
+        '<div class="df"><label>Empleado</label><select id="dashPer" onchange="dashFilterChange(\'per\')"><option value="">Todos</option>' +
+          pers.map(x=>optSel(x, DASH.f.per)).join('') + '</select></div></div>';
+    }
   }
   document.getElementById('dashFilters').innerHTML = html;
 }
