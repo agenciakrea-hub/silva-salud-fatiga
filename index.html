@@ -222,6 +222,8 @@
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-weight: 700; font-size: 0.95rem;
     font-family: inherit; cursor: pointer; box-shadow: 0 6px 18px rgba(244,122,31,0.38); transition: transform .12s; }
   .save-btn:active { transform: scale(0.98); }
+  /* Deshabilitado (datos incompletos o mal puestos): gris, sin sombra, sin poder tocarlo. */
+  .save-btn:disabled { background: #c9d1de; color: #ffffff; box-shadow: none; cursor: not-allowed; transform: none; }
   .cancel-btn { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: none; background: none; color: var(--text-muted);
     font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
   .pilot-banner { margin-top: 1.2rem; border: 2px dashed #c8d0dc; border-radius: 14px; overflow: hidden; transition: border-color .15s, background .15s, box-shadow .15s; background: #f7f9fc; }
@@ -618,6 +620,9 @@
   .ctx-chip.ctx-person { background: #fff1e6; color: var(--orange); }
   .ctx-chip b { cursor: pointer; font-weight: 800; opacity: .55; padding: 0 .1rem; }
   .ctx-chip b:hover { opacity: 1; }
+  /* Línea legible del período que se está viendo (fechas de verdad + cantidad de registros). */
+  .ctx-range { flex-basis: 100%; font-size: .82rem; color: var(--text-soft); font-weight: 600; line-height: 1.4; }
+  .ctx-range b { color: var(--text); font-weight: 800; }
 
   /* Ayuda por sección: ícono ⓘ contraído (details/summary) */
   .dash-help { margin: -.2rem 0 .9rem; }
@@ -1153,7 +1158,7 @@
       <div class="act-card">
         <p class="act-ayuda"><strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más oscuro</strong>, más hiciste ese día.</p>
         <div class="act-wrap">
-          <div class="act-dias"><span></span><span>Lun</span><span></span><span>Mié</span><span></span><span>Vie</span><span></span></div>
+          <div class="act-dias"><span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span></div>
           <div class="act-scroll">
             <div class="act-meses" id="actMeses"></div>
             <div class="act-grid" id="actGrid"></div>
@@ -1601,7 +1606,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.81';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.82';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3101,10 +3106,51 @@ function openSetup(isEdit){
     : 'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
   ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fEmail','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
+  // El botón "Guardar" se habilita/gris según el formulario. Un solo listener en la hoja cubre
+  // todos los campos (input y change); los combos (empresa/depto) llaman aparte porque set .value
+  // a mano no dispara 'input'.
+  const sheetSetup = document.querySelector('#setup .sheet');
+  if (sheetSetup && !sheetSetup._readyWired){
+    sheetSetup._readyWired = true;
+    sheetSetup.addEventListener('input', setupCheckReady);
+    sheetSetup.addEventListener('change', setupCheckReady);
+  }
   document.getElementById('setup').classList.add('show');
+  setupCheckReady();
   navPush();
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
+
+/* ── Validación de datos del setup ──
+   El teléfono y la cédula se validan por cantidad de dígitos (no "cualquier cosa"), el email por
+   formato, y la edad por rango. El botón "Guardar" queda gris/inhabilitado hasta que TODO esté bien. */
+function setupTelValido(t){ const d = String(t||'').replace(/\D/g,''); return d.length >= 7 && d.length <= 15; }
+function setupEmailValido(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
+function setupCedulaValida(c){ const d = String(c||'').replace(/\D/g,''); return d.length >= 5 && d.length <= 12; }
+function setupEdadValida(e){ const n = parseInt(e,10); return !isNaN(n) && n >= 18 && n <= 99; }
+function _sv(id){ const el = document.getElementById(id); return el ? (el.value||'').trim() : ''; }
+// ¿Están TODOS los datos completos y bien puestos? (sin tocar el DOM: sirve para habilitar el botón)
+function setupFormOk(){
+  const esPiloto = document.getElementById('inEsPiloto').checked;
+  const esSup    = document.getElementById('inEsSupervisor').checked;
+  if (!_sv('inName')) return false;
+  if (!setupCedulaValida(_sv('inCed'))) return false;
+  if (esPiloto && !_sv('inPiloto')) return false;
+  if (!_sv('inEmp')) return false;
+  if (!_sv('inDep')) return false;
+  if (!_sv('inCargo')) return false;
+  if (!_sv('inSexo')) return false;
+  if (!setupEdadValida(_sv('inEdad'))) return false;
+  if (!setupTelValido(_sv('inTelefono'))) return false;
+  if (!setupEmailValido(_sv('inEmail'))) return false;
+  if (esSup && !_sv('inSupPass')) return false;
+  return true;
+}
+// Habilita/inhabilita (gris) el botón Guardar según el estado del formulario.
+function setupCheckReady(){
+  const btn = document.querySelector('#setup .save-btn');
+  if (btn && !btn.dataset.busy) btn.disabled = !setupFormOk();
+}
 
 function saveProfile(){
   const nombre       = document.getElementById('inName').value.trim().replace(/\s+/g,' ');
@@ -3123,7 +3169,9 @@ function saveProfile(){
   let ok = true;
   // Todos los datos son obligatorios. El ID de piloto solo se exige si es personal de aviación.
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
-  document.getElementById('fCed').classList.toggle('invalid', !cedula); if(!cedula) ok=false;
+  const cedOk = setupCedulaValida(cedula);
+  document.getElementById('fCed').classList.toggle('invalid', !cedOk); if(!cedOk){ ok=false;
+    const e = document.getElementById('fCed').querySelector('.err'); if(e) e.textContent = cedula ? 'Ingresa un número de cédula válido (solo números).' : 'Por favor ingresa tu número de cédula.'; }
   document.getElementById('fPiloto').classList.toggle('invalid', esPiloto && !id_piloto); if(esPiloto && !id_piloto) ok=false;
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
   // Empresa: debe ser una de la lista oficial (Accesos). Evita variantes mal escritas ("Aer. silva",
@@ -3143,9 +3191,13 @@ function saveProfile(){
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
-  document.getElementById('fEdad').classList.toggle('invalid', !edad); if(!edad) ok=false;
-  document.getElementById('fTelefono').classList.toggle('invalid', !telefono); if(!telefono) ok=false;
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);   // email obligatorio y con formato válido
+  const edadOk = setupEdadValida(edad);
+  document.getElementById('fEdad').classList.toggle('invalid', !edadOk); if(!edadOk){ ok=false;
+    const e = document.getElementById('fEdad').querySelector('.err'); if(e) e.textContent = edad ? 'Ingresa una edad válida (18 a 99).' : 'Campo requerido'; }
+  const telOk = setupTelValido(telefono);
+  document.getElementById('fTelefono').classList.toggle('invalid', !telOk); if(!telOk){ ok=false;
+    const e = document.getElementById('fTelefono').querySelector('.err'); if(e) e.textContent = telefono ? 'Ingresa un teléfono válido (7 a 15 dígitos).' : 'Campo requerido'; }
+  const emailOk = setupEmailValido(email);   // email obligatorio y con formato válido
   document.getElementById('fEmail').classList.toggle('invalid', !emailOk); if(!emailOk) ok=false;
   const fSupPass = document.getElementById('fSupPass');
   fSupPass.classList.toggle('invalid', esSupervisor && !supPass); if (esSupervisor && !supPass) ok=false;
@@ -3227,7 +3279,7 @@ function comboBuild(which){
 }
 function comboOpen(which){ comboBuild(which); }
 function comboFilter(which){ comboBuild(which); }
-function comboPick(which, v){ document.getElementById('in' + which).value = v; document.getElementById('panel' + which).classList.remove('show'); }
+function comboPick(which, v){ document.getElementById('in' + which).value = v; document.getElementById('panel' + which).classList.remove('show'); if (typeof setupCheckReady === 'function') setupCheckReady(); }
 function comboBlur(which){ setTimeout(function(){ const p = document.getElementById('panel' + which); if (p) p.classList.remove('show'); }, 150); }
 
 /* ════════════════ TOAST ════════════════ */
@@ -3704,6 +3756,31 @@ function dashFilterChange(changed){
 function fval(id){ const e = document.getElementById(id); return e ? e.value : ''; }
 
 function dashISO(d){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+/* ── Fechas LEGIBLES para empleados y supervisores (nada de "2024-01-10" ni "24-01") ── */
+const MESES_ABR = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function dashFechaLinda(iso){                 // '2024-01-10' -> '10 ene 2024'
+  const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (parseInt(m[3],10) + ' ' + MESES_ABR[parseInt(m[2],10)-1] + ' ' + m[1]) : String(iso||'');
+}
+function dashMesCorto(ym){                     // '2024-01' -> 'ene 24'  (para ejes de gráficos)
+  const m = String(ym||'').match(/^(\d{4})-(\d{2})/);
+  return m ? (MESES_ABR[parseInt(m[2],10)-1] + ' ' + m[1].slice(2)) : String(ym||'');
+}
+// Descripción legible del período que se está viendo (para que se entienda qué rango es).
+function dashRangoTexto(rows){
+  const p = DASH.f.period;
+  if (p === 'custom'){
+    if (DASH.f.desde && DASH.f.hasta) return 'del ' + dashFechaLinda(DASH.f.desde) + ' al ' + dashFechaLinda(DASH.f.hasta);
+    if (DASH.f.desde) return 'desde ' + dashFechaLinda(DASH.f.desde);
+    if (DASH.f.hasta) return 'hasta ' + dashFechaLinda(DASH.f.hasta);
+    return 'elige un rango de fechas';
+  }
+  const fechas = rows.map(r=>r.fecha).filter(Boolean).sort();
+  if (!fechas.length) return 'sin registros en este período';
+  const min = fechas[0], max = fechas[fechas.length-1];
+  const span = (min===max) ? dashFechaLinda(min) : (dashFechaLinda(min) + ' – ' + dashFechaLinda(max));
+  return (p === 'all') ? ('todo el historial · ' + span) : span;
+}
 function dashPeriodRange(period){
   if (period==='all' || period==='custom') return null;
   const now = new Date(), s = new Date();
@@ -3890,7 +3967,17 @@ function dashContext(){
   if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
   const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep))
     ? '<button class="ctx-back" onclick="dashClearOne()">‹ Quitar filtro</button>' : '';
-  return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
+  // Línea legible: QUÉ período se está viendo, con fechas de verdad y cuántos registros.
+  const rows = dashFiltered();
+  const n = rows.length;
+  let rango;
+  if (n === 0){
+    const det = (DASH.f.period === 'custom' && (DASH.f.desde || DASH.f.hasta)) ? (' (' + esc(dashRangoTexto([])) + ')') : '';
+    rango = '<div class="ctx-range">No hay registros en el período seleccionado' + det + '.</div>';
+  } else {
+    rango = '<div class="ctx-range">Viendo <b>' + esc(dashRangoTexto(rows)) + '</b> · ' + n + ' ' + (n===1?'registro':'registros') + '</div>';
+  }
+  return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div>' + rango + '</div>';
 }
 function dashClear(level){
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
@@ -4131,7 +4218,7 @@ function dashPersonComments(){
 }
 function cmtCard(c){
   return '<div class="cmt-item"><div class="cmt-head"><span class="cmt-name">' + esc(c.persona||'—') + '</span>' +
-    '<span class="cmt-date">' + esc(c.fecha||'') + (c.tipo ? (' · ' + esc(c.tipo)) : '') + '</span></div>' +
+    '<span class="cmt-date">' + esc(dashFechaLinda(c.fecha)) + (c.tipo ? (' · ' + esc(c.tipo)) : '') + '</span></div>' +
     '<div class="cmt-text">' + esc(c.texto) + '</div></div>';
 }
 
@@ -4178,7 +4265,7 @@ function renderPVT(){
     const sorted = pv.slice().sort((a,b)=> (a.fecha < b.fecha ? 1 : -1));
     body = '<div class="dash-block"><div class="db-title">' + (DASH.f.per ? 'Tests de ' + esc(DASH.f.per) : 'Mis tests de reacción') + '</div>' +
       sorted.slice(0,40).map(r => { const v = pvtVerdict(r.rt_prom, r.lapsos);
-        return '<div class="hist-item"><span class="hi-date">' + esc(r.fecha||'—') + '</span>' +
+        return '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
           '<span class="hi-m">RT ' + r.rt_prom + ' ms</span>' +
           '<span class="hi-m ' + (r.lapsos>3?'over':'') + '">Lapsos ' + r.lapsos + '</span>' +
           '<span class="hi-m" style="background:' + (v.over?'#feecec':'#eef3ff') + ';color:' + v.c + '">' + v.t + '</span></div>';
@@ -4235,12 +4322,12 @@ function dashPvtEvolucion(pv){
   svg += '<path d="'+d+'" fill="none" stroke="#16233d" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
   pts.forEach((p,i) => {
     const c = p.v < 300 ? '#1aa672' : (p.v < 400 ? '#e8a400' : '#e0322f');
-    svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+c+'" stroke="#fff" stroke-width="1.2"><title>'+esc(p.f)+': '+p.v+' ms</title></circle>';
+    svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+c+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+' ms</title></circle>';
   });
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+Math.round(maxV)+'</text>';
   svg += '<text x="3" y="'+(padT+ih)+'" font-size="8" fill="#7b8499">0 ms</text>';
-  svg += '<text x="'+padL+'" y="'+(H-8)+'" font-size="8" fill="#7b8499">'+esc(pts[0].f)+'</text>';
-  svg += '<text x="'+(W-padR)+'" y="'+(H-8)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(pts[pts.length-1].f)+'</text>';
+  svg += '<text x="'+padL+'" y="'+(H-8)+'" font-size="8" fill="#7b8499">'+esc(dashFechaLinda(pts[0].f))+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+(H-8)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
   const leyenda = '<div class="radar-legend">' +
     '<span class="rl-item"><span class="rl-dot" style="background:#1aa672"></span>Menos de 300 ms · bien</span>' +
@@ -4506,7 +4593,7 @@ function dashEvoMulti(rows){
     if (d) svg += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>';
   });
   const step = Math.ceil(months.length/6);
-  months.forEach((k,i) => { if (months.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="#7b8499" text-anchor="middle">'+k.slice(2)+'</text>'; });
+  months.forEach((k,i) => { if (months.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="#7b8499" text-anchor="middle">'+dashMesCorto(k)+'</text>'; });
   svg += '</svg>';
   const legend = '<div class="radar-legend">' + series.map(s => '<span class="rl-item"><span class="rl-dot" style="background:'+s.color+'"></span>'+(METRIC_LABELS[s.m]||s.m)+'</span>').join('') + '</div>';
   return '<div class="radar-wrap">' + svg + legend + '</div>';
@@ -4627,9 +4714,9 @@ function dashLineaTiempo(rows, m){
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
   svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
-  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.4" fill="'+(p.v>ref?'#e0322f':'#f47a1f')+'" opacity=".9"><title>'+esc(p.f)+': '+p.v+'</title></circle>'; });
-  svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="#7b8499">'+esc(pts[0].f)+'</text>';
-  svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(pts[pts.length-1].f)+'</text>';
+  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.4" fill="'+(p.v>ref?'#e0322f':'#f47a1f')+'" opacity=".9"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
+  svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="#7b8499">'+esc(dashFechaLinda(pts[0].f))+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
   return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">Cada punto es un registro · la punteada es la referencia</span></div></div>';
 }
@@ -4701,7 +4788,7 @@ function dashAlerts(rows){
 function dashHistory(rows){
   const sorted = rows.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1));
   return '<div class="dash-block"><div class="db-title">Mis registros</div>' +
-    sorted.slice(0,30).map(r => '<div class="hist-item"><span class="hi-date">' + esc(r.fecha||'—') + '</span>' +
+    sorted.slice(0,30).map(r => '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
       DASH.metrics.map(m => r[m]!=null ? '<span class="hi-m ' + (r[m]>DASH.ref[m]?'over':'') + '">' + METRIC_LABELS[m] + ': ' + r[m] + '</span>' : '').join('') +
       '</div>').join('') + '</div>';
 }
