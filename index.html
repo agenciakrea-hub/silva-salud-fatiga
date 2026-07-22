@@ -5,6 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Silva Salud Fatiga</title>
 
+<script>
+/* Guarda temprano (antes del primer pintado): si NO se puede animar de forma fiable —documento
+   oculto o preferencia de menos movimiento— apaga las animaciones para que el contenido se vea en
+   su estado final y nunca quede invisible por un reloj de animación congelado. Se rehabilita al
+   volver a estar visible (salvo que la persona pida menos movimiento). */
+(function(){
+  var h = document.documentElement, reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+  if (reduce || document.hidden) h.classList.add('sin-animaciones');
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && !reduce) h.classList.remove('sin-animaciones');
+  });
+})();
+</script>
+
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
 
 <link rel="apple-touch-icon" sizes="192x192" href="ic192v2.png">
@@ -346,6 +361,16 @@
   .dash-tabs::-webkit-scrollbar { display: none; }
   .dtab { padding: .52rem .95rem; border: none; background: #f1f3f7; border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .86rem; color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .dtab.active { background: var(--navy); color: #fff; }
+  /* Pista de "hay más pestañas": degradado + chevron a los lados, sólo cuando se puede deslizar.
+     Así se entiende que la fila de Resumen/Comparar/Individual… se desliza para ver más. */
+  .dash-tabs-wrap { position: relative; }
+  .dt-fade { position: absolute; top: 0; bottom: 1px; width: 46px; display: flex; align-items: center;
+    pointer-events: none; opacity: 0; transition: opacity .2s; font-weight: 900; color: var(--navy); font-size: 1.15rem; }
+  .dt-fade-l { left: 0; justify-content: flex-start; padding-left: 5px; background: linear-gradient(to right, #fff 35%, transparent); }
+  .dt-fade-r { right: 0; justify-content: flex-end; padding-right: 7px; background: linear-gradient(to left, #fff 35%, transparent); }
+  .dash-tabs-wrap.mas-izq .dt-fade-l { opacity: 1; }
+  .dash-tabs-wrap.mas-der .dt-fade-r { opacity: 1; animation: dtNudge 1.5s ease-in-out infinite; }
+  @keyframes dtNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
   .dash-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 1.1rem 1.2rem 2.2rem; scrollbar-gutter: stable; }
 
   /* Glosario colapsable */
@@ -771,6 +796,10 @@
   .ct-fila { display: grid; grid-template-columns: 6.5em 1fr auto auto; gap: 0.55rem; align-items: center; }
   .ct-lbl { font-size: 0.84rem; font-weight: 700; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ct-track { position: relative; height: 17px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
+  /* La pista se tiñe según el estado, así SIEMPRE se ve color aunque el valor sea bajo
+     (antes, con valores sanos, la barra quedaba un hilito y todo parecía gris). */
+  .ct-track.ok   { background: #e2f5ec; }
+  .ct-track.over { background: #fde7e5; }
   .ct-ref-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #16233d; opacity: .55; z-index: 1; }
   .ct-nota { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.6rem; line-height: 1.45; }
   .ct-track .bar-fill { height: 100%; border-radius: 999px; background: var(--green); }
@@ -785,15 +814,18 @@
   .act-card { background: var(--card); border-radius: var(--radius); padding: 0.95rem 1rem; box-shadow: var(--shadow-sm); }
   .act-ayuda { font-size: 0.82rem; line-height: 1.5; color: var(--text-soft); margin-bottom: 0.85rem; }
   .act-ayuda strong { color: var(--text); }
-  .act-wrap { display: flex; gap: 0.45rem; }
-  .act-dias { display: flex; flex-direction: column; gap: 3px; padding-top: 1.15rem; flex-shrink: 0; }
-  .act-dias span { height: 13px; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); line-height: 13px; white-space: nowrap; }
-  .act-scroll { flex: 1; min-width: 0; overflow-x: auto; }
-  .act-meses { display: flex; gap: 3px; margin-bottom: 0.2rem; }
-  .act-mes { width: 13px; flex-shrink: 0; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
-  .act-grid { display: flex; gap: 3px; padding-bottom: 2px; }
-  .act-col { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
-  .act-d { width: 13px; height: 13px; border-radius: 3px; background: #eef1f5; display: block; flex-shrink: 0; }
+  /* La grilla de actividad OCUPA todo el ancho de la caja (sin huecos a los lados): las columnas
+     crecen para repartirse el ancho y cada cuadrito es cuadrado (aspect-ratio). Un tope evita
+     que en escritorio los cuadros queden gigantes. Las etiquetas de días crecen igual para alinear. */
+  .act-wrap { display: flex; gap: 0.5rem; align-items: stretch; }
+  .act-dias { display: flex; flex-direction: column; padding-top: 1.15rem; flex-shrink: 0; }
+  .act-dias span { flex: 1 1 0; display: flex; align-items: center; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+  .act-scroll { flex: 1; min-width: 0; }
+  .act-meses { display: flex; gap: 4px; margin-bottom: 0.2rem; }
+  .act-mes { flex: 1 1 0; min-width: 0; max-width: 30px; font-size: 0.6rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; overflow: visible; }
+  .act-grid { display: flex; gap: 4px; padding-bottom: 2px; }
+  .act-col { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-width: 0; max-width: 30px; }
+  .act-d { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 3px; background: #eef1f5; display: block; }
   .act-d.l1 { background: #ffe0c2; }
   .act-d.l2 { background: #fbbd7e; }
   .act-d.l3 { background: #f7941d; }
@@ -848,13 +880,11 @@
     .hh-full { font-size: 1.3rem; }
     .hh-line { font-size: 0.98rem; margin-top: 0.28rem; }
 
-    /* Dos columnas reales: las secciones y el panel de actividad se reparten el ancho.
-       display:contents hace que las secciones de #sections sean items del grid. */
-    .home-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.2rem; align-items: start; }
-    #sections { display: contents; }
-    .home-cols > .section, #sections > .section { margin-bottom: 2.2rem; }
-    .section + .section { border-top: none; padding-top: 0; }   /* en columnas la línea divisoria molesta */
-    .grid2 { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    /* Escritorio: sección DEBAJO de sección (una por una, ordenado), a todo el ancho.
+       Los botones se reparten "a lo largo" de la fila, llenando el ancho de la sección. */
+    .home-cols { display: block; }
+    #sections { display: block; }
+    .grid2 { grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 1rem; }
     /* El botón de instalar: ancho contenido y centrado, no una barra suelta a la izquierda */
     .install { max-width: 560px; margin-left: auto; margin-right: auto; }
     .section { margin-bottom: 2.5rem; }
@@ -869,7 +899,7 @@
     .install { padding: 1.15rem 1.35rem; }
     .install .tt { font-size: 1.14rem; }
     .act-card { padding: 1.25rem 1.4rem; }
-    .act-d { width: 17px; height: 17px; border-radius: 4px; }
+    .act-d { border-radius: 4px; }   /* el tamaño lo maneja el flujo flexible (aspect-ratio + tope) */
     .act-foot { font-size: 0.86rem; }
     .mas-hero .logo-box { width: 168px; height: 168px; }
     .mas-hero h1 { font-size: 1.9rem; }
@@ -968,7 +998,11 @@
   html.texto-grande .tile { min-height: 0; }
   html.texto-grande .hh-full, html.texto-grande .hh-line { white-space: normal; }
   html.texto-grande .bn-item { font-size: 0.62rem; }
-  @media (min-width: 900px) { html.texto-grande .grid2 { grid-template-columns: repeat(2, 1fr); } }
+  /* La palabra del rango crece con la letra: el círculo naranja crece con ella para que no quede
+     chico respecto al texto que lleva dentro. */
+  html.texto-grande .hh-rango { width: 86px; height: 86px; padding: 0 7px; }
+  @media (min-width: 900px) { html.texto-grande .grid2 { grid-template-columns: repeat(2, 1fr); }
+    html.texto-grande .hh-rango { width: 100px; height: 100px; } }
 
   @keyframes barraCreceX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
@@ -1039,6 +1073,21 @@
   /* Respeta a quien pide menos movimiento */
   @media (prefers-reduced-motion: reduce) {
     .view-in-der, .view-in-izq, .stats-reveal .sr-circle { animation: none !important; }
+  }
+
+  /* ── A prueba de "reloj de animación congelado" ──
+     Si el documento está oculto (pestaña en segundo plano, algunos webviews), el reloj de
+     animaciones se queda en 0 y las animaciones de entrada con opacity:0 dejarían el contenido
+     INVISIBLE para siempre. La clase .sin-animaciones (la pone un script temprano) apaga toda
+     animación y fuerza el estado final visible, así el contenido NUNCA depende de que el reloj
+     avance. (También cubre a quien pide menos movimiento.) */
+  html.sin-animaciones *, html.sin-animaciones *::before, html.sin-animaciones *::after {
+    animation: none !important; transition: none !important;
+  }
+  html.sin-animaciones .anim-target, html.sin-animaciones .anim-target *,
+  html.sin-animaciones .home-head, html.sin-animaciones .view,
+  html.sin-animaciones .sheet, html.sin-animaciones .overlay, html.sin-animaciones .section {
+    opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important;
   }
 
 </style>
@@ -1214,7 +1263,7 @@
              oninput="fijarTamanoTexto(this.value)" aria-label="Tamaño del texto">
       <span class="tc-a grande">A</span>
     </div>
-    <div class="tc-valor" id="sldTextoInicioVal">Normal</div>
+    <div class="tc-valor" id="sldTextoInicioVal">Normal (recomendado)</div>
 
     <button class="save-btn" onclick="confirmarTamanoTexto()">Continuar</button>
   </div>
@@ -1440,7 +1489,11 @@
         </button>
         <button class="portal-x" onclick="closePortal()">✕</button>
       </div>
-      <div class="dash-tabs" id="dashTabs"></div>
+      <div class="dash-tabs-wrap" id="dashTabsWrap">
+        <div class="dash-tabs" id="dashTabs"></div>
+        <span class="dt-fade dt-fade-l" aria-hidden="true">‹</span>
+        <span class="dt-fade dt-fade-r" aria-hidden="true">›</span>
+      </div>
       <div class="dash-scroll" id="dashScroll">
         <div id="dashFilters" class="dash-filters"></div>
         <div id="dashBody"></div>
@@ -1525,7 +1578,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.77';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.78';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2957,7 +3010,11 @@ function aplicarTamanoTexto(){
   const lbl = document.getElementById('txtTamanoLbl');
   if (lbl) lbl.textContent = TEXTO_NIVELES[n].k;
   ['sldTexto', 'sldTextoInicio'].forEach(id => { const s = document.getElementById(id); if (s) s.value = String(n); });
-  ['sldTextoVal', 'sldTextoInicioVal'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = TEXTO_NIVELES[n].k; });
+  // El nivel por defecto se marca como "(recomendado)" para orientar a quien elige por primera vez.
+  ['sldTextoVal', 'sldTextoInicioVal'].forEach(id => {
+    const e = document.getElementById(id);
+    if (e) e.textContent = TEXTO_NIVELES[n].k + (n === TEXTO_POR_DEFECTO ? ' (recomendado)' : '');
+  });
 }
 function fijarTamanoTexto(n){
   n = Math.min(Math.max(parseInt(n, 10) || 0, 0), TEXTO_NIVELES.length - 1);
@@ -3483,9 +3540,23 @@ function dashOrderedTabs(){
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
 }
 function buildDashTabs(){
-  document.getElementById('dashTabs').innerHTML = dashOrderedTabs().map(t =>
+  const bar = document.getElementById('dashTabs');
+  bar.innerHTML = dashOrderedTabs().map(t =>
     '<button class="dtab" data-tab="' + t + '" onclick="dashScrollTo(\'' + t + '\')">' + TAB_LABELS[t] + '</button>'
   ).join('');
+  if (!bar._pistaLista){                                  // engancha la pista de "se desliza" una sola vez
+    bar._pistaLista = true;
+    bar.addEventListener('scroll', dashPistaPestanas, { passive: true });
+  }
+  requestAnimationFrame(dashPistaPestanas);               // evalúa tras el layout
+}
+// Muestra el degradado/chevron a los lados según haya más pestañas hacia ese lado.
+function dashPistaPestanas(){
+  const bar = document.getElementById('dashTabs'), wrap = document.getElementById('dashTabsWrap');
+  if (!bar || !wrap) return;
+  const resto = bar.scrollWidth - bar.clientWidth;
+  wrap.classList.toggle('mas-izq', bar.scrollLeft > 4);
+  wrap.classList.toggle('mas-der', resto > 4 && bar.scrollLeft < resto - 4);
 }
 function dashScrollTo(t){
   const sec = document.getElementById('dsec-' + t), scroll = document.getElementById('dashScroll');
@@ -4493,9 +4564,10 @@ function dashColumnas(rows){
     const a = dashAvg(rows, m), ref = DASH.ref[m];
     const pct = (a != null && ref) ? Math.max(3, Math.min(100, (a/ref) * REF_PCT)) : 0;
     const over = a != null && a > ref;
+    const estado = a == null ? '' : (over ? ' over' : ' ok');   // tiñe la barra según esté bien o por encima
     html += '<div class="ct-fila">' +
       '<span class="ct-lbl">' + (METRIC_LABELS[m]||m) + '</span>' +
-      '<span class="ct-track"><i class="ct-ref-mark" style="left:'+REF_PCT+'%"></i>' +
+      '<span class="ct-track' + estado + '"><i class="ct-ref-mark" style="left:'+REF_PCT+'%"></i>' +
         '<i class="bar-fill' + (over?' over':'') + '" style="width:'+pct.toFixed(0)+'%"></i></span>' +
       '<span class="ct-val' + (over?' over':'') + '">' + (a==null?'—':a.toFixed(1)) + '</span>' +
       '<span class="ct-ref">/' + ref + '</span></div>';
