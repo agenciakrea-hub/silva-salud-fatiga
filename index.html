@@ -1578,7 +1578,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.78';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3856,8 +3856,9 @@ function renderResumen(rows){
         ? 'Detalle de <b>' + esc(DASH.f.per) + '</b>: el promedio de sus tests. Toca <b>‹ Quitar filtro</b> arriba para volver al grupo.'
         : 'Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).')
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
-  let head = '<div class="dash-block"><div class="db-title">Promedios' + (who ? (' · ' + who) : '') + '</div>' +
-    '<div class="db-sub">Promedio de los ' + rows.length + ' registro(s) del período seleccionado</div>' +
+  const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
+  let head = '<div class="dash-block"><div class="db-title">' + (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : ''))) + '</div>' +
+    '<div class="db-sub">Promedio de ' + (single ? 'tus ' : 'los ') + nReg + ' del período seleccionado</div>' +
     '<div class="kpi-grid">';
   DASH.metrics.forEach(m => {
     const a = dashAvg(rows, m), ref = DASH.ref[m], over = a!=null && a>ref;
@@ -3866,9 +3867,12 @@ function renderResumen(rows){
       '<div class="kref">ref ' + ref + (over?' · ▲':'') + '</div></div>';
   });
   head += '</div></div>';
-  const bars = '<div class="dash-block"><div class="db-title">Grupo vs. Referencia</div>' +
-    '<div class="db-sub">Barra de color = promedio actual · barra gris = valor de referencia (normal)</div>' +
-    dashGroupedBars(rows) + '</div>';
+  // El gráfico de barras "grupo vs. referencia" es para el grupo. En la vista personal NO se
+  // muestra: la misma comparación aparece más clara en "Tus indicadores vs. lo normal" (no se
+  // repite lo mismo dos veces). Así la vista personal queda más ordenada, sin perder información.
+  const bars = single ? '' : ('<div class="dash-block"><div class="db-title">El grupo vs. lo normal</div>' +
+    '<div class="db-sub">Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal)</div>' +
+    dashGroupedBars(rows) + '</div>');
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
     '<div class="db-sub">Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.</div>' + dashRadar(series) + '</div>';
@@ -3967,8 +3971,8 @@ function renderComparar(rows){
   const pieItems = names.map((n,i) => ({ label:n, value:g[n].length, color:PIE_PALETTE[i%PIE_PALETTE.length] }));
   const pie = '<div class="dash-block"><div class="db-title">Registros por ' + groupKey + '</div>' + dashPie(pieItems, {}) + '</div>';
   const donutItems = DASH.metrics.map(m => ({ label:METRIC_LABELS[m]||m, value:Math.max(0,(dashAvg(rows,m)||0)/DASH.ref[m]), color:METRIC_COLORS[m]||'#888' }));
-  const donut = '<div class="dash-block"><div class="db-title">Composición del riesgo</div>' +
-    '<div class="db-sub">Peso de cada métrica (promedio ÷ referencia)</div>' + dashPie(donutItems, {donut:true}) + '</div>';
+  const donut = '<div class="dash-block"><div class="db-title">¿Qué indicador pesa más?</div>' +
+    '<div class="db-sub">Cuánto aporta cada indicador al riesgo de hoy. Mientras más grande la porción, más cerca (o por encima) de su límite está ese indicador.</div>' + dashPie(donutItems, {donut:true}) + '</div>';
 
   return heat + radar + '<div class="dash-2col">' + pie + donut + '</div>' + dashStatsTable(rows);
 }
@@ -4440,7 +4444,13 @@ function dashEvoMulti(rows){
 
 /* ── Estadística descriptiva ── */
 function dashStatsTable(rows){
-  let html = '<div class="dash-block"><div class="db-title">Estadística descriptiva</div>' +
+  let html = '<div class="dash-block"><div class="db-title">Números en detalle, por indicador</div>' +
+    dashHelp('Para quien quiera el detalle fino de cada indicador:<br>' +
+      '· <b>Media</b>: el promedio de todos los tests.<br>' +
+      '· <b>Mediana</b>: el valor del medio (no lo mueven los casos extremos).<br>' +
+      '· <b>Desv.</b>: qué tan parejos o dispersos están los datos entre sí.<br>' +
+      '· <b>Máx</b>: el valor más alto registrado. · <b>Suma</b>: el total. · <b>N</b>: cuántos tests hay.<br>' +
+      '· <b>Ref</b>: el valor normal de referencia. Si la media lo supera, sale en <b style="color:#d63031">rojo</b>.') +
     '<div class="stat-scroll"><table class="stat-table"><thead><tr><th class="metric">Métrica</th>' +
     '<th>Media</th><th>Mediana</th><th>Desv.</th><th>Máx</th><th>Suma</th><th>N</th><th>Ref</th></tr></thead><tbody>';
   DASH.metrics.forEach(m => {
