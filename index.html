@@ -466,16 +466,23 @@
   .al-val small { color: var(--text-muted); font-weight: 600; }
   .dash-ok { font-size: .9rem; color: var(--green); font-weight: 600; padding: .3rem 0; }
   .dash-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-size: .92rem; }
-  .rank-item { display: grid; grid-template-columns: 24px 1fr 52px; gap: .55rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
+  .rank-item { display: grid; grid-template-columns: 24px 1fr auto 16px; gap: .55rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
   .rank-pos { font-size: .82rem; font-weight: 800; color: var(--text-muted); text-align: center; }
-  .rank-name { font-size: .9rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-name { font-size: .9rem; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rank-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
   .rank-val { font-size: .94rem; font-weight: 800; text-align: right; }
   .rank-val.over { color: #d63031; }
+  .rank-go { color: var(--orange); font-weight: 900; font-size: 1.15rem; line-height: 1; text-align: center; }   /* flecha: "lleva a otra vista" */
   .rank-val.ok { color: var(--green); }
   .hist-item { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
   .hi-date { font-size: .82rem; font-weight: 700; color: var(--text-soft); margin-right: .3rem; }
   .hi-m { font-size: .78rem; font-weight: 600; background: #eef3ff; color: #3a4a66; padding: .16rem .46rem; border-radius: 6px; }
+  .hist-more { margin-top: .2rem; }
+  .hist-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .82rem; font-weight: 800; color: var(--orange); padding: .55rem 0; }
+  .hist-more > summary::-webkit-details-marker { display: none; }
+  .hist-more[open] > summary .hm-caret { transform: rotate(180deg); }
+  .hm-caret { transition: transform .2s; display: inline-block; }
   .hi-m.over { background: #feecec; color: #d63031; }
 
   /* Chips de período */
@@ -810,20 +817,26 @@
   .col-tabla { display: flex; flex-direction: column; gap: 0.6rem; }
   .ct-fila { display: grid; grid-template-columns: 6.5em 1fr auto auto; gap: 0.55rem; align-items: center; }
   .ct-lbl { font-size: 0.84rem; font-weight: 700; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ct-track { position: relative; height: 17px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
-  /* La pista se tiñe según el estado, así SIEMPRE se ve color aunque el valor sea bajo
-     (antes, con valores sanos, la barra quedaba un hilito y todo parecía gris). */
-  .ct-track.ok   { background: #e2f5ec; }
-  .ct-track.over { background: #fde7e5; }
-  .ct-ref-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #16233d; opacity: .55; z-index: 1; }
-  .ct-nota { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.6rem; line-height: 1.45; }
+  .ct-track { position: relative; height: 18px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
+  /* Barra sólida (verde bien / roja por encima) sobre pista neutra. La marca vertical es el LÍMITE:
+     si la barra la cruza, está por encima de lo normal. */
+  .ct-ref-mark { position: absolute; top: -2px; bottom: -2px; left: 60%; width: 2.5px; background: #16233d; opacity: .9; z-index: 1; border-radius: 2px; }
   .ct-track .bar-fill { height: 100%; border-radius: 999px; background: var(--green); }
   .ct-track .bar-fill.over { background: #e0322f; }
-  .ct-val { font-size: 0.88rem; font-weight: 800; color: var(--text); min-width: 2.6em; text-align: right; }
+  .ct-val { font-size: 0.88rem; font-weight: 800; color: #1aa672; min-width: 2.6em; text-align: right; }
   .ct-val.over { color: #d63031; }
   .ct-ref { font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
+  /* Encabezado que explica la escala, alineado con las barras (misma grilla). */
+  .ct-head { margin-bottom: .1rem; }
+  .ct-scale { position: relative; height: 1rem; }
+  .ct-scale-ok, .ct-scale-over { position: absolute; top: 0; font-size: .62rem; font-weight: 800; letter-spacing: .01em; }
+  .ct-scale-ok { left: 0; color: #1aa672; }
+  .ct-scale-over { right: 0; color: #d63031; }
+  .ct-scale-mark { position: absolute; top: 0; transform: translateX(-50%); font-size: .62rem; font-weight: 800; color: var(--text-soft); white-space: nowrap; }
+  .ct-head .ct-lbl, .ct-head span:last-child { min-width: 0; }
   html.texto-grande .ct-fila { grid-template-columns: 1fr auto auto; }
   html.texto-grande .ct-track { grid-column: 1 / -1; }
+  html.texto-grande .ct-head .ct-scale { grid-column: 1 / -1; }
 
   /* Panel de actividad estilo GitHub */
   .act-card { background: var(--card); border-radius: var(--radius); padding: 0.95rem 1rem; box-shadow: var(--shadow-sm); }
@@ -1255,7 +1268,11 @@
   .gest-tl-x { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: .8rem; padding: .1rem .3rem; flex-shrink: 0; }
   .gest-tl-x:hover { color: #e0322f; }
 
-  .gest-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: 1rem;
+  .gest-guardar { width: 100%; margin-top: 1.1rem; padding: .72rem; border: none; border-radius: 11px;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
+    font-weight: 800; font-size: .9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(244,122,31,.32); }
+  .gest-guardar:active { transform: scale(.99); }
+  .gest-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: .7rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
   .gest-created { font-size: .74rem; color: var(--text-muted); font-weight: 600; }
   .gest-del { border: 1px solid #f3c2c0; background: #fff; color: #d63031; border-radius: 9px; padding: .45rem .8rem;
@@ -1790,7 +1807,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.87';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.88';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4223,19 +4240,24 @@ function renderResumen(rows){
 
 /* Gráficos extra de la vista personal (una sola persona): comparativa, evolución,
    línea de tiempo y distribución, para que no quede solo el promedio. */
+// RESUMEN personal = foto de HOY: una sola comparación contra lo normal (las gráficas en el
+// tiempo van en la pestaña Evolución, para no repetir lo mismo con otro nombre).
 function dashPersonalExtra(rows){
+  return '<div class="dash-block"><div class="db-title">Tus indicadores vs. lo normal</div>' +
+    '<div class="db-sub">Tu promedio de cada indicador comparado con su límite normal</div>' + dashColumnas(rows) + '</div>';
+}
+// Bloques de EVOLUCIÓN de una sola persona (mes a mes + línea de tiempo + distribución, elegibles).
+function dashEvolucionPersonal(rows){
   const conDatos = DASH.metrics.filter(m => dashVals(rows, m).length);
-  let html = '<div class="dash-block"><div class="db-title">Tus indicadores vs. lo normal</div>' +
-    '<div class="db-sub">100% = justo en el valor de referencia</div>' + dashColumnas(rows) + '</div>';
+  let html = '';
   if (dashMonthsCount(rows) >= 2){
     html += '<div class="dash-block"><div class="db-title">Cómo vas mes a mes</div>' +
-      '<div class="db-sub">Cada indicador ÷ su referencia (1.0 = valor normal)</div>' + dashEvoMulti(rows) + '</div>';
+      '<div class="db-sub">Cada indicador ÷ su referencia (1.0 = valor normal). Todos en la misma escala.</div>' + dashEvoMulti(rows) + '</div>';
   }
-  // Línea de tiempo y Distribución: ELEGIBLE por indicador (antes quedaban fijas al primero).
   if (conDatos.length && rows.length >= 2){
     const mt = conDatos.indexOf(DASH.pickTiempo) >= 0 ? DASH.pickTiempo : conDatos[0];
     html += '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
-      '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[mt]||mt) + ', uno por uno.</div>' +
+      '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[mt]||mt) + ', uno por uno, unidos en el tiempo.</div>' +
       (conDatos.length > 1 ? dashMetricPickerFrom('pickTiempo', mt, conDatos) : '') +
       dashLineaTiempo(rows, mt) + '</div>';
   }
@@ -4246,6 +4268,7 @@ function dashPersonalExtra(rows){
       (conDatos.length > 1 ? dashMetricPickerFrom('pickDist', md, conDatos) : '') +
       dashHistograma(rows, md) + '</div>';
   }
+  if (!html) html = dashWarn('Todavía no hay registros suficientes para ver la evolución. Con al menos <b>2 registros</b> (mejor en fechas distintas) empiezan a aparecer los gráficos.');
   return html;
 }
 // Ayuda contraída: un ícono ⓘ discreto que, al tocarlo, despliega la explicación. Siempre
@@ -4342,7 +4365,7 @@ function renderIndividual(rows){
     return '<div class="rank-item" onclick="dashGoPersonIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
       '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
       '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' reg.</div></div>' +
-      '<div class="rank-val ' + (over?'over':'ok') + '">' + fmt(x.val) + ' ›</div></div>';
+      '<div class="rank-val ' + (over?'over':'ok') + '">' + fmt(x.val) + '</div><span class="rank-go">›</span></div>';
   }).join('');
   if (!items.length) list = '<div class="dash-empty">Sin datos por persona.</div>';
   const help = dashHelp('Ranking de personas ordenado de mayor a menor. ' + (composite ? 'El <b>índice global</b> resume las 6 métricas: 1.00× = justo en la media, más alto = peor.' : 'Elige la métrica arriba.') + ' <b>Toca a una persona</b> para ver su detalle completo.');
@@ -4357,6 +4380,12 @@ function renderIndividual(rows){
 
 /* ── EVOLUCIÓN: promedio mensual (una métrica o todas normalizadas) ── */
 function renderEvolucion(rows){
+  // Vista de UNA persona (empleado o filtrada): mes a mes + línea de tiempo + distribución.
+  // No repite la comparación contra lo normal (esa está en Resumen).
+  if (DASH.rol === 'empleado' || DASH.f.per){
+    return dashHelp('Cómo se mueven tus indicadores <b>en el tiempo</b>: mes a mes, registro por registro y en qué valores se concentran. La comparación contra lo normal está en <b>Resumen</b>.') +
+      dashEvolucionPersonal(rows);
+  }
   const m = DASH.pickEvo, picker = dashMetricPicker('pickEvo', m, true);
   // La evolución necesita al menos 2 meses distintos con datos; si no, avisamos en vez de mostrar un gráfico vacío.
   const nMeses = dashMonthsCount(rows);
@@ -4365,11 +4394,9 @@ function renderEvolucion(rows){
       dashWarn('Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay ' + (nMeses===0?'registros sin fecha':'registros de un solo mes') + ' (' + rows.length + ' registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.');
   }
   if (m === '__all__'){
-    const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses (AA-MM).');
+    const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses. <b>Elige un indicador</b> arriba para verlo en detalle (línea de tiempo y distribución).');
     return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>' +
-      '<div class="dash-block"><div class="db-title">Comparativa de indicadores</div>' +
-      '<div class="db-sub">Cada indicador contra su referencia (100% = justo en lo normal)</div>' + dashColumnas(rows) + '</div>';
+      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>';
   }
   const ref = DASH.ref[m], buckets = {};
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
@@ -4484,7 +4511,7 @@ function renderPVT(){
         return '<div class="rank-item" onclick="dashGoPvtIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
           '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
           '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' test</div></div>' +
-          '<div class="rank-val" style="color:' + v.c + '">' + x.rt + ' ›</div></div>';
+          '<div class="rank-val" style="color:' + v.c + '">' + x.rt + '</div><span class="rank-go">›</span></div>';
       }).join('') + '</div>';
   }
   let evo = '';
@@ -4567,8 +4594,7 @@ function dashLoadInformes(){
   // En la demostración mostramos un informe DE EJEMPLO ya generado y desplegado, para que se vea
   // cómo queda un informe de IA (la demo no tiene usuario/clave para pedir el historial real).
   if (DASH.demoMode){
-    DASH._informes = [INFORME_DEMO];
-    DASH._infExp = DASH._infExp || {}; DASH._infExp[INFORME_DEMO.id] = true;   // arranca abierto
+    DASH._informes = [INFORME_DEMO];   // arranca MINIMIZADO (se abre al tocar), como el resto
     DASH._informesLoaded = true; return;
   }
   if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
@@ -4626,9 +4652,9 @@ function dashGenerarInforme(){
       }
       DASH._informes = DASH._informes || [];
       DASH._informes.unshift({ id:d.id, fecha:d.generado, texto:d.informe });   // el más nuevo arriba
-      DASH._infExp = DASH._infExp || {}; DASH._infExp[d.id] = true;              // recién generado → abierto
       DASH._informesProximo = d.proximo || null;
       renderDash();
+      showToast('Informe generado · tócalo para leerlo');   // aparece MINIMIZADO en el historial
     })
     .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintenta.</div>'; });
 }
@@ -4924,32 +4950,39 @@ function dashLineaTiempo(rows, m){
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
   svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
-  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.4" fill="'+(p.v>ref?'#e0322f':'#f47a1f')+'" opacity=".9"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
+  // Línea que UNE los puntos en orden de fecha (la "gracia" de la línea de tiempo).
+  const dPath = pts.map((p,i) => (i?'L':'M') + x(p.t).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  svg += '<path d="'+dPath+'" fill="none" stroke="#2d6cdf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+(p.v>ref?'#e0322f':'#2d6cdf')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
   svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="#7b8499">'+esc(dashFechaLinda(pts[0].f))+'</text>';
   svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
   return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">Cada punto es un registro · la punteada es la referencia</span></div></div>';
 }
 
-/* ── COLUMNAS tipo tabla: todas las métricas con su barra y su valor ── */
+/* ── Barras vs. referencia: la marca vertical = el LÍMITE normal. Barra corta (verde) = bien;
+   barra que cruza la marca (roja) = por encima. Un encabezado explica la escala, alineado con las barras. ── */
 function dashColumnas(rows){
-  // La referencia se dibuja al 65% de la barra: así un valor que la supera se VE que la supera
-  // (antes todo lo que pasaba la referencia se recortaba al 100% y parecía igual).
-  const REF_PCT = 65;
-  let html = '<div class="col-tabla">';
+  const REF_PCT = 60;   // el límite normal se dibuja a este % del ancho de la barra
+  // Encabezado con la escala (misma grilla que las filas → la marca queda alineada con las de abajo).
+  let html = '<div class="col-tabla">' +
+    '<div class="ct-fila ct-head"><span class="ct-lbl"></span>' +
+      '<span class="ct-scale"><span class="ct-scale-ok">bien</span>' +
+        '<span class="ct-scale-mark" style="left:' + REF_PCT + '%">límite ▼</span>' +
+        '<span class="ct-scale-over">alto</span></span>' +
+      '<span></span><span></span></div>';
   DASH.metrics.forEach(m => {
     const a = dashAvg(rows, m), ref = DASH.ref[m];
-    const pct = (a != null && ref) ? Math.max(3, Math.min(100, (a/ref) * REF_PCT)) : 0;
+    const pct = (a != null && ref) ? Math.max(5, Math.min(100, (a/ref) * REF_PCT)) : 0;
     const over = a != null && a > ref;
-    const estado = a == null ? '' : (over ? ' over' : ' ok');   // tiñe la barra según esté bien o por encima
     html += '<div class="ct-fila">' +
       '<span class="ct-lbl">' + (METRIC_LABELS[m]||m) + '</span>' +
-      '<span class="ct-track' + estado + '"><i class="ct-ref-mark" style="left:'+REF_PCT+'%"></i>' +
-        '<i class="bar-fill' + (over?' over':'') + '" style="width:'+pct.toFixed(0)+'%"></i></span>' +
+      '<span class="ct-track"><i class="ct-ref-mark" style="left:' + REF_PCT + '%"></i>' +
+        '<i class="bar-fill' + (over?' over':'') + '" style="width:' + pct.toFixed(0) + '%"></i></span>' +
       '<span class="ct-val' + (over?' over':'') + '">' + (a==null?'—':a.toFixed(1)) + '</span>' +
       '<span class="ct-ref">/' + ref + '</span></div>';
   });
-  return html + '</div><div class="ct-nota">La marca vertical es el valor de referencia. Si la barra la pasa, está por encima de lo normal.</div>';
+  return html + '</div>';
 }
 
 /* ── Color de celda del heatmap según ratio con la referencia ── */
@@ -4997,10 +5030,18 @@ function dashAlerts(rows){
 
 function dashHistory(rows){
   const sorted = rows.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1));
+  const row = r => '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
+    DASH.metrics.map(m => r[m]!=null ? '<span class="hi-m ' + (r[m]>DASH.ref[m]?'over':'') + '">' + METRIC_LABELS[m] + ': ' + r[m] + '</span>' : '').join('') +
+    '</div>';
+  const primeros = sorted.slice(0,3).map(row).join('');
+  const resto = sorted.slice(3, 60);
+  // Muestra 3 y esconde el resto detrás de "Ver más" (contraído por defecto).
+  const mas = resto.length
+    ? '<details class="hist-more"><summary class="hist-more-sum">Ver ' + resto.length + ' registro' + (resto.length>1?'s':'') + ' más <span class="hm-caret">▾</span></summary>' +
+      '<div class="hist-more-body">' + resto.map(row).join('') + '</div></details>'
+    : '';
   return '<div class="dash-block"><div class="db-title">Mis registros</div>' +
-    sorted.slice(0,30).map(r => '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
-      DASH.metrics.map(m => r[m]!=null ? '<span class="hi-m ' + (r[m]>DASH.ref[m]?'over':'') + '">' + METRIC_LABELS[m] + ': ' + r[m] + '</span>' : '').join('') +
-      '</div>').join('') + '</div>';
+    '<div class="db-sub">Del más reciente al más antiguo</div>' + primeros + mas + '</div>';
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -5190,6 +5231,13 @@ function gestToggleExp(id){
   const c=card.querySelector('.gest-caret'); if(c) c.textContent=GEST.exp[id]?'▴':'▾';
   if (GEST.exp[id]) setTimeout(function(){ const ta=card.querySelector('.gest-ta'); if(ta) gestAutoGrow(ta); }, 40);
 }
+// "Guardar y cerrar": los cambios ya se guardan solos, así que sólo minimiza la tarjeta (con aviso).
+function gestCerrar(id){
+  GEST.exp[id]=false;
+  const card=document.querySelector('.gest-card[data-id="'+id+'"]');
+  if(card){ card.classList.remove('exp'); const c=card.querySelector('.gest-caret'); if(c) c.textContent='▾'; }
+  gestFlashSaved(id);
+}
 // Actualiza SOLO esta tarjeta en su lugar (no re-renderiza toda la lista → no molesta a las demás).
 function gestUpdateCard(id){
   const card=document.querySelector('.gest-card[data-id="'+id+'"]'); const g=gestFind(id);
@@ -5324,6 +5372,7 @@ function gestCard(g){
     '<div class="gest-seg-head">Seguimiento en el tiempo</div>' +
     '<div class="gest-seg-add"><input id="gest-seg-'+g.id+'" class="gest-in" maxlength="500" placeholder="Anota una acción o novedad de hoy…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddSeg(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddSeg(\''+g.id+'\')">Agregar</button></div>' +
     timeline +
+    '<button class="gest-guardar" onclick="gestCerrar(\''+g.id+'\')">Guardar y cerrar</button>' +
     '<div class="gest-foot"><span class="gest-created">Creada '+esc(gestFechaTs(g.creada))+' · '+esc(gestEdadTexto(g))+'</span><button class="gest-del" onclick="gestBorrar(\''+g.id+'\')">Eliminar</button></div>' +
     '</div></div></div>';
   return '<div class="gest-card'+(g.pin?' pinned':'')+(exp?' exp':'')+'" data-id="'+g.id+'" data-estado="'+g.estado+'"><span class="gest-accent"></span>'+head+body+'</div>';
