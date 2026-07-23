@@ -1178,6 +1178,13 @@
   .gest-in:focus { outline: none; border-color: var(--orange); background: #fff; }
   select.gest-in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem; }
   .gest-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .gest-fl-hint { font-weight: 700; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
+  .gest-personas { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+  .gest-ptag { display: inline-flex; align-items: center; gap: .3rem; background: #eaf1ff; color: #2d5bb8;
+    border-radius: 999px; padding: .28rem .3rem .28rem .7rem; font-size: .82rem; font-weight: 800; }
+  .gest-ptag button { border: none; background: rgba(45,91,184,.14); color: #2d5bb8; width: 18px; height: 18px;
+    border-radius: 50%; cursor: pointer; font-size: .7rem; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .gest-ptag button:hover { background: rgba(45,91,184,.28); }
   .gest-ta { width: 100%; min-height: 84px; resize: vertical; padding: .65rem .75rem; border: 1.5px solid #dfe4ec;
     border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: #fafbfd; color: var(--text); }
   .gest-ta:focus { outline: none; border-color: var(--orange); background: #fff; }
@@ -1724,7 +1731,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.84';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.85';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5043,7 +5050,7 @@ function closeGestiones(){
   // Limpia gestiones totalmente en blanco (creadas con "+ Nueva" pero sin escribir nada), para
   // que no queden tarjetas vacías. Solo se borran si NO tienen ningún dato ni seguimiento.
   const vivas = gestList().filter(g => (g.titulo||'').trim() || (g.detalle||'').trim() ||
-    (g.persona||'').trim() || (g.departamento||'').trim() || (g.seguimientos||[]).length);
+    gestPersonasDe(g).length || (g.departamento||'').trim() || (g.seguimientos||[]).length);
   if (vivas.length !== gestList().length) gestSaveList(vivas);
   document.getElementById('gestionesOverlay').classList.remove('show');
   if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
@@ -5054,8 +5061,25 @@ function gestVisible(){ const e=document.getElementById('gestionesOverlay'); ret
 function gestSetFiltro(f){ GEST.filtro=f; renderGestiones(); }
 function gestSetQuery(v){ GEST.q=String(v||'').toLowerCase(); renderGestiones(); }
 
+// Empleados y departamentos REALES de la empresa (de los registros del panel), para elegir en las gestiones.
+function gestScopeRows(){ if(!DASH || !DASH.registros) return []; return DASH.f.emp ? DASH.registros.filter(r=>r.empresa===DASH.f.emp) : DASH.registros; }
+function gestEmpleados(){ return Array.from(new Set(gestScopeRows().map(r=>r.persona).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b),'es')); }
+function gestDepartamentos(){ return Array.from(new Set(gestScopeRows().map(r=>r.departamento).filter(Boolean))).sort((a,b)=>String(a).localeCompare(String(b),'es')); }
+// personas de una gestión (con migración del formato viejo persona:'')
+function gestPersonasDe(g){ if(Array.isArray(g.personas)) return g.personas; if(g.persona) return [g.persona]; return []; }
+function gestAddPersona(id, nombre){
+  nombre = String(nombre||'').trim(); if(!nombre) return;
+  const g=gestFind(id); if(!g) return;
+  const arr = gestPersonasDe(g).slice();
+  if (!arr.some(x=>dashNorm(x)===dashNorm(nombre))) arr.push(nombre);
+  g.personas = arr; delete g.persona; gestUpsert(g); renderGestiones();
+  setTimeout(function(){ const i=document.getElementById('gest-pers-'+id); if(i) i.focus(); }, 30);
+}
+function gestAddPersonaInput(id){ const i=document.getElementById('gest-pers-'+id); if(!i) return; const v=i.value; i.value=''; gestAddPersona(id, v); }
+function gestRemovePersonaIdx(id, ix){ const g=gestFind(id); if(!g) return; const arr=gestPersonasDe(g).slice(); arr.splice(ix,1); g.personas=arr; delete g.persona; gestUpsert(g); renderGestiones(); }
+
 function gestNueva(){
-  const g = { id:gestNewId(), titulo:'', persona:'', departamento:'', prioridad:'media', estado:'abierta',
+  const g = { id:gestNewId(), titulo:'', personas:[], departamento:'', prioridad:'media', estado:'abierta',
     pin:false, creada:Date.now(), actualizada:Date.now(), detalle:'', seguimientos:[] };
   gestUpsert(g); GEST.exp[g.id]=true; GEST.filtro='all'; GEST.q='';
   const s=document.getElementById('gestSearch'); if(s) s.value='';
@@ -5106,7 +5130,7 @@ function renderGestiones(){
   let vis = list.slice();
   if (GEST.filtro==='pin') vis = vis.filter(g=>g.pin);
   else if (GEST.filtro!=='all') vis = vis.filter(g=>g.estado===GEST.filtro);
-  if (GEST.q) vis = vis.filter(g=> (String(g.titulo)+' '+g.persona+' '+g.departamento+' '+g.detalle).toLowerCase().indexOf(GEST.q)>=0);
+  if (GEST.q) vis = vis.filter(g=> (String(g.titulo)+' '+gestPersonasDe(g).join(' ')+' '+g.departamento+' '+g.detalle).toLowerCase().indexOf(GEST.q)>=0);
   vis.sort((a,b)=> (b.pin?1:0)-(a.pin?1:0) || b.actualizada - a.actualizada);
   if (!vis.length){
     cont.innerHTML = '<div class="gest-empty">' +
@@ -5121,7 +5145,8 @@ function renderGestiones(){
 function gestCard(g){
   const est=gestEstadoInfo(g.estado), pr=gestPrioInfo(g.prioridad), exp=!!GEST.exp[g.id];
   const titulo = g.titulo ? esc(g.titulo) : '<span class="gest-untitled">(sin título)</span>';
-  const meta = [g.persona, g.departamento].filter(Boolean).map(esc).join(' · ');
+  const personas = gestPersonasDe(g);
+  const meta = [personas.join(', '), g.departamento].filter(Boolean).map(esc).join(' · ');
   const nSeg = (g.seguimientos||[]).length;
   let html = '<div class="gest-card'+(g.pin?' pinned':'')+'">' +
     '<div class="gest-chead">' +
@@ -5138,10 +5163,13 @@ function gestCard(g){
     html += '<div class="gest-body">' +
       '<label class="gest-fl">Título</label>' +
       '<input class="gest-in" data-gest-titulo="'+g.id+'" maxlength="120" value="'+esc(g.titulo)+'" oninput="gestSet(\''+g.id+'\',\'titulo\',this.value)" onblur="renderGestiones()" placeholder="Ej: Fatiga elevada — turno noche">' +
-      '<div class="gest-row2">' +
-        '<div><label class="gest-fl">Persona</label><input class="gest-in" maxlength="80" value="'+esc(g.persona)+'" oninput="gestSet(\''+g.id+'\',\'persona\',this.value)" placeholder="Opcional"></div>' +
-        '<div><label class="gest-fl">Departamento</label><input class="gest-in" maxlength="80" value="'+esc(g.departamento)+'" oninput="gestSet(\''+g.id+'\',\'departamento\',this.value)" placeholder="Opcional"></div>' +
-      '</div>' +
+      '<label class="gest-fl">Personas involucradas <span class="gest-fl-hint">· puedes agregar varias</span></label>' +
+      (personas.length ? '<div class="gest-personas">' + personas.map((nm,ix)=>'<span class="gest-ptag">'+esc(nm)+'<button title="Quitar" onclick="gestRemovePersonaIdx(\''+g.id+'\','+ix+')">✕</button></span>').join('') + '</div>' : '') +
+      '<div class="gest-seg-add"><input id="gest-pers-'+g.id+'" class="gest-in" list="dl-emp-'+g.id+'" maxlength="80" autocomplete="off" placeholder="Elige un empleado o escribe un nombre…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddPersonaInput(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddPersonaInput(\''+g.id+'\')">Agregar</button></div>' +
+      '<datalist id="dl-emp-'+g.id+'">'+gestEmpleados().map(e=>'<option value="'+esc(e)+'"></option>').join('')+'</datalist>' +
+      '<label class="gest-fl">Departamento</label>' +
+      '<input class="gest-in" list="dl-dep-'+g.id+'" maxlength="80" value="'+esc(g.departamento||'')+'" oninput="gestSet(\''+g.id+'\',\'departamento\',this.value)" placeholder="Elige o escribe (opcional)">' +
+      '<datalist id="dl-dep-'+g.id+'">'+gestDepartamentos().map(d=>'<option value="'+esc(d)+'"></option>').join('')+'</datalist>' +
       '<div class="gest-row2">' +
         '<div><label class="gest-fl">Estado</label><select class="gest-in" onchange="gestSetR(\''+g.id+'\',\'estado\',this.value)">'+GEST_ESTADOS.map(e=>'<option value="'+e.k+'"'+(g.estado===e.k?' selected':'')+'>'+e.t+'</option>').join('')+'</select></div>' +
         '<div><label class="gest-fl">Prioridad</label><select class="gest-in" onchange="gestSetR(\''+g.id+'\',\'prioridad\',this.value)">'+GEST_PRIOS.map(p=>'<option value="'+p.k+'"'+(g.prioridad===p.k?' selected':'')+'>'+p.t+'</option>').join('')+'</select></div>' +
