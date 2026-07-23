@@ -202,6 +202,10 @@
     display: none; align-items: center; justify-content: center; padding: 1.2rem; animation: fadeIn .25s ease; }
   .overlay.show { display: flex; }
   body.modal-open { overflow: hidden; }   /* evita scrollear el fondo con un overlay abierto */
+  /* El scroller real de la página es <html>: si no lo bloqueamos, queda una 2da barra de scroll
+     detrás del panel (la del inicio). Con CUALQUIER overlay abierto, ni <html> ni <body> scrollean. */
+  html:has(.overlay.show) { overflow: hidden; }
+  html:has(.overlay.show) body { overflow: hidden; }
   .sheet { width: 100%; max-width: 410px; background: var(--card); border-radius: 24px; padding: 1.6rem 1.4rem 1.5rem;
     color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; max-height: 90vh; overflow-y: auto; }
   .consent-sub { font-size: 0.98rem; font-weight: 700; color: var(--text); margin-top: 1.2rem; }
@@ -979,18 +983,16 @@
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
-    /* El login del panel (gate) en escritorio: fondo azul de marca a pantalla completa con el
-       formulario dentro de una TARJETA blanca centrada (login de producto, no un formulario
-       suelto estirado en blanco). */
+    /* El login del panel (gate) en escritorio: fondo BLANCO a pantalla completa (igual que el
+       panel), con el formulario en una tarjeta centrada. Así, tras la onda blanca, el fondo que
+       queda es blanco (no azul) y la transición es continua. */
     #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3rem;
-      display: flex; align-items: center; justify-content: center;
-      background: radial-gradient(circle at 28% 18%, #1a3a76 0%, #0c2350 55%, #081b3d 100%); }
+      display: flex; align-items: center; justify-content: center; background: #fff; }
     .portal-gate-card { width: min(430px, 100%); margin: auto; background: #fff;
-      border-radius: 24px; padding: 2.7rem 2.3rem 2.4rem; box-shadow: 0 30px 80px rgba(0,0,0,0.4); }
+      border: 1px solid #e9edf4; border-radius: 24px; padding: 2.7rem 2.3rem 2.4rem; box-shadow: 0 18px 50px rgba(14,42,86,0.12); }
     .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
     #portalGate h2 { text-align: center; font-size: 1.55rem; }
     #portalGate .lead { text-align: center; margin-top: .45rem; }
-    .portal-x { background: rgba(255,255,255,0.92); color: #0c2350; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
   }
   /* Muy ancho: tres columnas de bloques para no dejar huecos enormes */
   @media (min-width: 1500px) {
@@ -1820,7 +1822,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.89';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.90';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3224,6 +3226,7 @@ function irAEstadisticas(){
 // (con el botón de demostración y el acceso de administrador ya incluidos ahí).
 function abrirDestinoEstadisticas(){
   document.getElementById('portalOverlay').classList.add('show');
+  syncScrollLock();                         // bloquea el scroll del fondo (evita la 2da barra)
   marcarStatsActivo(true);
   navPush();
   openPortalGate();
@@ -3583,6 +3586,7 @@ function dashGetCreds(){ try { return JSON.parse(localStorage.getItem(K_DASH_CRE
 
 function openPortal(){
   document.getElementById('portalOverlay').classList.add('show');
+  syncScrollLock();
   const p = getProfile();
   const c = dashGetCreds();
   // Auto-login: supervisor con contraseña guardada entra DIRECTO a la empresa (sin pasar por el gate)
@@ -3630,7 +3634,7 @@ function portalAutoLoginSupervisor(c){
     onDashData(d, label, params);
   }).catch(() => { openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.'; });
 }
-function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); marcarStatsActivo(false); }
+function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); marcarStatsActivo(false); syncScrollLock(); }
 // Flecha "atrás" del panel: vuelve al Panel de estadísticas (de donde se entró).
 function portalBackToGate(){
   stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
@@ -4247,7 +4251,10 @@ function renderResumen(rows){
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
     '<div class="db-sub">Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.</div>' + dashRadar(series) + '</div>';
-  const extra = single ? (dashPersonalExtra(rows) + dashHistory(rows) + dashPersonComments()) : dashAlerts(rows);
+  // Los comentarios van en el Resumen SOLO si no hay pestaña propia de Comentarios (empleado);
+  // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
+  const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
+  const extra = single ? (dashPersonalExtra(rows) + dashHistory(rows) + comentariosAqui) : dashAlerts(rows);
   return help + head + bars + radar + extra;
 }
 
