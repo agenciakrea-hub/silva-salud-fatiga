@@ -1137,7 +1137,8 @@
   .gest-sync.ok { color: #1aa672; }
   .gest-sync.off { color: #b8860b; }
 
-  .gest-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; margin-bottom: 1rem; }
+  .gest-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+  .gs-venc .gs-n { color: #d63031; }
   .gs-card { background: #fff; border: 1px solid #e6eaf2; border-radius: 14px; padding: .7rem .5rem; text-align: center; }
   .gs-n { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1; }
   .gs-l { font-size: .68rem; font-weight: 700; color: var(--text-muted); margin-top: .25rem; }
@@ -1185,6 +1186,51 @@
   .gest-ptag button { border: none; background: rgba(45,91,184,.14); color: #2d5bb8; width: 18px; height: 18px;
     border-radius: 50%; cursor: pointer; font-size: .7rem; line-height: 1; display: flex; align-items: center; justify-content: center; }
   .gest-ptag button:hover { background: rgba(45,91,184,.28); }
+
+  /* ── Panel de gestiones: versión dinámica ── */
+  .gest-toolrow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .gest-toolrow .gest-filters { flex: 1; min-width: 0; }
+  .gest-sort { border: 1.5px solid #dfe4ec; background: #fff; border-radius: 10px; padding: .48rem .6rem;
+    font-family: inherit; font-weight: 700; font-size: .8rem; color: var(--text); cursor: pointer; flex-shrink: 0; }
+  /* Barra de color a la izquierda según estado (se lee de un vistazo). */
+  .gest-card { position: relative; animation: gestIn .26s ease both; }
+  .gest-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #c9d1de; }
+  .gest-card[data-estado="abierta"] .gest-accent { background: #e0322f; }
+  .gest-card[data-estado="seguimiento"] .gest-accent { background: #e8a400; }
+  .gest-card[data-estado="resuelta"] .gest-accent { background: #1aa672; }
+  .gest-chead { padding-left: .95rem; }
+  @keyframes gestIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes gestOut { to { opacity: 0; transform: scale(.97); } }
+  .gest-card.gest-out { animation: gestOut .2s ease forwards; }
+  /* Expandir/colapsar suave con grid-template-rows (0fr → 1fr) */
+  .gest-bodywrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s cubic-bezier(.22,.61,.36,1); }
+  .gest-card.exp .gest-bodywrap { grid-template-rows: 1fr; }
+  .gest-bodyclip { overflow: hidden; min-height: 0; }
+  html.sin-animaciones .gest-bodywrap { transition: none; }
+  html.sin-animaciones .gest-card { animation: none; }
+  /* Estado: control segmentado (un toque para mover el caso por su ciclo) */
+  .gest-seg-estado { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; background: #f1f3f7;
+    padding: .3rem; border-radius: 12px; margin: .9rem 0 .3rem; }
+  .gse-btn { border: none; background: transparent; border-radius: 9px; padding: .52rem .3rem; font-family: inherit;
+    font-weight: 800; font-size: .8rem; color: var(--text-muted); cursor: pointer; transition: background .15s, color .15s; }
+  .gse-btn.active { background: var(--gseb); color: var(--gse); box-shadow: var(--shadow-sm); }
+  /* Prioridad: pastillas */
+  .gest-prio-pills { display: flex; gap: .4rem; }
+  .gpp { flex: 1; border: 1.5px solid #dfe4ec; background: #fff; border-radius: 10px; padding: .5rem; font-family: inherit;
+    font-weight: 800; font-size: .82rem; color: var(--text-muted); cursor: pointer; transition: border-color .15s, color .15s, box-shadow .15s; }
+  .gpp.active { border-color: var(--gpp); color: var(--gpp); box-shadow: inset 0 0 0 1px var(--gpp); }
+  /* "Guardado ✓" al cambiar algo */
+  .gest-flash { position: absolute; top: .55rem; right: 2.5rem; background: #1aa672; color: #fff; font-size: .66rem;
+    font-weight: 800; padding: .2rem .5rem; border-radius: 999px; opacity: 0; transform: translateY(-4px);
+    pointer-events: none; transition: opacity .2s, transform .2s; z-index: 2; }
+  .gest-flash.show { opacity: 1; transform: translateY(0); }
+  /* Insignia de próxima revisión (vencida / hoy / futura) */
+  .gest-rev { font-weight: 800; padding: .04rem .38rem; border-radius: 6px; white-space: nowrap; }
+  .gest-rev.venc { color: #d63031; background: #feecec; }
+  .gest-rev.hoy  { color: #b8860b; background: #fff8e6; }
+  .gest-rev.fut  { color: #2d6cdf; background: #eef3ff; }
+  html.texto-grande .gest-seg-estado { grid-template-columns: 1fr; }
+  html.texto-grande .gest-prio-pills { flex-direction: column; }
   .gest-ta { width: 100%; min-height: 84px; resize: vertical; padding: .65rem .75rem; border: 1.5px solid #dfe4ec;
     border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: #fafbfd; color: var(--text); }
   .gest-ta:focus { outline: none; border-color: var(--orange); background: #fff; }
@@ -1657,7 +1703,15 @@
       <div id="gestSummary"></div>
       <div class="gest-tools">
         <input id="gestSearch" class="gest-search" type="text" placeholder="Buscar por título, persona, nota…" oninput="gestSetQuery(this.value)">
-        <div class="gest-filters" id="gestFilters"></div>
+        <div class="gest-toolrow">
+          <div class="gest-filters" id="gestFilters"></div>
+          <select id="gestSort" class="gest-sort" onchange="gestSetOrden(this.value)" aria-label="Ordenar">
+            <option value="recientes">Más recientes</option>
+            <option value="abiertas">Sin resolver primero</option>
+            <option value="prioridad">Por prioridad</option>
+            <option value="revision">Por próxima revisión</option>
+          </select>
+        </div>
       </div>
       <div id="gestBody"></div>
     </div>
@@ -1731,7 +1785,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.85';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.86';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4930,7 +4984,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
    en el tiempo. Editable, con estado/prioridad, se pueden fijar (pin) los importantes y anotar
    seguimientos con fecha. Se guarda en el dispositivo (localStorage) y persiste entre sesiones. */
 const K_GESTIONES = 'silva_fatiga_gestiones_v2';
-const GEST = { filtro:'all', q:'', exp:{} };
+const GEST = { filtro:'all', q:'', exp:{}, orden:'recientes' };
 const GEST_ESTADOS = [
   { k:'abierta',     t:'Abierta',        c:'#e0322f', bg:'#feecec' },
   { k:'seguimiento', t:'En seguimiento', c:'#b8860b', bg:'#fff8e6' },
@@ -5072,11 +5126,11 @@ function gestAddPersona(id, nombre){
   const g=gestFind(id); if(!g) return;
   const arr = gestPersonasDe(g).slice();
   if (!arr.some(x=>dashNorm(x)===dashNorm(nombre))) arr.push(nombre);
-  g.personas = arr; delete g.persona; gestUpsert(g); renderGestiones();
+  g.personas = arr; delete g.persona; gestUpsert(g); gestUpdateCard(id); gestFlashSaved(id);
   setTimeout(function(){ const i=document.getElementById('gest-pers-'+id); if(i) i.focus(); }, 30);
 }
 function gestAddPersonaInput(id){ const i=document.getElementById('gest-pers-'+id); if(!i) return; const v=i.value; i.value=''; gestAddPersona(id, v); }
-function gestRemovePersonaIdx(id, ix){ const g=gestFind(id); if(!g) return; const arr=gestPersonasDe(g).slice(); arr.splice(ix,1); g.personas=arr; delete g.persona; gestUpsert(g); renderGestiones(); }
+function gestRemovePersonaIdx(id, ix){ const g=gestFind(id); if(!g) return; const arr=gestPersonasDe(g).slice(); arr.splice(ix,1); g.personas=arr; delete g.persona; gestUpsert(g); gestUpdateCard(id); }
 
 function gestNueva(){
   const g = { id:gestNewId(), titulo:'', personas:[], departamento:'', prioridad:'media', estado:'abierta',
@@ -5087,51 +5141,107 @@ function gestNueva(){
   const sc=document.getElementById('gestScroll'); if(sc) sc.scrollTop = 0;
   setTimeout(function(){ const t=document.querySelector('[data-gest-titulo="'+g.id+'"]'); if(t) t.focus(); }, 50);
 }
+/* ── Fechas relativas y de vencimiento (para que se lea como seguimiento real) ── */
+function gestHoyISO(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function gestDiasDesdeTs(ts){ const a=new Date(ts); a.setHours(0,0,0,0); const b=new Date(); b.setHours(0,0,0,0); return Math.round((b-a)/86400000); }
+function gestRelativo(ts){ const d=gestDiasDesdeTs(ts); if(d<=0) return 'hoy'; if(d===1) return 'ayer'; if(d<7) return 'hace '+d+' días'; if(d<14) return 'hace 1 semana'; if(d<60) return 'hace '+Math.round(d/7)+' semanas'; return 'hace '+Math.round(d/30)+' meses'; }
+function gestEdadTexto(g){ const d=gestDiasDesdeTs(g.creada); if(d<=0) return 'abierta hoy'; if(d===1) return 'abierta hace 1 día'; return 'abierta hace '+d+' días'; }
+function gestRevisaInfo(g){ if(!g.revisa || g.estado==='resuelta') return null; const hoy=gestHoyISO();
+  if(g.revisa<hoy) return {cls:'venc',txt:'Vencida '+dashFechaLinda(g.revisa)};
+  if(g.revisa===hoy) return {cls:'hoy',txt:'Revisar hoy'};
+  return {cls:'fut',txt:'Revisar '+dashFechaLinda(g.revisa)}; }
+function gestAutoGrow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,360)+'px'; }
+
 function gestSet(id, campo, valor){ const g=gestFind(id); if(!g) return; g[campo]=valor; gestUpsert(g); }
-function gestSetR(id, campo, valor){ gestSet(id,campo,valor); renderGestiones(); }
+function gestSetOrden(o){ GEST.orden=o; renderGestiones(); }
 function gestTogglePin(id){ const g=gestFind(id); if(!g) return; g.pin=!g.pin; gestUpsert(g); renderGestiones(); }
-function gestToggleExp(id){ GEST.exp[id]=!GEST.exp[id]; renderGestiones(); }
+// Expandir/colapsar SIN re-render: solo alterna la clase → la animación (grid-rows) corre suave.
+function gestToggleExp(id){
+  GEST.exp[id]=!GEST.exp[id];
+  const card=document.querySelector('.gest-card[data-id="'+id+'"]');
+  if(!card){ renderGestiones(); return; }
+  card.classList.toggle('exp', GEST.exp[id]);
+  const c=card.querySelector('.gest-caret'); if(c) c.textContent=GEST.exp[id]?'▴':'▾';
+  if (GEST.exp[id]) setTimeout(function(){ const ta=card.querySelector('.gest-ta'); if(ta) gestAutoGrow(ta); }, 40);
+}
+// Actualiza SOLO esta tarjeta en su lugar (no re-renderiza toda la lista → no molesta a las demás).
+function gestUpdateCard(id){
+  const card=document.querySelector('.gest-card[data-id="'+id+'"]'); const g=gestFind(id);
+  if(!card) return;
+  if(!g){ card.remove(); gestRenderSummary(); return; }
+  const tmp=document.createElement('div'); tmp.innerHTML=gestCard(g);
+  card.replaceWith(tmp.firstElementChild);
+  gestRenderSummary();
+  const ta=document.querySelector('.gest-card[data-id="'+id+'"] .gest-ta'); if(ta) gestAutoGrow(ta);
+}
+function gestFlashSaved(id){
+  const card=document.querySelector('.gest-card[data-id="'+id+'"]'); if(!card) return;
+  const f=card.querySelector('.gest-flash'); if(!f) return;
+  f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
+  clearTimeout(f._t); f._t=setTimeout(function(){ f.classList.remove('show'); }, 1500);
+}
+function gestSetEstado(id, estado){ const g=gestFind(id); if(!g) return; g.estado=estado; gestUpsert(g); gestUpdateCard(id); gestFlashSaved(id); }
+function gestSetPrio(id, prio){ const g=gestFind(id); if(!g) return; g.prioridad=prio; gestUpsert(g); gestUpdateCard(id); gestFlashSaved(id); }
+function gestSetRevisa(id, val){ gestSet(id,'revisa',val); gestUpdateCard(id); gestFlashSaved(id); }
+function gestTituloBlur(id){ gestUpdateCard(id); }
 function gestBorrar(id){
   if (!gestFind(id)) return;
   if (!confirm('¿Eliminar esta gestión y todo su seguimiento? No se puede deshacer.')) return;
-  gestSaveList(gestList().filter(x=>x.id!==id)); delete GEST.exp[id]; renderGestiones();
+  const card=document.querySelector('.gest-card[data-id="'+id+'"]');
+  gestSaveList(gestList().filter(x=>x.id!==id)); delete GEST.exp[id];
+  if (card){ card.classList.add('gest-out'); setTimeout(renderGestiones, 200); } else renderGestiones();
 }
 function gestAddSeg(id){
   const inp=document.getElementById('gest-seg-'+id); if(!inp) return;
   const txt=inp.value.trim(); if(!txt) return;
   const g=gestFind(id); if(!g) return;
   g.seguimientos = g.seguimientos||[]; g.seguimientos.unshift({ ts:Date.now(), texto:txt });
-  gestUpsert(g); inp.value=''; renderGestiones();
+  gestUpsert(g); gestUpdateCard(id); gestFlashSaved(id);
+  const ni=document.getElementById('gest-seg-'+id); if(ni){ ni.value=''; ni.focus(); }
 }
 function gestBorrarSeg(id, ts){
   const g=gestFind(id); if(!g) return;
-  g.seguimientos = (g.seguimientos||[]).filter(s=>s.ts!==ts); gestUpsert(g); renderGestiones();
+  g.seguimientos = (g.seguimientos||[]).filter(s=>s.ts!==ts); gestUpsert(g); gestUpdateCard(id);
+}
+
+function gestRenderSummary(){
+  const sumEl=document.getElementById('gestSummary'); if(!sumEl) return;
+  const list=gestList();
+  const total=list.length, ab=list.filter(g=>g.estado==='abierta').length,
+    seg=list.filter(g=>g.estado==='seguimiento').length, res=list.filter(g=>g.estado==='resuelta').length,
+    venc=list.filter(g=>g.estado!=='resuelta' && g.revisa && g.revisa<gestHoyISO()).length;
+  sumEl.innerHTML = '<div class="gest-sum">' +
+    '<div class="gs-card"><div class="gs-n">'+total+'</div><div class="gs-l">Total</div></div>' +
+    '<div class="gs-card gs-ab"><div class="gs-n">'+ab+'</div><div class="gs-l">Abiertas</div></div>' +
+    '<div class="gs-card gs-seg"><div class="gs-n">'+seg+'</div><div class="gs-l">En seguim.</div></div>' +
+    '<div class="gs-card gs-res"><div class="gs-n">'+res+'</div><div class="gs-l">Resueltas</div></div>' +
+    (venc?'<div class="gs-card gs-venc"><div class="gs-n">'+venc+'</div><div class="gs-l">Vencidas</div></div>':'') +
+    '</div>';
 }
 
 function renderGestiones(){
   const cont=document.getElementById('gestBody'); if(!cont) return;
+  gestRenderSummary();
   const list = gestList();
-  const total=list.length,
-    ab=list.filter(g=>g.estado==='abierta').length,
-    seg=list.filter(g=>g.estado==='seguimiento').length,
-    res=list.filter(g=>g.estado==='resuelta').length;
-  const sumEl=document.getElementById('gestSummary');
-  if (sumEl) sumEl.innerHTML = '<div class="gest-sum">' +
-    '<div class="gs-card"><div class="gs-n">'+total+'</div><div class="gs-l">Total</div></div>' +
-    '<div class="gs-card gs-ab"><div class="gs-n">'+ab+'</div><div class="gs-l">Abiertas</div></div>' +
-    '<div class="gs-card gs-seg"><div class="gs-n">'+seg+'</div><div class="gs-l">En seguimiento</div></div>' +
-    '<div class="gs-card gs-res"><div class="gs-n">'+res+'</div><div class="gs-l">Resueltas</div></div>' +
-    '</div>';
   const filEl=document.getElementById('gestFilters');
   if (filEl){
     const opts=[['all','Todas'],['abierta','Abiertas'],['seguimiento','En seguimiento'],['resuelta','Resueltas'],['pin','Fijadas']];
     filEl.innerHTML = opts.map(o=>'<button class="gest-fchip'+(GEST.filtro===o[0]?' active':'')+'" onclick="gestSetFiltro(\''+o[0]+'\')">'+o[1]+'</button>').join('');
   }
+  const sortEl=document.getElementById('gestSort'); if(sortEl) sortEl.value=GEST.orden||'recientes';
   let vis = list.slice();
   if (GEST.filtro==='pin') vis = vis.filter(g=>g.pin);
   else if (GEST.filtro!=='all') vis = vis.filter(g=>g.estado===GEST.filtro);
-  if (GEST.q) vis = vis.filter(g=> (String(g.titulo)+' '+gestPersonasDe(g).join(' ')+' '+g.departamento+' '+g.detalle).toLowerCase().indexOf(GEST.q)>=0);
-  vis.sort((a,b)=> (b.pin?1:0)-(a.pin?1:0) || b.actualizada - a.actualizada);
+  if (GEST.q) vis = vis.filter(g=> (String(g.titulo)+' '+gestPersonasDe(g).join(' ')+' '+(g.departamento||'')+' '+(g.detalle||'')).toLowerCase().indexOf(GEST.q)>=0);
+  const orden=GEST.orden||'recientes';
+  const prank=g=>{ const m={alta:0,media:1,baja:2}; return (m[g.prioridad]!=null?m[g.prioridad]:1); };
+  vis.sort((a,b)=>{
+    if ((a.pin?1:0)!==(b.pin?1:0)) return (b.pin?1:0)-(a.pin?1:0);   // fijadas siempre primero
+    if (orden==='prioridad'){ const d=prank(a)-prank(b); if(d) return d; return b.actualizada-a.actualizada; }
+    if (orden==='revision'){ const kv=g=>(g.estado==='resuelta'||!g.revisa)?'9999-99-99':g.revisa; const av=kv(a),bv=kv(b); if(av!==bv) return av<bv?-1:1; return b.actualizada-a.actualizada; }
+    if (orden==='abiertas'){ const r=g=>g.estado==='resuelta'?1:0; const d=r(a)-r(b); if(d) return d; return b.actualizada-a.actualizada; }
+    return b.actualizada-a.actualizada;   // recientes
+  });
   if (!vis.length){
     cont.innerHTML = '<div class="gest-empty">' +
       (list.length ? 'No hay gestiones que coincidan con el filtro o la búsqueda.' :
@@ -5148,43 +5258,49 @@ function gestCard(g){
   const personas = gestPersonasDe(g);
   const meta = [personas.join(', '), g.departamento].filter(Boolean).map(esc).join(' · ');
   const nSeg = (g.seguimientos||[]).length;
-  let html = '<div class="gest-card'+(g.pin?' pinned':'')+'">' +
-    '<div class="gest-chead">' +
-      '<button class="gest-pin'+(g.pin?' on':'')+'" title="'+(g.pin?'Quitar de fijadas':'Fijar')+'" onclick="gestTogglePin(\''+g.id+'\')">'+gestPinSvg(g.pin)+'</button>' +
-      '<button class="gest-ctitle" onclick="gestToggleExp(\''+g.id+'\')">' +
-        '<span class="gest-line1"><span class="gest-badge" style="color:'+est.c+';background:'+est.bg+'">'+est.t+'</span>' +
-          '<span class="gest-t">'+titulo+'</span></span>' +
-        (meta?'<span class="gest-meta">'+meta+'</span>':'') +
-        '<span class="gest-sub2"><span class="gest-prio" style="color:'+pr.c+'">● Prioridad '+pr.t.toLowerCase()+'</span> · '+gestFechaTs(g.actualizada)+(nSeg?(' · '+nSeg+' seguimiento'+(nSeg>1?'s':'')):'')+'</span>' +
-      '</button>' +
-      '<span class="gest-caret">'+(exp?'▴':'▾')+'</span>' +
-    '</div>';
-  if (exp){
-    html += '<div class="gest-body">' +
-      '<label class="gest-fl">Título</label>' +
-      '<input class="gest-in" data-gest-titulo="'+g.id+'" maxlength="120" value="'+esc(g.titulo)+'" oninput="gestSet(\''+g.id+'\',\'titulo\',this.value)" onblur="renderGestiones()" placeholder="Ej: Fatiga elevada — turno noche">' +
-      '<label class="gest-fl">Personas involucradas <span class="gest-fl-hint">· puedes agregar varias</span></label>' +
-      (personas.length ? '<div class="gest-personas">' + personas.map((nm,ix)=>'<span class="gest-ptag">'+esc(nm)+'<button title="Quitar" onclick="gestRemovePersonaIdx(\''+g.id+'\','+ix+')">✕</button></span>').join('') + '</div>' : '') +
-      '<div class="gest-seg-add"><input id="gest-pers-'+g.id+'" class="gest-in" list="dl-emp-'+g.id+'" maxlength="80" autocomplete="off" placeholder="Elige un empleado o escribe un nombre…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddPersonaInput(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddPersonaInput(\''+g.id+'\')">Agregar</button></div>' +
-      '<datalist id="dl-emp-'+g.id+'">'+gestEmpleados().map(e=>'<option value="'+esc(e)+'"></option>').join('')+'</datalist>' +
-      '<label class="gest-fl">Departamento</label>' +
-      '<input class="gest-in" list="dl-dep-'+g.id+'" maxlength="80" value="'+esc(g.departamento||'')+'" oninput="gestSet(\''+g.id+'\',\'departamento\',this.value)" placeholder="Elige o escribe (opcional)">' +
-      '<datalist id="dl-dep-'+g.id+'">'+gestDepartamentos().map(d=>'<option value="'+esc(d)+'"></option>').join('')+'</datalist>' +
-      '<div class="gest-row2">' +
-        '<div><label class="gest-fl">Estado</label><select class="gest-in" onchange="gestSetR(\''+g.id+'\',\'estado\',this.value)">'+GEST_ESTADOS.map(e=>'<option value="'+e.k+'"'+(g.estado===e.k?' selected':'')+'>'+e.t+'</option>').join('')+'</select></div>' +
-        '<div><label class="gest-fl">Prioridad</label><select class="gest-in" onchange="gestSetR(\''+g.id+'\',\'prioridad\',this.value)">'+GEST_PRIOS.map(p=>'<option value="'+p.k+'"'+(g.prioridad===p.k?' selected':'')+'>'+p.t+'</option>').join('')+'</select></div>' +
-      '</div>' +
-      '<label class="gest-fl">Detalle / notas</label>' +
-      '<textarea class="gest-ta" maxlength="4000" oninput="gestSet(\''+g.id+'\',\'detalle\',this.value)" placeholder="Qué se detectó, contexto, indicadores relacionados, plan…">'+esc(g.detalle)+'</textarea>' +
-      '<div class="gest-seg-head">Seguimiento en el tiempo</div>' +
-      '<div class="gest-seg-add"><input id="gest-seg-'+g.id+'" class="gest-in" maxlength="500" placeholder="Anota una acción o novedad de hoy…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddSeg(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddSeg(\''+g.id+'\')">Agregar</button></div>' +
-      ((g.seguimientos&&g.seguimientos.length)
-        ? '<div class="gest-timeline">'+g.seguimientos.map(s=>'<div class="gest-tl-item"><div class="gest-tl-dot"></div><div class="gest-tl-c"><div class="gest-tl-date">'+gestFechaTs(s.ts)+'</div><div class="gest-tl-txt">'+esc(s.texto)+'</div></div><button class="gest-tl-x" title="Borrar" onclick="gestBorrarSeg(\''+g.id+'\','+s.ts+')">✕</button></div>').join('')+'</div>'
-        : '<div class="gest-seg-empty">Sin seguimientos todavía. Cada anotación queda fechada, así puedes seguir la evolución.</div>') +
-      '<div class="gest-foot"><span class="gest-created">Creada '+gestFechaTs(g.creada)+'</span><button class="gest-del" onclick="gestBorrar(\''+g.id+'\')">Eliminar gestión</button></div>' +
-      '</div>';
-  }
-  return html + '</div>';
+  const rb = gestRevisaInfo(g);
+  const sub2 = '<span class="gest-sub2">' +
+    '<span class="gest-prio" style="color:'+pr.c+'">● '+pr.t+'</span>' +
+    ' · ' + esc(gestRelativo(g.actualizada)) +
+    (nSeg?(' · '+nSeg+' seguim.'):'') +
+    (rb?(' · <span class="gest-rev '+rb.cls+'">'+esc(rb.txt)+'</span>'):'') +
+    '</span>';
+  const head = '<div class="gest-chead">' +
+    '<button class="gest-pin'+(g.pin?' on':'')+'" title="'+(g.pin?'Quitar de fijadas':'Fijar')+'" onclick="gestTogglePin(\''+g.id+'\')">'+gestPinSvg(g.pin)+'</button>' +
+    '<button class="gest-ctitle" onclick="gestToggleExp(\''+g.id+'\')">' +
+      '<span class="gest-line1"><span class="gest-badge" style="color:'+est.c+';background:'+est.bg+'">'+est.t+'</span><span class="gest-t">'+titulo+'</span></span>' +
+      (meta?'<span class="gest-meta">'+meta+'</span>':'') + sub2 +
+    '</button>' +
+    '<span class="gest-flash">Guardado ✓</span>' +
+    '<span class="gest-caret">'+(exp?'▴':'▾')+'</span>' +
+  '</div>';
+  const segEstado = '<div class="gest-seg-estado">'+GEST_ESTADOS.map(e=>'<button class="gse-btn'+(g.estado===e.k?' active':'')+'" style="--gse:'+e.c+';--gseb:'+e.bg+'" onclick="gestSetEstado(\''+g.id+'\',\''+e.k+'\')">'+e.t+'</button>').join('')+'</div>';
+  const prioPills = '<div class="gest-prio-pills">'+GEST_PRIOS.map(p=>'<button class="gpp'+(g.prioridad===p.k?' active':'')+'" style="--gpp:'+p.c+'" onclick="gestSetPrio(\''+g.id+'\',\''+p.k+'\')">'+p.t+'</button>').join('')+'</div>';
+  const personasBox = personas.length ? '<div class="gest-personas">'+personas.map((nm,ix)=>'<span class="gest-ptag">'+esc(nm)+'<button title="Quitar" onclick="gestRemovePersonaIdx(\''+g.id+'\','+ix+')">✕</button></span>').join('')+'</div>' : '';
+  const timeline = (g.seguimientos&&g.seguimientos.length)
+    ? '<div class="gest-timeline">'+g.seguimientos.map(s=>'<div class="gest-tl-item"><div class="gest-tl-dot"></div><div class="gest-tl-c"><div class="gest-tl-date">'+esc(gestRelativo(s.ts))+' · '+esc(gestFechaTs(s.ts))+'</div><div class="gest-tl-txt">'+esc(s.texto)+'</div></div><button class="gest-tl-x" title="Borrar" onclick="gestBorrarSeg(\''+g.id+'\','+s.ts+')">✕</button></div>').join('')+'</div>'
+    : '<div class="gest-seg-empty">Sin seguimientos todavía. Cada anotación queda fechada, así puedes seguir la evolución.</div>';
+  const body = '<div class="gest-bodywrap"><div class="gest-bodyclip"><div class="gest-body">' +
+    segEstado +
+    '<label class="gest-fl">Título</label>' +
+    '<input class="gest-in" data-gest-titulo="'+g.id+'" maxlength="120" value="'+esc(g.titulo)+'" oninput="gestSet(\''+g.id+'\',\'titulo\',this.value)" onblur="gestTituloBlur(\''+g.id+'\')" placeholder="Ej: Fatiga elevada — turno noche">' +
+    '<label class="gest-fl">Personas involucradas <span class="gest-fl-hint">· puedes agregar varias</span></label>' +
+    personasBox +
+    '<div class="gest-seg-add"><input id="gest-pers-'+g.id+'" class="gest-in" list="dl-emp-'+g.id+'" maxlength="80" autocomplete="off" placeholder="Elige un empleado o escribe…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddPersonaInput(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddPersonaInput(\''+g.id+'\')">Agregar</button></div>' +
+    '<datalist id="dl-emp-'+g.id+'">'+gestEmpleados().map(e=>'<option value="'+esc(e)+'"></option>').join('')+'</datalist>' +
+    '<div class="gest-row2">' +
+      '<div><label class="gest-fl">Departamento</label><input class="gest-in" list="dl-dep-'+g.id+'" maxlength="80" value="'+esc(g.departamento||'')+'" oninput="gestSet(\''+g.id+'\',\'departamento\',this.value)" placeholder="Opcional"><datalist id="dl-dep-'+g.id+'">'+gestDepartamentos().map(d=>'<option value="'+esc(d)+'"></option>').join('')+'</datalist></div>' +
+      '<div><label class="gest-fl">Próxima revisión</label><input type="date" class="gest-in" value="'+esc(g.revisa||'')+'" onchange="gestSetRevisa(\''+g.id+'\',this.value)"></div>' +
+    '</div>' +
+    '<label class="gest-fl">Prioridad</label>' + prioPills +
+    '<label class="gest-fl">Detalle / notas</label>' +
+    '<textarea class="gest-ta" maxlength="4000" oninput="gestSet(\''+g.id+'\',\'detalle\',this.value);gestAutoGrow(this)" placeholder="Qué se detectó, contexto, indicadores relacionados, plan…">'+esc(g.detalle||'')+'</textarea>' +
+    '<div class="gest-seg-head">Seguimiento en el tiempo</div>' +
+    '<div class="gest-seg-add"><input id="gest-seg-'+g.id+'" class="gest-in" maxlength="500" placeholder="Anota una acción o novedad de hoy…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();gestAddSeg(\''+g.id+'\');}"><button class="gest-seg-btn" onclick="gestAddSeg(\''+g.id+'\')">Agregar</button></div>' +
+    timeline +
+    '<div class="gest-foot"><span class="gest-created">Creada '+esc(gestFechaTs(g.creada))+' · '+esc(gestEdadTexto(g))+'</span><button class="gest-del" onclick="gestBorrar(\''+g.id+'\')">Eliminar</button></div>' +
+    '</div></div></div>';
+  return '<div class="gest-card'+(g.pin?' pinned':'')+(exp?' exp':'')+'" data-id="'+g.id+'" data-estado="'+g.estado+'"><span class="gest-accent"></span>'+head+body+'</div>';
 }
 
 /* ════════════════ INSTALL (PWA) ════════════════ */
