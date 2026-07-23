@@ -477,11 +477,11 @@
   .hist-item { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
   .hi-date { font-size: .82rem; font-weight: 700; color: var(--text-soft); margin-right: .3rem; }
   .hi-m { font-size: .78rem; font-weight: 600; background: #eef3ff; color: #3a4a66; padding: .16rem .46rem; border-radius: 6px; }
-  .hist-more { margin-top: .2rem; }
-  .hist-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .3rem;
+  .hist-more, .ver-mas { margin-top: .2rem; }
+  .hist-more > summary, .ver-mas > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: .3rem;
     font-size: .82rem; font-weight: 800; color: var(--orange); padding: .55rem 0; }
-  .hist-more > summary::-webkit-details-marker { display: none; }
-  .hist-more[open] > summary .hm-caret { transform: rotate(180deg); }
+  .hist-more > summary::-webkit-details-marker, .ver-mas > summary::-webkit-details-marker { display: none; }
+  .hist-more[open] > summary .hm-caret, .ver-mas[open] > summary .hm-caret { transform: rotate(180deg); }
   .hm-caret { transition: transform .2s; display: inline-block; }
   .hi-m.over { background: #feecec; color: #d63031; }
 
@@ -958,11 +958,24 @@
     /* El cuerpo con scroll centra su contenido y le da aire, sin estirarlo de borde a borde */
     .dash-scroll { padding: 1.6rem 2.4rem 3rem; }
     .dash-scroll > * { max-width: 1300px; margin-left: auto; margin-right: auto; }
-    /* Los bloques del panel se reparten en dos columnas, aprovechando el ancho */
-    .dash-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.8rem; align-items: start; }
-    .dash-sec > .dash-help, .dash-sec > .dash-warn, .dash-sec > .dash-empty { grid-column: 1 / -1; }
-    .dash-2col { display: contents; }              /* ya quedan repartidos por el grid */
-    .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    /* Los bloques se acomodan en 2 columnas tipo "mampostería" (se empaquetan por altura, sin
+       huecos ni superposiciones). Los bloques ANCHOS (KPIs, tablas, alertas, ayudas) ocupan las
+       2 columnas completas → no hay que desplazar de lado para leer una tabla. */
+    .dash-sec { display: block; column-count: 2; column-gap: 1.8rem; }
+    .dash-sec > .dash-block, .dash-sec > .dash-collapse, .dash-sec > .dash-warn, .dash-sec > .dash-2col,
+    .dash-sec > .gloss, .dash-sec > .dash-empty, .dash-sec > .dash-help {
+      break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 1.8rem; }
+    /* El par pie+dona (dash-2col) es un solo ítem de columna con los dos lado a lado. */
+    .dash-2col { break-inside: avoid; }
+    /* Bandas a todo el ancho: introducciones, avisos, la tira de promedios, cualquier tabla y las
+       listas colapsables (alertas). Así una tabla usa las 2 columnas y se lee sin scroll lateral. */
+    .dash-sec > .dash-help, .dash-sec > .dash-warn, .dash-sec > .dash-empty,
+    .dash-sec > .dash-collapse,
+    .dash-sec > .dash-block:has(.kpi-grid),
+    .dash-sec > .dash-block:has(.heat-scroll),
+    .dash-sec > .dash-block:has(.stat-scroll),
+    .dash-sec > .dash-block:has(table) { column-span: all; -webkit-column-span: all; }
+    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
@@ -981,7 +994,7 @@
   }
   /* Muy ancho: tres columnas de bloques para no dejar huecos enormes */
   @media (min-width: 1500px) {
-    .dash-sec { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dash-sec { column-count: 3; }
   }
 
   /* ═══════════ ANIMACIONES (suaves y sobrias) ═══════════ */
@@ -1807,7 +1820,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.88';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.89';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4277,6 +4290,14 @@ function dashHelp(text){
   return '<details class="dash-help"><summary><span class="dh-ic">ⓘ</span> Qué es esto</summary>' +
     '<div class="dh-body">' + text + '</div></details>';
 }
+// Muestra los primeros `n` de una lista (array de HTML) y esconde el resto detrás de "Ver más".
+function dashVerMas(items, n){
+  n = n || 3;
+  const primeros = items.slice(0, n).join('');
+  const resto = items.slice(n);
+  if (!resto.length) return primeros;
+  return primeros + '<details class="ver-mas"><summary class="ver-mas-sum">Ver ' + resto.length + ' más <span class="hm-caret">▾</span></summary><div>' + resto.join('') + '</div></details>';
+}
 // Aviso "faltan estadísticas": cuando no hay datos suficientes para un gráfico, no lo mostramos y explicamos por qué.
 function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ Faltan estadísticas</div><div class="dw-d">' + detail + '</div></div>'; }
 // Cuántos meses distintos con datos hay en estas filas (para saber si se puede graficar evolución)
@@ -4360,19 +4381,16 @@ function renderIndividual(rows){
   DASH._rankNames = items.map(x => x.name);
   const ref = composite ? 1 : DASH.ref[m];
   const fmt = v => composite ? (v.toFixed(2) + '×') : v.toFixed(1);
-  let list = items.map((x,i) => {
+  const itemHtmls = items.map((x,i) => {
     const over = x.val > ref;
     return '<div class="rank-item" onclick="dashGoPersonIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
       '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
       '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' reg.</div></div>' +
       '<div class="rank-val ' + (over?'over':'ok') + '">' + fmt(x.val) + '</div><span class="rank-go">›</span></div>';
-  }).join('');
-  if (!items.length) list = '<div class="dash-empty">Sin datos por persona.</div>';
+  });
   const help = dashHelp('Ranking de personas ordenado de mayor a menor. ' + (composite ? 'El <b>índice global</b> resume las 6 métricas: 1.00× = justo en la media, más alto = peor.' : 'Elige la métrica arriba.') + ' <b>Toca a una persona</b> para ver su detalle completo.');
-  // La lista va contraída por defecto (puede ser larga); el selector de métrica queda siempre visible arriba.
-  const listado = '<details class="dash-collapse rank-collapse"><summary class="dc-sum">' +
-    '<span class="dc-t">Ver ranking</span><span class="dc-count">' + items.length + '</span><span class="dc-caret">▾</span></summary>' +
-    '<div class="dc-body">' + list + '</div></details>';
+  // Muestra los 3 primeros y el resto detrás de "Ver más".
+  const listado = items.length ? dashVerMas(itemHtmls, 3) : '<div class="dash-empty">Sin datos por persona.</div>';
   return help + '<div class="dash-block"><div class="db-title">Ranking individual</div>' +
     '<div class="db-sub">' + (composite ? 'Índice global (1.00× = en la media)' : 'Promedio por persona · referencia ' + ref) + '</div>' +
     dashMetricPicker('pickInd', m, true) + listado + '</div>';
@@ -4505,14 +4523,15 @@ function renderPVT(){
       return { name:n, dep:(g[n][0].departamento||''), rt:rt, lp:lp, n:g[n].length };
     }).filter(x => x.rt != null).sort((a,b) => b.rt - a.rt);
     DASH._pvtNames = items.map(x => x.name);
+    const pvtCards = items.map((x,i) => { const v = pvtVerdict(x.rt, x.lp);
+      return '<div class="rank-item" onclick="dashGoPvtIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
+        '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
+        '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' test</div></div>' +
+        '<div class="rank-val" style="color:' + v.c + '">' + x.rt + '</div><span class="rank-go">›</span></div>';
+    });
     body = '<div class="dash-block"><div class="db-title">Ranking por tiempo de reacción</div>' +
       '<div class="db-sub">Peor (más lento) arriba · toca a una persona para ver su detalle</div>' +
-      items.map((x,i) => { const v = pvtVerdict(x.rt, x.lp);
-        return '<div class="rank-item" onclick="dashGoPvtIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
-          '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
-          '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' test</div></div>' +
-          '<div class="rank-val" style="color:' + v.c + '">' + x.rt + '</div><span class="rank-go">›</span></div>';
-      }).join('') + '</div>';
+      dashVerMas(pvtCards, 3) + '</div>';   // 3 y "Ver más"
   }
   let evo = '';
   const grafico = dashPvtEvolucion(pv);
@@ -5013,11 +5032,12 @@ function dashAlerts(rows){
     return '<div class="dash-block"><div class="db-title">Sobre la referencia</div><div class="dash-ok">✓ Nada por encima de la media.</div></div>';
   function group(title, items, type){
     if (!items.length) return '';
-    return '<div class="db-sub2 db-sub2-' + type + '">' + title + '</div>' + items.slice(0,15).map((x,i) =>
+    const cards = items.map((x,i) =>
       '<div class="alert-card" onclick="' + (type==='dep' ? "dashDrill('dep', DASH._alertDep["+i+"])" : "dashGoPerson(DASH._alertPer["+i+"])") + '">' +
       '<div class="ac-name">' + esc(x.name) + ' ›</div><div class="ac-badges">' +
       x.over.map(o => '<span class="ac-badge">' + (METRIC_LABELS[o.m]||o.m) + ' <b>' + o.a.toFixed(1) + '</b><i>/' + o.ref + '</i></span>').join('') +
-      '</div></div>').join('');
+      '</div></div>');
+    return '<div class="db-sub2 db-sub2-' + type + '">' + title + '</div>' + dashVerMas(cards, 3);   // 3 y "Ver más"
   }
   const total = deptos.length + personas.length;
   // Contraído por defecto: sólo el encabezado con el conteo; se despliega al tocar.
