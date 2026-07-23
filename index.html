@@ -424,7 +424,11 @@
 
   /* Radar */
   .radar-wrap { display: flex; flex-direction: column; align-items: center; }
-  .radar-wrap svg { max-width: 100%; height: auto; }
+  /* Los gráficos LLENAN el ancho de su bloque (antes el radar y las líneas quedaban fijos y chicos).
+     El radar se limita para no volverse gigante; las líneas aprovechan más ancho. */
+  .radar-wrap svg { width: 100%; height: auto; display: block; }
+  .radar-wrap svg.svg-radar { max-width: 340px; margin: 0 auto; }
+  .radar-wrap .linechart { max-width: 560px; }
   .radar-legend { display: flex; flex-wrap: wrap; gap: .45rem .9rem; justify-content: center; margin-top: .6rem; }
   .rl-item { display: flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 600; color: var(--text-soft); }
   .rl-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
@@ -490,7 +494,7 @@
   /* Torta / dona */
   .dash-2col { display: flex; flex-direction: column; gap: 0; }
   .pie-wrap { display: flex; flex-direction: column; align-items: center; gap: .4rem; }
-  .pie-wrap svg { max-width: 100%; height: auto; }
+  .pie-wrap svg { width: 100%; height: auto; max-width: 200px; }
   .pie-legend { display: flex; flex-wrap: wrap; gap: .35rem .9rem; justify-content: center; }
   .pie-legend .rl-item b { color: var(--text); margin-left: .1rem; }
 
@@ -706,8 +710,9 @@
     .dash-2col { flex-direction: row; gap: 1.4rem; }
     .dash-2col > .dash-block { flex: 1; }
     .dash-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.6rem; align-items: start; }
-    /* gráficos más grandes en pantalla grande */
-    .radar-wrap svg, .pie-wrap svg { width: 300px; }
+    /* gráficos más grandes en pantalla grande (llenan el bloque, con tope para no deformarse) */
+    .radar-wrap svg.svg-radar { max-width: 380px; }
+    .pie-wrap svg { max-width: 220px; }
     .radar-wrap .linechart { max-width: 640px; }
     /* texto más grande y legible en PC */
     .db-title { font-size: 1.14rem; }
@@ -1785,7 +1790,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.86';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.87';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3731,7 +3736,7 @@ function onDashData(d, scopeLabel, params){
   DASH = { rol:d.rol, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:'resumen', tabs:tabs,
-           pickInd:metrics[0], pickEvo:'__all__',
+           pickInd:metrics[0], pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'', _glossaryOpen:false,
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
@@ -3802,6 +3807,8 @@ function dashRefresh(manual){
     DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.rawSig = sig;
     if (metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = metrics[0] || null;
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
+    if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
+    if (metrics.indexOf(DASH.pickDist) < 0) DASH.pickDist = metrics[0] || null;
     if (hadPvt !== hasPvt){ DASH.tabs = dashTabsFor(DASH.rol, hasPvt); if (DASH.tabs.indexOf(DASH.tab) < 0) DASH.tab = 'resumen'; buildDashTabs(); }
     buildDashFilters();   // DASH.f conserva el estado; reconstruye opciones (deptos/personas nuevos)
     renderDash();
@@ -4081,6 +4088,9 @@ function dashWireAnimaciones(){
   // Arrancan SIN ocultarse. Sólo se ocultan los que confirmemos que podemos animar: así, si algo
   // falla (panel sin tamaño todavía, navegador viejo), el contenido se ve igual y nunca queda en blanco.
   targets.forEach(t => t.classList.remove('anim-target', 'anim-in'));
+  // En re-renders "menores" (cambiar la métrica de un gráfico) NO re-animamos todo: se ve estático
+  // y se conserva el lugar del scroll, en vez de que todo parpadee de nuevo.
+  if (DASH && DASH._skipAnim){ DASH._skipAnim = false; return; }
 
   let aplicado = false;
   function aplicar(){
@@ -4215,22 +4225,26 @@ function renderResumen(rows){
    línea de tiempo y distribución, para que no quede solo el promedio. */
 function dashPersonalExtra(rows){
   const conDatos = DASH.metrics.filter(m => dashVals(rows, m).length);
-  const principal = conDatos[0];
   let html = '<div class="dash-block"><div class="db-title">Tus indicadores vs. lo normal</div>' +
     '<div class="db-sub">100% = justo en el valor de referencia</div>' + dashColumnas(rows) + '</div>';
   if (dashMonthsCount(rows) >= 2){
     html += '<div class="dash-block"><div class="db-title">Cómo vas mes a mes</div>' +
       '<div class="db-sub">Cada indicador ÷ su referencia (1.0 = valor normal)</div>' + dashEvoMulti(rows) + '</div>';
   }
-  if (principal && rows.length >= 2){
+  // Línea de tiempo y Distribución: ELEGIBLE por indicador (antes quedaban fijas al primero).
+  if (conDatos.length && rows.length >= 2){
+    const mt = conDatos.indexOf(DASH.pickTiempo) >= 0 ? DASH.pickTiempo : conDatos[0];
     html += '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
-      '<div class="db-sub">Tus registros de ' + (METRIC_LABELS[principal]||principal) + ', uno por uno</div>' +
-      dashLineaTiempo(rows, principal) + '</div>';
+      '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[mt]||mt) + ', uno por uno.</div>' +
+      (conDatos.length > 1 ? dashMetricPickerFrom('pickTiempo', mt, conDatos) : '') +
+      dashLineaTiempo(rows, mt) + '</div>';
   }
-  if (principal && rows.length >= 3){
+  if (conDatos.length && rows.length >= 3){
+    const md = conDatos.indexOf(DASH.pickDist) >= 0 ? DASH.pickDist : conDatos[0];
     html += '<div class="dash-block"><div class="db-title">Distribución</div>' +
-      '<div class="db-sub">En qué valores se concentran tus registros de ' + (METRIC_LABELS[principal]||principal) + '</div>' +
-      dashHistograma(rows, principal) + '</div>';
+      '<div class="db-sub">En qué valores se concentran tus registros de ' + (METRIC_LABELS[md]||md) + '.</div>' +
+      (conDatos.length > 1 ? dashMetricPickerFrom('pickDist', md, conDatos) : '') +
+      dashHistograma(rows, md) + '</div>';
   }
   return html;
 }
@@ -4730,7 +4744,19 @@ function dashMetricPicker(field, current, includeAll){
     allOpt + DASH.metrics.map(m => '<option value="' + m + '" ' + (m===current?'selected':'') + '>' + (METRIC_LABELS[m]||m) + '</option>').join('') +
     '</select></div>';
 }
-function dashPick(field, val){ DASH[field] = val; renderDash(); }
+// Selector limitado a una lista de indicadores (para gráficos que sólo tienen sentido con los que hay datos).
+function dashMetricPickerFrom(field, current, list){
+  return '<div class="metric-picker"><label>Indicador</label><select onchange="dashPick(\'' + field + '\',this.value)">' +
+    list.map(m => '<option value="' + m + '"' + (m===current?' selected':'') + '>' + (METRIC_LABELS[m]||m) + '</option>').join('') +
+    '</select></div>';
+}
+// Cambiar la métrica de un gráfico NO debe saltar el scroll ni re-animar todo el panel.
+function dashPick(field, val){
+  const sc = document.getElementById('dashScroll'), y = sc ? sc.scrollTop : 0;
+  if (DASH) DASH._skipAnim = true;
+  DASH[field] = val; renderDash();
+  if (sc) sc.scrollTop = y;
+}
 function dashGoPerson(name){ DASH.f.per = name; DASH.tab = 'resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0; }
 function dashGoPersonIdx(i){ const n = DASH._rankNames && DASH._rankNames[i]; if (n != null) dashGoPerson(n); }
 
@@ -4740,7 +4766,7 @@ function dashPie(items, opts){
   const total = items.reduce((s,i) => s + i.value, 0);
   if (!total) return '<div class="lc-empty">Sin datos.</div>';
   const cx=100, cy=100, R=82, donut = opts && opts.donut;
-  let ang = -Math.PI/2, svg = '<svg viewBox="0 0 200 200" width="176" preserveAspectRatio="xMidYMid meet">';
+  let ang = -Math.PI/2, svg = '<svg class="svg-pie" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">';
   if (items.length === 1){ svg += '<circle cx="100" cy="100" r="'+R+'" fill="'+items[0].color+'"/>'; }
   else items.forEach(it => {
     const frac = it.value/total, a2 = ang + frac*2*Math.PI;
@@ -4815,7 +4841,7 @@ function dashRadar(series){
   const W=280, H=240, cx=W/2, cy=H/2+4, R=76, MAXN=2;
   const ang = i => -Math.PI/2 + i*2*Math.PI/N;
   const rad = norm => Math.max(0, Math.min(MAXN, norm))/MAXN * R;
-  let svg = '<div class="radar-wrap"><svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<div class="radar-wrap"><svg class="svg-radar" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   [0.5,1].forEach(fr => {
     const pts = M.map((m,i)=>{ const rr=R*fr; return (cx+rr*Math.cos(ang(i))).toFixed(1)+','+(cy+rr*Math.sin(ang(i))).toFixed(1); }).join(' ');
     const isRef = fr===0.5;
