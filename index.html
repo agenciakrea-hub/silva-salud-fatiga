@@ -961,25 +961,27 @@
     .sheet.portal { max-width: 100%; width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
     /* El cuerpo con scroll centra su contenido y le da aire, sin estirarlo de borde a borde */
     .dash-scroll { padding: 1.6rem 2.4rem 3rem; }
-    .dash-scroll > * { max-width: 1300px; margin-left: auto; margin-right: auto; }
-    /* Los bloques se acomodan en 2 columnas tipo "mampostería" (se empaquetan por altura, sin
-       huecos ni superposiciones). Los bloques ANCHOS (KPIs, tablas, alertas, ayudas) ocupan las
-       2 columnas completas → no hay que desplazar de lado para leer una tabla. */
-    .dash-sec { display: block; column-count: 2; column-gap: 1.8rem; }
-    .dash-sec > .dash-block, .dash-sec > .dash-collapse, .dash-sec > .dash-warn, .dash-sec > .dash-2col,
-    .dash-sec > .gloss, .dash-sec > .dash-empty, .dash-sec > .dash-help {
-      break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 1.8rem; }
-    /* El par pie+dona (dash-2col) es un solo ítem de columna con los dos lado a lado. */
-    .dash-2col { break-inside: avoid; }
+    .dash-scroll > * { max-width: 1400px; margin-left: auto; margin-right: auto; }
+    /* Distribución ADAPTABLE (flex): cada bloque pide un mínimo de 23rem y CRECE para llenar la
+       fila. Así, si una sección tiene un solo bloque ocupa todo el ancho (no queda media pantalla
+       vacía) y si tiene varios se reparten. Al estar en rem, se adapta solo al zoom y al tamaño
+       de letra: con letra grande entran menos columnas y nada se aplasta. */
+    .dash-sec { display: flex; flex-wrap: wrap; gap: 1.5rem 1.6rem; align-items: flex-start; }
+    .dash-sec > .dash-block, .dash-sec > .dash-collapse, .dash-sec > .dash-warn,
+    .dash-sec > .dash-2col, .dash-sec > .gloss, .dash-sec > .dash-empty, .dash-sec > .dash-help {
+      flex: 1 1 23rem; min-width: 0; margin-bottom: 0; }
     /* Bandas a todo el ancho: introducciones, avisos, la tira de promedios, cualquier tabla y las
-       listas colapsables (alertas). Así una tabla usa las 2 columnas y se lee sin scroll lateral. */
+       listas colapsables. Así una tabla se lee entera, sin scroll lateral. */
     .dash-sec > .dash-help, .dash-sec > .dash-warn, .dash-sec > .dash-empty,
     .dash-sec > .dash-collapse,
     .dash-sec > .dash-block:has(.kpi-grid),
     .dash-sec > .dash-block:has(.heat-scroll),
     .dash-sec > .dash-block:has(.stat-scroll),
-    .dash-sec > .dash-block:has(table) { column-span: all; -webkit-column-span: all; }
-    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .dash-sec > .dash-block:has(table) { flex-basis: 100%; }
+    .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+    /* Los gráficos aprovechan más ancho dentro de su tarjeta */
+    .radar-wrap .linechart { max-width: 760px; }
+    .radar-wrap svg.svg-radar { max-width: 420px; }
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
@@ -994,9 +996,10 @@
     #portalGate h2 { text-align: center; font-size: 1.55rem; }
     #portalGate .lead { text-align: center; margin-top: .45rem; }
   }
-  /* Muy ancho: tres columnas de bloques para no dejar huecos enormes */
-  @media (min-width: 1500px) {
-    .dash-sec { column-count: 3; }
+  /* Pantallas muy anchas: el contenido puede usar más ancho (la grilla auto-fit ya decide
+     cuántas columnas entran, así que no hace falta fijar el número). */
+  @media (min-width: 1700px) {
+    .dash-scroll > * { max-width: 1600px; }
   }
 
   /* ═══════════ ANIMACIONES (suaves y sobrias) ═══════════ */
@@ -1822,7 +1825,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.90';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.91';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4879,7 +4882,7 @@ function dashStatsTable(rows){
       '<td>' + (v.length?dashMedian(v).toFixed(1):'—') + '</td>' +
       '<td>' + (v.length?dashStd(v).toFixed(1):'—') + '</td>' +
       '<td>' + (v.length?Math.max.apply(null,v):'—') + '</td>' +
-      '<td>' + v.reduce((a,b)=>a+b,0) + '</td>' +
+      '<td>' + (Math.round(v.reduce((a,b)=>a+b,0) * 10) / 10) + '</td>' +   // redondeo: evita 730.0000000000005
       '<td>' + v.length + '</td>' +
       '<td>' + ref + '</td></tr>';
   });
