@@ -348,6 +348,11 @@
   .ptab.active { background: #fff; color: var(--text); box-shadow: var(--shadow-sm); }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
   .portal-err { color: #d63031; font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
+  /* En celular, "pg-cols" es sólo el contenedor normal (una sección a la vez, vía pestañas) y el
+     encabezado de columna no hace falta (ya está la pestaña). En escritorio se convierte en una
+     grilla de 3 columnas — ver el media query de escritorio más abajo. */
+  .pg-cols { display: block; }
+  .pg-col-h { display: none; }
 
   /* Shell del dashboard: header + tabs fijos, cuerpo con scroll propio */
   #portalDash { display: flex; flex-direction: column; min-height: 0; flex: 1; }
@@ -935,17 +940,24 @@
     .mas-hero h1 { font-size: 1.9rem; }
     .mas-head h2 { font-size: 1.9rem; }
 
-    .bottom-nav { max-width: 1080px; border-radius: 20px 20px 0 0;
-      padding: 0.6rem 2rem calc(0.6rem + env(safe-area-inset-bottom)); }
-    .bn-item { font-size: 0.82rem; }
-    .bn-item svg { width: 27px; height: 27px; }
-    .bn-center .bn-fab { width: 64px; height: 64px; margin-top: -28px; }
-    .bn-center .bn-fab svg { width: 30px; height: 30px; }
+    /* En escritorio la barra inferior pasa a ser un RIEL FIJO del lado izquierdo (más natural
+       con mouse/teclado que una barra al pie que nadie mira ahí). El contenido se corre con el
+       padding-left del body, y queda centrado en el espacio que sobra, no debajo del riel. */
+    body { padding-left: 5.8rem; }
+    .wrap { padding-bottom: 3rem; }   /* ya no hace falta el hueco para la barra al pie */
+    .bottom-nav { position: fixed; left: 0; top: 0; right: auto; bottom: 0; z-index: 900;
+      max-width: none; width: 5.8rem; height: 100vh; height: 100dvh; margin: 0;
+      flex-direction: column; align-items: center; justify-content: center; gap: 2.1rem;
+      border-top: none; border-right: 1px solid rgba(255,255,255,0.09); border-radius: 0;
+      padding: 1.5rem 0.4rem; box-shadow: 5px 0 26px rgba(0,0,0,0.4); }
+    .bn-item { flex: none; width: 100%; font-size: 0.74rem; }
+    .bn-item svg { width: 25px; height: 25px; }
+    .bn-center .bn-fab { width: 58px; height: 58px; margin-top: 0; margin-bottom: 3px; }
+    .bn-center .bn-fab svg { width: 27px; height: 27px; }
   }
-  /* Pantallas muy anchas: sólo un poco más de ancho. Dentro de cada columna del inicio las
-     tarjetas se quedan de a 2 (3 quedaban chicas y apretadas en media pantalla). */
+  /* Pantallas muy anchas: sólo un poco más de ancho para el contenido (el riel queda fijo). */
   @media (min-width: 1280px) {
-    .wrap, .bottom-nav { max-width: 1240px; }
+    .wrap { max-width: 1240px; }
   }
 
   /* ── Panel de estadísticas en escritorio: PANTALLA COMPLETA (para que la onda blanca
@@ -985,11 +997,27 @@
        queda es blanco (no azul) y la transición es continua. */
     #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3rem;
       display: flex; align-items: center; justify-content: center; background: #fff; }
-    .portal-gate-card { width: min(430px, 100%); margin: auto; background: #fff;
-      border: 1px solid #e9edf4; border-radius: 24px; padding: 2.7rem 2.3rem 2.4rem; box-shadow: 0 18px 50px rgba(14,42,86,0.12); }
+    .portal-gate-card { width: min(920px, 100%); margin: auto; background: #fff;
+      border: 1px solid #e9edf4; border-radius: 24px; padding: 2.7rem 3rem 2.6rem; box-shadow: 0 18px 50px rgba(14,42,86,0.12); }
     .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
+    /* El título queda centrado arriba de TODO (usuario + las 3 secciones de abajo) */
     #portalGate h2 { text-align: center; font-size: 1.55rem; }
-    #portalGate .lead { text-align: center; margin-top: .45rem; }
+    #portalGate .lead { text-align: center; margin-top: .45rem; margin-bottom: .5rem; }
+    /* Las pestañas (Mis estadísticas / Supervisor) son cosa de celular: en escritorio se
+       muestran las 3 secciones lado a lado, aprovechando el ancho, sin tener que scrollear. */
+    .portal-tabs { display: none; }
+    .pg-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; align-items: start; margin-top: 1.6rem; }
+    #portalEmp, #portalSup, #portalAdminCol { display: block !important; padding: 0 1.6rem; }
+    #portalEmp { padding-left: 0; }
+    #portalAdminCol { padding-right: 0; }
+    #portalSup, #portalAdminCol { border-left: 1px solid #eef1f5; }
+    .pg-col-h { display: block; text-align: center; font-weight: 800; font-size: .78rem;
+      text-transform: uppercase; letter-spacing: .04em; color: var(--text-soft);
+      margin-bottom: 1.1rem; padding-bottom: .7rem; border-bottom: 2px solid #eef1f5; }
+    #portalSup { display: flex; flex-direction: column; }   /* la demo queda pegada abajo del login, no suelta */
+    /* El administrador ya tiene su propia columna: no hace falta la línea separadora ni el
+       margin-top:auto que lo empujaba al fondo de la columna de Supervisor. */
+    .admin-sep { margin-top: 0; padding-top: 0; border-top: none; }
   }
   /* Pantallas muy anchas: el contenido puede usar más ancho (la grilla auto-fit ya decide
      cuántas columnas entran, así que no hace falta fijar el número). */
@@ -1675,35 +1703,47 @@
         <button type="button" class="ptab" id="ptabSup" onclick="portalMode('sup')">Supervisor</button>
       </div>
 
-      <div id="portalEmp" class="portal-pane">
-        <p class="portal-hint" id="portalEmpHint">Vas a ver tus propios registros.</p>
-        <button class="save-btn" onclick="portalLoginEmpleado(this)">Ver mis estadísticas</button>
-      </div>
-
-      <div id="portalSup" class="portal-pane" style="display:none">
-        <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
-        <div class="field"><label for="pPass">Contraseña</label>
-          <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
-            <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-        </div>
-        <div class="portal-err" id="portalErr"></div>
-        <button class="save-btn" onclick="portalLoginSupervisor(this)">Entrar</button>
-
-        <div class="portal-demo">
-          <div class="pd-sep"><span>o</span></div>
-          <button type="button" class="portal-demo-btn" onclick="portalVerDemo(this)">Ver demostración con datos simulados</button>
-          <p class="portal-demo-hint">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
+      <!-- En celular: pestañas + una sección visible a la vez (JS con portalMode). En escritorio:
+           las 3 quedan lado a lado (CSS las fuerza a mostrarse, las pestañas se ocultan) para
+           aprovechar el ancho y no tener que scrollear. -->
+      <div class="pg-cols">
+        <div id="portalEmp" class="portal-pane">
+          <div class="pg-col-h">Mis estadísticas</div>
+          <p class="portal-hint" id="portalEmpHint">Vas a ver tus propios registros.</p>
+          <button class="save-btn" onclick="portalLoginEmpleado(this)">Ver mis estadísticas</button>
         </div>
 
-        <div class="admin-sep">
-          <button type="button" class="admin-toggle" onclick="toggleAdminLogin()">Administrador / Desarrollador</button>
-          <div id="adminBox" style="display:none">
-            <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
-              <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
-                <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+        <div id="portalSup" class="portal-pane" style="display:none">
+          <div class="pg-col-h">Supervisor</div>
+          <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
+          <div class="field"><label for="pPass">Contraseña</label>
+            <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
+              <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          </div>
+          <div class="portal-err" id="portalErr"></div>
+          <button class="save-btn" onclick="portalLoginSupervisor(this)">Entrar</button>
+
+          <div class="portal-demo">
+            <div class="pd-sep"><span>o</span></div>
+            <button type="button" class="portal-demo-btn" onclick="portalVerDemo(this)">Ver demostración con datos simulados</button>
+            <p class="portal-demo-hint">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
+          </div>
+        </div>
+
+        <!-- Administrador: columna propia en escritorio (antes alargaba la de Supervisor y
+             obligaba a scrollear). En celular sólo se ve junto con la pestaña Supervisor. -->
+        <div id="portalAdminCol" class="portal-pane portal-pane-admin" style="display:none">
+          <div class="pg-col-h">Administrador</div>
+          <div class="admin-sep">
+            <button type="button" class="admin-toggle" onclick="toggleAdminLogin()">Administrador / Desarrollador</button>
+            <div id="adminBox" style="display:none">
+              <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
+                <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
+                  <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+              </div>
+              <div class="portal-err" id="adminErr"></div>
+              <button class="save-btn" onclick="portalLoginAdmin(this)">Entrar como administrador</button>
             </div>
-            <div class="portal-err" id="adminErr"></div>
-            <button class="save-btn" onclick="portalLoginAdmin(this)">Entrar como administrador</button>
           </div>
         </div>
       </div>
@@ -1852,7 +1892,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.95';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.96';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3685,6 +3725,10 @@ function portalMode(m){
   document.getElementById('ptabSup').classList.toggle('active', m==='sup');
   document.getElementById('portalEmp').style.display = m==='emp' ? '' : 'none';
   document.getElementById('portalSup').style.display = m==='sup' ? '' : 'none';
+  // Administrador va con Supervisor (en celular es su propia sección pero sólo tiene sentido
+  // junto a esa pestaña; en escritorio el CSS fuerza las 3 visibles y esto no importa).
+  const adminCol = document.getElementById('portalAdminCol');
+  if (adminCol) adminCol.style.display = m==='sup' ? '' : 'none';
 }
 
 // Pide datos al endpoint (o responde con el mock si no hay URL configurada).
