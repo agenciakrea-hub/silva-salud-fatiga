@@ -1852,7 +1852,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.94';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.95';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3259,6 +3259,15 @@ function abrirDestinoEstadisticas(){
   syncScrollLock();                         // bloquea el scroll del fondo (evita la 2da barra)
   marcarStatsActivo(true);
   navPush();
+  // Si ya se cargaron datos HOY en esta sesión (se entró antes y se salió), se muestra el panel
+  // directo con lo que ya está en memoria — sin pasar por el login ni pedirle nada al servidor de
+  // nuevo. Sólo se vuelve a pedir cuando cambia el día o al tocar el botón ↻ (manual, sin límite).
+  if (DASH && DASH.params && dashMismoDia(DASH.updated)){
+    document.getElementById('portalGate').style.display = 'none';
+    document.getElementById('portalDash').style.display = '';
+    startDashAutoRefresh();                 // closePortal() lo había parado al salir
+    return;
+  }
   openPortalGate();
 }
 
@@ -3888,6 +3897,13 @@ function updateDashUpdated(){
   if (!e || !DASH) return;
   const d = new Date(DASH.updated), p = n => String(n).padStart(2,'0');
   e.textContent = 'Actualizado ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + (DASH_DEMO ? '' : ' · toca ↻ para actualizar');
+}
+// ¿El timestamp es del mismo día calendario que ahora? Se usa para decidir si hace falta pedirle
+// datos nuevos al servidor: una vez por día, no cada vez que se minimiza o se reabre el panel.
+function dashMismoDia(ts){
+  if (!ts) return false;
+  const a = new Date(ts), b = new Date();
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
 function startDashAutoRefresh(){
   stopDashAutoRefresh();
@@ -5668,9 +5684,12 @@ if (!textoYaElegido() && !_complete){
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){
     refreshStates(); hideToast();
-    // Si el panel está abierto, refrescá al volver el foco a la app
+    // Sólo se vuelve a pedir al servidor si CAMBIÓ EL DÍA mientras la app estaba minimizada/en
+    // segundo plano. Minimizar y volver el mismo día (celular o escritorio) NO debe gastar un
+    // pedido nuevo: el botón ↻ de arriba sigue disponible para cuando el usuario sí quiera actualizar.
     if (DASH && document.getElementById('portalOverlay').classList.contains('show')
-        && document.getElementById('portalDash').style.display !== 'none'){
+        && document.getElementById('portalDash').style.display !== 'none'
+        && !dashMismoDia(DASH.updated)){
       dashRefresh(false);
     }
   }
