@@ -995,18 +995,25 @@
        queda es blanco (no azul) y la transición es continua. */
     #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3rem;
       display: flex; align-items: center; justify-content: center; background: #fff; }
-    .portal-gate-card { width: min(560px, 100%); margin: auto; background: #fff;
-      border: 1px solid #e9edf4; border-radius: 24px; padding: 2.7rem 2.6rem 2.6rem; box-shadow: 0 18px 50px rgba(14,42,86,0.12); }
+    /* La tarjeta se acomoda al ancho real disponible en vez de un ancho fijo chico: en pantallas
+       angostas (justo en el quiebre de escritorio) toma casi todo el ancho libre, y en pantallas
+       grandes crece hasta un tope cómodo — nunca queda apretada ni corta palabras. */
+    .portal-gate-card { width: min(760px, 94%); margin: auto; background: #fff;
+      border: 1px solid #e9edf4; border-radius: 24px; padding: 3rem 3.4rem 3.2rem; box-shadow: 0 18px 50px rgba(14,42,86,0.12); }
     .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
     /* El título queda centrado arriba de todo (pestañas + lo que corresponda debajo) */
-    #portalGate h2 { text-align: center; font-size: 1.55rem; }
-    #portalGate .lead { text-align: center; margin-top: .45rem; margin-bottom: .5rem; }
+    #portalGate h2 { text-align: center; font-size: 1.65rem; }
+    #portalGate .lead { text-align: center; margin-top: .5rem; margin-bottom: .6rem; font-size: .92rem; }
     /* Dentro de "Supervisor": simétrico, usuario/contraseña a la IZQUIERDA y entrar/demo/admin
-       a la DERECHA (antes todo iba apilado, obligando a scrollear). "Mis estadísticas" sigue
-       siendo la pestaña simple de un solo botón, igual que en celular. */
-    .pg-sup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; align-items: start; }
+       a la DERECHA (antes todo iba apilado, obligando a scrollear). Con aire de verdad entre
+       columnas y adentro de cada campo/botón — simétrico no es lo mismo que apretado.
+       minmax(0,1fr) evita que un valor largo (ej. un nombre de empresa) desborde su columna. */
+    .pg-sup-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0 3rem; align-items: start; margin-top: .4rem; }
     .pg-sup-left, .pg-sup-right { min-width: 0; }
-    .pg-sup-right .admin-sep { margin-top: 1.4rem; }
+    .pg-sup-left .field input { font-size: 1rem; padding: .95rem 1.05rem; }
+    .pg-sup-right .save-btn { padding: 1.05rem; font-size: 1rem; }
+    .pg-sup-right .portal-demo-btn { padding: .95rem; }
+    .pg-sup-right .admin-sep { margin-top: 1.6rem; }
   }
   /* Pantallas muy anchas: el contenido puede usar más ancho (la grilla auto-fit ya decide
      cuántas columnas entran, así que no hace falta fijar el número). */
@@ -1337,7 +1344,31 @@
   .gest-del { border: 1px solid #f3c2c0; background: #fff; color: #d63031; border-radius: 9px; padding: .45rem .8rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
   .gest-empty { text-align: center; color: var(--text-soft); font-size: .9rem; line-height: 1.6; padding: 2.4rem 1rem; }
-  .gest-entry-count { font-size: .9rem; color: var(--text-soft); margin: .3rem 0 .9rem; }
+  /* Acceso flotante FIJO a Gestiones (siempre visible aunque se scrollee el panel de estadísticas) */
+  .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
+  .gest-fab-row { display: flex; gap: .5rem; }
+  .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: 13px; padding: .85rem 1.1rem;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
+    font-weight: 800; font-size: .88rem; cursor: pointer; box-shadow: 0 8px 22px rgba(244,122,31,.4);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gest-fab-main:active { transform: scale(.98); }
+  /* Mismo estilo que el botón principal, pero CUADRADO (mismo alto que ancho) */
+  .gest-fab-info { flex-shrink: 0; width: 46px; border: none; border-radius: 13px;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-size: 1.25rem;
+    font-weight: 800; cursor: pointer; box-shadow: 0 8px 22px rgba(244,122,31,.4); }
+  .gest-fab-info:active { transform: scale(.96); }
+  .gest-fab-info[aria-expanded="true"] { background: var(--navy); }
+  /* El cuadro de info se despliega hacia ARRIBA del botón (grid-rows 0fr→1fr, igual patrón que
+     el resto de la app para expandir/colapsar suave) como UNA sola tarjeta. */
+  .gest-fab-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
+  .gest-fab-info-panel.open { grid-template-rows: 1fr; margin-bottom: .6rem; }
+  .gest-fab-info-card { overflow: hidden; background: #fff; border: 1px solid #e9edf4; border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(14,42,86,.16); }
+  .gest-fab-info-panel:not(.open) .gest-fab-info-card { padding: 0 1rem; }
+  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; }
+  .gest-fab-info-title { font-weight: 800; font-size: .92rem; color: var(--text); }
+  .gest-fab-info-sub { font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
+  .gest-fab-info-count { font-size: .8rem; color: var(--text-soft); margin-top: .5rem; font-weight: 700; }
 
   @media (min-width: 700px) {
     .gest-top { padding: 1.1rem 1.6rem; }
@@ -1766,6 +1797,23 @@
         <div id="dashFilters" class="dash-filters"></div>
         <div id="dashBody"></div>
       </div>
+
+      <!-- Acceso fijo a Gestiones: queda siempre a la vista aunque se scrollee el panel (antes
+           había que bajar hasta el final de Informe IA para encontrarlo). El cuadradito de info
+           despliega hacia arriba la explicación, sin abrir nada más. -->
+      <div class="gest-fab" id="gestFab" style="display:none">
+        <div class="gest-fab-info-panel" id="gestFabInfoPanel">
+          <div class="gest-fab-info-card">
+            <div class="gest-fab-info-title">Gestiones realizadas</div>
+            <div class="gest-fab-info-sub">Registro del servicio médico: qué se detectó, qué acción se tomó y su seguimiento en el tiempo.</div>
+            <div class="gest-fab-info-count" id="gestFabCount"></div>
+          </div>
+        </div>
+        <div class="gest-fab-row">
+          <button class="gest-fab-main" onclick="openGestiones()">Abrir panel de gestiones ›</button>
+          <button class="gest-fab-info" id="gestFabInfoBtn" onclick="gestFabToggleInfo()" aria-label="Qué es esto" aria-expanded="false">ⓘ</button>
+        </div>
+      </div>
     </div>
 
     <div class="dash-remember" id="dashRemember">
@@ -1885,7 +1933,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.97';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.98';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4177,7 +4225,7 @@ function renderDash(){
     let html;
     if (t === 'pvt') html = renderPVT();                              // dataset propio
     else if (t === 'informe') html = renderInforme(rows);            // historial propio
-    else if (t === 'gestiones') html = renderGestionesEntry();       // tarjeta que abre el panel de gestiones
+    else if (t === 'gestiones') html = '';    // ya no es una sección para scrollear: es el acceso FIJO (ver dashUpdateGestFab)
     else if (!rows.length) html = '<div class="dash-empty">Sin registros de tests para este filtro.</div>';
     else if (t === 'comparar') html = renderComparar(rows);
     else if (t === 'individual') html = renderIndividual(rows);
@@ -4189,6 +4237,26 @@ function renderDash(){
   body.innerHTML = dashContext() + dashGlossary() + aviso + secciones;
   dashWireScrollspy();
   dashWireAnimaciones();
+  dashUpdateGestFab();
+}
+// Muestra/actualiza el acceso FIJO a Gestiones (sólo si el rol lo tiene entre sus pestañas).
+function dashUpdateGestFab(){
+  const fab = document.getElementById('gestFab'); if (!fab) return;
+  if (!DASH || DASH.tabs.indexOf('gestiones') < 0){ fab.style.display = 'none'; return; }
+  fab.style.display = '';
+  const list = gestList();
+  const abiertas = list.filter(g => g.estado !== 'resuelta').length;
+  const count = document.getElementById('gestFabCount');
+  if (count) count.textContent = list.length
+    ? (list.length + ' ' + (list.length===1?'gestión':'gestiones') + ' · ' + abiertas + ' sin resolver')
+    : 'Todavía no hay gestiones cargadas.';
+}
+// El cuadradito ⓘ despliega/repliega la explicación hacia arriba, sin abrir el panel completo.
+function gestFabToggleInfo(){
+  const panel = document.getElementById('gestFabInfoPanel'); const btn = document.getElementById('gestFabInfoBtn');
+  if (!panel) return;
+  const open = panel.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 /* Anima cada bloque del panel cuando ENTRA EN PANTALLA al scrollear (no todos de golpe).
@@ -5264,21 +5332,6 @@ function gestPull(){
 }
 function gestFechaTs(ts){ if(!ts) return ''; const d = new Date(ts); const p=n=>String(n).padStart(2,'0');
   return d.getDate() + ' ' + MESES_ABR[d.getMonth()] + ' ' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
-
-// Tarjeta dentro del panel de estadísticas que lleva al panel de gestiones (después de Informe IA).
-function renderGestionesEntry(){
-  const list = gestList();
-  const abiertas = list.filter(g=>g.estado!=='resuelta').length;
-  const resumen = list.length
-    ? '<b>' + list.length + '</b> ' + (list.length===1?'gestión':'gestiones') + ' · <b>' + abiertas + '</b> sin resolver'
-    : 'Todavía no hay gestiones cargadas.';
-  return '<div class="dash-block gest-entry">' +
-    '<div class="db-title">Gestiones realizadas</div>' +
-    '<div class="db-sub">Registro del servicio médico: qué se detectó, qué acción se tomó y su seguimiento en el tiempo.</div>' +
-    '<div class="gest-entry-count">' + resumen + '</div>' +
-    '<button class="save-btn" onclick="openGestiones()">Abrir panel de gestiones ›</button>' +
-    '</div>';
-}
 
 // Notas de EJEMPLO para la Empresa Demo, para que al explorar la demostración se vea cómo queda
 // un cuaderno con casos reales (variedad de estados, prioridades, tareas y seguimiento).
