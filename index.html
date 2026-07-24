@@ -1235,7 +1235,15 @@
 
   /* ── Panel de gestiones: versión dinámica ── */
   .gest-toolrow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-  .gest-toolrow .gest-filters { flex: 1; min-width: 0; }
+  /* Pista de "se puede deslizar" en los filtros (reutiliza el mismo patrón de .dt-fade de las
+     pestañas del panel de estadísticas), para que no parezca que faltan categorías. */
+  .gest-filters-wrap { position: relative; flex: 1; min-width: 0; }
+  .gest-filters-wrap .gest-filters { flex: none; }
+  .gest-filters-wrap .dt-fade { background: none; }
+  .gest-filters-wrap .dt-fade-l { background: linear-gradient(to right, #f4f6fb 35%, transparent); }
+  .gest-filters-wrap .dt-fade-r { background: linear-gradient(to left, #f4f6fb 35%, transparent); }
+  .gest-filters-wrap.mas-izq .dt-fade-l { opacity: 1; }
+  .gest-filters-wrap.mas-der .dt-fade-r { opacity: 1; animation: dtNudge 1.5s ease-in-out infinite; }
   .gest-sort { border: 1.5px solid #dfe4ec; background: #fff; border-radius: 10px; padding: .48rem .6rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; color: var(--text); cursor: pointer; flex-shrink: 0; }
   /* Barra de color a la izquierda según estado (se lee de un vistazo). */
@@ -1759,7 +1767,11 @@
       <div class="gest-tools">
         <input id="gestSearch" class="gest-search" type="text" placeholder="Buscar…" oninput="gestSetQuery(this.value)">
         <div class="gest-toolrow">
-          <div class="gest-filters" id="gestFilters"></div>
+          <div class="gest-filters-wrap" id="gestFiltersWrap">
+            <div class="gest-filters" id="gestFilters"></div>
+            <span class="dt-fade dt-fade-l" aria-hidden="true">‹</span>
+            <span class="dt-fade dt-fade-r" aria-hidden="true">›</span>
+          </div>
           <select id="gestSort" class="gest-sort" onchange="gestSetOrden(this.value)" aria-label="Ordenar">
             <option value="recientes">Más recientes</option>
             <option value="abiertas">Sin resolver primero</option>
@@ -1840,7 +1852,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.93';                 // ← Subí este número en cada actualización
+const APP_VERSION = '2.94';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5219,12 +5231,52 @@ function renderGestionesEntry(){
     '</div>';
 }
 
+// Notas de EJEMPLO para la Empresa Demo, para que al explorar la demostración se vea cómo queda
+// un cuaderno con casos reales (variedad de estados, prioridades, tareas y seguimiento).
+function gestSembrarDemo(){
+  if (gestList().length) return;   // sólo la primera vez que se abre (cuaderno vacío)
+  const ahora = Date.now(), dia = 86400000;
+  const items = [
+    { titulo:'Fatiga elevada — turno noche', personas:['Carlos Ruiz'], departamento:'Operaciones',
+      estado:'seguimiento', prioridad:'alta', pin:true, creada: ahora - 6*dia,
+      detalle:'Perelli y KSS por encima de lo normal en los últimos tests. Se conversó con el piloto sobre calidad de sueño diurno.',
+      revisa: (new Date(ahora + 2*dia)).toISOString().slice(0,10),
+      tareas: [ {t:'Hablar con el piloto', ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
+      seguimientos: [ {ts: ahora - dia, texto:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.'},
+                       {ts: ahora - 5*dia, texto:'Primer contacto: refiere dificultad para dormir de día.'} ] },
+    { titulo:'Ansiedad — evaluación pendiente', personas:['Ana Pérez'], departamento:'Administración',
+      estado:'abierta', prioridad:'media', pin:false, creada: ahora - 3*dia,
+      detalle:'Test de ansiedad (BAI) sobre el límite. Todavía no se agendó la evaluación con salud ocupacional.',
+      revisa: (new Date(ahora - dia)).toISOString().slice(0,10),   // vencida a propósito, para mostrar esa insignia
+      tareas: [ {t:'Agendar evaluación con salud ocupacional', ok:false} ], seguimientos: [] },
+    { titulo:'Estrés alto — resuelto con cambio de turno', personas:['Lucía Fernández'], departamento:'Tripulación',
+      estado:'resuelta', prioridad:'baja', pin:false, creada: ahora - 20*dia,
+      detalle:'Estrés por encima de referencia durante 3 semanas seguidas. Se resolvió tras reasignar a un horario diurno.',
+      revisa:'', tareas: [ {t:'Reasignar horario', ok:true}, {t:'Repetir test a las 2 semanas', ok:true} ],
+      seguimientos: [ {ts: ahora - 6*dia, texto:'Repetido el test de estrés: valores ya dentro de lo normal.'},
+                       {ts: ahora - 18*dia, texto:'Se reasignó a horario diurno desde el lunes.'} ] },
+    { titulo:'Somnolencia — seguimiento mensual', personas:['Jose Díaz','Marta Sol'], departamento:'Mantenimiento',
+      estado:'seguimiento', prioridad:'media', pin:false, creada: ahora - 10*dia,
+      detalle:'KSS elevado en ambos durante el cierre de mes. Se están monitoreando junto con el resto del equipo.',
+      revisa: (new Date(ahora + 5*dia)).toISOString().slice(0,10),
+      tareas: [], seguimientos: [ {ts: ahora - 2*dia, texto:'Sin cambios significativos esta semana.'} ] }
+  ];
+  items.forEach((it,i) => gestUpsert(Object.assign({ id:'gdemo'+i }, it)));
+  // gestUpsert siempre pone actualizada=ahora; para la demo queremos fechas variadas y creíbles
+  // (la del último seguimiento, o la de creación si no tiene), así que se corrigen después.
+  const s = gestStore();
+  s.items.forEach(g => { if (!/^gdemo/.test(g.id)) return;
+    g.actualizada = (g.seguimientos && g.seguimientos[0]) ? g.seguimientos[0].ts : g.creada; });
+  gestSaveStore(s);
+}
+
 // Abrir / cerrar la ventana a pantalla completa
 function openGestiones(){
   document.getElementById('gestTitle').textContent = 'Gestiones · ' + gestEmpresaActual();
   GEST.q=''; const s=document.getElementById('gestSearch'); if(s) s.value='';
   document.getElementById('gestionesOverlay').classList.add('show');
   document.body.classList.add('modal-open');
+  if (DASH && DASH.demoMode) gestSembrarDemo();
   renderGestiones();                          // muestra la copia local al instante
   navPush();
   const sc=document.getElementById('gestScroll'); if(sc) sc.scrollTop = 0;
@@ -5257,6 +5309,15 @@ function closeGestiones(){
 }
 function gestVisible(){ const e=document.getElementById('gestionesOverlay'); return e && e.classList.contains('show'); }
 
+// Igual que dashPistaPestanas: degradado + chevron que se mueve cuando hay más categorías hacia
+// ese lado, para que se note que la fila de filtros se desliza (Todas/Abiertas/En seguimiento…).
+function gestPistaFiltros(){
+  const bar=document.getElementById('gestFilters'), wrap=document.getElementById('gestFiltersWrap');
+  if (!bar || !wrap) return;
+  const resto = bar.scrollWidth - bar.clientWidth;
+  wrap.classList.toggle('mas-izq', bar.scrollLeft > 4);
+  wrap.classList.toggle('mas-der', resto > 4 && bar.scrollLeft < resto - 4);
+}
 function gestSetFiltro(f){ GEST.filtro=f; renderGestiones(); }
 function gestSetQuery(v){ GEST.q=String(v||'').toLowerCase(); renderGestiones(); }
 
@@ -5417,6 +5478,9 @@ function renderGestiones(){
   if (filEl){
     const opts=[['all','Todas'],['abierta','Abiertas'],['seguimiento','En seguimiento'],['resuelta','Resueltas'],['pin','Fijadas']];
     filEl.innerHTML = opts.map(o=>'<button class="gest-fchip'+(GEST.filtro===o[0]?' active':'')+'" onclick="gestSetFiltro(\''+o[0]+'\')">'+o[1]+'</button>').join('');
+    const filWrap=document.getElementById('gestFiltersWrap');
+    if (filWrap && !filWrap._pistaLista){ filWrap._pistaLista=true; filEl.addEventListener('scroll', gestPistaFiltros, { passive:true }); }
+    requestAnimationFrame(gestPistaFiltros);
   }
   const sortEl=document.getElementById('gestSort'); if(sortEl) sortEl.value=GEST.orden||'recientes';
   let vis = list.slice();
@@ -5442,9 +5506,16 @@ function renderGestiones(){
   cont.innerHTML = vis.map(gestCard).join('');
 }
 
+// Nada es obligatorio: una nota sin título se llama "Nota sin título N°X". El número es estable
+// (orden de creación, del cuaderno entero) para que no salte al filtrar, ordenar o buscar.
+function gestNumeroNota(g){
+  const todas = gestList().slice().sort((a,b) => a.creada - b.creada);
+  const ix = todas.findIndex(x => x.id === g.id);
+  return ix >= 0 ? ix + 1 : todas.length + 1;
+}
 function gestCard(g){
   const est=gestEstadoInfo(g.estado), pr=gestPrioInfo(g.prioridad), exp=!!GEST.exp[g.id];
-  const titulo = g.titulo ? esc(g.titulo) : '<span class="gest-untitled">(sin título)</span>';
+  const titulo = g.titulo ? esc(g.titulo) : '<span class="gest-untitled">Nota sin título N°' + gestNumeroNota(g) + '</span>';
   const personas = gestPersonasDe(g);
   const meta = [personas.join(', '), g.departamento].filter(Boolean).map(esc).join(' · ');
   const nSeg = (g.seguimientos||[]).length;
