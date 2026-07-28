@@ -1371,6 +1371,47 @@
   .apt-box.apt-medio { background: #fff8e6; color: #8a6400; }
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
+  /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ── */
+  .an-activa { border-radius: 12px; padding: .75rem .85rem; margin-bottom: .6rem;
+    background: var(--anbg); border: 1px solid var(--anc); }
+  .an-activa-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+  .an-activa-badge { font-size: .74rem; font-weight: 800; color: var(--anc); background: #fff; padding: .2rem .55rem; border-radius: 999px; }
+  .an-activa-hasta { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
+  .an-activa-nota { font-size: .84rem; color: var(--text); line-height: 1.45; margin-top: .5rem; white-space: pre-wrap; word-break: break-word; }
+  .an-activa-quitar { margin-top: .55rem; border: none; background: none; color: var(--text-muted); font-size: .76rem;
+    font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+  .an-btn { width: 100%; padding: .75rem; border: 1px dashed #d7dde8; border-radius: 12px; background: #fff;
+    color: var(--navy); font-family: inherit; font-weight: 800; font-size: .86rem; cursor: pointer; }
+  .an-btn:active { transform: scale(.99); }
+  .an-form { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
+  .an-form.open { grid-template-rows: 1fr; }
+  .an-form-inner { overflow: hidden; }
+  .an-form.open .an-form-inner { padding-top: .7rem; }
+  .an-seg, .an-dur { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .an-seg-btn { padding: .55rem .9rem; border-radius: 10px; border: 1.5px solid #e3e8f0; background: #fff;
+    color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .82rem; cursor: pointer; }
+  .an-seg-btn.active { border-color: var(--anc); background: var(--anbg); color: var(--anc); }
+  .an-dur-label { font-size: .74rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
+  .an-dur-btn { padding: .4rem .75rem; border-radius: 999px; border: 1.5px solid #e3e8f0; background: #fff;
+    color: var(--text-soft); font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer; }
+  .an-dur-btn.active { border-color: var(--orange); background: #fff1e6; color: var(--orange); }
+  .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid #e3e8f0; border-radius: 12px; padding: .7rem .8rem;
+    font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
+  .an-nota:focus { outline: none; border-color: var(--orange); }
+  .an-aviso { font-size: .74rem; color: #8a6400; background: #fff8e6; border-radius: 9px; padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
+  .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
+  .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid #e3e8f0; background: #fff;
+    color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
+  .an-guardar { flex: 2; padding: .7rem; border-radius: 11px; border: none;
+    background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
+    font-weight: 800; font-size: .84rem; cursor: pointer; box-shadow: 0 6px 16px rgba(244,122,31,.32); }
+  /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
+  .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
+    background: var(--anbg); border: 1px solid var(--anc); }
+  .apt-med-top { font-size: .74rem; font-weight: 800; color: var(--anc); }
+  .apt-med-txt { font-size: .82rem; color: var(--text); line-height: 1.4; margin-top: .35rem; white-space: pre-wrap; word-break: break-word; }
+  .apt-med-hasta { font-size: .7rem; color: var(--text-muted); font-weight: 600; margin-top: .3rem; }
+  @media (min-width: 480px) { .an-seg-btn, .an-dur-btn { flex: 0 0 auto; } }
   /* Con 3 pestañas ("Servicio médico" es larga), que no se apriete el texto en celular */
   .portal-tabs .ptab { font-size: .76rem; padding: .6rem .35rem; line-height: 1.25; }
 
@@ -1967,7 +2008,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '2.99';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.01';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4310,7 +4351,7 @@ function dashUpdateGestFab(){
   const fab = document.getElementById('gestFab'); if (!fab) return;
   if (!DASH || DASH.tabs.indexOf('gestiones') < 0){ fab.style.display = 'none'; return; }
   fab.style.display = '';
-  const list = gestList();
+  const list = gestCasos();
   const abiertas = list.filter(g => g.estado !== 'resuelta').length;
   const count = document.getElementById('gestFabCount');
   if (count) count.textContent = list.length
@@ -4421,6 +4462,7 @@ function dashContext(){
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div>' + rango + '</div>';
 }
 function dashClear(level){
+  ANOT.open = false;
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
@@ -4428,6 +4470,7 @@ function dashClear(level){
 }
 function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
 function dashDrill(level, value){
+  ANOT.open = false;
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
@@ -4459,6 +4502,12 @@ function aptPeor(niveles){
   return peor;
 }
 function renderAptitud(rows){
+  // Las anotaciones del servicio médico se sincronizan por el mismo canal que las gestiones
+  // (sin pasar por la pestaña Gestiones, que el supervisor no tiene). Se trae una sola vez por sesión.
+  if (DASH && !DASH._aptPulled && gestCanSync()){
+    DASH._aptPulled = true;
+    gestPull().then(ok => { if (ok && DASH && DASH.tab === 'aptitud') renderDash(); });
+  }
   const ayuda = dashHelp('Vista <b>operativa</b>: si cada persona está en condiciones de trabajar. ' +
     'Cada cuadrito es un indicador y su color dice cómo viene: <b style="color:#1aa672">verde</b> bien, ' +
     '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima. ' +
@@ -4489,9 +4538,11 @@ function renderAptitud(rows){
         nivelPvt = (rt < 300 && lp <= 1) ? 'ok' : ((rt < 400 && lp <= 3) ? 'medio' : 'alto');
       }
     }
-    const todos = nivelesMetric.map(x => x.nivel).concat(nivelPvt ? [nivelPvt] : []);
+    const anotaciones = gestAnotacionesDe(n);
+    const nivelAnot = anotaciones.length ? aptPeor(anotaciones.map(a => a.nivel)) : null;
+    const todos = nivelesMetric.map(x => x.nivel).concat(nivelPvt ? [nivelPvt] : []).concat(nivelAnot ? [nivelAnot] : []);
     return { nombre:n, dep:(g[n][0].departamento || ''), n:g[n].length,
-             metricas:nivelesMetric, pvt:nivelPvt, global:aptPeor(todos) };
+             metricas:nivelesMetric, pvt:nivelPvt, global:aptPeor(todos), medNota:(anotaciones[0] || null) };
   });
   // Primero lo que requiere atención (rojo, después amarillo), y dentro de cada grupo por nombre.
   gente.sort((a,b) => (APT_NIVELES[b.global].orden - APT_NIVELES[a.global].orden) ||
@@ -4514,12 +4565,21 @@ function renderAptitud(rows){
     ).join('') + (p.pvt
       ? '<span class="apt-box apt-' + p.pvt + '" title="Reacción: ' + APT_NIVELES[p.pvt].t + '"><i></i><span class="apt-box-l">Reacción</span></span>'
       : '');
+    const medBanner = p.medNota ? (function(){
+      const info = apAnotInfo(p.medNota.nivel);
+      return '<div class="apt-med-nota" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
+        '<div class="apt-med-top">🩺 Servicio médico: ' + info.t + '</div>' +
+        (p.medNota.nota ? '<div class="apt-med-txt">' + esc(p.medNota.nota) + '</div>' : '') +
+        '<div class="apt-med-hasta">Vigente hasta ' + esc(gestFechaTs(p.medNota.vigenciaHasta)) + '</div>' +
+      '</div>';
+    })() : '';
     return '<div class="apt-card">' +
       '<div class="apt-head">' +
         '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
           '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + p.n + ' ' + (p.n===1?'registro':'registros') + '</div></div>' +
         '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
       '</div>' +
+      medBanner +
       '<div class="apt-boxes">' + cuadros + '</div>' +
     '</div>';
   }).join('');
@@ -4541,16 +4601,17 @@ function renderAptitud(rows){
 /* ── RESUMEN: promedios + barras + radar + alertas / (o detalle si hay 1 persona) ── */
 function renderResumen(rows){
   const single = DASH.rol === 'empleado' || !!DASH.f.per;
+  const esOtraPersona = single && DASH.rol !== 'empleado';
   const who = DASH.f.per ? esc(DASH.f.per)
             : (DASH.rol==='empleado' ? '' : (DASH.f.dep ? esc(DASH.f.dep) : (DASH.f.emp ? esc(DASH.f.emp) : 'todo el grupo')));
   const help = dashHelp(single
-    ? (DASH.f.per
+    ? (esOtraPersona
         ? 'Detalle de <b>' + esc(DASH.f.per) + '</b>: el promedio de sus tests. Toca <b>‹ Quitar filtro</b> arriba para volver al grupo.'
         : 'Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).')
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
   const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
-  let head = '<div class="dash-block"><div class="db-title">' + (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : ''))) + '</div>' +
-    '<div class="db-sub">Promedio de ' + (single ? 'tus ' : 'los ') + nReg + ' del período seleccionado</div>' +
+  let head = '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Promedios de ' + who) : (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : '')))) + '</div>' +
+    '<div class="db-sub">Promedio de ' + (esOtraPersona ? ('sus ') : (single ? 'tus ' : 'los ')) + nReg + ' del período seleccionado</div>' +
     '<div class="kpi-grid">';
   DASH.metrics.forEach(m => {
     const a = dashAvg(rows, m), ref = DASH.ref[m], over = a!=null && a>ref;
@@ -4571,7 +4632,7 @@ function renderResumen(rows){
   // Los comentarios van en el Resumen SOLO si no hay pestaña propia de Comentarios (empleado);
   // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
   const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
-  const extra = single ? (dashPersonalExtra(rows) + dashHistory(rows) + comentariosAqui) : dashAlerts(rows);
+  const extra = single ? (dashAnotacionSupervisor(rows, esOtraPersona, who) + dashPersonalExtra(rows, esOtraPersona, who) + dashHistory(rows, esOtraPersona, who) + comentariosAqui) : dashAlerts(rows);
   return help + head + bars + radar + extra;
 }
 
@@ -4579,12 +4640,12 @@ function renderResumen(rows){
    línea de tiempo y distribución, para que no quede solo el promedio. */
 // RESUMEN personal = foto de HOY: una sola comparación contra lo normal (las gráficas en el
 // tiempo van en la pestaña Evolución, para no repetir lo mismo con otro nombre).
-function dashPersonalExtra(rows){
-  return '<div class="dash-block"><div class="db-title">Tus indicadores vs. lo normal</div>' +
-    '<div class="db-sub">Tu promedio de cada indicador comparado con su límite normal</div>' + dashColumnas(rows) + '</div>';
+function dashPersonalExtra(rows, esOtraPersona, who){
+  return '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Indicadores de ' + who + ' vs. lo normal') : 'Tus indicadores vs. lo normal') + '</div>' +
+    '<div class="db-sub">' + (esOtraPersona ? ('Su promedio') : 'Tu promedio') + ' de cada indicador comparado con su límite normal</div>' + dashColumnas(rows, esOtraPersona) + '</div>';
 }
 // Bloques de EVOLUCIÓN de una sola persona (mes a mes + línea de tiempo + distribución, elegibles).
-function dashEvolucionPersonal(rows){
+function dashEvolucionPersonal(rows, esOtraPersona){
   const conDatos = DASH.metrics.filter(m => dashVals(rows, m).length);
   let html = '';
   if (dashMonthsCount(rows) >= 2){
@@ -4601,7 +4662,7 @@ function dashEvolucionPersonal(rows){
   if (conDatos.length && rows.length >= 3){
     const md = conDatos.indexOf(DASH.pickDist) >= 0 ? DASH.pickDist : conDatos[0];
     html += '<div class="dash-block"><div class="db-title">Distribución</div>' +
-      '<div class="db-sub">En qué valores se concentran tus registros de ' + (METRIC_LABELS[md]||md) + '.</div>' +
+      '<div class="db-sub">En qué valores se concentran ' + (esOtraPersona ? 'sus' : 'tus') + ' registros de ' + (METRIC_LABELS[md]||md) + '.</div>' +
       (conDatos.length > 1 ? dashMetricPickerFrom('pickDist', md, conDatos) : '') +
       dashHistograma(rows, md) + '</div>';
   }
@@ -4725,8 +4786,9 @@ function renderEvolucion(rows){
   // Vista de UNA persona (empleado o filtrada): mes a mes + línea de tiempo + distribución.
   // No repite la comparación contra lo normal (esa está en Resumen).
   if (DASH.rol === 'empleado' || DASH.f.per){
-    return dashHelp('Cómo se mueven tus indicadores <b>en el tiempo</b>: mes a mes, registro por registro y en qué valores se concentran. La comparación contra lo normal está en <b>Resumen</b>.') +
-      dashEvolucionPersonal(rows);
+    const esOtraPersona = DASH.rol !== 'empleado' && !!DASH.f.per;
+    return dashHelp((esOtraPersona ? ('Cómo se mueven los indicadores de <b>' + esc(DASH.f.per) + '</b> ') : 'Cómo se mueven tus indicadores ') + '<b>en el tiempo</b>: mes a mes, registro por registro y en qué valores se concentran. La comparación contra lo normal está en <b>Resumen</b>.') +
+      dashEvolucionPersonal(rows, esOtraPersona);
   }
   const m = DASH.pickEvo, picker = dashMetricPicker('pickEvo', m, true);
   // La evolución necesita al menos 2 meses distintos con datos; si no, avisamos en vez de mostrar un gráfico vacío.
@@ -5333,7 +5395,7 @@ function dashLineaTiempo(rows, m){
 
 /* ── Barras vs. referencia: la marca vertical = el LÍMITE normal. Barra corta (verde) = bien;
    barra que cruza la marca (roja) = por encima. Un encabezado explica la escala, alineado con las barras. ── */
-function dashColumnas(rows){
+function dashColumnas(rows, esOtraPersona){
   const REF_PCT = 60;   // el límite normal se dibuja a este % del ancho de la barra
   let html = '<div class="col-tabla">';
   DASH.metrics.forEach(m => {
@@ -5358,7 +5420,7 @@ function dashColumnas(rows){
       '</div>';
   });
   return html + '</div>' +
-    '<div class="ct-nota">La línea vertical es el <b>límite normal</b>. La barra es tu promedio: si la cruza, está por encima.</div>';
+    '<div class="ct-nota">La línea vertical es el <b>límite normal</b>. La barra es ' + (esOtraPersona ? 'su' : 'tu') + ' promedio: si la cruza, está por encima.</div>';
 }
 
 /* ── Color de celda del heatmap según ratio con la referencia ── */
@@ -5405,7 +5467,7 @@ function dashAlerts(rows){
     group('Departamentos', deptos, 'dep') + group('Empleados', personas, 'per') + '</div></details>';
 }
 
-function dashHistory(rows){
+function dashHistory(rows, esOtraPersona, who){
   const sorted = rows.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1));
   const row = r => '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
     DASH.metrics.map(m => r[m]!=null ? '<span class="hi-m ' + (r[m]>DASH.ref[m]?'over':'') + '">' + METRIC_LABELS[m] + ': ' + r[m] + '</span>' : '').join('') +
@@ -5417,7 +5479,7 @@ function dashHistory(rows){
     ? '<details class="hist-more"><summary class="hist-more-sum">Ver ' + resto.length + ' registro' + (resto.length>1?'s':'') + ' más <span class="hm-caret">▾</span></summary>' +
       '<div class="hist-more-body">' + resto.map(row).join('') + '</div></details>'
     : '';
-  return '<div class="dash-block"><div class="db-title">Mis registros</div>' +
+  return '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Registros de ' + who) : 'Mis registros') + '</div>' +
     '<div class="db-sub">Del más reciente al más antiguo</div>' + primeros + mas + '</div>';
 }
 
@@ -5503,10 +5565,96 @@ function gestPull(){
 function gestFechaTs(ts){ if(!ts) return ''; const d = new Date(ts); const p=n=>String(n).padStart(2,'0');
   return d.getDate() + ' ' + MESES_ABR[d.getMonth()] + ' ' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
 
+/* ── Casos reales del cuaderno (excluye las anotaciones de aptitud, que no son "gestiones" para
+   contar/listar aquí: viven en el mismo almacén/sincronización pero se muestran aparte). ── */
+function gestCasos(){ return gestList().filter(g => g.tipo !== GEST_TIPO_ANOTACION); }
+
+/* ── ANOTACIÓN DE APTITUD PARA EL SUPERVISOR ──
+   El servicio médico puede dejar una nota (apto / no apto / en observación) visible para el
+   supervisor, con vigencia limitada en el tiempo. Se guarda como una "gestión" especial (mismo
+   almacén y misma sincronización con el servidor que el cuaderno de gestiones, sin tocar el
+   endpoint) para que el supervisor la vea desde otro dispositivo/sesión. */
+const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
+const APT_ANOT_NIVELES = [
+  { k:'alto',  t:'No apto',              c:'#d63031', bg:'#feecec' },
+  { k:'medio', t:'Aviso / en seguimiento', c:'#b8860b', bg:'#fff8e6' }
+];
+const APT_ANOT_DURACIONES = [
+  { l:'4 h',    ms: 4*3600000 },
+  { l:'8 h',    ms: 8*3600000 },
+  { l:'24 h',   ms: 24*3600000 },
+  { l:'3 días', ms: 3*86400000 },
+  { l:'7 días', ms: 7*86400000 }
+];
+function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
+function gestAnotaciones(){ return gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION); }
+function gestAnotacionesDe(persona){
+  const ahora = Date.now();
+  return gestAnotaciones().filter(g => g.persona === persona && g.vigenciaHasta && g.vigenciaHasta > ahora)
+    .sort((a,b) => b.creada - a.creada);
+}
+const ANOT = { nivel:'alto', ms:24*3600000, open:false };
+function dashAnotacionSupervisor(rows, esOtraPersona, who){
+  if (!esOtraPersona || !DASH.f.per) return '';
+  const activas = gestAnotacionesDe(DASH.f.per);
+  const activasHtml = activas.map(g => {
+    const info = apAnotInfo(g.nivel);
+    return '<div class="an-activa" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
+      '<div class="an-activa-top"><span class="an-activa-badge">' + info.t + '</span>' +
+      '<span class="an-activa-hasta">Visible al supervisor hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span></div>' +
+      (g.nota ? '<div class="an-activa-nota">' + esc(g.nota) + '</div>' : '') +
+      '<button type="button" class="an-activa-quitar" onclick="anotQuitar(\'' + g.id + '\')">Quitar anotación</button></div>';
+  }).join('');
+  const segBtns = APT_ANOT_NIVELES.map(n =>
+    '<button type="button" class="an-seg-btn' + (ANOT.nivel===n.k?' active':'') + '" data-nivel="' + n.k + '" style="--anc:' + n.c + ';--anbg:' + n.bg + '" onclick="anotSetNivel(\'' + n.k + '\')">' + n.t + '</button>'
+  ).join('');
+  const durBtns = APT_ANOT_DURACIONES.map(d =>
+    '<button type="button" class="an-dur-btn' + (ANOT.ms===d.ms?' active':'') + '" data-ms="' + d.ms + '" onclick="anotSetDur(' + d.ms + ', this)">' + d.l + '</button>'
+  ).join('');
+  return '<div class="dash-block an-block">' +
+    '<div class="db-title">Anotación para el supervisor</div>' +
+    '<div class="db-sub">Marca si ' + who + ' está apto o no, con vigencia en el tiempo. El supervisor va a poder ver esto en su panel (sin datos médicos).</div>' +
+    activasHtml +
+    '<button type="button" class="an-btn" onclick="anotAbrir()">' + (activas.length ? '+ Agregar otra anotación' : '🩺 Dejar anotación para el supervisor') + '</button>' +
+    '<div class="an-form' + (ANOT.open?' open':'') + '" id="anotForm"><div class="an-form-inner">' +
+      '<div class="an-seg">' + segBtns + '</div>' +
+      '<div class="an-dur-label">Vigencia</div>' +
+      '<div class="an-dur">' + durBtns + '</div>' +
+      '<textarea id="anotNota" class="an-nota" placeholder="Nota para el supervisor (ej: no volar por 24 h, en observación por fatiga)…" maxlength="300"></textarea>' +
+      '<div class="an-aviso">⚠️ El supervisor podrá ver esta anotación desde su panel.</div>' +
+      '<div class="an-actions"><button type="button" class="an-cancel" onclick="anotCerrar()">Cancelar</button>' +
+      '<button type="button" class="an-guardar" onclick="anotGuardar()">Guardar anotación</button></div>' +
+    '</div></div>' +
+  '</div>';
+}
+function anotAbrir(){ ANOT.open = true; const f = document.getElementById('anotForm'); if (f) f.classList.add('open'); }
+function anotCerrar(){ ANOT.open = false; const f = document.getElementById('anotForm'); if (f) f.classList.remove('open'); }
+function anotSetNivel(k){ ANOT.nivel = k;
+  document.querySelectorAll('#anotForm .an-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.nivel === k)); }
+function anotSetDur(ms, btn){ ANOT.ms = ms;
+  document.querySelectorAll('#anotForm .an-dur-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active'); }
+function anotGuardar(){
+  if (!DASH || !DASH.f.per) return;
+  const notaEl = document.getElementById('anotNota');
+  const nota = notaEl ? notaEl.value.trim() : '';
+  const ahora = Date.now();
+  const fila = (DASH.registros || []).find(r => r.persona === DASH.f.per) || {};
+  gestUpsert({ id: gestNewId(), tipo: GEST_TIPO_ANOTACION, persona: DASH.f.per,
+    departamento: fila.departamento || '', nivel: ANOT.nivel, nota: nota,
+    creada: ahora, vigenciaHasta: ahora + ANOT.ms });
+  ANOT.open = false;
+  renderDash();
+}
+function anotQuitar(id){
+  gestSaveList(gestList().filter(g => g.id !== id));
+  renderDash();
+}
+
 // Notas de EJEMPLO para la Empresa Demo, para que al explorar la demostración se vea cómo queda
 // un cuaderno con casos reales (variedad de estados, prioridades, tareas y seguimiento).
 function gestSembrarDemo(){
-  if (gestList().length) return;   // sólo la primera vez que se abre (cuaderno vacío)
+  if (gestCasos().length) return;   // sólo la primera vez que se abre (cuaderno vacío)
   const ahora = Date.now(), dia = 86400000;
   const items = [
     { titulo:'Fatiga elevada — turno noche', personas:['Carlos Ruiz'], departamento:'Operaciones',
@@ -5572,7 +5720,7 @@ function gestSyncStatus(st){
 function closeGestiones(){
   // Limpia gestiones totalmente en blanco (creadas con "+ Nueva" pero sin escribir nada), para
   // que no queden tarjetas vacías. Solo se borran si NO tienen ningún dato ni seguimiento.
-  const vivas = gestList().filter(g => (g.titulo||'').trim() || (g.detalle||'').trim() ||
+  const vivas = gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION || (g.titulo||'').trim() || (g.detalle||'').trim() ||
     gestPersonasDe(g).length || (g.departamento||'').trim() || (g.seguimientos||[]).length || gestTareasDe(g).length);
   if (vivas.length !== gestList().length) gestSaveList(vivas);
   document.getElementById('gestionesOverlay').classList.remove('show');
@@ -5727,7 +5875,7 @@ function gestBorrarSeg(id, ts){
 
 function gestRenderSummary(){
   const sumEl=document.getElementById('gestSummary'); if(!sumEl) return;
-  const list=gestList();
+  const list=gestCasos();
   const total=list.length, ab=list.filter(g=>g.estado==='abierta').length,
     seg=list.filter(g=>g.estado==='seguimiento').length, res=list.filter(g=>g.estado==='resuelta').length,
     venc=list.filter(g=>g.estado!=='resuelta' && g.revisa && g.revisa<gestHoyISO()).length;
@@ -5745,7 +5893,7 @@ function gestRenderSummary(){
 function renderGestiones(){
   const cont=document.getElementById('gestBody'); if(!cont) return;
   gestRenderSummary();
-  const list = gestList();
+  const list = gestCasos();
   const filEl=document.getElementById('gestFilters');
   if (filEl){
     const opts=[['all','Todas'],['abierta','Abiertas'],['seguimiento','En seguimiento'],['resuelta','Resueltas'],['pin','Fijadas']];
@@ -5781,7 +5929,7 @@ function renderGestiones(){
 // Nada es obligatorio: una nota sin título se llama "Nota sin título N°X". El número es estable
 // (orden de creación, del cuaderno entero) para que no salte al filtrar, ordenar o buscar.
 function gestNumeroNota(g){
-  const todas = gestList().slice().sort((a,b) => a.creada - b.creada);
+  const todas = gestCasos().slice().sort((a,b) => a.creada - b.creada);
   const ix = todas.findIndex(x => x.id === g.id);
   return ix >= 0 ? ix + 1 : todas.length + 1;
 }
