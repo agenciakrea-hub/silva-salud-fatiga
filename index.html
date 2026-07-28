@@ -1371,7 +1371,11 @@
   .apt-box.apt-medio { background: #fff8e6; color: #8a6400; }
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
-  /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ── */
+  /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ──
+     Todo el bloque va dentro de un marco propio (borde + fondo) para que se lea como una
+     sección aparte del resto del resumen, no como texto suelto flotando. */
+  .an-block { border: 1px solid #e6eaf2; border-radius: 16px; padding: 1rem 1.05rem; background: #fbfcfe; }
+  .an-block .db-title { margin-top: 0; }
   .an-activa { border-radius: 12px; padding: .75rem .85rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
   .an-activa-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
@@ -1380,21 +1384,44 @@
   .an-activa-nota { font-size: .84rem; color: var(--text); line-height: 1.45; margin-top: .5rem; white-space: pre-wrap; word-break: break-word; }
   .an-activa-quitar { margin-top: .55rem; border: none; background: none; color: var(--text-muted); font-size: .76rem;
     font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
-  .an-btn { width: 100%; padding: .75rem; border: 1px dashed #d7dde8; border-radius: 12px; background: #fff;
-    color: var(--navy); font-family: inherit; font-weight: 800; font-size: .86rem; cursor: pointer; }
+  /* Fila: botón principal (angosto, no ocupa todo el ancho) + cuadradito de info al lado,
+     mismo patrón que el acceso a Gestiones. */
+  .an-row { display: flex; gap: .5rem; margin-top: .3rem; }
+  .an-btn { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: .7rem 1.1rem; border: 1.5px solid #d7dde8; border-radius: 12px; background: #fff;
+    color: var(--navy); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
+  .an-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .an-btn:active { transform: scale(.99); }
+  .an-btn-chevron { width: 15px; height: 15px; flex-shrink: 0; transition: transform .25s ease; }
+  .an-btn.open .an-btn-chevron { transform: rotate(180deg); }
+  /* Cuadradito de info: mismo estilo que el de Gestiones (gest-fab-info) pero en tono neutro */
+  .an-info-btn { flex-shrink: 0; width: 42px; border: 1.5px solid #d7dde8; border-radius: 12px;
+    background: #fff; color: var(--text-muted); font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+  .an-info-btn:active { transform: scale(.96); }
+  .an-info-btn[aria-expanded="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .an-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
+  .an-info-panel.open { grid-template-rows: 1fr; margin-bottom: .6rem; }
+  .an-info-card { overflow: hidden; background: #fff; border: 1px solid #e9edf4; border-radius: 12px; }
+  .an-info-panel:not(.open) .an-info-card { padding: 0 .9rem; }
+  .an-info-panel.open .an-info-card { padding: .8rem .95rem; }
+  .an-info-title { font-weight: 800; font-size: .84rem; color: var(--text); }
+  .an-info-sub { font-size: .78rem; color: var(--text-soft); line-height: 1.5; margin-top: .3rem; }
   .an-form { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
   .an-form.open { grid-template-rows: 1fr; }
   .an-form-inner { overflow: hidden; }
   .an-form.open .an-form-inner { padding-top: .7rem; }
-  .an-seg, .an-dur { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .an-seg { display: flex; flex-wrap: wrap; gap: .45rem; }
   .an-seg-btn { padding: .55rem .9rem; border-radius: 10px; border: 1.5px solid #e3e8f0; background: #fff;
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .82rem; cursor: pointer; }
   .an-seg-btn.active { border-color: var(--anc); background: var(--anbg); color: var(--anc); }
   .an-dur-label { font-size: .74rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
-  .an-dur-btn { padding: .4rem .75rem; border-radius: 999px; border: 1.5px solid #e3e8f0; background: #fff;
-    color: var(--text-soft); font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer; }
-  .an-dur-btn.active { border-color: var(--orange); background: #fff1e6; color: var(--orange); }
+  /* Vigencia: número libre + selector de unidad, en vez de chips fijos */
+  .an-dur-row { display: flex; gap: .5rem; }
+  .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
+    font-family: inherit; font-size: .88rem; color: var(--text); box-sizing: border-box; }
+  .an-dur-unidad { flex: 1; min-width: 0; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
+    font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--text); background: #fff; box-sizing: border-box; }
+  .an-dur-num:focus, .an-dur-unidad:focus { outline: none; border-color: var(--orange); }
   .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid #e3e8f0; border-radius: 12px; padding: .7rem .8rem;
     font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
   .an-nota:focus { outline: none; border-color: var(--orange); }
@@ -1411,7 +1438,6 @@
   .apt-med-top { font-size: .74rem; font-weight: 800; color: var(--anc); }
   .apt-med-txt { font-size: .82rem; color: var(--text); line-height: 1.4; margin-top: .35rem; white-space: pre-wrap; word-break: break-word; }
   .apt-med-hasta { font-size: .7rem; color: var(--text-muted); font-weight: 600; margin-top: .3rem; }
-  @media (min-width: 480px) { .an-seg-btn, .an-dur-btn { flex: 0 0 auto; } }
   /* Con 3 pestañas ("Servicio médico" es larga), que no se apriete el texto en celular */
   .portal-tabs .ptab { font-size: .76rem; padding: .6rem .35rem; line-height: 1.25; }
 
@@ -1668,6 +1694,17 @@
         <input type="checkbox" id="inEsSupervisor" onchange="onSupervisorToggle(this)">
       </label>
     </div>
+    <div class="pilot-banner" id="medBanner">
+      <label for="inEsMedico">
+        <span class="pbi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3v7M8.5 6.5h7M6 13h12a1 1 0 0 1 1 1v1a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5v-1a1 1 0 0 1 1-1z"/></svg></span>
+        <span class="pbt">
+          <span class="opt-tag">Opcional</span>
+          <strong>Servicio médico</strong>
+        </span>
+        <span class="pilot-check" id="medCheckIcon"></span>
+        <input type="checkbox" id="inEsMedico" onchange="onMedicoToggle(this)">
+      </label>
+    </div>
     <div class="field" id="fName">
       <label for="inName">Nombre y apellido</label>
       <input id="inName" type="text" autocomplete="name" placeholder="Ej: Juan Pérez" maxlength="60">
@@ -1734,6 +1771,13 @@
       <div class="pw-wrap"><input id="inSupPass" type="password" autocomplete="off" placeholder="Contraseña de tu empresa">
         <button type="button" class="pw-eye" onclick="togglePw('inSupPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
       <div class="err">Ingresa la contraseña de supervisor.</div>
+    </div>
+    <div class="sup-notice" id="medNotice" style="display:none">Como servicio médico, ingresa la <strong>contraseña médica de tu empresa</strong> (puede ser distinta a la de supervisor). Queda guardada en este dispositivo para entrar directo a las estadísticas.</div>
+    <div class="field" id="fMedPass" style="display:none">
+      <label for="inMedPass">Contraseña de servicio médico</label>
+      <div class="pw-wrap"><input id="inMedPass" type="password" autocomplete="off" placeholder="Contraseña médica de tu empresa">
+        <button type="button" class="pw-eye" onclick="togglePw('inMedPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <div class="err">Ingresa la contraseña de servicio médico.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()">Guardar y continuar</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;">Cancelar</button>
@@ -2008,7 +2052,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.01';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.04';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3344,6 +3388,7 @@ function refreshStates(){
 function rangoDe(p){
   const c = dashGetCreds();
   if (c && String(c.usuario || '').trim() === '*') return 'Administrador';
+  if (p && p.esServicioMedico) return 'Servicio médico';
   if (p && p.esSupervisor) return 'Supervisor';
   if (p && p.esPiloto) return 'Piloto';
   return 'Personal';
@@ -3415,12 +3460,18 @@ function abrirDestinoEstadisticas(){
   syncScrollLock();                         // bloquea el scroll del fondo (evita la 2da barra)
   marcarStatsActivo(true);
   navPush();
-  // Si dejó de ser supervisor, no puede reaparecer una vista de empresa cacheada: se descarta.
-  if (DASH && DASH.vista && DASH.vista !== 'empleado' && !(getProfile() || {}).esSupervisor) DASH = null;
+  // Si dejó de ser supervisor/servicio médico, no puede reaparecer una vista de empresa cacheada: se descarta.
+  if (DASH && DASH.vista && DASH.vista !== 'empleado'){
+    const pp = getProfile() || {};
+    if (!pp.esSupervisor && !pp.esServicioMedico) DASH = null;
+  }
   // Si ya se cargaron datos HOY en esta sesión (se entró antes y se salió), se muestra el panel
   // directo con lo que ya está en memoria — sin pasar por el login ni pedirle nada al servidor de
   // nuevo. Sólo se vuelve a pedir cuando cambia el día o al tocar el botón ↻ (manual, sin límite).
-  if (DASH && DASH.params && dashMismoDia(DASH.updated)){
+  // La Empresa Demo queda afuera de este atajo A PROPÓSITO: es de ejemplo, así que cerrar y
+  // volver a entrar a Estadísticas siempre tiene que mostrar el panel de inicio (Personal /
+  // Supervisor / Servicio médico), nunca reabrir la demo sola como si fuera la cuenta real.
+  if (DASH && DASH.params && !DASH.demoMode && dashMismoDia(DASH.updated)){
     document.getElementById('portalGate').style.display = 'none';
     document.getElementById('portalDash').style.display = '';
     startDashAutoRefresh();                 // closePortal() lo había parado al salir
@@ -3491,8 +3542,8 @@ let editing = false;
 function openSetup(isEdit){
   editing = !!isEdit;
   // Alta nueva: los dos toggles arrancan DESACTIVADOS (antes "piloto" venía marcado por defecto)
-  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:false,esSupervisor:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:'',email:''};
-  const ep = !!p.esPiloto, es = !!p.esSupervisor;
+  const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:false,esSupervisor:false,esServicioMedico:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:'',email:''};
+  const ep = !!p.esPiloto, es = !!p.esSupervisor, em = !!p.esServicioMedico;
   document.getElementById('inEsPiloto').checked = ep;
   document.getElementById('pilotBanner').classList.toggle('active', ep);
   document.getElementById('pilotCheckIcon').textContent = ep ? '✓' : '';
@@ -3502,8 +3553,15 @@ function openSetup(isEdit){
   document.getElementById('supCheckIcon').textContent = es ? '✓' : '';
   document.getElementById('supNotice').style.display = es ? '' : 'none';
   document.getElementById('fSupPass').style.display = es ? '' : 'none';
+  document.getElementById('inEsMedico').checked = em;
+  document.getElementById('medBanner').classList.toggle('active', em);
+  document.getElementById('medCheckIcon').textContent = em ? '✓' : '';
+  document.getElementById('medNotice').style.display = em ? '' : 'none';
+  document.getElementById('fMedPass').style.display = em ? '' : 'none';
   const _cr = dashGetCreds();
   document.getElementById('inSupPass').value = (es && _cr && _cr.pass) ? _cr.pass : '';   // prefill si ya está guardada
+  const _crMed = dashGetCredsMed();
+  document.getElementById('inMedPass').value = (em && _crMed && _crMed.pass) ? _crMed.pass : '';
   loadSetupLists();                                                             // trae empresas (Accesos) y departamentos existentes
   document.getElementById('inName').value     = p.nombre;
   document.getElementById('inCed').value      = p.cedula      || '';
@@ -3548,6 +3606,7 @@ function _sv(id){ const el = document.getElementById(id); return el ? (el.value|
 function setupFormOk(){
   const esPiloto = document.getElementById('inEsPiloto').checked;
   const esSup    = document.getElementById('inEsSupervisor').checked;
+  const esMed    = document.getElementById('inEsMedico').checked;
   if (!_sv('inName')) return false;
   if (!setupCedulaValida(_sv('inCed'))) return false;
   if (esPiloto && !_sv('inPiloto')) return false;
@@ -3559,6 +3618,7 @@ function setupFormOk(){
   if (!setupTelValido(_sv('inTelefono'))) return false;
   if (!setupEmailValido(_sv('inEmail'))) return false;
   if (esSup && !_sv('inSupPass')) return false;
+  if (esMed && !_sv('inMedPass')) return false;
   return true;
 }
 // Habilita/inhabilita (gris) el botón Guardar según el estado del formulario.
@@ -3580,7 +3640,9 @@ function saveProfile(){
   const edad         = document.getElementById('inEdad').value.trim();
   const telefono     = document.getElementById('inTelefono').value.trim();
   const email        = document.getElementById('inEmail').value.trim();
-  const supPass      = document.getElementById('inSupPass').value.trim();
+  const supPass        = document.getElementById('inSupPass').value.trim();
+  const esServicioMedico = document.getElementById('inEsMedico').checked;
+  const medPass        = document.getElementById('inMedPass').value.trim();
   let ok = true;
   // Todos los datos son obligatorios. El ID de piloto solo se exige si es personal de aviación.
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
@@ -3617,34 +3679,48 @@ function saveProfile(){
   const fSupPass = document.getElementById('fSupPass');
   fSupPass.classList.toggle('invalid', esSupervisor && !supPass); if (esSupervisor && !supPass) ok=false;
   if (esSupervisor) fSupPass.querySelector('.err').textContent = 'Ingresa la contraseña de supervisor.';
+  const fMedPass = document.getElementById('fMedPass');
+  fMedPass.classList.toggle('invalid', esServicioMedico && !medPass); if (esServicioMedico && !medPass) ok=false;
+  if (esServicioMedico) fMedPass.querySelector('.err').textContent = 'Ingresa la contraseña de servicio médico.';
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
 
-  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, empresa, departamento, cargo, sexo, edad, telefono, email };
+  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, esServicioMedico, empresa, departamento, cargo, sexo, edad, telefono, email };
   const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar'); };
 
-  if (esSupervisor && supPass){
-    // La contraseña de supervisor se verifica contra el endpoint ANTES de guardarla en el dispositivo.
+  // Las contraseñas (supervisor y/o servicio médico, pueden ser distintas) se verifican contra
+  // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
+  if ((esSupervisor && supPass) || (esServicioMedico && medPass)){
     const btn = document.querySelector('#setup .save-btn');
     if (btn){ btn.disabled = true; btn.textContent = 'Verificando contraseña…'; }
-    validarSupervisorCreds(empresa, supPass).then(res => {
+    Promise.all([
+      (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass) : Promise.resolve(null),
+      (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass) : Promise.resolve(null)
+    ]).then(([resSup, resMed]) => {
       if (btn){ btn.disabled = false; btn.textContent = 'Guardar y continuar'; }
-      if (res === 'bad'){
+      let bad = false;
+      if (resSup === 'bad'){
         fSupPass.classList.add('invalid');
         fSupPass.querySelector('.err').textContent = 'Contraseña o empresa incorrecta. Revisa con tu administrador.';
-        fSupPass.scrollIntoView({behavior:'smooth', block:'center'});
-        return;
+        bad = true;
       }
-      dashSaveCredsValues(empresa, supPass);                         // guarda usuario+contraseña en este dispositivo
-      if (res === 'unknown') showToast('Guardado (no se pudo verificar la contraseña ahora)');
+      if (resMed === 'bad'){
+        fMedPass.classList.add('invalid');
+        fMedPass.querySelector('.err').textContent = 'Contraseña o empresa incorrecta. Revisa con tu administrador.';
+        bad = true;
+      }
+      if (bad){ document.querySelector('.sheet .field.invalid').scrollIntoView({behavior:'smooth', block:'center'}); return; }
+      if (esSupervisor && supPass) dashSaveCredsValues(empresa, supPass); else { try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }
+      if (esServicioMedico && medPass) dashSaveCredsValuesMed(empresa, medPass); else { try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
+      if (!esSupervisor && !esServicioMedico && DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;
+      if (resSup === 'unknown' || resMed === 'unknown') showToast('Guardado (no se pudo verificar alguna contraseña ahora)');
       finalizar();
     });
     return;
   }
 
-  if (!esSupervisor){
-    try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}                       // dejó de ser supervisor → no auto-login
-    if (DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;               // y se descarta la vista de empresa cargada
-  }
+  if (!esSupervisor){ try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }             // dejó de ser supervisor → no auto-login
+  if (!esServicioMedico){ try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
+  if (!esSupervisor && !esServicioMedico && DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;   // se descarta la vista de empresa cargada
   finalizar();
 }
 // Verifica usuario+contraseña de supervisor contra el endpoint. 'ok' | 'bad' | 'unknown' (sin conexión)
@@ -3655,6 +3731,11 @@ function validarSupervisorCreds(usuario, pass){
     .then(d => (d && d.ok) ? 'ok' : 'bad').catch(() => 'unknown');
 }
 function dashSaveCredsValues(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
+// Credenciales de SERVICIO MÉDICO, guardadas aparte de las de supervisor (pueden ser distintas
+// para la misma empresa: columna "Contraseña Médica" de Accesos).
+const K_DASH_CREDS_MED = 'silva_dash_creds_med_v1';
+function dashGetCredsMed(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS_MED)); } catch(e){ return null; } }
+function dashSaveCredsValuesMed(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
 
 /* ════════════════ SETUP: toggles + combobox empresa/departamento ════════════════ */
 function onPilotToggle(el){
@@ -3668,6 +3749,13 @@ function onSupervisorToggle(el){
   document.getElementById('supNotice').style.display = el.checked ? '' : 'none';
   document.getElementById('fSupPass').style.display = el.checked ? '' : 'none';
   if (!el.checked) document.getElementById('fSupPass').classList.remove('invalid');
+}
+function onMedicoToggle(el){
+  document.getElementById('medBanner').classList.toggle('active', el.checked);
+  document.getElementById('medCheckIcon').textContent = el.checked ? '✓' : '';
+  document.getElementById('medNotice').style.display = el.checked ? '' : 'none';
+  document.getElementById('fMedPass').style.display = el.checked ? '' : 'none';
+  if (!el.checked) document.getElementById('fMedPass').classList.remove('invalid');
 }
 
 const SETUP_LISTS = { empresas: [], departamentos: [] };
@@ -3788,10 +3876,15 @@ function openPortal(){
   document.getElementById('portalOverlay').classList.add('show');
   syncScrollLock();
   const p = getProfile();
-  const c = dashGetCreds();
-  // Auto-login: supervisor con contraseña guardada entra DIRECTO a la empresa (sin pasar por el gate)
-  if (p && p.esSupervisor && c && c.usuario && c.pass){
-    portalAutoLoginSupervisor(c);
+  const cMed = dashGetCredsMed(), cSup = dashGetCreds();
+  // Auto-login: con contraseña guardada entra DIRECTO a la empresa (sin pasar por el gate).
+  // Si guardó las dos (supervisor y servicio médico), entra con la médica por defecto (vista completa).
+  if (p && p.esServicioMedico && cMed && cMed.usuario && cMed.pass){
+    portalAutoLoginSupervisor(cMed, K_DASH_CREDS_MED);
+    return;
+  }
+  if (p && p.esSupervisor && cSup && cSup.usuario && cSup.pass){
+    portalAutoLoginSupervisor(cSup, K_DASH_CREDS);
     return;
   }
   openPortalGate();
@@ -3804,39 +3897,41 @@ function openPortalGate(){
     ? 'Vas a ver los registros de ' + p.nombre + (DASH_DEMO ? ' (datos de ejemplo)' : '') + '.'
     : 'Completa tu perfil para ver tus estadísticas.';
   document.getElementById('portalErr').textContent = '';
-  // Si el perfil NO tiene activado "Supervisor", esas pestañas no existen para esta persona:
-  // ve exactamente lo mismo que cualquier empleado, aunque alguna vez haya puesto la contraseña.
-  const puedeEmpresa = !!(p && p.esSupervisor);
+  // Si el perfil NO tiene activado "Supervisor" NI "Servicio médico", esas pestañas no existen
+  // para esta persona: ve exactamente lo mismo que cualquier empleado.
+  const puedeEmpresa = !!(p && (p.esSupervisor || p.esServicioMedico));
   document.getElementById('ptabSup').style.display = puedeEmpresa ? '' : 'none';
   document.getElementById('ptabMed').style.display = puedeEmpresa ? '' : 'none';
-  const c = dashGetCreds();
+  const cMed = dashGetCredsMed(), cSup = dashGetCreds();
+  const c = (p && p.esServicioMedico && cMed && cMed.usuario) ? cMed : cSup;   // prioriza la médica si está guardada
   const btnEntrar = document.querySelector('#portalSup .save-btn');
   if (puedeEmpresa && c && c.usuario){                   // credenciales recordadas → prefill
     document.getElementById('pEmpresa').value = c.usuario;
     document.getElementById('pPass').value = c.pass || '';
     if (btnEntrar) btnEntrar.textContent = 'Entrar a ' + c.usuario;   // ya está todo cargado: un solo toque
-    portalMode('sup');                                   // por defecto, la vista más acotada
+    portalMode(c === cMed ? 'med' : 'sup');
   } else {
     if (btnEntrar) btnEntrar.textContent = 'Entrar';
     portalMode('emp');
     if (puedeEmpresa && p && p.empresa) document.getElementById('pEmpresa').value = p.empresa;
   }
 }
-// Entra directo a la empresa del supervisor con las credenciales guardadas. Si ya no son válidas, cae al gate.
-function portalAutoLoginSupervisor(c){
+// Entra directo a la empresa con las credenciales guardadas (supervisor o servicio médico). Si ya no son válidas, cae al gate.
+function portalAutoLoginSupervisor(c, credKey){
+  credKey = credKey || K_DASH_CREDS;
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
   document.getElementById('dashScope').textContent = 'Cargando…';
   const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:c.pass };
   dashRequest(params).then(d => {
     if (!d || !d.ok){                                    // contraseña cambiada / usuario borrado → volver al gate
-      try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+      try { localStorage.removeItem(credKey); } catch(e){}
       openPortalGate();
-      document.getElementById('portalErr').textContent = 'Revisa tu contraseña de supervisor (cambió o expiró).';
+      document.getElementById('portalErr').textContent = 'Revisa tu contraseña (cambió o expiró).';
       return;
     }
     const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || c.usuario);
-    onDashData(d, label, params, 'supervisor');
+    onDashData(d, label, params, d.vista || (credKey === K_DASH_CREDS_MED ? 'medico' : 'supervisor'));   // vista la decide el servidor según la contraseña usada
   }).catch(() => { openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.'; });
 }
 function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); marcarStatsActivo(false); syncScrollLock(); }
@@ -3928,7 +4023,7 @@ function portalLoginSupervisor(btn){
       btnSpin(btn, false);
       if (!d || !d.ok){ errEl.textContent = (d && d.error) || 'Acceso incorrecto.'; return; }
       const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || usuario);
-      onDashData(d, label, params, PORTAL_VISTA);
+      onDashData(d, label, params, d.vista || PORTAL_VISTA);   // el servidor decide la vista según la contraseña; PORTAL_VISTA sólo si el endpoint aún no la manda (compat)
       offerRemember(usuario, pass);
     })
     .catch(() => { btnSpin(btn, false); errEl.textContent = 'No se pudo conectar.'; });
@@ -4462,7 +4557,7 @@ function dashContext(){
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div>' + rango + '</div>';
 }
 function dashClear(level){
-  ANOT.open = false;
+  ANOT.open = false; ANOT.infoOpen = false;
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
@@ -4470,7 +4565,7 @@ function dashClear(level){
 }
 function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
 function dashDrill(level, value){
-  ANOT.open = false;
+  ANOT.open = false; ANOT.infoOpen = false;
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
@@ -4568,7 +4663,7 @@ function renderAptitud(rows){
     const medBanner = p.medNota ? (function(){
       const info = apAnotInfo(p.medNota.nivel);
       return '<div class="apt-med-nota" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
-        '<div class="apt-med-top">🩺 Servicio médico: ' + info.t + '</div>' +
+        '<div class="apt-med-top">Servicio médico: ' + info.t + '</div>' +
         (p.medNota.nota ? '<div class="apt-med-txt">' + esc(p.medNota.nota) + '</div>' : '') +
         '<div class="apt-med-hasta">Vigente hasta ' + esc(gestFechaTs(p.medNota.vigenciaHasta)) + '</div>' +
       '</div>';
@@ -5579,13 +5674,6 @@ const APT_ANOT_NIVELES = [
   { k:'alto',  t:'No apto',              c:'#d63031', bg:'#feecec' },
   { k:'medio', t:'Aviso / en seguimiento', c:'#b8860b', bg:'#fff8e6' }
 ];
-const APT_ANOT_DURACIONES = [
-  { l:'4 h',    ms: 4*3600000 },
-  { l:'8 h',    ms: 8*3600000 },
-  { l:'24 h',   ms: 24*3600000 },
-  { l:'3 días', ms: 3*86400000 },
-  { l:'7 días', ms: 7*86400000 }
-];
 function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
 function gestAnotaciones(){ return gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION); }
 function gestAnotacionesDe(persona){
@@ -5593,7 +5681,8 @@ function gestAnotacionesDe(persona){
   return gestAnotaciones().filter(g => g.persona === persona && g.vigenciaHasta && g.vigenciaHasta > ahora)
     .sort((a,b) => b.creada - a.creada);
 }
-const ANOT = { nivel:'alto', ms:24*3600000, open:false };
+const ANOT = { nivel:'alto', durNum:24, durUnidad:'h', open:false, infoOpen:false };
+const AN_CHEVRON = '<svg class="an-btn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 function dashAnotacionSupervisor(rows, esOtraPersona, who){
   if (!esOtraPersona || !DASH.f.per) return '';
   const activas = gestAnotacionesDe(DASH.f.per);
@@ -5608,41 +5697,66 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
   const segBtns = APT_ANOT_NIVELES.map(n =>
     '<button type="button" class="an-seg-btn' + (ANOT.nivel===n.k?' active':'') + '" data-nivel="' + n.k + '" style="--anc:' + n.c + ';--anbg:' + n.bg + '" onclick="anotSetNivel(\'' + n.k + '\')">' + n.t + '</button>'
   ).join('');
-  const durBtns = APT_ANOT_DURACIONES.map(d =>
-    '<button type="button" class="an-dur-btn' + (ANOT.ms===d.ms?' active':'') + '" data-ms="' + d.ms + '" onclick="anotSetDur(' + d.ms + ', this)">' + d.l + '</button>'
-  ).join('');
   return '<div class="dash-block an-block">' +
+    '<div class="an-info-panel' + (ANOT.infoOpen?' open':'') + '" id="anotInfoPanel"><div class="an-info-card">' +
+      '<div class="an-info-title">Anotación de aptitud para el supervisor</div>' +
+      '<div class="an-info-sub">El servicio médico marca a una persona como <b>no apta</b> o en <b>aviso/seguimiento</b>, con una nota breve y un tiempo de vigencia (por ejemplo 24 horas o 3 días). Mientras esté vigente, el supervisor la ve destacada en su panel de Aptitud — sin ningún dato médico, sólo la marca y la nota que escribas.</div>' +
+    '</div></div>' +
     '<div class="db-title">Anotación para el supervisor</div>' +
     '<div class="db-sub">Marca si ' + who + ' está apto o no, con vigencia en el tiempo. El supervisor va a poder ver esto en su panel (sin datos médicos).</div>' +
     activasHtml +
-    '<button type="button" class="an-btn" onclick="anotAbrir()">' + (activas.length ? '+ Agregar otra anotación' : '🩺 Dejar anotación para el supervisor') + '</button>' +
+    '<div class="an-row">' +
+      '<button type="button" class="an-btn' + (ANOT.open?' open':'') + '" id="anotBtn" onclick="anotAbrir()"><span>' + (activas.length ? 'Agregar otra anotación' : 'Dejar anotación') + '</span>' + AN_CHEVRON + '</button>' +
+      '<button type="button" class="an-info-btn" id="anotInfoBtn" onclick="anotToggleInfo()" aria-label="Qué es esto" aria-expanded="' + (ANOT.infoOpen?'true':'false') + '">ⓘ</button>' +
+    '</div>' +
     '<div class="an-form' + (ANOT.open?' open':'') + '" id="anotForm"><div class="an-form-inner">' +
       '<div class="an-seg">' + segBtns + '</div>' +
       '<div class="an-dur-label">Vigencia</div>' +
-      '<div class="an-dur">' + durBtns + '</div>' +
+      '<div class="an-dur-row">' +
+        '<input type="number" id="anotDurNum" class="an-dur-num" min="1" max="999" step="1" value="' + ANOT.durNum + '">' +
+        '<select id="anotDurUnidad" class="an-dur-unidad">' +
+          '<option value="h"' + (ANOT.durUnidad==='h'?' selected':'') + '>Horas</option>' +
+          '<option value="d"' + (ANOT.durUnidad==='d'?' selected':'') + '>Días</option>' +
+        '</select>' +
+      '</div>' +
       '<textarea id="anotNota" class="an-nota" placeholder="Nota para el supervisor (ej: no volar por 24 h, en observación por fatiga)…" maxlength="300"></textarea>' +
-      '<div class="an-aviso">⚠️ El supervisor podrá ver esta anotación desde su panel.</div>' +
+      '<div class="an-aviso">El supervisor podrá ver esta anotación desde su panel.</div>' +
       '<div class="an-actions"><button type="button" class="an-cancel" onclick="anotCerrar()">Cancelar</button>' +
       '<button type="button" class="an-guardar" onclick="anotGuardar()">Guardar anotación</button></div>' +
     '</div></div>' +
   '</div>';
 }
-function anotAbrir(){ ANOT.open = true; const f = document.getElementById('anotForm'); if (f) f.classList.add('open'); }
-function anotCerrar(){ ANOT.open = false; const f = document.getElementById('anotForm'); if (f) f.classList.remove('open'); }
+function anotAbrir(){
+  ANOT.open = true;
+  const f = document.getElementById('anotForm'); if (f) f.classList.add('open');
+  const b = document.getElementById('anotBtn'); if (b) b.classList.add('open');
+}
+function anotCerrar(){
+  ANOT.open = false;
+  const f = document.getElementById('anotForm'); if (f) f.classList.remove('open');
+  const b = document.getElementById('anotBtn'); if (b) b.classList.remove('open');
+}
+function anotToggleInfo(){
+  ANOT.infoOpen = !ANOT.infoOpen;
+  const p = document.getElementById('anotInfoPanel'); if (p) p.classList.toggle('open', ANOT.infoOpen);
+  const b = document.getElementById('anotInfoBtn'); if (b) b.setAttribute('aria-expanded', ANOT.infoOpen ? 'true' : 'false');
+}
 function anotSetNivel(k){ ANOT.nivel = k;
   document.querySelectorAll('#anotForm .an-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.nivel === k)); }
-function anotSetDur(ms, btn){ ANOT.ms = ms;
-  document.querySelectorAll('#anotForm .an-dur-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active'); }
 function anotGuardar(){
   if (!DASH || !DASH.f.per) return;
   const notaEl = document.getElementById('anotNota');
   const nota = notaEl ? notaEl.value.trim() : '';
+  const numEl = document.getElementById('anotDurNum'), unidadEl = document.getElementById('anotDurUnidad');
+  const num = Math.max(1, Math.round(Number(numEl && numEl.value) || 1));
+  const unidad = (unidadEl && unidadEl.value === 'd') ? 'd' : 'h';
+  ANOT.durNum = num; ANOT.durUnidad = unidad;
+  const ms = num * (unidad === 'd' ? 86400000 : 3600000);
   const ahora = Date.now();
   const fila = (DASH.registros || []).find(r => r.persona === DASH.f.per) || {};
   gestUpsert({ id: gestNewId(), tipo: GEST_TIPO_ANOTACION, persona: DASH.f.per,
     departamento: fila.departamento || '', nivel: ANOT.nivel, nota: nota,
-    creada: ahora, vigenciaHasta: ahora + ANOT.ms });
+    creada: ahora, vigenciaHasta: ahora + ms });
   ANOT.open = false;
   renderDash();
 }
