@@ -348,9 +348,6 @@
   .ptab.active { background: #fff; color: var(--text); box-shadow: var(--shadow-sm); }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
   .portal-err { color: #d63031; font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
-  /* En celular, el interior de "Supervisor" es una sola columna normal (izquierda/derecha se
-     unen). En escritorio se parte en 2 mitades simétricas — ver el media query de escritorio. */
-  .pg-sup-grid { display: block; }
 
   /* Shell del dashboard: header + tabs fijos, cuerpo con scroll propio. Todo el bloque fijo de
      arriba (header + menú/filtros) va en el mismo azul marino que el resto de la app, con
@@ -1060,35 +1057,34 @@
     .gloss-toggle:hover { color: var(--navy); }
     .gloss-toggle.open { background: #f1f3f7; color: var(--navy); }
     /* El login del panel (gate) en escritorio: fondo BLANCO a pantalla completa (igual que el
-       panel), con el formulario en una tarjeta centrada. Así, tras la onda blanca, el fondo que
-       queda es blanco (no azul) y la transición es continua. */
-    #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3rem;
-      display: flex; align-items: center; justify-content: center; background: #fff; }
+       panel), con el formulario ANCLADO ARRIBA (no centrado verticalmente) — así no "salta" de
+       posición al cambiar de pestaña (Personal/Supervisor/Servicio médico tienen distinto alto:
+       centrado hacía que cada uno quedara en un lugar distinto de la pantalla) y queda más cerca
+       de donde mira el ojo al abrir el panel. */
+    #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3.2rem 3rem;
+      display: flex; align-items: flex-start; justify-content: center; background: #fff; }
     /* La tarjeta se acomoda al ancho real disponible en vez de un ancho fijo chico: en pantallas
        angostas (justo en el quiebre de escritorio) toma casi todo el ancho libre, y en pantallas
        grandes crece hasta un tope cómodo — nunca queda apretada ni corta palabras. SIN marco
        propio (ni borde, ni sombra, ni fondo): el fondo blanco ya lo pone #portalGate, así que
        no queda "una caja adentro de otra caja" — el contenido respira directo sobre la página. */
-    .portal-gate-card { width: min(760px, 94%); margin: auto; background: none;
+    .portal-gate-card { width: min(560px, 94%); margin: 0 auto; background: none;
       border: none; border-radius: 0; padding: 0; box-shadow: none; }
     .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
     /* El título queda centrado arriba de todo (pestañas + lo que corresponda debajo) */
     #portalGate h2 { text-align: center; font-size: 1.65rem; }
     #portalGate .lead { text-align: center; margin-top: .5rem; margin-bottom: .6rem; font-size: .92rem; }
-    /* Dentro de "Supervisor": simétrico, usuario/contraseña a la IZQUIERDA y entrar/demo/admin
-       a la DERECHA (antes todo iba apilado, obligando a scrollear). Con aire de verdad entre
-       columnas y adentro de cada campo/botón — simétrico no es lo mismo que apretado.
-       minmax(0,1fr) evita que un valor largo (ej. un nombre de empresa) desborde su columna. */
-    .pg-sup-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0 3rem; align-items: start; margin-top: .4rem; }
-    .pg-sup-left, .pg-sup-right { min-width: 0; }
-    .pg-sup-left .field input { font-size: 1rem; padding: .95rem 1.05rem; }
-    .pg-sup-right .save-btn { padding: 1.05rem; font-size: 1rem; }
+    /* Usuario, Contraseña y el botón Entrar van APILADOS (no en columnas separadas) — una sola
+       columna angosta y cómoda, igual de orden que en celular, sólo que con más aire. */
+    #portalSup .field input { font-size: 1rem; padding: .95rem 1.05rem; }
+    #portalSup .save-btn { padding: 1.05rem; font-size: 1rem; }
     /* "Ver demostración" SÍ tiene su propia caja acá (a diferencia del resto, que ya no tiene
        marco): así se nota que es una acción alternativa aparte, no un paso más del login. */
-    .pg-sup-right .portal-demo { border: 1.5px solid #f3d9c4; border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; background: #fffaf5; }
-    .pg-sup-right .portal-demo .pd-sep { display: none; }
-    .pg-sup-right .portal-demo-btn { padding: .95rem; }
-    .pg-sup-right .admin-sep { margin-top: 1.6rem; }
+    #portalSup .portal-demo { border: 1.5px solid #f3d9c4; border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; background: #fffaf5; }
+    #portalSup .portal-demo .pd-sep { display: none; }
+    #portalSup .portal-demo-btn { padding: .95rem; }
+    /* Administrador queda FIJO al pie de la tarjeta, sin importar la pestaña elegida. */
+    #adminSep { margin-top: 1.8rem; }
   }
   /* Pantallas muy anchas: el contenido puede usar más ancho (la grilla auto-fit ya decide
      cuántas columnas entran, así que no hace falta fijar el número). */
@@ -1948,40 +1944,36 @@
 
       <!-- Un solo formulario para Supervisor y Servicio médico (mismas credenciales de empresa):
            lo que cambia es la VISTA que se abre — el supervisor ve sólo aptitud (sin datos
-           médicos), el servicio médico ve todo. En escritorio se parte en 2 mitades simétricas. -->
+           médicos), el servicio médico ve todo. Usuario/Contraseña y el botón Entrar van
+           apilados en ese orden (no en columnas separadas). -->
       <div id="portalSup" class="portal-pane" style="display:none">
         <p class="portal-hint" id="portalSupHint"></p>
-        <div class="pg-sup-grid">
-          <div class="pg-sup-left">
-            <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
-            <div class="field"><label for="pPass">Contraseña</label>
-              <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
-                <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-            </div>
-            <div class="portal-err" id="portalErr"></div>
-          </div>
-          <div class="pg-sup-right">
-            <button class="save-btn" onclick="portalLoginSupervisor(this)">Entrar</button>
+        <div class="field"><label for="pEmpresa">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario"></div>
+        <div class="field"><label for="pPass">Contraseña</label>
+          <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña">
+            <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+        </div>
+        <div class="portal-err" id="portalErr"></div>
+        <button class="save-btn" onclick="portalLoginSupervisor(this)">Entrar</button>
 
-            <div class="portal-demo">
-              <div class="pd-sep"><span>o</span></div>
-              <button type="button" class="portal-demo-btn" onclick="portalVerDemo(this)">Ver demostración con datos simulados</button>
-              <p class="portal-demo-hint">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
-            </div>
+        <div class="portal-demo">
+          <div class="pd-sep"><span>o</span></div>
+          <button type="button" class="portal-demo-btn" id="portalDemoBtn" onclick="portalVerDemo(this)">Ver demostración con datos simulados</button>
+          <p class="portal-demo-hint">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
+        </div>
+      </div>
 
-            <!-- El acceso de administrador es acceso TOTAL: sólo desde Servicio médico. -->
-            <div class="admin-sep" id="adminSep">
-              <button type="button" class="admin-toggle" onclick="toggleAdminLogin()">Administrador / Desarrollador</button>
-              <div id="adminBox" style="display:none">
-                <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
-                  <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
-                    <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-                </div>
-                <div class="portal-err" id="adminErr"></div>
-                <button class="save-btn" onclick="portalLoginAdmin(this)">Entrar como administrador</button>
-              </div>
-            </div>
+      <!-- Administrador: FIJO abajo de todo, visible sin importar la pestaña elegida (Personal/
+           Supervisor/Servicio médico) — acceso total, no depende de en qué pestaña se esté. -->
+      <div class="admin-sep" id="adminSep">
+        <button type="button" class="admin-toggle" onclick="toggleAdminLogin()">Administrador / Desarrollador</button>
+        <div id="adminBox" style="display:none">
+          <div class="field"><label for="pAdminPass">Contraseña de administrador</label>
+            <div class="pw-wrap"><input id="pAdminPass" type="password" autocomplete="off" placeholder="Contraseña (usuario * en Accesos)">
+              <button type="button" class="pw-eye" onclick="togglePw('pAdminPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
           </div>
+          <div class="portal-err" id="adminErr"></div>
+          <button class="save-btn" onclick="portalLoginAdmin(this)">Entrar como administrador</button>
         </div>
       </div>
       </div><!-- /.portal-gate-card -->
@@ -2171,7 +2163,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.09';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.10';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4069,16 +4061,19 @@ function portalMode(m){
   document.getElementById('ptabMed').classList.toggle('active', m==='med');
   document.getElementById('portalEmp').style.display = m==='emp' ? '' : 'none';
   document.getElementById('portalSup').style.display = esLogin ? '' : 'none';
+  // El acceso de administrador va SIEMPRE al pie, sin importar la pestaña elegida; sólo se
+  // repliega el formulario de contraseña al cambiar de pestaña, para no dejarlo abierto a mitad.
+  const box = document.getElementById('adminBox'); if (box) box.style.display = 'none';
   if (!esLogin) return;
   PORTAL_VISTA = (m === 'sup') ? 'supervisor' : 'medico';
   const hint = document.getElementById('portalSupHint');
   if (hint) hint.textContent = (m === 'sup')
     ? 'Vista operativa: quiénes están en condiciones de trabajar. No muestra datos médicos ni resultados de los tests.'
     : 'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.';
-  // El acceso de administrador (acceso total) sólo se ofrece desde Servicio médico.
-  const adminSep = document.getElementById('adminSep');
-  if (adminSep) adminSep.style.display = (m === 'med') ? '' : 'none';
-  if (m === 'sup'){ const box = document.getElementById('adminBox'); if (box) box.style.display = 'none'; }
+  // La demo aclara para qué vista es (no siempre es obvio que "Ver demostración" respeta la
+  // pestaña elegida en vez de abrir siempre la vista completa).
+  const demoBtn = document.getElementById('portalDemoBtn');
+  if (demoBtn) demoBtn.textContent = 'Ver demostración con datos simulados (para ' + (m === 'sup' ? 'supervisor' : 'servicio médico') + ')';
 }
 
 // Pide datos al endpoint (o responde con el mock si no hay URL configurada).
