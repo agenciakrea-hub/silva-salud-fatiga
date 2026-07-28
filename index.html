@@ -385,21 +385,30 @@
   .dash-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 1.1rem 1.2rem 2.2rem; scrollbar-gutter: stable; }
 
   /* Menú y filtros: en celular, pestañas + período + departamento/empleado quedan detrás de UN
-     solo botón desplegable (menos tiras siempre visibles = menos ruido). En escritorio hay
-     espacio de sobra, así que se fuerza siempre abierto (ver media query más abajo). */
-  .dfm-wrap { border-bottom: 1px solid #eef1f5; flex-shrink: 0; }
-  .dfm-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%;
-    padding: .8rem 1.2rem; border: none; background: #fff; font-family: inherit; cursor: pointer; }
-  .dfm-toggle-label { font-size: .86rem; font-weight: 800; color: var(--navy); overflow: hidden;
+     solo botón desplegable (menos tiras siempre visibles = menos ruido). Al abrirlo, el panel
+     FLOTA por encima del contenido (no lo empuja hacia abajo) y se cierra solo tocando afuera.
+     En escritorio hay espacio de sobra, así que se fuerza siempre abierto y en flujo normal
+     (ver media query más abajo). */
+  .dfm-wrap { position: relative; z-index: 25; border-bottom: 1px solid #eef1f5; flex-shrink: 0; background: #fff; }
+  .dfm-toggle { display: flex; align-items: center; gap: .7rem; width: 100%; text-align: left;
+    padding: .7rem 1.2rem; border: none; background: #fff; font-family: inherit; cursor: pointer; }
+  .dfm-toggle-ic { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: #f1f3f7;
+    color: var(--navy); display: flex; align-items: center; justify-content: center; transition: background .2s, color .2s; }
+  .dfm-toggle-ic svg { width: 18px; height: 18px; }
+  .dfm-toggle.open .dfm-toggle-ic { background: var(--navy); color: #fff; }
+  .dfm-toggle-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+  .dfm-toggle-title { font-size: .88rem; font-weight: 800; color: var(--text); }
+  .dfm-toggle-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
-  .dfm-toggle-chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted);
-    transition: transform .25s ease; margin-left: .6rem; }
+  .dfm-toggle-chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-muted); transition: transform .25s ease; }
   .dfm-toggle.open .dfm-toggle-chevron { transform: rotate(180deg); }
-  .dfm-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
-  .dfm-panel.open { grid-template-rows: 1fr; }
+  .dfm-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 25;
+    display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
+    background: #fff; border-radius: 0 0 18px 18px; }
+  .dfm-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
   .dfm-panel-inner { overflow: hidden; min-height: 0; }
   .dfm-panel-inner .dash-tabs-wrap { border-top: 1px solid #eef1f5; }
-  .dfm-panel-inner .dash-filters { padding: .9rem 1.2rem 0; margin-bottom: .3rem; }
+  .dfm-panel-inner .dash-filters { padding: .9rem 1.2rem 1.1rem; margin-bottom: 0; }
 
   /* Glosario colapsable */
   .gloss { margin-bottom: 1rem; }
@@ -1007,13 +1016,13 @@
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
-    /* Escritorio: el menú desplegable de celular se fuerza siempre abierto (hay espacio de sobra,
-       no hace falta esconder nada detrás de un botón). */
+    /* Escritorio: el menú desplegable de celular se fuerza siempre abierto y EN FLUJO normal
+       (no flotando encima), hay espacio de sobra y no hace falta esconder nada detrás de un botón. */
     .dfm-toggle { display: none; }
-    .dfm-panel { grid-template-rows: 1fr !important; }
+    .dfm-panel { position: static; grid-template-rows: 1fr !important; box-shadow: none !important; border-radius: 0; }
     .dfm-panel-inner { overflow: visible; }
     .dfm-panel-inner .dash-tabs-wrap { border-top: none; }
-    .dfm-wrap { border-bottom: none; }
+    .dfm-wrap { position: static; border-bottom: none; }
     /* El login del panel (gate) en escritorio: fondo BLANCO a pantalla completa (igual que el
        panel), con el formulario en una tarjeta centrada. Así, tras la onda blanca, el fondo que
        queda es blanco (no azul) y la transición es continua. */
@@ -1425,9 +1434,12 @@
   .an-info-btn[aria-expanded="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
   .an-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
   .an-info-panel.open { grid-template-rows: 1fr; margin-bottom: .6rem; }
-  .an-info-card { overflow: hidden; min-height: 0; background: #fff; border: 1px solid #e9edf4; border-radius: 12px; }
+  /* El borde va SÓLO cuando está abierto: si queda puesto todo el tiempo, con la fila colapsada a
+     altura 0 el borde de arriba + el de abajo igual se dibujan y se ve como una rayita fantasma
+     encima del botón, aunque el contenido mida 0px. */
+  .an-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 12px; }
   .an-info-panel:not(.open) .an-info-card { padding: 0 .9rem; }
-  .an-info-panel.open .an-info-card { padding: .8rem .95rem; }
+  .an-info-panel.open .an-info-card { padding: .8rem .95rem; border: 1px solid #e9edf4; }
   .an-info-title { font-weight: 800; font-size: .84rem; color: var(--text); }
   .an-info-sub { font-size: .78rem; color: var(--text-soft); line-height: 1.5; margin-top: .3rem; }
   .an-form { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
@@ -1493,10 +1505,13 @@
      el resto de la app para expandir/colapsar suave) como UNA sola tarjeta. */
   .gest-fab-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
   .gest-fab-info-panel.open { grid-template-rows: 1fr; margin-bottom: .6rem; }
-  .gest-fab-info-card { overflow: hidden; min-height: 0; background: #fff; border: 1px solid #e9edf4; border-radius: 14px;
-    box-shadow: 0 12px 30px rgba(14,42,86,.16); }
+  /* Borde y sombra SÓLO cuando está abierto: si quedan puestos siempre, con la fila colapsada a
+     altura 0 el borde de arriba + el de abajo se dibujan igual y se ve una rayita fantasma
+     encima del botón, aunque el contenido mida 0px. */
+  .gest-fab-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 14px; }
   .gest-fab-info-panel:not(.open) .gest-fab-info-card { padding: 0 1rem; }
-  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; }
+  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; border: 1px solid #e9edf4;
+    box-shadow: 0 12px 30px rgba(14,42,86,.16); }
   .gest-fab-info-title { font-weight: 800; font-size: .92rem; color: var(--text); }
   .gest-fab-info-sub { font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
   .gest-fab-info-count { font-size: .8rem; color: var(--text-soft); margin-top: .5rem; font-weight: 700; }
@@ -1943,7 +1958,11 @@
       </div>
       <div class="dfm-wrap">
         <button type="button" class="dfm-toggle" id="dfmToggle" onclick="dfmToggle()" aria-expanded="false">
-          <span class="dfm-toggle-label" id="dfmToggleLabel">Menú y filtros</span>
+          <span class="dfm-toggle-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg></span>
+          <span class="dfm-toggle-text">
+            <span class="dfm-toggle-title">Menú y filtros</span>
+            <span class="dfm-toggle-sub" id="dfmToggleLabel">Resumen · Todo</span>
+          </span>
           <svg class="dfm-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="dfm-panel" id="dfmPanel"><div class="dfm-panel-inner">
@@ -2094,7 +2113,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.05';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.06';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4252,11 +4271,20 @@ function dfmToggle(){
   const open = panel.classList.toggle('open');
   btn.classList.toggle('open', open);
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  // El panel flota por encima del contenido: se cierra solo si se toca afuera (no al elegir
+  // pestaña/período/filtro, eso queda abierto para seguir eligiendo).
+  if (open) document.addEventListener('click', dfmOutsideClick, true);
+  else document.removeEventListener('click', dfmOutsideClick, true);
+}
+function dfmOutsideClick(e){
+  const wrap = document.querySelector('.dfm-wrap');
+  if (wrap && !wrap.contains(e.target)) dfmClose();
 }
 function dfmClose(){
   const panel = document.getElementById('dfmPanel'), btn = document.getElementById('dfmToggle');
   if (panel) panel.classList.remove('open');
   if (btn){ btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  document.removeEventListener('click', dfmOutsideClick, true);
 }
 function dfmUpdateLabel(){
   const lbl = document.getElementById('dfmToggleLabel');
@@ -4286,7 +4314,6 @@ function dashPistaPestanas(){
   wrap.classList.toggle('mas-der', resto > 4 && bar.scrollLeft < resto - 4);
 }
 function dashScrollTo(t){
-  dfmClose();                                              // elegida la pestaña, se cierra el menú (celular)
   // "Gestiones" no es una sección más: abre una ventana a pantalla completa (panel de gestiones).
   if (t === 'gestiones'){ openGestiones(); return; }
   const sec = document.getElementById('dsec-' + t), scroll = document.getElementById('dashScroll');
@@ -4355,7 +4382,7 @@ function buildDashFilters(){
 }
 function optSel(v, sel){ return '<option ' + (v===sel?'selected':'') + '>' + esc(v) + '</option>'; }
 function uniqSorted(rows, key){ return Array.from(new Set(rows.map(r=>r[key]).filter(Boolean))).sort(); }
-function dashSetPeriod(p){ DASH.f.period = p; buildDashFilters(); renderDash(); if (p !== 'custom') dfmClose(); }
+function dashSetPeriod(p){ DASH.f.period = p; buildDashFilters(); renderDash(); }
 function dashFilterChange(changed){
   DASH.f.desde = fval('dashDesde'); DASH.f.hasta = fval('dashHasta');
   if (document.getElementById('dashEmp')) DASH.f.emp = fval('dashEmp');
@@ -4504,11 +4531,13 @@ function renderDash(){
     else html = renderResumen(rows);
     return '<section class="dash-sec" id="dsec-' + t + '" data-tab="' + t + '">' + html + '</section>';
   }).join('');
-  // Anotación para el supervisor: va PEGADA al nombre de la persona elegida, arriba de todo lo
-  // demás (no dentro de una pestaña puntual) porque aplica a la persona, no a la pestaña que se
-  // esté mirando en ese momento.
+  // Anotación para el supervisor (persona filtrada) / anotaciones del servicio médico (vista de
+  // grupo): van PEGADAS al nombre de la persona / arriba de todo, no dentro de una pestaña
+  // puntual, porque no son contenido de una pestaña sino contexto de a quién se está mirando.
   const esOtraPersona = !!DASH.f.per && DASH.rol !== 'empleado';
-  const anotBloque = dashAnotacionSupervisor(rows, esOtraPersona, DASH.f.per ? esc(DASH.f.per) : '');
+  const anotBloque = esOtraPersona
+    ? dashAnotacionSupervisor(rows, esOtraPersona, DASH.f.per ? esc(DASH.f.per) : '')
+    : dashAnotacionesResumen();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor.
   body.innerHTML = dashContext() + anotBloque + (DASH.vista === 'supervisor' ? '' : dashGlossary()) + aviso + secciones;
   dashWireScrollspy();
@@ -4801,7 +4830,7 @@ function renderResumen(rows){
   // Los comentarios van en el Resumen SOLO si no hay pestaña propia de Comentarios (empleado);
   // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
   const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
-  const extra = single ? (dashPersonalExtra(rows, esOtraPersona, who) + dashHistory(rows, esOtraPersona, who) + comentariosAqui) : (dashAnotacionesResumen() + dashAlerts(rows));
+  const extra = single ? (dashPersonalExtra(rows, esOtraPersona, who) + dashHistory(rows, esOtraPersona, who) + comentariosAqui) : dashAlerts(rows);
   return help + head + bars + radar + extra;
 }
 
@@ -5755,10 +5784,11 @@ function gestAnotacionesDe(persona){
   return gestAnotaciones().filter(g => g.persona === persona && g.vigenciaHasta && g.vigenciaHasta > ahora)
     .sort((a,b) => b.creada - a.creada);
 }
-// Resumen (vista de grupo, sin filtrar a una persona): quiénes tienen una anotación vigente
-// ahora mismo, para que el médico las vea de un vistazo sin tener que entrar persona por persona.
+// Vista de grupo (sin filtrar a una persona): quiénes tienen una anotación vigente ahora mismo,
+// para verlas de un vistazo sin entrar persona por persona. Va arriba de todo (como el bloque de
+// la persona filtrada), no dentro de una pestaña puntual.
 function dashAnotacionesResumen(){
-  if (DASH.rol === 'empleado') return '';
+  if (!DASH || DASH.vista !== 'medico') return '';
   const activas = gestAnotaciones().filter(g => g.vigenciaHasta && g.vigenciaHasta > Date.now());
   if (!activas.length) return '';
   const porPersona = {};
@@ -5780,8 +5810,8 @@ function dashAnotacionesResumen(){
       '<span class="an-res-hasta">hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span>' +
     '</div>';
   }).join('');
-  return '<div class="dash-block an-block"><div class="db-title">Empleados con anotaciones</div>' +
-    '<div class="db-sub">Marcas vigentes del servicio médico · toca a una persona para ver el detalle</div>' + filas + '</div>';
+  return '<div class="dash-block an-block"><div class="db-title">Anotaciones de servicio médico</div>' +
+    '<div class="db-sub">Marcas vigentes · toca a una persona para ver el detalle</div>' + filas + '</div>';
 }
 const ANOT = { nivel:'alto', durNum:24, durUnidad:'h', open:false, infoOpen:false };
 const AN_CHEVRON = '<svg class="an-btn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
