@@ -2013,7 +2013,7 @@
     <!-- DASHBOARD -->
     <div id="portalDash" style="display:none">
       <div class="dash-top">
-        <button class="portal-back" onclick="portalBackToGate()">←</button>
+        <button class="portal-back" id="portalBackBtn" onclick="portalBackToGate()">←</button>
         <img id="dashBrandLogo" class="dash-brand-logo" alt="" style="display:none">
         <div class="dash-scope-wrap">
           <div class="dash-scope" id="dashScope">—</div>
@@ -2195,7 +2195,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.15';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.16';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4093,11 +4093,29 @@ function closePortal(){
   document.getElementById('portalOverlay').classList.remove('show');
   marcarStatsActivo(false); syncScrollLock();
 }
-// Flecha "atrás" del panel: antes volvía al login (confuso, parecía "cerrar sesión"). Ahora
-// cierra el panel igual que la ✕ — como el dashboard queda cacheado (DASH), la próxima vez que
-// se entra a Estadísticas el mismo día se reabre DIRECTO en la misma vista (personal/supervisor/
-// servicio médico) en la que estaba, sin pasar por el login de nuevo.
-function portalBackToGate(){ closePortal(); }
+// Flecha "atrás": vuelve al SELECTOR (Personal/Supervisor/Servicio médico), distinto de la ✕
+// que cierra todo el panel. Sólo tiene sentido si hay selector al que volver — quien no es
+// supervisor ni servicio médico entró derecho a sus estadísticas sin selector, así que para esa
+// persona el botón ni se muestra (ver dashUpdateBackBtn); si por algún motivo se llega a llamar
+// igual, cierra en vez de mandar a un selector que no le corresponde.
+function portalBackToGate(){
+  const p = getProfile() || {};
+  if (p.esSupervisor || p.esServicioMedico){
+    stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
+    document.getElementById('portalDash').style.display = 'none';
+    openPortalGate();
+  } else {
+    closePortal();
+  }
+}
+// Muestra/oculta la flecha "atrás" según el perfil ACTUAL (no el de cuando se cargó el
+// dashboard): si alguien entró como personal, salió, se cargó como supervisor/servicio médico y
+// volvió a entrar, la flecha tiene que aparecer porque ahora sí hay selector al que volver.
+function dashUpdateBackBtn(){
+  const btn = document.getElementById('portalBackBtn'); if (!btn) return;
+  const p = getProfile() || {};
+  btn.style.display = (p.esSupervisor || p.esServicioMedico) ? '' : 'none';
+}
 // Vista que se abrirá al entrar con credenciales de empresa: 'supervisor' (sólo aptitud, sin
 // datos médicos) o 'medico' (todo). El formulario es el mismo; cambia lo que se muestra después.
 let PORTAL_VISTA = 'medico';
@@ -4275,6 +4293,7 @@ function onDashData(d, scopeLabel, params, vista){
   document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? ' · ejemplo' : '');
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
+  dashUpdateBackBtn();
   buildDashTabs();
   buildDashFilters();
   renderDash();
