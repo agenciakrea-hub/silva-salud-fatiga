@@ -430,16 +430,26 @@
     gap: .2rem; width: 62px; border: none; border-left: 1.5px solid rgba(255,255,255,.28); background: transparent;
     color: #fff; font-family: inherit; cursor: pointer; }
   .gloss-toggle svg { width: 17px; height: 17px; }
+  /* Icono libro/cruz: mientras está cerrado se ve el libro; al abrir se cambia por una cruz
+     (mismo lugar, mismo botón) para que quede claro que ahora sirve para CERRAR. */
+  .gloss-toggle-ic-close { display: none; }
+  .gloss-toggle.open .gloss-toggle-ic-book { display: none; }
+  .gloss-toggle.open .gloss-toggle-ic-close { display: block; }
   .gloss-toggle-label { font-size: .64rem; font-weight: 800; }
   .gloss-toggle.open { background: rgba(255,255,255,.16); }
+  /* El título queda FIJO arriba (no se mueve) y sólo la lista de abajo scrollea: por eso el
+     título vive AFUERA de la parte con overflow. Al alto quedar acotado (no "el alto de todo el
+     contenido"), la animación de abrir/cerrar es prolija — antes, con una lista larga, el 0fr→1fr
+     tenía que animar hasta una altura enorme y el texto se veía "apretarse" raro a mitad de camino. */
   .gloss-panel { position: absolute; top: 100%; right: 0; left: auto; z-index: 26; width: min(320px, 92vw);
     display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
     background: #fff; border-radius: 14px; margin-top: .5rem; }
   .gloss-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
-  .gloss-panel-inner { overflow: hidden; min-height: 0; }
+  .gloss-panel-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
   .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid #e9edf4; border-radius: 14px; }
-  .gloss-panel-title { font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: .5rem; }
-  .gloss-panel-inner .gloss-i:first-of-type { padding-top: 0; }
+  .gloss-panel-title { flex-shrink: 0; font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: .5rem; }
+  .gloss-panel-scroll { overflow-y: auto; max-height: min(60vh, 380px); }
+  .gloss-panel-scroll .gloss-i:first-of-type { padding-top: 0; }
 
   /* Glosario: items dentro del panel desplegable fijo (ver .gloss-panel más arriba) */
   .gloss-i { padding: .5rem 0; border-bottom: 1px solid #f0f2f5; }
@@ -1506,19 +1516,27 @@
   .an-guardar { flex: 2; padding: .7rem; border-radius: 11px; border: none;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
     font-weight: 800; font-size: .84rem; cursor: pointer; box-shadow: 0 6px 16px rgba(244,122,31,.32); }
-  /* Resumen (grupo): lista de "Anotaciones de servicio médico" vigentes. La fecha va en su
-     PROPIA línea (no al lado del nombre): si no, en celular un nombre largo la empuja afuera y
-     se corta con "…" antes de que se note que hay fecha. */
-  .an-res-item { display: flex; flex-direction: column; gap: .3rem; padding: .65rem .75rem; border-radius: 11px;
+  /* Resumen (grupo): lista de "Anotaciones de servicio médico" vigentes. El NOMBRE nunca se
+     recorta (prioridad); si no entra la fecha completa, la fecha es la que cede espacio — y si
+     ni así entra entera, se desliza sola (marquee) para poder leerla completa en vez de quedar
+     cortada con "…" sin que se note que había más texto. */
+  .an-res-item { display: flex; align-items: center; gap: .5rem; padding: .65rem .75rem; border-radius: 11px;
     background: var(--anbg); border: 1px solid var(--anc); cursor: pointer; margin-bottom: .5rem; }
   .an-res-item:last-child { margin-bottom: 0; }
   .an-res-item:active { transform: scale(.99); }
-  .an-res-top { display: flex; align-items: center; gap: .5rem; min-width: 0; }
   .an-res-badge { flex-shrink: 0; font-size: .7rem; font-weight: 800; color: var(--anc); background: #fff;
     padding: .2rem .55rem; border-radius: 999px; }
-  .an-res-name { flex: 1; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
+  .an-res-name { flex: 1 1 auto; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .an-res-hasta { font-size: .7rem; color: var(--text-muted); font-weight: 600; }
+  .an-res-hasta { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: .7rem; color: var(--text-muted);
+    font-weight: 600; overflow: hidden; white-space: nowrap; position: relative; }
+  .an-res-hasta-in { display: inline-block; white-space: nowrap; }
+  .an-res-hasta.marquee .an-res-hasta-in { animation: anResMarquee 5s ease-in-out infinite; }
+  @keyframes anResMarquee {
+    0%, 12% { transform: translateX(0); }
+    50%, 62% { transform: translateX(var(--marquee-dist, 0px)); }
+    96%, 100% { transform: translateX(0); }
+  }
   /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
   .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
@@ -2006,7 +2024,8 @@
             </span>
           </button>
           <button type="button" class="gloss-toggle" id="glossToggle" onclick="glossToggle()" aria-expanded="false" aria-label="Glosario de indicadores">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <svg class="gloss-toggle-ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <svg class="gloss-toggle-ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
             <span class="gloss-toggle-label">Glosario</span>
           </button>
         </div>
@@ -2021,7 +2040,7 @@
         </div></div>
         <div class="gloss-panel" id="glossPanel"><div class="gloss-panel-inner">
           <div class="gloss-panel-title">Glosario de indicadores</div>
-          <div id="glossPanelBody"></div>
+          <div class="gloss-panel-scroll" id="glossPanelBody"></div>
         </div></div>
       </div>
       <div class="dash-scroll" id="dashScroll">
@@ -2163,7 +2182,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.10';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.11';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4202,10 +4221,10 @@ function onDashData(d, scopeLabel, params, vista){
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:tabs[0], tabs:tabs,
-           pickInd:metrics[0], pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
+           pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
-  if (DASH.demoMode) gestSembrarDemoAnotaciones();   // re-sella la vigencia cada vez que se entra a la demo
+  if (DASH.demoMode){ gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo(); }   // re-sella la vigencia cada vez que se entra a la demo
   // Trae gestiones/anotaciones del servidor YA AL ENTRAR (antes sólo se traían al abrir el panel
   // completo de Gestiones, así que una anotación cargada desde otro dispositivo no aparecía en
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
@@ -4276,7 +4295,7 @@ function dashRefresh(manual){
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
     DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.rawSig = sig;
-    if (metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = metrics[0] || null;
+    if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
     if (metrics.indexOf(DASH.pickDist) < 0) DASH.pickDist = metrics[0] || null;
@@ -4626,6 +4645,23 @@ function renderDash(){
   dashWireScrollspy();
   dashWireAnimaciones();
   dashUpdateGestFab();
+  requestAnimationFrame(dashWireAnResMarquee);
+}
+// Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
+// al lado), se desliza sola de un lado al otro para poder leerla entera en vez de cortarla con "…".
+function dashWireAnResMarquee(){
+  document.querySelectorAll('.an-res-hasta').forEach(el => {
+    const inner = el.querySelector('.an-res-hasta-in');
+    if (!inner) return;
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow > 2){
+      el.style.setProperty('--marquee-dist', (-overflow - 4) + 'px');
+      el.classList.add('marquee');
+    } else {
+      el.classList.remove('marquee');
+      el.style.removeProperty('--marquee-dist');
+    }
+  });
 }
 // Muestra/actualiza el acceso FIJO a Gestiones (sólo si el rol lo tiene entre sus pestañas).
 function dashUpdateGestFab(){
@@ -5120,9 +5156,10 @@ function renderComentarios(rows){
     if (rng.hasta && c.fecha > rng.hasta) return false;
     return esComentarioValido(c.texto);
   }).sort((a,b) => a.fecha < b.fecha ? 1 : -1);
-  if (!list.length) return dashHelp('Aquí aparecen los comentarios que las personas escribieron al completar sus tests, respetando los filtros de arriba.') + '<div class="dash-block"><div class="db-title">Comentarios adicionales</div><div class="dash-empty">Sin comentarios para este filtro.</div></div>';
+  if (!list.length) return dashHelp('Aquí aparecen los comentarios que las personas escribieron al completar sus tests, respetando los filtros de arriba.') + '<div class="dash-block"><div class="db-title">Comentarios adicionales</div><div class="db-sub">Texto libre que escribió el propio personal al completar sus tests</div><div class="dash-empty">Sin comentarios para este filtro.</div></div>';
   return dashHelp('Comentarios que las personas escribieron al completar sus tests. Respetan el período, departamento y empleado que tengas filtrados arriba.') +
     '<div class="dash-block"><div class="db-title">Comentarios adicionales (' + list.length + ')</div>' +
+    '<div class="db-sub">Texto libre que escribió el propio personal al completar sus tests</div>' +
     list.slice(0,100).map(cmtCard).join('') + '</div>';
 }
 // Ignora comentarios vacíos o que son solo "no"/"No" (gente que no quiso comentar pero no dejó vacío)
@@ -5896,9 +5933,9 @@ function dashAnotacionesResumen(){
   const filas = nombres.map((n,i) => {
     const g = porPersona[n], info = apAnotInfo(g.nivel);
     return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
-      '<div class="an-res-top"><span class="an-res-badge">' + info.t + '</span>' +
-      '<span class="an-res-name">' + esc(n) + '</span></div>' +
-      '<span class="an-res-hasta">hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span>' +
+      '<span class="an-res-badge">' + info.t + '</span>' +
+      '<span class="an-res-name">' + esc(n) + '</span>' +
+      '<span class="an-res-hasta"><span class="an-res-hasta-in">hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span></span>' +
     '</div>';
   }).join('');
   return '<div class="dash-block"><div class="db-title">Anotaciones de servicio médico</div>' +
@@ -6007,6 +6044,28 @@ function gestSembrarDemoAnotaciones(){
     const fila = DASH.registros.find(r => r.persona === persona) || {};
     gestUpsert({ id:'ademo_' + i, tipo:GEST_TIPO_ANOTACION, persona:persona, departamento: fila.departamento || '',
       nivel:s.nivel, nota:s.nota, creada:ahora, vigenciaHasta: ahora + s.ms });
+  });
+}
+// Comentarios adicionales de EJEMPLO para la Empresa Demo: son texto libre que ESCRIBE el
+// propio personal al completar sus tests (no del médico ni del supervisor). Igual que las
+// anotaciones, los nombres se toman de DASH.registros para que coincidan con gente real de la
+// demo. Sólo se agregan si no vino ningún comentario real desde el servidor (no se pisa nada).
+function dashSembrarComentariosDemo(){
+  if (!DASH || !DASH.registros || !DASH.registros.length) return;
+  if (DASH.comentarios && DASH.comentarios.length) return;
+  const nombres = Array.from(new Set(DASH.registros.map(r => r.persona).filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b),'es'));
+  if (nombres.length < 2) return;
+  const hoy = Date.now(), dia = 86400000;
+  const fecha = dias => new Date(hoy - dias*dia).toISOString().slice(0,10);
+  const filaDe = n => DASH.registros.find(r => r.persona === n) || {};
+  const ejemplos = [
+    { dias:2, tipo:'Somnolencia', texto:'Últimamente cuesta dormir bien antes de los turnos de noche, siento que no descanso lo suficiente.' },
+    { dias:5, tipo:'Fatiga',      texto:'Me siento con más energía esta semana, el cambio de horario ayudó bastante.' }
+  ];
+  DASH.comentarios = ejemplos.map((e, i) => {
+    const persona = nombres[i % nombres.length], fila = filaDe(persona);
+    return { persona:persona, empresa: fila.empresa || DASH.scope || '', departamento: fila.departamento || '',
+      fecha: fecha(e.dias), texto: e.texto, tipo: e.tipo };
   });
 }
 // Notas de EJEMPLO para la Empresa Demo, para que al explorar la demostración se vea cómo queda
