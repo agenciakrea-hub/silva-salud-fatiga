@@ -1433,7 +1433,8 @@
     font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
   .gest-empty { text-align: center; color: var(--text-soft); font-size: .9rem; line-height: 1.6; padding: 2.4rem 1rem; }
   /* ── Vista de APTITUD (supervisor): semáforos, sin valores ── */
-  .apt-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+  /* auto-fit: los contadores del resumen se acomodan solos (son 4 y en celular angosto entran 2+2) */
+  .apt-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .6rem; }
   .apt-sum-card { background: var(--ab); border-radius: 14px; padding: .8rem .5rem; text-align: center; }
   .apt-sum-n { font-size: 1.7rem; font-weight: 800; color: var(--ac); line-height: 1; }
   .apt-sum-l { font-size: .7rem; font-weight: 800; color: var(--ac); margin-top: .3rem; }
@@ -1445,7 +1446,10 @@
   .apt-id { min-width: 0; }
   .apt-name { font-size: .95rem; font-weight: 800; color: var(--text); }
   .apt-dep { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: .1rem; }
-  .apt-badge { flex-shrink: 0; font-size: .72rem; font-weight: 800; padding: .25rem .6rem; border-radius: 999px; white-space: nowrap; }
+  /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
+     insignia puede envolver en dos líneas en vez de forzar nowrap y desbordar en celular. */
+  .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .72rem; font-weight: 800; padding: .25rem .6rem;
+    border-radius: 12px; text-align: center; line-height: 1.3; }
   .apt-boxes { display: flex; flex-wrap: wrap; gap: .4rem; }
   /* Cada cuadrito: color del semáforo + nombre del indicador. Nunca un valor. */
   .apt-box { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .55rem .3rem .4rem;
@@ -1459,6 +1463,23 @@
   .apt-box.apt-medio { background: #fff8e6; color: #8a6400; }
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
+  /* Avisos dentro de la tarjeta: "llegó un test nuevo tras la indicación" / "dato no reciente" */
+  .apt-aviso { font-size: .74rem; font-weight: 700; line-height: 1.4; color: #8a6400;
+    background: #fff8e6; border-radius: 9px; padding: .45rem .6rem; margin-bottom: .6rem; }
+  .apt-aviso-gris { color: var(--text-muted); background: #f2f4f7; font-weight: 600; margin-bottom: 0; margin-top: .6rem; }
+  /* Dato viejo: la tarjeta se atenúa para que se lea como "esto no es de hoy" sin ocultarla */
+  .apt-card.apt-viejo { background: #fcfcfd; border-style: dashed; }
+  /* Espejo "Así lo ve el supervisor" dentro del panel del servicio médico */
+  .an-espejo { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed #d7dde8; }
+  .an-espejo-t { font-size: .78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: .03em; margin-bottom: .55rem; }
+  .an-espejo-n { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .2rem; }
+  /* Campo "quién lo determina" (opcional) */
+  .an-medico { width: 100%; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
+    font-family: inherit; font-size: .86rem; color: var(--text); box-sizing: border-box; }
+  .an-medico:focus { outline: none; border-color: var(--orange); }
+  .an-opt { font-size: .64rem; font-weight: 800; color: var(--text-muted); background: #eef2f8;
+    padding: .1rem .35rem; border-radius: 999px; margin-left: .3rem; text-transform: none; }
   /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ──
      Todo el bloque va dentro de un marco propio (borde + fondo) para que se lea como una
      sección aparte del resto del resumen, no como texto suelto flotando. */
@@ -1533,8 +1554,10 @@
     background: var(--anbg); border: 1px solid var(--anc); cursor: pointer; margin-bottom: .5rem; }
   .an-res-item:last-child { margin-bottom: 0; }
   .an-res-item:active { transform: scale(.99); }
-  .an-res-badge { flex-shrink: 0; font-size: .7rem; font-weight: 800; color: var(--anc); background: #fff;
-    padding: .2rem .55rem; border-radius: 999px; }
+  /* Las etiquetas nuevas pueden ser largas ("Apto con condiciones"): se limita el ancho y se deja
+     envolver, así nunca aplastan el nombre de la persona que va al lado. */
+  .an-res-badge { flex-shrink: 0; max-width: 40%; font-size: .7rem; font-weight: 800; color: var(--anc);
+    background: #fff; padding: .2rem .55rem; border-radius: 10px; line-height: 1.3; text-align: center; }
   /* flex-shrink:0 en el nombre = NUNCA se recorta (se banca empujar/arrugar lo de al lado);
      el que cede es el bloque de la fecha (flex-shrink:1 + max-width), que además se desliza
      solo si ni así entra completo. Antes el nombre tenía ellipsis puesto — ESE era el bug real:
@@ -2195,7 +2218,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.16';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.17';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4864,28 +4887,177 @@ function dashDrill(level, value){
 function dashDrillIdx(i){ const n = DASH._heatNames && DASH._heatNames[i]; if (n != null) dashDrill(DASH._heatLevel, n); }
 
 /* ══════════ APTITUD (vista del SUPERVISOR) ══════════
-   Responde una sola pregunta operativa: ¿esta persona está en condiciones de trabajar?
-   A propósito NO muestra ningún valor de los tests: sólo un semáforo por indicador (verde /
-   amarillo / rojo) para dar contexto de dónde viene la señal, sin exponer el dato médico.
-   El detalle clínico es del servicio médico. */
+   Responde una sola pregunta operativa: ¿esta persona está en condiciones de trabajar HOY?
+   Tres decisiones de diseño que resuelven el problema del "rojo eterno":
+   1) El semáforo se calcula sobre los tests MÁS RECIENTES, no sobre el promedio del período. Con
+      promedio, un test malo viejo arrastra el número para siempre: la persona quedaba marcada en
+      rojo por meses aunque hubiera mejorado, y el trabajo del servicio médico no se reflejaba.
+   2) La app NUNCA declara a nadie "no apto". Un indicador por encima del límite es
+      "Pendiente de revisión médica" (lo marcó el control automático, nadie lo evaluó todavía).
+      "No apto" y "Apto con condiciones" existen SÓLO si los firma el servicio médico.
+   3) La determinación del médico PISA el cálculo automático mientras esté vigente, salvo que
+      llegue un test posterior a esa determinación (ahí queda desactualizada y vuelve a revisión:
+      un alta firmada sin ver el último test no puede seguir valiendo en silencio).
+   Nunca se muestran valores de los tests: sólo semáforos por indicador. */
 const APT_NIVELES = {
-  ok:    { t:'En condiciones', c:'#1aa672', bg:'#e6f7f0', orden:0 },
-  medio: { t:'Seguimiento',    c:'#b8860b', bg:'#fff8e6', orden:1 },
-  alto:  { t:'Evaluar',        c:'#d63031', bg:'#feecec', orden:2 },
-  sin:   { t:'Sin registros',  c:'#7b8499', bg:'#f2f4f7', orden:-1 }
+  ok:    { t:'Bien',             c:'#1aa672', bg:'#e6f7f0', orden:0 },
+  medio: { t:'Cerca del límite', c:'#b8860b', bg:'#fff8e6', orden:1 },
+  alto:  { t:'Por encima',       c:'#d63031', bg:'#feecec', orden:2 },
+  sin:   { t:'Sin datos',        c:'#7b8499', bg:'#f2f4f7', orden:-1 }
 };
-// Semáforo de un indicador contra su referencia (sin devolver el valor).
-function aptNivel(a, ref){
-  if (a == null || !ref) return 'sin';
-  const r = a / ref;
-  if (r > 1) return 'alto';        // por encima del límite normal
-  if (r > 0.85) return 'medio';    // cerca del límite
+// Estado OPERATIVO de la persona (lo que ve el supervisor). `medico:true` = lo firmó el servicio
+// médico; el resto lo calculó la app sola y por eso nunca afirma una condición médica.
+const APT_ESTADOS = {
+  noapto:      { t:'No apto',               c:'#c0271f', bg:'#fde8e6', orden:0, medico:true },
+  pendiente:   { t:'Pendiente de revisión', c:'#e0322f', bg:'#feecec', orden:1 },
+  condiciones: { t:'Apto con condiciones',  c:'#b8860b', bg:'#fff8e6', orden:2, medico:true },
+  seguimiento: { t:'Seguimiento',           c:'#b8860b', bg:'#fff8e6', orden:3 },
+  aptomed:     { t:'En condiciones',        c:'#128a5e', bg:'#e2f6ee', orden:4, medico:true },
+  ok:          { t:'En condiciones',        c:'#1aa672', bg:'#e6f7f0', orden:5 },
+  sindato:     { t:'Sin registros',         c:'#7b8499', bg:'#f2f4f7', orden:6 }
+};
+function aptEstadoInfo(k){ return APT_ESTADOS[k] || APT_ESTADOS.sindato; }
+// Semáforo de UN indicador mirando los registros más recientes primero (no el promedio).
+// Rojo sólo si los DOS últimos están por encima del límite: un mal día aislado queda en amarillo,
+// así no se dispara una revisión médica por un único valor suelto.
+function aptNivelMetrica(valsRecientesPrimero, ref){
+  const v = valsRecientesPrimero;
+  if (!v.length || !ref) return 'sin';
+  if (v[0] > ref) return (v.length > 1 && v[1] > ref) ? 'alto' : 'medio';
+  if (v[0] > ref * 0.85) return 'medio';
   return 'ok';
 }
 function aptPeor(niveles){
   let peor = 'sin';
   niveles.forEach(n => { if (APT_NIVELES[n].orden > APT_NIVELES[peor].orden) peor = n; });
   return peor;
+}
+// Hasta acá un test se considera representativo de "cómo está la persona ahora". Los tests no se
+// hacen con una frecuencia fija, así que un dato más viejo NO se oculta: se muestra igual pero
+// avisando de cuándo es, para que el supervisor sepa que no es una lectura de hoy.
+const APT_DIAS_FRESCO = 7;
+// 'yyyy-mm-dd' → ms al mediodía (mediodía: así un corrimiento de zona horaria no cambia el día)
+function aptFechaMs(f){
+  const p = String(f||'').split('-');
+  if (p.length !== 3) return 0;
+  const ms = new Date(+p[0], +p[1]-1, +p[2], 12, 0, 0).getTime();
+  return isNaN(ms) ? 0 : ms;
+}
+function aptDiaMs(ts){ const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0).getTime(); }
+function aptDiasDesde(fecha){
+  const ms = aptFechaMs(fecha); if (!ms) return null;
+  return Math.max(0, Math.round((aptDiaMs(Date.now()) - ms) / 86400000));
+}
+function aptTextoFecha(p){
+  if (p.dias == null) return 'sin registros';
+  if (p.dias === 0) return 'último test hoy';
+  if (p.dias === 1) return 'último test ayer';
+  return 'último test hace ' + p.dias + ' días';
+}
+// Resuelve el estado operativo de una persona: cálculo automático sobre los datos recientes, y
+// encima la determinación del servicio médico (que manda mientras esté vigente y al día).
+function aptPersona(nombre, regs, pvtRegs){
+  const porFecha = (a,b) => (a.fecha < b.fecha ? 1 : -1);          // más reciente primero
+  const rs = (regs || []).slice().sort(porFecha);
+  const ultimaFecha = rs.length ? rs[0].fecha : '';
+  const dias = aptDiasDesde(ultimaFecha);
+  const viejo = (dias != null && dias > APT_DIAS_FRESCO);
+
+  const metricas = DASH.metrics.map(m => {
+    const vals = rs.map(r => r[m]).filter(v => v != null);
+    return { m:m, nivel: aptNivelMetrica(vals, DASH.ref[m]) };
+  });
+  // Reacción (PVT): mismo criterio de "los dos últimos" que el resto de los indicadores.
+  let nivelPvt = null;
+  const pv = (pvtRegs || []).slice().sort(porFecha).filter(r => r.rt_prom != null && r.rt_prom > 0);
+  if (pv.length){
+    const nivelDe = r => {
+      const lp = (r.lapsos == null) ? 0 : r.lapsos;
+      return (r.rt_prom < 300 && lp <= 1) ? 'ok' : ((r.rt_prom < 400 && lp <= 3) ? 'medio' : 'alto');
+    };
+    const n0 = nivelDe(pv[0]);
+    nivelPvt = (n0 === 'alto' && !(pv.length > 1 && nivelDe(pv[1]) === 'alto')) ? 'medio' : n0;
+  }
+  const auto = aptPeor(metricas.map(x => x.nivel).concat(nivelPvt ? [nivelPvt] : []));
+
+  // ¿Empeoró respecto del registro anterior? Sirve para priorizar lo que se está moviendo mal
+  // por encima de lo que ya se sabe y está estable.
+  let empeoro = false;
+  metricas.forEach(x => {
+    const vals = rs.map(r => r[x.m]).filter(v => v != null);
+    if (vals.length > 1 && vals[0] > vals[1] && vals[0] > DASH.ref[x.m]) empeoro = true;
+  });
+
+  const vigentes  = gestAnotacionesDe(nombre);        // determinaciones que no vencieron
+  const historial = gestAnotacionesTodasDe(nombre);   // incluye vencidas → "ya fue revisado antes"
+  const anot = vigentes[0] || null;
+  // Test posterior a la determinación → el médico la firmó sin ver ese dato: queda desactualizada.
+  const desactualizada = !!(anot && ultimaFecha && aptFechaMs(ultimaFecha) > aptDiaMs(anot.creada));
+
+  let estado;
+  if (anot && !desactualizada){
+    estado = anot.nivel === 'ok' ? 'aptomed' : (anot.nivel === 'medio' ? 'condiciones' : 'noapto');
+  } else if (anot && desactualizada && (anot.nivel !== 'ok' || auto === 'alto')){
+    estado = 'pendiente';        // vuelve a la cola del médico, ahora con el dato nuevo
+  } else if (auto === 'sin')     estado = 'sindato';
+  else if (auto === 'alto')      estado = 'pendiente';   // la app marca; "no apto" lo firma el médico
+  else if (auto === 'medio')     estado = 'seguimiento';
+  else                           estado = 'ok';
+
+  return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
+           metricas:metricas, pvt:nivelPvt, estado:estado,
+           anot:(desactualizada ? null : anot), desactualizada:desactualizada,
+           revisado:(historial.length > 0), empeoro:empeoro,
+           dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
+}
+// Prioridad en la lista: primero lo NUEVO y lo que se movió mal, no lo que ya se sabe y está
+// gestionado. Antes se ordenaba sólo por gravedad, así que un caso rojo conocido de hace meses
+// seguía arriba de todo todos los días y tapaba lo que recién apareció.
+function aptOrden(p){
+  let o = aptEstadoInfo(p.estado).orden * 10;
+  if (p.estado === 'pendiente') o += (!p.revisado ? 0 : (p.empeoro ? 1 : 2));
+  if (p.viejo) o += 4;   // dato no reciente = menos urgente, sin dejar de mostrarse
+  return o;
+}
+// Tarjeta de una persona TAL COMO LA VE EL SUPERVISOR. Está en una función aparte a propósito:
+// el servicio médico usa exactamente esta misma función para el espejo "Así lo ve el supervisor",
+// así no hay forma de que lo que ve uno y el otro se desincronice ni de que se filtre data médica.
+function aptTarjeta(p){
+  const est = aptEstadoInfo(p.estado);
+  const cuadros = p.metricas.map(x =>
+    '<span class="apt-box apt-' + x.nivel + '" title="' + esc(METRIC_LABELS[x.m] || x.m) + ': ' + APT_NIVELES[x.nivel].t + '">' +
+      '<i></i><span class="apt-box-l">' + esc(METRIC_LABELS[x.m] || x.m) + '</span></span>'
+  ).join('') + (p.pvt
+    ? '<span class="apt-box apt-' + p.pvt + '" title="Reacción: ' + APT_NIVELES[p.pvt].t + '"><i></i><span class="apt-box-l">Reacción</span></span>'
+    : '');
+  const medBanner = (est.medico && p.anot) ?
+    '<div class="apt-med-nota" style="--anc:' + est.c + ';--anbg:' + est.bg + '">' +
+      '<div class="apt-med-top">Lo determinó el servicio médico' + (p.anot.medico ? ' · ' + esc(p.anot.medico) : '') + '</div>' +
+      (p.anot.nota ? '<div class="apt-med-txt">' + esc(p.anot.nota) + '</div>' : '') +
+      '<div class="apt-med-hasta">Vigente hasta ' + esc(gestFechaTs(p.anot.vigenciaHasta)) + '</div>' +
+    '</div>' : '';
+  const avisoDesact = p.desactualizada
+    ? '<div class="apt-aviso">Hay un test nuevo posterior a la última indicación médica: vuelve a revisión.</div>' : '';
+  const avisoViejo = (p.viejo && p.estado !== 'sindato')
+    ? '<div class="apt-aviso apt-aviso-gris">Dato no reciente: puede no reflejar cómo está hoy.</div>' : '';
+  return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + '">' +
+    '<div class="apt-head">' +
+      '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
+        '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) + '</div></div>' +
+      '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
+    '</div>' + medBanner + avisoDesact +
+    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo +
+  '</div>';
+}
+// Arma la lista de personas con su estado resuelto (compartido por el panel del supervisor y por
+// la cola de trabajo del servicio médico, así los dos miran exactamente el mismo cálculo).
+function aptGente(rows){
+  const g = dashGroup((rows || []).filter(r => r.persona), 'persona');
+  const pvtPorPersona = {};
+  dashFilteredPVT().forEach(r => { const k = r.persona; if (!k) return; (pvtPorPersona[k] = pvtPorPersona[k] || []).push(r); });
+  const gente = Object.keys(g).map(n => aptPersona(n, g[n], pvtPorPersona[n]));
+  gente.sort((a,b) => (aptOrden(a) - aptOrden(b)) || String(a.nombre).localeCompare(String(b.nombre),'es'));
+  return gente;
 }
 function renderAptitud(rows){
   // Las anotaciones del servicio médico se sincronizan por el mismo canal que las gestiones
@@ -4894,81 +5066,35 @@ function renderAptitud(rows){
     DASH._aptPulled = true;
     gestPull().then(ok => { if (ok && DASH && DASH.tab === 'aptitud') renderDash(); });
   }
-  const ayuda = dashHelp('Vista <b>operativa</b>: si cada persona está en condiciones de trabajar. ' +
-    'Cada cuadrito es un indicador y su color dice cómo viene: <b style="color:#1aa672">verde</b> bien, ' +
-    '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima. ' +
-    'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico, que es quien evalúa cada caso.');
+  const ayuda = dashHelp('Vista <b>operativa</b>: si cada persona está en condiciones de trabajar, según sus tests <b>más recientes</b>.' +
+    '<br><br><b>La app no declara a nadie no apto.</b> Cuando el control automático detecta un indicador por encima del límite, ' +
+    'la persona aparece como <b style="color:#e0322f">Pendiente de revisión</b>: quiere decir que <i>según la app</i> no está en ' +
+    'condiciones, pero que <b>falta que el servicio médico la revise</b> para determinarlo. No es un "no apto".' +
+    '<br><br><b style="color:#c0271f">No apto</b> y <b style="color:#b8860b">Apto con condiciones</b> aparecen SÓLO cuando los firma ' +
+    'el servicio médico, y en ese caso la tarjeta lo aclara y muestra quién lo determinó y hasta cuándo vale.' +
+    '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:#1aa672">verde</b> bien, ' +
+    '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima en los dos últimos tests. ' +
+    'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.');
 
-  const g = dashGroup(rows.filter(r => r.persona), 'persona');
-  const nombres = Object.keys(g).sort((a,b) => String(a).localeCompare(String(b),'es'));
-  if (!nombres.length){
+  const gente = aptGente(rows);
+  if (!gente.length){
     return ayuda + '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
       '<div class="dash-empty">Sin registros de personas para este filtro.</div></div>';
   }
 
-  // PVT (tiempo de reacción) por persona: es el indicador más operativo de todos.
-  const pvtRows = dashFilteredPVT();
-  const pvtPorPersona = {};
-  pvtRows.forEach(r => { const k = r.persona; if (!k) return; (pvtPorPersona[k] = pvtPorPersona[k] || []).push(r); });
-
-  const gente = nombres.map(n => {
-    const nivelesMetric = DASH.metrics.map(m => ({ m:m, nivel: aptNivel(dashAvg(g[n], m), DASH.ref[m]) }));
-    let nivelPvt = null;
-    const pv = pvtPorPersona[n];
-    if (pv && pv.length){
-      const rts = pv.map(r => r.rt_prom).filter(x => x != null && x > 0);
-      const laps = pv.map(r => r.lapsos).filter(x => x != null);
-      if (rts.length){
-        const rt = rts.reduce((a,b) => a+b, 0) / rts.length;
-        const lp = laps.length ? laps.reduce((a,b) => a+b, 0) / laps.length : 0;
-        nivelPvt = (rt < 300 && lp <= 1) ? 'ok' : ((rt < 400 && lp <= 3) ? 'medio' : 'alto');
-      }
-    }
-    const anotaciones = gestAnotacionesDe(n);
-    const nivelAnot = anotaciones.length ? aptPeor(anotaciones.map(a => a.nivel)) : null;
-    const todos = nivelesMetric.map(x => x.nivel).concat(nivelPvt ? [nivelPvt] : []).concat(nivelAnot ? [nivelAnot] : []);
-    return { nombre:n, dep:(g[n][0].departamento || ''), n:g[n].length,
-             metricas:nivelesMetric, pvt:nivelPvt, global:aptPeor(todos), medNota:(anotaciones[0] || null) };
-  });
-  // Primero lo que requiere atención (rojo, después amarillo), y dentro de cada grupo por nombre.
-  gente.sort((a,b) => (APT_NIVELES[b.global].orden - APT_NIVELES[a.global].orden) ||
-                       String(a.nombre).localeCompare(String(b.nombre),'es'));
-
-  const cuenta = k => gente.filter(x => x.global === k).length;
+  const cuenta = ks => gente.filter(x => ks.indexOf(x.estado) >= 0).length;
+  const nPend = cuenta(['pendiente']), nInd = cuenta(['noapto','condiciones']);
+  const nOk = cuenta(['ok','aptomed']), nViejo = gente.filter(x => x.estado === 'sindato' || x.viejo).length;
   const resumen = '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
     '<div class="db-sub">' + gente.length + ' ' + (gente.length===1?'persona':'personas') + ' con registros en el período seleccionado</div>' +
     '<div class="apt-sum">' +
-      '<div class="apt-sum-card" style="--ac:#1aa672;--ab:#e6f7f0"><div class="apt-sum-n">' + cuenta('ok') + '</div><div class="apt-sum-l">En condiciones</div></div>' +
-      '<div class="apt-sum-card" style="--ac:#b8860b;--ab:#fff8e6"><div class="apt-sum-n">' + cuenta('medio') + '</div><div class="apt-sum-l">Seguimiento</div></div>' +
-      '<div class="apt-sum-card" style="--ac:#d63031;--ab:#feecec"><div class="apt-sum-n">' + cuenta('alto') + '</div><div class="apt-sum-l">Evaluar</div></div>' +
+      '<div class="apt-sum-card" style="--ac:#e0322f;--ab:#feecec"><div class="apt-sum-n">' + nPend + '</div><div class="apt-sum-l">Pendiente de revisión</div></div>' +
+      '<div class="apt-sum-card" style="--ac:#b8860b;--ab:#fff8e6"><div class="apt-sum-n">' + nInd + '</div><div class="apt-sum-l">Indicación médica</div></div>' +
+      '<div class="apt-sum-card" style="--ac:#1aa672;--ab:#e6f7f0"><div class="apt-sum-n">' + nOk + '</div><div class="apt-sum-l">En condiciones</div></div>' +
+      '<div class="apt-sum-card" style="--ac:#7b8499;--ab:#f2f4f7"><div class="apt-sum-n">' + nViejo + '</div><div class="apt-sum-l">Sin dato reciente</div></div>' +
     '</div></div>';
 
-  const tarjetas = gente.map(p => {
-    const est = APT_NIVELES[p.global];
-    const cuadros = p.metricas.map(x =>
-      '<span class="apt-box apt-' + x.nivel + '" title="' + esc(METRIC_LABELS[x.m] || x.m) + ': ' + APT_NIVELES[x.nivel].t + '">' +
-        '<i></i><span class="apt-box-l">' + esc(METRIC_LABELS[x.m] || x.m) + '</span></span>'
-    ).join('') + (p.pvt
-      ? '<span class="apt-box apt-' + p.pvt + '" title="Reacción: ' + APT_NIVELES[p.pvt].t + '"><i></i><span class="apt-box-l">Reacción</span></span>'
-      : '');
-    const medBanner = p.medNota ? (function(){
-      const info = apAnotInfo(p.medNota.nivel);
-      return '<div class="apt-med-nota" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
-        '<div class="apt-med-top">Servicio médico: ' + info.t + '</div>' +
-        (p.medNota.nota ? '<div class="apt-med-txt">' + esc(p.medNota.nota) + '</div>' : '') +
-        '<div class="apt-med-hasta">Vigente hasta ' + esc(gestFechaTs(p.medNota.vigenciaHasta)) + '</div>' +
-      '</div>';
-    })() : '';
-    return '<div class="apt-card">' +
-      '<div class="apt-head">' +
-        '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
-          '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + p.n + ' ' + (p.n===1?'registro':'registros') + '</div></div>' +
-        '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
-      '</div>' +
-      medBanner +
-      '<div class="apt-boxes">' + cuadros + '</div>' +
-    '</div>';
-  }).join('');
+  const tarjetas = gente.map(aptTarjeta).join('');
 
   const leyenda = '<div class="apt-leyenda">' +
     '<span class="apt-lg"><i class="apt-dot apt-ok"></i>Bien</span>' +
@@ -4976,12 +5102,15 @@ function renderAptitud(rows){
     '<span class="apt-lg"><i class="apt-dot apt-alto"></i>Por encima</span>' +
     '<span class="apt-lg"><i class="apt-dot apt-sin"></i>Sin datos</span></div>';
 
-  const nota = '<div class="apt-nota">Esta vista es orientativa y <b>no es un diagnóstico</b>. ' +
-    'Quien evalúa y define conductas médicas es el servicio médico.</div>';
+  const nota = '<div class="apt-nota"><b>Pendiente de revisión</b> = según la app esta persona no está en condiciones, ' +
+    'pero <b>todavía no la revisó el servicio médico</b>: no está declarada no apta. Sólo el servicio médico puede ' +
+    'determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>' +
+    'Esta vista es orientativa y <b>no es un diagnóstico</b>.</div>';
 
   return ayuda + resumen +
     '<div class="dash-block"><div class="db-title">Estado por persona</div>' +
-    '<div class="db-sub">Primero quienes necesitan atención</div>' + leyenda + tarjetas + nota + '</div>';
+    '<div class="db-sub">Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después</div>' +
+    leyenda + tarjetas + nota + '</div>';
 }
 
 /* ── RESUMEN: promedios + barras + radar + alertas / (o detalle si hay 1 persona) ── */
@@ -5962,9 +6091,13 @@ function gestCasos(){ return gestList().filter(g => g.tipo !== GEST_TIPO_ANOTACI
    almacén y misma sincronización con el servidor que el cuaderno de gestiones, sin tocar el
    endpoint) para que el supervisor la vea desde otro dispositivo/sesión. */
 const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
+// Las tres determinaciones que puede firmar el servicio médico. 'ok' es la clave del flujo: es lo
+// que le permite CERRAR una alerta — pisa el "Pendiente de revisión" que puso el control
+// automático y deja a la persona en condiciones aunque sus indicadores sigan altos.
 const APT_ANOT_NIVELES = [
-  { k:'alto',  t:'No apto',              c:'#d63031', bg:'#feecec' },
-  { k:'medio', t:'Aviso / en seguimiento', c:'#b8860b', bg:'#fff8e6' }
+  { k:'alto',  t:'No apto',               c:'#c0271f', bg:'#fde8e6' },
+  { k:'medio', t:'Apto con condiciones',  c:'#b8860b', bg:'#fff8e6' },
+  { k:'ok',    t:'Apto · cerrar alerta',  c:'#1aa672', bg:'#e6f7f0' }
 ];
 function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
 function gestAnotaciones(){ return gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION); }
@@ -5973,34 +6106,74 @@ function gestAnotacionesDe(persona){
   return gestAnotaciones().filter(g => g.persona === persona && g.vigenciaHasta && g.vigenciaHasta > ahora)
     .sort((a,b) => b.creada - a.creada);
 }
-// Vista de grupo (sin filtrar a una persona): quiénes tienen una anotación vigente ahora mismo,
-// para verlas de un vistazo sin entrar persona por persona. Va arriba de todo (como el bloque de
-// la persona filtrada), no dentro de una pestaña puntual.
+// Todas, incluidas las vencidas: sirve para saber si a esta persona YA se la revisó alguna vez
+// (un caso conocido no debería competir por el primer lugar con uno que recién apareció).
+function gestAnotacionesTodasDe(persona){
+  return gestAnotaciones().filter(g => g.persona === persona).sort((a,b) => b.creada - a.creada);
+}
+// Nombre de quien firma las determinaciones. Queda guardado en el dispositivo para no reescribirlo
+// en cada anotación; es opcional (si está vacío, la anotación simplemente no muestra autor).
+const K_MEDICO_NOMBRE = 'silva_medico_nombre_v1';
+function medicoNombreGuardado(){ try { return localStorage.getItem(K_MEDICO_NOMBRE) || ''; } catch(e){ return ''; } }
+// COLA DE TRABAJO del servicio médico (vista de grupo, sin filtrar a una persona). Es lo que
+// convierte el panel en una herramienta de gestión en vez de un tablero: en vez de listar sólo
+// las anotaciones que ya puso, muestra QUÉ LE FALTA HACER — a quién marcó el control automático y
+// nadie revisó, y qué determinaciones propias están por vencer o quedaron desactualizadas por un
+// test nuevo. Usa exactamente el mismo cálculo que el panel del supervisor (aptGente).
 function dashAnotacionesResumen(){
   if (!DASH || DASH.vista !== 'medico') return '';
-  const activas = gestAnotaciones().filter(g => g.vigenciaHasta && g.vigenciaHasta > Date.now());
-  if (!activas.length) return '';
-  const porPersona = {};
-  activas.forEach(g => {
-    const cur = porPersona[g.persona];
-    if (!cur || (g.nivel === 'alto' && cur.nivel !== 'alto') || (g.nivel === cur.nivel && g.creada > cur.creada)) porPersona[g.persona] = g;
-  });
-  const nombres = Object.keys(porPersona).sort((a,b) => {
-    const ga = porPersona[a], gb = porPersona[b];
-    if ((ga.nivel==='alto') !== (gb.nivel==='alto')) return ga.nivel==='alto' ? -1 : 1;
-    return String(a).localeCompare(String(b),'es');
-  });
-  DASH._anotResNames = nombres;
-  const filas = nombres.map((n,i) => {
-    const g = porPersona[n], info = apAnotInfo(g.nivel);
-    return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
-      '<span class="an-res-badge">' + info.t + '</span>' +
-      '<span class="an-res-name">' + esc(n) + '</span>' +
-      '<span class="an-res-hasta"><span class="an-res-hasta-in">hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span></span>' +
+  const gente = aptGente(dashFiltered());
+  if (!gente.length) return '';
+  const pendientes = gente.filter(p => p.estado === 'pendiente');
+  const conInd = gente.filter(p => p.anot && aptEstadoInfo(p.estado).medico);
+  if (!pendientes.length && !conInd.length) return '';
+
+  DASH._anotResNames = pendientes.map(p => p.nombre).concat(conInd.map(p => p.nombre));
+  const fila = (p, i, texto, color, bg, badge) =>
+    '<div class="an-res-item" style="--anc:' + color + ';--anbg:' + bg + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
+      '<span class="an-res-badge">' + badge + '</span>' +
+      '<span class="an-res-name">' + esc(p.nombre) + '</span>' +
+      '<span class="an-res-hasta"><span class="an-res-hasta-in">' + texto + '</span></span>' +
     '</div>';
-  }).join('');
-  return '<div class="dash-block"><div class="db-title">Anotaciones de servicio médico</div>' +
-    '<div class="db-sub">Marcas vigentes · toca a una persona para ver el detalle</div>' + filas + '</div>';
+
+  let html = '';
+  if (pendientes.length){
+    const filas = pendientes.map((p, i) => {
+      // Por qué está en la cola: lo más útil para saber a qué prestarle atención primero.
+      const why = p.desactualizada ? 'test nuevo tras la indicación'
+                : !p.revisado ? 'sin revisar'
+                : p.empeoro ? 'empeoró' : 'ya revisado antes';
+      return fila(p, i, esc(why) + ' · ' + esc(aptTextoFecha(p)), '#e0322f', '#feecec', 'Revisar');
+    }).join('');
+    html += '<div class="dash-block"><div class="db-title">Pendientes de revisión (' + pendientes.length + ')</div>' +
+      '<div class="db-sub">El control automático las marcó y todavía no las determinó el servicio médico. ' +
+      'El supervisor las ve como <b>Pendiente de revisión</b> hasta que las resuelvas.</div>' + filas + '</div>';
+  }
+  if (conInd.length){
+    const base = pendientes.length;
+    const filas = conInd.map((p, i) => {
+      const info = apAnotInfo(p.anot.nivel);
+      const resta = p.anot.vigenciaHasta - Date.now();
+      const pronto = resta < 86400000;
+      const txt = (pronto ? '⏳ vence ' : 'hasta ') + esc(gestFechaTs(p.anot.vigenciaHasta));
+      return fila(p, base + i, txt, info.c, info.bg, esc(info.t));
+    }).join('');
+    html += '<div class="dash-block"><div class="db-title">Indicaciones vigentes (' + conInd.length + ')</div>' +
+      '<div class="db-sub">Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión</div>' + filas + '</div>';
+  }
+  return html;
+}
+// Espejo: la MISMA tarjeta que ve el supervisor de esta persona. Resuelve el problema de que el
+// médico no sepa qué está viendo el otro lado — no es data nueva, es literalmente el mismo
+// componente (aptTarjeta), así que es imposible que se desincronicen o que filtre algo médico.
+function aptEspejoSupervisor(rows){
+  if (!DASH || !DASH.f.per) return '';
+  const regs = (rows || []).filter(r => r.persona === DASH.f.per);
+  if (!regs.length) return '';
+  const pvt = dashFilteredPVT().filter(r => r.persona === DASH.f.per);
+  return '<div class="an-espejo"><div class="an-espejo-t">Así lo ve el supervisor</div>' +
+    aptTarjeta(aptPersona(DASH.f.per, regs, pvt)) +
+    '<div class="an-espejo-n">Es exactamente la tarjeta que aparece en el panel del supervisor: sin valores de los tests ni detalle clínico. Cambia en cuanto guardes una determinación.</div></div>';
 }
 const ANOT = { nivel:'alto', durNum:24, durUnidad:'h', open:false, infoOpen:false };
 const AN_CHEVRON = '<svg class="an-btn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
@@ -6011,9 +6184,10 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
     const info = apAnotInfo(g.nivel);
     return '<div class="an-activa" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
       '<div class="an-activa-top"><span class="an-activa-badge">' + info.t + '</span>' +
-      '<span class="an-activa-hasta">Visible al supervisor hasta ' + esc(gestFechaTs(g.vigenciaHasta)) + '</span></div>' +
+      '<span class="an-activa-hasta">Visible al supervisor hasta ' + esc(gestFechaTs(g.vigenciaHasta)) +
+        (g.medico ? ' · ' + esc(g.medico) : '') + '</span></div>' +
       (g.nota ? '<div class="an-activa-nota">' + esc(g.nota) + '</div>' : '') +
-      '<button type="button" class="an-activa-quitar" onclick="anotQuitar(\'' + g.id + '\')">Quitar anotación</button></div>';
+      '<button type="button" class="an-activa-quitar" onclick="anotQuitar(\'' + g.id + '\')">Quitar determinación</button></div>';
   }).join('');
   const segBtns = APT_ANOT_NIVELES.map(n =>
     '<button type="button" class="an-seg-btn' + (ANOT.nivel===n.k?' active':'') + '" data-nivel="' + n.k + '" style="--anc:' + n.c + ';--anbg:' + n.bg + '" onclick="anotSetNivel(\'' + n.k + '\')">' + n.t + '</button>'
@@ -6021,13 +6195,18 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
   return '<div class="dash-block an-block">' +
     '<div class="an-info-panel' + (ANOT.infoOpen?' open':'') + '" id="anotInfoPanel"><div class="an-info-card">' +
       '<div class="an-info-title">Anotación de aptitud para el supervisor</div>' +
-      '<div class="an-info-sub">El servicio médico marca a una persona como <b>no apta</b> o en <b>aviso/seguimiento</b>, con una nota breve y un tiempo de vigencia (por ejemplo 24 horas o 3 días). Mientras esté vigente, el supervisor la ve destacada en su panel de Aptitud — sin ningún dato médico, sólo la marca y la nota que escribas.</div>' +
+      '<div class="an-info-sub">La app sola nunca declara a nadie no apto: cuando detecta indicadores por encima del límite, ' +
+        'el supervisor ve <b>Pendiente de revisión</b>. Con esta determinación vos definís lo que el supervisor ve de verdad: ' +
+        '<b>No apto</b>, <b>Apto con condiciones</b>, o <b>Apto</b> para <b>cerrar la alerta</b> aunque los indicadores sigan altos ' +
+        '(por ejemplo, un caso que ya evaluaste y estás siguiendo).<br><br>' +
+        'Vale por el tiempo que le pongas. Al vencer, la persona vuelve a <b>Pendiente de revisión</b>. Y si llega un test nuevo ' +
+        'después de tu determinación, también vuelve a la cola: nunca queda vigente un alta firmada sin ver el último dato.</div>' +
     '</div></div>' +
-    '<div class="db-title">Anotación para el supervisor</div>' +
-    '<div class="db-sub">Marca si ' + who + ' está apto o no, con vigencia en el tiempo. El supervisor va a poder ver esto en su panel (sin datos médicos).</div>' +
+    '<div class="db-title">Determinación para el supervisor</div>' +
+    '<div class="db-sub">Define qué ve el supervisor sobre ' + who + '. Sólo la marca y tu nota: nunca valores de los tests.</div>' +
     activasHtml +
     '<div class="an-row">' +
-      '<button type="button" class="an-btn' + (ANOT.open?' open':'') + '" id="anotBtn" onclick="anotAbrir()"><span>' + (activas.length ? 'Agregar otra anotación' : 'Dejar anotación') + '</span>' + AN_CHEVRON + '</button>' +
+      '<button type="button" class="an-btn' + (ANOT.open?' open':'') + '" id="anotBtn" onclick="anotAbrir()"><span>' + (activas.length ? 'Agregar otra determinación' : 'Determinar aptitud') + '</span>' + AN_CHEVRON + '</button>' +
       '<button type="button" class="an-info-btn" id="anotInfoBtn" onclick="anotToggleInfo()" aria-label="Qué es esto" aria-expanded="' + (ANOT.infoOpen?'true':'false') + '">ⓘ</button>' +
     '</div>' +
     '<div class="an-form' + (ANOT.open?' open':'') + '" id="anotForm"><div class="an-form-inner">' +
@@ -6040,11 +6219,14 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
           '<option value="d"' + (ANOT.durUnidad==='d'?' selected':'') + '>Días</option>' +
         '</select>' +
       '</div>' +
-      '<textarea id="anotNota" class="an-nota" placeholder="Nota para el supervisor (ej: no volar por 24 h, en observación por fatiga)…" maxlength="300"></textarea>' +
-      '<div class="an-aviso">El supervisor podrá ver esta anotación desde su panel.</div>' +
+      '<div class="an-dur-label">Quién lo determina <span class="an-opt">opcional</span></div>' +
+      '<input type="text" id="anotMedico" class="an-medico" maxlength="60" placeholder="Nombre del profesional" value="' + esc(medicoNombreGuardado()) + '">' +
+      '<textarea id="anotNota" class="an-nota" placeholder="Nota para el supervisor (ej: no volar por 24 h, apto para tareas en tierra)…" maxlength="300"></textarea>' +
+      '<div class="an-aviso">El supervisor va a ver esta determinación en su panel, con tu nota y hasta cuándo vale.</div>' +
       '<div class="an-actions"><button type="button" class="an-cancel" onclick="anotCerrar()">Cancelar</button>' +
-      '<button type="button" class="an-guardar" onclick="anotGuardar()">Guardar anotación</button></div>' +
+      '<button type="button" class="an-guardar" onclick="anotGuardar()">Guardar determinación</button></div>' +
     '</div></div>' +
+    aptEspejoSupervisor(rows) +
   '</div>';
 }
 function anotAbrir(){
@@ -6073,10 +6255,13 @@ function anotGuardar(){
   const unidad = (unidadEl && unidadEl.value === 'd') ? 'd' : 'h';
   ANOT.durNum = num; ANOT.durUnidad = unidad;
   const ms = num * (unidad === 'd' ? 86400000 : 3600000);
+  const medEl = document.getElementById('anotMedico');
+  const medico = medEl ? medEl.value.trim() : '';
+  if (medico){ try { localStorage.setItem(K_MEDICO_NOMBRE, medico); } catch(e){} }   // se recuerda para la próxima
   const ahora = Date.now();
   const fila = (DASH.registros || []).find(r => r.persona === DASH.f.per) || {};
   gestUpsert({ id: gestNewId(), tipo: GEST_TIPO_ANOTACION, persona: DASH.f.per,
-    departamento: fila.departamento || '', nivel: ANOT.nivel, nota: nota,
+    departamento: fila.departamento || '', nivel: ANOT.nivel, nota: nota, medico: medico,
     creada: ahora, vigenciaHasta: ahora + ms });
   ANOT.open = false;
   renderDash();
@@ -6102,15 +6287,18 @@ function gestSembrarDemoAnotaciones(){
   const ahora = Date.now(), dia = 86400000;
   const nombres = Array.from(new Set(DASH.registros.map(r => r.persona).filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b),'es'));
   if (!nombres.length) return;
+  // Los 3 casos muestran el flujo completo: restringido, restringido parcial, y una alerta CERRADA
+  // por el médico (la persona sigue con indicadores altos pero él ya la evaluó y la dejó apta).
   const specs = [
-    { nivel:'medio', ms: 3*dia, nota:'En seguimiento: valores cerca del límite en los últimos tests. Evaluación con salud ocupacional pendiente de agendar.' },
-    { nivel:'alto',  ms: 1*dia, nota:'No apto para turno noche por 24 h: fatiga y KSS por encima de lo normal en el último test.' }
+    { nivel:'alto',  ms: 1*dia, nota:'No apto para turno noche por 24 h: fatiga y somnolencia por encima de lo normal en el último test.' },
+    { nivel:'medio', ms: 3*dia, nota:'Apto para tareas en tierra. Evitar turnos rotativos hasta la próxima evaluación.' },
+    { nivel:'ok',    ms: 7*dia, nota:'Evaluado y en seguimiento. Los indicadores altos ya están explicados: apto para trabajar normal.' }
   ];
   specs.forEach((s, i) => {
     const persona = nombres[i % nombres.length];
     const fila = DASH.registros.find(r => r.persona === persona) || {};
     gestUpsert({ id:'ademo_' + i, tipo:GEST_TIPO_ANOTACION, persona:persona, departamento: fila.departamento || '',
-      nivel:s.nivel, nota:s.nota, creada:ahora, vigenciaHasta: ahora + s.ms });
+      nivel:s.nivel, nota:s.nota, medico:'Dr. Ejemplo', creada:ahora, vigenciaHasta: ahora + s.ms });
   });
 }
 // Comentarios adicionales de EJEMPLO para la Empresa Demo: son texto libre que ESCRIBE el
