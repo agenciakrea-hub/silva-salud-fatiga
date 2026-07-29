@@ -2195,7 +2195,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.13';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.14';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3613,18 +3613,12 @@ function abrirDestinoEstadisticas(){
     const pp = getProfile() || {};
     if (!pp.esSupervisor && !pp.esServicioMedico) DASH = null;
   }
-  // Si ya se cargaron datos HOY en esta sesión (se entró antes y se salió), se muestra el panel
-  // directo con lo que ya está en memoria — sin pasar por el login ni pedirle nada al servidor de
-  // nuevo. Sólo se vuelve a pedir cuando cambia el día o al tocar el botón ↻ (manual, sin límite).
-  // La Empresa Demo queda afuera de este atajo A PROPÓSITO: es de ejemplo, así que cerrar y
-  // volver a entrar a Estadísticas siempre tiene que mostrar el panel de inicio (Personal /
-  // Supervisor / Servicio médico), nunca reabrir la demo sola como si fuera la cuenta real.
-  if (DASH && DASH.params && !DASH.demoMode && dashMismoDia(DASH.updated)){
-    document.getElementById('portalGate').style.display = 'none';
-    document.getElementById('portalDash').style.display = '';
-    startDashAutoRefresh();                 // closePortal() lo había parado al salir
-    return;
-  }
+  // SIEMPRE pasa por el selector (Personal/Supervisor/Servicio médico) — antes, si ya se habían
+  // cargado datos hoy, se saltaba directo al último panel que se había mirado, sin importar cuál
+  // fuera. Eso quedaba "atrapado": en cuanto mirabas Personal una vez, cada vez que volvías a
+  // tocar Estadísticas caías directo en Personal de nuevo, sin ninguna forma de volver a elegir
+  // Supervisor o Servicio médico (había un solo cache global, no uno por vista). El selector
+  // sigue siendo rápido: con la contraseña guardada, entrar es un solo toque (ver openPortalGate).
   openPortalGate();
 }
 
@@ -4053,11 +4047,16 @@ function openPortalGate(){
   const cMed = dashGetCredsMed(), cSup = dashGetCreds();
   const c = (p && p.esServicioMedico && cMed && cMed.usuario) ? cMed : cSup;   // prioriza la médica si está guardada
   const btnEntrar = document.querySelector('#portalSup .save-btn');
+  // Abre de entrada la pestaña que se estaba mirando la última vez (si la hay): así entrar y
+  // salir entre Personal/Supervisor/Servicio médico se siente continuo, sin forzar siempre la
+  // misma. Si no hay pista (primera vez, o venía de la demo), cae en la lógica de antes.
+  const vistaPrevia = DASH && DASH.vista;
   if (puedeEmpresa && c && c.usuario){                   // credenciales recordadas → prefill
     document.getElementById('pEmpresa').value = c.usuario;
     document.getElementById('pPass').value = c.pass || '';
     if (btnEntrar) btnEntrar.textContent = 'Entrar a ' + c.usuario;   // ya está todo cargado: un solo toque
-    portalMode(c === cMed ? 'med' : 'sup');
+    const modo = vistaPrevia === 'supervisor' ? 'sup' : vistaPrevia === 'medico' ? 'med' : (c === cMed ? 'med' : 'sup');
+    portalMode(modo);
   } else {
     if (btnEntrar) btnEntrar.textContent = 'Entrar';
     portalMode('emp');
