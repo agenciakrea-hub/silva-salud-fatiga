@@ -445,8 +445,15 @@
     display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
     background: #fff; border-radius: 14px; margin-top: .5rem; }
   .gloss-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
-  .gloss-panel-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
-  .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid #e9edf4; border-radius: 14px; }
+  /* El padding TAMBIÉN anima (transition en el propio padding, no sólo en grid-template-rows del
+     panel de afuera): si el padding cambia de golpe con la clase .open mientras el alto todavía
+     está animando, el texto se ve "saltar"/apretarse contra el margen — eso era el apriete feo al
+     cerrar. Con padding animado en paralelo, se achica en sintonía con el alto y no se ve el salto;
+     y al terminar en 0, el panel colapsa de verdad a 0px (no queda un cuadro fantasma). El borde
+     sigue condicionado a .open nomás (evita la rayita fantasma del borde en 0 de alto). */
+  .gloss-panel-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column;
+    padding: 0 1.1rem; border-radius: 14px; transition: padding .25s ease; }
+  .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid #e9edf4; }
   .gloss-panel-title { flex-shrink: 0; font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: .5rem; }
   .gloss-panel-scroll { overflow-y: auto; max-height: min(60vh, 380px); }
   .gloss-panel-scroll .gloss-i:first-of-type { padding-top: 0; }
@@ -1485,8 +1492,10 @@
   /* El borde va SÓLO cuando está abierto: si queda puesto todo el tiempo, con la fila colapsada a
      altura 0 el borde de arriba + el de abajo igual se dibujan y se ve como una rayita fantasma
      encima del botón, aunque el contenido mida 0px. */
-  .an-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 12px; }
-  .an-info-panel:not(.open) .an-info-card { padding: 0 .9rem; }
+  /* Padding fijo siempre (mismo motivo que el glosario): si cambia de golpe con la clase .open
+     mientras el alto todavía está animando, el texto se ve "saltar" contra el margen al cerrar. */
+  .an-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 12px;
+    padding: 0 .95rem; transition: padding .25s ease; }
   .an-info-panel.open .an-info-card { padding: .8rem .95rem; border: 1px solid #e9edf4; }
   .an-info-title { font-weight: 800; font-size: .84rem; color: var(--text); }
   .an-info-sub { font-size: .78rem; color: var(--text-soft); line-height: 1.5; margin-top: .3rem; }
@@ -1526,8 +1535,12 @@
   .an-res-item:active { transform: scale(.99); }
   .an-res-badge { flex-shrink: 0; font-size: .7rem; font-weight: 800; color: var(--anc); background: #fff;
     padding: .2rem .55rem; border-radius: 999px; }
-  .an-res-name { flex: 1 1 auto; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* flex-shrink:0 en el nombre = NUNCA se recorta (se banca empujar/arrugar lo de al lado);
+     el que cede es el bloque de la fecha (flex-shrink:1 + max-width), que además se desliza
+     solo si ni así entra completo. Antes el nombre tenía ellipsis puesto — ESE era el bug real:
+     con ambos en flex normal, el nombre se recortaba igual aunque la fecha tuviera prioridad. */
+  .an-res-name { flex: 1 0 auto; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
+    white-space: normal; word-break: break-word; line-height: 1.3; }
   .an-res-hasta { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: .7rem; color: var(--text-muted);
     font-weight: 600; overflow: hidden; white-space: nowrap; position: relative; }
   .an-res-hasta-in { display: inline-block; white-space: nowrap; }
@@ -1564,13 +1577,13 @@
      el resto de la app para expandir/colapsar suave) como UNA sola tarjeta. */
   .gest-fab-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
   .gest-fab-info-panel.open { grid-template-rows: 1fr; margin-bottom: .6rem; }
-  /* Borde y sombra SÓLO cuando está abierto: si quedan puestos siempre, con la fila colapsada a
-     altura 0 el borde de arriba + el de abajo se dibujan igual y se ve una rayita fantasma
-     encima del botón, aunque el contenido mida 0px. */
-  .gest-fab-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 14px; }
-  .gest-fab-info-panel:not(.open) .gest-fab-info-card { padding: 0 1rem; }
-  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; border: 1px solid #e9edf4;
-    box-shadow: 0 12px 30px rgba(14,42,86,.16); }
+  /* Borde y sombra SÓLO cuando está abierto (si quedan puestos siempre, con la fila colapsada a
+     altura 0 se ve una rayita fantasma encima del botón). El padding, en cambio, va SIEMPRE fijo:
+     si cambia de golpe con la clase mientras el alto todavía está animando, el texto se ve
+     "saltar"/apretarse contra el margen al cerrar. */
+  .gest-fab-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 14px;
+    padding: 0 1.1rem; transition: padding .25s ease; }
+  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; border: 1px solid #e9edf4; box-shadow: 0 12px 30px rgba(14,42,86,.16); }
   .gest-fab-info-title { font-weight: 800; font-size: .92rem; color: var(--text); }
   .gest-fab-info-sub { font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
   .gest-fab-info-count { font-size: .8rem; color: var(--text-soft); margin-top: .5rem; font-weight: 700; }
@@ -2182,7 +2195,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.11';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.12';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6028,10 +6041,16 @@ function anotQuitar(id){
 // Anotaciones de EJEMPLO para la Empresa Demo. Los NOMBRES se toman de la gente que realmente
 // tiene registros/estadísticas en la demo (DASH.registros) — así siempre coincide con quien
 // aparece en el resto del panel, en vez de un nombre inventado que no está en ningún lado. Se
-// re-sella la vigencia CADA VEZ que se entra a la demo (id fijo → gestUpsert actualiza en vez de
-// duplicar), para que la fecha "vigente hasta" sea siempre relativa a hoy y nunca se vea vencida.
+// re-sella la vigencia CADA VEZ que se entra a la demo, para que la fecha "vigente hasta" sea
+// siempre relativa a hoy y nunca se vea vencida.
 function gestSembrarDemoAnotaciones(){
   if (!DASH || !DASH.registros || !DASH.registros.length) return;
+  // Limpia CUALQUIER anotación demo vieja antes de sembrar (ids de versiones anteriores de este
+  // código, como "ademo_ana"/"ademo_carlos", quedaban huérfanas en el dispositivo — nunca se
+  // pisaban porque el id había cambiado — y se veían como fantasmas duplicados en la lista).
+  const actuales = gestList();
+  const vivas = actuales.filter(g => !(g.tipo === GEST_TIPO_ANOTACION && String(g.id||'').indexOf('ademo_') === 0));
+  if (vivas.length !== actuales.length) gestSaveList(vivas);
   const ahora = Date.now(), dia = 86400000;
   const nombres = Array.from(new Set(DASH.registros.map(r => r.persona).filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b),'es'));
   if (!nombres.length) return;
