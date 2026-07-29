@@ -1059,6 +1059,13 @@
     .dash-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem; }
     .dash-filters .df-row { flex: 1; min-width: 280px; }
     .dash-filters .period-chips { width: 100%; }
+    /* Cola del servicio médico: las dos listas (pendientes / vigentes) conviven lado a lado, en vez
+       de apilarse ocupando toda la pantalla de ancho cada una. */
+    .an-q-wrap { display: flex; flex-wrap: wrap; gap: 1.5rem 1.6rem; align-items: flex-start; }
+    .an-q-wrap > .dash-block { flex: 1 1 26rem; min-width: 0; margin-bottom: 0; }
+    /* El espejo "Así lo ve el supervisor" se lee como una tarjeta de vista previa, no como una
+       banda estirada de borde a borde. */
+    .an-espejo { max-width: 34rem; }
     /* Escritorio: el menú desplegable de celular se fuerza siempre abierto y EN FLUJO normal
        (no flotando encima), hay espacio de sobra y no hace falta esconder nada detrás de un botón.
        Sólo el Glosario se mantiene como botón + desplegable (ahí sí hay algo que esconder). */
@@ -1567,6 +1574,11 @@
   .an-res-hasta { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: .7rem; color: var(--text-muted);
     font-weight: 600; overflow: hidden; white-space: nowrap; position: relative; }
   .an-res-hasta-in { display: inline-block; white-space: nowrap; }
+  .an-res-hasta.an-res-pronto { color: #c0271f; font-weight: 800; }
+  /* Variante de DOS líneas (cola de pendientes): insignia + nombre arriba, motivo abajo. */
+  .an-res-item.an-res-col { flex-direction: column; align-items: stretch; gap: .35rem; }
+  .an-res-col .an-res-top { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+  .an-res-why { font-size: .72rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
   .an-res-hasta.marquee .an-res-hasta-in { animation: anResMarquee 5s ease-in-out infinite; }
   @keyframes anResMarquee {
     0%, 12% { transform: translateX(0); }
@@ -2218,7 +2230,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.17';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.18';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4690,6 +4702,7 @@ function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'�
 /* ── Router de pestañas ── */
 let _dashActiveTab = null, _dashSpyRaf = 0, _dashSpyLock = 0, _dashScrollEl = null, _dashOnScroll = null;
 function renderDash(){
+  gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
   buildDashTabs();                                   // los chips siempre reflejan las secciones visibles
@@ -4949,7 +4962,9 @@ function aptDiasDesde(fecha){
   return Math.max(0, Math.round((aptDiaMs(Date.now()) - ms) / 86400000));
 }
 function aptTextoFecha(p){
-  if (p.dias == null) return 'sin registros';
+  // Puede haber registros SIN fecha válida (fila cargada a mano, fecha corrupta): en ese caso no
+  // se puede decir "hace X días", pero tampoco corresponde decir "sin registros" — los hay.
+  if (p.dias == null) return p.n ? (p.n + ' ' + (p.n===1?'registro':'registros') + ' · sin fecha') : 'sin registros';
   if (p.dias === 0) return 'último test hoy';
   if (p.dias === 1) return 'último test ayer';
   return 'último test hace ' + p.dias + ' días';
@@ -6031,7 +6046,7 @@ function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
 function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
 function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
 function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
-function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
 function gestUpsert(g){ const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
@@ -6094,13 +6109,25 @@ const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
 // Las tres determinaciones que puede firmar el servicio médico. 'ok' es la clave del flujo: es lo
 // que le permite CERRAR una alerta — pisa el "Pendiente de revisión" que puso el control
 // automático y deja a la persona en condiciones aunque sus indicadores sigan altos.
+// `t` = etiqueta del BOTÓN (describe la acción que va a hacer el médico).
+// `corto` = etiqueta de ESTADO para las insignias ya guardadas (una insignia que dice
+// "Apto · cerrar alerta" no se entiende: eso es lo que hiciste, no en qué estado quedó).
 const APT_ANOT_NIVELES = [
-  { k:'alto',  t:'No apto',               c:'#c0271f', bg:'#fde8e6' },
-  { k:'medio', t:'Apto con condiciones',  c:'#b8860b', bg:'#fff8e6' },
-  { k:'ok',    t:'Apto · cerrar alerta',  c:'#1aa672', bg:'#e6f7f0' }
+  { k:'alto',  t:'No apto',               corto:'No apto',         c:'#c0271f', bg:'#fde8e6' },
+  { k:'medio', t:'Apto con condiciones',  corto:'Con condiciones', c:'#b8860b', bg:'#fff8e6' },
+  { k:'ok',    t:'Apto · cerrar alerta',  corto:'Apto',            c:'#1aa672', bg:'#e6f7f0' }
 ];
 function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
-function gestAnotaciones(){ return gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION); }
+// Memoizada por render: aptPersona() la consulta DOS veces por persona (vigentes + historial), y
+// cada llamada terminaba haciendo un JSON.parse del localStorage entero. Con 18 empleados eran
+// ~36 parseos por render. La cache se limpia en cada escritura (gestSaveStore) y al empezar a
+// renderizar, así nunca se sirve una lista vieja.
+let _anotCache = null;
+function gestAnotCacheClear(){ _anotCache = null; }
+function gestAnotaciones(){
+  if (!_anotCache) _anotCache = gestList().filter(g => g.tipo === GEST_TIPO_ANOTACION);
+  return _anotCache;
+}
 function gestAnotacionesDe(persona){
   const ahora = Date.now();
   return gestAnotaciones().filter(g => g.persona === persona && g.vigenciaHasta && g.vigenciaHasta > ahora)
@@ -6129,39 +6156,45 @@ function dashAnotacionesResumen(){
   if (!pendientes.length && !conInd.length) return '';
 
   DASH._anotResNames = pendientes.map(p => p.nombre).concat(conInd.map(p => p.nombre));
-  const fila = (p, i, texto, color, bg, badge) =>
-    '<div class="an-res-item" style="--anc:' + color + ';--anbg:' + bg + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
-      '<span class="an-res-badge">' + badge + '</span>' +
-      '<span class="an-res-name">' + esc(p.nombre) + '</span>' +
-      '<span class="an-res-hasta"><span class="an-res-hasta-in">' + texto + '</span></span>' +
-    '</div>';
 
   let html = '';
   if (pendientes.length){
+    // Estos items van en DOS líneas: el motivo ("sin revisar", "empeoró", "test nuevo tras la
+    // indicación") es texto largo y apretado al lado del nombre quedaba ilegible.
     const filas = pendientes.map((p, i) => {
-      // Por qué está en la cola: lo más útil para saber a qué prestarle atención primero.
       const why = p.desactualizada ? 'test nuevo tras la indicación'
                 : !p.revisado ? 'sin revisar'
                 : p.empeoro ? 'empeoró' : 'ya revisado antes';
-      return fila(p, i, esc(why) + ' · ' + esc(aptTextoFecha(p)), '#e0322f', '#feecec', 'Revisar');
+      return '<div class="an-res-item an-res-col" style="--anc:#e0322f;--anbg:#feecec" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
+        '<div class="an-res-top"><span class="an-res-badge">Revisar</span>' +
+        '<span class="an-res-name">' + esc(p.nombre) + '</span></div>' +
+        '<div class="an-res-why">' + esc(why) + ' · ' + esc(aptTextoFecha(p)) + '</div>' +
+      '</div>';
     }).join('');
     html += '<div class="dash-block"><div class="db-title">Pendientes de revisión (' + pendientes.length + ')</div>' +
       '<div class="db-sub">El control automático las marcó y todavía no las determinó el servicio médico. ' +
       'El supervisor las ve como <b>Pendiente de revisión</b> hasta que las resuelvas.</div>' + filas + '</div>';
   }
   if (conInd.length){
+    // Estos van en UNA línea (insignia + nombre + fecha a la derecha): el contenido es corto y así
+    // se lee de un tirón. La fecha cede espacio y se desliza sola si no entra completa.
     const base = pendientes.length;
     const filas = conInd.map((p, i) => {
       const info = apAnotInfo(p.anot.nivel);
-      const resta = p.anot.vigenciaHasta - Date.now();
-      const pronto = resta < 86400000;
-      const txt = (pronto ? '⏳ vence ' : 'hasta ') + esc(gestFechaTs(p.anot.vigenciaHasta));
-      return fila(p, base + i, txt, info.c, info.bg, esc(info.t));
+      const pronto = (p.anot.vigenciaHasta - Date.now()) < 86400000;
+      return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + (base+i) + '])">' +
+        '<span class="an-res-badge">' + esc(info.corto || info.t) + '</span>' +
+        '<span class="an-res-name">' + esc(p.nombre) + '</span>' +
+        '<span class="an-res-hasta' + (pronto ? ' an-res-pronto' : '') + '"><span class="an-res-hasta-in">' +
+          (pronto ? 'vence ' : 'hasta ') + esc(gestFechaTs(p.anot.vigenciaHasta)) + '</span></span>' +
+      '</div>';
     }).join('');
     html += '<div class="dash-block"><div class="db-title">Indicaciones vigentes (' + conInd.length + ')</div>' +
       '<div class="db-sub">Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión</div>' + filas + '</div>';
   }
-  return html;
+  // El wrapper permite que en escritorio las dos listas convivan lado a lado (hay ancho de sobra)
+  // en vez de quedar una arriba de la otra ocupando toda la pantalla.
+  return '<div class="an-q-wrap">' + html + '</div>';
 }
 // Espejo: la MISMA tarjeta que ve el supervisor de esta persona. Resuelve el problema de que el
 // médico no sepa qué está viendo el otro lado — no es data nueva, es literalmente el mismo
@@ -6183,7 +6216,7 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
   const activasHtml = activas.map(g => {
     const info = apAnotInfo(g.nivel);
     return '<div class="an-activa" style="--anc:' + info.c + ';--anbg:' + info.bg + '">' +
-      '<div class="an-activa-top"><span class="an-activa-badge">' + info.t + '</span>' +
+      '<div class="an-activa-top"><span class="an-activa-badge">' + (info.corto || info.t) + '</span>' +
       '<span class="an-activa-hasta">Visible al supervisor hasta ' + esc(gestFechaTs(g.vigenciaHasta)) +
         (g.medico ? ' · ' + esc(g.medico) : '') + '</span></div>' +
       (g.nota ? '<div class="an-activa-nota">' + esc(g.nota) + '</div>' : '') +
