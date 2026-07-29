@@ -2195,7 +2195,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.12';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.13';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3599,6 +3599,11 @@ function irAEstadisticas(){
 // Muestra el Panel de estadísticas de siempre: pestañas "Mis estadísticas" y "Supervisor"
 // (con el botón de demostración y el acceso de administrador ya incluidos ahí).
 function abrirDestinoEstadisticas(){
+  // Por las dudas, si quedó una ventana anidada (Gestiones/PVT) pegada de una sesión anterior,
+  // se cierra ACÁ también: si no, comparte z-index/posición fija con el panel y puede tapar la
+  // pantalla entera al reabrir, bloqueando los toques sin poder salir.
+  const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
+  const pvtOv = document.getElementById('pvtOverlay'); if (pvtOv) pvtOv.classList.remove('show');
   document.getElementById('portalOverlay').classList.add('show');
   syncScrollLock();                         // bloquea el scroll del fondo (evita la 2da barra)
   marcarStatsActivo(true);
@@ -4077,7 +4082,17 @@ function portalAutoLoginSupervisor(c, credKey){
     onDashData(d, label, params, d.vista || (credKey === K_DASH_CREDS_MED ? 'medico' : 'supervisor'));   // vista la decide el servidor según la contraseña usada
   }).catch(() => { openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.'; });
 }
-function closePortal(){ stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); document.getElementById('portalOverlay').classList.remove('show'); marcarStatsActivo(false); syncScrollLock(); }
+// Cierra también, por las dudas, cualquier ventana anidada (Gestiones/PVT) que haya quedado
+// abierta: comparten el mismo z-index/posición fija que el panel de estadísticas, y si una queda
+// "pegada" (abierta pero sin su clase 'show' sacada) tapa la pantalla entera y bloquea los
+// toques — se sentía como "no puedo salir" aunque el botón de cerrar funcionaba.
+function closePortal(){
+  stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
+  const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
+  const pvtOv = document.getElementById('pvtOverlay'); if (pvtOv) pvtOv.classList.remove('show');
+  document.getElementById('portalOverlay').classList.remove('show');
+  marcarStatsActivo(false); syncScrollLock();
+}
 // Flecha "atrás" del panel: antes volvía al login (confuso, parecía "cerrar sesión"). Ahora
 // cierra el panel igual que la ✕ — como el dashboard queda cacheado (DASH), la próxima vez que
 // se entra a Estadísticas el mismo día se reabre DIRECTO en la misma vista (personal/supervisor/
@@ -6088,30 +6103,45 @@ function dashSembrarComentariosDemo(){
   });
 }
 // Notas de EJEMPLO para la Empresa Demo, para que al explorar la demostración se vea cómo queda
-// un cuaderno con casos reales (variedad de estados, prioridades, tareas y seguimiento).
+// un cuaderno con casos reales (variedad de estados, prioridades, tareas y seguimiento). Los
+// NOMBRES y departamentos se toman de gente real de DASH.registros (mismo criterio que las
+// anotaciones y los comentarios demo) — nunca nombres inventados que no aparecen en el resto del panel.
 function gestSembrarDemo(){
-  if (gestCasos().length) return;   // sólo la primera vez que se abre (cuaderno vacío)
+  if (!DASH || !DASH.registros || !DASH.registros.length) return;
+  const nombres = Array.from(new Set(DASH.registros.map(r => r.persona).filter(Boolean))).sort((a,b) => String(a).localeCompare(String(b),'es'));
+  if (!nombres.length) return;
+  // Auto-cura versiones viejas de este seed (con nombres inventados que no existen en los
+  // registros reales de la demo): si ya hay casos "gdemo*" pero mencionan a alguien que NO está
+  // en la lista de nombres reales de ahora, se vuelve a sembrar encima (mismos ids → gestUpsert
+  // actualiza en vez de duplicar). Si ya está sembrado y coincide con gente real, no se toca —
+  // así no se pisan ediciones que el usuario haya hecho explorando la demo.
+  const nombresSet = {}; nombres.forEach(n => { nombresSet[n] = 1; });
+  const existentes = gestCasos().filter(g => /^gdemo/.test(g.id));
+  const desactualizado = existentes.some(g => gestPersonasDe(g).some(p => !nombresSet[p]));
+  if (gestCasos().length && !desactualizado) return;   // ya sembrado y con nombres válidos
+  const p = i => nombres[i % nombres.length];
+  const depDe = n => (DASH.registros.find(r => r.persona === n) || {}).departamento || '';
   const ahora = Date.now(), dia = 86400000;
   const items = [
-    { titulo:'Fatiga elevada — turno noche', personas:['Carlos Ruiz'], departamento:'Operaciones',
+    { titulo:'Fatiga elevada — turno noche', personas:[p(0)], departamento: depDe(p(0)) || 'Operaciones',
       estado:'seguimiento', prioridad:'alta', pin:true, creada: ahora - 6*dia,
       detalle:'Perelli y KSS por encima de lo normal en los últimos tests. Se conversó con el piloto sobre calidad de sueño diurno.',
       revisa: (new Date(ahora + 2*dia)).toISOString().slice(0,10),
       tareas: [ {t:'Hablar con el piloto', ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
       seguimientos: [ {ts: ahora - dia, texto:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.'},
                        {ts: ahora - 5*dia, texto:'Primer contacto: refiere dificultad para dormir de día.'} ] },
-    { titulo:'Ansiedad — evaluación pendiente', personas:['Ana Pérez'], departamento:'Administración',
+    { titulo:'Ansiedad — evaluación pendiente', personas:[p(1)], departamento: depDe(p(1)) || 'Administración',
       estado:'abierta', prioridad:'media', pin:false, creada: ahora - 3*dia,
       detalle:'Test de ansiedad (BAI) sobre el límite. Todavía no se agendó la evaluación con salud ocupacional.',
       revisa: (new Date(ahora - dia)).toISOString().slice(0,10),   // vencida a propósito, para mostrar esa insignia
       tareas: [ {t:'Agendar evaluación con salud ocupacional', ok:false} ], seguimientos: [] },
-    { titulo:'Estrés alto — resuelto con cambio de turno', personas:['Lucía Fernández'], departamento:'Tripulación',
+    { titulo:'Estrés alto — resuelto con cambio de turno', personas:[p(2)], departamento: depDe(p(2)) || 'Tripulación',
       estado:'resuelta', prioridad:'baja', pin:false, creada: ahora - 20*dia,
       detalle:'Estrés por encima de referencia durante 3 semanas seguidas. Se resolvió tras reasignar a un horario diurno.',
       revisa:'', tareas: [ {t:'Reasignar horario', ok:true}, {t:'Repetir test a las 2 semanas', ok:true} ],
       seguimientos: [ {ts: ahora - 6*dia, texto:'Repetido el test de estrés: valores ya dentro de lo normal.'},
                        {ts: ahora - 18*dia, texto:'Se reasignó a horario diurno desde el lunes.'} ] },
-    { titulo:'Somnolencia — seguimiento mensual', personas:['Jose Díaz','Marta Sol'], departamento:'Mantenimiento',
+    { titulo:'Somnolencia — seguimiento mensual', personas:[p(3), p(4)], departamento: depDe(p(3)) || 'Mantenimiento',
       estado:'seguimiento', prioridad:'media', pin:false, creada: ahora - 10*dia,
       detalle:'KSS elevado en ambos durante el cierre de mes. Se están monitoreando junto con el resto del equipo.',
       revisa: (new Date(ahora + 5*dia)).toISOString().slice(0,10),
