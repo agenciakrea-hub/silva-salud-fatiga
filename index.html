@@ -1066,20 +1066,27 @@
     /* El espejo "Así lo ve el supervisor" se lee como una tarjeta de vista previa, no como una
        banda estirada de borde a borde. */
     .an-espejo { max-width: 34rem; }
-    /* Escritorio: el menú desplegable de celular se fuerza siempre abierto y EN FLUJO normal
-       (no flotando encima), hay espacio de sobra y no hace falta esconder nada detrás de un botón.
-       Sólo el Glosario se mantiene como botón + desplegable (ahí sí hay algo que esconder). */
-    .dfm-toggle { display: none; }
-    .dfm-panel { position: static; grid-template-rows: 1fr !important; box-shadow: none !important; border-radius: 0; }
-    .dfm-panel-inner { overflow: visible; }
-    .dfm-panel-inner .dash-tabs-wrap { border-top: none; }
-    /* Sigue con position:relative (no "static"): el desplegable del Glosario se ancla acá. */
-    .dfm-wrap { margin: 0; border-radius: 0; box-shadow: none; background: #fff; border-bottom: 1px solid #eef1f5; }
-    .dfm-row { justify-content: flex-end; }
-    .gloss-toggle { flex-direction: row; gap: .45rem; width: auto; border-left: none; padding: .7rem 1.2rem;
-      color: var(--text-soft); }
-    .gloss-toggle:hover { color: var(--navy); }
-    .gloss-toggle.open { background: #f1f3f7; color: var(--navy); }
+    /* Header COMPACTO: el título y el "Actualizado…" van en la misma línea y los botones más
+       chicos, así la barra fija deja de comerse alto que le sirve a los gráficos. */
+    .dash-top { padding: .55rem 1.1rem; gap: .45rem; }
+    .dash-scope-wrap { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; }
+    .dash-scope { font-size: 1rem; }
+    .dash-updated { font-size: .68rem; margin-top: 0; }
+    .portal-back, .dash-refresh, .dash-top .portal-x { width: 30px; height: 30px; font-size: 1rem; }
+    .dash-refresh svg { width: 14px; height: 14px; }
+    /* El menú/filtros TAMBIÉN se despliega en escritorio (antes quedaba fijo abierto): expandido
+       se comía ~180 px de alto entre pestañas, rango y selectores, y encima dejaba al Glosario en
+       un renglón propio. Colapsado es una sola fila compacta: [Menú y filtros ▾] [Glosario]. */
+    .dfm-wrap { margin: .5rem 1.1rem 0; }
+    .dfm-panel-inner .dash-filters { padding: .8rem 1.2rem 1.1rem; }
+    .gloss-toggle { flex-direction: row; gap: .45rem; width: auto; padding: .65rem 1.05rem; }
+    /* Aptitud en dos columnas: izquierda los contadores + el estado del equipo (esa columna antes
+       quedaba medio vacía), derecha la lista por persona, que es la parte larga. */
+    .dash-sec > .apt-layout { flex: 1 1 100%; }
+    .apt-layout { display: grid; grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+      gap: 1.5rem 1.6rem; align-items: start; }
+    .apt-layout .dash-block { margin-bottom: 1.5rem; }
+    .apt-layout .apt-col > .dash-block:last-child { margin-bottom: 0; }
     /* El login del panel (gate) en escritorio: fondo BLANCO a pantalla completa (igual que el
        panel), con el formulario ANCLADO ARRIBA (no centrado verticalmente) — así no "salta" de
        posición al cambiar de pestaña (Personal/Supervisor/Servicio médico tienen distinto alto:
@@ -1442,9 +1449,39 @@
   /* ── Vista de APTITUD (supervisor): semáforos, sin valores ── */
   /* auto-fit: los contadores del resumen se acomodan solos (son 4 y en celular angosto entran 2+2) */
   .apt-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .6rem; }
-  .apt-sum-card { background: var(--ab); border-radius: 14px; padding: .8rem .5rem; text-align: center; }
+  /* Los contadores son BOTONES: filtran la lista de personas a ese grupo. */
+  .apt-sum-card { display: flex; flex-direction: column; align-items: center; width: 100%;
+    background: var(--ab); border: 2px solid transparent; border-radius: 14px; padding: .7rem .45rem;
+    text-align: center; font-family: inherit; cursor: pointer; transition: transform .12s, border-color .15s; }
+  .apt-sum-card:active { transform: scale(.97); }
+  .apt-sum-card.on { border-color: var(--ac); }
   .apt-sum-n { font-size: 1.7rem; font-weight: 800; color: var(--ac); line-height: 1; }
-  .apt-sum-l { font-size: .7rem; font-weight: 800; color: var(--ac); margin-top: .3rem; }
+  .apt-sum-l { font-size: .7rem; font-weight: 800; color: var(--ac); margin-top: .3rem; line-height: 1.25; }
+  .apt-sum-hint { font-size: .72rem; color: var(--text-muted); margin-top: .6rem; }
+  .apt-t-n { font-weight: 700; color: var(--text-muted); font-size: .9rem; }
+  .apt-filtro-chip { display: inline-flex; align-items: center; gap: .45rem; background: #eef2f8;
+    border-radius: 999px; padding: .3rem .4rem .3rem .8rem; font-size: .78rem; color: var(--text-soft); margin-bottom: .8rem; }
+  .apt-filtro-x { border: none; background: #fff; color: var(--text-soft); width: 20px; height: 20px;
+    border-radius: 50%; font-family: inherit; font-weight: 800; cursor: pointer; line-height: 1; }
+  /* Estado general del equipo: todo conteos de personas, ningún valor de test */
+  .apt-eq-gauge { display: flex; align-items: center; gap: .85rem; }
+  .apt-eq-pct { font-size: 2.1rem; font-weight: 800; color: var(--navy); line-height: 1; flex-shrink: 0; }
+  .apt-eq-cap { font-size: .78rem; color: var(--text-soft); line-height: 1.4; }
+  .apt-eq-bar { height: 8px; border-radius: 999px; background: #edf0f5; overflow: hidden; margin: .75rem 0 .9rem; }
+  .apt-eq-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#1aa672,#43cf95); }
+  .apt-eq-row { display: flex; align-items: baseline; justify-content: space-between; gap: .7rem;
+    padding: .45rem 0; border-bottom: 1px solid #f0f2f5; font-size: .82rem; }
+  .apt-eq-row:last-of-type { border-bottom: none; }
+  .apt-eq-k { color: var(--text-soft); font-weight: 600; min-width: 0; line-height: 1.35; }
+  .apt-eq-v { font-weight: 800; color: var(--text); flex-shrink: 0; }
+  .apt-eq-v small { font-weight: 700; color: var(--text-muted); }
+  .apt-eq-v.rojo { color: #d63031; }
+  .apt-eq-v.amarillo { color: #b8860b; }
+  .apt-eq-v.gris { color: var(--text-muted); }
+  .apt-eq-nota { font-size: .72rem; color: var(--text-muted); line-height: 1.45; margin-top: .8rem;
+    padding-top: .7rem; border-top: 1px solid #eef1f5; }
+  /* En celular las dos columnas se apilan (el layout de 2 columnas es sólo escritorio) */
+  .apt-layout > .apt-col { min-width: 0; }
   .apt-leyenda { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin-bottom: .9rem; }
   .apt-lg { display: inline-flex; align-items: center; gap: .3rem; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
   .apt-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -2230,7 +2267,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.18';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.19';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5064,6 +5101,71 @@ function aptTarjeta(p){
     '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo +
   '</div>';
 }
+/* Grupos de los contadores del resumen. PARTICIONAN exactamente a la población: cada persona cae
+   en uno y sólo uno, así los contadores suman el total. Antes se solapaban (había un contador
+   "sin dato reciente" que contaba gente ya contada en otro, y el estado "Seguimiento" no lo
+   contaba NINGUNO), así que los números no cerraban: 7+2+6+18 sobre 18 personas.
+   "Dato no reciente" pasó al panel de equipo: es un atributo transversal, no un estado. */
+const APT_GRUPOS = {
+  pendiente:   { t:'Pendiente de revisión', estados:['pendiente'],            c:'#e0322f', bg:'#feecec' },
+  medico:      { t:'Indicación médica',     estados:['noapto','condiciones'], c:'#b8860b', bg:'#fff8e6' },
+  seguimiento: { t:'Seguimiento',           estados:['seguimiento'],          c:'#c98a00', bg:'#fffaed' },
+  ok:          { t:'En condiciones',        estados:['ok','aptomed'],         c:'#1aa672', bg:'#e6f7f0' },
+  sindato:     { t:'Sin registros',         estados:['sindato'],              c:'#7b8499', bg:'#f2f4f7' }
+};
+function aptEnGrupo(p, k){ const g = APT_GRUPOS[k]; return !!g && g.estados.indexOf(p.estado) >= 0; }
+// Al tocar un contador, la lista de personas se acota a ese grupo (y se vuelve a tocar para
+// soltar). Es lo que hace que los números sean un punto de partida y no sólo decoración.
+function aptSetFiltro(k){
+  if (!DASH) return;
+  DASH._aptFiltro = (DASH._aptFiltro === k) ? null : k;
+  DASH._skipAnim = true;                        // filtrar no debería re-animar todo el panel
+  renderDash();
+  const sec = document.getElementById('dsec-aptitud');
+  if (sec) sec.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+/* Panel COMPACTO de estado general del equipo. Va debajo de los contadores porque en escritorio
+   esa columna queda con mucho espacio libre (la lista de personas es larguísima al lado).
+   Son todos conteos de PERSONAS y agregados del grupo: ningún valor de test, nada individual. */
+function renderAptitudEquipo(gente){
+  const n = gente.length; if (!n) return '';
+  const enCond = gente.filter(p => aptEnGrupo(p,'ok')).length;
+  const pct = Math.round(enCond / n * 100);
+  const noRecientes = gente.filter(p => p.viejo).length;
+  const empeoraron = gente.filter(p => p.empeoro).length;
+  const sinRevisar = gente.filter(p => p.estado === 'pendiente' && !p.revisado).length;
+  const porVencer = gente.filter(p => p.anot && (p.anot.vigenciaHasta - Date.now()) < 86400000).length;
+  // Indicador que más veces está por encima en el grupo (conteo de personas, no de valores).
+  const conteo = {};
+  gente.forEach(p => {
+    p.metricas.forEach(x => { if (x.nivel === 'alto') conteo[x.m] = (conteo[x.m]||0)+1; });
+    if (p.pvt === 'alto') conteo.__pvt = (conteo.__pvt||0)+1;
+  });
+  let topM = null, topN = 0;
+  Object.keys(conteo).forEach(k => { if (conteo[k] > topN){ topN = conteo[k]; topM = k; } });
+  // Departamento con más pendientes de revisión.
+  const dep = {};
+  gente.filter(p => p.estado === 'pendiente').forEach(p => { const d = p.dep || '—'; dep[d] = (dep[d]||0)+1; });
+  let topD = null, topDN = 0;
+  Object.keys(dep).forEach(k => { if (dep[k] > topDN){ topDN = dep[k]; topD = k; } });
+
+  const fila = (k, v, cls) => '<div class="apt-eq-row"><span class="apt-eq-k">' + k + '</span>' +
+    '<span class="apt-eq-v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
+  return '<div class="dash-block"><div class="db-title">Estado general del equipo</div>' +
+    '<div class="db-sub">Resumen operativo del grupo que tengas filtrado</div>' +
+    '<div class="apt-eq-gauge"><div class="apt-eq-pct">' + pct + '%</div>' +
+      '<div class="apt-eq-cap">del equipo <b>en condiciones</b><br>' + enCond + ' de ' + n + ' ' + (n===1?'persona':'personas') + '</div></div>' +
+    '<div class="apt-eq-bar"><i style="width:' + pct + '%"></i></div>' +
+    (sinRevisar ? fila('Nunca revisadas por el servicio médico', sinRevisar, 'rojo') : '') +
+    (empeoraron ? fila('Empeoraron vs. su test anterior', empeoraron, 'rojo') : '') +
+    (porVencer ? fila('Indicaciones que vencen en 24 h', porVencer, 'amarillo') : '') +
+    fila('Con dato de más de ' + APT_DIAS_FRESCO + ' días', noRecientes, noRecientes ? 'gris' : '') +
+    (topM ? fila('Indicador que más pesa', esc(topM === '__pvt' ? 'Reacción' : (METRIC_LABELS[topM] || topM)) +
+      ' <small>· ' + topN + '</small>', '') : '') +
+    (topD ? fila('Departamento a mirar', esc(topD) + ' <small>· ' + topDN + '</small>', '') : '') +
+    '<div class="apt-eq-nota">Son cantidades de personas y datos del grupo: nunca valores de tests ni detalle individual.</div>' +
+  '</div>';
+}
 // Arma la lista de personas con su estado resuelto (compartido por el panel del supervisor y por
 // la cola de trabajo del servicio médico, así los dos miran exactamente el mismo cálculo).
 function aptGente(rows){
@@ -5097,19 +5199,26 @@ function renderAptitud(rows){
       '<div class="dash-empty">Sin registros de personas para este filtro.</div></div>';
   }
 
-  const cuenta = ks => gente.filter(x => ks.indexOf(x.estado) >= 0).length;
-  const nPend = cuenta(['pendiente']), nInd = cuenta(['noapto','condiciones']);
-  const nOk = cuenta(['ok','aptomed']), nViejo = gente.filter(x => x.estado === 'sindato' || x.viejo).length;
+  // Contadores como BOTONES: filtran la lista de personas a ese grupo (y suman el total exacto).
+  const filtro = DASH._aptFiltro || null;
+  const tarjetasSum = Object.keys(APT_GRUPOS).map(k => {
+    const g = APT_GRUPOS[k], on = (filtro === k), n = gente.filter(p => aptEnGrupo(p, k)).length;
+    return '<button type="button" class="apt-sum-card' + (on ? ' on' : '') + '" style="--ac:' + g.c + ';--ab:' + g.bg + '"' +
+      ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="aptSetFiltro(\'' + k + '\')">' +
+      '<span class="apt-sum-n">' + n + '</span><span class="apt-sum-l">' + g.t + '</span></button>';
+  }).join('');
   const resumen = '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
     '<div class="db-sub">' + gente.length + ' ' + (gente.length===1?'persona':'personas') + ' con registros en el período seleccionado</div>' +
-    '<div class="apt-sum">' +
-      '<div class="apt-sum-card" style="--ac:#e0322f;--ab:#feecec"><div class="apt-sum-n">' + nPend + '</div><div class="apt-sum-l">Pendiente de revisión</div></div>' +
-      '<div class="apt-sum-card" style="--ac:#b8860b;--ab:#fff8e6"><div class="apt-sum-n">' + nInd + '</div><div class="apt-sum-l">Indicación médica</div></div>' +
-      '<div class="apt-sum-card" style="--ac:#1aa672;--ab:#e6f7f0"><div class="apt-sum-n">' + nOk + '</div><div class="apt-sum-l">En condiciones</div></div>' +
-      '<div class="apt-sum-card" style="--ac:#7b8499;--ab:#f2f4f7"><div class="apt-sum-n">' + nViejo + '</div><div class="apt-sum-l">Sin dato reciente</div></div>' +
-    '</div></div>';
+    '<div class="apt-sum">' + tarjetasSum + '</div>' +
+    '<div class="apt-sum-hint">Toca un número para ver sólo ese grupo en la lista.</div></div>';
 
-  const tarjetas = gente.map(aptTarjeta).join('');
+  const visibles = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente;
+  const chip = filtro
+    ? '<div class="apt-filtro-chip">Mostrando: <b>' + APT_GRUPOS[filtro].t + '</b>' +
+      '<button type="button" class="apt-filtro-x" onclick="aptSetFiltro(\'' + filtro + '\')" aria-label="Quitar filtro">×</button></div>'
+    : '';
+  const tarjetas = visibles.length ? visibles.map(aptTarjeta).join('')
+    : '<div class="dash-empty">Nadie en este grupo con los filtros actuales.</div>';
 
   const leyenda = '<div class="apt-leyenda">' +
     '<span class="apt-lg"><i class="apt-dot apt-ok"></i>Bien</span>' +
@@ -5122,10 +5231,18 @@ function renderAptitud(rows){
     'determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>' +
     'Esta vista es orientativa y <b>no es un diagnóstico</b>.</div>';
 
-  return ayuda + resumen +
-    '<div class="dash-block"><div class="db-title">Estado por persona</div>' +
-    '<div class="db-sub">Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después</div>' +
-    leyenda + tarjetas + nota + '</div>';
+  // Dos columnas en escritorio: a la izquierda los contadores + el estado del equipo (que antes
+  // dejaban media pantalla vacía), a la derecha la lista por persona, que es la parte larga.
+  return ayuda +
+    '<div class="apt-layout">' +
+      '<div class="apt-col">' + resumen + renderAptitudEquipo(gente) + '</div>' +
+      '<div class="apt-col">' +
+        '<div class="dash-block"><div class="db-title">Estado por persona' +
+          (filtro ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
+        '<div class="db-sub">Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después</div>' +
+        chip + leyenda + tarjetas + nota + '</div>' +
+      '</div>' +
+    '</div>';
 }
 
 /* ── RESUMEN: promedios + barras + radar + alertas / (o detalle si hay 1 persona) ── */
