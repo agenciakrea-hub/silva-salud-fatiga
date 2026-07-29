@@ -2195,7 +2195,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.14';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.15';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3613,12 +3613,13 @@ function abrirDestinoEstadisticas(){
     const pp = getProfile() || {};
     if (!pp.esSupervisor && !pp.esServicioMedico) DASH = null;
   }
-  // SIEMPRE pasa por el selector (Personal/Supervisor/Servicio médico) — antes, si ya se habían
-  // cargado datos hoy, se saltaba directo al último panel que se había mirado, sin importar cuál
-  // fuera. Eso quedaba "atrapado": en cuanto mirabas Personal una vez, cada vez que volvías a
-  // tocar Estadísticas caías directo en Personal de nuevo, sin ninguna forma de volver a elegir
-  // Supervisor o Servicio médico (había un solo cache global, no uno por vista). El selector
-  // sigue siendo rápido: con la contraseña guardada, entrar es un solo toque (ver openPortalGate).
+  // El selector (Personal/Supervisor/Servicio médico) sólo tiene sentido si hay algo para
+  // elegir. Personal que NO es ni supervisor ni servicio médico no tiene otra vista posible:
+  // entra DIRECTO a sus propias estadísticas, sin selector de por medio. Con la contraseña
+  // guardada, para supervisor/servicio médico entrar sigue siendo un solo toque (openPortalGate).
+  const perfil = getProfile();
+  const puedeEmpresa = !!(perfil && (perfil.esSupervisor || perfil.esServicioMedico));
+  if (!puedeEmpresa){ portalAutoLoginEmpleado(); return; }
   openPortalGate();
 }
 
@@ -4169,6 +4170,20 @@ function portalLoginEmpleado(btn){
   dashRequest(params)
     .then(d => { btnSpin(btn, false); onDashData(d, p.nombre || 'Mis registros', params); })
     .catch(() => { btnSpin(btn, false); showToast('No se pudo conectar'); });
+}
+// Personal que NO es supervisor ni servicio médico: no tiene otra vista para elegir, así que
+// entra derecho a sus estadísticas (sin mostrar el selector ni tener que tocar "Ver mis
+// estadísticas"). Mismo patrón que portalAutoLoginSupervisor: muestra el panel ya, con
+// "Cargando…", y lo completa cuando llega la respuesta.
+function portalAutoLoginEmpleado(){
+  document.getElementById('portalGate').style.display = 'none';
+  document.getElementById('portalDash').style.display = '';
+  document.getElementById('dashScope').textContent = 'Cargando…';
+  const p = getProfile() || {};
+  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
+  dashRequest(params)
+    .then(d => { onDashData(d, p.nombre || 'Mis registros', params); })
+    .catch(() => { openPortalGate(); showToast('No se pudo conectar'); });
 }
 function portalLoginSupervisor(btn){
   const usuario = document.getElementById('pEmpresa').value.trim();
