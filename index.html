@@ -354,7 +354,7 @@
      letras blancas, para que se note que es la barra "de mando" fija (mismo peso visual que el
      botón de Gestiones). */
   #portalDash { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-  .dash-top { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.2rem .85rem;
+  .dash-top { flex-shrink: 0; display: flex; align-items: center; gap: .6rem; padding: 1rem 1.2rem .85rem;
     background: var(--navy); flex-shrink: 0; }
   .portal-back { width: 36px; height: 36px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
     border-radius: 10px; font-size: 1.15rem; color: #fff; cursor: pointer; flex-shrink: 0; }
@@ -1450,7 +1450,7 @@
   /* auto-fit: los contadores del resumen se acomodan solos (son 4 y en celular angosto entran 2+2) */
   .apt-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .6rem; }
   /* Los contadores son BOTONES: filtran la lista de personas a ese grupo. */
-  .apt-sum-card { display: flex; flex-direction: column; align-items: center; width: 100%;
+  .apt-sum-card { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%;
     background: var(--ab); border: 2px solid transparent; border-radius: 14px; padding: .7rem .45rem;
     text-align: center; font-family: inherit; cursor: pointer; transition: transform .12s, border-color .15s; }
   .apt-sum-card:active { transform: scale(.97); }
@@ -1459,8 +1459,26 @@
   .apt-sum-l { font-size: .7rem; font-weight: 800; color: var(--ac); margin-top: .3rem; line-height: 1.25; }
   .apt-sum-hint { font-size: .72rem; color: var(--text-muted); margin-top: .6rem; }
   .apt-t-n { font-weight: 700; color: var(--text-muted); font-size: .9rem; }
+  /* Insignia chiquita ("›" en un círculo) que marca que ese cuadro/fila se toca — sin ella, los
+     contadores y los items de la cola se leen como texto informativo, no como controles. */
+  .apt-tap { position: absolute; top: .4rem; right: .4rem; width: 15px; height: 15px; border-radius: 50%;
+    background: rgba(255,255,255,.75); display: flex; align-items: center; justify-content: center; }
+  .apt-tap svg { width: 8px; height: 8px; color: var(--ac); }
+  /* Variante EN LÍNEA (filas de la cola médica): va primero en la fila, no flota arriba a la
+     derecha — ahí podía superponerse con la fecha, que ya usa esa esquina. */
+  .apt-tap-inline { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; background: #fff;
+    display: flex; align-items: center; justify-content: center; }
+  .apt-tap-inline svg { width: 8px; height: 8px; color: var(--anc); }
+  /* Controles de "Estado por persona": invertir el orden / quedarse sólo con indicación médica. */
+  .apt-ctrls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
+  .apt-ctrl-btn { display: inline-flex; align-items: center; gap: .4rem; border: 1.5px solid #e3e8f0;
+    background: #fff; border-radius: 999px; padding: .45rem .8rem; font-family: inherit; font-weight: 700;
+    font-size: .78rem; color: var(--text-soft); cursor: pointer; }
+  .apt-ctrl-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .apt-ctrl-btn.on { border-color: var(--navy); background: #eef2f8; color: var(--navy); }
+  .apt-chips-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
   .apt-filtro-chip { display: inline-flex; align-items: center; gap: .45rem; background: #eef2f8;
-    border-radius: 999px; padding: .3rem .4rem .3rem .8rem; font-size: .78rem; color: var(--text-soft); margin-bottom: .8rem; }
+    border-radius: 999px; padding: .3rem .4rem .3rem .8rem; font-size: .78rem; color: var(--text-soft); margin-bottom: 0; }
   .apt-filtro-x { border: none; background: #fff; color: var(--text-soft); width: 20px; height: 20px;
     border-radius: 50%; font-family: inherit; font-weight: 800; cursor: pointer; line-height: 1; }
   /* Estado general del equipo: todo conteos de personas, ningún valor de test */
@@ -2267,7 +2285,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.19';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.20';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5114,6 +5132,14 @@ const APT_GRUPOS = {
   sindato:     { t:'Sin registros',         estados:['sindato'],              c:'#7b8499', bg:'#f2f4f7' }
 };
 function aptEnGrupo(p, k){ const g = APT_GRUPOS[k]; return !!g && g.estados.indexOf(p.estado) >= 0; }
+// Ícono chiquito de "esto se toca": lo llevan los contadores y los items de las colas (cualquier
+// cosa nueva que se agregó y que sin el ícono se lee como texto informativo, no como un control).
+// Dos variantes: insignia flotando en la esquina (para los contadores, layout centrado en columna)
+// e ícono en línea al principio (para las filas de la cola, donde una insignia flotando arriba a
+// la derecha se podía superponer con la fecha).
+const APT_TAP_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>';
+const APT_TAP = '<span class="apt-tap" aria-hidden="true">' + APT_TAP_SVG + '</span>';
+const APT_TAP_INLINE = '<span class="apt-tap-inline" aria-hidden="true">' + APT_TAP_SVG + '</span>';
 // Al tocar un contador, la lista de personas se acota a ese grupo (y se vuelve a tocar para
 // soltar). Es lo que hace que los números sean un punto de partida y no sólo decoración.
 function aptSetFiltro(k){
@@ -5121,8 +5147,23 @@ function aptSetFiltro(k){
   DASH._aptFiltro = (DASH._aptFiltro === k) ? null : k;
   DASH._skipAnim = true;                        // filtrar no debería re-animar todo el panel
   renderDash();
-  const sec = document.getElementById('dsec-aptitud');
-  if (sec) sec.scrollIntoView({ behavior:'smooth', block:'start' });
+  // OJO: nada de scrollIntoView acá. Hacía que en celular el encabezado fijo (flecha/✕/menú)
+  // quedara fuera de la pantalla y no se pudiera salir — el contador ya está a la vista cuando
+  // se lo toca, no hace falta moverse a ningún lado.
+}
+// Orden y filtro extra de "Estado por persona": independientes del contador por estado, para que
+// se puedan combinar (ej: "sólo Pendiente de revisión" + "con indicación médica").
+function aptToggleOrden(){
+  if (!DASH) return;
+  DASH._aptOrden = (DASH._aptOrden === 'inv') ? 'auto' : 'inv';
+  DASH._skipAnim = true;
+  renderDash();
+}
+function aptToggleSoloAnot(){
+  if (!DASH) return;
+  DASH._aptSoloAnot = !DASH._aptSoloAnot;
+  DASH._skipAnim = true;
+  renderDash();
 }
 /* Panel COMPACTO de estado general del equipo. Va debajo de los contadores porque en escritorio
    esa columna queda con mucho espacio libre (la lista de personas es larguísima al lado).
@@ -5204,7 +5245,7 @@ function renderAptitud(rows){
   const tarjetasSum = Object.keys(APT_GRUPOS).map(k => {
     const g = APT_GRUPOS[k], on = (filtro === k), n = gente.filter(p => aptEnGrupo(p, k)).length;
     return '<button type="button" class="apt-sum-card' + (on ? ' on' : '') + '" style="--ac:' + g.c + ';--ab:' + g.bg + '"' +
-      ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="aptSetFiltro(\'' + k + '\')">' +
+      ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="aptSetFiltro(\'' + k + '\')">' + APT_TAP +
       '<span class="apt-sum-n">' + n + '</span><span class="apt-sum-l">' + g.t + '</span></button>';
   }).join('');
   const resumen = '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
@@ -5212,13 +5253,33 @@ function renderAptitud(rows){
     '<div class="apt-sum">' + tarjetasSum + '</div>' +
     '<div class="apt-sum-hint">Toca un número para ver sólo ese grupo en la lista.</div></div>';
 
-  const visibles = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente;
-  const chip = filtro
-    ? '<div class="apt-filtro-chip">Mostrando: <b>' + APT_GRUPOS[filtro].t + '</b>' +
-      '<button type="button" class="apt-filtro-x" onclick="aptSetFiltro(\'' + filtro + '\')" aria-label="Quitar filtro">×</button></div>'
-    : '';
+  // "Estado por persona" se puede acomodar: invertir el orden (lo más urgente al final en vez de
+  // arriba) y quedarse sólo con quienes tienen una indicación firmada por el servicio médico.
+  const invertido = DASH._aptOrden === 'inv';
+  const soloAnot = !!DASH._aptSoloAnot;
+  let visibles = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente.slice();
+  if (soloAnot) visibles = visibles.filter(p => !!p.anot);
+  if (invertido) visibles = visibles.slice().reverse();
+  const hayFiltroExtra = !!filtro || soloAnot;
+
+  const controles = '<div class="apt-ctrls">' +
+    '<button type="button" class="apt-ctrl-btn' + (invertido ? ' on' : '') + '" aria-pressed="' + (invertido?'true':'false') + '" onclick="aptToggleOrden()">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l4-4 4 4M8 17l4 4 4-4M12 3v18"/></svg>' +
+      '<span>' + (invertido ? 'Más tranquilos primero' : 'Más urgentes primero') + '</span></button>' +
+    '<button type="button" class="apt-ctrl-btn' + (soloAnot ? ' on' : '') + '" aria-pressed="' + (soloAnot?'true':'false') + '" onclick="aptToggleSoloAnot()">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+      '<span>Con indicación médica</span></button>' +
+  '</div>';
+
+  const chipsFiltro = [];
+  if (filtro) chipsFiltro.push('<div class="apt-filtro-chip">Mostrando: <b>' + APT_GRUPOS[filtro].t + '</b>' +
+    '<button type="button" class="apt-filtro-x" onclick="aptSetFiltro(\'' + filtro + '\')" aria-label="Quitar filtro">×</button></div>');
+  if (soloAnot) chipsFiltro.push('<div class="apt-filtro-chip">Con <b>indicación médica</b>' +
+    '<button type="button" class="apt-filtro-x" onclick="aptToggleSoloAnot()" aria-label="Quitar filtro">×</button></div>');
+  const chip = chipsFiltro.length ? '<div class="apt-chips-row">' + chipsFiltro.join('') + '</div>' : '';
+
   const tarjetas = visibles.length ? visibles.map(aptTarjeta).join('')
-    : '<div class="dash-empty">Nadie en este grupo con los filtros actuales.</div>';
+    : '<div class="dash-empty">Nadie con los filtros actuales.</div>';
 
   const leyenda = '<div class="apt-leyenda">' +
     '<span class="apt-lg"><i class="apt-dot apt-ok"></i>Bien</span>' +
@@ -5238,9 +5299,9 @@ function renderAptitud(rows){
       '<div class="apt-col">' + resumen + renderAptitudEquipo(gente) + '</div>' +
       '<div class="apt-col">' +
         '<div class="dash-block"><div class="db-title">Estado por persona' +
-          (filtro ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
-        '<div class="db-sub">Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después</div>' +
-        chip + leyenda + tarjetas + nota + '</div>' +
+          (hayFiltroExtra ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
+        '<div class="db-sub">' + (invertido ? 'Primero lo que ya está tranquilo; lo urgente va después' : 'Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después') + '</div>' +
+        controles + chip + leyenda + tarjetas + nota + '</div>' +
       '</div>' +
     '</div>';
 }
@@ -6283,7 +6344,7 @@ function dashAnotacionesResumen(){
                 : !p.revisado ? 'sin revisar'
                 : p.empeoro ? 'empeoró' : 'ya revisado antes';
       return '<div class="an-res-item an-res-col" style="--anc:#e0322f;--anbg:#feecec" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
-        '<div class="an-res-top"><span class="an-res-badge">Revisar</span>' +
+        '<div class="an-res-top">' + APT_TAP_INLINE + '<span class="an-res-badge">Revisar</span>' +
         '<span class="an-res-name">' + esc(p.nombre) + '</span></div>' +
         '<div class="an-res-why">' + esc(why) + ' · ' + esc(aptTextoFecha(p)) + '</div>' +
       '</div>';
@@ -6299,7 +6360,7 @@ function dashAnotacionesResumen(){
     const filas = conInd.map((p, i) => {
       const info = apAnotInfo(p.anot.nivel);
       const pronto = (p.anot.vigenciaHasta - Date.now()) < 86400000;
-      return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + (base+i) + '])">' +
+      return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + (base+i) + '])">' + APT_TAP_INLINE +
         '<span class="an-res-badge">' + esc(info.corto || info.t) + '</span>' +
         '<span class="an-res-name">' + esc(p.nombre) + '</span>' +
         '<span class="an-res-hasta' + (pronto ? ' an-res-pronto' : '') + '"><span class="an-res-hasta-in">' +
