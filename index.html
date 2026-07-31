@@ -2285,7 +2285,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.20';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.21';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4625,6 +4625,7 @@ function dashFilterChange(changed){
     }
   }
   if (changed === 'dep'){ DASH.f.per = ''; }                    // al cambiar depto, resetea empleado
+  if (changed) aptResetFiltros();                               // cambió el alcance → sub-filtros a cero
   if (changed === 'emp' || changed === 'dep') buildDashFilters();
   renderDash();
 }
@@ -4780,13 +4781,13 @@ function renderDash(){
     else html = renderResumen(rows);
     return '<section class="dash-sec" id="dsec-' + t + '" data-tab="' + t + '">' + html + '</section>';
   }).join('');
-  // Anotación para el supervisor (persona filtrada) / anotaciones del servicio médico (vista de
-  // grupo): van PEGADAS al nombre de la persona / arriba de todo, no dentro de una pestaña
-  // puntual, porque no son contenido de una pestaña sino contexto de a quién se está mirando.
-  const esOtraPersona = !!DASH.f.per && DASH.rol !== 'empleado';
-  const anotBloque = esOtraPersona
-    ? dashAnotacionSupervisor(rows, esOtraPersona, DASH.f.per ? esc(DASH.f.per) : '')
-    : dashAnotacionesResumen();
+  // Bloques del SERVICIO MÉDICO (determinar aptitud de una persona / cola de trabajo del grupo).
+  // El gate es por VISTA, no por rol: un supervisor tiene rol 'supervisor' (no 'empleado'), así
+  // que con la condición vieja, al elegir una persona en el filtro le aparecía el formulario para
+  // firmar determinaciones y el espejo "Así lo ve el supervisor" — que son del médico.
+  const esMedico = DASH.vista === 'medico';
+  const anotBloque = !esMedico ? ''
+    : (DASH.f.per ? dashAnotacionSupervisor(rows, true, esc(DASH.f.per)) : dashAnotacionesResumen());
   body.innerHTML = dashContext() + anotBloque + aviso + secciones;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
@@ -4939,7 +4940,7 @@ function dashContextRango(){
   return '<span class="ctx-chip ctx-period">' + perLabel + '</span><div class="ctx-range">' + texto + '</div>';
 }
 function dashClear(level){
-  ANOT.open = false; ANOT.infoOpen = false;
+  ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
@@ -4947,7 +4948,7 @@ function dashClear(level){
 }
 function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
 function dashDrill(level, value){
-  ANOT.open = false; ANOT.infoOpen = false;
+  ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
@@ -5142,6 +5143,13 @@ const APT_TAP = '<span class="apt-tap" aria-hidden="true">' + APT_TAP_SVG + '</s
 const APT_TAP_INLINE = '<span class="apt-tap-inline" aria-hidden="true">' + APT_TAP_SVG + '</span>';
 // Al tocar un contador, la lista de personas se acota a ese grupo (y se vuelve a tocar para
 // soltar). Es lo que hace que los números sean un punto de partida y no sólo decoración.
+// Los sub-filtros de la lista (grupo / orden / sólo con indicación) son relativos al conjunto que
+// se esté mirando: si cambia el alcance (empresa, departamento, persona) hay que soltarlos, o el
+// supervisor termina viendo "Nadie con los filtros actuales" sin entender por qué.
+function aptResetFiltros(){
+  if (!DASH) return;
+  DASH._aptFiltro = null; DASH._aptSoloAnot = false; DASH._aptOrden = 'auto';
+}
 function aptSetFiltro(k){
   if (!DASH) return;
   DASH._aptFiltro = (DASH._aptFiltro === k) ? null : k;
@@ -5238,6 +5246,18 @@ function renderAptitud(rows){
   if (!gente.length){
     return ayuda + '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
       '<div class="dash-empty">Sin registros de personas para este filtro.</div></div>';
+  }
+
+  // Con UNA persona filtrada no tiene sentido el tablero de grupo: los contadores quedarían todos
+  // en 0 salvo uno, y "% del equipo en condiciones" daría 0% o 100%. Se muestra sólo su ficha.
+  if (DASH.f.per){
+    return ayuda + '<div class="dash-block"><div class="db-title">' + esc(DASH.f.per) + '</div>' +
+      '<div class="db-sub">Ficha individual · toca <b>‹ Quitar filtro</b> arriba para volver al equipo</div>' +
+      aptTarjeta(gente[0]) +
+      '<div class="apt-nota"><b>Pendiente de revisión</b> = según la app esta persona no está en condiciones, ' +
+      'pero <b>todavía no la revisó el servicio médico</b>: no está declarada no apta. Sólo el servicio médico ' +
+      'puede determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>' +
+      'Esta vista es orientativa y <b>no es un diagnóstico</b>.</div></div>';
   }
 
   // Contadores como BOTONES: filtran la lista de personas a ese grupo (y suman el total exacto).
@@ -5907,7 +5927,16 @@ function dashPick(field, val){
   DASH[field] = val; renderDash();
   if (sc) sc.scrollTop = y;
 }
-function dashGoPerson(name){ DASH.f.per = name; DASH.tab = 'resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0; }
+// Entrar al detalle de una persona. La pestaña destino tiene que EXISTIR para ese rol: el
+// supervisor sólo tiene 'aptitud', así que forzar 'resumen' lo dejaba apuntando a una sección
+// inexistente (chip activo fantasma y scrollspy sin destino).
+function dashGoPerson(name){
+  DASH.f.per = name;
+  aptResetFiltros();
+  DASH.tab = (DASH.tabs.indexOf('resumen') >= 0) ? 'resumen' : DASH.tabs[0];
+  buildDashTabs(); buildDashFilters(); renderDash();
+  document.getElementById('dashScroll').scrollTop = 0;
+}
 function dashGoPersonIdx(i){ const n = DASH._rankNames && DASH._rankNames[i]; if (n != null) dashGoPerson(n); }
 
 /* ── Torta / dona SVG ── */
@@ -6458,7 +6487,10 @@ function anotToggleInfo(){
 function anotSetNivel(k){ ANOT.nivel = k;
   document.querySelectorAll('#anotForm .an-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.nivel === k)); }
 function anotGuardar(){
-  if (!DASH || !DASH.f.per) return;
+  // Sólo el servicio médico firma determinaciones. El endpoint ya lo rechaza del lado del
+  // servidor, pero sin este guard un supervisor podía crearlas localmente y verlas como válidas
+  // en su propio dispositivo hasta que fallara la sincronización.
+  if (!DASH || DASH.vista !== 'medico' || !DASH.f.per) return;
   const notaEl = document.getElementById('anotNota');
   const nota = notaEl ? notaEl.value.trim() : '';
   const numEl = document.getElementById('anotDurNum'), unidadEl = document.getElementById('anotDurUnidad');
@@ -6478,6 +6510,7 @@ function anotGuardar(){
   renderDash();
 }
 function anotQuitar(id){
+  if (!DASH || DASH.vista !== 'medico') return;   // idem: quitar una determinación también es del médico
   gestSaveList(gestList().filter(g => g.id !== id));
   renderDash();
 }
