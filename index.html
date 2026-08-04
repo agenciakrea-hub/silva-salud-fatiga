@@ -1518,6 +1518,48 @@
   .apt-nivel-3 { color:#a8791b; }
   .apt-nivel-4 { color:#c96a1b; }
   .apt-nivel-5 { color:#c0271f; }
+
+  /* ── Restricción operativa del supervisor ──
+     Color propio (azul), distinto del ámbar/rojo de las determinaciones médicas: son dos
+     autoridades distintas y no se pueden leer como lo mismo de un vistazo. */
+  .apt-restr { margin-top:.55rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
+    background:#eaf1fd; border-left:3px solid #2d6cdf; }
+  .apt-restr-top { font-size:.68rem; font-weight:800; color:#2d6cdf; text-transform:uppercase; letter-spacing:.03em; }
+  .apt-restr-tarea { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.2rem; }
+  .apt-restr-mit { font-size:.76rem; font-weight:700; color:#1d4ea8; margin-top:.15rem; }
+  .apt-restr-nota { font-size:.76rem; color:var(--text-soft); margin-top:.18rem; line-height:1.4; }
+  .apt-restr-hasta { font-size:.72rem; font-weight:700; color:#1d4ea8; margin-top:.25rem; }
+  .apt-restr-pie { font-style:italic; opacity:.9; }
+  .apt-con-restr { box-shadow:inset 3px 0 0 rgba(45,108,223,.35), var(--shadow-sm); }
+  .apt-acciones { margin-top:.6rem; display:flex; gap:.45rem; flex-wrap:wrap; }
+  .apt-act { flex:1 1 auto; min-height:44px; padding:.5rem .8rem; border-radius:var(--radius-sm);
+    border:1.5px solid #2d6cdf; background:#fff; color:#2d6cdf; font-size:.82rem; font-weight:800;
+    cursor:pointer; font-family:inherit; }
+  .apt-act:active { transform:scale(.98); }
+  .apt-act-off { border-color:#7b8499; color:#525d73; }
+
+  /* Hoja de restricción */
+  .restr-sheet { max-width: 560px; }
+  .restr-quien { font-size:1.05rem; font-weight:800; color:var(--text); }
+  .restr-sub { font-size:.78rem; font-weight:600; color:var(--text-muted); margin-top:.1rem; }
+  .restr-tope { display:inline-block; margin-left:.3rem; padding:.05rem .4rem; border-radius:999px;
+    background:#f2f4f7; font-size:.7rem; font-weight:700; }
+  .restr-aviso { margin:.7rem 0; padding:.55rem .65rem; border-radius:var(--radius-sm);
+    background:#eaf1fd; border-left:3px solid #2d6cdf; font-size:.78rem; color:var(--text-soft); line-height:1.45; }
+  .restr-lbl { display:block; font-size:.76rem; font-weight:800; color:var(--text); margin:.75rem 0 .3rem; }
+  .restr-input { width:100%; min-height:44px; padding:.55rem .7rem; border-radius:var(--radius-sm);
+    border:1.5px solid #d7dce6; font-size:.9rem; font-family:inherit; background:#fff; color:var(--text); }
+  .restr-input.invalid { border-color:#e0322f; background:#feecec; }
+  .restr-nota { width:100%; min-height:70px; padding:.55rem .7rem; border-radius:var(--radius-sm);
+    border:1.5px solid #d7dce6; font-size:.88rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
+  .restr-mits, .restr-durs { display:flex; flex-wrap:wrap; gap:.35rem; }
+  .restr-mit, .restr-dur { min-height:44px; padding:.45rem .7rem; border-radius:999px;
+    border:1.5px solid #d7dce6; background:#fff; color:var(--text-soft);
+    font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .restr-mit.active, .restr-dur.active { border-color:#2d6cdf; background:#eaf1fd; color:#1d4ea8; }
+  .restr-tope-nota { font-size:.72rem; color:var(--text-muted); margin-top:.35rem; line-height:1.4; }
+  .restr-actions { display:flex; gap:.5rem; margin-top:1rem; }
+  .restr-actions > button { flex:1; }
   /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
      insignia puede envolver en dos líneas en vez de forzar nowrap y desbordar en celular. */
   .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .72rem; font-weight: 800; padding: .25rem .6rem;
@@ -2229,6 +2271,15 @@
 </div>
 
 <!-- Test de Reacción (PVT) -->
+<!-- Restricción de tarea (acción operativa del supervisor). Es una decisión rápida que se toma en
+     planta, con el celular en la mano: por eso es una hoja corta y no un panel dentro del tablero. -->
+<div class="overlay" id="restrOverlay">
+  <div class="sheet restr-sheet">
+    <h2>Restringir tarea</h2>
+    <div id="restrBody"></div>
+  </div>
+</div>
+
 <div class="overlay" id="pvtOverlay">
   <div class="sheet pvt-sheet">
 
@@ -2295,7 +2346,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.24';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3765,6 +3816,7 @@ function fijarTamanoTexto(n){
 function navPush(){ try { history.pushState({ silva: 1 }, ''); } catch(e){} }
 function silvaAtras(){
   const visible = id => { const e = document.getElementById(id); return e && e.classList.contains('show'); };
+  if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
   if (visible('pvtOverlay')){ closePVT(); return true; }
   if (visible('portalOverlay')){ closePortal(); return true; }
@@ -4827,6 +4879,7 @@ function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'�
 let _dashActiveTab = null, _dashSpyRaf = 0, _dashSpyLock = 0, _dashScrollEl = null, _dashOnScroll = null;
 function renderDash(){
   gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
+  restCacheClear();       // idem para las restricciones de tarea del supervisor
   nivelCacheClear();      // idem: se limpia ANTES de dashFiltered(), que ya resuelve niveles
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
@@ -5272,11 +5325,17 @@ function aptPersona(nombre, regs, pvtRegs){
   else if (auto === 'medio')     estado = 'seguimiento';
   else                           estado = 'ok';
 
+  // ⚠️ La restricción de tarea del supervisor va en un campo APARTE y NO modifica `estado`.
+  // Son dos autoridades distintas que conviven (ver el bloque de GEST_TIPO_RESTRICCION).
+  const restr = restVigentesDe(nombre)[0] || null;
+  const restrVencida = restVencidasDe(nombre)[0] || null;
+
   return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
            metricas:metricas, pvt:nivelPvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
            revisado:(historial.length > 0), empeoro:empeoro,
            nivel:nivel, mrg:mrg,
+           restriccion:restr, restrVencida:restrVencida,
            dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
 }
 // Prioridad en la lista: primero lo NUEVO y lo que se movió mal, no lo que ya se sabe y está
@@ -5286,12 +5345,23 @@ function aptOrden(p){
   let o = aptEstadoInfo(p.estado).orden * 10;
   if (p.estado === 'pendiente') o += (!p.revisado ? 0 : (p.empeoro ? 1 : 2));
   if (p.viejo) o += 4;   // dato no reciente = menos urgente, sin dejar de mostrarse
+  // Ya se actuó sobre esta persona (hay una restricción vigente): sigue visible, pero no tiene que
+  // competir por el primer lugar con alguien sobre quien todavía nadie hizo nada. Es el mismo
+  // criterio que ya se usaba con `revisado`: evitar que un caso conocido y gestionado tape a uno nuevo.
+  if (p.restriccion) o += 3;
+  // Restricción vencida sin revisar: al revés, sube. Se acabó el plazo que el supervisor podía
+  // sostener por su cuenta y nadie la miró.
+  if (!p.restriccion && p.restrVencida) o -= 2;
   return o;
 }
 // Tarjeta de una persona TAL COMO LA VE EL SUPERVISOR. Está en una función aparte a propósito:
 // el servicio médico usa exactamente esta misma función para el espejo "Así lo ve el supervisor",
 // así no hay forma de que lo que ve uno y el otro se desincronice ni de que se filtre data médica.
-function aptTarjeta(p){
+// `opts.acciones` agrega los controles del supervisor (restringir / levantar). El espejo del
+// servicio médico la llama SIN opts, así ve exactamente la misma tarjeta pero de sólo lectura.
+// La BANDA de restricción, en cambio, se muestra siempre: que el supervisor sacó a alguien de una
+// tarea es información que el médico también necesita ver, y ocultarla desincronizaría el espejo.
+function aptTarjeta(p, opts){
   const est = aptEstadoInfo(p.estado);
   const cuadros = p.metricas.map(x =>
     '<span class="apt-box apt-' + x.nivel + '" title="' + esc(METRIC_LABELS[x.m] || x.m) + ': ' + APT_NIVELES[x.nivel].t + '">' +
@@ -5309,7 +5379,29 @@ function aptTarjeta(p){
     ? '<div class="apt-aviso">Hay un test nuevo posterior a la última indicación médica: vuelve a revisión.</div>' : '';
   const avisoViejo = (p.viejo && p.estado !== 'sindato')
     ? '<div class="apt-aviso apt-aviso-gris">Dato no reciente: puede no reflejar cómo está hoy.</div>' : '';
-  return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + '">' +
+  // ── Capa OPERATIVA: restricción de tarea del supervisor. Va aparte de la capa médica a
+  //    propósito, con su propio color y su propio encabezado, para que no se lean como lo mismo.
+  const mit = p.restriccion && p.restriccion.mitigacion ? mitigacionInfo(p.restriccion.mitigacion) : null;
+  const restrBanner = p.restriccion
+    ? '<div class="apt-restr">' +
+        '<div class="apt-restr-top">Restricción operativa del supervisor' +
+          (p.restriccion.supervisor ? ' · ' + esc(p.restriccion.supervisor) : '') + '</div>' +
+        '<div class="apt-restr-tarea">No asignar: <b>' + esc(p.restriccion.tarea) + '</b></div>' +
+        (mit ? '<div class="apt-restr-mit">Acción: ' + esc(mit.t) + '</div>' : '') +
+        (p.restriccion.motivo ? '<div class="apt-restr-nota">' + esc(p.restriccion.motivo) + '</div>' : '') +
+        '<div class="apt-restr-hasta">Vigente hasta ' + esc(gestFechaTs(p.restriccion.hasta)) + '</div>' +
+        '<div class="apt-restr-nota apt-restr-pie">Es una decisión operativa para esa tarea, no una determinación médica.</div>' +
+      '</div>' : '';
+  const avisoVencida = (!p.restriccion && p.restrVencida)
+    ? '<div class="apt-aviso">Se venció una restricción operativa y nadie la revisó: corresponde que la vea el servicio médico.</div>' : '';
+  // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
+  const acciones = (opts && opts.acciones)
+    ? '<div class="apt-acciones">' +
+        (p.restriccion
+          ? '<button type="button" class="apt-act apt-act-off" onclick="restLevantar(\'' + p.restriccion.id + '\')">Levantar restricción</button>'
+          : '<button type="button" class="apt-act" onclick="restAbrir(' + JSON.stringify(p.nombre).replace(/"/g,'&quot;') + ')">Restringir tarea</button>') +
+      '</div>' : '';
+  return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + (p.restriccion ? ' apt-con-restr' : '') + '">' +
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
         '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) +
@@ -5317,8 +5409,8 @@ function aptTarjeta(p){
             esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelInfo(p.nivel).d) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
         '</div></div>' +
       '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
-    '</div>' + medBanner + avisoDesact +
-    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo +
+    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida +
+    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + acciones +
   '</div>';
 }
 /* Grupos de los contadores del resumen. PARTICIONAN exactamente a la población: cada persona cae
@@ -5442,6 +5534,12 @@ function renderAptitud(rows){
     '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:#1aa672">verde</b> bien, ' +
     '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima en los dos últimos tests. ' +
     'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.' +
+    '<br><br><b>Puedes restringir una tarea.</b> Con <b>Restringir tarea</b> registras que una persona no haga <b>esa tarea</b> ' +
+    'por un tiempo. Es una decisión <b>operativa y tuya</b>: no necesitas al servicio médico y la puedes levantar cuando quieras. ' +
+    '<b>No es un "no apto"</b>: eso sigue siendo sólo del servicio médico, y las dos cosas conviven sin pisarse. Una persona puede ' +
+    'tener el alta médica y aun así no hacer una tarea puntual porque tú lo decidiste, o al revés.' +
+    '<br><br>El <b>tiempo máximo</b> depende del nivel de riesgo del puesto: a mayor riesgo, menos tiempo se puede sostener una ' +
+    'decisión operativa sin que la vea el servicio médico. Al vencerse, el caso pasa a la cola del servicio médico.' +
     (nivelFilas().length ? ('<br><br><b>Nivel de riesgo del puesto.</b> Cada persona tiene un nivel del 1 al 5 según la tarea que ' +
       'realiza (norma LOPCYMAT). El <b>límite clínico de cada indicador es siempre el mismo</b>: lo que cambia con el nivel es ' +
       '<b>a qué distancia de ese límite se empieza a actuar</b>. Por eso un mismo valor puede quedar en amarillo en un puesto ' +
@@ -5459,7 +5557,7 @@ function renderAptitud(rows){
   if (DASH.f.per){
     return ayuda + '<div class="dash-block"><div class="db-title">' + esc(DASH.f.per) + '</div>' +
       '<div class="db-sub">Ficha individual · toca <b>‹ Quitar filtro</b> arriba para volver al equipo</div>' +
-      aptTarjeta(gente[0]) +
+      aptTarjeta(gente[0], { acciones: restPuede() }) +
       '<div class="apt-nota"><b>Pendiente de revisión</b> = según la app esta persona no está en condiciones, ' +
       'pero <b>todavía no la revisó el servicio médico</b>: no está declarada no apta. Sólo el servicio médico ' +
       'puede determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>' +
@@ -5504,7 +5602,9 @@ function renderAptitud(rows){
     '<button type="button" class="apt-filtro-x" onclick="aptToggleSoloAnot()" aria-label="Quitar filtro">×</button></div>');
   const chip = chipsFiltro.length ? '<div class="apt-chips-row">' + chipsFiltro.join('') + '</div>' : '';
 
-  const tarjetas = visibles.length ? visibles.map(aptTarjeta).join('')
+  // Arrow explícita, NO `visibles.map(aptTarjeta)`: map pasa (elemento, índice, array) y el índice
+  // caería en el parámetro `opts`. Hoy no rompía sólo porque `(3).acciones` es undefined.
+  const tarjetas = visibles.length ? visibles.map(p => aptTarjeta(p, { acciones: restPuede() })).join('')
     : '<div class="dash-empty">Nadie con los filtros actuales.</div>';
 
   const leyenda = '<div class="apt-leyenda">' +
@@ -6462,7 +6562,7 @@ function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
 function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
 function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
 function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
-function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
 function gestUpsert(g){ const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
@@ -6654,6 +6754,101 @@ function gestAnotacionesDe(persona){
 function gestAnotacionesTodasDe(persona){
   return gestAnotaciones().filter(g => g.persona === persona).sort((a,b) => b.creada - a.creada);
 }
+/* ══════════ RESTRICCIÓN DE TAREA (acción del SUPERVISOR) ══════════
+
+   🔑 EL CONCEPTO MÁS IMPORTANTE DE ESTE MÓDULO: hay DOS "no apto" distintos, y NO son lo mismo.
+
+   1) "No apto para ESTA tarea, AHORA"  → lo decide el SUPERVISOR.
+      Es operativo, reversible, acotado a una tarea concreta, y NO necesita al servicio médico.
+      Es el equivalente a mandar a alguien a hacer otra cosa por hoy.
+
+   2) "No apto ocupacional"             → lo firma el SERVICIO MÉDICO.
+      Requiere línea base y un patrón sostenido en el tiempo. Es una determinación clínica.
+
+   ⚠️ LAS DOS COSAS CONVIVEN Y NO SE PISAN. Son autoridades distintas sobre cosas distintas:
+   el médico puede dar el alta y el supervisor seguir sin asignarle esa tarea puntual, y al revés.
+   Por eso `restriccion` es un campo SEPARADO en aptPersona() y NO toca `estado`.
+   Si alguien "simplifica" esto haciendo que la restricción cambie el estado, rompe el modelo:
+   una decisión operativa pasaría a leerse como una determinación médica. No hacerlo. */
+const GEST_TIPO_RESTRICCION = 'restriccion_tarea';
+
+// Acciones rápidas pre-aprobadas. Editables por supervisor y servicio médico desde la app
+// (se guardan en la configuración de la empresa), así se ajustan sin tocar el código.
+// `saca` = la mitigación implica que la persona deja de hacer la tarea.
+const MITIGACIONES_BASE = [
+  { k:'pausa',    t:'Pausa activa de 20 minutos',      saca:false },
+  { k:'piso',     t:'Reasignar a tarea de piso',       saca:true  },
+  { k:'turno',    t:'Rotar turno',                     saca:true  },
+  { k:'acomp',    t:'Acompañamiento en tarea crítica', saca:false },
+  { k:'suspende', t:'Suspender tarea crítica',         saca:true  },
+  { k:'medico',   t:'Derivar al servicio médico',      saca:false },
+  { k:'telemed',  t:'Sugerir telemedicina',            saca:false }
+];
+function mitigaciones(){
+  const c = cfg('mitigaciones');
+  if (Array.isArray(c) && c.length) return c.filter(m => m && m.t);
+  return MITIGACIONES_BASE;
+}
+function mitigacionInfo(k){ return mitigaciones().find(m => m.k === k) || null; }
+
+/* Duraciones ofrecidas según el nivel de riesgo del puesto. El tope sale de NIVEL_RIESGO.maxRestrH.
+   Cuanto MÁS ALTO el riesgo, MENOS tiempo puede sostenerse una decisión operativa sin criterio
+   clínico: al vencer, la persona entra sí o sí a la cola del servicio médico. */
+const REST_OPCIONES_H = [4, 8, 24, 48, 72, 168];
+function restDuracionesPara(nivel){
+  const tope = nivelInfo(nivel).maxRestrH;
+  const ops = REST_OPCIONES_H.filter(h => h <= tope);
+  return ops.length ? ops : [tope];
+}
+function restTextoDuracion(h){
+  if (h < 24) return h + ' horas';
+  if (h === 24) return '24 horas (1 día)';
+  if (h % 24 === 0) return (h/24) + ' días';
+  return h + ' horas';
+}
+// Memoizada igual que las anotaciones: aptPersona() la consulta por cada persona del listado.
+let _restCache = null;
+function restCacheClear(){ _restCache = null; }
+function restTodas(){
+  if (!_restCache) _restCache = gestList().filter(g => g.tipo === GEST_TIPO_RESTRICCION);
+  return _restCache;
+}
+function restTodasDe(persona){ return restTodas().filter(g => g.persona === persona).sort((a,b) => b.creada - a.creada); }
+function restVigentesDe(persona){
+  const ahora = Date.now();
+  return restTodasDe(persona).filter(g => g.hasta && g.hasta > ahora && !g.levantada);
+}
+/* Restricciones que YA VENCIERON y que nadie revisó. Es la señal de escalamiento al servicio
+   médico: se acabó el plazo que el supervisor podía sostener por su cuenta. La consume la cola
+   del médico (P3); acá sólo se deja calculada. */
+function restVencidasDe(persona){
+  const ahora = Date.now();
+  return restTodasDe(persona).filter(g => g.hasta && g.hasta <= ahora && !g.levantada && !g.escalada);
+}
+
+/* Vibración corta como confirmación física de que la acción se registró.
+   ⚠️ En iPhone `navigator.vibrate` NO existe. Desde iOS 17.4 hay un truco: alternar un
+   <input type="checkbox" switch> produce un toque háptico leve. Es un efecto secundario NO
+   documentado — Apple lo puede romper en cualquier actualización y sólo da un tipo de toque.
+   Por eso es mejora progresiva: si no funciona, no pasa absolutamente nada. NUNCA condicionar
+   el flujo a que el háptico ande. */
+let _hapticSwitch = null;
+function haptic(ms){
+  try { if (navigator.vibrate){ navigator.vibrate(ms || 14); return; } } catch(e){}
+  try {
+    if (!_hapticSwitch){
+      const l = document.createElement('label');
+      l.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none';
+      const i = document.createElement('input');
+      i.type = 'checkbox'; i.setAttribute('switch', '');
+      i.setAttribute('aria-hidden', 'true'); i.tabIndex = -1;
+      l.appendChild(i); document.body.appendChild(l);
+      _hapticSwitch = i;
+    }
+    _hapticSwitch.click();
+  } catch(e){}
+}
+
 // Nombre de quien firma las determinaciones. Queda guardado en el dispositivo para no reescribirlo
 // en cada anotación; es opcional (si está vacío, la anotación simplemente no muestra autor).
 const K_MEDICO_NOMBRE = 'silva_medico_nombre_v1';
@@ -6778,6 +6973,115 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
     aptEspejoSupervisor(rows) +
   '</div>';
 }
+/* ── Formulario de restricción de tarea (supervisor) ──
+   Se abre sobre la tarjeta de una persona concreta. Es deliberadamente corto: el supervisor está
+   en planta, con el celular, y tiene que poder resolverlo en pocos toques. */
+const RESTR = { persona:null, tarea:'', mitigacion:'', horas:null, motivo:'' };
+function restPuede(){ return !!(DASH && DASH.vista === 'supervisor'); }
+function restAbrir(persona){
+  if (!restPuede()) return;
+  RESTR.persona = persona; RESTR.tarea = ''; RESTR.mitigacion = ''; RESTR.motivo = '';
+  const p = aptGente(dashFiltered()).find(x => x.nombre === persona);
+  const durs = restDuracionesPara(p ? p.nivel : NIVEL_DEFAULT);
+  RESTR.horas = durs[0];
+  const ov = document.getElementById('restrOverlay');
+  document.getElementById('restrBody').innerHTML = restFormHtml(p, durs);
+  ov.classList.add('show');
+  navPush();
+}
+function restCerrar(){
+  const ov = document.getElementById('restrOverlay'); if (ov) ov.classList.remove('show');
+  RESTR.persona = null;
+}
+function restFormHtml(p, durs){
+  const nv = p ? p.nivel : NIVEL_DEFAULT, ni = nivelInfo(nv);
+  const mits = mitigaciones();
+  return '<div class="restr-quien">' + esc(RESTR.persona) + '</div>' +
+    '<div class="restr-sub">' + esc((p && p.dep) || '—') + ' · Riesgo ' + esc(ni.t) +
+      ' <span class="restr-tope">tope ' + restTextoDuracion(ni.maxRestrH) + '</span></div>' +
+    '<div class="restr-aviso">Esto es una decisión <b>operativa</b>: dice que esta persona no haga <b>esa tarea</b> por un rato. ' +
+      '<b>No es un "no apto"</b> ni una determinación médica, y no reemplaza al servicio médico.</div>' +
+    '<label class="restr-lbl" for="restrTarea">¿Qué tarea no debe hacer?</label>' +
+    '<input type="text" id="restrTarea" class="restr-input" maxlength="80" placeholder="Ej: vuelo nocturno, operar montacargas…">' +
+    '<label class="restr-lbl">Acción a tomar</label>' +
+    '<div class="restr-mits">' + mits.map(m =>
+      '<button type="button" class="restr-mit" data-k="' + esc(m.k) + '" onclick="restSetMit(\'' + esc(m.k) + '\')">' + esc(m.t) + '</button>'
+    ).join('') + '</div>' +
+    '<label class="restr-lbl">¿Por cuánto tiempo?</label>' +
+    '<div class="restr-durs">' + durs.map(h =>
+      '<button type="button" class="restr-dur' + (h===RESTR.horas?' active':'') + '" data-h="' + h + '" onclick="restSetHoras(' + h + ')">' + esc(restTextoDuracion(h)) + '</button>'
+    ).join('') + '</div>' +
+    '<div class="restr-tope-nota">El máximo depende del nivel de riesgo del puesto. Al vencer, el caso pasa al servicio médico.</div>' +
+    '<label class="restr-lbl" for="restrMotivo">Motivo <span class="an-opt">opcional</span></label>' +
+    '<textarea id="restrMotivo" class="restr-nota" maxlength="200" placeholder="Lo que viste o lo que te dijo la persona…"></textarea>' +
+    '<label class="restr-lbl" for="restrQuien">Tu nombre <span class="an-opt">opcional</span></label>' +
+    '<input type="text" id="restrQuien" class="restr-input" maxlength="60" placeholder="Quién toma la decisión" value="' + esc(supervisorNombreGuardado()) + '">' +
+    '<div class="restr-actions">' +
+      '<button type="button" class="an-cancel" onclick="restCerrar()">Cancelar</button>' +
+      '<button type="button" class="an-guardar" onclick="restGuardar()">Registrar restricción</button>' +
+    '</div>';
+}
+function restSetMit(k){
+  RESTR.mitigacion = (RESTR.mitigacion === k) ? '' : k;
+  document.querySelectorAll('#restrBody .restr-mit').forEach(b => b.classList.toggle('active', b.dataset.k === RESTR.mitigacion));
+}
+function restSetHoras(h){
+  RESTR.horas = h;
+  document.querySelectorAll('#restrBody .restr-dur').forEach(b => b.classList.toggle('active', +b.dataset.h === h));
+}
+const K_SUPERVISOR_NOMBRE = 'silva_supervisor_nombre_v1';
+function supervisorNombreGuardado(){ try { return localStorage.getItem(K_SUPERVISOR_NOMBRE) || ''; } catch(e){ return ''; } }
+
+function restGuardar(){
+  // Guard de autoridad: restringir una tarea es del supervisor. Sin esto, el servicio médico
+  // podría crear restricciones operativas desde su panel y se mezclarían las dos autoridades.
+  if (!restPuede() || !RESTR.persona) return;
+  const tarea = (document.getElementById('restrTarea') || {}).value;
+  const t = String(tarea || '').trim();
+  if (!t){
+    const el = document.getElementById('restrTarea');
+    if (el){ el.classList.add('invalid'); el.focus(); }
+    showToast('Indica qué tarea no debe hacer');
+    return;
+  }
+  const motivo = String(((document.getElementById('restrMotivo')||{}).value) || '').trim();
+  const quien  = String(((document.getElementById('restrQuien')||{}).value) || '').trim();
+  if (quien){ try { localStorage.setItem(K_SUPERVISOR_NOMBRE, quien); } catch(e){} }
+  const horas = RESTR.horas || restDuracionesPara(NIVEL_DEFAULT)[0];
+  const mit = RESTR.mitigacion ? mitigacionInfo(RESTR.mitigacion) : null;
+  const resumen = RESTR.persona + ' no hará "' + t + '" por ' + restTextoDuracion(horas) +
+                  (mit ? '.\nAcción: ' + mit.t : '') + '\n\n¿Registrar?';
+  if (!confirm(resumen)) return;
+
+  const ahora = Date.now();
+  const fila = (DASH.registros || []).find(r => r.persona === RESTR.persona) || {};
+  const id = gestNewId();
+  gestUpsert({ id:id, tipo:GEST_TIPO_RESTRICCION, persona:RESTR.persona,
+    departamento: fila.departamento || '', tarea:t, mitigacion:RESTR.mitigacion || '',
+    motivo:motivo, supervisor:quien, creada:ahora, hasta: ahora + horas*3600000,
+    horas:horas, levantada:false, escalada:false });
+  // Queda en el registro inalterable con el umbral vigente: es lo que después alimenta la
+  // "Tasa de Intervención Preventiva No Punitiva" del panel de dirección.
+  bitacoraRegistrar('restriccion_tarea', RESTR.persona,
+    { id:id, tarea:t, mitigacion:RESTR.mitigacion || '', horas:horas, motivo:motivo, supervisor:quien });
+  haptic(16);
+  restCerrar();
+  renderDash();
+  showToast('Restricción registrada');
+}
+function restLevantar(id){
+  if (!restPuede()) return;
+  const g = gestFind(id); if (!g) return;
+  if (!confirm('Levantar la restricción de ' + g.persona + ' para "' + g.tarea + '"?\n\nVuelve a poder hacer esa tarea.')) return;
+  // No se borra: se marca como levantada. El registro de que existió tiene que sobrevivir.
+  g.levantada = true; g.levantadaEn = Date.now();
+  gestUpsert(g);
+  bitacoraRegistrar('restriccion_levantada', g.persona, { id:g.id, tarea:g.tarea });
+  haptic(10);
+  renderDash();
+  showToast('Restricción levantada');
+}
+
 function anotAbrir(){
   ANOT.open = true;
   const f = document.getElementById('anotForm'); if (f) f.classList.add('open');
