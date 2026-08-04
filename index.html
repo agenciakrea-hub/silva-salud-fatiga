@@ -1508,6 +1508,16 @@
   .apt-id { min-width: 0; }
   .apt-name { font-size: .95rem; font-weight: 800; color: var(--text); }
   .apt-dep { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: .1rem; }
+  /* Nivel de riesgo del PUESTO. Es información laboral (qué tarea hace), no dato médico:
+     por eso puede verla el supervisor sin romper el cortafuegos. */
+  .apt-nivel { display:inline-block; margin-left:.4rem; padding:.05rem .38rem; border-radius:999px;
+    font-size:.66rem; font-weight:800; letter-spacing:.01em; white-space:nowrap;
+    border:1px solid currentColor; opacity:.95; }
+  .apt-nivel-1 { color:#3d8f6d; }
+  .apt-nivel-2 { color:#5a8f3d; }
+  .apt-nivel-3 { color:#a8791b; }
+  .apt-nivel-4 { color:#c96a1b; }
+  .apt-nivel-5 { color:#c0271f; }
   /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
      insignia puede envolver en dos líneas en vez de forzar nowrap y desbordar en celular. */
   .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .72rem; font-weight: 800; padding: .25rem .6rem;
@@ -2285,7 +2295,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.22';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.23';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4079,6 +4089,23 @@ const INFORME_DEMO = {
 };
 
 // Datos de ejemplo (subconjunto real de Calc_Data) para ver el panel sin el endpoint desplegado
+/* Niveles de riesgo de la empresa de DEMOSTRACIÓN. Réplica exacta de la estructura de la hoja
+   "Niveles Riesgo" (Empresa | Departamento | Cargo | Persona | Nivel). Empresa vacía = vale para
+   todas. La fila sin departamento/cargo/persona es el default de la empresa.
+
+   Se siembran del lado del cliente, igual que ya se hace con las anotaciones y los comentarios
+   de la demo (gestSembrarDemoAnotaciones / dashSembrarComentariosDemo): la demostración tiene que
+   mostrar la función completa aunque el endpoint todavía no tenga la hoja cargada.
+   Los niveles siguen el criterio LOPCYMAT aplicado a una operación aeromédica. */
+const DEMO_NIVELES = [
+  { empresa:'', departamento:'Administración',  cargo:'', persona:'', nivel:1 },
+  { empresa:'', departamento:'Administrativo',  cargo:'', persona:'', nivel:1 },
+  { empresa:'', departamento:'Mantenimiento',   cargo:'', persona:'', nivel:4 },
+  { empresa:'', departamento:'Operaciones',     cargo:'', persona:'', nivel:4 },
+  { empresa:'', departamento:'Tripulación',     cargo:'', persona:'', nivel:5 },
+  { empresa:'', departamento:'',                cargo:'', persona:'', nivel:3 }   // default de la empresa
+];
+const MOCK_NIVELES = DEMO_NIVELES;   // alias para el modo sin endpoint configurado
 const MOCK_DASH = [
   {empresa:'Aerocentro', departamento:'Operaciones',    persona:'Maria Gonzalez',    fecha:'2022-08-31', kss:null, estres:14, ansiedad:4,  fatiga:1,  gastro:0,  depresion:9},
   {empresa:'Aerocentro', departamento:'Operaciones',    persona:'Maria Gonzalez',    fecha:'2022-09-15', kss:null, estres:20, ansiedad:6,  fatiga:3,  gastro:2,  depresion:11},
@@ -4248,12 +4275,12 @@ function dashRequest(params){
     const ref = { kss:6, estres:36, ansiedad:25, fatiga:7.3, gastro:11, depresion:42, cansancio:19 };
     const met = ['kss','estres','ansiedad','fatiga','gastro','depresion','cansancio'];
     if (params.action === 'empleado'){
-      res({ ok:true, rol:'empleado', referencia:ref, metricas:met, registros: MOCK_DASH.filter(r=>r.persona==='Maria Gonzalez') });
+      res({ ok:true, rol:'empleado', referencia:ref, metricas:met, registros: MOCK_DASH.filter(r=>r.persona==='Maria Gonzalez'), niveles: MOCK_NIVELES });
     } else {
       const emp = (params.empresa||'').toLowerCase().trim();
       let regs = MOCK_DASH.slice();
       if (emp && emp !== '*') regs = regs.filter(r => r.empresa.toLowerCase().trim() === emp);
-      res({ ok:true, rol: emp==='*' ? 'admin' : 'supervisor', referencia:ref, metricas:met, registros:regs });
+      res({ ok:true, rol: emp==='*' ? 'admin' : 'supervisor', referencia:ref, metricas:met, registros:regs, niveles: MOCK_NIVELES });
     }
   });
 }
@@ -4370,11 +4397,22 @@ function onDashData(d, scopeLabel, params, vista){
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            demoMode: !!(d.demo), marca: d.marca || null,
-           f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:''}, tab:tabs[0], tabs:tabs,
+           f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
+           _niveles:null, _cfg:null,
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
-  if (DASH.demoMode){ gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo(); }   // re-sella la vigencia cada vez que se entra a la demo
+  // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
+  // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
+  // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
+  DASH._niveles = Array.isArray(d.niveles) ? d.niveles : null;
+  DASH._cfg     = (d.config && typeof d.config === 'object') ? d.config : null;
+  nivelCacheClear();
+  if (DASH.demoMode){
+    gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
+    if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
+  }
+  else if (!DASH._niveles && gestCanSync()) dashCargarNiveles();
   // Trae gestiones/anotaciones del servidor YA AL ENTRAR (antes sólo se traían al abrir el panel
   // completo de Gestiones, así que una anotación cargada desde otro dispositivo no aparecía en
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
@@ -4391,6 +4429,23 @@ function onDashData(d, scopeLabel, params, vista){
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
   startDashAutoRefresh();
+}
+
+/* Pide los niveles de riesgo al endpoint cuando no vinieron en el payload principal.
+   Falla en silencio a propósito: mientras el endpoint no tenga la acción `niveles_riesgo`,
+   la respuesta va a ser un error o un ok sin `niveles`, y en los dos casos hay que seguir
+   funcionando con el default (nivel 3 = comportamiento histórico), no romper el panel. */
+function dashCargarNiveles(){
+  if (!DASH || DASH._nivelesPedidos) return;
+  DASH._nivelesPedidos = true;
+  gestPost(gestAuth({ action:'niveles_riesgo' })).then(d => {
+    if (!d || !d.ok || !Array.isArray(d.niveles) || !DASH) return;
+    DASH._niveles = d.niveles;
+    if (d.config && typeof d.config === 'object') DASH._cfg = d.config;
+    nivelCacheClear();
+    buildDashFilters();     // el selector de nivel sólo aparece si hay niveles cargados
+    renderDash();
+  }).catch(()=>{});
 }
 
 // ── Empresa Demo: ahora se entra desde el PORTAL (botón "Ver demostración", antes de loguearse),
@@ -4604,6 +4659,15 @@ function buildDashFilters(){
         '<div class="df"><label>Empleado</label><select id="dashPer" onchange="dashFilterChange(\'per\')"><option value="">Todos</option>' +
           pers.map(x=>optSel(x, DASH.f.per)).join('') + '</select></div></div>';
     }
+    // Nivel de riesgo del puesto: sólo se ofrece si la empresa realmente tiene niveles cargados.
+    // Sin la hoja "Niveles Riesgo" todos caen en el default y el filtro no aportaría nada.
+    if (nivelFilas().length){
+      html += '<div class="df-row"><div class="df"><label>Nivel de riesgo</label>' +
+        '<select id="dashNivel" onchange="dashFilterChange(\'nivel\')"><option value="">Todos</option>' +
+        [1,2,3,4,5].map(n => '<option value="' + n + '"' + (String(DASH.f.nivel)===String(n)?' selected':'') + '>' +
+          n + ' · ' + esc(NIVEL_RIESGO[n].t) + '</option>').join('') +
+        '</select></div></div>';
+    }
   }
   document.getElementById('dashFilters').innerHTML = html;
   dfmUpdateLabel();
@@ -4615,6 +4679,7 @@ function dashFilterChange(changed){
   DASH.f.desde = fval('dashDesde'); DASH.f.hasta = fval('dashHasta');
   if (document.getElementById('dashEmp')) DASH.f.emp = fval('dashEmp');
   DASH.f.dep = fval('dashDep'); DASH.f.per = fval('dashPer');
+  if (document.getElementById('dashNivel')) DASH.f.nivel = fval('dashNivel');
   if (changed === 'emp'){
     DASH.f.dep = ''; DASH.f.per = '';        // cascada: al cambiar empresa, resetea depto/empleado
     // Admin: al elegir una empresa "entra" en ella y ve exactamente lo que ve esa empresa.
@@ -4680,6 +4745,9 @@ function dashFiltered(){
     if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
     if (DASH.f.per && r.persona !== DASH.f.per) return false;
+    // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
+    // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
+    if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
     return true;
   });
 }
@@ -4759,6 +4827,7 @@ function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'�
 let _dashActiveTab = null, _dashSpyRaf = 0, _dashSpyLock = 0, _dashScrollEl = null, _dashOnScroll = null;
 function renderDash(){
   gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
+  nivelCacheClear();      // idem: se limpia ANTES de dashFiltered(), que ya resuelve niveles
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
   buildDashTabs();                                   // los chips siempre reflejan las secciones visibles
@@ -4941,7 +5010,7 @@ function dashContextRango(){
 }
 function dashClear(level){
   ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
-  if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; }
+  if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
   buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
@@ -4949,11 +5018,127 @@ function dashClear(level){
 function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
 function dashDrill(level, value){
   ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
-  if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; }
+  if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
 }
 function dashDrillIdx(i){ const n = DASH._heatNames && DASH._heatNames[i]; if (n != null) dashDrill(DASH._heatLevel, n); }
+
+/* ══════════ NIVELES DE RIESGO DEL PUESTO (LOPCYMAT / IVSS) ══════════
+   El MISMO valor clínico no significa lo mismo en todos los puestos: un KSS 6 en recepción es
+   informativo; el mismo KSS 6 en un piloto de helicóptero off-shore es motivo de acción.
+
+   ⚠️ DECISIÓN DE DISEÑO QUE NO HAY QUE INVERTIR NUNCA:
+   la REFERENCIA CLÍNICA (DASH.ref, la que manda el endpoint) NO se mueve por nivel de riesgo.
+   Mover el corte clínico según el puesto sería médicamente incorrecto y el servicio médico
+   perdería confianza en el número. Lo que cambia por nivel es la TOLERANCIA OPERATIVA:
+   a qué distancia del límite clínico se empieza a actuar.
+
+   Nivel 3 = el comportamiento histórico exacto de la app (amarillo 0.85, rojo 1.00). Por eso es
+   el default: mientras no exista la hoja "Niveles Riesgo", nada cambia respecto de lo de antes. */
+const NIVEL_RIESGO = {
+  1: { t:'Mínimo', d:'Oficina, administrativo, comercial',                amarillo:0.95, rojo:1.10, lapOk:2, lapMed:4, maxRestrH:168, frecDias:30 },
+  2: { t:'Bajo',   d:'Logística liviana, salas VIP, terminal ejecutivo',  amarillo:0.90, rojo:1.05, lapOk:1, lapMed:3, maxRestrH:168, frecDias:21 },
+  3: { t:'Medio',  d:'Tripulante de cabina, inspector, laboratorio',      amarillo:0.85, rojo:1.00, lapOk:1, lapMed:3, maxRestrH:72,  frecDias:14 },
+  4: { t:'Alto',   d:'Piloto ala fija, mecánico de hangar, rampa, cisterna', amarillo:0.78, rojo:0.92, lapOk:0, lapMed:2, maxRestrH:48, frecDias:7 },
+  5: { t:'Máximo', d:'Helicóptero off-shore, MEDEVAC, combustible, perforación', amarillo:0.70, rojo:0.85, lapOk:0, lapMed:1, maxRestrH:24, frecDias:7 }
+};
+const NIVEL_DEFAULT = 3;
+function nivelInfo(n){ return NIVEL_RIESGO[n] || NIVEL_RIESGO[NIVEL_DEFAULT]; }
+function nivelValido(n){ n = parseInt(n, 10); return (n >= 1 && n <= 5) ? n : null; }
+
+/* Cortes del PVT (tiempo de reacción) ajustados por nivel de riesgo.
+   ⚠️ ACÁ MENOS ES MEJOR: son milisegundos, al revés que todas las demás métricas.
+
+   Los factores se NORMALIZAN contra el nivel 3 a propósito: así el nivel 3 devuelve exactamente
+   los cortes históricos (300 / 400 ms) y no hay regresión. Un nivel más alto BAJA el corte
+   (más exigente), uno más bajo lo SUBE (más permisivo).
+   Ejemplo: nivel 5 → 247 ms; nivel 1 → 335 ms.
+   Si alguien "simplifica" esto multiplicando el corte por el margen directo, el nivel 3 deja de
+   coincidir con el histórico y los pilotos quedan con un criterio distinto del que se validó. */
+const PVT_BASE_OK = 300, PVT_BASE_MED = 400;
+function pvtCortes(mrg){
+  const b = NIVEL_RIESGO[NIVEL_DEFAULT];
+  const m = mrg || b;
+  return {
+    ok:  PVT_BASE_OK  * (m.amarillo / b.amarillo),
+    med: PVT_BASE_MED * (m.rojo     / b.rojo),
+    lapOk:  (m.lapOk  == null) ? b.lapOk  : m.lapOk,
+    lapMed: (m.lapMed == null) ? b.lapMed : m.lapMed
+  };
+}
+
+/* Coincidencia tolerante PERO con límite de palabra. El módulo de telemetría ya tuvo un bug real
+   por comparar con subcadena suelta: 'rol' matcheaba "Control de Fatiga" y 'edad' matcheaba
+   "Propiedad". Acá se compara normalizado (sin tildes/mayúsculas) y por palabra completa. */
+function nivelCoincide(valorFila, valorReal){
+  const a = dashNorm(valorFila), b = dashNorm(valorReal);
+  if (!a) return false;                       // celda vacía en la hoja = comodín, no coincidencia
+  if (a === b) return true;
+  try {
+    return new RegExp('(?<!\\w)' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?!\\w)').test(b);
+  } catch(e){                                  // lookbehind sin soporte (Safari viejo): cae a igualdad
+    return false;
+  }
+}
+
+/* Resolución del nivel de una persona, de lo más específico a lo más general:
+     1) fila con esa PERSONA          (lo más preciso; las personas las cargamos a mano)
+     2) fila con ese CARGO            ⚠️ ver nota de abajo
+     3) fila con ese DEPARTAMENTO
+     4) fila sólo con la EMPRESA      (default de la empresa)
+     5) NIVEL_DEFAULT (3)             (= comportamiento histórico)
+
+   ⚠️ LIMITACIÓN REAL, VERIFICADA EN EL CÓDIGO (no es un olvido):
+   los registros que devuelve el endpoint para el panel traen empresa/departamento/persona/fecha
+   y las métricas, pero NO traen `cargo`. El cargo SÍ existe en el perfil y SÍ se envía al hacer
+   cada test, así que lo más probable es que ya esté en la hoja maestra: falta que el endpoint lo
+   devuelva en el payload del dashboard. El paso 2 queda implementado y listo, y se activa solo el
+   día que el registro traiga `cargo` — hasta entonces se saltea sin romper nada. */
+let _nivelCache = null;
+function nivelCacheClear(){ _nivelCache = null; }
+function nivelFilas(){ return (DASH && Array.isArray(DASH._niveles)) ? DASH._niveles : []; }
+function nivelRiesgoDe(persona, dep, empresa, cargo){
+  const key = (persona||'') + '|' + (dep||'') + '|' + (empresa||'') + '|' + (cargo||'');
+  if (!_nivelCache) _nivelCache = {};
+  if (_nivelCache[key] != null) return _nivelCache[key];
+  const filas = nivelFilas();
+  let res = NIVEL_DEFAULT;
+  if (filas.length){
+    // Sólo filas de esta empresa (o filas sin empresa = valen para todas).
+    const dela = filas.filter(f => !dashNorm(f.empresa) || nivelCoincide(f.empresa, empresa));
+    const buscar = (campo, valor) => {
+      if (!valor) return null;
+      const f = dela.find(x => nivelCoincide(x[campo], valor) && nivelValido(x.nivel));
+      return f ? nivelValido(f.nivel) : null;
+    };
+    res = buscar('persona', persona)
+       || buscar('cargo', cargo)               // inerte hasta que el endpoint devuelva cargo
+       || buscar('departamento', dep)
+       || (function(){                          // default de la empresa: fila sin depto/cargo/persona
+            const f = dela.find(x => !dashNorm(x.persona) && !dashNorm(x.cargo) && !dashNorm(x.departamento) && nivelValido(x.nivel));
+            return f ? nivelValido(f.nivel) : null;
+          })()
+       || NIVEL_DEFAULT;
+  }
+  _nivelCache[key] = res;
+  return res;
+}
+
+/* ══════════ CONFIGURACIÓN POR EMPRESA ══════════
+   Todo lo parametrizable vive acá con un default en código. La hoja "Config Empresa" sólo
+   SOBREESCRIBE. Si la hoja no existe todavía, la app funciona igual: nunca romper por config. */
+const CFG_DEFAULT = {
+  persistencia: 3,     // mediciones seguidas en rojo que definen "patrón persistente" (P3)
+  anonN: 5,            // mínimo de personas para mostrar datos anonimizados desagregados (P5)
+  mitigaciones: null,  // null = usar la lista base del código (P2)
+  costos: null         // null = módulo de costos "pendiente de configurar" (P7)
+};
+function cfg(k){
+  const c = (DASH && DASH._cfg) || null;
+  if (c && c[k] != null && c[k] !== '') return c[k];
+  return CFG_DEFAULT[k];
+}
 
 /* ══════════ APTITUD (vista del SUPERVISOR) ══════════
    Responde una sola pregunta operativa: ¿esta persona está en condiciones de trabajar HOY?
@@ -4989,11 +5174,15 @@ function aptEstadoInfo(k){ return APT_ESTADOS[k] || APT_ESTADOS.sindato; }
 // Semáforo de UN indicador mirando los registros más recientes primero (no el promedio).
 // Rojo sólo si los DOS últimos están por encima del límite: un mal día aislado queda en amarillo,
 // así no se dispara una revisión médica por un único valor suelto.
-function aptNivelMetrica(valsRecientesPrimero, ref){
+// `mrg` = tolerancia operativa del nivel de riesgo del puesto (ver NIVEL_RIESGO). Sin `mrg` se
+// usa el nivel 3, que reproduce exactamente el comportamiento histórico (0.85 / 1.00).
+function aptNivelMetrica(valsRecientesPrimero, ref, mrg){
   const v = valsRecientesPrimero;
   if (!v.length || !ref) return 'sin';
-  if (v[0] > ref) return (v.length > 1 && v[1] > ref) ? 'alto' : 'medio';
-  if (v[0] > ref * 0.85) return 'medio';
+  const m = mrg || NIVEL_RIESGO[NIVEL_DEFAULT];
+  const rojo = ref * m.rojo, amar = ref * m.amarillo;
+  if (v[0] > rojo) return (v.length > 1 && v[1] > rojo) ? 'alto' : 'medio';
+  if (v[0] > amar) return 'medio';
   return 'ok';
 }
 function aptPeor(niveles){
@@ -5034,17 +5223,25 @@ function aptPersona(nombre, regs, pvtRegs){
   const dias = aptDiasDesde(ultimaFecha);
   const viejo = (dias != null && dias > APT_DIAS_FRESCO);
 
+  // Nivel de riesgo del PUESTO → tolerancia operativa. El corte clínico (DASH.ref) no se toca.
+  const r0 = rs[0] || {};
+  const nivel = nivelRiesgoDe(nombre, r0.departamento, r0.empresa || (DASH && DASH.f.emp), r0.cargo);
+  const mrg = nivelInfo(nivel);
+
   const metricas = DASH.metrics.map(m => {
     const vals = rs.map(r => r[m]).filter(v => v != null);
-    return { m:m, nivel: aptNivelMetrica(vals, DASH.ref[m]) };
+    return { m:m, nivel: aptNivelMetrica(vals, DASH.ref[m], mrg) };
   });
   // Reacción (PVT): mismo criterio de "los dos últimos" que el resto de los indicadores.
+  // Los cortes salen de pvtCortes(), que ajusta por nivel de riesgo respetando que acá
+  // MENOS ES MEJOR (ver el comentario de pvtCortes: el nivel 3 da los 300/400 ms históricos).
   let nivelPvt = null;
   const pv = (pvtRegs || []).slice().sort(porFecha).filter(r => r.rt_prom != null && r.rt_prom > 0);
   if (pv.length){
+    const c = pvtCortes(mrg);
     const nivelDe = r => {
       const lp = (r.lapsos == null) ? 0 : r.lapsos;
-      return (r.rt_prom < 300 && lp <= 1) ? 'ok' : ((r.rt_prom < 400 && lp <= 3) ? 'medio' : 'alto');
+      return (r.rt_prom < c.ok && lp <= c.lapOk) ? 'ok' : ((r.rt_prom < c.med && lp <= c.lapMed) ? 'medio' : 'alto');
     };
     const n0 = nivelDe(pv[0]);
     nivelPvt = (n0 === 'alto' && !(pv.length > 1 && nivelDe(pv[1]) === 'alto')) ? 'medio' : n0;
@@ -5056,7 +5253,7 @@ function aptPersona(nombre, regs, pvtRegs){
   let empeoro = false;
   metricas.forEach(x => {
     const vals = rs.map(r => r[x.m]).filter(v => v != null);
-    if (vals.length > 1 && vals[0] > vals[1] && vals[0] > DASH.ref[x.m]) empeoro = true;
+    if (vals.length > 1 && vals[0] > vals[1] && vals[0] > DASH.ref[x.m] * mrg.rojo) empeoro = true;
   });
 
   const vigentes  = gestAnotacionesDe(nombre);        // determinaciones que no vencieron
@@ -5079,6 +5276,7 @@ function aptPersona(nombre, regs, pvtRegs){
            metricas:metricas, pvt:nivelPvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
            revisado:(historial.length > 0), empeoro:empeoro,
+           nivel:nivel, mrg:mrg,
            dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
 }
 // Prioridad en la lista: primero lo NUEVO y lo que se movió mal, no lo que ya se sabe y está
@@ -5114,7 +5312,10 @@ function aptTarjeta(p){
   return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + '">' +
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
-        '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) + '</div></div>' +
+        '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) +
+          (p.nivel ? '<span class="apt-nivel apt-nivel-' + p.nivel + '" title="Nivel de riesgo del puesto: ' +
+            esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelInfo(p.nivel).d) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
+        '</div></div>' +
       '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
     '</div>' + medBanner + avisoDesact +
     '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo +
@@ -5240,7 +5441,12 @@ function renderAptitud(rows){
     'el servicio médico, y en ese caso la tarjeta lo aclara y muestra quién lo determinó y hasta cuándo vale.' +
     '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:#1aa672">verde</b> bien, ' +
     '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima en los dos últimos tests. ' +
-    'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.');
+    'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.' +
+    (nivelFilas().length ? ('<br><br><b>Nivel de riesgo del puesto.</b> Cada persona tiene un nivel del 1 al 5 según la tarea que ' +
+      'realiza (norma LOPCYMAT). El <b>límite clínico de cada indicador es siempre el mismo</b>: lo que cambia con el nivel es ' +
+      '<b>a qué distancia de ese límite se empieza a actuar</b>. Por eso un mismo valor puede quedar en amarillo en un puesto ' +
+      'administrativo (nivel 1) y en rojo en uno de riesgo máximo (nivel 5): el dato clínico es el mismo, la consecuencia ' +
+      'operativa no.') : ''));
 
   const gente = aptGente(rows);
   if (!gente.length){
@@ -5589,6 +5795,9 @@ function dashFilteredPVT(){
     if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
     if (DASH.f.per && r.persona !== DASH.f.per) return false;
+    // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
+    // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
+    if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
     return true;
   });
 }
@@ -6302,6 +6511,106 @@ function gestPull(){
 }
 function gestFechaTs(ts){ if(!ts) return ''; const d = new Date(ts); const p=n=>String(n).padStart(2,'0');
   return d.getDate() + ' ' + MESES_ABR[d.getMonth()] + ' ' + d.getFullYear() + ', ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+
+/* ══════════ BITÁCORA (registro inalterable) ══════════
+   Toda acción con consecuencia — de una persona o del propio sistema — se anota acá.
+   Tres propiedades que la hacen servir como prueba y no sólo como historial:
+
+   1) APPEND-ONLY. No hay función de editar ni de borrar, y no se va a agregar. Si algo se hizo
+      mal, se registra la corrección como un evento NUEVO; el error queda a la vista.
+   2) SNAPSHOT DEL UMBRAL VIGENTE. Cada evento guarda con qué tolerancia operativa se tomó esa
+      decisión. Sin esto, cambiar un umbral mañana reescribiría en silencio el sentido de todas
+      las decisiones pasadas ("¿por qué restringieron a esta persona si estaba en verde?").
+   3) ORIGEN explícito: 'app' (lo hizo una persona) vs 'algoritmo' (lo marcó el control automático).
+
+   Comparte el patrón de cola offline de las gestiones: se guarda local al instante y se sube
+   cuando hay conexión y credenciales. Nunca se pierde un evento por estar sin señal. */
+const K_BITACORA = 'silva_fatiga_bitacora_v1';
+function bitStoreAll(){ try { return JSON.parse(localStorage.getItem(K_BITACORA)) || {}; } catch(e){ return {}; } }
+function bitSaveStoreAll(o){ try { localStorage.setItem(K_BITACORA, JSON.stringify(o)); } catch(e){} }
+function bitStore(){ const all=bitStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; return s; }
+function bitSaveStore(s){ const all=bitStoreAll(); all[gestKey()]=s; bitSaveStoreAll(all); }
+function bitNewId(){ return 'b' + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
+
+/* Contexto laboral de una persona (departamento / empresa / cargo), sacado de su registro más
+   reciente. ⚠️ NO alcanza con pasar sólo el nombre: sin departamento la cascada de niveles cae
+   al default y el snapshot quedaría diciendo "nivel 3" para un piloto de nivel 5 — es decir,
+   registraría que se lo juzgó con un criterio que no es el que se usó. Eso vaciaría de valor
+   probatorio a toda la bitácora, que es justamente para lo que existe. */
+function bitContextoDe(persona){
+  if (!persona || !DASH || !Array.isArray(DASH.registros)) return {};
+  let mejor = null;
+  DASH.registros.forEach(r => {
+    if (r.persona !== persona) return;
+    if (!mejor || String(r.fecha||'') > String(mejor.fecha||'')) mejor = r;
+  });
+  return mejor ? { dep: mejor.departamento, empresa: mejor.empresa, cargo: mejor.cargo } : {};
+}
+// Snapshot de la tolerancia operativa con la que se juzgó a esta persona EN ESTE MOMENTO.
+function bitUmbralDe(persona, ctx){
+  const c = ctx || bitContextoDe(persona);
+  const n = nivelRiesgoDe(persona, c.dep, c.empresa || (DASH && DASH.f.emp), c.cargo), i = nivelInfo(n);
+  return { nivel:n, amarillo:i.amarillo, rojo:i.rojo };
+}
+/* accion  = verbo corto y estable ('restriccion', 'determinacion', 'alta_reincorporacion', …).
+   sujeto  = sobre quién recae (nombre de persona) o '' si es un evento del sistema.
+   detalle = objeto libre con lo propio del evento.
+   origen  = 'app' (por defecto) o 'algoritmo'. */
+function bitacoraRegistrar(accion, sujeto, detalle, origen){
+  if (!accion) return null;
+  const p = (DASH && DASH.params) || {};
+  const ev = {
+    id: bitNewId(), ts: Date.now(),
+    empresa: gestEmpresaActual(),
+    actor: p.usuario || p.empresa || '',
+    rol: (DASH && (DASH.vista || DASH.rol)) || '',
+    accion: accion, sujeto: sujeto || '',
+    detalle: detalle || {},
+    origen: origen || 'app',
+    umbral: sujeto ? bitUmbralDe(sujeto) : null,
+    app: APP_VERSION
+  };
+  const s = bitStore();
+  s.items.unshift(ev); s.up[ev.id] = 1;
+  bitSaveStore(s);
+  bitScheduleSync();
+  return ev;
+}
+let _bitSyncT = null;
+function bitScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_bitSyncT); _bitSyncT = setTimeout(bitPush, 900); }
+function bitPush(){
+  if(!gestCanSync()) return Promise.resolve();
+  const s = bitStore(); const jobs = [];
+  Object.keys(s.up).forEach(id => {
+    const ev = s.items.find(x => x.id === id);
+    if (!ev){ delete s.up[id]; return; }
+    jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }))
+      .then(d => { if (d && d.ok){ const s2 = bitStore(); delete s2.up[id]; bitSaveStore(s2); } }).catch(()=>{}));
+  });
+  bitSaveStore(s);
+  return Promise.all(jobs);
+}
+function bitPull(){
+  if(!gestCanSync()) return Promise.resolve(false);
+  return gestPost(gestAuth({ action:'bitacora' })).then(d => {
+    if (!d || !d.ok || !Array.isArray(d.eventos)) return false;
+    const s = bitStore();
+    // Append-only de verdad: el servidor es la base y lo local pendiente se SUMA, nunca se pisa
+    // ni se descarta un evento porque el servidor no lo tenga todavía.
+    const porId = {};
+    d.eventos.forEach(e => { if (e && e.id) porId[e.id] = e; });
+    s.items.forEach(e => { if (e && e.id && !porId[e.id]) porId[e.id] = e; });
+    s.items = Object.keys(porId).map(k => porId[k]).sort((a,b) => (b.ts||0) - (a.ts||0));
+    bitSaveStore(s);
+    return true;
+  }).catch(()=>false);
+}
+// Consulta (la usan P3/P7/P8). Filtra por sujeto y/o acción, más reciente primero.
+function bitacoraDe(sujeto, accion){
+  return bitStore().items.filter(e =>
+    (!sujeto || e.sujeto === sujeto) && (!accion || e.accion === accion));
+}
+function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
 
 /* ── Casos reales del cuaderno (excluye las anotaciones de aptitud, que no son "gestiones" para
    contar/listar aquí: viven en el mismo almacén/sincronización pero se muestran aparte). ── */
