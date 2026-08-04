@@ -1561,6 +1561,43 @@
   .restr-actions { display:flex; gap:.5rem; margin-top:1rem; }
   .restr-actions > button { flex:1; }
 
+  /* ── Nivel 1 · Semáforo personal, turno y reporte rápido (sólo vista empleado) ── */
+  .sf-block { border-left:4px solid var(--sfc); background:var(--sfbg); }
+  .sf-t { font-size:1.02rem; font-weight:800; color:var(--sfc); }
+  .sf-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
+  .sf-restr { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
+    background:#eaf1fd; border-left:3px solid #2d6cdf; font-size:.82rem; color:#1d4ea8; }
+  .sf-restr-pie { font-size:.71rem; color:#3f6fb8; font-weight:700; margin-top:.25rem; }
+
+  .sf-turno-paso { padding:.6rem 0; border-top:1px solid #eef1f6; }
+  .sf-turno-paso:first-child { border-top:none; }
+  .sf-turno-top { display:flex; align-items:center; gap:.5rem; }
+  .sf-turno-n { flex:0 0 auto; width:1.5rem; height:1.5rem; border-radius:50%; background:#eef1f6;
+    color:var(--text-muted); font-size:.76rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .sf-turno-ok .sf-turno-n { background:#e6f7f0; color:#1aa672; }
+  .sf-turno-activo .sf-turno-n { background:#fff3e2; color:#f47a1f; }
+  .sf-turno-tt { flex:1 1 auto; font-size:.86rem; font-weight:700; color:var(--text); }
+  .sf-turno-check { flex:0 0 auto; font-size:.76rem; font-weight:800; color:#1aa672; }
+  .sf-turno-sub { font-size:.78rem; color:var(--text-muted); margin-top:.15rem; margin-left:2rem; }
+  .sf-turno-off { opacity:.45; }
+  .sf-turno-form { margin-top:.45rem; margin-left:2rem; display:flex; flex-direction:column; gap:.4rem; max-width:320px; }
+  .sf-turno-form label { font-size:.78rem; color:var(--text-soft); font-weight:600; }
+  .sf-turno-form select { min-height:44px; padding:.4rem .6rem; border-radius:var(--radius-sm);
+    border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; background:#fff; color:var(--text); }
+  .sf-turno-form button { min-height:40px; padding:.4rem .8rem; border-radius:var(--radius-sm); border:none;
+    background:#f47a1f; color:#fff; font-size:.8rem; font-weight:800; cursor:pointer; font-family:inherit; align-self:flex-start; }
+
+  .sf-reporte-cerrado { cursor:pointer; text-align:center; }
+  .sf-reporte-btn { font-size:.92rem; font-weight:800; color:#1d4ea8; }
+  .sf-rep-chips { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
+  .sf-rep-chip { min-height:44px; padding:.5rem .8rem; border-radius:999px; border:1.5px solid #d7dce6;
+    background:#fff; color:var(--text-soft); font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .sf-rep-chip small { opacity:.75; font-weight:600; }
+  .sf-rep-chip.active { border-color:#2d6cdf; background:#eaf1fd; color:#1d4ea8; }
+  .sf-rep-coment { width:100%; min-height:60px; padding:.5rem .65rem; border-radius:var(--radius-sm);
+    border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
+  .sf-rep-send { flex:1; }
+
   /* ── Ficha médica interna (exclusiva del servicio médico) ── */
   .fm-block { border-top:3px solid #128a5e; }
   .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
@@ -2389,7 +2426,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.25';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.26';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2561,6 +2598,116 @@ function flushPending(){
 }
 window.addEventListener('online', flushPending);
 setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
+
+/* ════════════════ COLA DEL EMPLEADO (turnos y reportes rápidos) ════════════════
+   ⚠️ Distinta del canal de Gestiones (gestPush/gestPull, P2/P3): ese requiere contraseña de
+   supervisor/médico (gestAuth exige `pass`), y un empleado nunca tiene una — su login es sólo
+   nombre + empresa (ver el POST de `action:'empleado'`). Por eso lo que escribe el empleado va por
+   el mismo camino SIN CONTRASEÑA que ya usa `sincronizarRegistro()` para el perfil: un POST directo
+   a SHEETS_DASHBOARD_URL con una `action` propia, igual que cada test ya hace con su webhook.
+
+   R7 (offline primero): todo queda en cola local y se reintenta al reconectar. Se guarda por `id`
+   (no por índice), así un reintento nunca duplica ni pierde el orden. */
+const K_EMP_COLA = 'silva_fatiga_emp_cola_v1';
+function empColaAll(){ try { return JSON.parse(localStorage.getItem(K_EMP_COLA)) || {}; } catch(e){ return {}; } }
+function empColaSave(o){ return lsSet(K_EMP_COLA, JSON.stringify(o)); }
+function empPendientes(){ return Object.keys(empColaAll()).length; }
+// `id` es determinístico (no aleatorio) cuando el llamador quiere que un reenvío el mismo día
+// PISE al anterior en vez de duplicar (los tres pasos del turno: uno por día).
+function empEncolar(id, accion, payload){
+  const c = empColaAll();
+  c[id] = { accion:accion, payload:payload, creada: Date.now() };
+  empColaSave(c);
+  empFlush();
+}
+function empFlush(){
+  if (!SHEETS_DASHBOARD_URL) return;
+  const c = empColaAll();
+  const ids = Object.keys(c);
+  if (!ids.length) return;
+  ids.forEach(id => {
+    const item = c[id];
+    fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(Object.assign({ action:item.accion }, item.payload)) })
+      .then(r => r.json())
+      .then(d => { if (d && d.ok){ const c2 = empColaAll(); delete c2[id]; empColaSave(c2); } })
+      .catch(() => {});   // sigue en cola; se reintenta solo (online + cada 1 min, mismo timer que flushPending)
+  });
+}
+window.addEventListener('online', empFlush);
+
+/* ══════════ NIVEL 1 · Turnos (check-in / carga / check-out) ══════════
+   Las TRES curvas subjetivas que describió el cliente para leer el estado real de una persona:
+   cómo llega al turno, cómo percibe la carga MIENTRAS trabaja, y cómo termina. Hoy son tres
+   autoreportes; es a propósito el esqueleto que le va a dar contexto al dato objetivo del wearable
+   cuando llegue el Plan Predictivo (Fase B) — sin esto, ese dato objetivo llega sin nada subjetivo
+   para contrastar.
+   Un registro por tipo por día: si la persona lo reenvía, PISA al de hoy (no acumula versiones). */
+const K_TURNOS = 'silva_fatiga_turnos_v1';
+const TURNO_TIPOS = [
+  { k:'checkin',  t:'Antes del turno',  sub:'¿Cómo llegás hoy?' },
+  { k:'carga',    t:'Durante el turno', sub:'¿Cómo se siente la carga de trabajo ahora?' },
+  { k:'checkout', t:'Al terminar',      sub:'¿Cómo te vas?' }
+];
+function turnoInfo(k){ return TURNO_TIPOS.find(t => t.k === k) || TURNO_TIPOS[0]; }
+function turnosAll(){ try { return JSON.parse(localStorage.getItem(K_TURNOS)) || {}; } catch(e){ return {}; } }
+function turnosSave(o){ return lsSet(K_TURNOS, JSON.stringify(o)); }
+function turnoHoyId(persona, tipo){ return 'turno_' + dashNorm(persona) + '_' + todayStr() + '_' + tipo; }
+function turnosHoy(persona){
+  const all = turnosAll(), out = {};
+  TURNO_TIPOS.forEach(t => { const r = all[turnoHoyId(persona, t.k)]; if (r) out[t.k] = r; });
+  return out;
+}
+function turnoGuardar(tipo, campos){
+  const perfil = getProfile() || {};
+  const persona = perfil.nombre || '';
+  if (!persona) return;
+  const id = turnoHoyId(persona, tipo);
+  const reg = Object.assign({ id:id, tipo:tipo, fecha:todayStr(),
+    hora: new Date().toTimeString().slice(0,5), persona:persona,
+    empresa: perfil.empresa || '', departamento: perfil.departamento || '', cargo: perfil.cargo || '',
+    creada: Date.now() }, campos || {});
+  const all = turnosAll(); all[id] = reg; turnosSave(all);
+  empEncolar(id, 'turno_guardar', reg);
+  haptic(12);
+  showToast(turnoInfo(tipo).t + ' registrado');
+}
+
+/* ══════════ NIVEL 1 · Reporte rápido ══════════
+   Autoreporte de un toque, con opciones preestablecidas, para no depender de que la persona
+   escriba. Cada opción trae su regla de identidad definida acá (no en P5): de eso depende qué se
+   manda al servidor, y eso no se puede corregir después sin haber expuesto ya un nombre que debía
+   ser anónimo.
+     · "Estado propio" (algo mío me afecta AHORA) → IDENTIFICADO: el supervisor necesita saber a
+       quién reasignar.
+     · "Condición / entorno" (algo del puesto o el turno) → ANÓNIMO: es clima organizacional: sin
+       el nombre se reporta con más honestidad, y no hace falta para actuar sobre el entorno.
+   "Notifica al supervisor" en esta app significa que aparece en su bandeja apenas sincroniza (P5):
+   no existen notificaciones push acá, ni falta que las haya para este alcance. */
+const REPORTE_OPCIONES = [
+  { k:'no_dormi',       t:'No dormí bien',                                   identificado:true  },
+  { k:'fatigado',       t:'Me siento fatigado/a',                            identificado:true  },
+  { k:'malestar',       t:'Malestar físico',                                 identificado:true  },
+  { k:'personal',       t:'Situación personal que me afecta hoy',            identificado:true  },
+  { k:'turno_rotativo', t:'El turno/horario rotativo me está afectando',     identificado:false },
+  { k:'entorno',        t:'Condiciones del entorno de trabajo (ruido, temperatura...)', identificado:false },
+  { k:'carga_excesiva', t:'Carga de trabajo sostenida excesiva',             identificado:false }
+];
+function reporteOpcionInfo(k){ return REPORTE_OPCIONES.find(o => o.k === k) || null; }
+function reporteEnviar(k, comentario){
+  const op = reporteOpcionInfo(k); if (!op) return;
+  const perfil = getProfile() || {};
+  const id = 'reporte_' + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36);
+  // ⚠️ El anonimato se decide ACÁ, antes de armar el payload: si fuera identificado y después se
+  // ocultara el nombre sólo en la pantalla, cualquiera con acceso al sheet lo vería igual.
+  const payload = op.identificado
+    ? { id:id, opcion:k, identificado:true, persona:perfil.nombre||'', empresa:perfil.empresa||'',
+        departamento:perfil.departamento||'', cargo:perfil.cargo||'', comentario:(comentario||'').slice(0,300), creada:Date.now() }
+    : { id:id, opcion:k, identificado:false, empresa:perfil.empresa||'',
+        departamento:perfil.departamento||'', comentario:(comentario||'').slice(0,300), creada:Date.now() };
+  empEncolar(id, 'reporte_guardar', payload);
+  haptic(12);
+  showToast('Reporte enviado' + (op.identificado ? '' : ' de forma anónima'));
+}
 
 /* ════════════════ MENSAJES ════════════════ */
 function buildMessage(item){
@@ -5740,7 +5887,11 @@ function renderResumen(rows){
   const help = dashHelp(single
     ? (esOtraPersona
         ? 'Detalle de <b>' + esc(DASH.f.per) + '</b>: el promedio de sus tests. Toca <b>‹ Quitar filtro</b> arriba para volver al grupo.'
-        : 'Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).')
+        : ('Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).' +
+          (DASH.rol === 'empleado' ? ('<br><br><b>Arriba de todo</b> vas a ver tu semáforo de hoy: es una guía, ' +
+          'nunca una determinación — sólo el <b>servicio médico</b> puede decir "no apto". Debajo, tu <b>turno de hoy</b> ' +
+          '(antes / durante / al terminar) y el <b>reporte rápido</b> para avisarle a tu supervisor en un toque. ' +
+          'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las mandaste vos.') : '')))
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
   const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
   let head = '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Promedios de ' + who) : (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : '')))) + '</div>' +
@@ -5766,7 +5917,137 @@ function renderResumen(rows){
   // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
   const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
   const extra = single ? (dashPersonalExtra(rows, esOtraPersona, who) + dashHistory(rows, esOtraPersona, who) + comentariosAqui) : dashAlerts(rows);
-  return help + head + bars + radar + extra;
+  // Nivel 1 real: lo primero que ve el EMPLEADO viéndose a sí mismo (nunca cuando el supervisor
+  // entra a mirar a alguien: esto es "¿cómo estoy YO", no una herramienta de terceros).
+  const esEmpleadoPropio = DASH.rol === 'empleado' && !esOtraPersona;
+  const nivel1 = esEmpleadoPropio ? (dashSemaforoPersonal(rows) + dashTurnoCard() + dashReporteCard()) : '';
+  return help + nivel1 + head + bars + radar + extra;
+}
+
+/* ══════════ Semáforo personal — "¿Estoy apto hoy?" ══════════
+   La respuesta en 2 segundos que antes faltaba: el empleado veía gráficos, pero no una respuesta.
+   Reusa aptPersona(), la MISMA función que arma la tarjeta del supervisor, para que sea imposible
+   que el criterio de uno y otro se desincronicen (mismo motivo que ya justifica aptTarjeta
+   compartida). R2: la app nunca dice "no apto" por su cuenta; cuando el algoritmo es quien marcó,
+   el texto es deliberadamente más suave que cuando lo firmó el médico. */
+function dashSemaforoPersonal(rows){
+  if (!rows.length) return '';
+  const nombre = rows[0].persona || (getProfile()||{}).nombre || '';
+  if (!nombre) return '';
+  const pvtRows = (DASH.pvt || []).filter(r => r.persona === nombre);
+  const p = aptPersona(nombre, rows, pvtRows);
+  const firmadoPorMedico = aptEstadoInfo(p.estado).medico;
+  let color, bg, titulo, texto;
+  if (p.estado === 'noapto' && firmadoPorMedico){
+    color = '#c0271f'; bg = '#fde8e6'; titulo = 'No estás en condiciones hoy';
+    texto = 'El servicio médico revisó tus indicadores y determinó que hoy no estás en condiciones' +
+      (p.anot && p.anot.nota ? ': ' + p.anot.nota : '.') + ' Esto lo vio también tu supervisor.';
+  } else if (p.estado === 'condiciones' && firmadoPorMedico){
+    color = '#b8860b'; bg = '#fff8e6'; titulo = 'Apto con condiciones';
+    texto = 'El servicio médico te dejó una indicación' + (p.anot && p.anot.nota ? ': ' + p.anot.nota : '') + '.';
+  } else if (p.estado === 'pendiente' || p.estado === 'seguimiento'){
+    color = '#b8860b'; bg = '#fff8e6'; titulo = 'Hay indicadores para revisar';
+    texto = 'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.';
+  } else if (p.estado === 'sindato'){
+    color = '#7b8499'; bg = '#f2f4f7'; titulo = 'Todavía sin registros';
+    texto = 'Cuando completes tu primer test vas a ver tu estado acá.';
+  } else {
+    color = '#1aa672'; bg = '#e6f7f0'; titulo = 'Estás en condiciones';
+    texto = 'Tus indicadores más recientes están dentro de lo esperado.';
+  }
+  const restrHtml = p.restriccion
+    ? '<div class="sf-restr">No hagas hoy: <b>' + esc(p.restriccion.tarea || 'la tarea indicada') + '</b>' +
+      (p.restriccion.motivo ? ' · ' + esc(p.restriccion.motivo) : '') +
+      '<div class="sf-restr-pie">Lo indicó tu supervisor · vigente hasta ' + esc(gestFechaTs(p.restriccion.hasta)) + '</div></div>'
+    : '';
+  return '<div class="dash-block sf-block" style="--sfc:' + color + ';--sfbg:' + bg + '">' +
+    '<div class="sf-t">' + esc(titulo) + '</div>' +
+    '<div class="sf-x">' + esc(texto) + '</div>' + restrHtml +
+  '</div>';
+}
+
+/* ══════════ Check-in / carga / check-out de turno ══════════
+   Las tres curvas subjetivas. Muestra el paso siguiente pendiente; los ya hechos hoy quedan
+   marcados. No obliga un orden estricto por reloj (los turnos no siempre calzan con la hora local
+   del dispositivo), sólo el orden lógico check-in → carga → check-out. */
+function dashTurnoCard(){
+  const perfil = getProfile() || {};
+  if (!perfil.nombre) return '';
+  const hoy = turnosHoy(perfil.nombre);
+  const pasos = TURNO_TIPOS.map((t, i) => {
+    const hecho = !!hoy[t.k];
+    const habilitado = i === 0 || !!hoy[TURNO_TIPOS[i-1].k];
+    const cls = hecho ? 'sf-turno-ok' : (habilitado ? 'sf-turno-activo' : 'sf-turno-off');
+    return '<div class="sf-turno-paso ' + cls + '">' +
+      '<div class="sf-turno-top"><span class="sf-turno-n">' + (i+1) + '</span>' +
+        '<span class="sf-turno-tt">' + esc(t.t) + '</span>' +
+        (hecho ? '<span class="sf-turno-check">✓ ' + esc(hoy[t.k].hora || '') + '</span>' : '') + '</div>' +
+      (!hecho && habilitado ? dashTurnoForm(t.k) : (!hecho ? '<div class="sf-turno-sub">' + esc(t.sub) + '</div>' : '')) +
+    '</div>';
+  }).join('');
+  return '<div class="dash-block sf-turnos"><div class="db-title">Tu turno de hoy</div>' +
+    '<div class="db-sub">Tres registros cortos: cómo llegás, cómo va la carga, y cómo te vas.</div>' + pasos + '</div>';
+}
+// Formulario mínimo de un paso: KSS (1-9) para check-in/check-out, percepción de carga (1-5) para
+// el del medio. Se resuelve con selects nativos a propósito: es el esqueleto (P4), no el wizard
+// completo de un test — no necesita más que eso para cumplir su función.
+function dashTurnoForm(tipo){
+  const id = 'turnoSel_' + tipo;
+  if (tipo === 'carga'){
+    const opts = [1,2,3,4,5].map(n => '<option value="' + n + '">' + n + ' — ' + esc(['Muy liviana','Liviana','Normal','Pesada','Muy pesada'][n-1]) + '</option>').join('');
+    return '<div class="sf-turno-form"><label>¿Cómo se siente la carga de trabajo ahora?</label>' +
+      '<select id="' + id + '"><option value="">Elegí una opción</option>' + opts + '</select>' +
+      '<button type="button" onclick="dashTurnoEnviar(\'carga\',\'' + id + '\')">Registrar</button></div>';
+  }
+  const opts = [1,2,3,4,5,6,7,8,9].map(n => '<option value="' + n + '">' + n + '</option>').join('');
+  return '<div class="sf-turno-form"><label>Nivel de alerta (1 muy despierto/a — 9 muy somnoliento/a)</label>' +
+    '<select id="' + id + '"><option value="">Elegí una opción</option>' + opts + '</select>' +
+    '<button type="button" onclick="dashTurnoEnviar(\'' + tipo + '\',\'' + id + '\')">Registrar</button></div>';
+}
+function dashTurnoEnviar(tipo, selId){
+  const el = document.getElementById(selId);
+  const v = el ? el.value : '';
+  if (!v){ if (el) el.focus(); return; }
+  const campos = (tipo === 'carga') ? { carga: parseInt(v,10) } : { kss: parseInt(v,10) };
+  turnoGuardar(tipo, campos);
+  renderDash();
+}
+
+/* ══════════ Reporte rápido ══════════ */
+function dashReporteCard(){
+  const abierto = !!(DASH && DASH._reporteAbierto);
+  if (!abierto){
+    return '<div class="dash-block sf-reporte-cerrado" onclick="dashReporteToggle()">' +
+      '<div class="sf-reporte-btn">Enviar reporte rápido</div>' +
+      '<div class="db-sub">Si algo te está afectando, avisale a tu supervisor en un toque.</div></div>';
+  }
+  const chips = REPORTE_OPCIONES.map(o =>
+    '<button type="button" class="sf-rep-chip' + (DASH._reporteOpcion===o.k?' active':'') + '" onclick="dashReporteElegir(\'' + o.k + '\')">' +
+      esc(o.t) + (o.identificado ? '' : ' <small>· anónimo</small>') + '</button>').join('');
+  const op = DASH._reporteOpcion ? reporteOpcionInfo(DASH._reporteOpcion) : null;
+  return '<div class="dash-block sf-reporte-abierto"><div class="db-title">Reporte rápido</div>' +
+    '<div class="db-sub">Elegí lo que más se ajuste. Las opciones marcadas <b>anónimo</b> no llevan tu nombre.</div>' +
+    '<div class="sf-rep-chips">' + chips + '</div>' +
+    (op ? ('<textarea id="repComentario" class="sf-rep-coment" maxlength="300" placeholder="' +
+      (op.identificado ? 'Comentario opcional…' : 'Comentario opcional (no escribas datos que puedan identificarte)…') + '"></textarea>' +
+      '<div class="an-actions"><button type="button" class="an-cancel" onclick="dashReporteToggle()">Cancelar</button>' +
+      '<button type="button" class="sf-rep-send" onclick="dashReporteEnviarClick()">Enviar</button></div>') :
+      '<div class="an-actions"><button type="button" class="an-cancel" onclick="dashReporteToggle()">Cancelar</button></div>') +
+  '</div>';
+}
+function dashReporteToggle(){
+  if (!DASH) return;
+  DASH._reporteAbierto = !DASH._reporteAbierto;
+  if (!DASH._reporteAbierto) DASH._reporteOpcion = null;
+  renderDash();
+}
+function dashReporteElegir(k){ if (!DASH) return; DASH._reporteOpcion = k; renderDash(); }
+function dashReporteEnviarClick(){
+  if (!DASH || !DASH._reporteOpcion) return;
+  const el = document.getElementById('repComentario');
+  reporteEnviar(DASH._reporteOpcion, el ? el.value : '');
+  DASH._reporteAbierto = false; DASH._reporteOpcion = null;
+  renderDash();
 }
 
 /* Gráficos extra de la vista personal (una sola persona): comparativa, evolución,
