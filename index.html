@@ -1598,6 +1598,25 @@
     border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
   .sf-rep-send { flex:1; }
 
+  /* ── Telemedicina (P6): tercera capa, distinta de la médica y de la operativa ── */
+  .apt-telem { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
+    background:var(--tbg); border-left:3px solid var(--tc); }
+  .apt-telem-top { font-size:.76rem; font-weight:800; color:var(--tc); }
+  .apt-telem-nota { font-size:.77rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
+  .apt-act-telem { border-color:#1d4ea8; color:#1d4ea8; }
+  .fm-chip-telem { color:#1d4ea8; background:#eaf1fd; }
+  .fm-telem-accion { font-size:.82rem; color:var(--text-soft); line-height:1.5; }
+  .fm-telem-accion .fm-nota-btn { display:block; margin-top:.5rem; }
+  /* Tarjeta de telemedicina en la vista de la PERSONA */
+  .tm-block { border-left:4px solid #2d6cdf; background:#eaf1fd; }
+  .tm-aceptada, .tm-hecha { border-left-color:#128a5e; background:#e2f6ee; }
+  .tm-t { font-size:1rem; font-weight:800; color:#1d4ea8; }
+  .tm-aceptada .tm-t, .tm-hecha .tm-t { color:#128a5e; }
+  .tm-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
+  .tm-si { flex:1; min-height:44px; padding:.7rem; border-radius:11px; border:none;
+    background:#128a5e; color:#fff; font-size:.88rem; font-weight:800; cursor:pointer; font-family:inherit; }
+  .tm-si:active { transform:scale(.98); }
+
   /* ── Bandeja de reportes (vista supervisor) ── */
   .rep-item { position:relative; padding:.6rem .65rem .6rem 1.9rem; border-radius:var(--radius-sm);
     background:#f7f9fc; margin-bottom:.4rem; cursor:pointer; }
@@ -2444,7 +2463,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.27';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.28';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3155,25 +3174,142 @@ function scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad){
   return Math.round((nfScore + funcScore + (ci >= 0 ? ci * 0.5 : 0) + (cap - 1) * 0.5) * 10) / 10;
 }
 
+/* ══════════ CONFIABILIDAD DEL TEST ══════════
+   Preocupación textual del cliente: si alguien llena el test rápido y de cualquier manera, un
+   resultado falso puede terminar restringiendo a una persona o generando una telemedicina que no
+   correspondía. Esto detecta el llenado descuidado y hace que ESE dato no arrastre decisiones.
+
+   ⚠️ DISEÑO DELIBERADAMENTE CONSERVADOR — el error caro es el falso positivo, no el falso negativo.
+   Marcar como "poco confiable" un test que la persona llenó en serio es peligroso: si esa persona
+   de verdad está fatigada, su dato deja de contar. Por eso:
+
+   · El APURO es la única señal que descuenta por sí sola. Es objetiva: por debajo de cierto tiempo
+     por pregunta es materialmente imposible haberla leído.
+   · Responder TODO IGUAL **no descuenta solo**. En una escala de síntomas (BAI, estrés, gastro),
+     contestar "Nunca" a los 12 ítems es la respuesta esperable de alguien sano, y probablemente la
+     más frecuente. Sólo suma sospecha cuando ADEMÁS hubo apuro.
+   · Un PATRÓN MECÁNICO (alternancia perfecta, ciclo que se repite) tampoco descuenta solo, por el
+     mismo motivo: sólo amplifica si hubo apuro.
+
+   O sea: sin apuro, el test nunca cae por debajo del umbral. Alguien que responde pensando, aunque
+   responda todo lo mismo, conserva score 100.
+
+   Lo que ESTO NO HACE: no detecta inconsistencia semántica (responder cosas que se contradicen
+   entre sí). Eso necesita saber qué pares de preguntas son incompatibles en cada escala, y es
+   criterio clínico, no técnico — anotado en PENDIENTES_USUARIO.md para que lo defina el servicio
+   médico si lo quiere. */
+const CONF_DEFAULTS = {
+  pisoSeg: 1.5,   // por debajo de esto por pregunta, no se alcanzó a leer
+  umbral: 50      // score por debajo de esto = poco confiable
+};
+function confCfg(k){
+  const v = cfg('confiabilidad');
+  if (v && typeof v === 'object' && v[k] != null && v[k] !== '') return v[k];
+  return CONF_DEFAULTS[k];
+}
+// Marca el tiempo del paso que se acaba de responder. Un solo helper para los 6 flujos: si cada uno
+// llevara su propia contabilidad, alcanzaría con que uno quedara desactualizado para que su score
+// fuera inventado.
+function confPaso(st){
+  if (!st) return;
+  const ahora = Date.now();
+  if (!Array.isArray(st.tiempos)) st.tiempos = [];
+  const desde = st.ultimoPasoMs || st.inicioMs || ahora;
+  st.tiempos.push(Math.max(0, ahora - desde));
+  st.ultimoPasoMs = ahora;
+}
+// Al retroceder hay que descartar el tiempo junto con la respuesta, o los arrays se desalinean y
+// el tiempo de una pregunta termina contando para otra.
+function confPop(st){
+  if (!st || !Array.isArray(st.tiempos)) return;
+  st.tiempos.pop();
+  st.ultimoPasoMs = Date.now();   // el tiempo de re-responder se cuenta desde ahora
+}
+function confMediana(a){
+  if (!a.length) return null;
+  const s = a.slice().sort((x,y) => x-y), n = s.length;
+  return n % 2 ? s[(n-1)/2] : (s[n/2-1] + s[n/2]) / 2;
+}
+/* Devuelve { score, confiable, senales:[], medianaSeg, n }.
+   `respuestas` se usa sólo para las señales amplificadoras (todo igual / patrón mecánico). */
+function confCalcular(tiempos, respuestas){
+  const t = (tiempos || []).filter(x => x != null && x >= 0);
+  if (t.length < 3) return { score:100, confiable:true, senales:[], medianaSeg:null, n:t.length };
+  const medMs = confMediana(t);
+  const medSeg = medMs / 1000;
+  const piso = confCfg('pisoSeg');
+  const senales = [];
+  let score = 100;
+
+  // ── Señal principal: apuro
+  let apuro = 0;
+  if (medSeg < piso / 2){ apuro = 60; senales.push('respuestas demasiado rápidas'); }
+  else if (medSeg < piso){ apuro = 40; senales.push('respuestas apuradas'); }
+  score -= apuro;
+
+  // ── Amplificadores: sólo cuentan si YA hubo apuro (ver el comentario de arriba)
+  if (apuro){
+    const r = (respuestas || []).map(x => String(x));
+    const utiles = r.filter(x => x !== '');
+    if (utiles.length >= 5){
+      const todosIguales = utiles.every(x => x === utiles[0]);
+      if (todosIguales){ score -= 25; senales.push('todas las respuestas iguales'); }
+      else if (utiles.length >= 6){
+        // alternancia perfecta A,B,A,B... o ciclo de 3 que se repite entero
+        const alterna = utiles.every((x, i) => x === utiles[i % 2]);
+        const ciclo3 = utiles.length >= 9 && utiles.every((x, i) => x === utiles[i % 3]);
+        if (alterna || ciclo3){ score -= 20; senales.push('patrón mecánico de respuesta'); }
+      }
+    }
+  }
+  score = Math.max(0, Math.min(100, score));
+  return { score:score, confiable: score >= confCfg('umbral'), senales:senales,
+           medianaSeg: Math.round(medSeg * 10) / 10, n:t.length };
+}
+
+/* Guarda el resultado de confiabilidad y lo manda por el MISMO canal sin contraseña que P4
+   (el empleado no tiene una). Va aparte de los webhooks de cada test a propósito: sumarlo a cada
+   uno obligaría a Franco a redeployar los 6+ proyectos de Apps Script; así es UNA acción nueva en
+   el endpoint que ya se va a tocar igual. */
+const K_CONFIABILIDAD = 'silva_fatiga_confiabilidad_v1';
+function confGuardar(testId, st){
+  if (!st) return null;
+  const res = confCalcular(st.tiempos, st.answers);
+  const perfil = getProfile() || {};
+  const reg = { id: 'conf_' + dashNorm(perfil.nombre||'') + '_' + todayStr() + '_' + testId,
+    test: testId, fecha: todayStr(), persona: perfil.nombre || '', empresa: perfil.empresa || '',
+    departamento: perfil.departamento || '', score: res.score, confiable: res.confiable,
+    senales: res.senales.join(' · '), medianaSeg: res.medianaSeg, preguntas: res.n, creada: Date.now() };
+  try {
+    const all = JSON.parse(localStorage.getItem(K_CONFIABILIDAD) || '{}');
+    all[reg.id] = reg;
+    lsSet(K_CONFIABILIDAD, JSON.stringify(all));
+  } catch(e){}
+  empEncolar(reg.id, 'confiabilidad_guardar', reg);
+  return res;
+}
+
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
+  // `inicioMs` arranca el cronómetro de confiabilidad; `tiempos` lo llena confPaso() en cada avance.
+  const ahora = Date.now();
   if (it.testFlow === 'perelli'){
-    perelliState = { item:it, stepIdx:0, answers:[], currentMultiSelected:new Set(), currentGridRatings:{} };
+    perelliState = { item:it, stepIdx:0, answers:[], currentMultiSelected:new Set(), currentGridRatings:{}, inicioMs:ahora, tiempos:[] };
     renderPerelliStep();
   } else if (it.testFlow === 'kss'){
-    kssState = { item:it, stepIdx:0, answers:[] };
+    kssState = { item:it, stepIdx:0, answers:[], inicioMs:ahora, tiempos:[] };
     renderKssStep();
   } else if (it.testFlow === 'estres'){
-    estresState = { item:it, stepIdx:0, answers:[] };
+    estresState = { item:it, stepIdx:0, answers:[], inicioMs:ahora, tiempos:[] };
     renderEstresStep();
   } else if (it.testFlow === 'ansiedad'){
-    ansiedadState = { item:it, stepIdx:0, answers:[] };
+    ansiedadState = { item:it, stepIdx:0, answers:[], inicioMs:ahora, tiempos:[] };
     renderAnsiedadStep();
   } else if (it.testFlow === 'gastro'){
-    gastroState = { item:it, stepIdx:0, answers:[] };
+    gastroState = { item:it, stepIdx:0, answers:[], inicioMs:ahora, tiempos:[] };
     renderGastroStep();
   } else if (it.testFlow === 'cansancio'){
-    cansancioState = { item:it, stepIdx:0, answers:[] };
+    cansancioState = { item:it, stepIdx:0, answers:[], inicioMs:ahora, tiempos:[] };
     renderCansancioStep();
   } else {
     testItem = it; testIdx = 0; testRespuestas = [];
@@ -3190,17 +3326,17 @@ function updateBackBtn(enabled){
 }
 function retrocederTest(){
   if (perelliState !== null){
-    if (perelliState.stepIdx > 0){ perelliState.stepIdx--; perelliState.answers.pop(); renderPerelliStep(); }
+    if (perelliState.stepIdx > 0){ perelliState.stepIdx--; perelliState.answers.pop(); confPop(perelliState); renderPerelliStep(); }
   } else if (kssState !== null){
-    if (kssState.stepIdx > 0){ kssState.stepIdx--; kssState.answers.pop(); renderKssStep(); }
+    if (kssState.stepIdx > 0){ kssState.stepIdx--; kssState.answers.pop(); confPop(kssState); renderKssStep(); }
   } else if (estresState !== null){
-    if (estresState.stepIdx > 0){ estresState.stepIdx--; estresState.answers.pop(); renderEstresStep(); }
+    if (estresState.stepIdx > 0){ estresState.stepIdx--; estresState.answers.pop(); confPop(estresState); renderEstresStep(); }
   } else if (ansiedadState !== null){
-    if (ansiedadState.stepIdx > 0){ ansiedadState.stepIdx--; ansiedadState.answers.pop(); renderAnsiedadStep(); }
+    if (ansiedadState.stepIdx > 0){ ansiedadState.stepIdx--; ansiedadState.answers.pop(); confPop(ansiedadState); renderAnsiedadStep(); }
   } else if (gastroState !== null){
-    if (gastroState.stepIdx > 0){ gastroState.stepIdx--; gastroState.answers.pop(); renderGastroStep(); }
+    if (gastroState.stepIdx > 0){ gastroState.stepIdx--; gastroState.answers.pop(); confPop(gastroState); renderGastroStep(); }
   } else if (cansancioState !== null){
-    if (cansancioState.stepIdx > 0){ cansancioState.stepIdx--; cansancioState.answers.pop(); renderCansancioStep(); }
+    if (cansancioState.stepIdx > 0){ cansancioState.stepIdx--; cansancioState.answers.pop(); confPop(cansancioState); renderCansancioStep(); }
   } else if (testItem !== null){
     if (testIdx > 0){ testIdx--; testRespuestas.pop(); renderTestPaso(); }
   }
@@ -3315,6 +3451,7 @@ function renderPerelliStep(){
 }
 function perelliAdvance(answer){
   perelliState.answers.push(answer);
+  confPaso(perelliState);
   perelliState.stepIdx++;
   if (perelliState.stepIdx >= PERELLI_STEPS.length) renderPerelliFinal();
   else renderPerelliStep();
@@ -3421,6 +3558,7 @@ function renderPerelliFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarPerelli');
 }
 function finalizarPerelli(){
+  confGuardar('perelli', perelliState);
   const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad, comentarios] = perelliState.answers;
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
@@ -3563,6 +3701,7 @@ function renderKssStep(){
 }
 function kssAdvance(answer){
   kssState.answers.push(answer);
+  confPaso(kssState);
   kssState.stepIdx++;
   if (kssState.stepIdx >= KSS_STEPS.length) renderKssFinal();
   else renderKssStep();
@@ -3595,6 +3734,7 @@ function renderKssFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarKss');
 }
 function finalizarKss(){
+  confGuardar('kss', kssState);
   const [fase, nivelAlerta, horasSuenio, tipoOp, comentario] = kssState.answers;
 
   // Enviar a Google Sheets (GET con parámetros)
@@ -3658,6 +3798,7 @@ function renderEstresStep(){
 function estresPickSingle(i){ estresAdvance(ESTRES_STEPS[estresState.stepIdx].options[i]); }
 function estresAdvance(answer){
   estresState.answers.push(answer);
+  confPaso(estresState);
   estresState.stepIdx++;
   if (estresState.stepIdx >= ESTRES_STEPS.length) renderEstresFinal();
   else renderEstresStep();
@@ -3672,7 +3813,8 @@ function renderEstresFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarEstres');
 }
 function finalizarEstres(){
-  const FREQ_LABELS = ['Nunca','Raramente','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+  confGuardar('estres', estresState);
+  const FREQ_LABELS =['Nunca','Raramente','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
   const ratings = estresState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
   if (SHEETS_ESTRES_URL) {
     const p = getProfile() || {};
@@ -3717,6 +3859,7 @@ function renderAnsiedadStep(){
 function ansiedadPickSingle(i){ ansiedadAdvance(ANSIEDAD_STEPS[ansiedadState.stepIdx].options[i]); }
 function ansiedadAdvance(answer){
   ansiedadState.answers.push(answer);
+  confPaso(ansiedadState);
   ansiedadState.stepIdx++;
   if (ansiedadState.stepIdx >= ANSIEDAD_STEPS.length) renderAnsiedadFinal();
   else renderAnsiedadStep();
@@ -3731,7 +3874,8 @@ function renderAnsiedadFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarAnsiedad');
 }
 function finalizarAnsiedad(){
-  const ANSIEDAD_LABELS = ['No ha estado presente','Levemente, no me ha molestado','Moderadamente, pero lo pude superar','Severamente, difícil lo soporté'];
+  confGuardar('ansiedad', ansiedadState);
+  const ANSIEDAD_LABELS =['No ha estado presente','Levemente, no me ha molestado','Moderadamente, pero lo pude superar','Severamente, difícil lo soporté'];
   const ratings = ansiedadState.answers.map(a => { const n = parseInt(a); return `${n} = ${ANSIEDAD_LABELS[n]}`; });
   if (SHEETS_ANSIEDAD_URL) {
     const p = getProfile() || {};
@@ -3772,6 +3916,7 @@ function renderGastroStep(){
 function gastroPickSingle(i){ gastroAdvance(GASTRO_STEPS[gastroState.stepIdx].options[i]); }
 function gastroAdvance(answer){
   gastroState.answers.push(answer);
+  confPaso(gastroState);
   gastroState.stepIdx++;
   if (gastroState.stepIdx >= GASTRO_STEPS.length) renderGastroFinal();
   else renderGastroStep();
@@ -3786,7 +3931,8 @@ function renderGastroFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarGastro');
 }
 function finalizarGastro(){
-  const GASTRO_LABELS = ['Muy en desacuerdo','En desacuerdo','De acuerdo'];
+  confGuardar('gastro', gastroState);
+  const GASTRO_LABELS =['Muy en desacuerdo','En desacuerdo','De acuerdo'];
   const ratings = gastroState.answers.map(a => { const n = parseInt(a); return `${n} = ${GASTRO_LABELS[n]}`; });
   if (SHEETS_GASTRO_URL) {
     const p = getProfile() || {};
@@ -3830,6 +3976,7 @@ function renderCansancioStep(){
 function cansancioPickSingle(i){ cansancioAdvance(CANSANCIO_STEPS[cansancioState.stepIdx].options[i]); }
 function cansancioAdvance(answer){
   cansancioState.answers.push(answer);
+  confPaso(cansancioState);
   cansancioState.stepIdx++;
   if (cansancioState.stepIdx >= CANSANCIO_STEPS.length) renderCansancioFinal();
   else renderCansancioStep();
@@ -3844,7 +3991,8 @@ function renderCansancioFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarCansancio');
 }
 function finalizarCansancio(){
-  const FREQ_LABELS = ['Nunca','Alguna vez al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
+  confGuardar('cansancio', cansancioState);
+  const FREQ_LABELS =['Nunca','Alguna vez al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
   const ratings = cansancioState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
   if (SHEETS_CANSANCIO_URL) {
     const p = getProfile() || {};
@@ -5106,6 +5254,7 @@ function renderDash(){
   gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
   restCacheClear();       // idem para las restricciones de tarea del supervisor
   notaCacheClear();       // idem para las notas clínicas de la ficha médica
+  telemCacheClear();      // idem para las telemedicinas sugeridas
   nivelCacheClear();      // idem: se limpia ANTES de dashFiltered(), que ya resuelve niveles
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
@@ -5557,8 +5706,22 @@ function aptPersona(nombre, regs, pvtRegs){
   const nivel = nivelRiesgoDe(nombre, r0.departamento, r0.empresa || (DASH && DASH.f.emp), r0.cargo);
   const mrg = nivelInfo(nivel);
 
+  /* CONFIABILIDAD (P6): un test llenado de cualquier manera no puede arrastrar el semáforo.
+     El registro se marca `confiable:false` cuando el endpoint devuelve ese dato; mientras no lo
+     haga, `r.confiable` viene undefined y NADA cambia respecto de antes.
+     Decisión: los poco confiables se EXCLUYEN del cálculo automático (el semáforo refleja sólo
+     datos en los que se puede confiar) pero NO se ocultan: quedan contados en `pocoConfiable` y
+     se muestran como un problema de CALIDAD DEL DATO, no como una señal de salud. Descartarlos
+     en silencio sería peor que el problema original: la persona quedaría en verde sin que nadie
+     sepa que en realidad no hay medición válida. */
+  const rsOk = rs.filter(r => r.confiable !== false);
+  const nPocoConfiables = rs.length - rsOk.length;
+  // ¿El test MÁS RECIENTE es el poco confiable? Es el caso que importa: significa que la lectura
+  // de "cómo está ahora" no sirve y hay que repetirla.
+  const ultimoPocoConfiable = !!(rs.length && rs[0].confiable === false);
+
   const metricas = DASH.metrics.map(m => {
-    const vals = rs.map(r => r[m]).filter(v => v != null);
+    const vals = rsOk.map(r => r[m]).filter(v => v != null);
     return { m:m, nivel: aptNivelMetrica(vals, DASH.ref[m], mrg) };
   });
   // Reacción (PVT): mismo criterio de "los dos últimos" que el resto de los indicadores.
@@ -5578,10 +5741,11 @@ function aptPersona(nombre, regs, pvtRegs){
   const auto = aptPeor(metricas.map(x => x.nivel).concat(nivelPvt ? [nivelPvt] : []));
 
   // ¿Empeoró respecto del registro anterior? Sirve para priorizar lo que se está moviendo mal
-  // por encima de lo que ya se sabe y está estable.
+  // por encima de lo que ya se sabe y está estable. Sobre datos confiables únicamente: si no,
+  // un test apurado con valores altos se leería como "empeoró" y subiría de prioridad sin motivo.
   let empeoro = false;
   metricas.forEach(x => {
-    const vals = rs.map(r => r[x.m]).filter(v => v != null);
+    const vals = rsOk.map(r => r[x.m]).filter(v => v != null);
     if (vals.length > 1 && vals[0] > vals[1] && vals[0] > DASH.ref[x.m] * mrg.rojo) empeoro = true;
   });
 
@@ -5589,7 +5753,10 @@ function aptPersona(nombre, regs, pvtRegs){
   const historial = gestAnotacionesTodasDe(nombre);   // incluye vencidas → "ya fue revisado antes"
   const anot = vigentes[0] || null;
   // Test posterior a la determinación → el médico la firmó sin ver ese dato: queda desactualizada.
-  const desactualizada = !!(anot && ultimaFecha && aptFechaMs(ultimaFecha) > aptDiaMs(anot.creada));
+  // ⚠️ Se mide contra el último test CONFIABLE, no contra el último a secas: si no, alguien con una
+  // determinación médica encima podría invalidarla llenando un test de cualquier manera.
+  const ultimaFechaOk = rsOk.length ? rsOk[0].fecha : '';
+  const desactualizada = !!(anot && ultimaFechaOk && aptFechaMs(ultimaFechaOk) > aptDiaMs(anot.creada));
 
   let estado;
   if (anot && !desactualizada){
@@ -5607,7 +5774,10 @@ function aptPersona(nombre, regs, pvtRegs){
   const restrVencida = restVencidasDe(nombre)[0] || null;
   // Patrón sostenido vs. pico aislado. NO cambia el estado: es información de PRIORIDAD para la
   // cola del servicio médico. Un patrón persistente es lo que amerita una mirada ocupacional.
-  const persist = aptPersistencia(rs, mrg, cfg('persistencia'));
+  const persist = aptPersistencia(rsOk, mrg, cfg('persistencia'));
+  // Telemedicina: sugerida/aceptada/rechazada vigente + si alguna vez se le realizó una.
+  const telem = telemVigenteDe(nombre);
+  const telemRealizada = telemRealizadaDe(nombre);
 
   return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
            metricas:metricas, pvt:nivelPvt, estado:estado,
@@ -5615,6 +5785,8 @@ function aptPersona(nombre, regs, pvtRegs){
            revisado:(historial.length > 0), empeoro:empeoro,
            nivel:nivel, mrg:mrg,
            restriccion:restr, restrVencida:restrVencida, persist:persist,
+           pocoConfiable:nPocoConfiables, ultimoPocoConfiable:ultimoPocoConfiable,
+           telem:telem, telemRealizada:telemRealizada,
            regs:rs, pvtRegs:pv,
            dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
 }
@@ -5676,12 +5848,41 @@ function aptTarjeta(p, opts){
       '</div>' : '';
   const avisoVencida = (!p.restriccion && p.restrVencida)
     ? '<div class="apt-aviso">Se venció una restricción operativa y nadie la revisó: corresponde que la vea el servicio médico.</div>' : '';
+  // ── Calidad del dato (P6). Es un aviso de que NO SE PUEDE LEER a esta persona, no un dato de
+  //    salud: por eso es gris y dice explícitamente que el semáforo no lo tuvo en cuenta.
+  const avisoConf = p.ultimoPocoConfiable
+    ? '<div class="apt-aviso apt-aviso-gris">El último test se respondió demasiado rápido para ser confiable. ' +
+      'No se tuvo en cuenta para el semáforo: <b>conviene repetirlo</b>.</div>'
+    : (p.pocoConfiable ? '<div class="apt-aviso apt-aviso-gris">' + p.pocoConfiable +
+      (p.pocoConfiable === 1 ? ' test previo quedó' : ' tests previos quedaron') +
+      ' fuera del cálculo por baja confiabilidad.</div>' : '');
+  // ── Capa de TELEMEDICINA. Tercera capa, distinta de la médica y de la operativa.
+  const tInfo = p.telem ? telemInfo(p.telem.estado) : null;
+  const telemBanner = p.telem
+    ? '<div class="apt-telem" style="--tc:' + tInfo.c + ';--tbg:' + tInfo.bg + '">' +
+        '<div class="apt-telem-top">' + esc(tInfo.t) +
+          (p.telem.sugeridaPor ? ' · sugerida por ' + esc(p.telem.sugeridaPor) : '') + '</div>' +
+        (p.telem.motivo ? '<div class="apt-telem-nota">' + esc(p.telem.motivo) + '</div>' : '') +
+        (p.telem.estado === 'rechazada'
+          ? '<div class="apt-telem-nota">La persona la rechazó. Queda registrado para el servicio médico.</div>' : '') +
+      '</div>'
+    : (p.telemRealizada
+        ? '<div class="apt-telem" style="--tc:#128a5e;--tbg:#e2f6ee"><div class="apt-telem-top">Se le realizó una telemedicina · ' +
+          esc(gestFechaTs(p.telemRealizada.actualizadaEn || p.telemRealizada.creada)) + '</div></div>'
+        : '');
   // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
+  // El nombre va con JSON.stringify + &quot; (patrón ya probado en esta función): así un nombre con
+  // tilde o apóstrofe no rompe el atributo.
+  const nomAttr = JSON.stringify(p.nombre).replace(/"/g,'&quot;');
+  const puedeSugerirTelem = !p.telem && !p.ultimoPocoConfiable;
   const acciones = (opts && opts.acciones)
     ? '<div class="apt-acciones">' +
         (p.restriccion
           ? '<button type="button" class="apt-act apt-act-off" onclick="restLevantar(\'' + p.restriccion.id + '\')">Levantar restricción</button>'
-          : '<button type="button" class="apt-act" onclick="restAbrir(' + JSON.stringify(p.nombre).replace(/"/g,'&quot;') + ')">Restringir tarea</button>') +
+          : '<button type="button" class="apt-act" onclick="restAbrir(' + nomAttr + ')">Restringir tarea</button>') +
+        (puedeSugerirTelem
+          ? '<button type="button" class="apt-act apt-act-telem" onclick="telemSugerirDesde(' + nomAttr + ')">Sugerir telemedicina</button>'
+          : '') +
       '</div>' : '';
   return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + (p.restriccion ? ' apt-con-restr' : '') + '">' +
     '<div class="apt-head">' +
@@ -5691,8 +5892,8 @@ function aptTarjeta(p, opts){
             esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelInfo(p.nivel).d) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
         '</div></div>' +
       '<span class="apt-badge" style="color:' + est.c + ';background:' + est.bg + '">' + est.t + '</span>' +
-    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida +
-    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + acciones +
+    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner +
+    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + avisoConf + acciones +
   '</div>';
 }
 /* Grupos de los contadores del resumen. PARTICIONAN exactamente a la población: cada persona cae
@@ -5939,6 +6140,12 @@ function renderAptitud(rows){
     '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:#1aa672">verde</b> bien, ' +
     '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima en los dos últimos tests. ' +
     'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.' +
+    '<br><br><b>Tests poco confiables.</b> Si alguien responde el test tan rápido que no alcanzó a leerlo, ' +
+    'ese resultado <b>no cuenta para el semáforo</b> y la tarjeta lo avisa. No es una sanción: es que ese dato ' +
+    'no sirve para decidir nada, y conviene que lo repita.' +
+    '<br><br><b>Telemedicina.</b> Podés sugerirle una consulta con el servicio médico. <b>La persona decide</b> ' +
+    'si la acepta o la rechaza, y en los dos casos queda registrado. No la sugieras sobre un test poco confiable: ' +
+    'el botón se bloquea solo en ese caso.' +
     '<br><br><b>Puedes restringir una tarea.</b> Con <b>Restringir tarea</b> registras que una persona no haga <b>esa tarea</b> ' +
     'por un tiempo. Es una decisión <b>operativa y tuya</b>: no necesitas al servicio médico y la puedes levantar cuando quieras. ' +
     '<b>No es un "no apto"</b>: eso sigue siendo sólo del servicio médico, y las dos cosas conviven sin pisarse. Una persona puede ' +
@@ -6050,7 +6257,9 @@ function renderResumen(rows){
           (DASH.rol === 'empleado' ? ('<br><br><b>Arriba de todo</b> vas a ver tu semáforo de hoy: es una guía, ' +
           'nunca una determinación — sólo el <b>servicio médico</b> puede decir "no apto". Debajo, tu <b>turno de hoy</b> ' +
           '(antes / durante / al terminar) y el <b>reporte rápido</b> para avisarle a tu supervisor en un toque. ' +
-          'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las mandaste vos.') : '')))
+          'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las mandaste vos.' +
+          '<br><br>Si alguna vez te aparece una <b>telemedicina sugerida</b>, es un ofrecimiento de consulta con el servicio médico: ' +
+          '<b>vos decidís</b> si la aceptás o no, y rechazarla no tiene ninguna consecuencia para tu trabajo.') : '')))
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
   const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
   let head = '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Promedios de ' + who) : (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : '')))) + '</div>' +
@@ -6079,7 +6288,7 @@ function renderResumen(rows){
   // Nivel 1 real: lo primero que ve el EMPLEADO viéndose a sí mismo (nunca cuando el supervisor
   // entra a mirar a alguien: esto es "¿cómo estoy YO", no una herramienta de terceros).
   const esEmpleadoPropio = DASH.rol === 'empleado' && !esOtraPersona;
-  const nivel1 = esEmpleadoPropio ? (dashSemaforoPersonal(rows) + dashTurnoCard() + dashReporteCard()) : '';
+  const nivel1 = esEmpleadoPropio ? (dashSemaforoPersonal(rows) + dashTelemedicinaCard(rows) + dashTurnoCard() + dashReporteCard()) : '';
   return help + nivel1 + head + bars + radar + extra;
 }
 
@@ -6123,6 +6332,37 @@ function dashSemaforoPersonal(rows){
     '<div class="sf-t">' + esc(titulo) + '</div>' +
     '<div class="sf-x">' + esc(texto) + '</div>' + restrHtml +
   '</div>';
+}
+
+/* ══════════ Telemedicina — vista de la PERSONA ══════════
+   D5: la persona decide. No se le impone y no se manda sola. El texto evita cualquier tono de
+   sanción: es un ofrecimiento de atención, no una consecuencia por haber dado mal en un test. */
+function dashTelemedicinaCard(rows){
+  const nombre = (rows && rows.length && rows[0].persona) || (getProfile()||{}).nombre || '';
+  if (!nombre) return '';
+  const t = telemVigenteDe(nombre);
+  if (!t){
+    const hecha = telemRealizadaDe(nombre);
+    if (!hecha) return '';
+    return '<div class="dash-block tm-block tm-hecha">' +
+      '<div class="tm-t">Ya tuviste una telemedicina</div>' +
+      '<div class="tm-x">Realizada el ' + esc(gestFechaTs(hecha.actualizadaEn || hecha.creada)) + '.</div></div>';
+  }
+  if (t.estado === 'aceptada'){
+    return '<div class="dash-block tm-block tm-aceptada">' +
+      '<div class="tm-t">Telemedicina aceptada</div>' +
+      '<div class="tm-x">El servicio médico se va a comunicar con vos para coordinar la consulta.</div></div>';
+  }
+  // sugerida → se le pregunta
+  return '<div class="dash-block tm-block tm-sugerida">' +
+    '<div class="tm-t">Te sugerimos una telemedicina</div>' +
+    '<div class="tm-x">Es una consulta con el servicio médico, sin costo para vos.' +
+      (t.sugeridaPor ? ' La sugirió ' + esc(t.sugeridaPor) + '.' : '') +
+      ' <b>Podés aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.</div>' +
+    '<div class="an-actions">' +
+      '<button type="button" class="an-cancel" onclick="telemRechazar(\'' + t.id + '\')">Ahora no</button>' +
+      '<button type="button" class="tm-si" onclick="telemAceptar(\'' + t.id + '\')">Aceptar</button>' +
+    '</div></div>';
 }
 
 /* ══════════ Check-in / carga / check-out de turno ══════════
@@ -7101,7 +7341,7 @@ function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
 function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
 function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
 function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
-function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); telemCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
 function gestUpsert(g){ const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
@@ -7262,7 +7502,7 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
    tipo están declaradas más abajo en el archivo y `const` no se hoistea como `function`. Armarla
    afuera abortaba el script entero a mitad (temporal dead zone) dejando media app sin inicializar,
    y —lo peor— SIN ningún error en la consola. Así el orden de declaración deja de importar. */
-function gestTiposInternos(){ return [GEST_TIPO_ANOTACION, GEST_TIPO_RESTRICCION, GEST_TIPO_NOTA_CLINICA]; }
+function gestTiposInternos(){ return [GEST_TIPO_ANOTACION, GEST_TIPO_RESTRICCION, GEST_TIPO_NOTA_CLINICA, GEST_TIPO_TELEMEDICINA]; }
 function gestCasos(){ const t = gestTiposInternos(); return gestList().filter(g => t.indexOf(g.tipo) < 0); }
 
 /* ── ANOTACIÓN DE APTITUD PARA EL SUPERVISOR ──
@@ -7380,6 +7620,61 @@ function restVencidasDe(persona){
   return restTodasDe(persona).filter(g => g.hasta && g.hasta <= ahora && !g.levantada && !g.escalada);
 }
 
+/* ══════════ TELEMEDICINA SUGERIDA ══════════
+   D5 del plan: se SUGIERE, nunca se dispara sola. Tres cosas que definen el diseño:
+
+   1) NO HAY DISPARO AUTOMÁTICO. Ninguna función del sistema crea una sugerencia por su cuenta:
+      la crea una persona (el supervisor con la mitigación "Sugerir telemedicina" de P2, o el
+      servicio médico). Por eso el requisito "un test poco confiable no dispara telemedicina" se
+      cumple estructuralmente — no hay nada que pueda dispararla. Igual, el botón se bloquea si el
+      último test no es confiable, para que nadie la sugiera mirando un dato que no sirve.
+   2) NO REQUIERE APROBACIÓN DEL MÉDICO (D5), pero SIEMPRE le queda registro: la sugerencia, la
+      aceptación y —sobre todo— el RECHAZO. Que alguien rechace una telemedicina es información
+      clínica, no un evento a descartar.
+   3) LA PERSONA PUEDE RECHAZARLA. Se le muestra en su propia vista (P4) y decide. */
+const GEST_TIPO_TELEMEDICINA = 'telemedicina';
+const TELEM_ESTADOS = {
+  sugerida:  { t:'Telemedicina sugerida', corto:'Sugerida',  c:'#1d4ea8', bg:'#eaf1fd' },
+  aceptada:  { t:'Telemedicina aceptada', corto:'Aceptada',  c:'#128a5e', bg:'#e2f6ee' },
+  rechazada: { t:'Telemedicina rechazada',corto:'Rechazada', c:'#b8860b', bg:'#fff8e6' },
+  realizada: { t:'Telemedicina realizada',corto:'Realizada', c:'#128a5e', bg:'#e2f6ee' }
+};
+function telemInfo(k){ return TELEM_ESTADOS[k] || TELEM_ESTADOS.sugerida; }
+let _telemCache = null;
+function telemCacheClear(){ _telemCache = null; }
+function telemTodas(){
+  if (!_telemCache) _telemCache = gestList().filter(g => g.tipo === GEST_TIPO_TELEMEDICINA);
+  return _telemCache;
+}
+function telemTodasDe(persona){ return telemTodas().filter(g => g.persona === persona).sort((a,b) => b.creada - a.creada); }
+// La "vigente" es la más reciente que todavía no terminó su ciclo (sugerida o aceptada sin realizar).
+function telemVigenteDe(persona){
+  return telemTodasDe(persona).find(g => g.estado === 'sugerida' || g.estado === 'aceptada') || null;
+}
+function telemRealizadaDe(persona){ return telemTodasDe(persona).find(g => g.estado === 'realizada') || null; }
+// Sugerir: lo hace supervisor o médico, nunca el sistema solo.
+function telemSugerir(persona, motivo, quien){
+  if (!persona) return null;
+  const fila = (DASH.registros || []).find(r => r.persona === persona) || {};
+  const id = gestNewId();
+  gestUpsert({ id:id, tipo:GEST_TIPO_TELEMEDICINA, persona:persona,
+    departamento: fila.departamento || '', estado:'sugerida', motivo: motivo || '',
+    sugeridaPor: quien || '', rolSugiere: (DASH && DASH.vista) || '', creada: Date.now() });
+  bitacoraRegistrar('telemedicina_sugerida', persona, { id:id, motivo:motivo || '', por:quien || '' });
+  return id;
+}
+// Cambiar de estado. `porPersona` distingue si lo decidió el propio empleado (aceptar/rechazar)
+// de si lo marcó el servicio médico (realizada).
+function telemCambiarEstado(id, nuevo, porPersona){
+  const g = gestFind(id);
+  if (!g || g.tipo !== GEST_TIPO_TELEMEDICINA) return;
+  const copia = Object.assign({}, g, { estado:nuevo, actualizadaEn: Date.now() });
+  gestUpsert(copia);
+  bitacoraRegistrar('telemedicina_' + nuevo, g.persona,
+    { id:id, decidio: porPersona ? 'la persona' : ((DASH && DASH.vista) || '') });
+  haptic(14);
+}
+
 /* Vibración corta como confirmación física de que la acción se registró.
    ⚠️ En iPhone `navigator.vibrate` NO existe. Desde iOS 17.4 hay un truco: alternar un
    <input type="checkbox" switch> produce un toque háptico leve. Es un efecto secundario NO
@@ -7463,6 +7758,15 @@ function fmTimeline(persona){
     ev.push({ ts:g.creada, c:'#7b8499', bg:'#f2f4f7', tipo:'Nota clínica',
       txt:(g.medico || 'Servicio médico'), nota:g.texto || '', pie:'' });
   });
+  // Telemedicina: el RECHAZO también entra en la historia. Que alguien no quiera atenderse es
+  // información clínica, no un evento a descartar.
+  telemTodasDe(persona).forEach(g => {
+    const i = telemInfo(g.estado);
+    ev.push({ ts:g.creada, c:i.c, bg:i.bg, tipo:'Telemedicina',
+      txt:i.corto + (g.sugeridaPor ? ' · sugerida por ' + g.sugeridaPor : ''),
+      nota:g.motivo || '',
+      pie:(g.estado !== 'sugerida' && g.actualizadaEn) ? (i.corto + ' el ' + gestFechaTs(g.actualizadaEn)) : '' });
+  });
   ev.sort((a,b) => b.ts - a.ts);
   if (!ev.length) return '<div class="dash-empty">Todavía no hay determinaciones, restricciones ni notas de esta persona.</div>';
   const filas = ev.map(e =>
@@ -7492,6 +7796,10 @@ function dashFichaMedica(rows){
   ];
   if (p.persist) chips.push('<span class="fm-chip fm-chip-persist">Patrón sostenido</span>');
   if (p.restriccion) chips.push('<span class="fm-chip fm-chip-restr">Con restricción operativa</span>');
+  if (p.pocoConfiable) chips.push('<span class="fm-chip fm-chip-gris">' + p.pocoConfiable + ' test' +
+    (p.pocoConfiable === 1 ? '' : 's') + ' poco confiable' + (p.pocoConfiable === 1 ? '' : 's') + '</span>');
+  if (p.telem) chips.push('<span class="fm-chip fm-chip-telem">' + esc(telemInfo(p.telem.estado).t) + '</span>');
+  else if (p.telemRealizada) chips.push('<span class="fm-chip fm-chip-telem">Telemedicina realizada</span>');
 
   // Línea base por indicador: primer valor registrado vs. el último. Es lo que permite ver si la
   // persona viene mejorando o empeorando respecto de su propio punto de partida, que es distinto
@@ -7526,6 +7834,16 @@ function dashFichaMedica(rows){
     '<div class="fm-sec-t">Línea base · primer registro → último</div>' +
     '<div class="fm-lb">' + (lineas || '<div class="dash-empty">Sin indicadores con datos.</div>') + '</div>' +
     '<div class="fm-sec-t">Historia</div>' + fmTimeline(DASH.f.per) +
+    // El médico cierra el ciclo: marcar que la telemedicina efectivamente se hizo.
+    (p.telem && p.telem.estado === 'aceptada'
+      ? '<div class="fm-sec-t">Telemedicina</div>' +
+        '<div class="fm-telem-accion">La persona aceptó la telemedicina.' +
+        '<button type="button" class="fm-nota-btn" onclick="telemMarcarRealizada(\'' + p.telem.id + '\')">Marcar como realizada</button></div>'
+      : '') +
+    (p.telem && p.telem.estado === 'sugerida'
+      ? '<div class="fm-sec-t">Telemedicina</div>' +
+        '<div class="fm-telem-accion">Sugerida, esperando que la persona decida. Puede aceptarla o rechazarla desde su app.</div>'
+      : '') +
     '<div class="fm-sec-t">Nota clínica</div>' +
     '<textarea id="fmNota" class="fm-nota" maxlength="600" placeholder="Observación clínica, antecedente, resultado de un estudio…"></textarea>' +
     '<div class="fm-nota-aviso">Queda sólo en la ficha médica. <b>El supervisor no la ve.</b> Para escribirle a él, usa la determinación de aptitud.</div>' +
@@ -7548,6 +7866,10 @@ function aptMotivoCola(p){
   }
   if (p.restrVencida) return { badge:'Plazo vencido', c:'#2d6cdf', bg:'#eaf1fd',
     why: 'se venció la restricción operativa de "' + (p.restrVencida.tarea || 'una tarea') + '" y nadie la revisó' };
+  // Calidad del dato, no salud: no hay nada clínico que determinar todavía, hace falta un test
+  // que sirva. Va con su propio color para que no se confunda con un caso a evaluar.
+  if (p.ultimoPocoConfiable) return { badge:'Test poco confiable', c:'#7b8499', bg:'#f2f4f7',
+    why: 'el último test se respondió demasiado rápido: no se puede leer, conviene repetirlo' };
   if (p.desactualizada) return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'test nuevo tras la indicación' };
   if (!p.revisado)      return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'sin revisar' };
   if (p.empeoro)        return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'empeoró' };
@@ -7560,7 +7882,7 @@ function dashAnotacionesResumen(){
   // Entra a la cola quien está pendiente Y TAMBIÉN quien tiene un patrón sostenido o una
   // restricción operativa que se venció sin que nadie la mirara — aunque su estado no sea
   // "pendiente". Son las tres puertas de entrada al servicio médico.
-  const pendientes = gente.filter(p => p.estado === 'pendiente' || p.persist || p.restrVencida);
+  const pendientes = gente.filter(p => p.estado === 'pendiente' || p.persist || p.restrVencida || p.ultimoPocoConfiable);
   const conInd = gente.filter(p => p.anot && aptEstadoInfo(p.estado).medico);
   if (!pendientes.length && !conInd.length) return '';
 
@@ -7779,6 +8101,31 @@ function restLevantar(id){
   haptic(10);
   renderDash();
   showToast('Restricción levantada');
+}
+
+/* Sugerir telemedicina desde la tarjeta. Lo pueden hacer supervisor y servicio médico —
+   NO requiere aprobación médica (D5), pero al médico le queda registro igual.
+   Confirmación explícita: es una acción que le llega a la persona. */
+function telemSugerirDesde(persona){
+  if (!DASH || (DASH.vista !== 'supervisor' && DASH.vista !== 'medico')) return;
+  const quien = (DASH.vista === 'medico') ? medicoNombreGuardado() : supervisorNombreGuardado();
+  if (!confirm('¿Sugerir una telemedicina para ' + persona + '?\n\n' +
+    'Le va a aparecer en su app y puede aceptarla o rechazarla.\nEn cualquiera de los dos casos, el servicio médico queda notificado.')) return;
+  telemSugerir(persona, '', quien);
+  haptic(14);
+  renderDash();
+  showToast('Telemedicina sugerida');
+}
+// Acciones de la PERSONA sobre su propia telemedicina (desde su vista de empleado).
+function telemAceptar(id){ telemCambiarEstado(id, 'aceptada', true); renderDash(); showToast('Telemedicina aceptada'); }
+function telemRechazar(id){
+  if (!confirm('¿Rechazar la telemedicina?\n\nQueda registrado para el servicio médico. Podés pedirla más adelante si cambiás de opinión.')) return;
+  telemCambiarEstado(id, 'rechazada', true); renderDash(); showToast('Telemedicina rechazada');
+}
+// El servicio médico marca que efectivamente la realizó.
+function telemMarcarRealizada(id){
+  if (!DASH || DASH.vista !== 'medico') return;
+  telemCambiarEstado(id, 'realizada', false); renderDash(); showToast('Telemedicina marcada como realizada');
 }
 
 function anotAbrir(){
