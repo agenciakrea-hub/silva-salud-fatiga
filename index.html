@@ -1560,6 +1560,49 @@
   .restr-tope-nota { font-size:.72rem; color:var(--text-muted); margin-top:.35rem; line-height:1.4; }
   .restr-actions { display:flex; gap:.5rem; margin-top:1rem; }
   .restr-actions > button { flex:1; }
+
+  /* ── Ficha médica interna (exclusiva del servicio médico) ── */
+  .fm-block { border-top:3px solid #128a5e; }
+  .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
+  .fm-chip { padding:.15rem .5rem; border-radius:999px; font-size:.72rem; font-weight:800; white-space:nowrap; }
+  .fm-chip-gris { color:var(--text-soft); background:#f2f4f7; }
+  .fm-chip-persist { color:#8e2f8e; background:#f7ecf7; }
+  .fm-chip-restr { color:#1d4ea8; background:#eaf1fd; }
+  .fm-chip-n1 { color:#3d8f6d; background:#eaf6f1; }
+  .fm-chip-n2 { color:#5a8f3d; background:#eef6e9; }
+  .fm-chip-n3 { color:#a8791b; background:#fdf5e4; }
+  .fm-chip-n4 { color:#c96a1b; background:#fdf0e4; }
+  .fm-chip-n5 { color:#c0271f; background:#fde8e6; }
+  .fm-persist { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
+    background:#f7ecf7; border-left:3px solid #8e2f8e; font-size:.79rem; color:var(--text-soft); line-height:1.45; }
+  .fm-sec-t { margin:1rem 0 .4rem; font-size:.76rem; font-weight:800; color:var(--text);
+    text-transform:uppercase; letter-spacing:.04em; }
+  .fm-lb { display:flex; flex-direction:column; gap:.25rem; }
+  .fm-lb-row { display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem;
+    border-radius:var(--radius-sm); background:#f7f9fc; font-size:.8rem; }
+  .fm-lb-m { flex:1 1 auto; display:flex; align-items:center; gap:.35rem; font-weight:700; color:var(--text); min-width:0; }
+  .fm-lb-v { flex:0 0 auto; color:var(--text-soft); font-variant-numeric:tabular-nums; }
+  .fm-lb-ref { color:var(--text-muted); font-size:.72rem; }
+  .fm-lb-d { flex:0 0 1.4rem; text-align:center; font-weight:800; }
+  .fm-lb-sube { color:#d63031; }
+  .fm-lb-baja { color:#1aa672; }
+  .fm-lb-igual { color:var(--text-muted); }
+  .fm-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--anbg);
+    border-left:3px solid var(--anc); margin-bottom:.35rem; }
+  .fm-ev-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
+  .fm-ev-tipo { font-size:.68rem; font-weight:800; color:var(--anc); text-transform:uppercase; letter-spacing:.03em; }
+  .fm-ev-fecha { font-size:.7rem; color:var(--text-muted); font-weight:600; }
+  .fm-ev-txt { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.15rem; }
+  .fm-ev-nota { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; line-height:1.45; }
+  .fm-ev-pie { font-size:.71rem; color:var(--text-muted); font-weight:700; margin-top:.2rem; }
+  .fm-nota { width:100%; min-height:74px; padding:.55rem .7rem; border-radius:var(--radius-sm);
+    border:1.5px solid #d7dce6; font-size:.88rem; font-family:inherit; resize:vertical;
+    background:#fff; color:var(--text); }
+  .fm-nota-aviso { font-size:.73rem; color:var(--text-muted); margin-top:.3rem; line-height:1.4; }
+  .fm-nota-btn { margin-top:.5rem; min-height:44px; padding:.5rem 1rem; border-radius:var(--radius-sm);
+    border:none; background:#128a5e; color:#fff; font-size:.85rem; font-weight:800;
+    cursor:pointer; font-family:inherit; }
+  .fm-nota-btn:active { transform:scale(.98); }
   /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
      insignia puede envolver en dos líneas en vez de forzar nowrap y desbordar en celular. */
   .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .72rem; font-weight: 800; padding: .25rem .6rem;
@@ -2346,7 +2389,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.24';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.25';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4880,6 +4923,7 @@ let _dashActiveTab = null, _dashSpyRaf = 0, _dashSpyLock = 0, _dashScrollEl = nu
 function renderDash(){
   gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
   restCacheClear();       // idem para las restricciones de tarea del supervisor
+  notaCacheClear();       // idem para las notas clínicas de la ficha médica
   nivelCacheClear();      // idem: se limpia ANTES de dashFiltered(), que ya resuelve niveles
   const rows = dashFiltered();
   const body = document.getElementById('dashBody');
@@ -4909,7 +4953,7 @@ function renderDash(){
   // firmar determinaciones y el espejo "Así lo ve el supervisor" — que son del médico.
   const esMedico = DASH.vista === 'medico';
   const anotBloque = !esMedico ? ''
-    : (DASH.f.per ? dashAnotacionSupervisor(rows, true, esc(DASH.f.per)) : dashAnotacionesResumen());
+    : (DASH.f.per ? (dashFichaMedica(rows) + dashAnotacionSupervisor(rows, true, esc(DASH.f.per))) : dashAnotacionesResumen());
   body.innerHTML = dashContext() + anotBloque + aviso + secciones;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
@@ -5238,6 +5282,55 @@ function aptNivelMetrica(valsRecientesPrimero, ref, mrg){
   if (v[0] > amar) return 'medio';
   return 'ok';
 }
+/* ══════════ PATRÓN PERSISTENTE (la "línea base" del cliente) ══════════
+
+   Distingue UN PICO de UN PATRÓN. Es la diferencia entre las dos decisiones del sistema:
+   · un valor alto suelto → el supervisor puede restringir una tarea y listo (P2);
+   · un patrón sostenido  → es materia del servicio médico, porque ya no es "hoy durmió mal"
+                            sino algo que se viene repitiendo. Es lo que el cliente llama
+                            "línea base": no se declara no apto ocupacional por una medición.
+
+   Dos formas de detectarlo, ambas sobre la MISMA métrica y con los registros más recientes primero:
+   (a) REPETIDO  — n mediciones seguidas por encima del rojo.
+   (b) TENDENCIA — n mediciones seguidas subiendo, con la última ya por encima del amarillo.
+                   Agarra el caso que (a) no ve: alguien que empeora sostenidamente pero todavía
+                   no cruzó el límite. Esperar a que lo cruce sería llegar tarde.
+
+   n sale de la configuración de la empresa (cfg('persistencia'), default 3). */
+// Incremento mínimo (como fracción de la referencia clínica) para que un paso cuente como subida
+// y no como ruido de medición. Ver el comentario del caso (b) más abajo.
+const PERSIST_PASO_MIN = 0.10;
+function aptPersistencia(rsRecientesPrimero, mrg, n){
+  const rs = rsRecientesPrimero || [];
+  const req = Math.max(2, parseInt(n, 10) || 3);
+  if (rs.length < req) return null;
+  const m = mrg || NIVEL_RIESGO[NIVEL_DEFAULT];
+  let mejor = null;
+  (DASH.metrics || []).forEach(met => {
+    const ref = DASH.ref[met];
+    if (!ref) return;
+    const vals = rs.map(r => r[met]).filter(v => v != null);
+    if (vals.length < req) return;
+    const ult = vals.slice(0, req);            // los `req` más recientes
+    // (a) repetido por encima del rojo
+    if (ult.every(v => v > ref * m.rojo)){
+      if (!mejor || mejor.motivo !== 'repetido') mejor = { motivo:'repetido', metrica:met, n:req };
+      return;
+    }
+    // (b) tendencia ascendente sostenida.
+    // `ult` va de más nuevo a más viejo, así que subir en el tiempo = ult[i] > ult[i+1].
+    // ⚠️ NO alcanza con que cada paso sea positivo: con eso, un valor normal seguido de otro
+    // apenas mayor (7 → 8, que es ruido de medición) y después un pico suelto se leía como
+    // "tendencia sostenida". Es exactamente el falso positivo que el cliente quiere evitar:
+    // un mal día no es un patrón. Por eso cada paso tiene que ser un incremento REAL —
+    // al menos el 10% de la referencia clínica del indicador.
+    const pasoMin = ref * PERSIST_PASO_MIN;
+    let sube = true;
+    for (let i = 0; i < req - 1; i++){ if (!((ult[i] - ult[i+1]) >= pasoMin)){ sube = false; break; } }
+    if (sube && ult[0] > ref * m.amarillo && !mejor) mejor = { motivo:'tendencia', metrica:met, n:req };
+  });
+  return mejor;
+}
 function aptPeor(niveles){
   let peor = 'sin';
   niveles.forEach(n => { if (APT_NIVELES[n].orden > APT_NIVELES[peor].orden) peor = n; });
@@ -5329,13 +5422,17 @@ function aptPersona(nombre, regs, pvtRegs){
   // Son dos autoridades distintas que conviven (ver el bloque de GEST_TIPO_RESTRICCION).
   const restr = restVigentesDe(nombre)[0] || null;
   const restrVencida = restVencidasDe(nombre)[0] || null;
+  // Patrón sostenido vs. pico aislado. NO cambia el estado: es información de PRIORIDAD para la
+  // cola del servicio médico. Un patrón persistente es lo que amerita una mirada ocupacional.
+  const persist = aptPersistencia(rs, mrg, cfg('persistencia'));
 
   return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
            metricas:metricas, pvt:nivelPvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
            revisado:(historial.length > 0), empeoro:empeoro,
            nivel:nivel, mrg:mrg,
-           restriccion:restr, restrVencida:restrVencida,
+           restriccion:restr, restrVencida:restrVencida, persist:persist,
+           regs:rs, pvtRegs:pv,
            dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
 }
 // Prioridad en la lista: primero lo NUEVO y lo que se movió mal, no lo que ya se sabe y está
@@ -5344,6 +5441,8 @@ function aptPersona(nombre, regs, pvtRegs){
 function aptOrden(p){
   let o = aptEstadoInfo(p.estado).orden * 10;
   if (p.estado === 'pendiente') o += (!p.revisado ? 0 : (p.empeoro ? 1 : 2));
+  // Un patrón sostenido pesa MÁS que un pico: es lo que amerita mirada ocupacional, no un mal día.
+  if (p.persist) o -= 3;
   if (p.viejo) o += 4;   // dato no reciente = menos urgente, sin dejar de mostrarse
   // Ya se actuó sobre esta persona (hay una restricción vigente): sigue visible, pero no tiene que
   // competir por el primer lugar con alguien sobre quien todavía nadie hizo nada. Es el mismo
@@ -6562,7 +6661,7 @@ function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
 function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
 function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
 function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
-function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
 function gestUpsert(g){ const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
@@ -6714,7 +6813,17 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
 
 /* ── Casos reales del cuaderno (excluye las anotaciones de aptitud, que no son "gestiones" para
    contar/listar aquí: viven en el mismo almacén/sincronización pero se muestran aparte). ── */
-function gestCasos(){ return gestList().filter(g => g.tipo !== GEST_TIPO_ANOTACION); }
+/* Tipos que viven en el MISMO almacén y la misma sincronización que las gestiones, pero que NO son
+   "casos del cuaderno": tienen su propia interfaz y no se listan ni se cuentan acá.
+   ⚠️ Al agregar un tipo nuevo hay que sumarlo a esta lista, o aparece como una gestión fantasma
+   (sin título, sin estado) en el cuaderno del servicio médico.
+
+   ⚠️ La lista se arma DENTRO de la función, no en una constante de top-level: las constantes de
+   tipo están declaradas más abajo en el archivo y `const` no se hoistea como `function`. Armarla
+   afuera abortaba el script entero a mitad (temporal dead zone) dejando media app sin inicializar,
+   y —lo peor— SIN ningún error en la consola. Así el orden de declaración deja de importar. */
+function gestTiposInternos(){ return [GEST_TIPO_ANOTACION, GEST_TIPO_RESTRICCION, GEST_TIPO_NOTA_CLINICA]; }
+function gestCasos(){ const t = gestTiposInternos(); return gestList().filter(g => t.indexOf(g.tipo) < 0); }
 
 /* ── ANOTACIÓN DE APTITUD PARA EL SUPERVISOR ──
    El servicio médico puede dejar una nota (apto / no apto / en observación) visible para el
@@ -6731,7 +6840,7 @@ const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
 const APT_ANOT_NIVELES = [
   { k:'alto',  t:'No apto',               corto:'No apto',         c:'#c0271f', bg:'#fde8e6' },
   { k:'medio', t:'Apto con condiciones',  corto:'Con condiciones', c:'#b8860b', bg:'#fff8e6' },
-  { k:'ok',    t:'Apto · cerrar alerta',  corto:'Apto',            c:'#1aa672', bg:'#e6f7f0' }
+  { k:'ok',    t:'Alta / Reincorporación', corto:'Apto',           c:'#1aa672', bg:'#e6f7f0' }
 ];
 function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
 // Memoizada por render: aptPersona() la consulta DOS veces por persona (vigentes + historial), y
@@ -6771,6 +6880,11 @@ function gestAnotacionesTodasDe(persona){
    Si alguien "simplifica" esto haciendo que la restricción cambie el estado, rompe el modelo:
    una decisión operativa pasaría a leerse como una determinación médica. No hacerlo. */
 const GEST_TIPO_RESTRICCION = 'restriccion_tarea';
+// Nota clínica de la ficha médica (P3). ⚠️ Se declara ACÁ, junto a los demás tipos, y no allá abajo
+// con el resto de su módulo: `GEST_TIPOS_INTERNOS` la usa y las constantes `const` no se hoistean
+// como las funciones. Declararla después dejaba el script abortado a mitad (temporal dead zone) y
+// media app sin inicializar, SIN que apareciera nada en la consola.
+const GEST_TIPO_NOTA_CLINICA = 'nota_clinica';
 
 // Acciones rápidas pre-aprobadas. Editables por supervisor y servicio médico desde la app
 // (se guardan en la configuración de la empresa), así se ajustan sin tocar el código.
@@ -6858,11 +6972,155 @@ function medicoNombreGuardado(){ try { return localStorage.getItem(K_MEDICO_NOMB
 // las anotaciones que ya puso, muestra QUÉ LE FALTA HACER — a quién marcó el control automático y
 // nadie revisó, y qué determinaciones propias están por vencer o quedaron desactualizadas por un
 // test nuevo. Usa exactamente el mismo cálculo que el panel del supervisor (aptGente).
+/* ══════════ FICHA MÉDICA INTERNA ══════════
+   Todo lo de UNA persona en un solo lugar, para no tener que reconstruirlo saltando entre pestañas.
+   🔒 EXCLUSIVA DEL SERVICIO MÉDICO: el guard es por vista y además las notas clínicas son un tipo
+   de registro propio que el código del supervisor nunca lee. La nota que SÍ ve el supervisor es
+   otra cosa: la de la determinación, que está escrita para él a propósito.
+   (`GEST_TIPO_NOTA_CLINICA` se declara arriba, con los demás tipos — ver la nota ahí.) */
+let _notaCache = null;
+function notaCacheClear(){ _notaCache = null; }
+function notasClinicas(){
+  if (!_notaCache) _notaCache = gestList().filter(g => g.tipo === GEST_TIPO_NOTA_CLINICA);
+  return _notaCache;
+}
+function notasClinicasDe(persona){ return notasClinicas().filter(g => g.persona === persona).sort((a,b) => b.creada - a.creada); }
+function notaClinicaGuardar(){
+  if (!DASH || DASH.vista !== 'medico' || !DASH.f.per) return;
+  const el = document.getElementById('fmNota');
+  const txt = el ? el.value.trim() : '';
+  if (!txt){ if (el) el.focus(); return; }
+  const medico = medicoNombreGuardado();
+  gestUpsert({ id: gestNewId(), tipo: GEST_TIPO_NOTA_CLINICA, persona: DASH.f.per,
+    texto: txt, medico: medico, creada: Date.now() });
+  // A la bitácora va que SE ESCRIBIÓ una nota, nunca su contenido: el registro lo consultan
+  // también dirección/HSEQ (P7) y ahí no puede aparecer texto clínico.
+  bitacoraRegistrar('nota_clinica', DASH.f.per, { chars: txt.length, medico: medico });
+  haptic(12);
+  if (el) el.value = '';
+  renderDash();
+}
+// Línea de tiempo unificada: determinaciones + restricciones operativas + notas, todo junto y en
+// orden. Es lo que permite leer la historia de una persona sin armar el rompecabezas a mano.
+function fmTimeline(persona){
+  const ev = [];
+  gestAnotacionesTodasDe(persona).forEach(g => {
+    const i = apAnotInfo(g.nivel);
+    ev.push({ ts:g.creada, c:i.c, bg:i.bg, tipo:'Determinación médica',
+      txt:(i.corto || i.t) + (g.medico ? ' · ' + g.medico : ''), nota:g.nota || '',
+      pie:'Vigente hasta ' + gestFechaTs(g.vigenciaHasta) });
+  });
+  restTodasDe(persona).forEach(g => {
+    const m = g.mitigacion ? mitigacionInfo(g.mitigacion) : null;
+    ev.push({ ts:g.creada, c:'#2d6cdf', bg:'#eaf1fd', tipo:'Restricción operativa',
+      txt:'No asignar: ' + (g.tarea || '—') + (g.supervisor ? ' · ' + g.supervisor : ''),
+      nota:(m ? 'Acción: ' + m.t + (g.motivo ? ' · ' + g.motivo : '') : (g.motivo || '')),
+      pie:(g.levantada ? 'Levantada el ' + gestFechaTs(g.levantadaEn)
+                       : (g.hasta > Date.now() ? 'Vigente hasta ' + gestFechaTs(g.hasta)
+                                               : 'Venció el ' + gestFechaTs(g.hasta))) });
+  });
+  notasClinicasDe(persona).forEach(g => {
+    ev.push({ ts:g.creada, c:'#7b8499', bg:'#f2f4f7', tipo:'Nota clínica',
+      txt:(g.medico || 'Servicio médico'), nota:g.texto || '', pie:'' });
+  });
+  ev.sort((a,b) => b.ts - a.ts);
+  if (!ev.length) return '<div class="dash-empty">Todavía no hay determinaciones, restricciones ni notas de esta persona.</div>';
+  const filas = ev.map(e =>
+    '<div class="fm-ev" style="--anc:' + e.c + ';--anbg:' + e.bg + '">' +
+      '<div class="fm-ev-top"><span class="fm-ev-tipo">' + esc(e.tipo) + '</span>' +
+        '<span class="fm-ev-fecha">' + esc(gestFechaTs(e.ts)) + '</span></div>' +
+      '<div class="fm-ev-txt">' + esc(e.txt) + '</div>' +
+      (e.nota ? '<div class="fm-ev-nota">' + esc(e.nota) + '</div>' : '') +
+      (e.pie ? '<div class="fm-ev-pie">' + esc(e.pie) + '</div>' : '') +
+    '</div>');
+  return dashVerMas(filas, 4);
+}
+function dashFichaMedica(rows){
+  if (!DASH || DASH.vista !== 'medico' || !DASH.f.per) return '';
+  const regs = (rows || []).filter(r => r.persona === DASH.f.per);
+  if (!regs.length) return '';
+  const p = aptPersona(DASH.f.per, regs, dashFilteredPVT().filter(r => r.persona === DASH.f.per));
+  const ni = nivelInfo(p.nivel);
+  const est = aptEstadoInfo(p.estado);
+
+  // Encabezado: lo que define la conducta, de un vistazo.
+  const chips = [
+    '<span class="fm-chip" style="color:' + est.c + ';background:' + est.bg + '">' + esc(est.t) + '</span>',
+    '<span class="fm-chip fm-chip-n' + p.nivel + '">Riesgo ' + esc(ni.t) + '</span>',
+    '<span class="fm-chip fm-chip-gris">' + esc(aptTextoFecha(p)) + '</span>',
+    '<span class="fm-chip fm-chip-gris">' + p.n + ' ' + (p.n===1?'test':'tests') + '</span>'
+  ];
+  if (p.persist) chips.push('<span class="fm-chip fm-chip-persist">Patrón sostenido</span>');
+  if (p.restriccion) chips.push('<span class="fm-chip fm-chip-restr">Con restricción operativa</span>');
+
+  // Línea base por indicador: primer valor registrado vs. el último. Es lo que permite ver si la
+  // persona viene mejorando o empeorando respecto de su propio punto de partida, que es distinto
+  // de compararla contra la referencia poblacional.
+  const orden = regs.slice().sort((a,b) => (a.fecha < b.fecha ? -1 : 1));   // más viejo primero
+  const lineas = DASH.metrics.map(m => {
+    const vals = orden.map(r => r[m]).filter(v => v != null);
+    if (!vals.length) return '';
+    const primero = vals[0], ultimo = vals[vals.length-1], ref = DASH.ref[m];
+    const nivelAct = aptNivelMetrica(vals.slice().reverse(), ref, p.mrg);
+    const dif = ultimo - primero;
+    const flecha = vals.length < 2 ? '—' : (dif > 0.5 ? '▲' : (dif < -0.5 ? '▼' : '='));
+    const cls = vals.length < 2 ? 'igual' : (dif > 0.5 ? 'sube' : (dif < -0.5 ? 'baja' : 'igual'));
+    return '<div class="fm-lb-row">' +
+      '<span class="fm-lb-m"><i class="apt-dot apt-' + nivelAct + '"></i>' + esc(METRIC_LABELS[m] || m) + '</span>' +
+      '<span class="fm-lb-v">' + primero.toFixed(1) + ' → <b>' + ultimo.toFixed(1) + '</b>' +
+        ' <span class="fm-lb-ref">ref ' + ref + '</span></span>' +
+      '<span class="fm-lb-d fm-lb-' + cls + '">' + flecha + '</span>' +
+    '</div>';
+  }).filter(Boolean).join('');
+
+  const persistTxt = p.persist
+    ? '<div class="fm-persist">' + esc(aptMotivoCola(p).why) +
+      '. Son ' + p.persist.n + ' mediciones, no un valor suelto: es lo que amerita una mirada ocupacional.</div>'
+    : '';
+
+  return '<div class="dash-block fm-block">' +
+    '<div class="db-title">Ficha médica · ' + esc(DASH.f.per) + '</div>' +
+    '<div class="db-sub">Sólo la ve el servicio médico. Reúne todo lo de esta persona: evolución, ' +
+      'determinaciones, restricciones del supervisor y tus notas.</div>' +
+    '<div class="fm-chips">' + chips.join('') + '</div>' + persistTxt +
+    '<div class="fm-sec-t">Línea base · primer registro → último</div>' +
+    '<div class="fm-lb">' + (lineas || '<div class="dash-empty">Sin indicadores con datos.</div>') + '</div>' +
+    '<div class="fm-sec-t">Historia</div>' + fmTimeline(DASH.f.per) +
+    '<div class="fm-sec-t">Nota clínica</div>' +
+    '<textarea id="fmNota" class="fm-nota" maxlength="600" placeholder="Observación clínica, antecedente, resultado de un estudio…"></textarea>' +
+    '<div class="fm-nota-aviso">Queda sólo en la ficha médica. <b>El supervisor no la ve.</b> Para escribirle a él, usa la determinación de aptitud.</div>' +
+    '<button type="button" class="fm-nota-btn" onclick="notaClinicaGuardar()">Guardar nota</button>' +
+  '</div>';
+}
+
+/* Por qué esta persona está en la cola. El motivo cambia lo que el médico tiene que hacer, así que
+   no alcanza con decir "revisar": un patrón sostenido pide una mirada ocupacional, un pico suelto
+   probablemente no, y una restricción vencida es un plazo operativo que se agotó.
+   Orden de precedencia: lo que más determina la conducta va primero. */
+function aptMotivoCola(p){
+  if (p.persist){
+    const met = METRIC_LABELS[p.persist.metrica] || p.persist.metrica;
+    return p.persist.motivo === 'repetido'
+      ? { badge:'Patrón sostenido', c:'#8e2f8e', bg:'#f7ecf7',
+          why: met + ' por encima del límite en ' + p.persist.n + ' mediciones seguidas' }
+      : { badge:'Patrón sostenido', c:'#8e2f8e', bg:'#f7ecf7',
+          why: met + ' subiendo en ' + p.persist.n + ' mediciones seguidas' };
+  }
+  if (p.restrVencida) return { badge:'Plazo vencido', c:'#2d6cdf', bg:'#eaf1fd',
+    why: 'se venció la restricción operativa de "' + (p.restrVencida.tarea || 'una tarea') + '" y nadie la revisó' };
+  if (p.desactualizada) return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'test nuevo tras la indicación' };
+  if (!p.revisado)      return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'sin revisar' };
+  if (p.empeoro)        return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'empeoró' };
+  return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'ya revisado antes' };
+}
 function dashAnotacionesResumen(){
   if (!DASH || DASH.vista !== 'medico') return '';
   const gente = aptGente(dashFiltered());
   if (!gente.length) return '';
-  const pendientes = gente.filter(p => p.estado === 'pendiente');
+  // Entra a la cola quien está pendiente Y TAMBIÉN quien tiene un patrón sostenido o una
+  // restricción operativa que se venció sin que nadie la mirara — aunque su estado no sea
+  // "pendiente". Son las tres puertas de entrada al servicio médico.
+  const pendientes = gente.filter(p => p.estado === 'pendiente' || p.persist || p.restrVencida);
   const conInd = gente.filter(p => p.anot && aptEstadoInfo(p.estado).medico);
   if (!pendientes.length && !conInd.length) return '';
 
@@ -6873,18 +7131,19 @@ function dashAnotacionesResumen(){
     // Estos items van en DOS líneas: el motivo ("sin revisar", "empeoró", "test nuevo tras la
     // indicación") es texto largo y apretado al lado del nombre quedaba ilegible.
     const filas = pendientes.map((p, i) => {
-      const why = p.desactualizada ? 'test nuevo tras la indicación'
-                : !p.revisado ? 'sin revisar'
-                : p.empeoro ? 'empeoró' : 'ya revisado antes';
-      return '<div class="an-res-item an-res-col" style="--anc:#e0322f;--anbg:#feecec" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
-        '<div class="an-res-top">' + APT_TAP_INLINE + '<span class="an-res-badge">Revisar</span>' +
+      const mot = aptMotivoCola(p);
+      return '<div class="an-res-item an-res-col" style="--anc:' + mot.c + ';--anbg:' + mot.bg + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
+        '<div class="an-res-top">' + APT_TAP_INLINE + '<span class="an-res-badge">' + esc(mot.badge) + '</span>' +
         '<span class="an-res-name">' + esc(p.nombre) + '</span></div>' +
-        '<div class="an-res-why">' + esc(why) + ' · ' + esc(aptTextoFecha(p)) + '</div>' +
+        '<div class="an-res-why">' + esc(mot.why) + ' · ' + esc(aptTextoFecha(p)) + '</div>' +
       '</div>';
     });
+    const nPers = pendientes.filter(p => p.persist).length;
     html += '<div class="dash-block"><div class="db-title">Pendientes de revisión (' + pendientes.length + ')</div>' +
       '<div class="db-sub">El control automático las marcó y todavía no las determinó el servicio médico. ' +
-      'El supervisor las ve como <b>Pendiente de revisión</b> hasta que las resuelvas.</div>' + dashVerMas(filas, 3) + '</div>';
+      'El supervisor las ve como <b>Pendiente de revisión</b> hasta que las resuelvas.' +
+      (nPers ? ' <b style="color:#8e2f8e">' + nPers + ' con patrón sostenido</b>: no es un valor suelto, se viene repitiendo.' : '') +
+      '</div>' + dashVerMas(filas, 3) + '</div>';
   }
   if (conInd.length){
     // Estos van en UNA línea (insignia + nombre + fecha a la derecha): el contenido es corto y así
@@ -7116,15 +7375,23 @@ function anotGuardar(){
   if (medico){ try { localStorage.setItem(K_MEDICO_NOMBRE, medico); } catch(e){} }   // se recuerda para la próxima
   const ahora = Date.now();
   const fila = (DASH.registros || []).find(r => r.persona === DASH.f.per) || {};
-  gestUpsert({ id: gestNewId(), tipo: GEST_TIPO_ANOTACION, persona: DASH.f.per,
+  const idAnot = gestNewId();
+  gestUpsert({ id: idAnot, tipo: GEST_TIPO_ANOTACION, persona: DASH.f.per,
     departamento: fila.departamento || '', nivel: ANOT.nivel, nota: nota, medico: medico,
     creada: ahora, vigenciaHasta: ahora + ms });
+  // El alta se registra con su propio verbo: es el cierre del circuito (la "reincorporación" que
+  // pide el cliente) y se cuenta distinto de un "no apto" en el panel de dirección.
+  bitacoraRegistrar(ANOT.nivel === 'ok' ? 'alta_reincorporacion' : 'determinacion_medica', DASH.f.per,
+    { id:idAnot, nivel:ANOT.nivel, horas: Math.round(ms/3600000), medico:medico, nota:nota });
+  haptic(16);
   ANOT.open = false;
   renderDash();
 }
 function anotQuitar(id){
   if (!DASH || DASH.vista !== 'medico') return;   // idem: quitar una determinación también es del médico
-  gestSaveList(gestList().filter(g => g.id !== id));
+  const g = gestFind(id);
+  gestSaveList(gestList().filter(x => x.id !== id));
+  if (g) bitacoraRegistrar('determinacion_quitada', g.persona, { id:id, nivel:g.nivel });
   renderDash();
 }
 
