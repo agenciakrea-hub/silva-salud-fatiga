@@ -1598,6 +1598,24 @@
     border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
   .sf-rep-send { flex:1; }
 
+  /* ── Bandeja de reportes (vista supervisor) ── */
+  .rep-item { position:relative; padding:.6rem .65rem .6rem 1.9rem; border-radius:var(--radius-sm);
+    background:#f7f9fc; margin-bottom:.4rem; cursor:pointer; }
+  .rep-item-anon { cursor:default; background:#f6f1fb; border-left:3px solid #6b3fa0; padding-left:.65rem; }
+  .rep-item:not(.rep-item-anon):active { transform:scale(.99); }
+  .rep-top { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+  .rep-name { font-weight:800; color:var(--text); font-size:.86rem; }
+  .rep-anon-badge { font-weight:800; color:#6b3fa0; font-size:.74rem; background:#ece3f7;
+    padding:.1rem .5rem; border-radius:999px; }
+  .rep-badge-nuevo { font-weight:800; color:#c0271f; font-size:.66rem; background:#fde8e6;
+    padding:.05rem .4rem; border-radius:999px; text-transform:uppercase; letter-spacing:.03em; }
+  .rep-fecha { margin-left:auto; font-size:.71rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+  .rep-op { font-size:.83rem; font-weight:700; color:var(--text); margin-top:.25rem; }
+  .rep-coment { font-size:.79rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
+  .rep-dep { font-size:.72rem; color:var(--text-muted); font-weight:700; margin-top:.3rem; }
+  .rep-nuevo { box-shadow:0 0 0 1.5px #f4c2be inset; }
+  .rep-block-anon .db-title { color:#6b3fa0; }
+
   /* ── Ficha médica interna (exclusiva del servicio médico) ── */
   .fm-block { border-top:3px solid #128a5e; }
   .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
@@ -2426,7 +2444,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.26';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.27';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4617,13 +4635,13 @@ function portalLoginAdmin(btn){
     .catch(() => { btnSpin(btn, false); errEl.textContent = 'No se pudo conectar.'; });
 }
 
-const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud' };
+const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud', reportes:'Reportes' };
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
 function dashTabsFor(rol, hasPvt, vista){
-  // Vista de SUPERVISOR: sólo aptitud operativa. Nada de indicadores, comentarios ni informes:
-  // eso es del servicio médico.
-  if (vista === 'supervisor') return ['aptitud'];
+  // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes. Nada de indicadores,
+  // comentarios ni informes: eso es del servicio médico.
+  if (vista === 'supervisor') return ['aptitud','reportes'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
@@ -4640,7 +4658,7 @@ function onDashData(d, scopeLabel, params, vista){
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
-           _niveles:null, _cfg:null,
+           _niveles:null, _cfg:null, _reportes:null, _reportesPedidos:false,
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
@@ -4653,12 +4671,15 @@ function onDashData(d, scopeLabel, params, vista){
   if (DASH.demoMode){
     gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
+    if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
   }
   else if (!DASH._niveles && gestCanSync()) dashCargarNiveles();
   // Trae gestiones/anotaciones del servidor YA AL ENTRAR (antes sólo se traían al abrir el panel
   // completo de Gestiones, así que una anotación cargada desde otro dispositivo no aparecía en
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
   else if (gestCanSync()){ gestPull().then(ok => { if (ok && DASH) renderDash(); }); }
+  // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
+  if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? ' · ejemplo' : '');
   dashApplyMarca(d.marca);
@@ -4687,6 +4708,20 @@ function dashCargarNiveles(){
     nivelCacheClear();
     buildDashFilters();     // el selector de nivel sólo aparece si hay niveles cargados
     renderDash();
+  }).catch(()=>{});
+}
+
+/* Pide la bandeja de reportes al endpoint. ⚠️ A diferencia de reporteEnviar() (P4, escritura sin
+   contraseña porque el empleado no tiene una), LEER la bandeja sí exige contraseña de supervisor
+   (gestAuth): son datos internos, aunque una parte venga sin nombre. Falla en silencio si el
+   endpoint todavía no tiene la acción `reportes` — la bandeja simplemente queda vacía, no rompe. */
+function dashCargarReportes(){
+  if (!DASH || DASH._reportesPedidos) return;
+  DASH._reportesPedidos = true;
+  gestPost(gestAuth({ action:'reportes' })).then(d => {
+    if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH) return;
+    DASH._reportes = d.reportes;
+    if (DASH.tab === 'reportes') renderDash();
   }).catch(()=>{});
 }
 
@@ -4780,7 +4815,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 // Orden de secciones en la página única (Informe IA al FINAL de todo). Comparar/Individual se ocultan
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
 function dashOrderedTabs(){
-  if (DASH.vista === 'supervisor') return ['aptitud'];
+  if (DASH.vista === 'supervisor') return ['aptitud','reportes'];
   let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
@@ -5086,6 +5121,7 @@ function renderDash(){
     else if (t === 'informe') html = renderInforme(rows);            // historial propio
     else if (t === 'gestiones') html = '';    // ya no es una sección para scrollear: es el acceso FIJO (ver dashUpdateGestFab)
     else if (t === 'aptitud') html = renderAptitud(rows);            // vista de supervisor (sin datos médicos)
+    else if (t === 'reportes') html = renderReportesSupervisor();    // bandeja del supervisor (dataset propio)
     else if (!rows.length) html = '<div class="dash-empty">Sin registros de tests para este filtro.</div>';
     else if (t === 'comparar') html = renderComparar(rows);
     else if (t === 'individual') html = renderIndividual(rows);
@@ -5764,6 +5800,129 @@ function aptGente(rows){
   gente.sort((a,b) => (aptOrden(a) - aptOrden(b)) || String(a.nombre).localeCompare(String(b.nombre),'es'));
   return gente;
 }
+/* ══════════ BANDEJA DE REPORTES (vista del SUPERVISOR) ══════════
+   Lo que el empleado manda con "Reporte rápido" (P4) llega acá. Dos grupos con reglas de identidad
+   YA decididas del lado del empleado (P4 arma el payload distinto en origen, no acá) — esta pantalla
+   sólo tiene que RESPETAR esa decisión, nunca revertirla. */
+
+/* Cultura Justa: cuántas personas hay en cada departamento, para decidir si mostrarlo en un reporte
+   anónimo lo desanonimiza. Cuenta sobre TODA la nómina de la empresa (no sobre el período/filtro
+   activo): la pregunta es "¿cuánta gente podría haber mandado esto?", no "cuántos aparecen hoy en
+   pantalla". */
+function personasPorDepto(){
+  const out = {};
+  (DASH.registros || []).forEach(r => {
+    if (!r.persona || !r.departamento) return;
+    const k = r.departamento;
+    (out[k] = out[k] || new Set()).add(r.persona);
+  });
+  const counts = {};
+  Object.keys(out).forEach(k => { counts[k] = out[k].size; });
+  return counts;
+}
+// Departamento a mostrar en un reporte anónimo: el nombre real sólo si hay población suficiente
+// (cfg('anonN'), default 5) para que el nombre del depto no funcione como una identificación por
+// descarte. Por debajo del umbral, se agrega al total de la empresa sin desglosar.
+function reporteDeptoVisible(departamento){
+  const n = personasPorDepto()[departamento] || 0;
+  const min = cfg('anonN');
+  return (departamento && n >= min) ? departamento : null;
+}
+
+// "Nuevo" = todavía no se abrió la bandeja desde que llegó. Persistido en el dispositivo del
+// supervisor (no en el servidor: es un dato de lectura local, no algo que compartir).
+const K_REPORTES_VISTOS = 'silva_fatiga_reportes_vistos_v1';
+function reportesVistosIds(){ try { return JSON.parse(localStorage.getItem(K_REPORTES_VISTOS)) || []; } catch(e){ return []; } }
+function reportesMarcarVistos(ids){
+  if (!ids.length) return;
+  const s = new Set(reportesVistosIds()); ids.forEach(id => s.add(id));
+  try { localStorage.setItem(K_REPORTES_VISTOS, JSON.stringify(Array.from(s).slice(-500))); } catch(e){}
+}
+
+// Datos de ejemplo para la demostración: mezcla a propósito un departamento CON población
+// suficiente (se ve el nombre) y uno SIN ella (se ve agregado a "Empresa"), para que el jefe vea
+// las dos ramas del umbral sin tener que armar el caso a mano.
+function dashReportesDemo(){
+  const ahora = Date.now();
+  return [
+    { id:'demo_r1', opcion:'no_dormi', identificado:true, persona:'Nicolás Herrera', empresa:'Empresa Demo',
+      departamento:'Tripulación', cargo:'', comentario:'Vuelo largo ayer, dormí muy poco.', creada: ahora - 3600000 },
+    { id:'demo_r2', opcion:'malestar', identificado:true, persona:'Ana Suárez', empresa:'Empresa Demo',
+      departamento:'Administración', cargo:'', comentario:'Dolor de cabeza fuerte desde la mañana.', creada: ahora - 7200000 },
+    { id:'demo_r3', opcion:'entorno', identificado:false, empresa:'Empresa Demo',
+      departamento:'Operaciones', comentario:'El taller está muy ruidoso esta semana.', creada: ahora - 10800000 },
+    { id:'demo_r4', opcion:'carga_excesiva', identificado:false, empresa:'Empresa Demo',
+      departamento:'Mantenimiento', comentario:'', creada: ahora - 90000000 }
+  ];
+}
+
+function renderReportesSupervisor(){
+  const reps = (DASH._reportes || []).slice().sort((a,b) => b.creada - a.creada);
+  const ayuda = dashHelp('Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia ' +
+    'se decide del lado del empleado, no acá: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — ' +
+    'necesitás saber quién es para poder reasignarlo) y <b style="color:#6b3fa0">anónimos</b> (algo del puesto ' +
+    'o el turno — no llevan nombre en ningún punto del circuito, ni vos ni nadie más puede saberlo). ' +
+    'En un reporte anónimo, el departamento sólo se muestra si tiene <b>' + cfg('anonN') + ' personas o más</b>: ' +
+    'con menos, mostrar el depto casi identificaría a la persona igual, así que se agrega al total de la empresa.');
+  if (!DASH._reportesPedidos && !DASH.demoMode){
+    return ayuda + dashWarn('Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.');
+  }
+  if (!reps.length){
+    return ayuda + '<div class="dash-empty">No hay reportes por ahora.</div>';
+  }
+  const idents = reps.filter(r => r.identificado);
+  const anons  = reps.filter(r => !r.identificado);
+  const vistos = new Set(reportesVistosIds());
+  // Los nombres van por ÍNDICE (DASH._repNames[i]), nunca inline en el onclick: un nombre con
+  // acento/apóstrofe rompía el atributo HTML (comprobado con "Nicolás Herrera" → el onclick quedaba
+  // truncado en la primera comilla y el click no hacía nada). Mismo patrón que ya usa
+  // DASH._anotResNames / DASH._rankNames en el resto de la app, por la misma razón.
+  DASH._repNames = idents.map(r => r.persona);
+
+  const filaIdent = (r, i) => {
+    const op = reporteOpcionInfo(r.opcion);
+    const nuevo = !vistos.has(r.id);
+    return '<div class="rep-item' + (nuevo ? ' rep-nuevo' : '') + '" onclick="dashGoPerson(DASH._repNames[' + i + '])">' +
+      (nuevo ? APT_TAP_INLINE : '') +
+      '<div class="rep-top"><span class="rep-name">' + esc(r.persona) + '</span>' +
+        (nuevo ? '<span class="rep-badge-nuevo">Nuevo</span>' : '') +
+        '<span class="rep-fecha">' + esc(gestFechaTs(r.creada)) + '</span></div>' +
+      '<div class="rep-op">' + esc(op ? op.t : r.opcion) + '</div>' +
+      (r.comentario ? '<div class="rep-coment">' + esc(r.comentario) + '</div>' : '') +
+      '<div class="rep-dep">' + esc(r.departamento || '—') + '</div>' +
+    '</div>';
+  };
+  const filaAnon = r => {
+    const op = reporteOpcionInfo(r.opcion);
+    const nuevo = !vistos.has(r.id);
+    const depVisible = reporteDeptoVisible(r.departamento);
+    return '<div class="rep-item rep-item-anon' + (nuevo ? ' rep-nuevo' : '') + '">' +
+      (nuevo ? APT_TAP_INLINE : '') +
+      '<div class="rep-top"><span class="rep-anon-badge">🔒 Anonimizado</span>' +
+        (nuevo ? '<span class="rep-badge-nuevo">Nuevo</span>' : '') +
+        '<span class="rep-fecha">' + esc(gestFechaTs(r.creada)) + '</span></div>' +
+      '<div class="rep-op">' + esc(op ? op.t : r.opcion) + '</div>' +
+      (r.comentario ? '<div class="rep-coment">' + esc(r.comentario) + '</div>' : '') +
+      '<div class="rep-dep">' + esc(depVisible || 'Empresa (grupo agregado)') + '</div>' +
+    '</div>';
+  };
+
+  const bloqueIdent = idents.length
+    ? '<div class="dash-block"><div class="db-title">Identificados (' + idents.length + ')</div>' +
+      '<div class="db-sub">Sabés quién lo mandó. Tocá para ver a la persona.</div>' +
+      dashVerMas(idents.map(filaIdent), 3) + '</div>' : '';
+  const bloqueAnon = anons.length
+    ? '<div class="dash-block rep-block-anon"><div class="db-title">Anónimos (' + anons.length + ')</div>' +
+      '<div class="db-sub">Sobre el puesto o el turno. Nadie puede saber quién los mandó.</div>' +
+      dashVerMas(anons.map(filaAnon), 3) + '</div>' : '';
+
+  // Se marca como "visto" recién ahora que ya se armó el HTML (con el "Nuevo" correcto en pantalla);
+  // el próximo render ya no los va a marcar de nuevo.
+  reportesMarcarVistos(reps.map(r => r.id));
+
+  return ayuda + bloqueIdent + bloqueAnon;
+}
+
 function renderAptitud(rows){
   // Las anotaciones del servicio médico se sincronizan por el mismo canal que las gestiones
   // (sin pasar por la pestaña Gestiones, que el supervisor no tiene). Se trae una sola vez por sesión.
