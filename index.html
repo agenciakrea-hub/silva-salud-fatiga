@@ -984,6 +984,14 @@
     background: rgba(244,122,31,0.12); border: 1px solid rgba(244,122,31,0.3); padding: 0.2rem 0.65rem; border-radius: 999px; }
 
   /* Barra de navegación inferior (navy, estilo OSDE) */
+  /* Estado de envío offline: franja fina justo encima de la barra inferior */
+  .off-bar { position: fixed; left: 0; right: 0; z-index: 901;
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    max-width: 560px; margin: 0 auto;
+    background: var(--sem-ambar-bg); color: var(--sem-ambar-txt);
+    border-top: 1px solid var(--sem-ambar); text-align: center;
+    padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
+  .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
   .bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
     display: flex; align-items: flex-end; justify-content: space-around; gap: 0.3rem;
     max-width: 560px; margin: 0 auto;
@@ -2304,6 +2312,10 @@
 </div>
 
 <!-- ═══════════════ BARRA INFERIOR ═══════════════ -->
+<!-- Estado de envío. Va pegado ARRIBA de la barra inferior: se ve desde cualquier pantalla sin
+     tapar contenido, y desaparece solo cuando no hay nada pendiente (ver offPintar). -->
+<div class="off-bar" id="offBar" style="display:none" role="status" aria-live="polite"></div>
+
 <nav class="bottom-nav" id="bottomNav" style="display:none">
   <button type="button" class="bn-item active" id="bnInicio" onclick="mostrarVista('inicio')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.6L12 3l9 6.6"/><path d="M5 10v10h14V10"/></svg>
@@ -2355,13 +2367,9 @@
 <!-- Consentimiento (primera vez) -->
 <div class="overlay" id="consent">
   <div class="sheet">
-    <h2>Consentimiento para Evaluación de Bienestar y Fatiga</h2>
-    <p class="lead">Al participar en este estudio, usted autoriza el tratamiento y análisis de sus datos personales relacionados con las evaluaciones de salud, fatiga, sueño y estrés (conforme a los estándares del programa FRMS).</p>
-    <h3 class="consent-sub">Su privacidad es nuestra prioridad</h3>
-    <p class="consent-text"><strong>Confidencialidad:</strong> Toda la información recolectada será tratada de forma estrictamente confidencial.</p>
-    <p class="consent-text"><strong>Uso:</strong> Los datos se utilizarán exclusivamente con fines de gestión de riesgos, prevención de fatiga y mejora de su bienestar ocupacional.</p>
-    <p class="consent-text"><strong>Voluntariedad:</strong> Su participación es voluntaria y puede retirar su consentimiento en cualquier momento sin penalización.</p>
-    <p class="consent-text">Al hacer clic en el botón "Aceptar", usted confirma que ha leído esta información, comprende el propósito de la recolección de datos y otorga su consentimiento expreso para participar en estas pruebas.</p>
+    <h2>Cómo se usan tus datos</h2>
+    <!-- El contenido lo arma consentRender(): sólo los bloques nuevos o que cambiaron de versión -->
+    <div id="consentBody"></div>
     <button class="save-btn" onclick="acceptConsent()">Aceptar y continuar</button>
   </div>
 </div>
@@ -2791,7 +2799,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.32';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.33';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2861,8 +2869,111 @@ const SHEETS_DEPRESION_URL    = 'https://script.google.com/macros/s/AKfycbwaquR7
 const SHEETS_PERELLI_URL      = 'https://script.google.com/macros/s/AKfycbx5LdYyTEBNFS-ZvOsc9Jzzf41wbWHS7hYoqJLfp9nu53ZuA058hKfChkjuHVQxAeb-hA/exec';
 const SHEETS_CANSANCIO_URL    = 'https://script.google.com/macros/s/AKfycbzG61EpurK39CuDu2KxUk4_wnvifXtIkZ5bzg4KNHPAjp1U3ozdybXon1XjEnAMuF4e/exec';
 
-function hasConsent(){ try { return localStorage.getItem(K_CONSENT) === '1'; } catch(e){ return false; } }
-function acceptConsent(){ try { localStorage.setItem(K_CONSENT, '1'); } catch(e){} document.getElementById('consent').classList.remove('show'); openSetup(false); }
+/* ══════════ CONSENTIMIENTOS VERSIONADOS (P10) ══════════
+   Antes esto era un booleano: `'1'` = aceptó, y listo. El problema es que un consentimiento no es
+   un interruptor — es un acuerdo sobre un TEXTO concreto. Si mañana cambiamos qué decimos que
+   hacemos con los datos, quien aceptó la versión vieja no aceptó la nueva, y seguir tratándolo
+   como consentido sería falso.
+
+   Por eso cada bloque tiene su propia versión. Cuando se cambia un texto, se sube SU número y la
+   app vuelve a pedir SÓLO ese — no los cinco de nuevo, que sería castigar a la persona por un
+   cambio nuestro.
+
+   ⚠️ MIGRACIÓN: quien ya había aceptado (valor viejo `'1'`) tiene el bloque de datos por aceptado.
+   No se le vuelve a pedir eso; sólo se le muestran los bloques nuevos. Borrarle el consentimiento
+   previo para "empezar limpio" sería perder una aceptación real que ya nos dio. */
+const CONSENTIMIENTOS = [
+  { k:'datos', v:1, t:'Qué hacemos con tus datos',
+    html: '<p class="consent-text"><strong>Confidencialidad:</strong> Toda la información recolectada se trata de forma estrictamente confidencial.</p>' +
+          '<p class="consent-text"><strong>Uso:</strong> Los datos se utilizan exclusivamente para la gestión de riesgos, la prevención de fatiga y el cuidado de tu bienestar ocupacional.</p>' +
+          '<p class="consent-text"><strong>Voluntariedad:</strong> Tu participación es voluntaria y puedes retirar tu consentimiento en cualquier momento, sin ninguna penalización.</p>' },
+  { k:'roles', v:1, t:'Quién ve cada cosa',
+    html: '<p class="consent-text">No todos ven lo mismo, y es a propósito:</p>' +
+          '<p class="consent-text"><strong>Tu supervisor</strong> ve si estás en condiciones de trabajar y qué indicador está alto. <strong>No ve los valores de tus tests</strong> ni ninguna nota clínica.</p>' +
+          '<p class="consent-text"><strong>El servicio médico</strong> sí ve tus resultados: es quien tiene que interpretarlos.</p>' +
+          '<p class="consent-text"><strong>La dirección de la empresa</strong> ve totales y promedios del grupo. <strong>Nunca datos tuyos en particular.</strong></p>' },
+  { k:'justa', v:1, t:'Esto no es para sancionarte',
+    html: '<p class="consent-text">Cuando la app detecta indicadores de fatiga, <strong>no dice que no seas apto</strong>. Marca que hace falta que el servicio médico lo revise.</p>' +
+          '<p class="consent-text">Que te reasignen una tarea o te ofrezcan una consulta <strong>son medidas de cuidado, no sanciones</strong>. Puedes rechazar una telemedicina sin ninguna consecuencia para tu trabajo.</p>' +
+          '<p class="consent-text">Reportar que no estás bien es la conducta que el sistema busca, no algo que se penalice.</p>' },
+  { k:'anonimato', v:1, t:'Reportes anónimos',
+    html: '<p class="consent-text">Cuando envías un reporte sobre el <strong>entorno o el turno</strong>, tu nombre <strong>no se envía</strong>. No es que se oculte en pantalla: no sale de tu teléfono.</p>' +
+          '<p class="consent-text">Los reportes sobre <strong>tu propio estado</strong> sí llevan tu nombre, porque tu supervisor necesita saber a quién reasignar. La app te avisa cuál es cuál antes de enviar.</p>' },
+  { k:'offline', v:1, t:'Funciona sin internet',
+    html: '<p class="consent-text">Puedes completar tests y registros <strong>sin conexión</strong>. Quedan guardados en tu teléfono y se envían solos cuando vuelve el internet.</p>' +
+          '<p class="consent-text">Mientras tanto verás cuántos registros están esperando. <strong>No se pierde nada</strong> si te quedas sin señal a mitad de un turno.</p>' }
+];
+function consentStore(){
+  try {
+    const raw = localStorage.getItem(K_CONSENT);
+    if (raw === '1') return { items:{ datos:1 }, migrado:true };   // formato viejo
+    return JSON.parse(raw) || { items:{} };
+  } catch(e){ return { items:{} }; }
+}
+function consentSave(o){ return lsSet(K_CONSENT, JSON.stringify(o)); }
+// Bloques que hay que mostrar: los que nunca se aceptaron o cuya versión subió desde entonces.
+function consentPendientes(){
+  const s = consentStore();
+  return CONSENTIMIENTOS.filter(c => !(s.items && s.items[c.k] >= c.v));
+}
+function hasConsent(){ return consentPendientes().length === 0; }
+function acceptConsent(){
+  const s = consentStore();
+  if (!s.items) s.items = {};
+  const aceptados = consentPendientes().map(c => { s.items[c.k] = c.v; return c.k + ' v' + c.v; });
+  s.fecha = Date.now();
+  s.sincronizado = false;
+  consentSave(s);
+  consentSync();
+  document.getElementById('consent').classList.remove('show');
+  // Sólo se pasa a cargar datos si de verdad faltan. A quien ya tiene el perfil completo y sólo
+  // estaba aceptando un texto actualizado, mandarlo al formulario sería incomprensible.
+  if (!perfilCompleto(getProfile())) openSetup(false);
+  return aceptados;
+}
+/* La aceptación se manda al servidor por el mismo canal sin contraseña que usa el registro de
+   perfil: es un dato del empleado, que no tiene credenciales. Va cuando ya hay perfil cargado —
+   en la primerísima apertura el consentimiento se firma ANTES de existir un nombre al que
+   asociarlo, así que queda pendiente y se envía en cuanto haya. */
+function consentSync(){
+  const s = consentStore();
+  if (!s.items || s.sincronizado) return;
+  const p = getProfile();
+  if (!p || !p.nombre) return;   // todavía no hay a quién asociarlo: se reintenta al guardar el perfil
+  const id = 'consent_' + dashNorm(p.nombre) + '_' + Object.keys(s.items).map(k => k + s.items[k]).join('-');
+  empEncolar(id, 'consentimiento_guardar', {
+    persona: p.nombre, empresa: p.empresa || '', cedula: p.cedula || '',
+    versiones: JSON.stringify(s.items), fecha: s.fecha || Date.now(), app: APP_VERSION
+  });
+  s.sincronizado = true;
+  consentSave(s);
+  // Además del envío al sheet, si hay una sesión abierta queda en la bitácora: la aceptación de
+  // un consentimiento con su versión y su fecha ES la evidencia de que se informó, y la bitácora
+  // es lo que se consulta cuando hace falta demostrarlo.
+  try {
+    if (typeof DASH !== 'undefined' && DASH){
+      bitacoraRegistrar('consentimiento_aceptado', p.nombre,
+        { versiones: s.items, app: APP_VERSION }, 'app');
+    }
+  } catch(e){}
+}
+// Pinta los bloques pendientes en la hoja de consentimiento.
+function consentRender(){
+  const cont = document.getElementById('consentBody'); if (!cont) return;
+  const pend = consentPendientes();
+  const s = consentStore();
+  const yaTenia = !!(s.items && Object.keys(s.items).length);
+  const intro = yaTenia
+    ? '<p class="lead">Actualizamos cómo funciona la aplicación. Estos puntos son <b>nuevos o cambiaron</b>; lo que ya habías aceptado sigue como estaba.</p>'
+    : '<p class="lead">Antes de empezar, esto es lo que necesitas saber sobre cómo se usan tus datos.</p>';
+  cont.innerHTML = intro + pend.map(c =>
+    '<details class="consent-bloque"' + (pend.length === 1 ? ' open' : '') + '>' +
+      '<summary class="consent-sum">' + esc(c.t) + '</summary>' +
+      '<div class="consent-cuerpo">' + c.html + '</div>' +
+    '</details>').join('') +
+    '<p class="consent-text consent-cierre">Al tocar <b>Aceptar</b> confirmas que leíste ' +
+      (pend.length === 1 ? 'este punto' : 'estos ' + pend.length + ' puntos') + ' y estás de acuerdo.</p>';
+}
 
 // Guardado seguro: en modo privado / sin espacio, localStorage.setItem tira excepción.
 // Si falla, avisamos con un toast en vez de romper toda la app.
@@ -3003,8 +3114,18 @@ setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reinte
    a SHEETS_DASHBOARD_URL con una `action` propia, igual que cada test ya hace con su webhook.
 
    R7 (offline primero): todo queda en cola local y se reintenta al reconectar. Se guarda por `id`
-   (no por índice), así un reintento nunca duplica ni pierde el orden. */
+   (no por índice), así un reintento nunca duplica ni pierde el orden.
+
+   ⚠️ ADEMÁS hace falta el candado `_enVuelo` de abajo. Guardar por id evita duplicados EN LA COLA,
+   pero no evita mandar dos veces el mismo item: el borrado de la cola ocurre recién cuando el
+   servidor responde, así que dos flush seguidos (el evento `online` y el timer de 1 minuto pueden
+   dispararse casi juntos) leen la misma cola y hacen dos POST idénticos. Detectado midiendo: 4
+   registros generaban 8 envíos. Que el endpoint deduplique o no es algo que no controlamos desde
+   acá, así que se resuelve del lado del cliente. */
 const K_EMP_COLA = 'silva_fatiga_emp_cola_v1';
+// ids que están viajando ahora mismo. No se persiste: si la app se cierra a mitad de un envío,
+// al reabrir corresponde reintentar (el registro sigue en la cola porque nadie lo confirmó).
+const _empEnVuelo = {};
 function empColaAll(){ try { return JSON.parse(localStorage.getItem(K_EMP_COLA)) || {}; } catch(e){ return {}; } }
 function empColaSave(o){ return lsSet(K_EMP_COLA, JSON.stringify(o)); }
 function empPendientes(){ return Object.keys(empColaAll()).length; }
@@ -3016,6 +3137,7 @@ function empEncolar(id, accion, payload){
   c[id] = { accion:accion, payload:payload, creada: Date.now() };
   empColaSave(c);
   empFlush();
+  try { offPintar(); } catch(e){}   // el cartel de pendientes refleja la cola al instante
 }
 function empFlush(){
   if (simulando()) return;                              // ni siquiera se sube lo que ya estaba en cola
@@ -3024,14 +3146,54 @@ function empFlush(){
   const ids = Object.keys(c);
   if (!ids.length) return;
   ids.forEach(id => {
+    if (_empEnVuelo[id]) return;      // ya se está mandando: no duplicar el POST
+    _empEnVuelo[id] = 1;
     const item = c[id];
     fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(Object.assign({ action:item.accion }, item.payload)) })
       .then(r => r.json())
-      .then(d => { if (d && d.ok){ const c2 = empColaAll(); delete c2[id]; empColaSave(c2); } })
-      .catch(() => {});   // sigue en cola; se reintenta solo (online + cada 1 min, mismo timer que flushPending)
+      .then(d => { if (d && d.ok){ const c2 = empColaAll(); delete c2[id]; empColaSave(c2); offPintar(); } })
+      .catch(() => {})   // sigue en cola; se reintenta solo (online + cada 1 min, mismo timer que flushPending)
+      .then(() => { delete _empEnVuelo[id]; });   // se libera pase lo que pase, para poder reintentar
   });
 }
 window.addEventListener('online', empFlush);
+
+/* ══════════ ESTADO OFFLINE VISIBLE (P10) ══════════
+   La app tiene CUATRO colas de envío distintas, cada una con su forma:
+     · tests pendientes (K_PENDING, por URL)
+     · cola del empleado — turnos, reportes, confiabilidad, consentimiento (K_EMP_COLA, por acción)
+     · gestiones y todo lo que vive en su almacén (K_GESTIONES, con up/del)
+     · bitácora (K_BITACORA, sólo up porque es append-only)
+
+   NO se unificaron en una sola. Las cuatro funcionan, están probadas, y cada una tiene una
+   semántica distinta (una necesita borrados, otra es append-only, otra manda URLs armadas).
+   Fusionarlas sería un refactor con riesgo real sobre código que ya anda, y a la persona no le
+   cambia nada: lo que necesita es UNA respuesta a "¿se guardó lo que hice?".
+   Eso es lo que se unifica acá: el CONTEO y el aviso, no el mecanismo. */
+function offPendientes(){
+  let n = 0;
+  try { n += getPending().length; } catch(e){}
+  try { n += empPendientes(); } catch(e){}
+  try { n += bitacoraPendientes(); } catch(e){}
+  try { const s = gestStore(); n += Object.keys(s.up||{}).length + Object.keys(s.del||{}).length; } catch(e){}
+  return n;
+}
+function offHayConexion(){ return navigator.onLine !== false; }
+function offPintar(){
+  const el = document.getElementById('offBar'); if (!el) return;
+  const n = offPendientes(), online = offHayConexion();
+  // Sin pendientes y con conexión no se muestra nada: un cartel permanente diciendo "todo bien"
+  // es ruido, y termina ignorándose justo cuando pasa a decir otra cosa.
+  if (!n && online){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.className = 'off-bar' + (online ? ' off-bar-sync' : '');
+  el.textContent = online
+    ? (n === 1 ? 'Enviando 1 registro…' : 'Enviando ' + n + ' registros…')
+    : 'Sin conexión' + (n ? ' · ' + n + (n === 1 ? ' registro guardado en este teléfono' : ' registros guardados en este teléfono') : '');
+}
+window.addEventListener('online',  offPintar);
+window.addEventListener('offline', offPintar);
+setInterval(offPintar, 15000);   // la cola se vacía sola en segundo plano: el cartel tiene que seguirla
 
 /* ══════════ NIVEL 1 · Turnos (check-in / carga / check-out) ══════════
    Las TRES curvas subjetivas que describió el cliente para leer el estado real de una persona:
@@ -7161,7 +7323,7 @@ function renderReportesSupervisor(){
   const ayuda = dashHelp('Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia ' +
     'se decide del lado del empleado, no acá: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — ' +
     'necesitás saber quién es para poder reasignarlo) y <b style="color:var(--sem-morado)">anónimos</b> (algo del puesto ' +
-    'o el turno — no llevan nombre en ningún punto del circuito, ni vos ni nadie más puede saberlo). ' +
+    'o el turno — no llevan nombre en ningún punto del circuito, ni tú ni nadie más puede saberlo). ' +
     'En un reporte anónimo, el departamento sólo se muestra si tiene <b>' + cfg('anonN') + ' personas o más</b>: ' +
     'con menos, mostrar el depto casi identificaría a la persona igual, así que se agrega al total de la empresa.');
   if (!DASH._reportesPedidos && !DASH.demoMode){
@@ -7376,9 +7538,12 @@ function renderResumen(rows){
           (DASH.rol === 'empleado' ? ('<br><br><b>Arriba de todo</b> vas a ver tu semáforo de hoy: es una guía, ' +
           'nunca una determinación — sólo el <b>servicio médico</b> puede decir "no apto". Debajo, tu <b>turno de hoy</b> ' +
           '(antes / durante / al terminar) y el <b>reporte rápido</b> para avisarle a tu supervisor en un toque. ' +
-          'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las mandaste vos.' +
+          'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las enviaste tú.' +
           '<br><br>Si alguna vez te aparece una <b>telemedicina sugerida</b>, es un ofrecimiento de consulta con el servicio médico: ' +
-          '<b>vos decidís</b> si la aceptás o no, y rechazarla no tiene ninguna consecuencia para tu trabajo.') : '')))
+          '<b>tú decides</b> si la aceptas o no, y rechazarla no tiene ninguna consecuencia para tu trabajo.' +
+          '<br><br><b>Funciona sin internet.</b> Puedes completar tests y registros aunque no tengas señal: quedan guardados ' +
+          'en tu teléfono y se envían solos cuando vuelve la conexión. Mientras haya algo esperando, abajo aparece cuántos ' +
+          'registros son. <b>No se pierde nada.</b>') : '')))
     : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:var(--sem-rojo-alt)">rojo</b> supera la referencia.');
   const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
   let head = '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Promedios de ' + who) : (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : '')))) + '</div>' +
@@ -7470,12 +7635,12 @@ function dashTelemedicinaCard(rows){
   if (t.estado === 'aceptada'){
     return '<div class="dash-block tm-block tm-aceptada">' +
       '<div class="tm-t">Telemedicina aceptada</div>' +
-      '<div class="tm-x">El servicio médico se va a comunicar con vos para coordinar la consulta.</div></div>';
+      '<div class="tm-x">El servicio médico se va a comunicar contigo para coordinar la consulta.</div></div>';
   }
   // sugerida → se le pregunta
   return '<div class="dash-block tm-block tm-sugerida">' +
     '<div class="tm-t">Te sugerimos una telemedicina</div>' +
-    '<div class="tm-x">Es una consulta con el servicio médico, sin costo para vos.' +
+    '<div class="tm-x">Es una consulta con el servicio médico, sin costo para ti.' +
       (t.sugeridaPor ? ' La sugirió ' + esc(t.sugeridaPor) + '.' : '') +
       ' <b>Podés aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.</div>' +
     '<div class="an-actions">' +
@@ -8482,17 +8647,28 @@ function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!
 function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || '') }, extra||{}); }
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
 function gestPost(body){ return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
+// Candado de envíos en vuelo — mismo motivo que `_empEnVuelo` (ver el comentario de K_EMP_COLA):
+// el borrado de la cola pasa recién cuando responde el servidor, así que dos gestPush seguidos
+// mandaban el mismo registro dos veces. Se prefija 'u'/'d' porque un mismo id puede estar a la vez
+// en la cola de subida y en la de borrado, y son dos envíos distintos que no deben bloquearse.
+const _gestEnVuelo = {};
 function gestPush(){
   if(simulando()) return Promise.resolve();   // guard de simulación: nada sale al servidor
   if(!gestCanSync()) return Promise.resolve();
   const s=gestStore(); const jobs=[];
   Object.keys(s.up).forEach(id=>{ const g=s.items.find(x=>x.id===id);
     if(!g){ delete s.up[id]; return; }
+    if(_gestEnVuelo['u'+id]) return;
+    _gestEnVuelo['u'+id] = 1;
     jobs.push(gestPost(gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; gestSaveStore(s2); } }).catch(()=>{})); });
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; gestSaveStore(s2); } }).catch(()=>{})
+      .then(()=>{ delete _gestEnVuelo['u'+id]; })); });
   Object.keys(s.del).forEach(id=>{
+    if(_gestEnVuelo['d'+id]) return;
+    _gestEnVuelo['d'+id] = 1;
     jobs.push(gestPost(gestAuth({ action:'gestion_borrar', id:id }))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; gestSaveStore(s2); } }).catch(()=>{})); });
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; gestSaveStore(s2); } }).catch(()=>{})
+      .then(()=>{ delete _gestEnVuelo['d'+id]; })); });
   gestSaveStore(s);
   return Promise.all(jobs);
 }
@@ -8581,6 +8757,9 @@ function bitacoraRegistrar(accion, sujeto, detalle, origen){
   return ev;
 }
 let _bitSyncT = null;
+// Mismo candado que en las otras dos colas. Acá importa incluso más: la bitácora es el registro
+// que se usa como prueba, y un evento duplicado haría dudar de la cuenta entera.
+const _bitEnVuelo = {};
 function bitScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_bitSyncT); _bitSyncT = setTimeout(bitPush, 900); }
 function bitPush(){
   if(simulando()) return Promise.resolve();   // guard de simulación
@@ -8589,8 +8768,11 @@ function bitPush(){
   Object.keys(s.up).forEach(id => {
     const ev = s.items.find(x => x.id === id);
     if (!ev){ delete s.up[id]; return; }
+    if (_bitEnVuelo[id]) return;
+    _bitEnVuelo[id] = 1;
     jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }))
-      .then(d => { if (d && d.ok){ const s2 = bitStore(); delete s2.up[id]; bitSaveStore(s2); } }).catch(()=>{}));
+      .then(d => { if (d && d.ok){ const s2 = bitStore(); delete s2.up[id]; bitSaveStore(s2); } }).catch(()=>{})
+      .then(() => { delete _bitEnVuelo[id]; }));
   });
   bitSaveStore(s);
   return Promise.all(jobs);
@@ -9087,7 +9269,7 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
     '<div class="an-info-panel' + (ANOT.infoOpen?' open':'') + '" id="anotInfoPanel"><div class="an-info-card">' +
       '<div class="an-info-title">Anotación de aptitud para el supervisor</div>' +
       '<div class="an-info-sub">La app sola nunca declara a nadie no apto: cuando detecta indicadores por encima del límite, ' +
-        'el supervisor ve <b>Pendiente de revisión</b>. Con esta determinación vos definís lo que el supervisor ve de verdad: ' +
+        'el supervisor ve <b>Pendiente de revisión</b>. Con esta determinación tú defines lo que el supervisor ve de verdad: ' +
         '<b>No apto</b>, <b>Apto con condiciones</b>, o <b>Apto</b> para <b>cerrar la alerta</b> aunque los indicadores sigan altos ' +
         '(por ejemplo, un caso que ya evaluaste y estás siguiendo).<br><br>' +
         'Vale por el tiempo que le pongas. Al vencer, la persona vuelve a <b>Pendiente de revisión</b>. Y si llega un test nuevo ' +
@@ -9769,6 +9951,8 @@ document.getElementById('webSilvaLink').href = WEB_SILVA;   // web de Aeroambula
 document.getElementById('bottomNav').style.display = 'flex'; // barra inferior Inicio/Estadísticas/Más
 mostrarVista('inicio');
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
+empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento
+offPintar();      // muestra el estado de envío si quedó algo de una sesión anterior
 
 // Bloqueo de scroll del fondo: si hay algún overlay abierto, el body no scrollea
 function syncScrollLock(){ document.body.classList.toggle('modal-open', !!document.querySelector('.overlay.show, .ios-modal.show')); }
@@ -9794,9 +9978,12 @@ if (_complete) sincronizarRegistro(_prof);
 // Se le pide a TODO el que no tenga el perfil completo, incluidos los ya registrados
 // (ahora hay datos obligatorios nuevos, como el email).
 function seguirTrasTamanoTexto(){
+  // ⚠️ El consentimiento se evalúa SIEMPRE, tenga o no el perfil completo. Antes se saltaba a
+  // quien ya estaba registrado, con lo cual un texto actualizado no se le habría mostrado nunca
+  // — y estaríamos dando por consentido algo que esa persona no leyó.
+  if (!hasConsent()){ consentRender(); document.getElementById('consent').classList.add('show'); return; }
   if (perfilCompleto(getProfile())) return;              // ya está todo cargado: no molestamos
-  if (!hasConsent()) document.getElementById('consent').classList.add('show');
-  else openSetup(false);
+  openSetup(false);
 }
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
@@ -9805,9 +9992,10 @@ function confirmarTamanoTexto(){
 }
 if (!textoYaElegido() && !_complete){
   document.getElementById('textoOverlay').classList.add('show');   // primer paso
-} else if (!_complete){
-  seguirTrasTamanoTexto();
+} else {
+  seguirTrasTamanoTexto();   // cubre también al perfil completo con un consentimiento nuevo por leer
 }
+consentSync();   // si quedó una aceptación sin enviar (se firmó antes de existir el perfil), va ahora
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
 document.addEventListener('visibilitychange', () => {
