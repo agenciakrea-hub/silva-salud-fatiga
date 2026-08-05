@@ -621,6 +621,10 @@
   .radar-legend { display: flex; flex-wrap: wrap; gap: .45rem .9rem; justify-content: center; margin-top: .6rem; }
   .rl-item { display: flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 600; color: var(--text-soft); }
   .rl-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .rl-click { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: opacity .15s; }
+  .rl-click:hover { opacity: .75; }
+  .rl-off { opacity: .32; text-decoration: line-through; }
+  .rl-toggle-row { margin-top: .25rem; }
 
   /* Heatmap comparativo */
   .heat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -.2rem; }
@@ -2799,7 +2803,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.33';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.34';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6179,6 +6183,12 @@ function dashMean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; 
 function dashMedian(a){ if(!a.length) return null; const s=a.slice().sort((x,y)=>x-y); const n=s.length; return n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2; }
 function dashStd(a){ if(a.length<2) return 0; const m=dashMean(a); return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1)); }
 function dashAvg(rows, m){ return dashMean(dashVals(rows,m)); }
+// Cuartiles por interpolación lineal (método usual de "cajas"): min, Q1, mediana, Q3, max.
+function dashCuartiles(vals){
+  const s = vals.slice().sort((a,b)=>a-b), n = s.length;
+  const q = p => { const idx=(n-1)*p, lo=Math.floor(idx), hi=Math.ceil(idx); return lo===hi ? s[lo] : s[lo]+(s[hi]-s[lo])*(idx-lo); };
+  return { min:s[0], q1:q(0.25), med:q(0.5), q3:q(0.75), max:s[n-1] };
+}
 function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'—'; (g[k]=g[k]||[]).push(r); }); return g; }
 
 /* ── Router de pestañas ── */
@@ -7560,7 +7570,7 @@ function renderResumen(rows){
   // muestra: la misma comparación aparece más clara en "Tus indicadores vs. lo normal" (no se
   // repite lo mismo dos veces). Así la vista personal queda más ordenada, sin perder información.
   const bars = single ? '' : ('<div class="dash-block"><div class="db-title">El grupo vs. lo normal</div>' +
-    '<div class="db-sub">Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal)</div>' +
+    '<div class="db-sub">Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal). Toca un indicador abajo para aislarlo o volver a mostrarlo.</div>' +
     dashGroupedBars(rows) + '</div>');
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
@@ -7787,8 +7797,13 @@ function dashMonthsCount(rows){ const s={}; rows.forEach(r=>{ if(r.fecha) s[Stri
 
 /* ── Barras agrupadas: promedio del grupo vs referencia por métrica ── */
 function dashGroupedBars(rows){
-  const items = DASH.metrics.map(m => ({ m, label:METRIC_LABELS[m]||m, grupo:dashAvg(rows,m)||0, ref:DASH.ref[m] }));
+  const ocultas = chartOcultas('bars');
+  const all = DASH.metrics.map(m => ({ m, label:METRIC_LABELS[m]||m, grupo:dashAvg(rows,m)||0, ref:DASH.ref[m] }));
+  const items = all.filter(it => !ocultas[it.m]);
+  if (!items.length) return '<div class="radar-wrap"><div class="lc-empty">Todos los indicadores están ocultos.</div>' + dashBarsLegend(all, ocultas) + '</div>';
   const W=340, H=200, padL=26, padR=8, padT=12, padB=52, iw=W-padL-padR, ih=H-padT-padB;
+  // Escala recalculada sólo con lo visible: si se aísla el indicador más alto, los que quedan
+  // vuelven a llenar el gráfico en vez de quedar chiquitos contra la escala vieja.
   const maxV = Math.max.apply(null, items.map(i=>Math.max(i.grupo, i.ref)).concat([1])) * 1.15;
   const n = items.length, gw = iw/n, bw = Math.min(16, gw*0.32);
   const y = v => padT + (1 - v/maxV)*ih, base = padT + ih;
@@ -7802,13 +7817,90 @@ function dashGroupedBars(rows){
     svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="#525d73" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(it.label)+'</text>';
   });
   svg += '</svg>';
-  const legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:var(--sem-azul)"></span>Promedio</span>' +
+  return '<div class="radar-wrap">' + svg + dashBarsLegend(all, ocultas) + '</div>';
+}
+// Leyenda de dashGroupedBars: los 3 ítems fijos (promedio/referencia/sobre lo normal) + una fila
+// aparte con un chip por indicador para aislarlo/ocultarlo del gráfico (clic = toggle).
+function dashBarsLegend(all, ocultas){
+  return '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:var(--sem-azul)"></span>Promedio</span>' +
     '<span class="rl-item"><span class="rl-dot" style="background:#c9d2e0"></span>Referencia</span>' +
-    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>Sobre lo normal</span></div>';
+    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>Sobre lo normal</span></div>' +
+    '<div class="radar-legend rl-toggle-row">' + all.map(it =>
+      '<span class="rl-item rl-click' + (ocultas[it.m]?' rl-off':'') + '" onclick="chartToggle(\'bars\',\'' + it.m + '\')"><span class="rl-dot" style="background:' + (METRIC_COLORS[it.m]||'#888') + '"></span>' + esc(it.label) + '</span>'
+    ).join('') + '</div>';
+}
+
+/* ── Diagrama de caja: distribución de una métrica por grupo (departamento/empresa o nivel de riesgo).
+   Caja = Q1 a Q3 (el 50% central) · línea dentro = mediana · bigotes = mínimo y máximo.
+   Se necesitan 3+ registros por grupo para que la caja tenga sentido; se cortan los primeros MAXG
+   grupos calificados (mismo criterio que el radar comparado) para no desbordar en 375px. ── */
+function dashBoxPlot(rows, metric, groupKey){
+  let g;
+  if (groupKey === 'nivel'){
+    g = {};
+    rows.forEach(r => { const n = nivelRiesgoDe(r.persona, r.departamento, r.empresa, null); const k = nivelInfo(n).t; (g[k]=g[k]||[]).push(r); });
+  } else {
+    g = dashGroup(rows, groupKey);
+  }
+  const names = Object.keys(g).filter(n => n !== '—');
+  const order = groupKey === 'nivel' ? [1,2,3,4,5].map(n=>nivelInfo(n).t).filter(t=>names.indexOf(t)>=0) : names.sort();
+  const califican = order.map(n => ({ name:n, vals:dashVals(g[n], metric) })).filter(x => x.vals.length >= 3);
+  if (califican.length < 2) return dashWarn('Se necesitan al menos 2 grupos con 3 o más registros de ' + (METRIC_LABELS[metric]||metric) + ' para dibujar cajas. Por ahora hay ' + califican.length + '.');
+  const MAXG = 8;
+  const box = califican.slice(0, MAXG).map(gr => Object.assign({}, gr, dashCuartiles(gr.vals)));
+  const ref = DASH.ref[metric];
+  const W=340, H=210, padL=28, padR=10, padT=14, padB=52, iw=W-padL-padR, ih=H-padT-padB;
+  const maxV = Math.max.apply(null, box.map(b=>b.max).concat([ref])) * 1.1;
+  const n = box.length, gw = iw/n, bw = Math.min(26, gw*0.5);
+  const y = v => padT + (1 - v/maxV)*ih, base = padT+ih;
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="#e6eaf0"/>';
+  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="#7b8499">0</text>';
+  svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
+  box.forEach((b,i) => {
+    const cx = padL + gw*i + gw/2, over = b.med > ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[metric]||'var(--sem-azul)');
+    svg += '<line x1="'+cx.toFixed(1)+'" y1="'+y(b.min).toFixed(1)+'" x2="'+cx.toFixed(1)+'" y2="'+y(b.q1).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
+    svg += '<line x1="'+cx.toFixed(1)+'" y1="'+y(b.q3).toFixed(1)+'" x2="'+cx.toFixed(1)+'" y2="'+y(b.max).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
+    svg += '<line x1="'+(cx-bw/4).toFixed(1)+'" y1="'+y(b.min).toFixed(1)+'" x2="'+(cx+bw/4).toFixed(1)+'" y2="'+y(b.min).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
+    svg += '<line x1="'+(cx-bw/4).toFixed(1)+'" y1="'+y(b.max).toFixed(1)+'" x2="'+(cx+bw/4).toFixed(1)+'" y2="'+y(b.max).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
+    svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y(b.q3).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,(y(b.q1)-y(b.q3))).toFixed(1)+'" fill="'+col+'" fill-opacity="0.22" stroke="'+col+'" stroke-width="1.4" rx="1.5"/>';
+    svg += '<line x1="'+(cx-bw/2).toFixed(1)+'" y1="'+y(b.med).toFixed(1)+'" x2="'+(cx+bw/2).toFixed(1)+'" y2="'+y(b.med).toFixed(1)+'" stroke="'+col+'" stroke-width="2"/>';
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="#525d73" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(b.name)+' ('+b.vals.length+')</text>';
+  });
+  svg += '</svg>';
+  const nota = califican.length > MAXG ? '<div class="db-sub">Mostrando los primeros ' + MAXG + ' de ' + califican.length + ' grupos con datos suficientes.</div>' : '';
+  return '<div class="radar-wrap">' + svg + '</div>' + nota;
+}
+
+/* ── Dispersión: cruza dos indicadores. Un punto por persona (promedio de sus tests de cada uno). ── */
+function dashDispersion(rows, mx, my){
+  const g = dashGroup(rows.filter(r=>r.persona), 'persona');
+  const pts = Object.keys(g).map(n => ({ name:n, x:dashAvg(g[n],mx), y:dashAvg(g[n],my) })).filter(p => p.x!=null && p.y!=null);
+  if (pts.length < 3) return dashWarn('Se necesitan al menos 3 personas con datos de ambos indicadores para cruzarlos. Por ahora hay ' + pts.length + '.');
+  const refX = DASH.ref[mx], refY = DASH.ref[my];
+  const W=300, H=260, padL=32, padR=14, padT=14, padB=34, iw=W-padL-padR, ih=H-padT-padB;
+  const maxX = Math.max.apply(null, pts.map(p=>p.x).concat([refX])) * 1.15;
+  const maxY = Math.max.apply(null, pts.map(p=>p.y).concat([refY])) * 1.15;
+  const x = v => padL + (v/maxX)*iw, y = v => padT + (1 - v/maxY)*ih;
+  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
+  svg += '<line x1="'+padL+'" y1="'+padT+'" x2="'+padL+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
+  svg += '<line x1="'+x(refX).toFixed(1)+'" y1="'+padT+'" x2="'+x(refX).toFixed(1)+'" y2="'+(padT+ih)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.4"/>';
+  svg += '<line x1="'+padL+'" y1="'+y(refY).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(refY).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.4"/>';
+  pts.forEach(p => {
+    const overX = p.x>refX, overY = p.y>refY, col = (overX&&overY) ? 'var(--sem-rojo)' : (overX||overY) ? '#e8a400' : 'var(--sem-verde)';
+    svg += '<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="4.2" fill="'+col+'" fill-opacity="0.75" stroke="'+col+'" stroke-width="1"><title>'+esc(p.name)+'</title></circle>';
+  });
+  svg += '<text x="'+(padL+iw/2)+'" y="'+(H-6)+'" font-size="8" fill="#7b8499" text-anchor="middle">'+(METRIC_LABELS[mx]||mx)+'</text>';
+  svg += '<text x="9" y="'+(padT+ih/2)+'" font-size="8" fill="#7b8499" text-anchor="middle" transform="rotate(-90 9 '+(padT+ih/2)+')">'+(METRIC_LABELS[my]||my)+'</text>';
+  svg += '</svg>';
+  const legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:var(--sem-verde)"></span>Ambos normales</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:#e8a400"></span>Uno sobre lo normal</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>Los dos sobre lo normal</span></div>';
   return '<div class="radar-wrap">' + svg + legend + '</div>';
 }
 
-/* ── COMPARAR: heatmap + radar comparado + torta + dona + estadística ── */
+/* ── COMPARAR: heatmap + radar comparado + torta + dona + cajas + dispersión + estadística ── */
 function renderComparar(rows){
   const groupKey = (DASH.rol === 'admin' && !DASH.f.emp) ? 'empresa' : 'departamento';
   const g = dashGroup(rows, groupKey);
@@ -7845,7 +7937,30 @@ function renderComparar(rows){
   const donut = '<div class="dash-block"><div class="db-title">¿Qué indicador pesa más?</div>' +
     '<div class="db-sub">Cuánto aporta cada indicador al riesgo de hoy. Mientras más grande la porción, más cerca (o por encima) de su límite está ese indicador.</div>' + dashPie(donutItems, {donut:true}) + '</div>';
 
-  return heat + radar + '<div class="dash-2col">' + pie + donut + '</div>' + dashStatsTable(rows);
+  // Distribución por grupo (diagrama de caja): por defecto agrupa igual que el heatmap de arriba
+  // (empresa o departamento, según el rol/filtro), con la opción de agrupar por nivel de riesgo.
+  const boxMetric = DASH.metrics.indexOf(DASH.pickBox) >= 0 ? DASH.pickBox : DASH.metrics[0];
+  const boxGroupKey = DASH.pickBoxGroup === 'nivel' ? 'nivel' : groupKey;
+  const boxHelp = dashHelp('La <b>caja</b> muestra dónde se concentra el 50% central de los registros (de Q1 a Q3); la <b>línea dentro</b> es la mediana; los <b>bigotes</b> llegan al mínimo y al máximo registrado. Cajas más arriba de la línea punteada (la referencia) indican un grupo más cargado en ese indicador. Se necesitan al menos 3 registros por grupo para dibujar su caja.');
+  const boxToggle = '<div class="period-chips"><button type="button" class="pchip' + (boxGroupKey!=='nivel'?' active':'') + '" onclick="dashPick(\'pickBoxGroup\',\'' + groupKey + '\')">Por ' + (groupKey==='empresa'?'empresa':'departamento') + '</button>' +
+    '<button type="button" class="pchip' + (boxGroupKey==='nivel'?' active':'') + '" onclick="dashPick(\'pickBoxGroup\',\'nivel\')">Por nivel de riesgo</button></div>';
+  const box = boxHelp + '<div class="dash-block"><div class="db-title">Distribución por grupo</div>' +
+    '<div class="db-sub">Diagrama de caja de ' + (METRIC_LABELS[boxMetric]||boxMetric) + ' · punteada = referencia (' + DASH.ref[boxMetric] + ')</div>' +
+    boxToggle + dashMetricPicker('pickBox', boxMetric, false) + dashBoxPlot(rows, boxMetric, boxGroupKey) + '</div>';
+
+  // Dispersión: cruza dos indicadores, un punto por persona. Necesita 2+ métricas activas.
+  let dispersion = '';
+  if (DASH.metrics.length >= 2){
+    const mx = DASH.metrics.indexOf(DASH.pickDispX) >= 0 ? DASH.pickDispX : DASH.metrics[0];
+    const my = DASH.metrics.indexOf(DASH.pickDispY) >= 0 ? DASH.pickDispY : (DASH.metrics[1] || DASH.metrics[0]);
+    const dispHelp = dashHelp('Cruza dos indicadores: cada punto es una persona (el promedio de sus tests). Las líneas punteadas marcan la referencia de cada eje. <b style="color:var(--sem-verde)">Verde</b> = los dos están bien · <b>amarillo</b> = uno de los dos está sobre lo normal · <b style="color:var(--sem-rojo-alt)">rojo</b> = los dos están sobre lo normal — ahí vale la pena mirar más de cerca.');
+    dispersion = dispHelp + '<div class="dash-block"><div class="db-title">Cruce de indicadores</div>' +
+      '<div class="db-sub">¿Suben juntos ' + (METRIC_LABELS[mx]||mx) + ' y ' + (METRIC_LABELS[my]||my) + '?</div>' +
+      dashMetricPickerLabeled('pickDispX', mx, 'Eje X') + dashMetricPickerLabeled('pickDispY', my, 'Eje Y') +
+      dashDispersion(rows, mx, my) + '</div>';
+  }
+
+  return heat + radar + '<div class="dash-2col">' + pie + donut + '</div>' + box + dispersion + dashStatsTable(rows);
 }
 
 /* ── INDIVIDUAL: ranking por persona (métrica elegida o índice global) ── */
@@ -7895,7 +8010,7 @@ function renderEvolucion(rows){
       dashWarn('Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay ' + (nMeses===0?'registros sin fecha':'registros de un solo mes') + ' (' + rows.length + ' registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.');
   }
   if (m === '__all__'){
-    const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses. <b>Elige un indicador</b> arriba para verlo en detalle (línea de tiempo y distribución).');
+    const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses. <b>Toca un indicador en la leyenda</b> para ocultarlo y comparar mejor los que quedan (el gráfico reajusta la escala solo). <b>Elige un indicador</b> arriba para verlo en detalle (línea de tiempo y distribución).');
     return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
       '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>';
   }
@@ -8292,11 +8407,31 @@ function dashMetricPickerFrom(field, current, list){
     list.map(m => '<option value="' + m + '"' + (m===current?' selected':'') + '>' + (METRIC_LABELS[m]||m) + '</option>').join('') +
     '</select></div>';
 }
+// Selector con etiqueta propia (para cuando hay dos pickers juntos, p.ej. Eje X / Eje Y de la dispersión).
+function dashMetricPickerLabeled(field, current, label){
+  return '<div class="metric-picker"><label>' + esc(label) + '</label><select onchange="dashPick(\'' + field + '\',this.value)">' +
+    DASH.metrics.map(m => '<option value="' + m + '" ' + (m===current?'selected':'') + '>' + (METRIC_LABELS[m]||m) + '</option>').join('') +
+    '</select></div>';
+}
 // Cambiar la métrica de un gráfico NO debe saltar el scroll ni re-animar todo el panel.
 function dashPick(field, val){
   const sc = document.getElementById('dashScroll'), y = sc ? sc.scrollTop : 0;
   if (DASH) DASH._skipAnim = true;
   DASH[field] = val; renderDash();
+  if (sc) sc.scrollTop = y;
+}
+// Aislar series en un gráfico multi-serie: clic en la leyenda oculta/muestra esa serie.
+// Estado por gráfico (por `id`), no global: ocultar una métrica en Evolución no afecta a Comparar.
+function chartOcultas(id){
+  if (!DASH._chartOcultas) DASH._chartOcultas = {};
+  return DASH._chartOcultas[id] || (DASH._chartOcultas[id] = {});
+}
+function chartToggle(id, key){
+  const sc = document.getElementById('dashScroll'), y = sc ? sc.scrollTop : 0;
+  const o = chartOcultas(id);
+  if (o[key]) delete o[key]; else o[key] = 1;
+  DASH._skipAnim = true;
+  renderDash();
   if (sc) sc.scrollTop = y;
 }
 // Entrar al detalle de una persona. La pestaña destino tiene que EXISTIR para ese rol: el
@@ -8338,25 +8473,32 @@ function dashEvoMulti(rows){
   const monthsSet = {}; rows.forEach(r => { if (r.fecha) monthsSet[r.fecha.slice(0,7)] = 1; });
   const months = Object.keys(monthsSet).sort();
   if (!months.length) return '<div class="lc-empty">Sin fechas suficientes.</div>';
+  const ocultas = chartOcultas('evo');
   const series = DASH.metrics.map(m => ({ m:m, color:METRIC_COLORS[m]||'#888',
     pts: months.map(k => { const v = rows.filter(r => r.fecha && r.fecha.slice(0,7)===k && r[m]!=null).map(r=>r[m]);
       return v.length ? (v.reduce((a,b)=>a+b,0)/v.length)/DASH.ref[m] : null; }) }));
+  const visibles = series.filter(s => !ocultas[s.m]);
   const W=340, H=190, padL=24, padR=10, padT=12, padB=30, iw=W-padL-padR, ih=H-padT-padB;
-  let maxV = 1.2; series.forEach(s => s.pts.forEach(v => { if (v!=null && v>maxV) maxV = v; })); maxV *= 1.1;
+  // Escala recalculada sólo con las series visibles: si se aísla/oculta la de mayor valor, las
+  // que quedan tienen que volver a llenar el gráfico, no quedar chiquitas contra la escala vieja.
+  let maxV = 1.2; (visibles.length ? visibles : series).forEach(s => s.pts.forEach(v => { if (v!=null && v>maxV) maxV = v; })); maxV *= 1.1;
   const x = i => months.length>1 ? padL + i/(months.length-1)*iw : padL+iw/2;
   const y = v => padT + (1 - v/maxV)*ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
   svg += '<line x1="'+padL+'" y1="'+y(1).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(1).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
-  series.forEach(s => {
+  visibles.forEach(s => {
     let d = '', started = false;
     s.pts.forEach((v,i) => { if (v==null) return; d += (started?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; started = true; });
     if (d) svg += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>';
   });
+  if (!visibles.length) svg += '<text x="'+(W/2)+'" y="'+(H/2)+'" font-size="9" fill="#7b8499" text-anchor="middle">Todos los indicadores están ocultos</text>';
   const step = Math.ceil(months.length/6);
   months.forEach((k,i) => { if (months.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="#7b8499" text-anchor="middle">'+dashMesCorto(k)+'</text>'; });
   svg += '</svg>';
-  const legend = '<div class="radar-legend">' + series.map(s => '<span class="rl-item"><span class="rl-dot" style="background:'+s.color+'"></span>'+(METRIC_LABELS[s.m]||s.m)+'</span>').join('') + '</div>';
+  const legend = '<div class="radar-legend">' + series.map(s =>
+    '<span class="rl-item rl-click' + (ocultas[s.m]?' rl-off':'') + '" onclick="chartToggle(\'evo\',\'' + s.m + '\')"><span class="rl-dot" style="background:' + s.color + '"></span>' + (METRIC_LABELS[s.m]||s.m) + '</span>'
+  ).join('') + '</div>';
   return '<div class="radar-wrap">' + svg + legend + '</div>';
 }
 
