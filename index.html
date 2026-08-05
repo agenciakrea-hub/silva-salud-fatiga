@@ -18,6 +18,21 @@
     if (!document.hidden && !reduce) h.classList.remove('sin-animaciones');
   });
 })();
+/* Tema (claro/oscuro), resuelto ACÁ arriba y no al final del script: si se aplicara después de que
+   el resto de la página ya se pintó, alguien en modo oscuro vería un flash blanco al abrir la app
+   cada vez. La lógica completa (fijarTema, el horario del modo automático) vive más abajo junto al
+   resto de Ajustes; esto es sólo la versión mínima para pintar bien desde el primer frame. */
+(function(){
+  try {
+    var g = localStorage.getItem('silva_fatiga_tema_v1');
+    var osc;
+    if (g === 'oscuro') osc = true;
+    else if (g === 'claro') osc = false;
+    else if (g === 'auto') { var hr = new Date().getHours(); osc = (hr >= 19 || hr < 7); }
+    else { osc = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+    document.documentElement.setAttribute('data-tema', osc ? 'oscuro' : 'claro');
+  } catch(e){}
+})();
 </script>
 
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
@@ -55,6 +70,99 @@
     --radius-sm:   13px;
     --shadow-sm:   0 1px 3px rgba(5,20,50,0.10);
     --shadow-md:   0 8px 24px rgba(5,20,50,0.18);
+
+    /* ── Colores SEMÁNTICOS de estado (semáforos, insignias, bandas) ──
+       Los objetos de JavaScript (APT_NIVELES, APT_ESTADOS, GEST_ESTADOS…) ya NO llevan el color
+       escrito: apuntan a estas variables. Así el modo oscuro se resuelve cambiando 22 valores en
+       un solo lugar, y —lo más importante— el HTML que ya está pintado en pantalla cambia solo,
+       sin tener que volver a renderizar nada.
+       Cada par es texto + fondo, pensados juntos para que el contraste funcione en ambos temas. */
+    --sem-rojo:        #e0322f;  --sem-rojo-bg:      #feecec;
+    --sem-rojo-int:    #c0271f;  --sem-rojo-int-bg:  #fde8e6;   /* rojo más intenso (no apto) */
+    --sem-rojo-alt:    #d63031;  --sem-rojo-alt-bg:  #feecec;
+    --sem-ambar:       #b8860b;  --sem-ambar-bg:     #fff8e6;
+    --sem-ambar-alt:   #c98a00;  --sem-ambar-alt-bg: #fffaed;
+    --sem-verde:       #1aa672;  --sem-verde-bg:     #e6f7f0;
+    --sem-verde-int:   #128a5e;  --sem-verde-int-bg: #e2f6ee;   /* verde firmado por el médico */
+    --sem-gris:        #7b8499;  --sem-gris-bg:      #f2f4f7;
+    --sem-azul:        #2d6cdf;  --sem-azul-bg:      #eaf1fd;
+    --sem-azul-int:    #1d4ea8;  --sem-azul-int-bg:  #eaf1fd;
+    --sem-violeta:     #8e2f8e;  --sem-violeta-bg:   #f7ecf7;   /* patrón sostenido */
+    --sem-morado:      #6b3fa0;  --sem-morado-bg:    #f6f1fb;   /* anonimizado / cultura justa */
+    --sem-morado-badge-bg: #ece3f7;
+
+    --sup-bg:      #f4f6fa;   /* fondo de las superficies claras (paneles, documentación) */
+    --sup-borde:   #d7dce6;
+    --sup-suave:   #f7f9fc;   /* filas y cajas internas */
+    --sup-linea:   #eef1f6;
+    --sup-campo:   #fafbfd;   /* fondo de inputs y selects */
+    --sup-atenuado:#fcfcfd;   /* tarjetas atenuadas (dato viejo) y cajas de informe */
+
+    /* TEXTO sobre los fondos pálidos de estado. NO es el mismo tono que el color del semáforo:
+       tiene que ser más oscuro para que se lea encima de --sem-*-bg. Se separó al medir el
+       contraste y ver que usar el color del semáforo como texto bajaba de 4.5:1. */
+    --sem-rojo-txt:  #a32320;
+    --sem-ambar-txt: #8a6400;
+
+    /* Escala de 5 niveles de riesgo del puesto (P1): verde → oliva → ámbar → naranja → rojo.
+       Repetida igual en las insignias de nivel, la documentación y la consola HSEQ. */
+    --niv-1: #3d8f6d;  --niv-1-bg: #eaf6f1;
+    --niv-2: #5a8f3d;  --niv-2-bg: #eef6e9;
+    --niv-3: #a8791b;  --niv-3-bg: #fdf5e4;
+    --niv-4: #c96a1b;  --niv-4-bg: #fdf0e4;
+    --niv-5: #c0271f;  --niv-5-bg: #fde8e6;
+  }
+
+  /* ── MODO OSCURO ──
+     Se activa con data-tema="oscuro" en <html>. Dos cosas que NO se hicieron y son a propósito:
+     1) Nada de `filter: invert()` global. Invertiría los semáforos y el rojo pasaría a verde-agua:
+        justo lo único que no puede fallar en una app de fatiga.
+     2) Los fondos de estado no son el color plano oscurecido, son mezclas con el fondo real de la
+        tarjeta. Un #4a1512 plano detrás de texto claro da un bloque sucio; mezclado queda una
+        tinta sobre el papel, que es lo que el ojo espera. */
+  html[data-tema="oscuro"] {
+    --navy:        #0b1a33;
+    --navy-deep:   #060f1f;
+    --navy-card:   #142a4d;
+    --navy-line:   rgba(255,255,255,0.13);
+    --card:        #16202f;
+    --text:        #e8edf5;
+    --text-soft:   #b3bccb;
+    --text-muted:  #8a94a6;
+    --green:       #35c48d;
+    --green-soft:  #14322a;
+    --shadow-sm:   0 1px 3px rgba(0,0,0,0.45);
+    --shadow-md:   0 8px 24px rgba(0,0,0,0.55);
+
+    --sem-rojo:        #ff8a86;  --sem-rojo-bg:      #3a1a1c;
+    --sem-rojo-int:    #ff9d97;  --sem-rojo-int-bg:  #45191a;
+    --sem-rojo-alt:    #ff8a86;  --sem-rojo-alt-bg:  #3a1a1c;
+    --sem-ambar:       #f0c04a;  --sem-ambar-bg:     #362c14;
+    --sem-ambar-alt:   #f2c65c;  --sem-ambar-alt-bg: #3a2f15;
+    --sem-verde:       #4fd4a0;  --sem-verde-bg:     #12332a;
+    --sem-verde-int:   #46c795;  --sem-verde-int-bg: #103029;
+    --sem-gris:        #a3adbd;  --sem-gris-bg:      #232d3d;
+    --sem-azul:        #7fb0ff;  --sem-azul-bg:      #1a2942;
+    --sem-azul-int:    #93bcff;  --sem-azul-int-bg:  #1c2d49;
+    --sem-violeta:     #d99ad9;  --sem-violeta-bg:   #33203a;
+    --sem-morado:      #c9a0e8;  --sem-morado-bg:    #2b1f3a;
+    --sem-morado-badge-bg: #33254a;
+
+    --sup-bg:      #0e1724;
+    --sup-borde:   #2c3a4d;
+    --sup-suave:   #1b2635;
+    --sup-linea:   #26313f;
+    --sup-campo:   #1a2432;
+    --sup-atenuado:#131c29;
+    /* En oscuro el fondo de estado ya es oscuro, así que el texto va CLARO (al revés que en claro) */
+    --sem-rojo-txt:  #ffb3af;
+    --sem-ambar-txt: #f5d488;
+
+    --niv-1: #5fc99a;  --niv-1-bg: #123328;
+    --niv-2: #8fcf6c;  --niv-2-bg: #1c3018;
+    --niv-3: #e0b555;  --niv-3-bg: #362c14;
+    --niv-4: #f0955a;  --niv-4-bg: #3a2413;
+    --niv-5: #ff8a86;  --niv-5-bg: #3a1a1c;
   }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden; }
@@ -146,7 +254,7 @@
   .wa-flag-sec { display: inline-flex; align-items: center; margin-left: 0.1rem; }
   .wa-flag { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
   .wa-flag .wf-c { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
-  .wa-flag .wf-reg { background: #2d6cdf; }
+  .wa-flag .wf-reg { background: var(--sem-azul); }
   .wa-flag .wf-wa  { background: #25d366; }
   .wa-flag .wf-c svg { width: 11px; height: 11px; }
   /* Sobre el encabezado azul, el "+" gris no se leía: va en blanco translúcido. */
@@ -218,12 +326,12 @@
   .sheet .lead { font-size: 0.83rem; color: var(--text-soft); margin-top: 0.35rem; line-height: 1.5; }
   .field { margin-top: 1.1rem; }
   .field label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-soft); margin-bottom: 0.35rem; }
-  .field input, .field select { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #dfe4ec; border-radius: 12px;
-    font-size: 0.95rem; font-family: inherit; color: var(--text); background: #fafbfd; transition: border-color .15s; }
-  .field input:focus, .field select:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .field input, .field select { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid var(--sup-borde); border-radius: 12px;
+    font-size: 0.95rem; font-family: inherit; color: var(--text); background: var(--sup-campo); transition: border-color .15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--orange); background: var(--card); }
   .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.9rem center; padding-right: 2.2rem; }
-  .field .err { color: #d63031; font-size: 0.72rem; margin-top: 0.3rem; display: none; }
-  .field.invalid input, .field.invalid select { border-color: #d63031; }
+  .field .err { color: var(--sem-rojo-alt); font-size: 0.72rem; margin-top: 0.3rem; display: none; }
+  .field.invalid input, .field.invalid select { border-color: var(--sem-rojo-alt); }
   .field.invalid .err { display: block; }
   .save-btn { width: 100%; margin-top: 1.4rem; padding: 0.9rem; border: none; border-radius: 13px;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-weight: 700; font-size: 0.95rem;
@@ -233,7 +341,7 @@
   .save-btn:disabled { background: #c9d1de; color: #ffffff; box-shadow: none; cursor: not-allowed; transform: none; }
   .cancel-btn { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: none; background: none; color: var(--text-muted);
     font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-  .pilot-banner { margin-top: 1.2rem; border: 2px dashed #c8d0dc; border-radius: 14px; overflow: hidden; transition: border-color .15s, background .15s, box-shadow .15s; background: #f7f9fc; }
+  .pilot-banner { margin-top: 1.2rem; border: 2px dashed var(--sup-borde); border-radius: 14px; overflow: hidden; transition: border-color .15s, background .15s, box-shadow .15s; background: var(--sup-suave); }
   .pilot-banner:not(.active):hover { border-color: #b0bac8; background: #f0f3f7; }
   .pilot-banner.active { border: 2px solid var(--orange); background: #fff6ef; box-shadow: 0 2px 10px rgba(244,122,31,0.15); }
   .pilot-banner label { display: flex; align-items: center; gap: 0.85rem; padding: 0.95rem 1rem; cursor: pointer; user-select: none; }
@@ -244,7 +352,7 @@
   .pilot-banner .pbt .opt-tag { display: inline-block; font-size: 0.68rem; font-weight: 700; background: #e8ecf2; color: var(--text-muted); border-radius: 5px; padding: 1px 6px; margin-bottom: 3px; letter-spacing: 0.03em; text-transform: uppercase; }
   .pilot-banner.active .pbt .opt-tag { background: #fde8d4; color: var(--orange); }
   .pilot-banner input[type=checkbox] { display: none; }
-  .pilot-check { width: 24px; height: 24px; border: 2px solid #c8d0dc; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .15s; background: #fff; }
+  .pilot-check { width: 24px; height: 24px; border: 2px solid var(--sup-borde); border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .15s; background: var(--card); }
   .pilot-banner.active .pilot-check { background: var(--orange); border-color: var(--orange); color: #fff; font-size: 13px; font-weight: 700; }
   .privacy { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 1rem; line-height: 1.5; }
 
@@ -256,7 +364,7 @@
   #testQuestion { min-height: 4.6rem; display: flex; align-items: center; }
   .test-options { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.2rem; margin-bottom: 0.6rem; flex: 1; }
   .test-opt { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.75rem 0.9rem; border: 1.5px solid #eef1f5;
-    border-radius: 13px; background: #fafbfd; cursor: pointer; font-family: inherit; text-align: left; transition: transform .1s ease, border-color .15s; }
+    border-radius: 13px; background: var(--sup-campo); cursor: pointer; font-family: inherit; text-align: left; transition: transform .1s ease, border-color .15s; }
   .test-opt:active { transform: scale(0.98); border-color: var(--orange); }
   .test-opt .dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
   .test-opt .lbl { font-size: 0.86rem; font-weight: 600; color: var(--text); }
@@ -277,7 +385,7 @@
   /* Pie del test: Atrás + Cancelar */
   .test-foot { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
   .test-foot .cancel-btn { flex: 1; margin-top: 0; text-align: center; }
-  .back-btn { padding: 0.65rem 0.9rem; border: 1.5px solid #e0e4ec; background: #f5f6f9;
+  .back-btn { padding: 0.65rem 0.9rem; border: 1.5px solid var(--sup-borde); background: #f5f6f9;
     color: var(--text-muted); border-radius: 12px; font-family: inherit; font-size: 0.82rem;
     font-weight: 600; cursor: pointer; white-space: nowrap; }
   .back-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -289,18 +397,18 @@
   .rtable-lbl { font-size: 0.8rem; font-weight: 600; color: var(--text); }
   .rtable-row { padding: 0.4rem 0; border-bottom: 1px solid #eef1f5; }
   .rtable-row:last-child { border-bottom: none; }
-  .rtable-cell { width: 32px; height: 32px; border-radius: 7px; border: 2px solid #e0e4ec;
+  .rtable-cell { width: 32px; height: 32px; border-radius: 7px; border: 2px solid var(--sup-borde);
     background: transparent; cursor: pointer; transition: all .12s; padding: 0; }
   .rtable-cell.on { background: var(--cell-color); border-color: var(--cell-color); }
   .rtable-cell:not(.on):hover { border-color: var(--cell-color); }
   /* Input "Otros" dentro de multi-selección */
   .otros-input-wrap { margin-top: 0.4rem; }
-  .otros-input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #e0e4ec; border-radius: 11px;
-    font-family: inherit; font-size: 0.86rem; color: var(--text); background: #fafbfd; }
+  .otros-input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
+    font-family: inherit; font-size: 0.86rem; color: var(--text); background: var(--sup-campo); }
   .otros-input:focus { outline: none; border-color: var(--orange); }
   /* Comentario opcional (KSS) */
-  .kss-comment { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid #e0e4ec; border-radius: 13px;
-    font-family: inherit; font-size: 0.86rem; color: var(--text); background: #fafbfd;
+  .kss-comment { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid var(--sup-borde); border-radius: 13px;
+    font-family: inherit; font-size: 0.86rem; color: var(--text); background: var(--sup-campo);
     resize: none; line-height: 1.5; margin-bottom: 0.6rem; }
   .kss-comment:focus { outline: none; border-color: var(--orange); }
 
@@ -308,7 +416,7 @@
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
     align-items: flex-end; justify-content: center; padding: 1rem; animation: fadeIn .25s ease; }
   .ios-modal.show { display: flex; }
-  .ios-card { background: #fff; color: var(--text); width: 100%; max-width: 410px; border-radius: 22px; padding: 1.5rem 1.4rem;
+  .ios-card { background: var(--card); color: var(--text); width: 100%; max-width: 410px; border-radius: 22px; padding: 1.5rem 1.4rem;
     position: relative; box-shadow: 0 14px 44px rgba(0,0,0,0.3); animation: slideUp .3s ease; }
   .stack .ios-card { max-width: none; }   /* dentro de .stack debe igualar el ancho del botón de arriba */
   .ios-card .x { position: absolute; top: 1rem; right: 1rem; width: 30px; height: 30px; border: none; border-radius: 50%;
@@ -338,7 +446,7 @@
   .portal-gate-card { }                 /* en celular es solo un contenedor; en escritorio es la tarjeta */
   .pg-logo { display: none; }           /* el logo del login sólo se muestra en escritorio */
   .portal-x { position: absolute; top: 1rem; right: 1rem; width: 32px; height: 32px; border: none; border-radius: 50%; background: #f0f2f5; color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
-  .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: #fff; border: 1.5px solid #e6eaf2; border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
+  .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
   .stats-entry .ic { width: 42px; height: 42px; border-radius: 12px; background: #eef3ff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
   .stats-entry .tx { flex: 1; }
@@ -348,9 +456,9 @@
 
   .portal-tabs { display: flex; gap: .4rem; background: #f1f3f7; padding: .28rem; border-radius: 12px; margin: 1.2rem 0 1rem; }
   .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: 9px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer; }
-  .ptab.active { background: #fff; color: var(--text); box-shadow: var(--shadow-sm); }
+  .ptab.active { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
-  .portal-err { color: #d63031; font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
+  .portal-err { color: var(--sem-rojo-alt); font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
 
   /* Shell del dashboard: header + tabs fijos, cuerpo con scroll propio. Todo el bloque fijo de
      arriba (header + menú/filtros) va en el mismo azul marino que el resto de la app, con
@@ -365,7 +473,7 @@
   .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
-    background: #fff; padding: 2px; }
+    background: var(--card); padding: 2px; }
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: #fff6ef; color: var(--orange); border-radius: 999px;
     padding: .34rem .7rem; font-family: inherit; font-weight: 700; font-size: .74rem; cursor: pointer; white-space: nowrap; }
   .dash-demo.on { background: var(--orange); color: #fff; }
@@ -416,12 +524,12 @@
   /* Insignia circular con la flechita, sobre la esquina del icono: ahí se nota que ESE cuadradito
      es el que despliega/repliega, en vez de una flecha suelta del otro lado del botón. */
   .dfm-toggle-chevron { position: absolute; right: -5px; bottom: -5px; width: 16px; height: 16px;
-    padding: 2px; box-sizing: border-box; border-radius: 50%; background: #fff; color: var(--orange);
+    padding: 2px; box-sizing: border-box; border-radius: 50%; background: var(--card); color: var(--orange);
     box-shadow: 0 1px 4px rgba(0,0,0,.25); transition: transform .25s ease; }
   .dfm-toggle.open .dfm-toggle-chevron { transform: rotate(180deg); }
   .dfm-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 25;
     display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
-    background: #fff; border-radius: 0 0 18px 18px; }
+    background: var(--card); border-radius: 0 0 18px 18px; }
   .dfm-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
   .dfm-panel-inner { overflow: hidden; min-height: 0; }
   .dfm-panel-inner .dash-tabs-wrap { border-top: 1px solid #eef1f5; }
@@ -446,7 +554,7 @@
      tenía que animar hasta una altura enorme y el texto se veía "apretarse" raro a mitad de camino. */
   .gloss-panel { position: absolute; top: 100%; right: 0; left: auto; z-index: 26; width: min(320px, 92vw);
     display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
-    background: #fff; border-radius: 14px; margin-top: .5rem; }
+    background: var(--card); border-radius: 14px; margin-top: .5rem; }
   .gloss-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
   /* El padding TAMBIÉN anima (transition en el propio padding, no sólo en grid-template-rows del
      panel de afuera): si el padding cambia de golpe con la clase .open mientras el alto todavía
@@ -456,7 +564,7 @@
      sigue condicionado a .open nomás (evita la rayita fantasma del borde en 0 de alto). */
   .gloss-panel-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column;
     padding: 0 1.1rem; border-radius: 14px; transition: padding .25s ease; }
-  .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid #e9edf4; }
+  .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid var(--sup-borde); }
   .gloss-panel-title { flex-shrink: 0; font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: .5rem; }
   .gloss-panel-scroll { overflow-y: auto; max-height: min(60vh, 380px); }
   .gloss-panel-scroll .gloss-i:first-of-type { padding-top: 0; }
@@ -475,17 +583,17 @@
   .df-row { display: flex; gap: .5rem; }
   .df { flex: 1; min-width: 0; }
   .df label { display: block; font-size: .74rem; font-weight: 700; color: var(--text-muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .03em; }
-  .df input, .df select { width: 100%; padding: .62rem .7rem; border: 1.5px solid #dfe4ec; border-radius: 10px; font-family: inherit; font-size: .92rem; color: var(--text); background: #fafbfd; }
+  .df input, .df select { width: 100%; padding: .62rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; color: var(--text); background: var(--sup-campo); }
 
   .dash-count { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin-bottom: .8rem; }
   .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin-bottom: 1.3rem; }
-  .kpi { background: #f7f9fc; border: 1.5px solid #e9edf3; border-radius: 13px; padding: .75rem .5rem; text-align: center; }
+  .kpi { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 13px; padding: .75rem .5rem; text-align: center; }
   .kpi.over { background: #fff3f2; border-color: #f3c2bf; }
   .kpi .km { font-size: .74rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; }
   .kpi .kv { font-size: 1.6rem; font-weight: 800; color: var(--text); margin: .14rem 0; }
-  .kpi.over .kv { color: #d63031; }
+  .kpi.over .kv { color: var(--sem-rojo-alt); }
   .kpi .kref { font-size: .68rem; font-weight: 600; color: var(--text-muted); line-height: 1.3; }
-  .kpi.over .kref { color: #d63031; }
+  .kpi.over .kref { color: var(--sem-rojo-alt); }
 
   .dash-block { margin-bottom: 1.5rem; }
   .db-title { font-size: 1.02rem; font-weight: 800; color: var(--text); margin-bottom: .75rem; }
@@ -497,7 +605,7 @@
   /* OJO: la barra es un <i>, que por defecto es inline y IGNORA width/height (por eso las barras
      salían vacías). Tiene que ser block para que el ancho en % se aplique. */
   .bar-fill { display: block; height: 100%; background: var(--green); border-radius: 6px; transition: width .3s ease; }
-  .bar-fill.over { background: #e0322f; }
+  .bar-fill.over { background: var(--sem-rojo); }
   .bar-ref { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #16233d; opacity: .55; }
   .bar-val { font-size: .84rem; font-weight: 700; color: var(--text); text-align: right; }
   .ref-note { font-size: .74rem; color: var(--text-muted); margin-top: .5rem; display: flex; align-items: center; gap: .35rem; }
@@ -519,7 +627,7 @@
   .heat { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 330px; }
   .heat th, .heat td { padding: .5rem .35rem; text-align: center; font-size: .82rem; }
   .heat thead th { font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .02em; }
-  .heat td.hname, .heat th.hname { text-align: left; font-weight: 700; color: var(--text); white-space: nowrap; max-width: 132px; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: #fff; z-index: 1; }
+  .heat td.hname, .heat th.hname { text-align: left; font-weight: 700; color: var(--text); white-space: nowrap; max-width: 132px; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--card); z-index: 1; }
   .heat td.cell { font-weight: 800; border-radius: 7px; color: #16233d; min-width: 36px; font-size: .86rem; }
 
   /* Tabla estadística */
@@ -528,22 +636,22 @@
   .stat-table th, .stat-table td { padding: .55rem .6rem; font-size: .84rem; text-align: right; border-bottom: 1px solid #f0f2f5; }
   .stat-table th { color: var(--text-muted); font-weight: 700; font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
   .stat-table td.metric, .stat-table th.metric { text-align: left; font-weight: 700; color: var(--text); }
-  .stat-table td.over { color: #d63031; font-weight: 800; }
+  .stat-table td.over { color: var(--sem-rojo-alt); font-weight: 800; }
 
   /* Selector de métrica */
   .metric-picker { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; }
   .metric-picker label { font-size: .82rem; font-weight: 700; color: var(--text-soft); white-space: nowrap; }
-  .metric-picker select { flex: 1; padding: .6rem .7rem; border: 1.5px solid #dfe4ec; border-radius: 10px; font-family: inherit; font-size: .92rem; background: #fafbfd; color: var(--text); }
+  .metric-picker select { flex: 1; padding: .6rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; background: var(--sup-campo); color: var(--text); }
 
   /* Line chart */
   .linechart { width: 100%; height: auto; }
   .lc-empty { font-size: .8rem; color: var(--text-muted); padding: 1rem 0; text-align: center; }
 
   .alert-item { display: flex; align-items: center; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid #f0f2f5; font-size: .88rem; }
-  .al-tag { font-size: .64rem; font-weight: 700; background: #feecec; color: #d63031; padding: .14rem .42rem; border-radius: 6px; text-transform: uppercase; flex-shrink: 0; }
+  .al-tag { font-size: .64rem; font-weight: 700; background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); padding: .14rem .42rem; border-radius: 6px; text-transform: uppercase; flex-shrink: 0; }
   .al-name { flex: 1; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .al-metric { font-size: .8rem; color: var(--text-soft); flex-shrink: 0; }
-  .al-val { font-weight: 800; color: #d63031; flex-shrink: 0; }
+  .al-val { font-weight: 800; color: var(--sem-rojo-alt); flex-shrink: 0; }
   .al-val small { color: var(--text-muted); font-weight: 600; }
   .dash-ok { font-size: .9rem; color: var(--green); font-weight: 600; padding: .3rem 0; }
   .dash-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-size: .92rem; }
@@ -552,7 +660,7 @@
   .rank-name { font-size: .9rem; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rank-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
   .rank-val { font-size: .94rem; font-weight: 800; text-align: right; }
-  .rank-val.over { color: #d63031; }
+  .rank-val.over { color: var(--sem-rojo-alt); }
   .rank-go { color: var(--orange); font-weight: 900; font-size: 1.15rem; line-height: 1; text-align: center; }   /* flecha: "lleva a otra vista" */
   .rank-val.ok { color: var(--green); }
   .hist-item { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
@@ -564,12 +672,12 @@
   .hist-more > summary::-webkit-details-marker, .ver-mas > summary::-webkit-details-marker { display: none; }
   .hist-more[open] > summary .hm-caret, .ver-mas[open] > summary .hm-caret { transform: rotate(180deg); }
   .hm-caret { transition: transform .2s; display: inline-block; }
-  .hi-m.over { background: #feecec; color: #d63031; }
+  .hi-m.over { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); }
 
   /* Chips de período */
   .period-chips { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .3rem; margin-bottom: .7rem; scrollbar-width: none; }
   .period-chips::-webkit-scrollbar { display: none; }
-  .pchip { padding: .44rem .8rem; border: 1.5px solid #e0e4ec; background: #fff; border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-soft); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .pchip { padding: .44rem .8rem; border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-soft); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .pchip.active { background: var(--orange); border-color: var(--orange); color: #fff; }
 
   /* Login admin */
@@ -591,7 +699,7 @@
   .alert-card { padding: .6rem 0; border-bottom: 1px solid #f0f2f5; }
   .ac-name { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: .35rem; }
   .ac-badges { display: flex; flex-wrap: wrap; gap: .3rem; }
-  .ac-badge { font-size: .76rem; font-weight: 600; background: #fff3f2; color: #d63031; border: 1px solid #f3c2bf; padding: .14rem .46rem; border-radius: 6px; }
+  .ac-badge { font-size: .76rem; font-weight: 600; background: #fff3f2; color: var(--sem-rojo-alt); border: 1px solid #f3c2bf; padding: .14rem .46rem; border-radius: 6px; }
   .ac-badge b { font-weight: 800; margin-left: .15rem; }
   .ac-badge i { color: #b0757a; font-style: normal; font-size: .68rem; }
 
@@ -603,7 +711,7 @@
   .cmt-text { font-size: .9rem; color: var(--text-soft); line-height: 1.5; }
 
   .rank-item { cursor: pointer; }
-  .rank-item:active { background: #f7f9fc; }
+  .rank-item:active { background: var(--sup-suave); }
 
   /* Ver contraseña */
   .pw-wrap { position: relative; }
@@ -613,13 +721,13 @@
 
   /* Combobox del setup (empresa / departamento) */
   .combo { position: relative; }
-  .combo-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 6; background: #fff; border: 1.5px solid #dfe4ec; border-top: none; border-radius: 0 0 12px 12px; max-height: 210px; overflow-y: auto; display: none; box-shadow: 0 10px 24px rgba(5,20,50,.14); }
+  .combo-panel { position: absolute; top: 100%; left: 0; right: 0; z-index: 6; background: var(--card); border: 1.5px solid var(--sup-borde); border-top: none; border-radius: 0 0 12px 12px; max-height: 210px; overflow-y: auto; display: none; box-shadow: 0 10px 24px rgba(5,20,50,.14); }
   .combo-panel.show { display: block; }
   .combo-opt, .combo-add, .combo-empty { padding: .62rem .8rem; font-size: .88rem; }
   .combo-opt, .combo-add { cursor: pointer; }
   .combo-add { color: var(--orange); font-weight: 700; border-bottom: 1px solid #eef1f5; }
   .combo-opt { color: var(--text); border-bottom: 1px solid #f4f6f9; }
-  .combo-opt:hover, .combo-add:hover { background: #f5f7fb; }
+  .combo-opt:hover, .combo-add:hover { background: var(--sup-suave); }
   .combo-empty { color: var(--text-muted); font-size: .8rem; }
 
   /* Aviso de supervisor en el setup */
@@ -644,7 +752,7 @@
   .pvt-result-lbl { font-size: .78rem; color: var(--text-muted); margin-bottom: .3rem; }
   .pvt-verdict { font-size: .92rem; font-weight: 700; margin: .5rem 0 1rem; }
   .pvt-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin: 1rem 0 .4rem; }
-  .pvt-stat { background: #f7f9fc; border: 1.5px solid #e9edf3; border-radius: 12px; padding: .55rem .4rem; }
+  .pvt-stat { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .55rem .4rem; }
   .pvt-stat .v { font-size: 1.1rem; font-weight: 800; color: var(--text); }
   .pvt-stat .k { font-size: .62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .02em; margin-top: .1rem; }
 
@@ -656,7 +764,7 @@
   .informe-demo-nota b { color: var(--text); }
   .informe-loading { text-align: center; color: var(--orange); font-weight: 700; font-size: .86rem; padding: 1.4rem 1rem; }
   .informe-aviso { background: #fff6ef; border: 1px solid #f6d3b0; border-radius: 10px; padding: .55rem .7rem; font-size: .78rem; color: #8a4b12; margin-bottom: .7rem; }
-  .informe-box { background: #fbfcfe; border: 1px solid #e9edf3; border-radius: 14px; padding: 1rem 1.1rem; color: var(--text); }
+  .informe-box { background: var(--sup-atenuado); border: 1px solid var(--sup-borde); border-radius: 14px; padding: 1rem 1.1rem; color: var(--text); }
   .informe-box h4 { font-size: .92rem; font-weight: 800; color: var(--navy); margin: 1rem 0 .35rem; }
   .informe-box h4:first-child { margin-top: 0; }
   .informe-box p { font-size: .86rem; line-height: 1.6; color: var(--text-soft); margin: .4rem 0; }
@@ -667,8 +775,8 @@
 
   /* Historial de informes (colapsable) */
   .inf-hist { display: flex; flex-direction: column; gap: .5rem; }
-  .inf-card { border: 1px solid #e6eaf2; border-radius: 12px; overflow: hidden; background: #fff; }
-  .inf-head { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .7rem .8rem; background: #f7f9fc;
+  .inf-card { border: 1px solid var(--sup-borde); border-radius: 12px; overflow: hidden; background: var(--card); }
+  .inf-head { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .7rem .8rem; background: var(--sup-suave);
     border: none; cursor: pointer; font-family: inherit; text-align: left; }
   .inf-head:hover { background: #f0f4fa; }
   .inf-headtx { flex: 1; min-width: 0; }
@@ -681,16 +789,16 @@
   .inf-share:active { transform: scale(.99); }
 
   /* Objetivo del análisis (opcional) */
-  .inf-obj { background: #f7f9fc; border: 1px solid #e6eaf2; border-radius: 12px; padding: .8rem; margin: .2rem 0 1rem; }
+  .inf-obj { background: var(--sup-suave); border: 1px solid var(--sup-borde); border-radius: 12px; padding: .8rem; margin: .2rem 0 1rem; }
   .inf-obj-t { font-size: .84rem; font-weight: 800; color: var(--text); margin-bottom: .5rem; }
   .inf-obj-t span { font-weight: 600; color: var(--text-muted); font-size: .76rem; }
-  .inf-obj-txt { width: 100%; min-height: 62px; padding: .6rem .7rem; border: 1.5px solid #dfe4ec; border-radius: 10px;
-    font-family: inherit; font-size: .88rem; color: var(--text); background: #fff; resize: vertical; line-height: 1.45; }
+  .inf-obj-txt { width: 100%; min-height: 62px; padding: .6rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px;
+    font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); resize: vertical; line-height: 1.45; }
   .inf-obj-txt:focus { outline: none; border-color: var(--orange); }
   .inf-obj-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
   .inf-obj-row label { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
   .inf-obj-row label span { font-weight: 500; color: var(--text-muted); }
-  .inf-obj-row input[type=date] { padding: .5rem .6rem; border: 1.5px solid #dfe4ec; border-radius: 9px; font-family: inherit; font-size: .88rem; color: var(--text); background: #fff; }
+  .inf-obj-row input[type=date] { padding: .5rem .6rem; border: 1.5px solid var(--sup-borde); border-radius: 9px; font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); }
 
   /* Barra recordar credenciales */
   .dash-remember { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%) translateY(150%); width: calc(100% - 2rem); max-width: 460px;
@@ -732,7 +840,7 @@
   /* Bloques colapsables (Sobre la referencia, Ranking): contraídos por defecto */
   .dash-collapse { margin-bottom: 1.5rem; }
   .dash-collapse > .dc-sum { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .5rem;
-    background: #f7f9fc; border: 1.5px solid #e9edf3; border-radius: 12px; padding: .7rem .85rem;
+    background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .85rem;
     font-weight: 800; font-size: .96rem; color: var(--text); user-select: none; -webkit-tap-highlight-color: transparent; }
   .dash-collapse > .dc-sum::-webkit-details-marker { display: none; }
   .dash-collapse > .dc-sum:hover { background: #f1f4f9; }
@@ -742,7 +850,7 @@
   .dash-collapse .dc-caret { color: var(--text-muted); font-size: .8rem; transition: transform .2s; }
   .dash-collapse[open] > .dc-sum .dc-caret { transform: rotate(180deg); }
   .dash-collapse[open] > .dc-sum { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-  .dash-collapse .dc-body { border: 1.5px solid #e9edf3; border-top: none; border-radius: 0 0 12px 12px; padding: .3rem .85rem .7rem; }
+  .dash-collapse .dc-body { border: 1.5px solid var(--sup-borde); border-top: none; border-radius: 0 0 12px 12px; padding: .3rem .85rem .7rem; }
   .alerts-collapse > .dc-sum { background: #fff6f4; border-color: #f3c9c4; color: #b23b30; }
   .alerts-collapse > .dc-sum:hover { background: #ffeeeb; }
   .alerts-collapse .dc-body { border-color: #f3c9c4; }
@@ -757,9 +865,9 @@
   /* Portal: botón "Ver demostración" (fuera del login) */
   .portal-demo { margin-top: 1.1rem; }
   .pd-sep { display: flex; align-items: center; gap: .7rem; color: var(--text-muted); font-size: .78rem; font-weight: 700; margin-bottom: .8rem; }
-  .pd-sep::before, .pd-sep::after { content: ''; flex: 1; height: 1px; background: #e6eaf2; }
+  .pd-sep::before, .pd-sep::after { content: ''; flex: 1; height: 1px; background: var(--sup-borde); }
   .portal-demo-btn { width: 100%; padding: .82rem; border: 1.5px solid var(--orange); border-radius: 13px;
-    background: #fff; color: var(--orange); font-family: inherit; font-weight: 800; font-size: .96rem; cursor: pointer; transition: background .14s; }
+    background: var(--card); color: var(--orange); font-family: inherit; font-weight: 800; font-size: .96rem; cursor: pointer; transition: background .14s; }
   .portal-demo-btn:hover { background: #fff5ee; }
   .portal-demo-btn:disabled { opacity: .8; cursor: default; }
   .portal-demo-hint { font-size: .78rem; color: var(--text-muted); line-height: 1.45; margin: .5rem .2rem 0; text-align: center; }
@@ -774,7 +882,7 @@
 
   /* Subtítulos de alertas: legibles */
   .db-sub2 { font-size: .9rem; font-weight: 800; color: var(--text); margin: 1rem 0 .5rem; padding-left: .55rem; border-left: 3px solid var(--orange); }
-  .db-sub2-dep { border-left-color: #2d6cdf; }
+  .db-sub2-dep { border-left-color: var(--sem-azul); }
   .db-sub2-per { border-left-color: var(--orange); }
 
   /* Filas / tarjetas clickeables */
@@ -782,7 +890,7 @@
   .heat-row:active .hname { color: var(--orange); }
   .heat-row .hname { transition: color .12s; }
   .alert-card { cursor: pointer; border-radius: 8px; transition: background .12s; }
-  .alert-card:active { background: #f7f9fc; }
+  .alert-card:active { background: var(--sup-suave); }
   .alert-card .ac-name { color: var(--text); }
 
   @media (max-width: 600px) {
@@ -830,18 +938,18 @@
      Padding inferior generoso para que la curva NO toque la tarjeta de datos. */
   .home-head { position: relative; margin: -1.1rem -1.05rem 1.7rem;
     padding: calc(env(safe-area-inset-top) + 1.7rem) 1.5rem 3.1rem;
-    background: #fff; border-radius: 0 0 50% 50% / 0 0 64px 64px;
+    background: var(--card); border-radius: 0 0 50% 50% / 0 0 64px 64px;
     box-shadow: 0 14px 34px rgba(5,20,50,0.30);
     animation: fadeUp .45s ease .02s both; }
   .hh-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; padding: 0 .15rem; }
   .hh-hola { font-size: 1.62rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
-  .hh-edit { width: 42px; height: 42px; border-radius: 13px; background: #f1f4f9; border: 1px solid #e6eaf2;
+  .hh-edit { width: 42px; height: 42px; border-radius: 13px; background: #f1f4f9; border: 1px solid var(--sup-borde);
     color: var(--text-soft); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background .15s; }
   .hh-edit:hover { background: #e7ecf3; }
   .hh-edit svg { width: 18px; height: 18px; }
   /* Tarjeta interna con los datos (como la tarjeta azul dentro del header de OSDE) */
   .hh-card { display: flex; align-items: center; gap: 1.05rem;
-    background: #f5f7fb; border: 1px solid #e9edf3; border-radius: 17px; padding: 1.05rem 1.15rem; }
+    background: var(--sup-suave); border: 1px solid var(--sup-borde); border-radius: 17px; padding: 1.05rem 1.15rem; }
   /* Círculo naranja a la IZQUIERDA con el RANGO adentro */
   .hh-rango { width: 68px; height: 68px; border-radius: 50%; flex-shrink: 0; padding: 0 5px;
     background: linear-gradient(150deg, var(--orange), var(--orange-2)); color: #fff;
@@ -888,7 +996,7 @@
   .bn-center { position: relative; }
   /* Inactivo: círculo blanco. Activo (panel de estadísticas abierto): naranja. */
   .bn-center .bn-fab { width: 56px; height: 56px; border-radius: 50%; margin-top: -24px; margin-bottom: 3px;
-    background: #fff; color: var(--navy); display: flex; align-items: center; justify-content: center;
+    background: var(--card); color: var(--navy); display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 18px rgba(0,0,0,0.35); border: 3px solid var(--navy-deep); transition: background .18s, color .18s, box-shadow .18s; }
   .bn-center .bn-fab svg { width: 26px; height: 26px; }
   .bn-item.bn-center.active .bn-fab { background: linear-gradient(150deg, var(--orange), var(--orange-2)); color: #fff;
@@ -902,13 +1010,13 @@
   .ct-name { font-size: 0.92rem; font-weight: 800; color: var(--text); }
   .ct-num { font-size: 0.95rem; font-weight: 800; white-space: nowrap; }
   .ct-num i { font-style: normal; font-weight: 700; font-size: .8rem; color: var(--text-muted); }
-  .ct-num.ok { color: #1aa672; } .ct-num.over { color: #d63031; } .ct-num.sin { color: var(--text-muted); font-weight: 700; }
+  .ct-num.ok { color: var(--sem-verde); } .ct-num.over { color: var(--sem-rojo-alt); } .ct-num.sin { color: var(--text-muted); font-weight: 700; }
   .ct-track { position: relative; height: 16px; background: #eef1f5; border-radius: 999px; overflow: hidden; }
   .ct-ref-mark { position: absolute; top: -2px; bottom: -2px; left: 60%; width: 2.5px; background: #16233d; opacity: .9; z-index: 1; border-radius: 2px; }
   .ct-track .bar-fill { height: 100%; border-radius: 999px; background: var(--green); }
-  .ct-track .bar-fill.over { background: #e0322f; }
+  .ct-track .bar-fill.over { background: var(--sem-rojo); }
   .ct-estado { font-size: .76rem; font-weight: 700; margin-top: .25rem; }
-  .ct-estado.ok { color: #1aa672; } .ct-estado.over { color: #d63031; }
+  .ct-estado.ok { color: var(--sem-verde); } .ct-estado.over { color: var(--sem-rojo-alt); }
   .ct-nota { font-size: 0.76rem; color: var(--text-muted); margin-top: 0.9rem; line-height: 1.5; }
   .rl-nota { color: var(--text-muted); }
 
@@ -932,7 +1040,7 @@
   .act-d.l2 { background: #fbbd7e; }
   .act-d.l3 { background: #f7941d; }
   .act-d.l4 { background: #d9660a; }
-  .act-d.fut { background: #f7f9fc; }
+  .act-d.fut { background: var(--sup-suave); }
   .act-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
     margin-top: 0.7rem; font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
   .act-leyenda { display: inline-flex; align-items: center; gap: 3px; }
@@ -996,6 +1104,8 @@
     .tile .tt, .rbtn .tt { font-size: 1.14rem; }
     .tile .ds, .rbtn .ds { font-size: 0.88rem; }
     .rbtn { padding: 1.1rem 1.25rem; }
+    .texto-ctrl .tc-head { padding: 1.1rem 1.25rem; }
+    .tc-slider { margin-left: 1.25rem; margin-right: 1.25rem; }
     .rbtn .ic, .tile .ic { width: 52px; height: 52px; }
     .rbtn .ic svg, .tile .ic svg { width: 26px; height: 26px; }
     .install { padding: 1.15rem 1.35rem; }
@@ -1096,7 +1206,7 @@
        centrado hacía que cada uno quedara en un lugar distinto de la pantalla) y queda más cerca
        de donde mira el ojo al abrir el panel. */
     #portalGate { flex: 1; width: auto; max-width: none; margin: 0; padding: 3.2rem 3rem;
-      display: flex; align-items: flex-start; justify-content: center; background: #fff; }
+      display: flex; align-items: flex-start; justify-content: center; background: var(--card); }
     /* La tarjeta se acomoda al ancho real disponible en vez de un ancho fijo chico: en pantallas
        angostas (justo en el quiebre de escritorio) toma casi todo el ancho libre, y en pantallas
        grandes crece hasta un tope cómodo — nunca queda apretada ni corta palabras. SIN marco
@@ -1143,7 +1253,7 @@
   .stats-reveal { position: fixed; inset: 0; z-index: 1200; pointer-events: none; display: none; overflow: hidden; }
   .stats-reveal.on { display: block; }
   .stats-reveal .sr-circle { position: absolute; left: 50%; bottom: 24px; width: 56px; height: 56px; margin-left: -28px;
-    border-radius: 50%; background: #fff;
+    border-radius: 50%; background: var(--card);
     animation: ondaEstadisticas .46s cubic-bezier(.4,0,.2,1) forwards; }
   /* Escritorio: la onda nace del círculo de Estadísticas del RIEL IZQUIERDO (en celular nace del
      centro-abajo, que es donde está el FAB ahí). El círculo del riel está centrado horizontalmente
@@ -1154,9 +1264,19 @@
   }
 
   /* ── Control de tamaño de letra (deslizador grande, fácil de usar) ── */
-  .texto-ctrl { display: block; cursor: default; }
-  .texto-ctrl .tc-head { display: flex; align-items: center; gap: 0.85rem; }
-  .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.9rem; }
+  /* Cerrado por defecto: arranca sin abrir, se despliega al tocar el título y se cierra solo al
+     tocar afuera o al scrollear (ver tcToggle/tcClose). Antes el slider quedaba siempre visible
+     en Ajustes, ocupando espacio y ruido aunque nadie lo tocara nunca. */
+  .texto-ctrl { display: block; cursor: default; padding: 0; }
+  .texto-ctrl .tc-head { display: flex; align-items: center; gap: 0.85rem; width: 100%;
+    border: none; background: none; padding: 0.95rem 1.1rem; font-family: inherit; text-align: left;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .texto-ctrl .tc-head .chev { transition: transform .2s ease; flex-shrink: 0; }
+  .texto-ctrl.open .tc-head .chev { transform: rotate(90deg); }
+  .tc-slider-wrap { max-height: 0; overflow: hidden; transition: max-height .22s ease, opacity .18s ease;
+    opacity: 0; }
+  .texto-ctrl.open .tc-slider-wrap { max-height: 90px; opacity: 1; }
+  .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin: 0 1.1rem 0.95rem; }
   .tc-slider .tc-a { font-weight: 800; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
   .tc-slider .tc-a.chico { font-size: 0.95rem; }
   .tc-slider .tc-a.grande { font-size: 1.7rem; }
@@ -1173,8 +1293,18 @@
   .tc-slider-grande { margin-top: 1.3rem; }
   .tc-valor { text-align: center; font-weight: 800; color: var(--orange); font-size: 1.02rem; margin-top: 0.15rem; }
 
+  /* ── Selector de apariencia (claro/oscuro/automático) ── */
+  .tema-ctrl { display: block; }
+  .tema-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin: .85rem 1.1rem 0; }
+  .tema-opt { min-height: 44px; padding: .5rem .4rem; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--sup-borde); background: var(--card); color: var(--text-soft);
+    font-size: .82rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .tema-opt.active { border-color: var(--sem-azul); background: var(--sem-azul-bg); color: var(--sem-azul-int); }
+  .tema-opt:active { transform: scale(.97); }
+  .tema-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin: .6rem 1.1rem 0; }
+
   /* Pantalla inicial de tamaño de letra: ejemplos para tantear */
-  .tp-demo { background: #f5f7fb; border: 1px solid #e9edf3; border-radius: 15px; padding: 1rem 1.1rem; margin-top: 1.1rem; }
+  .tp-demo { background: var(--sup-suave); border: 1px solid var(--sup-borde); border-radius: 15px; padding: 1rem 1.1rem; margin-top: 1.1rem; }
   .tp-demo-tit { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
     color: var(--text-muted); margin-bottom: 0.35rem; }
   .tp-demo-tx { font-size: 0.95rem; line-height: 1.6; color: var(--text); margin-bottom: 1.1rem; }
@@ -1282,9 +1412,9 @@
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
   .gest-overlay { padding: 0; }
   .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
-    padding: 0; display: flex; flex-direction: column; overflow: hidden; background: #f4f6fb; }
+    padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sup-suave); }
   .gest-top { display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
-    background: #fff; border-bottom: 1px solid #e6eaf2; flex-shrink: 0; }
+    background: var(--card); border-bottom: 1px solid var(--sup-borde); flex-shrink: 0; }
   .gest-back { border: none; background: #f0f2f5; color: var(--text); border-radius: 10px;
     padding: .5rem .8rem; font-family: inherit; font-weight: 800; font-size: .86rem; cursor: pointer; flex-shrink: 0; }
   .gest-title { flex: 1; min-width: 0; font-weight: 800; font-size: 1.02rem; color: var(--text);
@@ -1296,36 +1426,36 @@
   .gest-scroll > * { max-width: 860px; margin-left: auto; margin-right: auto; }
   /* Captura rápida arriba de todo (como Keep): escribir + Enter y listo */
   .gest-quick { display: flex; gap: .4rem; margin-bottom: .55rem; }
-  .gest-quick-in { flex: 1; min-width: 0; padding: .6rem .8rem; border: 1.5px solid #dfe4ec; border-radius: 11px;
-    font-family: inherit; font-size: .9rem; background: #fff; color: var(--text); }
+  .gest-quick-in { flex: 1; min-width: 0; padding: .6rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
+    font-family: inherit; font-size: .9rem; background: var(--card); color: var(--text); }
   .gest-quick-in:focus { outline: none; border-color: var(--orange); }
   .gest-quick-btn { flex-shrink: 0; width: 40px; border: none; border-radius: 11px; cursor: pointer;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-size: 1.25rem; font-weight: 800; line-height: 1; }
   .gest-sync { font-size: .72rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
   .gest-sync:empty { margin-bottom: 0; }
   .gest-sync.on { color: var(--text-muted); }
-  .gest-sync.ok { color: #1aa672; }
-  .gest-sync.off { color: #b8860b; }
+  .gest-sync.ok { color: var(--sem-verde); }
+  .gest-sync.off { color: var(--sem-ambar); }
 
   /* Resumen compacto: una tira de chips, no 5 tarjetas grandes */
   .gest-sum { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
   .gest-sum:empty { margin-bottom: 0; }
   .gs-chip { font-size: .72rem; font-weight: 800; padding: .22rem .55rem; border-radius: 999px;
     background: #eef1f5; color: var(--text-soft); }
-  .gs-ab { background: #feecec; color: #d63031; } .gs-seg { background: #fff8e6; color: #b8860b; }
-  .gs-res { background: #e6f7f0; color: #1aa672; } .gs-venc { background: #feecec; color: #d63031; }
+  .gs-ab { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); } .gs-seg { background: var(--sem-ambar-bg); color: var(--sem-ambar); }
+  .gs-res { background: var(--sem-verde-bg); color: var(--sem-verde); } .gs-venc { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); }
 
   .gest-tools { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .6rem; }
-  .gest-search { width: 100%; padding: .55rem .8rem; border: 1.5px solid #dfe4ec; border-radius: 11px;
-    font-family: inherit; font-size: .88rem; background: #fff; color: var(--text); }
+  .gest-search { width: 100%; padding: .55rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
+    font-family: inherit; font-size: .88rem; background: var(--card); color: var(--text); }
   .gest-search:focus { outline: none; border-color: var(--orange); }
   .gest-filters { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: .2rem; }
   .gest-filters::-webkit-scrollbar { display: none; }
-  .gest-fchip { border: 1px solid #dfe4ec; background: #fff; color: var(--text-muted); border-radius: 999px;
+  .gest-fchip { border: 1px solid var(--sup-borde); background: var(--card); color: var(--text-muted); border-radius: 999px;
     padding: .4rem .8rem; font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .gest-fchip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
-  .gest-card { background: #fff; border: 1px solid #e6eaf2; border-radius: 13px; margin-bottom: .45rem; overflow: hidden;
+  .gest-card { background: var(--card); border: 1px solid var(--sup-borde); border-radius: 13px; margin-bottom: .45rem; overflow: hidden;
     box-shadow: var(--shadow-sm); }
   .gest-card.pinned { border-color: #f6c88a; box-shadow: 0 2px 12px rgba(244,122,31,.14); }
   /* Encabezado DENSO: 2 líneas, sin etiquetas grandes (el estado se lee por la barra y el punto). */
@@ -1346,9 +1476,9 @@
 
   .gest-body { padding: 0 .7rem .8rem; border-top: 1px solid #eef1f5; }
   .gest-fl { display: block; font-size: .68rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
-  .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid #dfe4ec; border-radius: 9px;
-    font-family: inherit; font-size: .88rem; background: #fafbfd; color: var(--text); }
-  .gest-in:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid var(--sup-borde); border-radius: 9px;
+    font-family: inherit; font-size: .88rem; background: var(--sup-campo); color: var(--text); }
+  .gest-in:focus { outline: none; border-color: var(--orange); background: var(--card); }
   select.gest-in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem; }
   .gest-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
   .gest-fl-hint { font-weight: 700; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
@@ -1367,7 +1497,7 @@
   .gest-tarea span { flex: 1; min-width: 0; line-height: 1.35; word-break: break-word; }
   .gest-tarea.ok span { text-decoration: line-through; color: var(--text-muted); }
   .gest-tarea-x { border: none; background: none; color: #c3cbd8; cursor: pointer; font-size: .78rem; padding: .1rem .25rem; flex-shrink: 0; }
-  .gest-tarea-x:hover { color: #e0322f; }
+  .gest-tarea-x:hover { color: var(--sem-rojo); }
 
   /* ── Panel de gestiones: versión dinámica ── */
   .gest-toolrow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
@@ -1376,18 +1506,18 @@
   .gest-filters-wrap { position: relative; flex: 1; min-width: 0; }
   .gest-filters-wrap .gest-filters { flex: none; }
   .gest-filters-wrap .dt-fade { background: none; }
-  .gest-filters-wrap .dt-fade-l { background: linear-gradient(to right, #f4f6fb 35%, transparent); }
-  .gest-filters-wrap .dt-fade-r { background: linear-gradient(to left, #f4f6fb 35%, transparent); }
+  .gest-filters-wrap .dt-fade-l { background: linear-gradient(to right, var(--sup-suave) 35%, transparent); }
+  .gest-filters-wrap .dt-fade-r { background: linear-gradient(to left, var(--sup-suave) 35%, transparent); }
   .gest-filters-wrap.mas-izq .dt-fade-l { opacity: 1; }
   .gest-filters-wrap.mas-der .dt-fade-r { opacity: 1; animation: dtNudge 1.5s ease-in-out infinite; }
-  .gest-sort { border: 1.5px solid #dfe4ec; background: #fff; border-radius: 10px; padding: .48rem .6rem;
+  .gest-sort { border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 10px; padding: .48rem .6rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; color: var(--text); cursor: pointer; flex-shrink: 0; }
   /* Barra de color a la izquierda según estado (se lee de un vistazo). */
   .gest-card { position: relative; animation: gestIn .26s ease both; }
   .gest-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #c9d1de; }
-  .gest-card[data-estado="abierta"] .gest-accent { background: #e0322f; }
+  .gest-card[data-estado="abierta"] .gest-accent { background: var(--sem-rojo); }
   .gest-card[data-estado="seguimiento"] .gest-accent { background: #e8a400; }
-  .gest-card[data-estado="resuelta"] .gest-accent { background: #1aa672; }
+  .gest-card[data-estado="resuelta"] .gest-accent { background: var(--sem-verde); }
   @keyframes gestIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @keyframes gestOut { to { opacity: 0; transform: scale(.97); } }
   .gest-card.gest-out { animation: gestOut .2s ease forwards; }
@@ -1405,24 +1535,24 @@
   .gse-btn.active { background: var(--gseb); color: var(--gse); box-shadow: var(--shadow-sm); }
   /* Prioridad: pastillas */
   .gest-prio-pills { display: flex; gap: .4rem; }
-  .gpp { flex: 1; border: 1.5px solid #dfe4ec; background: #fff; border-radius: 10px; padding: .5rem; font-family: inherit;
+  .gpp { flex: 1; border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 10px; padding: .5rem; font-family: inherit;
     font-weight: 800; font-size: .82rem; color: var(--text-muted); cursor: pointer; transition: border-color .15s, color .15s, box-shadow .15s; }
   .gpp.active { border-color: var(--gpp); color: var(--gpp); box-shadow: inset 0 0 0 1px var(--gpp); }
   /* "Guardado ✓" al cambiar algo */
-  .gest-flash { position: absolute; top: .55rem; right: 2.5rem; background: #1aa672; color: #fff; font-size: .66rem;
+  .gest-flash { position: absolute; top: .55rem; right: 2.5rem; background: var(--sem-verde); color: #fff; font-size: .66rem;
     font-weight: 800; padding: .2rem .5rem; border-radius: 999px; opacity: 0; transform: translateY(-4px);
     pointer-events: none; transition: opacity .2s, transform .2s; z-index: 2; }
   .gest-flash.show { opacity: 1; transform: translateY(0); }
   /* Insignia de próxima revisión (vencida / hoy / futura) */
   .gest-rev { font-weight: 800; padding: .04rem .38rem; border-radius: 6px; white-space: nowrap; }
-  .gest-rev.venc { color: #d63031; background: #feecec; }
-  .gest-rev.hoy  { color: #b8860b; background: #fff8e6; }
-  .gest-rev.fut  { color: #2d6cdf; background: #eef3ff; }
+  .gest-rev.venc { color: var(--sem-rojo-alt); background: var(--sem-rojo-bg); }
+  .gest-rev.hoy  { color: var(--sem-ambar); background: var(--sem-ambar-bg); }
+  .gest-rev.fut  { color: var(--sem-azul); background: #eef3ff; }
   html.texto-grande .gest-seg-estado { grid-template-columns: 1fr; }
   html.texto-grande .gest-prio-pills { flex-direction: column; }
-  .gest-ta { width: 100%; min-height: 84px; resize: vertical; padding: .65rem .75rem; border: 1.5px solid #dfe4ec;
-    border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: #fafbfd; color: var(--text); }
-  .gest-ta:focus { outline: none; border-color: var(--orange); background: #fff; }
+  .gest-ta { width: 100%; min-height: 84px; resize: vertical; padding: .65rem .75rem; border: 1.5px solid var(--sup-borde);
+    border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: var(--sup-campo); color: var(--text); }
+  .gest-ta:focus { outline: none; border-color: var(--orange); background: var(--card); }
 
   .gest-seg-head { font-size: .74rem; font-weight: 800; color: var(--text); margin: .8rem 0 .35rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-seg-add { display: flex; gap: .4rem; }
@@ -1430,14 +1560,14 @@
   .gest-seg-btn { border: none; background: var(--navy); color: #fff; border-radius: 9px; padding: .5rem .75rem;
     font-family: inherit; font-weight: 800; font-size: .8rem; cursor: pointer; flex-shrink: 0; }
   .gest-seg-empty { font-size: .76rem; color: var(--text-muted); margin-top: .45rem; line-height: 1.4; }
-  .gest-timeline { margin-top: .6rem; border-left: 2px solid #e6eaf2; padding-left: .1rem; }
+  .gest-timeline { margin-top: .6rem; border-left: 2px solid var(--sup-borde); padding-left: .1rem; }
   .gest-tl-item { position: relative; display: flex; align-items: flex-start; gap: .5rem; padding: 0 0 .6rem .9rem; }
   .gest-tl-dot { position: absolute; left: -5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px #fff; }
   .gest-tl-c { flex: 1; min-width: 0; }
   .gest-tl-date { font-size: .72rem; font-weight: 800; color: var(--text-muted); }
   .gest-tl-txt { font-size: .88rem; color: var(--text); line-height: 1.45; margin-top: .1rem; white-space: pre-wrap; word-break: break-word; }
   .gest-tl-x { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: .8rem; padding: .1rem .3rem; flex-shrink: 0; }
-  .gest-tl-x:hover { color: #e0322f; }
+  .gest-tl-x:hover { color: var(--sem-rojo); }
 
   .gest-guardar { width: 100%; margin-top: .85rem; padding: .6rem; border: none; border-radius: 10px;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
@@ -1446,7 +1576,7 @@
   .gest-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: .55rem;
     padding-top: .55rem; border-top: 1px solid #eef1f5; }
   .gest-created { font-size: .7rem; color: var(--text-muted); font-weight: 600; }
-  .gest-del { border: 1px solid #f3c2c0; background: #fff; color: #d63031; border-radius: 9px; padding: .45rem .8rem;
+  .gest-del { border: 1px solid #f3c2c0; background: var(--card); color: var(--sem-rojo-alt); border-radius: 9px; padding: .45rem .8rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
   .gest-empty { text-align: center; color: var(--text-soft); font-size: .9rem; line-height: 1.6; padding: 2.4rem 1rem; }
   /* ── Vista de APTITUD (supervisor): semáforos, sin valores ── */
@@ -1469,35 +1599,46 @@
   .apt-tap svg { width: 8px; height: 8px; color: var(--ac); }
   /* Variante EN LÍNEA (filas de la cola médica): va primero en la fila, no flota arriba a la
      derecha — ahí podía superponerse con la fecha, que ya usa esa esquina. */
-  .apt-tap-inline { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; background: #fff;
+  .apt-tap-inline { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; background: var(--card);
     display: flex; align-items: center; justify-content: center; }
   .apt-tap-inline svg { width: 8px; height: 8px; color: var(--anc); }
   /* Controles de "Estado por persona": invertir el orden / quedarse sólo con indicación médica. */
   .apt-ctrls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
-  .apt-ctrl-btn { display: inline-flex; align-items: center; gap: .4rem; border: 1.5px solid #e3e8f0;
-    background: #fff; border-radius: 999px; padding: .45rem .8rem; font-family: inherit; font-weight: 700;
+  .apt-ctrl-btn { display: inline-flex; align-items: center; gap: .4rem; border: 1.5px solid var(--sup-borde);
+    background: var(--card); border-radius: 999px; padding: .45rem .8rem; font-family: inherit; font-weight: 700;
     font-size: .78rem; color: var(--text-soft); cursor: pointer; }
   .apt-ctrl-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
   .apt-ctrl-btn.on { border-color: var(--navy); background: #eef2f8; color: var(--navy); }
   .apt-chips-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
+  /* Buscador de personas */
+  .apt-buscar-wrap { position: relative; display: flex; align-items: center; margin-bottom: .6rem; }
+  .apt-buscar-ico { position: absolute; left: .7rem; width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
+  .apt-buscar { width: 100%; min-height: 44px; padding: .55rem 2.2rem .55rem 2.3rem;
+    border: 1.5px solid var(--sup-borde); border-radius: 999px; background: var(--sup-campo);
+    color: var(--text); font-size: .88rem; font-family: inherit; }
+  .apt-buscar:focus { outline: none; border-color: var(--sem-azul); background: var(--card); }
+  .apt-buscar::-webkit-search-cancel-button { display: none; }   /* usamos nuestra propia ✕ */
+  .apt-buscar-x { position: absolute; right: .5rem; width: 28px; height: 28px; border: none;
+    border-radius: 50%; background: var(--sup-linea); color: var(--text-soft);
+    font-size: 1rem; font-weight: 800; cursor: pointer; line-height: 1; }
   .apt-filtro-chip { display: inline-flex; align-items: center; gap: .45rem; background: #eef2f8;
     border-radius: 999px; padding: .3rem .4rem .3rem .8rem; font-size: .78rem; color: var(--text-soft); margin-bottom: 0; }
-  .apt-filtro-x { border: none; background: #fff; color: var(--text-soft); width: 20px; height: 20px;
+  .apt-filtro-x { border: none; background: var(--card); color: var(--text-soft); width: 20px; height: 20px;
     border-radius: 50%; font-family: inherit; font-weight: 800; cursor: pointer; line-height: 1; }
   /* Estado general del equipo: todo conteos de personas, ningún valor de test */
   .apt-eq-gauge { display: flex; align-items: center; gap: .85rem; }
   .apt-eq-pct { font-size: 2.1rem; font-weight: 800; color: var(--navy); line-height: 1; flex-shrink: 0; }
   .apt-eq-cap { font-size: .78rem; color: var(--text-soft); line-height: 1.4; }
   .apt-eq-bar { height: 8px; border-radius: 999px; background: #edf0f5; overflow: hidden; margin: .75rem 0 .9rem; }
-  .apt-eq-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#1aa672,#43cf95); }
+  .apt-eq-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,var(--sem-verde),#43cf95); }
   .apt-eq-row { display: flex; align-items: baseline; justify-content: space-between; gap: .7rem;
     padding: .45rem 0; border-bottom: 1px solid #f0f2f5; font-size: .82rem; }
   .apt-eq-row:last-of-type { border-bottom: none; }
   .apt-eq-k { color: var(--text-soft); font-weight: 600; min-width: 0; line-height: 1.35; }
   .apt-eq-v { font-weight: 800; color: var(--text); flex-shrink: 0; }
   .apt-eq-v small { font-weight: 700; color: var(--text-muted); }
-  .apt-eq-v.rojo { color: #d63031; }
-  .apt-eq-v.amarillo { color: #b8860b; }
+  .apt-eq-v.rojo { color: var(--sem-rojo-alt); }
+  .apt-eq-v.amarillo { color: var(--sem-ambar); }
   .apt-eq-v.gris { color: var(--text-muted); }
   .apt-eq-nota { font-size: .72rem; color: var(--text-muted); line-height: 1.45; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
@@ -1506,7 +1647,7 @@
   .apt-leyenda { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin-bottom: .9rem; }
   .apt-lg { display: inline-flex; align-items: center; gap: .3rem; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
   .apt-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-  .apt-card { border: 1px solid #e6eaf2; border-radius: 14px; padding: .8rem .85rem; margin-bottom: .6rem; background: #fff; }
+  .apt-card { border: 1px solid var(--sup-borde); border-radius: 14px; padding: .8rem .85rem; margin-bottom: .6rem; background: var(--card); }
   .apt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; margin-bottom: .6rem; }
   .apt-id { min-width: 0; }
   .apt-name { font-size: .95rem; font-weight: 800; color: var(--text); }
@@ -1516,27 +1657,27 @@
   .apt-nivel { display:inline-block; margin-left:.4rem; padding:.05rem .38rem; border-radius:999px;
     font-size:.66rem; font-weight:800; letter-spacing:.01em; white-space:nowrap;
     border:1px solid currentColor; opacity:.95; }
-  .apt-nivel-1 { color:#3d8f6d; }
-  .apt-nivel-2 { color:#5a8f3d; }
-  .apt-nivel-3 { color:#a8791b; }
-  .apt-nivel-4 { color:#c96a1b; }
-  .apt-nivel-5 { color:#c0271f; }
+  .apt-nivel-1 { color:var(--niv-1); }
+  .apt-nivel-2 { color:var(--niv-2); }
+  .apt-nivel-3 { color:var(--niv-3); }
+  .apt-nivel-4 { color:var(--niv-4); }
+  .apt-nivel-5 { color:var(--niv-5); }
 
   /* ── Restricción operativa del supervisor ──
      Color propio (azul), distinto del ámbar/rojo de las determinaciones médicas: son dos
      autoridades distintas y no se pueden leer como lo mismo de un vistazo. */
   .apt-restr { margin-top:.55rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
-    background:#eaf1fd; border-left:3px solid #2d6cdf; }
-  .apt-restr-top { font-size:.68rem; font-weight:800; color:#2d6cdf; text-transform:uppercase; letter-spacing:.03em; }
+    background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); }
+  .apt-restr-top { font-size:.68rem; font-weight:800; color:var(--sem-azul); text-transform:uppercase; letter-spacing:.03em; }
   .apt-restr-tarea { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.2rem; }
-  .apt-restr-mit { font-size:.76rem; font-weight:700; color:#1d4ea8; margin-top:.15rem; }
+  .apt-restr-mit { font-size:.76rem; font-weight:700; color:var(--sem-azul-int); margin-top:.15rem; }
   .apt-restr-nota { font-size:.76rem; color:var(--text-soft); margin-top:.18rem; line-height:1.4; }
-  .apt-restr-hasta { font-size:.72rem; font-weight:700; color:#1d4ea8; margin-top:.25rem; }
+  .apt-restr-hasta { font-size:.72rem; font-weight:700; color:var(--sem-azul-int); margin-top:.25rem; }
   .apt-restr-pie { font-style:italic; opacity:.9; }
   .apt-con-restr { box-shadow:inset 3px 0 0 rgba(45,108,223,.35), var(--shadow-sm); }
   .apt-acciones { margin-top:.6rem; display:flex; gap:.45rem; flex-wrap:wrap; }
   .apt-act { flex:1 1 auto; min-height:44px; padding:.5rem .8rem; border-radius:var(--radius-sm);
-    border:1.5px solid #2d6cdf; background:#fff; color:#2d6cdf; font-size:.82rem; font-weight:800;
+    border:1.5px solid var(--sem-azul); background: var(--card); color:var(--sem-azul); font-size:.82rem; font-weight:800;
     cursor:pointer; font-family:inherit; }
   .apt-act:active { transform:scale(.98); }
   .apt-act-off { border-color:#7b8499; color:#525d73; }
@@ -1548,18 +1689,18 @@
   .restr-tope { display:inline-block; margin-left:.3rem; padding:.05rem .4rem; border-radius:999px;
     background:#f2f4f7; font-size:.7rem; font-weight:700; }
   .restr-aviso { margin:.7rem 0; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#eaf1fd; border-left:3px solid #2d6cdf; font-size:.78rem; color:var(--text-soft); line-height:1.45; }
+    background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
   .restr-lbl { display:block; font-size:.76rem; font-weight:800; color:var(--text); margin:.75rem 0 .3rem; }
   .restr-input { width:100%; min-height:44px; padding:.55rem .7rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; font-size:.9rem; font-family:inherit; background:#fff; color:var(--text); }
-  .restr-input.invalid { border-color:#e0322f; background:#feecec; }
+    border:1.5px solid var(--sup-borde); font-size:.9rem; font-family:inherit; background: var(--card); color:var(--text); }
+  .restr-input.invalid { border-color:var(--sem-rojo); background:var(--sem-rojo-bg); }
   .restr-nota { width:100%; min-height:70px; padding:.55rem .7rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; font-size:.88rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
+    border:1.5px solid var(--sup-borde); font-size:.88rem; font-family:inherit; resize:vertical; background: var(--card); color:var(--text); }
   .restr-mits, .restr-durs { display:flex; flex-wrap:wrap; gap:.35rem; }
   .restr-mit, .restr-dur { min-height:44px; padding:.45rem .7rem; border-radius:999px;
-    border:1.5px solid #d7dce6; background:#fff; color:var(--text-soft);
+    border:1.5px solid var(--sup-borde); background: var(--card); color:var(--text-soft);
     font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
-  .restr-mit.active, .restr-dur.active { border-color:#2d6cdf; background:#eaf1fd; color:#1d4ea8; }
+  .restr-mit.active, .restr-dur.active { border-color:var(--sem-azul); background:var(--sem-azul-bg); color:var(--sem-azul-int); }
   .restr-tope-nota { font-size:.72rem; color:var(--text-muted); margin-top:.35rem; line-height:1.4; }
   .restr-actions { display:flex; gap:.5rem; margin-top:1rem; }
   .restr-actions > button { flex:1; }
@@ -1569,36 +1710,36 @@
   .sf-t { font-size:1.02rem; font-weight:800; color:var(--sfc); }
   .sf-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
   .sf-restr { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#eaf1fd; border-left:3px solid #2d6cdf; font-size:.82rem; color:#1d4ea8; }
+    background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.82rem; color:var(--sem-azul-int); }
   .sf-restr-pie { font-size:.71rem; color:#3f6fb8; font-weight:700; margin-top:.25rem; }
 
-  .sf-turno-paso { padding:.6rem 0; border-top:1px solid #eef1f6; }
+  .sf-turno-paso { padding:.6rem 0; border-top:1px solid var(--sup-linea); }
   .sf-turno-paso:first-child { border-top:none; }
   .sf-turno-top { display:flex; align-items:center; gap:.5rem; }
-  .sf-turno-n { flex:0 0 auto; width:1.5rem; height:1.5rem; border-radius:50%; background:#eef1f6;
+  .sf-turno-n { flex:0 0 auto; width:1.5rem; height:1.5rem; border-radius:50%; background:var(--sup-linea);
     color:var(--text-muted); font-size:.76rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
-  .sf-turno-ok .sf-turno-n { background:#e6f7f0; color:#1aa672; }
+  .sf-turno-ok .sf-turno-n { background:var(--sem-verde-bg); color:var(--sem-verde); }
   .sf-turno-activo .sf-turno-n { background:#fff3e2; color:#f47a1f; }
   .sf-turno-tt { flex:1 1 auto; font-size:.86rem; font-weight:700; color:var(--text); }
-  .sf-turno-check { flex:0 0 auto; font-size:.76rem; font-weight:800; color:#1aa672; }
+  .sf-turno-check { flex:0 0 auto; font-size:.76rem; font-weight:800; color:var(--sem-verde); }
   .sf-turno-sub { font-size:.78rem; color:var(--text-muted); margin-top:.15rem; margin-left:2rem; }
   .sf-turno-off { opacity:.45; }
   .sf-turno-form { margin-top:.45rem; margin-left:2rem; display:flex; flex-direction:column; gap:.4rem; max-width:320px; }
   .sf-turno-form label { font-size:.78rem; color:var(--text-soft); font-weight:600; }
   .sf-turno-form select { min-height:44px; padding:.4rem .6rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; background:#fff; color:var(--text); }
+    border:1.5px solid var(--sup-borde); font-size:.85rem; font-family:inherit; background: var(--card); color:var(--text); }
   .sf-turno-form button { min-height:40px; padding:.4rem .8rem; border-radius:var(--radius-sm); border:none;
     background:#f47a1f; color:#fff; font-size:.8rem; font-weight:800; cursor:pointer; font-family:inherit; align-self:flex-start; }
 
   .sf-reporte-cerrado { cursor:pointer; text-align:center; }
-  .sf-reporte-btn { font-size:.92rem; font-weight:800; color:#1d4ea8; }
+  .sf-reporte-btn { font-size:.92rem; font-weight:800; color:var(--sem-azul-int); }
   .sf-rep-chips { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0; }
-  .sf-rep-chip { min-height:44px; padding:.5rem .8rem; border-radius:999px; border:1.5px solid #d7dce6;
-    background:#fff; color:var(--text-soft); font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .sf-rep-chip { min-height:44px; padding:.5rem .8rem; border-radius:999px; border:1.5px solid var(--sup-borde);
+    background: var(--card); color:var(--text-soft); font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
   .sf-rep-chip small { opacity:.75; font-weight:600; }
-  .sf-rep-chip.active { border-color:#2d6cdf; background:#eaf1fd; color:#1d4ea8; }
+  .sf-rep-chip.active { border-color:var(--sem-azul); background:var(--sem-azul-bg); color:var(--sem-azul-int); }
   .sf-rep-coment { width:100%; min-height:60px; padding:.5rem .65rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; font-size:.85rem; font-family:inherit; resize:vertical; background:#fff; color:var(--text); }
+    border:1.5px solid var(--sup-borde); font-size:.85rem; font-family:inherit; resize:vertical; background: var(--card); color:var(--text); }
   .sf-rep-send { flex:1; }
 
   /* ── Modo simulación (P8): imposible de confundir con la sesión real ── */
@@ -1622,7 +1763,7 @@
   .adm-p { font-size:.81rem; color:var(--text-soft); line-height:1.5; }
   .adm-roles { display:grid; grid-template-columns:1fr 1fr; gap:.45rem; margin-bottom:1rem; }
   .adm-rol { display:flex; flex-direction:column; gap:.15rem; min-height:60px; padding:.55rem .65rem;
-    border-radius:var(--radius-sm); border:1.5px solid #d7dce6; background:#fff; cursor:pointer;
+    border-radius:var(--radius-sm); border:1.5px solid var(--sup-borde); background: var(--card); cursor:pointer;
     font-family:inherit; text-align:left; }
   .adm-rol:active { transform:scale(.98); }
   .adm-rol-t { font-size:.85rem; font-weight:800; color:var(--text); }
@@ -1648,15 +1789,15 @@
   .doc-c b { color:var(--text); }
   .doc-tw { overflow-x:auto; margin:.6rem 0; -webkit-overflow-scrolling:touch; }
   .doc-t { width:100%; border-collapse:collapse; font-size:.78rem; min-width:340px; }
-  .doc-t th { text-align:left; padding:.4rem .5rem; background:#f2f5fa; color:var(--text);
-    font-weight:800; border-bottom:1.5px solid #e3e8f0; white-space:nowrap; }
-  .doc-t td { padding:.4rem .5rem; border-bottom:1px solid #eef1f6; vertical-align:top; }
+  .doc-t th { text-align:left; padding:.4rem .5rem; background:var(--sup-suave); color:var(--text);
+    font-weight:800; border-bottom:1.5px solid var(--sup-borde); white-space:nowrap; }
+  .doc-t td { padding:.4rem .5rem; border-bottom:1px solid var(--sup-linea); vertical-align:top; }
   .doc-chip { display:inline-block; padding:.1rem .45rem; border-radius:999px; font-size:.72rem; font-weight:800; }
   .doc-niv { display:inline-block; padding:.05rem .35rem; border-radius:4px; border:1px solid currentColor; font-size:.74rem; }
-  .doc-niv-1 { color:#3d8f6d; } .doc-niv-2 { color:#5a8f3d; } .doc-niv-3 { color:#a8791b; }
-  .doc-niv-4 { color:#c96a1b; } .doc-niv-5 { color:#c0271f; }
-  .doc-ej { padding:.55rem .65rem; border-radius:var(--radius-sm); background:#fff8e6;
-    border-left:3px solid #b8860b; }
+  .doc-niv-1 { color:var(--niv-1); } .doc-niv-2 { color:var(--niv-2); } .doc-niv-3 { color:var(--niv-3); }
+  .doc-niv-4 { color:var(--niv-4); } .doc-niv-5 { color:var(--niv-5); }
+  .doc-ej { padding:.55rem .65rem; border-radius:var(--radius-sm); background:var(--sem-ambar-bg);
+    border-left:3px solid var(--sem-ambar); }
   .doc-pie { text-align:center; font-size:.74rem; color:var(--text-muted); margin:1rem 0 2rem; }
   @media (min-width: 700px){
     .doc-body { max-width:760px; margin:0 auto; width:100%; }
@@ -1668,20 +1809,20 @@
   /* Los dos números (disponibilidad y cobertura) van SIEMPRE juntos: ver el comentario en
      renderHseqIdc sobre por qué la disponibilidad sola es engañosa. */
   .hs-duo { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin:.6rem 0 .5rem; }
-  .hs-duo-c { text-align:center; padding:.5rem .3rem; border-radius:var(--radius-sm); background:#f7f9fc; }
+  .hs-duo-c { text-align:center; padding:.5rem .3rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
   .hs-duo-c .hs-cap small { font-size:.72rem; color:var(--text-muted); font-weight:600; }
   .hs-duo-flojo .hs-pct-big { color:var(--text-muted); }        /* poca cobertura: no es dato confiable */
-  .hs-duo-alerta { background:#fff8e6; }
-  .hs-duo-alerta .hs-pct-big { color:#b8860b; }
+  .hs-duo-alerta { background:var(--sem-ambar-bg); }
+  .hs-duo-alerta .hs-pct-big { color:var(--sem-ambar); }
   .hs-pct-big { font-size:2.4rem; font-weight:800; color:var(--navy); line-height:1.05; }
   .hs-cap { font-size:.8rem; color:var(--text-soft); font-weight:600; margin-top:.15rem; }
-  .hs-bar { height:9px; border-radius:999px; background:#eef1f6; overflow:hidden; }
-  .hs-bar > i { display:block; height:100%; background:linear-gradient(90deg,#1aa672,#3ec98f); }
+  .hs-bar { height:9px; border-radius:999px; background:var(--sup-linea); overflow:hidden; }
+  .hs-bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--sem-verde),#3ec98f); }
   .hs-alerta { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#fff8e6; border-left:3px solid #b8860b; font-size:.8rem; color:var(--text-soft); line-height:1.45; }
+    background:var(--sem-ambar-bg); border-left:3px solid var(--sem-ambar); font-size:.8rem; color:var(--text-soft); line-height:1.45; }
   .hs-ok { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#e6f7f0; border-left:3px solid #1aa672; font-size:.8rem; color:var(--text-soft); }
-  .hs-row { display:flex; align-items:center; gap:.5rem; padding:.4rem .1rem; border-top:1px solid #eef1f6; }
+    background:var(--sem-verde-bg); border-left:3px solid var(--sem-verde); font-size:.8rem; color:var(--text-soft); }
+  .hs-row { display:flex; align-items:center; gap:.5rem; padding:.4rem .1rem; border-top:1px solid var(--sup-linea); }
   .hs-row:first-of-type { border-top:none; }
   .hs-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
   .hs-k { flex:1 1 auto; font-size:.83rem; font-weight:700; color:var(--text); min-width:0; }
@@ -1689,8 +1830,8 @@
   .hs-v { flex:0 0 auto; font-size:.95rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
   .hs-pct { flex:0 0 3rem; text-align:right; font-size:.78rem; font-weight:700; color:var(--text-muted); }
   .hs-niv { font-size:.7rem; padding:.05rem .3rem; border-radius:4px; border:1px solid currentColor; }
-  .hs-niv-1 { color:#3d8f6d; } .hs-niv-2 { color:#5a8f3d; } .hs-niv-3 { color:#a8791b; }
-  .hs-niv-4 { color:#c96a1b; } .hs-niv-5 { color:#c0271f; }
+  .hs-niv-1 { color:var(--niv-1); } .hs-niv-2 { color:var(--niv-2); } .hs-niv-3 { color:var(--niv-3); }
+  .hs-niv-4 { color:var(--niv-4); } .hs-niv-5 { color:var(--niv-5); }
   .hs-grid { display:grid; grid-template-columns:1fr; gap:.45rem; }
   @media (min-width: 700px){ .hs-grid { grid-template-columns:1fr 1fr; } }
   .hs-cell { padding:.55rem .65rem; border-radius:var(--radius-sm); background:var(--hbg); border-left:3px solid var(--hc); }
@@ -1701,91 +1842,91 @@
   .hs-cell-bar { height:5px; border-radius:999px; background:rgba(0,0,0,0.07); overflow:hidden; margin-top:.35rem; }
   .hs-cell-bar > i { display:block; height:100%; background:var(--hc); }
   .hs-agregado { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#f6f1fb; border-left:3px solid #6b3fa0; font-size:.8rem; color:var(--text-soft); }
+    background:var(--sem-morado-bg); border-left:3px solid var(--sem-morado); font-size:.8rem; color:var(--text-soft); }
   .hs-agregado-n { font-size:.72rem; color:var(--text-muted); margin-top:.2rem; }
   .hs-nota { margin-top:.6rem; font-size:.78rem; color:var(--text-soft); line-height:1.45;
-    padding:.5rem .6rem; border-radius:var(--radius-sm); background:#f7f9fc; }
-  .hs-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:#f7f9fc; margin-bottom:.35rem; }
+    padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
+  .hs-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--sup-suave); margin-bottom:.35rem; }
   .hs-ev-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
   .hs-ev-acc { font-size:.8rem; font-weight:800; color:var(--text); }
   .hs-ev-fecha { font-size:.71rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
   .hs-ev-sub { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; }
   .hs-ev-um { font-size:.7rem; color:var(--text-muted); margin-top:.2rem; font-variant-numeric:tabular-nums; }
   .hs-exp { margin-top:.6rem; min-height:44px; padding:.5rem 1rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; background:#fff; color:var(--text-soft);
+    border:1.5px solid var(--sup-borde); background: var(--card); color:var(--text-soft);
     font-size:.83rem; font-weight:700; cursor:pointer; font-family:inherit; }
-  .hs-falta { padding:.45rem .1rem; border-top:1px solid #eef1f6; }
+  .hs-falta { padding:.45rem .1rem; border-top:1px solid var(--sup-linea); }
   .hs-falta:first-of-type { border-top:none; }
   .hs-falta-t { display:block; font-size:.83rem; font-weight:700; color:var(--text); }
   .hs-falta-d { display:block; font-size:.73rem; color:var(--text-muted); margin-top:.1rem; }
   .hs-supuestos { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#f7f9fc; font-size:.79rem; color:var(--text-soft); line-height:1.6; }
+    background:var(--sup-suave); font-size:.79rem; color:var(--text-soft); line-height:1.6; }
   .hs-supuestos b { display:block; color:var(--text); margin-bottom:.2rem; }
   .hs-aviso-est { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
-    background:#fff8e6; border-left:3px solid #b8860b; font-size:.78rem; color:var(--text-soft); line-height:1.45; }
+    background:var(--sem-ambar-bg); border-left:3px solid var(--sem-ambar); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
 
   /* ── Telemedicina (P6): tercera capa, distinta de la médica y de la operativa ── */
   .apt-telem { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
     background:var(--tbg); border-left:3px solid var(--tc); }
   .apt-telem-top { font-size:.76rem; font-weight:800; color:var(--tc); }
   .apt-telem-nota { font-size:.77rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
-  .apt-act-telem { border-color:#1d4ea8; color:#1d4ea8; }
-  .fm-chip-telem { color:#1d4ea8; background:#eaf1fd; }
+  .apt-act-telem { border-color:var(--sem-azul-int); color:var(--sem-azul-int); }
+  .fm-chip-telem { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .fm-telem-accion { font-size:.82rem; color:var(--text-soft); line-height:1.5; }
   .fm-telem-accion .fm-nota-btn { display:block; margin-top:.5rem; }
   /* Tarjeta de telemedicina en la vista de la PERSONA */
-  .tm-block { border-left:4px solid #2d6cdf; background:#eaf1fd; }
-  .tm-aceptada, .tm-hecha { border-left-color:#128a5e; background:#e2f6ee; }
-  .tm-t { font-size:1rem; font-weight:800; color:#1d4ea8; }
-  .tm-aceptada .tm-t, .tm-hecha .tm-t { color:#128a5e; }
+  .tm-block { border-left:4px solid var(--sem-azul); background:var(--sem-azul-bg); }
+  .tm-aceptada, .tm-hecha { border-left-color:var(--sem-verde-int); background:var(--sem-verde-int-bg); }
+  .tm-t { font-size:1rem; font-weight:800; color:var(--sem-azul-int); }
+  .tm-aceptada .tm-t, .tm-hecha .tm-t { color:var(--sem-verde-int); }
   .tm-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
   .tm-si { flex:1; min-height:44px; padding:.7rem; border-radius:11px; border:none;
-    background:#128a5e; color:#fff; font-size:.88rem; font-weight:800; cursor:pointer; font-family:inherit; }
+    background:var(--sem-verde-int); color:#fff; font-size:.88rem; font-weight:800; cursor:pointer; font-family:inherit; }
   .tm-si:active { transform:scale(.98); }
 
   /* ── Bandeja de reportes (vista supervisor) ── */
   .rep-item { position:relative; padding:.6rem .65rem .6rem 1.9rem; border-radius:var(--radius-sm);
-    background:#f7f9fc; margin-bottom:.4rem; cursor:pointer; }
-  .rep-item-anon { cursor:default; background:#f6f1fb; border-left:3px solid #6b3fa0; padding-left:.65rem; }
+    background:var(--sup-suave); margin-bottom:.4rem; cursor:pointer; }
+  .rep-item-anon { cursor:default; background:var(--sem-morado-bg); border-left:3px solid var(--sem-morado); padding-left:.65rem; }
   .rep-item:not(.rep-item-anon):active { transform:scale(.99); }
   .rep-top { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
   .rep-name { font-weight:800; color:var(--text); font-size:.86rem; }
-  .rep-anon-badge { font-weight:800; color:#6b3fa0; font-size:.74rem; background:#ece3f7;
+  .rep-anon-badge { font-weight:800; color:var(--sem-morado); font-size:.74rem; background:var(--sem-morado-badge-bg);
     padding:.1rem .5rem; border-radius:999px; }
-  .rep-badge-nuevo { font-weight:800; color:#c0271f; font-size:.66rem; background:#fde8e6;
+  .rep-badge-nuevo { font-weight:800; color:var(--sem-rojo-int); font-size:.66rem; background:var(--sem-rojo-int-bg);
     padding:.05rem .4rem; border-radius:999px; text-transform:uppercase; letter-spacing:.03em; }
   .rep-fecha { margin-left:auto; font-size:.71rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
   .rep-op { font-size:.83rem; font-weight:700; color:var(--text); margin-top:.25rem; }
   .rep-coment { font-size:.79rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
   .rep-dep { font-size:.72rem; color:var(--text-muted); font-weight:700; margin-top:.3rem; }
   .rep-nuevo { box-shadow:0 0 0 1.5px #f4c2be inset; }
-  .rep-block-anon .db-title { color:#6b3fa0; }
+  .rep-block-anon .db-title { color:var(--sem-morado); }
 
   /* ── Ficha médica interna (exclusiva del servicio médico) ── */
-  .fm-block { border-top:3px solid #128a5e; }
+  .fm-block { border-top:3px solid var(--sem-verde-int); }
   .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
   .fm-chip { padding:.15rem .5rem; border-radius:999px; font-size:.72rem; font-weight:800; white-space:nowrap; }
-  .fm-chip-gris { color:var(--text-soft); background:#f2f4f7; }
-  .fm-chip-persist { color:#8e2f8e; background:#f7ecf7; }
-  .fm-chip-restr { color:#1d4ea8; background:#eaf1fd; }
-  .fm-chip-n1 { color:#3d8f6d; background:#eaf6f1; }
-  .fm-chip-n2 { color:#5a8f3d; background:#eef6e9; }
-  .fm-chip-n3 { color:#a8791b; background:#fdf5e4; }
-  .fm-chip-n4 { color:#c96a1b; background:#fdf0e4; }
-  .fm-chip-n5 { color:#c0271f; background:#fde8e6; }
+  .fm-chip-gris { color:var(--text-soft); background:var(--sem-gris-bg); }
+  .fm-chip-persist { color:var(--sem-violeta); background:var(--sem-violeta-bg); }
+  .fm-chip-restr { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
+  .fm-chip-n1 { color:var(--niv-1); background:var(--niv-1-bg); }
+  .fm-chip-n2 { color:var(--niv-2); background:var(--niv-2-bg); }
+  .fm-chip-n3 { color:var(--niv-3); background:var(--niv-3-bg); }
+  .fm-chip-n4 { color:var(--niv-4); background:var(--niv-4-bg); }
+  .fm-chip-n5 { color:var(--niv-5); background:var(--niv-5-bg); }
   .fm-persist { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
-    background:#f7ecf7; border-left:3px solid #8e2f8e; font-size:.79rem; color:var(--text-soft); line-height:1.45; }
+    background:var(--sem-violeta-bg); border-left:3px solid var(--sem-violeta); font-size:.79rem; color:var(--text-soft); line-height:1.45; }
   .fm-sec-t { margin:1rem 0 .4rem; font-size:.76rem; font-weight:800; color:var(--text);
     text-transform:uppercase; letter-spacing:.04em; }
   .fm-lb { display:flex; flex-direction:column; gap:.25rem; }
   .fm-lb-row { display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem;
-    border-radius:var(--radius-sm); background:#f7f9fc; font-size:.8rem; }
+    border-radius:var(--radius-sm); background:var(--sup-suave); font-size:.8rem; }
   .fm-lb-m { flex:1 1 auto; display:flex; align-items:center; gap:.35rem; font-weight:700; color:var(--text); min-width:0; }
   .fm-lb-v { flex:0 0 auto; color:var(--text-soft); font-variant-numeric:tabular-nums; }
   .fm-lb-ref { color:var(--text-muted); font-size:.72rem; }
   .fm-lb-d { flex:0 0 1.4rem; text-align:center; font-weight:800; }
-  .fm-lb-sube { color:#d63031; }
-  .fm-lb-baja { color:#1aa672; }
+  .fm-lb-sube { color:var(--sem-rojo-alt); }
+  .fm-lb-baja { color:var(--sem-verde); }
   .fm-lb-igual { color:var(--text-muted); }
   .fm-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--anbg);
     border-left:3px solid var(--anc); margin-bottom:.35rem; }
@@ -1796,11 +1937,11 @@
   .fm-ev-nota { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; line-height:1.45; }
   .fm-ev-pie { font-size:.71rem; color:var(--text-muted); font-weight:700; margin-top:.2rem; }
   .fm-nota { width:100%; min-height:74px; padding:.55rem .7rem; border-radius:var(--radius-sm);
-    border:1.5px solid #d7dce6; font-size:.88rem; font-family:inherit; resize:vertical;
-    background:#fff; color:var(--text); }
+    border:1.5px solid var(--sup-borde); font-size:.88rem; font-family:inherit; resize:vertical;
+    background: var(--card); color:var(--text); }
   .fm-nota-aviso { font-size:.73rem; color:var(--text-muted); margin-top:.3rem; line-height:1.4; }
   .fm-nota-btn { margin-top:.5rem; min-height:44px; padding:.5rem 1rem; border-radius:var(--radius-sm);
-    border:none; background:#128a5e; color:#fff; font-size:.85rem; font-weight:800;
+    border:none; background:var(--sem-verde-int); color:#fff; font-size:.85rem; font-weight:800;
     cursor:pointer; font-family:inherit; }
   .fm-nota-btn:active { transform:scale(.98); }
   /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
@@ -1810,29 +1951,29 @@
   .apt-boxes { display: flex; flex-wrap: wrap; gap: .4rem; }
   /* Cada cuadrito: color del semáforo + nombre del indicador. Nunca un valor. */
   .apt-box { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .55rem .3rem .4rem;
-    border-radius: 9px; font-size: .72rem; font-weight: 700; background: #f4f6fb; color: var(--text-soft); }
+    border-radius: 9px; font-size: .72rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
   .apt-box i { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
-  .apt-ok i, .apt-dot.apt-ok { background: #1aa672; }
-  .apt-medio i, .apt-dot.apt-medio { background: #e8a400; }
-  .apt-alto i, .apt-dot.apt-alto { background: #e0322f; }
-  .apt-sin i, .apt-dot.apt-sin { background: #c9d1de; }
-  .apt-box.apt-alto { background: #feecec; color: #a32320; }
-  .apt-box.apt-medio { background: #fff8e6; color: #8a6400; }
+  .apt-ok i, .apt-dot.apt-ok { background: var(--sem-verde); }
+  .apt-medio i, .apt-dot.apt-medio { background: var(--sem-ambar); }
+  .apt-alto i, .apt-dot.apt-alto { background: var(--sem-rojo); }
+  .apt-sin i, .apt-dot.apt-sin { background: var(--text-muted); opacity: .55; }
+  .apt-box.apt-alto { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
+  .apt-box.apt-medio { background: var(--sem-ambar-bg); color: var(--sem-ambar-txt); }
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid #eef1f5; }
   /* Avisos dentro de la tarjeta: "llegó un test nuevo tras la indicación" / "dato no reciente" */
-  .apt-aviso { font-size: .74rem; font-weight: 700; line-height: 1.4; color: #8a6400;
-    background: #fff8e6; border-radius: 9px; padding: .45rem .6rem; margin-bottom: .6rem; }
-  .apt-aviso-gris { color: var(--text-muted); background: #f2f4f7; font-weight: 600; margin-bottom: 0; margin-top: .6rem; }
+  .apt-aviso { font-size: .74rem; font-weight: 700; line-height: 1.4; color: var(--sem-ambar-txt);
+    background: var(--sem-ambar-bg); border-radius: 9px; padding: .45rem .6rem; margin-bottom: .6rem; }
+  .apt-aviso-gris { color: var(--text-muted); background: var(--sem-gris-bg); font-weight: 600; margin-bottom: 0; margin-top: .6rem; }
   /* Dato viejo: la tarjeta se atenúa para que se lea como "esto no es de hoy" sin ocultarla */
-  .apt-card.apt-viejo { background: #fcfcfd; border-style: dashed; }
+  .apt-card.apt-viejo { background: var(--sup-atenuado); border-style: dashed; }
   /* Espejo "Así lo ve el supervisor" dentro del panel del servicio médico */
-  .an-espejo { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed #d7dde8; }
+  .an-espejo { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--sup-borde); }
   .an-espejo-t { font-size: .78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;
     letter-spacing: .03em; margin-bottom: .55rem; }
   .an-espejo-n { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .2rem; }
   /* Campo "quién lo determina" (opcional) */
-  .an-medico { width: 100%; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
+  .an-medico { width: 100%; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .86rem; color: var(--text); box-sizing: border-box; }
   .an-medico:focus { outline: none; border-color: var(--orange); }
   .an-opt { font-size: .64rem; font-weight: 800; color: var(--text-muted); background: #eef2f8;
@@ -1840,12 +1981,12 @@
   /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ──
      Todo el bloque va dentro de un marco propio (borde + fondo) para que se lea como una
      sección aparte del resto del resumen, no como texto suelto flotando. */
-  .an-block { border: 1px solid #e6eaf2; border-radius: 16px; padding: 1rem 1.05rem; background: #fbfcfe; }
+  .an-block { border: 1px solid var(--sup-borde); border-radius: 16px; padding: 1rem 1.05rem; background: var(--sup-atenuado); }
   .an-block .db-title { margin-top: 0; }
   .an-activa { border-radius: 12px; padding: .75rem .85rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
   .an-activa-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
-  .an-activa-badge { font-size: .74rem; font-weight: 800; color: var(--anc); background: #fff; padding: .2rem .55rem; border-radius: 999px; }
+  .an-activa-badge { font-size: .74rem; font-weight: 800; color: var(--anc); background: var(--card); padding: .2rem .55rem; border-radius: 999px; }
   .an-activa-hasta { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
   .an-activa-nota { font-size: .84rem; color: var(--text); line-height: 1.45; margin-top: .5rem; white-space: pre-wrap; word-break: break-word; }
   .an-activa-quitar { margin-top: .55rem; border: none; background: none; color: var(--text-muted); font-size: .76rem;
@@ -1854,15 +1995,15 @@
      mismo patrón que el acceso a Gestiones. */
   .an-row { display: flex; gap: .5rem; margin-top: .3rem; }
   .an-btn { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-    padding: .7rem 1.1rem; border: 1.5px solid #d7dde8; border-radius: 12px; background: #fff;
+    padding: .7rem 1.1rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; background: var(--card);
     color: var(--navy); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
   .an-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .an-btn:active { transform: scale(.99); }
   .an-btn-chevron { width: 15px; height: 15px; flex-shrink: 0; transition: transform .25s ease; }
   .an-btn.open .an-btn-chevron { transform: rotate(180deg); }
   /* Cuadradito de info: mismo estilo que el de Gestiones (gest-fab-info) pero en tono neutro */
-  .an-info-btn { flex-shrink: 0; width: 42px; border: 1.5px solid #d7dde8; border-radius: 12px;
-    background: #fff; color: var(--text-muted); font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+  .an-info-btn { flex-shrink: 0; width: 42px; border: 1.5px solid var(--sup-borde); border-radius: 12px;
+    background: var(--card); color: var(--text-muted); font-size: 1.1rem; font-weight: 800; cursor: pointer; }
   .an-info-btn:active { transform: scale(.96); }
   .an-info-btn[aria-expanded="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
   .an-info-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
@@ -1872,9 +2013,9 @@
      encima del botón, aunque el contenido mida 0px. */
   /* Padding fijo siempre (mismo motivo que el glosario): si cambia de golpe con la clase .open
      mientras el alto todavía está animando, el texto se ve "saltar" contra el margen al cerrar. */
-  .an-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 12px;
+  .an-info-card { overflow: hidden; min-height: 0; background: var(--card); border-radius: 12px;
     padding: 0 .95rem; transition: padding .25s ease; }
-  .an-info-panel.open .an-info-card { padding: .8rem .95rem; border: 1px solid #e9edf4; }
+  .an-info-panel.open .an-info-card { padding: .8rem .95rem; border: 1px solid var(--sup-borde); }
   .an-info-title { font-weight: 800; font-size: .84rem; color: var(--text); }
   .an-info-sub { font-size: .78rem; color: var(--text-soft); line-height: 1.5; margin-top: .3rem; }
   .an-form { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.22,.61,.36,1); }
@@ -1882,23 +2023,23 @@
   .an-form-inner { overflow: hidden; min-height: 0; }
   .an-form.open .an-form-inner { padding-top: .7rem; }
   .an-seg { display: flex; flex-wrap: wrap; gap: .45rem; }
-  .an-seg-btn { padding: .55rem .9rem; border-radius: 10px; border: 1.5px solid #e3e8f0; background: #fff;
+  .an-seg-btn { padding: .55rem .9rem; border-radius: 10px; border: 1.5px solid var(--sup-borde); background: var(--card);
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .82rem; cursor: pointer; }
   .an-seg-btn.active { border-color: var(--anc); background: var(--anbg); color: var(--anc); }
   .an-dur-label { font-size: .74rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
   /* Vigencia: número libre + selector de unidad, en vez de chips fijos */
   .an-dur-row { display: flex; gap: .5rem; }
-  .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
+  .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .88rem; color: var(--text); box-sizing: border-box; }
-  .an-dur-unidad { flex: 1; min-width: 0; border: 1.5px solid #e3e8f0; border-radius: 10px; padding: .55rem .7rem;
-    font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--text); background: #fff; box-sizing: border-box; }
+  .an-dur-unidad { flex: 1; min-width: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
+    font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--text); background: var(--card); box-sizing: border-box; }
   .an-dur-num:focus, .an-dur-unidad:focus { outline: none; border-color: var(--orange); }
-  .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid #e3e8f0; border-radius: 12px; padding: .7rem .8rem;
+  .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .8rem;
     font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
   .an-nota:focus { outline: none; border-color: var(--orange); }
-  .an-aviso { font-size: .74rem; color: #8a6400; background: #fff8e6; border-radius: 9px; padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
+  .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: 9px; padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
   .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
-  .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid #e3e8f0; background: #fff;
+  .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid var(--sup-borde); background: var(--card);
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
   .an-guardar { flex: 2; padding: .7rem; border-radius: 11px; border: none;
     background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; font-family: inherit;
@@ -1914,7 +2055,7 @@
   /* Las etiquetas nuevas pueden ser largas ("Apto con condiciones"): se limita el ancho y se deja
      envolver, así nunca aplastan el nombre de la persona que va al lado. */
   .an-res-badge { flex-shrink: 0; max-width: 40%; font-size: .7rem; font-weight: 800; color: var(--anc);
-    background: #fff; padding: .2rem .55rem; border-radius: 10px; line-height: 1.3; text-align: center; }
+    background: var(--card); padding: .2rem .55rem; border-radius: 10px; line-height: 1.3; text-align: center; }
   /* flex-shrink:0 en el nombre = NUNCA se recorta (se banca empujar/arrugar lo de al lado);
      el que cede es el bloque de la fecha (flex-shrink:1 + max-width), que además se desliza
      solo si ni así entra completo. Antes el nombre tenía ellipsis puesto — ESE era el bug real:
@@ -1924,7 +2065,7 @@
   .an-res-hasta { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: .7rem; color: var(--text-muted);
     font-weight: 600; overflow: hidden; white-space: nowrap; position: relative; }
   .an-res-hasta-in { display: inline-block; white-space: nowrap; }
-  .an-res-hasta.an-res-pronto { color: #c0271f; font-weight: 800; }
+  .an-res-hasta.an-res-pronto { color: var(--sem-rojo-int); font-weight: 800; }
   /* Variante de DOS líneas (cola de pendientes): insignia + nombre arriba, motivo abajo. */
   .an-res-item.an-res-col { flex-direction: column; align-items: stretch; gap: .35rem; }
   .an-res-col .an-res-top { display: flex; align-items: center; gap: .5rem; min-width: 0; }
@@ -1966,9 +2107,9 @@
      altura 0 se ve una rayita fantasma encima del botón). El padding, en cambio, va SIEMPRE fijo:
      si cambia de golpe con la clase mientras el alto todavía está animando, el texto se ve
      "saltar"/apretarse contra el margen al cerrar. */
-  .gest-fab-info-card { overflow: hidden; min-height: 0; background: #fff; border-radius: 14px;
+  .gest-fab-info-card { overflow: hidden; min-height: 0; background: var(--card); border-radius: 14px;
     padding: 0 1.1rem; transition: padding .25s ease; }
-  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; border: 1px solid #e9edf4; box-shadow: 0 12px 30px rgba(14,42,86,.16); }
+  .gest-fab-info-panel.open .gest-fab-info-card { padding: .95rem 1.1rem; border: 1px solid var(--sup-borde); box-shadow: 0 12px 30px rgba(14,42,86,.16); }
   .gest-fab-info-title { font-weight: 800; font-size: .92rem; color: var(--text); }
   .gest-fab-info-sub { font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
   .gest-fab-info-count { font-size: .8rem; color: var(--text-soft); margin-top: .5rem; font-weight: 700; }
@@ -2050,22 +2191,38 @@
     <header class="mas-head"><h2>Ajustes</h2><p>Dispositivos, datos y accesos</p></header>
 
     <button type="button" class="rbtn mas-item" onclick="openSetup(true)">
-      <div class="ic" style="background:#e7eefb;color:#2d6cdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
+      <div class="ic" style="background:#e7eefb;color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
       <div class="tx"><span class="tt">Cambiar mis datos</span><span class="ds">Nombre, empresa, email, teléfono…</span></div>
       <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
-    <div class="rbtn mas-item texto-ctrl">
-      <div class="tc-head">
+    <div class="rbtn mas-item texto-ctrl" id="textoCtrl">
+      <button type="button" class="tc-head" onclick="tcToggle()" aria-expanded="false" aria-controls="tcSliderWrap">
         <div class="ic" style="background:#eceefc;color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
         <div class="tx"><span class="tt">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
+        <div class="st"><svg class="chev" id="tcChev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </button>
+      <div class="tc-slider-wrap" id="tcSliderWrap">
+        <div class="tc-slider">
+          <span class="tc-a chico">A</span>
+          <input type="range" id="sldTexto" min="0" max="3" step="1" value="1"
+                 oninput="fijarTamanoTexto(this.value)" aria-label="Tamaño del texto">
+          <span class="tc-a grande">A</span>
+        </div>
       </div>
-      <div class="tc-slider">
-        <span class="tc-a chico">A</span>
-        <input type="range" id="sldTexto" min="0" max="3" step="1" value="1"
-               oninput="fijarTamanoTexto(this.value)" aria-label="Tamaño del texto">
-        <span class="tc-a grande">A</span>
+    </div>
+
+    <div class="rbtn mas-item tema-ctrl">
+      <div class="tc-head" style="cursor:default">
+        <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></div>
+        <div class="tx"><span class="tt">Apariencia</span><span class="ds" id="temaLbl">Automático</span></div>
       </div>
+      <div class="tema-opts">
+        <button type="button" class="tema-opt" data-modo="claro" onclick="fijarTema('claro')">Claro</button>
+        <button type="button" class="tema-opt" data-modo="oscuro" onclick="fijarTema('oscuro')">Oscuro</button>
+        <button type="button" class="tema-opt" data-modo="auto" onclick="fijarTema('auto')">Automático</button>
+      </div>
+      <div class="tema-nota" id="temaNota">En automático, se pone oscuro por la noche — para no encandilar durante un turno nocturno.</div>
     </div>
 
     <div class="mas-sep">Sueño &amp; Descanso</div>
@@ -2088,7 +2245,7 @@
       </div>
 
       <button type="button" class="rbtn" id="cloudSyncBtn" onclick="enDesarrollo()">
-        <div class="ic" style="background:#e7eefb;color:#2d6cdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
+        <div class="ic" style="background:#e7eefb;color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
         <div class="tx"><span class="tt">Oura / Garmin / Fitbit</span><span class="ds">Sincronizar dispositivo cloud</span></div>
         <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </button>
@@ -2096,7 +2253,7 @@
 
     <div class="mas-sep">Aeroambulancias Silva</div>
     <a class="rbtn" id="webSilvaLink" href="#" target="_blank" rel="noopener">
-      <div class="ic" style="background:#feecec;color:#e0322f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+      <div class="ic" style="background:var(--sem-rojo-bg);color:var(--sem-rojo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
       <div class="tx"><span class="tt">Sitio web</span><span class="ds">Ir a la web de Aeroambulancias Silva</span></div>
       <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div>
     </a>
@@ -2178,8 +2335,8 @@
       <div class="tp-demo-tit">Gráfico de ejemplo</div>
       <div class="tp-demo-chart">
         <div class="tp-bar"><span class="tp-lbl">Estrés</span><span class="tp-track"><i style="width:62%"></i></span><span class="tp-val">31</span></div>
-        <div class="tp-bar"><span class="tp-lbl">Fatiga</span><span class="tp-track"><i style="width:78%;background:#e0322f"></i></span><span class="tp-val">8.1</span></div>
-        <div class="tp-bar"><span class="tp-lbl">Sueño</span><span class="tp-track"><i style="width:45%;background:#1aa672"></i></span><span class="tp-val">5</span></div>
+        <div class="tp-bar"><span class="tp-lbl">Fatiga</span><span class="tp-track"><i style="width:78%;background:var(--sem-rojo)"></i></span><span class="tp-val">8.1</span></div>
+        <div class="tp-bar"><span class="tp-lbl">Sueño</span><span class="tp-track"><i style="width:45%;background:var(--sem-verde)"></i></span><span class="tp-val">5</span></div>
       </div>
     </div>
 
@@ -2634,7 +2791,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.31';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.32';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -2671,11 +2828,11 @@ const SECTIONS = [
     id:'sensaciones', title:'Sensaciones Personales', sub:'Reporta tu condición actual de turno', layout:'grid',
     items:[
       {id:'sen_cansancio',   label:'Cansancio',     desc:'Test Cansancio · luego a WhatsApp', icon:I.battery, ic:'#fff1e6', icc:'#f47a1f', msg:'Por favor, asísteme e inicia el *Test de Cansancio* para registrar mi nivel actual.', testFlow:'cansancio'},
-      {id:'sen_estres',      label:'Estrés',        desc:'Test Estrés · luego a WhatsApp',  icon:I.bolt,    ic:'#feecec', icc:'#e0322f', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
+      {id:'sen_estres',      label:'Estrés',        desc:'Test Estrés · luego a WhatsApp',  icon:I.bolt,    ic:'var(--sem-rojo-bg)', icc:'var(--sem-rojo)', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
       {id:'sen_ansiedad',    label:'Ansiedad',      desc:'Test Ansiedad · luego a WhatsApp', icon:I.brain,   ic:'#f0ebfa', icc:'#7c5cc4', msg:'Por favor, asísteme e inicia el *Test de Ansiedad (BAI)* para registrar mi nivel actual.', testFlow:'ansiedad'},
-      {id:'sen_malestar',    label:'Malestar',      desc:'Test Gastro · luego a WhatsApp',   icon:I.dizzy,   ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
-      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
-      {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'#2d6cdf', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
+      {id:'sen_malestar',    label:'Malestar',      desc:'Test Gastro · luego a WhatsApp',   icon:I.dizzy,   ic:'#e7eefb', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
+      {id:'sen_somnoliencia',label:'Somnoliencia',  desc:'Test KSS · luego a WhatsApp',        icon:I.moon,    ic:'#e7eefb', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
+      {id:'sen_fatiga',      label:'Fatiga',        desc:'Test Perelli · luego a WhatsApp',    icon:I.bed,     ic:'#e7eefb', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
       {id:'sen_depresion',   label:'Depresión',     desc:'Test depresión · luego a WhatsApp',  icon:I.sad,     ic:'#eceefc', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
       {id:'sen_gastro',      label:'Gastrointestinal', desc:'Test Gastro · luego a WhatsApp', icon:I.pill,    ic:'#e8f5e9', icc:'#2e7d32', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
     ]
@@ -3044,11 +3201,11 @@ function pvtTap(e){
   const now = performance.now();
   if (!pvtState.awaiting){                                   // tocó antes del estímulo
     if (pvtState.isiTimer) clearTimeout(pvtState.isiTimer);
-    pvtState.falsos++; pvtFlash('¡Muy pronto!', '#e0322f'); pvtScheduleNext(); return;
+    pvtState.falsos++; pvtFlash('¡Muy pronto!', 'var(--sem-rojo)'); pvtScheduleNext(); return;
   }
   if (pvtState.raf) cancelAnimationFrame(pvtState.raf);
   const rt = Math.round(now - pvtState.stimMs);
-  if (rt < PVT_MIN_RT){ pvtState.falsos++; pvtFlash('¡Muy pronto!', '#e0322f'); pvtScheduleNext(); return; }
+  if (rt < PVT_MIN_RT){ pvtState.falsos++; pvtFlash('¡Muy pronto!', 'var(--sem-rojo)'); pvtScheduleNext(); return; }
   pvtState.rts.push(rt);
   pvtFlash(rt + ' ms', rt > PVT_LAPSE_MS ? '#e8a400' : '#38d39f');
   if (performance.now() - pvtState.startMs >= PVT_DURATION_MS){ pvtEnd(); return; }
@@ -3086,14 +3243,14 @@ function pvtEnd(){
 }
 function pvtSummaryHTML(m){
   if (m.validas === 0){
-    return '<div class="pvt-verdict" style="color:#e0322f">No registramos ninguna reacción</div>' +
+    return '<div class="pvt-verdict" style="color:var(--sem-rojo)">No registramos ninguna reacción</div>' +
       '<p class="pvt-hint">¿Tocaste el círculo naranja cuando apareció? Vuelve a intentarlo cuando puedas prestar atención a la pantalla.</p>';
   }
   let verdict, vcol;
   if (m.validas < 3){ verdict = 'Muy pocas respuestas para evaluar'; vcol = 'var(--text-muted)'; }
   else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = 'Buen estado de alerta'; vcol = 'var(--green)'; }
   else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = 'Alerta moderada'; vcol = '#e8a400'; }
-  else { verdict = 'Signos de fatiga / baja alerta'; vcol = '#e0322f'; }
+  else { verdict = 'Signos de fatiga / baja alerta'; vcol = 'var(--sem-rojo)'; }
   return '<div class="pvt-result-lbl">Tiempo de reacción promedio</div>' +
     '<div class="pvt-result-big">' + m.rt_prom + ' <span style="font-size:1rem;color:var(--text-muted)">ms</span></div>' +
     '<div class="pvt-verdict" style="color:' + vcol + '">' + verdict + '</div>' +
@@ -3306,7 +3463,7 @@ const TEST_DEPRESION = [
   'Conciencia de cómo te estás sintiendo'
 ];
 const TEST_ESCALA  = ['Nunca','Pocas veces al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
-const TEST_COLORES = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
+const TEST_COLORES = ['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)'];
 
 let testItem = null, testIdx = 0, testRespuestas = [];
 let perelliState = null;
@@ -3318,51 +3475,51 @@ let cansancioState = null;
 
 // ── Resultado estimado ───────────────────────────────────────────────────────
 const RANGES_DEPRESION = [
-  {max:18,  label:'Indeterminada',         color:'#1aa672'},
+  {max:18,  label:'Indeterminada',         color:'var(--sem-verde)'},
   {max:36,  label:'Posible',               color:'#5fb84a'},
   {max:42,  label:'Probable',              color:'#e8c400'},
   {max:54,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
 ];
 const RANGES_GASTRO = [
-  {max:5,   label:'Indeterminada',         color:'#1aa672'},
+  {max:5,   label:'Indeterminada',         color:'var(--sem-verde)'},
   {max:9,   label:'Posible',               color:'#5fb84a'},
   {max:11,  label:'Probable',              color:'#e8c400'},
   {max:13,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
 ];
 const RANGES_KSS = [
-  {max:4,   label:'Alerta',                color:'#1aa672'},
+  {max:4,   label:'Alerta',                color:'var(--sem-verde)'},
   {max:7,   label:'Somnolencia Leve',      color:'#e8c400'},
-  {max:1e9, label:'Somnolencia Grave',     color:'#e0322f'}
+  {max:1e9, label:'Somnolencia Grave',     color:'var(--sem-rojo)'}
 ];
 const RANGES_ANSIEDAD = [
-  {max:10,  label:'Indeterminada',         sub:'Estados de no ansiedad',  color:'#1aa672'},
+  {max:10,  label:'Indeterminada',         sub:'Estados de no ansiedad',  color:'var(--sem-verde)'},
   {max:19,  label:'Posible',               sub:'Ansiedad Leve',           color:'#5fb84a'},
   {max:26,  label:'Probable',              sub:'Ansiedad Moderada',       color:'#e8c400'},
   {max:36,  label:'Muy probable',          sub:'Ansiedad Moderada Grave', color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', sub:'Ansiedad Severa',         color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', sub:'Ansiedad Severa',         color:'var(--sem-rojo)'}
 ];
 const RANGES_ESTRES = [
-  {max:12,  label:'Indeterminada',         color:'#1aa672'},
+  {max:12,  label:'Indeterminada',         color:'var(--sem-verde)'},
   {max:24,  label:'Posible',               sub:'Sin estrés',              color:'#5fb84a'},
   {max:36,  label:'Probable',              sub:'Estrés leve',             color:'#e8c400'},
   {max:60,  label:'Muy probable',          sub:'Estrés medio',            color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', sub:'Estrés alto',             color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', sub:'Estrés alto',             color:'var(--sem-rojo)'}
 ];
 const RANGES_PERELLI = [
-  {max:3.4, label:'Indeterminada',         color:'#1aa672'},
+  {max:3.4, label:'Indeterminada',         color:'var(--sem-verde)'},
   {max:6,   label:'Posible',               color:'#5fb84a'},
   {max:7.3, label:'Probable',              color:'#e8c400'},
   {max:8.7, label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
 ];
 const RANGES_CANSANCIO = [
-  {max:7,   label:'Indeterminada',         color:'#1aa672'},
+  {max:7,   label:'Indeterminada',         color:'var(--sem-verde)'},
   {max:13,  label:'Posible',               color:'#5fb84a'},
   {max:19,  label:'Probable',              color:'#e8c400'},
   {max:36,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'#e0322f'}
+  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
 ];
 function getCategory(ranges, score){
   return ranges.find(r => score < r.max) || ranges[ranges.length-1];
@@ -3620,7 +3777,7 @@ const PERELLI_STEPS = [
   {
     type:'single', question:'¿Cómo calificarías tu estado general de fatiga actual?',
     options:['1 = Completamente alerta, despierto/a','2 = Muy fresco/a, buen nivel de energía','3 = Bien, normal','4 = Un poco fatigado/a, rendimiento levemente afectado','5 = Moderadamente fatigado/a, esfuerzo para mantener la concentración','6 = Extremadamente fatigado/a, funcionamiento comprometido','7 = Completamente exhausto/a, capacidad operacional severamente afectada'],
-    colors:['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f']
+    colors:['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)']
   },
   {
     type:'multi', question:'¿Qué síntomas de fatiga experimentas actualmente? Elige uno o varios.',
@@ -3635,7 +3792,7 @@ const PERELLI_STEPS = [
   {
     type:'single', question:'¿Cómo fue la calidad de tu sueño en las últimas 24 h?',
     options:['Excelente','Bueno','Regular','Malo','Muy malo'],
-    colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
+    colors:['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)']
   },
   {
     type:'multi', question:'¿Qué factores han contribuido más a tu fatiga actual? Elige uno o varios.',
@@ -3645,7 +3802,7 @@ const PERELLI_STEPS = [
   {
     type:'single', question:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
     options:['1 = Capacidad óptima','2 = Capacidad levemente reducida','3 = Capacidad moderadamente reducida','4 = Capacidad severamente reducida','5 = Incapacidad operacional'],
-    colors:['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f']
+    colors:['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)']
   },
   {
     type:'text-input', question:'¿Tienes algún comentario adicional sobre tu estado actual?',
@@ -3727,7 +3884,7 @@ function perelliAdvanceMulti(){
   perelliAdvance(selected.join(', '));
 }
 function renderPerelliGrid(step){
-  const GRID_COLORS = ['#1aa672','#5fb84a','#e8c400','#f0930f','#e0322f'];
+  const GRID_COLORS = ['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)'];
   const GRID_HDRS   = ['No la<br>afecta','Leve','Moderado','Alto','Severo'];
   const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_COLORS[i]}">${h}</div>`).join('')}</div>`;
   const rows = step.items.map((item, ri) =>
@@ -3827,12 +3984,12 @@ const KSS_STEPS = [
       '8 = Somnoliento, con esfuerzo para permanecer despierto',
       '9 = Muy somnoliento, gran esfuerzo, luchando contra el sueño'
     ],
-    colors:['#1aa672','#4cbb5e','#8cc830','#c0d416','#e8c400','#f0930f','#f2640f','#d92b2b','#b30000']
+    colors:['var(--sem-verde)','#4cbb5e','#8cc830','#c0d416','#e8c400','#f0930f','#f2640f','#d92b2b','#b30000']
   },
   {
     type:'single', question:'¿Cuántas horas dormiste en las últimas 24 h?',
     options:['Menos de 4 horas','Entre 4 y 6 horas','Entre 6 y 8 horas','Más de 8 horas'],
-    colors:['#e0322f','#f0930f','#5fb84a','#1aa672']
+    colors:['var(--sem-rojo)','#f0930f','#5fb84a','var(--sem-verde)']
   },
   {
     type:'single', question:'¿Cuál es el tipo de operación actual?',
@@ -3859,7 +4016,7 @@ const ESTRES_SINTOMAS = [
   'Sudoración o palpitaciones'
 ];
 const _EO = ['0 = Nunca','1 = Raramente','2 = Una vez al mes o menos','3 = Unas pocas veces al mes','4 = Una vez a la semana','5 = Unas pocas veces a la semana','6 = Todos los días'];
-const _EC = ['#1aa672','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','#e0322f'];
+const _EC = ['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)'];
 const ESTRES_STEPS = ESTRES_SINTOMAS.map(s => ({ type:'single', question:s, options:_EO, colors:_EC }));
 
 const ANSIEDAD_SINTOMAS = [
@@ -3872,7 +4029,7 @@ const ANSIEDAD_SINTOMAS = [
   'Rostro sonrojado','Sudoración (no debido al calor)'
 ];
 const _AO = ['0 = No ha estado presente','1 = Levemente, no me ha molestado','2 = Moderadamente, pero lo pude superar','3 = Severamente, difícil lo soporté'];
-const _AC = ['#1aa672','#e8c400','#f0930f','#e0322f'];
+const _AC = ['var(--sem-verde)','#e8c400','#f0930f','var(--sem-rojo)'];
 const ANSIEDAD_STEPS = ANSIEDAD_SINTOMAS.map(s => ({ type:'single', question:s, options:_AO, colors:_AC }));
 
 const GASTRO_SINTOMAS = [
@@ -3890,7 +4047,7 @@ const GASTRO_SINTOMAS = [
   'Antecedentes de cirugía de vesícula y/o hipotiroidismo de Hashimoto'
 ];
 const _GO = ['0 = Muy en desacuerdo','1 = En desacuerdo','2 = De acuerdo'];
-const _GC = ['#1aa672','#e8c400','#e0322f'];
+const _GC = ['var(--sem-verde)','#e8c400','var(--sem-rojo)'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
 const CANSANCIO_SINTOMAS = [
@@ -4383,6 +4540,97 @@ function fijarTamanoTexto(n){
   try { localStorage.setItem(K_TEXTO, String(n)); } catch(e){}
   aplicarTamanoTexto();
 }
+/* El control arranca CERRADO y se despliega al tocar el título. Se cierra al tocar afuera o al
+   scrollear — cualquiera de las dos cosas indica que la persona ya terminó con él.
+   El listener de scroll va con { passive:true } (no llama preventDefault, así el navegador no
+   tiene que esperar para decidir si sigue scrolleando) y AMBOS se quitan al cerrar: dejarlos
+   colgados hace que cada scroll de la app siga ejecutando código para nada. */
+function tcToggle(){
+  const box = document.getElementById('textoCtrl'); if (!box) return;
+  const abrir = !box.classList.contains('open');
+  if (abrir) tcAbrir(); else tcCerrar();
+}
+function tcAbrir(){
+  const box = document.getElementById('textoCtrl'); if (!box) return;
+  box.classList.add('open');
+  const head = box.querySelector('.tc-head'); if (head) head.setAttribute('aria-expanded', 'true');
+  // En el mismo tick del click, el evento todavía está burbujeando: sin el timeout, el propio
+  // toque que abre el panel llegaría al listener de "tocar afuera" y lo cerraría de inmediato.
+  setTimeout(() => {
+    document.addEventListener('click', tcClickAfuera, true);
+    window.addEventListener('scroll', tcCerrar, { passive: true, capture: true });
+  }, 0);
+}
+function tcCerrar(){
+  const box = document.getElementById('textoCtrl'); if (!box) return;
+  box.classList.remove('open');
+  const head = box.querySelector('.tc-head'); if (head) head.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', tcClickAfuera, true);
+  window.removeEventListener('scroll', tcCerrar, { passive: true, capture: true });
+}
+function tcClickAfuera(e){
+  const box = document.getElementById('textoCtrl');
+  if (box && !box.contains(e.target)) tcCerrar();
+}
+
+/* ── Modo oscuro (P9) ──
+   Tres modos que la persona puede elegir en Ajustes: claro, oscuro, o automático por horario.
+   Si nunca eligió nada, sigue la preferencia del sistema operativo (prefers-color-scheme) — eso
+   es lo que arranca la app la primera vez, sin pedir nada.
+
+   ⚠️ NO se implementó con `filter: invert()` ni nada global: eso invertiría los semáforos (el
+   rojo pasaría a un verde-agua) — justo lo único que no puede fallar acá. Los colores oscuros
+   están definidos aparte, a mano, en html[data-tema="oscuro"] (ver el bloque de variables cerca
+   de :root), uno por uno, para que cada semáforo siga siendo reconocible como lo que es. */
+const K_TEMA = 'silva_fatiga_tema_v1';
+// Horario del modo automático. Es un default mío, no confirmado por el cliente todavía —
+// ver PENDIENTES_USUARIO.md. Con 19–7 alcanza al turno nocturno típico sin ser demasiado agresivo.
+const TEMA_AUTO_DESDE = 19;   // 19:00
+const TEMA_AUTO_HASTA = 7;    // 07:00
+function temaGuardado(){ try { return localStorage.getItem(K_TEMA); } catch(e){ return null; } }
+function temaAutoEsOscuroAhora(){
+  const h = new Date().getHours();
+  return (h >= TEMA_AUTO_DESDE || h < TEMA_AUTO_HASTA);
+}
+function temaSistemaPrefiereOscuro(){
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+  catch(e){ return false; }
+}
+// Resuelve a 'claro' u 'oscuro' — el único valor que de verdad importa para pintar la pantalla.
+function temaResuelto(){
+  const g = temaGuardado();
+  if (g === 'claro' || g === 'oscuro') return g;
+  if (g === 'auto') return temaAutoEsOscuroAhora() ? 'oscuro' : 'claro';
+  return temaSistemaPrefiereOscuro() ? 'oscuro' : 'claro';   // nunca eligió nada
+}
+let _temaAutoTimer = null;
+function aplicarTema(){
+  document.documentElement.setAttribute('data-tema', temaResuelto());
+  temaPintarControl();
+  // En modo automático hay que volver a mirar la hora cada tanto: si la persona deja la app
+  // abierta cruzando las 19:00 o las 07:00, el tema tiene que cambiar solo, sin recargar.
+  clearInterval(_temaAutoTimer);
+  if (temaGuardado() === 'auto') _temaAutoTimer = setInterval(aplicarTema, 5 * 60000);
+}
+function fijarTema(modo){
+  try { localStorage.setItem(K_TEMA, modo); } catch(e){}
+  aplicarTema();
+}
+function temaPintarControl(){
+  const g = temaGuardado();
+  const lbl = document.getElementById('temaLbl');
+  if (lbl) lbl.textContent = g === 'claro' ? 'Claro' : g === 'oscuro' ? 'Oscuro' : 'Automático';
+  document.querySelectorAll('.tema-opt').forEach(b => b.classList.toggle('active', b.dataset.modo === (g || 'auto')));
+  const nota = document.getElementById('temaNota');
+  const p2 = n => String(n).padStart(2, '0');
+  if (nota) nota.textContent = 'En automático, se pone oscuro de ' + p2(TEMA_AUTO_DESDE) + ':00 a ' + p2(TEMA_AUTO_HASTA) + ':00 — para no encandilar durante un turno nocturno.';
+}
+// Si la persona nunca eligió nada, la app sigue el tema del sistema EN VIVO (sin recargar):
+// si el teléfono pasa a modo oscuro solo (por su propio horario), la app lo sigue.
+try {
+  const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq && mq.addEventListener) mq.addEventListener('change', () => { if (!temaGuardado()) aplicarTema(); });
+} catch(e){}
 
 /* ── Botón "atrás" del celular: navega dentro de la app en vez de cerrarla ──
    Se apila un estado del historial cada vez que se abre algo. Al presionar atrás,
@@ -4675,8 +4923,8 @@ function hide(id){ document.getElementById(id).classList.remove('show'); }
 /* ════════════════ PORTAL / DASHBOARD ════════════════ */
 const DASH_DEMO = !SHEETS_DASHBOARD_URL;    // sin URL configurada → datos de ejemplo
 const METRIC_LABELS = { kss:'Somnolencia', estres:'Estrés', ansiedad:'Ansiedad', fatiga:'Fatiga', gastro:'Gastro', depresion:'Depresión', cansancio:'Cansancio' };
-const METRIC_COLORS = { kss:'#2d6cdf', estres:'#e0322f', ansiedad:'#7c5cc4', fatiga:'#f47a1f', gastro:'#1aa672', depresion:'#e8a400', cansancio:'#0fb5b0' };
-const PIE_PALETTE   = ['#f47a1f','#2d6cdf','#1aa672','#7c5cc4','#e0322f','#e8a400','#0fb5b0','#9c6b3f'];
+const METRIC_COLORS = { kss:'var(--sem-azul)', estres:'var(--sem-rojo)', ansiedad:'#7c5cc4', fatiga:'#f47a1f', gastro:'var(--sem-verde)', depresion:'#e8a400', cansancio:'#0fb5b0' };
+const PIE_PALETTE   = ['#f47a1f','var(--sem-azul)','var(--sem-verde)','#7c5cc4','var(--sem-rojo)','#e8a400','#0fb5b0','#9c6b3f'];
 const DASH_PERIODS  = [['all','Todo'],['dia','Día'],['semana','Semana'],['mes','Mes'],['trimestre','Trimestre'],['semestre','Semestre'],['anio','Año'],['custom','Personalizado']];
 
 // Informe de EJEMPLO para la Empresa Demo: así, al explorar la demostración, se ve cómo queda
@@ -6111,22 +6359,27 @@ function cfg(k){
       llegue un test posterior a esa determinación (ahí queda desactualizada y vuelve a revisión:
       un alta firmada sin ver el último test no puede seguir valiendo en silencio).
    Nunca se muestran valores de los tests: sólo semáforos por indicador. */
+/* ⚠️ Los colores acá SON variables CSS (--sem-*, definidas en :root), no hex literales.
+   Es lo que hace que el modo oscuro (P9) funcione sin volver a renderizar nada: estos strings
+   terminan en un atributo style="color:var(--sem-...)" y el navegador los resuelve solo, cada
+   vez que <html data-tema="oscuro"> cambia el valor de la variable. Si alguien vuelve a poner un
+   hex acá, ese color queda IGUAL en los dos temas — probablemente ilegible en uno de los dos. */
 const APT_NIVELES = {
-  ok:    { t:'Bien',             c:'#1aa672', bg:'#e6f7f0', orden:0 },
-  medio: { t:'Cerca del límite', c:'#b8860b', bg:'#fff8e6', orden:1 },
-  alto:  { t:'Por encima',       c:'#d63031', bg:'#feecec', orden:2 },
-  sin:   { t:'Sin datos',        c:'#7b8499', bg:'#f2f4f7', orden:-1 }
+  ok:    { t:'Bien',             c:'var(--sem-verde)',    bg:'var(--sem-verde-bg)',    orden:0 },
+  medio: { t:'Cerca del límite', c:'var(--sem-ambar)',    bg:'var(--sem-ambar-bg)',    orden:1 },
+  alto:  { t:'Por encima',       c:'var(--sem-rojo-alt)', bg:'var(--sem-rojo-alt-bg)', orden:2 },
+  sin:   { t:'Sin datos',        c:'var(--sem-gris)',     bg:'var(--sem-gris-bg)',     orden:-1 }
 };
 // Estado OPERATIVO de la persona (lo que ve el supervisor). `medico:true` = lo firmó el servicio
 // médico; el resto lo calculó la app sola y por eso nunca afirma una condición médica.
 const APT_ESTADOS = {
-  noapto:      { t:'No apto',               c:'#c0271f', bg:'#fde8e6', orden:0, medico:true },
-  pendiente:   { t:'Pendiente de revisión', c:'#e0322f', bg:'#feecec', orden:1 },
-  condiciones: { t:'Apto con condiciones',  c:'#b8860b', bg:'#fff8e6', orden:2, medico:true },
-  seguimiento: { t:'Seguimiento',           c:'#b8860b', bg:'#fff8e6', orden:3 },
-  aptomed:     { t:'En condiciones',        c:'#128a5e', bg:'#e2f6ee', orden:4, medico:true },
-  ok:          { t:'En condiciones',        c:'#1aa672', bg:'#e6f7f0', orden:5 },
-  sindato:     { t:'Sin registros',         c:'#7b8499', bg:'#f2f4f7', orden:6 }
+  noapto:      { t:'No apto',               c:'var(--sem-rojo-int)', bg:'var(--sem-rojo-int-bg)', orden:0, medico:true },
+  pendiente:   { t:'Pendiente de revisión', c:'var(--sem-rojo)',     bg:'var(--sem-rojo-bg)',     orden:1 },
+  condiciones: { t:'Apto con condiciones',  c:'var(--sem-ambar)',    bg:'var(--sem-ambar-bg)',    orden:2, medico:true },
+  seguimiento: { t:'Seguimiento',           c:'var(--sem-ambar)',    bg:'var(--sem-ambar-bg)',    orden:3 },
+  aptomed:     { t:'En condiciones',        c:'var(--sem-verde-int)',bg:'var(--sem-verde-int-bg)',orden:4, medico:true },
+  ok:          { t:'En condiciones',        c:'var(--sem-verde)',    bg:'var(--sem-verde-bg)',    orden:5 },
+  sindato:     { t:'Sin registros',         c:'var(--sem-gris)',     bg:'var(--sem-gris-bg)',     orden:6 }
 };
 function aptEstadoInfo(k){ return APT_ESTADOS[k] || APT_ESTADOS.sindato; }
 // Semáforo de UN indicador mirando los registros más recientes primero (no el promedio).
@@ -6396,7 +6649,7 @@ function aptTarjeta(p, opts){
           ? '<div class="apt-telem-nota">La persona la rechazó. Queda registrado para el servicio médico.</div>' : '') +
       '</div>'
     : (p.telemRealizada
-        ? '<div class="apt-telem" style="--tc:#128a5e;--tbg:#e2f6ee"><div class="apt-telem-top">Se le realizó una telemedicina · ' +
+        ? '<div class="apt-telem" style="--tc:var(--sem-verde-int);--tbg:var(--sem-verde-int-bg)"><div class="apt-telem-top">Se le realizó una telemedicina · ' +
           esc(gestFechaTs(p.telemRealizada.actualizadaEn || p.telemRealizada.creada)) + '</div></div>'
         : '');
   // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
@@ -6431,11 +6684,11 @@ function aptTarjeta(p, opts){
    contaba NINGUNO), así que los números no cerraban: 7+2+6+18 sobre 18 personas.
    "Dato no reciente" pasó al panel de equipo: es un atributo transversal, no un estado. */
 const APT_GRUPOS = {
-  pendiente:   { t:'Pendiente de revisión', estados:['pendiente'],            c:'#e0322f', bg:'#feecec' },
-  medico:      { t:'Indicación médica',     estados:['noapto','condiciones'], c:'#b8860b', bg:'#fff8e6' },
-  seguimiento: { t:'Seguimiento',           estados:['seguimiento'],          c:'#c98a00', bg:'#fffaed' },
-  ok:          { t:'En condiciones',        estados:['ok','aptomed'],         c:'#1aa672', bg:'#e6f7f0' },
-  sindato:     { t:'Sin registros',         estados:['sindato'],              c:'#7b8499', bg:'#f2f4f7' }
+  pendiente:   { t:'Pendiente de revisión', estados:['pendiente'],            c:'var(--sem-rojo)',      bg:'var(--sem-rojo-bg)' },
+  medico:      { t:'Indicación médica',     estados:['noapto','condiciones'], c:'var(--sem-ambar)',     bg:'var(--sem-ambar-bg)' },
+  seguimiento: { t:'Seguimiento',           estados:['seguimiento'],          c:'var(--sem-ambar-alt)', bg:'var(--sem-ambar-alt-bg)' },
+  ok:          { t:'En condiciones',        estados:['ok','aptomed'],         c:'var(--sem-verde)',     bg:'var(--sem-verde-bg)' },
+  sindato:     { t:'Sin registros',         estados:['sindato'],              c:'var(--sem-gris)',      bg:'var(--sem-gris-bg)' }
 };
 function aptEnGrupo(p, k){ const g = APT_GRUPOS[k]; return !!g && g.estados.indexOf(p.estado) >= 0; }
 // Ícono chiquito de "esto se toca": lo llevan los contadores y los items de las colas (cualquier
@@ -6453,7 +6706,7 @@ const APT_TAP_INLINE = '<span class="apt-tap-inline" aria-hidden="true">' + APT_
 // supervisor termina viendo "Nadie con los filtros actuales" sin entender por qué.
 function aptResetFiltros(){
   if (!DASH) return;
-  DASH._aptFiltro = null; DASH._aptSoloAnot = false; DASH._aptOrden = 'auto';
+  DASH._aptFiltro = null; DASH._aptSoloAnot = false; DASH._aptOrden = 'auto'; DASH._aptQ = '';
 }
 function aptSetFiltro(k){
   if (!DASH) return;
@@ -6477,6 +6730,24 @@ function aptToggleSoloAnot(){
   DASH._aptSoloAnot = !DASH._aptSoloAnot;
   DASH._skipAnim = true;
   renderDash();
+}
+/* Búsqueda por nombre dentro de "Estado por persona".
+   ⚠️ renderDash() rehace TODO el HTML del panel, así que el <input> que se está usando se destruye
+   en cada tecla. Sin devolverle el foco y la posición del cursor después, sólo se podría escribir
+   una letra por vez: el campo perdería el foco y la siguiente tecla no llegaría a ningún lado.
+   Por eso se guarda la posición del cursor antes de renderizar y se restaura después. */
+function aptBuscar(q){
+  if (!DASH) return;
+  DASH._aptQ = q;
+  DASH._skipAnim = true;
+  const el = document.getElementById('aptBuscar');
+  const pos = el ? el.selectionStart : null;
+  renderDash();
+  const nuevo = document.getElementById('aptBuscar');
+  if (nuevo){
+    nuevo.focus();
+    if (pos != null){ try { nuevo.setSelectionRange(pos, pos); } catch(e){} }
+  }
 }
 /* Panel COMPACTO de estado general del equipo. Va debajo de los contadores porque en escritorio
    esa columna queda con mucho espacio libre (la lista de personas es larguísima al lado).
@@ -6641,8 +6912,8 @@ function renderHseqMrfo(rows){
 
   const celda = k => {
     const d = porDep[k], pct = Math.round(d.mal / d.n * 100);
-    const col = pct >= 50 ? '#c0271f' : pct >= 25 ? '#c96a1b' : pct > 0 ? '#a8791b' : '#1aa672';
-    const bg  = pct >= 50 ? '#fde8e6' : pct >= 25 ? '#fdf0e4' : pct > 0 ? '#fdf5e4' : '#e6f7f0';
+    const col = pct >= 50 ? 'var(--sem-rojo-int)' : pct >= 25 ? 'var(--niv-4)' : pct > 0 ? 'var(--niv-3)' : 'var(--sem-verde)';
+    const bg  = pct >= 50 ? 'var(--sem-rojo-int-bg)' : pct >= 25 ? '#fdf0e4' : pct > 0 ? '#fdf5e4' : 'var(--sem-verde-bg)';
     const nivs = Object.keys(d.niveles).sort().map(n => 'N' + n + '·' + d.niveles[n]).join(' ');
     return '<div class="hs-cell" style="--hc:' + col + ';--hbg:' + bg + '">' +
       '<div class="hs-cell-top"><span class="hs-cell-dep">' + esc(k) + '</span>' +
@@ -6889,7 +7160,7 @@ function renderReportesSupervisor(){
   const reps = (DASH._reportes || []).slice().sort((a,b) => b.creada - a.creada);
   const ayuda = dashHelp('Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia ' +
     'se decide del lado del empleado, no acá: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — ' +
-    'necesitás saber quién es para poder reasignarlo) y <b style="color:#6b3fa0">anónimos</b> (algo del puesto ' +
+    'necesitás saber quién es para poder reasignarlo) y <b style="color:var(--sem-morado)">anónimos</b> (algo del puesto ' +
     'o el turno — no llevan nombre en ningún punto del circuito, ni vos ni nadie más puede saberlo). ' +
     'En un reporte anónimo, el departamento sólo se muestra si tiene <b>' + cfg('anonN') + ' personas o más</b>: ' +
     'con menos, mostrar el depto casi identificaría a la persona igual, así que se agrega al total de la empresa.');
@@ -6961,12 +7232,12 @@ function renderAptitud(rows){
   }
   const ayuda = dashHelp('Vista <b>operativa</b>: si cada persona está en condiciones de trabajar, según sus tests <b>más recientes</b>.' +
     '<br><br><b>La app no declara a nadie no apto.</b> Cuando el control automático detecta un indicador por encima del límite, ' +
-    'la persona aparece como <b style="color:#e0322f">Pendiente de revisión</b>: quiere decir que <i>según la app</i> no está en ' +
+    'la persona aparece como <b style="color:var(--sem-rojo)">Pendiente de revisión</b>: quiere decir que <i>según la app</i> no está en ' +
     'condiciones, pero que <b>falta que el servicio médico la revise</b> para determinarlo. No es un "no apto".' +
-    '<br><br><b style="color:#c0271f">No apto</b> y <b style="color:#b8860b">Apto con condiciones</b> aparecen SÓLO cuando los firma ' +
+    '<br><br><b style="color:var(--sem-rojo-int)">No apto</b> y <b style="color:var(--sem-ambar)">Apto con condiciones</b> aparecen SÓLO cuando los firma ' +
     'el servicio médico, y en ese caso la tarjeta lo aclara y muestra quién lo determinó y hasta cuándo vale.' +
-    '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:#1aa672">verde</b> bien, ' +
-    '<b style="color:#b8860b">amarillo</b> cerca del límite, <b style="color:#d63031">rojo</b> por encima en los dos últimos tests. ' +
+    '<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:var(--sem-verde)">verde</b> bien, ' +
+    '<b style="color:var(--sem-ambar)">amarillo</b> cerca del límite, <b style="color:var(--sem-rojo-alt)">rojo</b> por encima en los dos últimos tests. ' +
     'Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.' +
     '<br><br><b>Tests poco confiables.</b> Si alguien responde el test tan rápido que no alcanzó a leerlo, ' +
     'ese resultado <b>no cuenta para el semáforo</b> y la tarjeta lo avisa. No es una sanción: es que ese dato ' +
@@ -7023,8 +7294,23 @@ function renderAptitud(rows){
   const soloAnot = !!DASH._aptSoloAnot;
   let visibles = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente.slice();
   if (soloAnot) visibles = visibles.filter(p => !!p.anot);
+  // Búsqueda por nombre. Con 18+ personas, encontrar a alguien en el desplegable de arriba obliga
+  // a leerlo entero; acá se escribe y la lista se acota sola. Compara con dashNorm (sin tildes ni
+  // mayúsculas): buscar "nicolas" tiene que encontrar a "Nicolás".
+  const q = dashNorm(DASH._aptQ || '');
+  if (q) visibles = visibles.filter(p => dashNorm(p.nombre).indexOf(q) >= 0 || dashNorm(p.dep || '').indexOf(q) >= 0);
   if (invertido) visibles = visibles.slice().reverse();
-  const hayFiltroExtra = !!filtro || soloAnot;
+  const hayFiltroExtra = !!filtro || soloAnot || !!q;
+
+  // El buscador se dibuja SIEMPRE con el mismo id y se le repone el valor + el foco después de
+  // renderizar (ver aptBuscar): como renderDash rehace todo el HTML, sin eso el campo perdería el
+  // cursor a cada letra y sería imposible escribir.
+  const buscador = '<div class="apt-buscar-wrap">' +
+    '<svg class="apt-buscar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+    '<input type="search" id="aptBuscar" class="apt-buscar" placeholder="Buscar por nombre o departamento…" ' +
+      'value="' + esc(DASH._aptQ || '') + '" oninput="aptBuscar(this.value)" aria-label="Buscar persona">' +
+    ((DASH._aptQ || '') ? '<button type="button" class="apt-buscar-x" onclick="aptBuscar(\'\')" aria-label="Limpiar búsqueda">×</button>' : '') +
+  '</div>';
 
   const controles = '<div class="apt-ctrls">' +
     '<button type="button" class="apt-ctrl-btn' + (invertido ? ' on' : '') + '" aria-pressed="' + (invertido?'true':'false') + '" onclick="aptToggleOrden()">' +
@@ -7044,8 +7330,13 @@ function renderAptitud(rows){
 
   // Arrow explícita, NO `visibles.map(aptTarjeta)`: map pasa (elemento, índice, array) y el índice
   // caería en el parámetro `opts`. Hoy no rompía sólo porque `(3).acciones` es undefined.
-  const tarjetas = visibles.length ? visibles.map(p => aptTarjeta(p, { acciones: restPuede() })).join('')
-    : '<div class="dash-empty">Nadie con los filtros actuales.</div>';
+  // La lista viene ordenada por urgencia, así que "Ver más" corta por lo que ya está tranquilo
+  // (R6: primero lo accionable, el resto a un toque). Si hay un filtro o una búsqueda activa se
+  // muestra COMPLETA: quien acaba de acotar la lista ya eligió qué quiere ver — volver a
+  // esconderle la mitad sería trabajar en su contra.
+  const tarjetasArr = visibles.map(p => aptTarjeta(p, { acciones: restPuede() }));
+  const tarjetas = !visibles.length ? '<div class="dash-empty">Nadie con los filtros actuales.</div>'
+    : (hayFiltroExtra ? tarjetasArr.join('') : dashVerMas(tarjetasArr, 6));
 
   const leyenda = '<div class="apt-leyenda">' +
     '<span class="apt-lg"><i class="apt-dot apt-ok"></i>Bien</span>' +
@@ -7067,7 +7358,7 @@ function renderAptitud(rows){
         '<div class="dash-block"><div class="db-title">Estado por persona' +
           (hayFiltroExtra ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
         '<div class="db-sub">' + (invertido ? 'Primero lo que ya está tranquilo; lo urgente va después' : 'Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después') + '</div>' +
-        controles + chip + leyenda + tarjetas + nota + '</div>' +
+        buscador + controles + chip + leyenda + tarjetas + nota + '</div>' +
       '</div>' +
     '</div>';
 }
@@ -7088,7 +7379,7 @@ function renderResumen(rows){
           'Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las mandaste vos.' +
           '<br><br>Si alguna vez te aparece una <b>telemedicina sugerida</b>, es un ofrecimiento de consulta con el servicio médico: ' +
           '<b>vos decidís</b> si la aceptás o no, y rechazarla no tiene ninguna consecuencia para tu trabajo.') : '')))
-    : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:#d63031">rojo</b> supera la referencia.');
+    : 'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:var(--sem-rojo-alt)">rojo</b> supera la referencia.');
   const nReg = rows.length + ' ' + (rows.length === 1 ? 'registro' : 'registros');
   let head = '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Promedios de ' + who) : (single ? 'Tus promedios' : ('Promedios' + (who ? (' · ' + who) : '')))) + '</div>' +
     '<div class="db-sub">Promedio de ' + (esOtraPersona ? ('sus ') : (single ? 'tus ' : 'los ')) + nReg + ' del período seleccionado</div>' +
@@ -7135,20 +7426,20 @@ function dashSemaforoPersonal(rows){
   const firmadoPorMedico = aptEstadoInfo(p.estado).medico;
   let color, bg, titulo, texto;
   if (p.estado === 'noapto' && firmadoPorMedico){
-    color = '#c0271f'; bg = '#fde8e6'; titulo = 'No estás en condiciones hoy';
+    color = 'var(--sem-rojo-int)'; bg = 'var(--sem-rojo-int-bg)'; titulo = 'No estás en condiciones hoy';
     texto = 'El servicio médico revisó tus indicadores y determinó que hoy no estás en condiciones' +
       (p.anot && p.anot.nota ? ': ' + p.anot.nota : '.') + ' Esto lo vio también tu supervisor.';
   } else if (p.estado === 'condiciones' && firmadoPorMedico){
-    color = '#b8860b'; bg = '#fff8e6'; titulo = 'Apto con condiciones';
+    color = 'var(--sem-ambar)'; bg = 'var(--sem-ambar-bg)'; titulo = 'Apto con condiciones';
     texto = 'El servicio médico te dejó una indicación' + (p.anot && p.anot.nota ? ': ' + p.anot.nota : '') + '.';
   } else if (p.estado === 'pendiente' || p.estado === 'seguimiento'){
-    color = '#b8860b'; bg = '#fff8e6'; titulo = 'Hay indicadores para revisar';
+    color = 'var(--sem-ambar)'; bg = 'var(--sem-ambar-bg)'; titulo = 'Hay indicadores para revisar';
     texto = 'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.';
   } else if (p.estado === 'sindato'){
-    color = '#7b8499'; bg = '#f2f4f7'; titulo = 'Todavía sin registros';
+    color = 'var(--sem-gris)'; bg = 'var(--sem-gris-bg)'; titulo = 'Todavía sin registros';
     texto = 'Cuando completes tu primer test vas a ver tu estado acá.';
   } else {
-    color = '#1aa672'; bg = '#e6f7f0'; titulo = 'Estás en condiciones';
+    color = 'var(--sem-verde)'; bg = 'var(--sem-verde-bg)'; titulo = 'Estás en condiciones';
     texto = 'Tus indicadores más recientes están dentro de lo esperado.';
   }
   const restrHtml = p.restriccion
@@ -7340,15 +7631,15 @@ function dashGroupedBars(rows){
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="#e6eaf0"/>';
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="#7b8499">0</text>';
   items.forEach((it,i) => {
-    const cx = padL + gw*i + gw/2, over = it.grupo > it.ref, col = over ? '#e0322f' : (METRIC_COLORS[it.m]||'#2d6cdf');
+    const cx = padL + gw*i + gw/2, over = it.grupo > it.ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--sem-azul)');
     svg += '<rect x="'+(cx-bw-1).toFixed(1)+'" y="'+y(it.grupo).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.grupo)).toFixed(1)+'" rx="1.5" fill="'+col+'"/>';
     svg += '<rect x="'+(cx+1).toFixed(1)+'" y="'+y(it.ref).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.ref)).toFixed(1)+'" rx="1.5" fill="#c9d2e0"/>';
     svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="#525d73" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(it.label)+'</text>';
   });
   svg += '</svg>';
-  const legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:#2d6cdf"></span>Promedio</span>' +
+  const legend = '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:var(--sem-azul)"></span>Promedio</span>' +
     '<span class="rl-item"><span class="rl-dot" style="background:#c9d2e0"></span>Referencia</span>' +
-    '<span class="rl-item"><span class="rl-dot" style="background:#e0322f"></span>Sobre lo normal</span></div>';
+    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>Sobre lo normal</span></div>';
   return '<div class="radar-wrap">' + svg + legend + '</div>';
 }
 
@@ -7366,7 +7657,7 @@ function renderComparar(rows){
     return titulo + dashWarn('Se necesitan al menos 2 ' + (groupKey==='empresa'?'empresas':'departamentos') + ' con datos para comparar. Por ahora hay ' + names.length + '. Mira el Resumen para ver el detalle de lo que ya cargaron.') + '</div>';
   }
 
-  const help = dashHelp('Compara ' + (groupKey==='empresa'?'las empresas':'los departamentos') + ' entre sí. Cada celda es el promedio de esa métrica: <b style="color:#1aa672">verde</b> = bien, <b style="color:#d63031">rojo</b> = sobre lo normal. <b>Toca una fila</b> para entrar a ese ' + groupKey + '.');
+  const help = dashHelp('Compara ' + (groupKey==='empresa'?'las empresas':'los departamentos') + ' entre sí. Cada celda es el promedio de esa métrica: <b style="color:var(--sem-verde)">verde</b> = bien, <b style="color:var(--sem-rojo-alt)">rojo</b> = sobre lo normal. <b>Toca una fila</b> para entrar a ese ' + groupKey + '.');
   let heat = '<div class="dash-block"><div class="db-title">Comparativa por ' + groupKey + '</div>' +
     '<div class="heat-scroll"><table class="heat"><thead><tr><th class="hname"></th>' +
     DASH.metrics.map(m=>'<th>'+(METRIC_LABELS[m]||m)+'</th>').join('') + '</tr></thead><tbody>';
@@ -7513,7 +7804,7 @@ function pvtVerdict(rt, lap){
   if (rt == null || rt <= 0) return { t:'—', c:'var(--text-muted)', over:false };
   if (rt < 300 && lap <= 1) return { t:'Buen estado de alerta', c:'var(--green)', over:false };
   if (rt < 400 && lap <= 3) return { t:'Alerta moderada', c:'#e8a400', over:false };
-  return { t:'Signos de fatiga', c:'#e0322f', over:true };
+  return { t:'Signos de fatiga', c:'var(--sem-rojo)', over:true };
 }
 function renderPVT(){
   const info = dashHelp('El <b>Test de Reacción (PVT)</b> mide la fatiga de forma <b>objetiva</b>: cuánto tarda la persona (en milisegundos) en reaccionar a un estímulo. Menor tiempo y menos <b>lapsos</b> (reacciones de más de 355 ms) = mejor estado de alerta.');
@@ -7542,7 +7833,7 @@ function renderPVT(){
         return '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
           '<span class="hi-m">RT ' + r.rt_prom + ' ms</span>' +
           '<span class="hi-m ' + (r.lapsos>3?'over':'') + '">Lapsos ' + r.lapsos + '</span>' +
-          '<span class="hi-m" style="background:' + (v.over?'#feecec':'#eef3ff') + ';color:' + v.c + '">' + v.t + '</span></div>';
+          '<span class="hi-m" style="background:' + (v.over?'var(--sem-rojo-bg)':'#eef3ff') + ';color:' + v.c + '">' + v.t + '</span></div>';
       }).join('') + '</div>';
   } else {
     const g = {}; pv.forEach(r => { const k = r.persona || '—'; (g[k]=g[k]||[]).push(r); });
@@ -7569,7 +7860,7 @@ function renderPVT(){
   if (grafico){
     evo = '<div class="dash-block"><div class="db-title">Cómo evolucionó la reacción</div>' +
       '<div class="db-sub">Cada punto es un test. Cuanto más abajo, más rápido reaccionó (mejor).</div>' +
-      dashHelp('El <b>tiempo de reacción</b> es cuánto tardas en responder, medido en milisegundos (ms). <b>Cuanto más bajo, mejor.</b> No hace falta entender los números: fíjate en el color de la franja donde caen los puntos — <b style="color:#1aa672">verde</b> es un buen estado, <b style="color:#b8860b">amarillo</b> es intermedio y <b style="color:#d63031">rojo</b> son señales de fatiga.') +
+      dashHelp('El <b>tiempo de reacción</b> es cuánto tardas en responder, medido en milisegundos (ms). <b>Cuanto más bajo, mejor.</b> No hace falta entender los números: fíjate en el color de la franja donde caen los puntos — <b style="color:var(--sem-verde)">verde</b> es un buen estado, <b style="color:var(--sem-ambar)">amarillo</b> es intermedio y <b style="color:var(--sem-rojo-alt)">rojo</b> son señales de fatiga.') +
       grafico + '</div>';
   }
   return info + kpis + body + evo;
@@ -7597,15 +7888,15 @@ function dashPvtEvolucion(pv){
   const y = v => padT + (1 - Math.min(v, maxV)/maxV)*ih;
   const banda = (v1,v2,color) => '<rect x="'+padL+'" y="'+y(v2).toFixed(1)+'" width="'+iw+'" height="'+Math.max(0,(y(v1)-y(v2))).toFixed(1)+'" fill="'+color+'"/>';
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
-  svg += banda(0,300,'#e6f7f0') + banda(300,400,'#fff8e6') + banda(400,maxV,'#feecec');
+  svg += banda(0,300,'var(--sem-verde-bg)') + banda(300,400,'var(--sem-ambar-bg)') + banda(400,maxV,'var(--sem-rojo-bg)');
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(150)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#1aa672">Bien</text>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(350)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#b8860b">Medio</text>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(Math.min(maxV-40,470))+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="#d63031">Fatiga</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(150)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-verde)">Bien</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(350)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-ambar)">Medio</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+(y(Math.min(maxV-40,470))+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-rojo-alt)">Fatiga</text>';
   const d = pts.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   svg += '<path d="'+d+'" fill="none" stroke="#16233d" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
   pts.forEach((p,i) => {
-    const c = p.v < 300 ? '#1aa672' : (p.v < 400 ? '#e8a400' : '#e0322f');
+    const c = p.v < 300 ? 'var(--sem-verde)' : (p.v < 400 ? '#e8a400' : 'var(--sem-rojo)');
     svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+c+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+' ms</title></circle>';
   });
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+Math.round(maxV)+'</text>';
@@ -7614,9 +7905,9 @@ function dashPvtEvolucion(pv){
   svg += '<text x="'+(W-padR)+'" y="'+(H-8)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
   const leyenda = '<div class="radar-legend">' +
-    '<span class="rl-item"><span class="rl-dot" style="background:#1aa672"></span>Menos de 300 ms · bien</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-verde)"></span>Menos de 300 ms · bien</span>' +
     '<span class="rl-item"><span class="rl-dot" style="background:#e8a400"></span>300 a 400 ms · intermedio</span>' +
-    '<span class="rl-item"><span class="rl-dot" style="background:#e0322f"></span>Más de 400 ms · señales de fatiga</span>' +
+    '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>Más de 400 ms · señales de fatiga</span>' +
     (pvtDiasVarios ? '<span class="rl-item rl-nota">Días con varios tests: se muestra el <b>peor</b> de ese día.</span>' : '') + '</div>';
   return '<div class="radar-wrap">' + svg + leyenda + '</div>';
 }
@@ -7912,7 +8203,7 @@ function dashStatsTable(rows){
       '· <b>Mediana</b>: el valor del medio (no lo mueven los casos extremos).<br>' +
       '· <b>Desv.</b>: qué tan parejos o dispersos están los datos entre sí.<br>' +
       '· <b>Máx</b>: el valor más alto registrado. · <b>Suma</b>: el total. · <b>N</b>: cuántos tests hay.<br>' +
-      '· <b>Ref</b>: el valor normal de referencia. Si la media lo supera, sale en <b style="color:#d63031">rojo</b>.') +
+      '· <b>Ref</b>: el valor normal de referencia. Si la media lo supera, sale en <b style="color:var(--sem-rojo-alt)">rojo</b>.') +
     '<div class="stat-scroll"><table class="stat-table"><thead><tr><th class="metric">Métrica</th>' +
     '<th>Media</th><th>Mediana</th><th>Desv.</th><th>Máx</th><th>Suma</th><th>N</th><th>Ref</th></tr></thead><tbody>';
   DASH.metrics.forEach(m => {
@@ -7940,7 +8231,7 @@ function dashRadar(series){
   [0.5,1].forEach(fr => {
     const pts = M.map((m,i)=>{ const rr=R*fr; return (cx+rr*Math.cos(ang(i))).toFixed(1)+','+(cy+rr*Math.sin(ang(i))).toFixed(1); }).join(' ');
     const isRef = fr===0.5;
-    svg += '<polygon points="'+pts+'" fill="none" stroke="'+(isRef?'#16233d':'#e0e4ec')+'" stroke-width="'+(isRef?1.3:1)+'"'+(isRef?' stroke-dasharray="4 3"':'')+' opacity="'+(isRef?0.6:1)+'"/>';
+    svg += '<polygon points="'+pts+'" fill="none" stroke="'+(isRef?'#16233d':'var(--sup-borde)')+'" stroke-width="'+(isRef?1.3:1)+'"'+(isRef?' stroke-dasharray="4 3"':'')+' opacity="'+(isRef?0.6:1)+'"/>';
   });
   M.forEach((m,i) => {
     const ex=cx+R*Math.cos(ang(i)), ey=cy+R*Math.sin(ang(i));
@@ -7972,7 +8263,7 @@ function dashLineChart(points, ref){
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="#e6eaf0"/>';
   svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
   svg += '<path d="'+path+'" fill="none" stroke="#f47a1f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-  points.forEach((p,i)=>{ svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.value).toFixed(1)+'" r="3.4" fill="'+(p.value>ref?'#e0322f':'#f47a1f')+'"/>'; });
+  points.forEach((p,i)=>{ svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.value).toFixed(1)+'" r="3.4" fill="'+(p.value>ref?'var(--sem-rojo)':'#f47a1f')+'"/>'; });
   const step = Math.ceil(points.length/6);
   points.forEach((p,i)=>{ if(points.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="#7b8499" text-anchor="middle">'+p.label.slice(2)+'</text>'; });
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxV.toFixed(0)+'</text>';
@@ -7996,7 +8287,7 @@ function dashHistograma(rows, m){
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="#7b8499">'+maxC+'</text><text x="3" y="'+base+'" font-size="8" fill="#7b8499">0</text>';
   bins.forEach((c,i) => {
     const h = (c/maxC)*ih, x = padL + i*bw + bw*0.12, w = bw*0.76, centro = min + paso*(i+0.5);
-    const col = centro > ref ? '#e0322f' : (METRIC_COLORS[m]||'#2d6cdf');
+    const col = centro > ref ? 'var(--sem-rojo)' : (METRIC_COLORS[m]||'var(--sem-azul)');
     svg += '<rect x="'+x.toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
     svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base+12)+'" font-size="7" fill="#7b8499" text-anchor="middle">'+(min+paso*i).toFixed(0)+'–'+(min+paso*(i+1)).toFixed(0)+'</text>';
     if (c) svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base-h-3).toFixed(1)+'" font-size="8" font-weight="700" fill="#525d73" text-anchor="middle">'+c+'</text>';
@@ -8037,8 +8328,8 @@ function dashLineaTiempo(rows, m){
   svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="#16233d" stroke-dasharray="4 3" opacity="0.5"/>';
   // Línea que UNE los puntos en orden de fecha (la "gracia" de la línea de tiempo).
   const dPath = pts.map((p,i) => (i?'L':'M') + x(p.t).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
-  svg += '<path d="'+dPath+'" fill="none" stroke="#2d6cdf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+(p.v>ref?'#e0322f':'#2d6cdf')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
+  svg += '<path d="'+dPath+'" fill="none" stroke="var(--sem-azul)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+(p.v>ref?'var(--sem-rojo)':'var(--sem-azul)')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
   svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="#7b8499">'+esc(dashFechaLinda(pts[0].f))+'</text>';
   svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="#7b8499" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
@@ -8146,14 +8437,14 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 const K_GESTIONES = 'silva_fatiga_gestiones_v2';
 const GEST = { filtro:'all', q:'', exp:{}, orden:'recientes' };
 const GEST_ESTADOS = [
-  { k:'abierta',     t:'Abierta',        c:'#e0322f', bg:'#feecec' },
-  { k:'seguimiento', t:'En seguimiento', c:'#b8860b', bg:'#fff8e6' },
-  { k:'resuelta',    t:'Resuelta',       c:'#1aa672', bg:'#e6f7f0' }
+  { k:'abierta',     t:'Abierta',        c:'var(--sem-rojo)',  bg:'var(--sem-rojo-bg)' },
+  { k:'seguimiento', t:'En seguimiento', c:'var(--sem-ambar)', bg:'var(--sem-ambar-bg)' },
+  { k:'resuelta',    t:'Resuelta',       c:'var(--sem-verde)', bg:'var(--sem-verde-bg)' }
 ];
 const GEST_PRIOS = [
-  { k:'alta',  t:'Alta',  c:'#e0322f' },
-  { k:'media', t:'Media', c:'#e8a400' },
-  { k:'baja',  t:'Baja',  c:'#1aa672' }
+  { k:'alta',  t:'Alta',  c:'var(--sem-rojo)' },
+  { k:'media', t:'Media', c:'var(--sem-ambar)' },
+  { k:'baja',  t:'Baja',  c:'var(--sem-verde)' }
 ];
 function gestEstadoInfo(k){ return GEST_ESTADOS.find(e=>e.k===k) || GEST_ESTADOS[0]; }
 function gestPrioInfo(k){ return GEST_PRIOS.find(p=>p.k===k) || GEST_PRIOS[1]; }
@@ -8353,9 +8644,9 @@ const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
 // `corto` = etiqueta de ESTADO para las insignias ya guardadas (una insignia que dice
 // "Apto · cerrar alerta" no se entiende: eso es lo que hiciste, no en qué estado quedó).
 const APT_ANOT_NIVELES = [
-  { k:'alto',  t:'No apto',               corto:'No apto',         c:'#c0271f', bg:'#fde8e6' },
-  { k:'medio', t:'Apto con condiciones',  corto:'Con condiciones', c:'#b8860b', bg:'#fff8e6' },
-  { k:'ok',    t:'Alta / Reincorporación', corto:'Apto',           c:'#1aa672', bg:'#e6f7f0' }
+  { k:'alto',  t:'No apto',               corto:'No apto',         c:'var(--sem-rojo-int)', bg:'var(--sem-rojo-int-bg)' },
+  { k:'medio', t:'Apto con condiciones',  corto:'Con condiciones', c:'var(--sem-ambar)',    bg:'var(--sem-ambar-bg)' },
+  { k:'ok',    t:'Alta / Reincorporación', corto:'Apto',           c:'var(--sem-verde)',    bg:'var(--sem-verde-bg)' }
 ];
 function apAnotInfo(k){ return APT_ANOT_NIVELES.find(n=>n.k===k) || APT_ANOT_NIVELES[1]; }
 // Memoizada por render: aptPersona() la consulta DOS veces por persona (vigentes + historial), y
@@ -8469,10 +8760,10 @@ function restVencidasDe(persona){
    3) LA PERSONA PUEDE RECHAZARLA. Se le muestra en su propia vista (P4) y decide. */
 const GEST_TIPO_TELEMEDICINA = 'telemedicina';
 const TELEM_ESTADOS = {
-  sugerida:  { t:'Telemedicina sugerida', corto:'Sugerida',  c:'#1d4ea8', bg:'#eaf1fd' },
-  aceptada:  { t:'Telemedicina aceptada', corto:'Aceptada',  c:'#128a5e', bg:'#e2f6ee' },
-  rechazada: { t:'Telemedicina rechazada',corto:'Rechazada', c:'#b8860b', bg:'#fff8e6' },
-  realizada: { t:'Telemedicina realizada',corto:'Realizada', c:'#128a5e', bg:'#e2f6ee' }
+  sugerida:  { t:'Telemedicina sugerida', corto:'Sugerida',  c:'var(--sem-azul-int)',  bg:'var(--sem-azul-int-bg)' },
+  aceptada:  { t:'Telemedicina aceptada', corto:'Aceptada',  c:'var(--sem-verde-int)', bg:'var(--sem-verde-int-bg)' },
+  rechazada: { t:'Telemedicina rechazada',corto:'Rechazada', c:'var(--sem-ambar)',     bg:'var(--sem-ambar-bg)' },
+  realizada: { t:'Telemedicina realizada',corto:'Realizada', c:'var(--sem-verde-int)', bg:'var(--sem-verde-int-bg)' }
 };
 function telemInfo(k){ return TELEM_ESTADOS[k] || TELEM_ESTADOS.sugerida; }
 let _telemCache = null;
@@ -8582,7 +8873,7 @@ function fmTimeline(persona){
   });
   restTodasDe(persona).forEach(g => {
     const m = g.mitigacion ? mitigacionInfo(g.mitigacion) : null;
-    ev.push({ ts:g.creada, c:'#2d6cdf', bg:'#eaf1fd', tipo:'Restricción operativa',
+    ev.push({ ts:g.creada, c:'var(--sem-azul)', bg:'var(--sem-azul-bg)', tipo:'Restricción operativa',
       txt:'No asignar: ' + (g.tarea || '—') + (g.supervisor ? ' · ' + g.supervisor : ''),
       nota:(m ? 'Acción: ' + m.t + (g.motivo ? ' · ' + g.motivo : '') : (g.motivo || '')),
       pie:(g.levantada ? 'Levantada el ' + gestFechaTs(g.levantadaEn)
@@ -8590,7 +8881,7 @@ function fmTimeline(persona){
                                                : 'Venció el ' + gestFechaTs(g.hasta))) });
   });
   notasClinicasDe(persona).forEach(g => {
-    ev.push({ ts:g.creada, c:'#7b8499', bg:'#f2f4f7', tipo:'Nota clínica',
+    ev.push({ ts:g.creada, c:'var(--sem-gris)', bg:'var(--sem-gris-bg)', tipo:'Nota clínica',
       txt:(g.medico || 'Servicio médico'), nota:g.texto || '', pie:'' });
   });
   // Telemedicina: el RECHAZO también entra en la historia. Que alguien no quiera atenderse es
@@ -8694,21 +8985,21 @@ function aptMotivoCola(p){
   if (p.persist){
     const met = METRIC_LABELS[p.persist.metrica] || p.persist.metrica;
     return p.persist.motivo === 'repetido'
-      ? { badge:'Patrón sostenido', c:'#8e2f8e', bg:'#f7ecf7',
+      ? { badge:'Patrón sostenido', c:'var(--sem-violeta)', bg:'var(--sem-violeta-bg)',
           why: met + ' por encima del límite en ' + p.persist.n + ' mediciones seguidas' }
-      : { badge:'Patrón sostenido', c:'#8e2f8e', bg:'#f7ecf7',
+      : { badge:'Patrón sostenido', c:'var(--sem-violeta)', bg:'var(--sem-violeta-bg)',
           why: met + ' subiendo en ' + p.persist.n + ' mediciones seguidas' };
   }
-  if (p.restrVencida) return { badge:'Plazo vencido', c:'#2d6cdf', bg:'#eaf1fd',
+  if (p.restrVencida) return { badge:'Plazo vencido', c:'var(--sem-azul)', bg:'var(--sem-azul-bg)',
     why: 'se venció la restricción operativa de "' + (p.restrVencida.tarea || 'una tarea') + '" y nadie la revisó' };
   // Calidad del dato, no salud: no hay nada clínico que determinar todavía, hace falta un test
   // que sirva. Va con su propio color para que no se confunda con un caso a evaluar.
-  if (p.ultimoPocoConfiable) return { badge:'Test poco confiable', c:'#7b8499', bg:'#f2f4f7',
+  if (p.ultimoPocoConfiable) return { badge:'Test poco confiable', c:'var(--sem-gris)', bg:'var(--sem-gris-bg)',
     why: 'el último test se respondió demasiado rápido: no se puede leer, conviene repetirlo' };
-  if (p.desactualizada) return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'test nuevo tras la indicación' };
-  if (!p.revisado)      return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'sin revisar' };
-  if (p.empeoro)        return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'empeoró' };
-  return { badge:'Revisar', c:'#e0322f', bg:'#feecec', why:'ya revisado antes' };
+  if (p.desactualizada) return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'test nuevo tras la indicación' };
+  if (!p.revisado)      return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'sin revisar' };
+  if (p.empeoro)        return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'empeoró' };
+  return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'ya revisado antes' };
 }
 function dashAnotacionesResumen(){
   if (!DASH || DASH.vista !== 'medico') return '';
@@ -8739,7 +9030,7 @@ function dashAnotacionesResumen(){
     html += '<div class="dash-block"><div class="db-title">Pendientes de revisión (' + pendientes.length + ')</div>' +
       '<div class="db-sub">El control automático las marcó y todavía no las determinó el servicio médico. ' +
       'El supervisor las ve como <b>Pendiente de revisión</b> hasta que las resuelvas.' +
-      (nPers ? ' <b style="color:#8e2f8e">' + nPers + ' con patrón sostenido</b>: no es un valor suelto, se viene repitiendo.' : '') +
+      (nPers ? ' <b style="color:var(--sem-violeta)">' + nPers + ' con patrón sostenido</b>: no es un valor suelto, se viene repitiendo.' : '') +
       '</div>' + dashVerMas(filas, 3) + '</div>';
   }
   if (conInd.length){
@@ -9469,6 +9760,7 @@ document.getElementById('verTag').textContent = 'Versión ' + APP_VERSION;
 document.getElementById('app').style.display = 'block';
 
 aplicarTamanoTexto();   // tamaño de letra elegido por la persona
+aplicarTema();          // repite lo que ya resolvió el script temprano del <head>, y arma el timer de modo automático
 const _prof = getProfile();
 renderSections();
 renderActividad();
