@@ -2826,7 +2826,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.36';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.37';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3210,6 +3210,12 @@ function offPendientes(){
 function offHayConexion(){ return navigator.onLine !== false; }
 function offPintar(){
   const el = document.getElementById('offBar'); if (!el) return;
+  // La demo siembra anotaciones/casos de EJEMPLO local solo (gestCanSync() ya los bloquea de
+  // salir de verdad), pero gestUpsert los sigue marcando "pendientes" igual — sin este corte,
+  // el cartel decía "Enviando N registros…" por mirar la demo sin haber tocado nada, y como
+  // nunca iban a salir de verdad, se quedaba así para siempre. En demo no hay nada que "avisar
+  // que se guardó": el usuario no generó ese dato.
+  if (typeof DASH !== 'undefined' && DASH && DASH.demoMode){ el.style.display = 'none'; return; }
   const n = offPendientes(), online = offHayConexion();
   // Sin pendientes y con conexión no se muestra nada: un cartel permanente diciendo "todo bien"
   // es ruido, y termina ignorándose justo cuando pasa a decir otra cosa.
@@ -8896,7 +8902,13 @@ function gestNewId(){ return 'g' + Date.now().toString(36) + Math.floor(Math.ran
    conexión queda solo local. push = sube pendientes; pull = trae del servidor y superpone lo
    local pendiente (lo local gana hasta confirmarse). */
 let _gestSyncT = null;
-function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL; }
+// ⚠️ El `!DASH.demoMode` es el fix, no un detalle: sin él, las anotaciones/casos de EJEMPLO que
+// gestSembrarDemoAnotaciones()/gestSembrarDemo() siembran automáticamente al entrar a la demo se
+// marcaban "pendientes de subir" igual (gestUpsert siempre lo hace) y, si además había credenciales
+// reales en DASH.params (demo vista desde una cuenta ya logueada), terminaban de verdad intentando
+// escribirse en el sheet real — datos de ejemplo mezclándose con Gestiones real, exactamente lo que
+// el comentario de arriba decía que NO debía pasar.
+function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL && !(DASH && DASH.demoMode); }
 function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || '') }, extra||{}); }
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
 function gestPost(body){ return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
