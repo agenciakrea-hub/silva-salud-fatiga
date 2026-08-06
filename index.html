@@ -1877,6 +1877,29 @@
   .hs-aviso-est { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-ambar-bg); border-left:3px solid var(--sem-ambar); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
 
+  /* ── Fase B (P12): esqueletos visibles del Plan Predictivo. A propósito con look "apagado":
+     escala de grises, borde punteado, candado — nada de esto puede leerse como un dato real. ── */
+  .pred-grid { display:grid; grid-template-columns:1fr; gap:.6rem; margin-top:.7rem; }
+  @media (min-width: 700px){ .pred-grid { grid-template-columns:1fr 1fr; } }
+  @media (min-width: 1280px){ .pred-grid { grid-template-columns:1fr 1fr 1fr; } }
+  .pred-card { padding:.7rem .8rem; border-radius:var(--radius-sm); background:var(--sup-suave);
+    border:1.5px dashed var(--sup-borde); filter:grayscale(1); opacity:.82; }
+  .pred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; flex-wrap:wrap; }
+  .pred-t { font-size:.87rem; font-weight:800; color:var(--text); }
+  .pred-badge { flex:0 0 auto; font-size:.66rem; font-weight:800; padding:.15rem .45rem; border-radius:999px;
+    background:var(--sup-borde); color:var(--text-muted); white-space:nowrap; }
+  .pred-mock { font-size:1.6rem; font-weight:800; color:var(--text-muted); margin:.35rem 0; font-variant-numeric:tabular-nums; }
+  .pred-d { font-size:.78rem; color:var(--text-soft); line-height:1.45; }
+  .pred-cruce { margin-top:.45rem; font-size:.75rem; color:var(--text-muted); line-height:1.4; }
+  .pred-cruce b { color:var(--text-soft); }
+  .pred-medevac { grid-column:1 / -1; filter:none; opacity:1; border-style:solid; border-color:var(--sem-rojo); background:var(--sem-rojo-bg); }
+  .pred-medevac-btn { display:block; width:100%; margin:.5rem 0; padding:.85rem; border-radius:var(--radius-sm);
+    border:2px dashed var(--text-muted); background:repeating-linear-gradient(135deg, var(--sup-linea), var(--sup-linea) 8px, var(--sup-suave) 8px, var(--sup-suave) 16px);
+    color:var(--text-muted); font-family:inherit; font-weight:800; font-size:.86rem; text-align:center;
+    cursor:not-allowed; pointer-events:none; filter:grayscale(1); }
+  .pred-warn { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
+    background:var(--sem-rojo-bg); border-left:3px solid var(--sem-rojo); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
+
   /* ── Telemedicina (P6): tercera capa, distinta de la médica y de la operativa ── */
   .apt-telem { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
     background:var(--tbg); border-left:3px solid var(--tc); }
@@ -2803,7 +2826,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.34';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.35';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3208,7 +3231,7 @@ setInterval(offPintar, 15000);   // la cola se vacía sola en segundo plano: el 
    Un registro por tipo por día: si la persona lo reenvía, PISA al de hoy (no acumula versiones). */
 const K_TURNOS = 'silva_fatiga_turnos_v1';
 const TURNO_TIPOS = [
-  { k:'checkin',  t:'Antes del turno',  sub:'¿Cómo llegás hoy?' },
+  { k:'checkin',  t:'Antes del turno',  sub:'¿Cómo llegas hoy?' },
   { k:'carga',    t:'Durante el turno', sub:'¿Cómo se siente la carga de trabajo ahora?' },
   { k:'checkout', t:'Al terminar',      sub:'¿Cómo te vas?' }
 ];
@@ -5717,7 +5740,7 @@ function portalLoginAdmin(btn){
 }
 
 const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud', reportes:'Reportes',
-  idc:'Disponibilidad', mrfo:'Mapa de riesgo', intervenciones:'Intervenciones', auditoria:'Trazabilidad', costos:'Costos' };
+  idc:'Disponibilidad', mrfo:'Mapa de riesgo', intervenciones:'Intervenciones', auditoria:'Trazabilidad', costos:'Costos', predictivo:'Predictivo' };
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
 function dashTabsFor(rol, hasPvt, vista){
@@ -5725,7 +5748,7 @@ function dashTabsFor(rol, hasPvt, vista){
   // comentarios ni informes: eso es del servicio médico.
   if (vista === 'supervisor') return ['aptitud','reportes'];
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
-  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos'];
+  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
@@ -5900,7 +5923,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
 function dashOrderedTabs(){
   if (DASH.vista === 'supervisor') return ['aptitud','reportes'];
-  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos'];
+  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo'];
   let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
@@ -6219,6 +6242,7 @@ function renderDash(){
     else if (t === 'intervenciones') html = renderHseqIntervenciones();
     else if (t === 'auditoria') html = renderHseqAuditoria();
     else if (t === 'costos') html = renderHseqCostos(rows);
+    else if (t === 'predictivo') html = renderHseqPredictivo();
     else if (!rows.length) html = '<div class="dash-empty">Sin registros de tests para este filtro.</div>';
     else if (t === 'comparar') html = renderComparar(rows);
     else if (t === 'individual') html = renderIndividual(rows);
@@ -7269,6 +7293,71 @@ function renderHseqCostos(rows){
   '</div>';
 }
 
+/* ══════════ FASE B (P12): Plan Predictivo — esqueletos visibles, no funcionales ══════════
+   Objetivo (D9, PLAN_ECOSISTEMA §7): que el jefe y clientes potenciales vean el potencial del
+   próximo escalón comercial (Predictivo 360° = autoreporte actual + wearables + SAFTE). Es
+   material de venta, así que tiene que VERSE completo — pero nada puede fingir funcionar:
+   ⚠️ ningún mock muestra un número inventado (todo "—"), todo lleva el sello "En desarrollo ·
+   requiere wearable", y el botón MedEvac queda desactivado en el sentido literal (disabled +
+   pointer-events:none), no sólo atenuado con CSS. Cada tarjeta explica contra qué autoreporte
+   QUE YA EXISTE se cruzaría el dato del wearable — eso es lo que hace creíble la demo: no es una
+   promesa abstracta, es "esto que ya ves hoy, más esto que todavía no tenés". */
+const PRED_ITEMS = [
+  { t:'% SAFTE', mock:'—',
+    d:'Puntaje biomatemático de efectividad (0-100%) que combina horas de sueño reales, hora del día y carga acumulada de turnos.',
+    cruce:'el semáforo personal y el check-in / carga / check-out de hoy (autoreportados) — para ver si lo que la persona siente coincide con lo que el modelo calcula.' },
+  { t:'Proyección de decaimiento 4 / 8 / 12 h', mock:'— / — / —',
+    d:'Hacia dónde va el rendimiento en las próximas horas de turno, no sólo el estado de ahora mismo.',
+    cruce:'el patrón de turnos ya cargado (rotación, duración), para anticipar el tramo más riesgoso antes de que llegue.' },
+  { t:'Deuda de sueño acumulada', mock:'— h',
+    d:'Cuánto sueño le falta a la persona sumando los últimos días, no sólo la última noche.',
+    cruce:'la frecuencia de somnolencia alta (KSS) de los tests recientes: hoy eso ya se ve, pero sin saber cuánto sueño real hay detrás.' },
+  { t:'Índice circadiano', mock:'—',
+    d:'Qué tan cerca está la persona del punto más bajo del reloj biológico (nadir 02:00–06:00), el tramo de peor rendimiento aunque haya dormido bien.',
+    cruce:'la hora real de cada registro (ya se guarda), para ver si los peores autoreportes coinciden con esa ventana horaria.' },
+  { t:'TROS · tiempo restante de operación segura', mock:'— h',
+    d:'Cuánto le queda a la persona antes de cruzar su límite operativo, en tiempo real.',
+    cruce:'el nivel de riesgo del puesto (ya existe): la tolerancia operativa por nivel ya está definida, esto sería la cuenta regresiva contra ese límite.' },
+  { t:'HRV · variabilidad de frecuencia cardíaca', mock:'— ms',
+    d:'Medición fisiológica objetiva de estrés y recuperación, tomada por el wearable.',
+    cruce:'el indicador de estrés / ansiedad que la persona ya autoreporta, para contrastar percepción contra fisiología.' },
+  { t:'Batería e integridad del wearable', mock:'— %',
+    d:'Si el dispositivo está encendido, cargado y transmitiendo. Sin esto, el resto de la pestaña queda ciego.',
+    cruce:null },
+  { t:'Calidad de telemetría', mock:'—',
+    d:'Qué tan confiable es la señal del wearable (contacto del sensor, ruido, datos incompletos).',
+    cruce:'el score de confiabilidad de tests que ya existe hoy: mismo control de calidad, aplicado al dato objetivo en vez del autoreporte.' },
+  { t:'Visión predictiva 24 h', mock:'—',
+    d:'Una sola pantalla con hacia dónde va cada persona del equipo en las próximas 24 horas, no sólo cómo está ahora.',
+    cruce:'el calendario de turnos y todos los indicadores anteriores, combinados.' }
+];
+function renderHseqPredictivo(){
+  const intro = dashHelp('Esta pestaña muestra el <b>Plan Predictivo (360°)</b>: el próximo escalón después de lo que ya está funcionando hoy. ' +
+    'Necesita <b>wearables</b> (pulseras o relojes que miden sueño y frecuencia cardíaca) conectados a cada persona — todavía no están integrados. ' +
+    '<b>Nada de esto calcula nada real todavía.</b> Son esqueletos visibles para mostrar qué se va a poder ver el día que se sume el wearable, ' +
+    'y contra qué dato de los que <b>ya existen hoy</b> (autoreportes, turnos, nivel de riesgo) se va a poder contrastar. Ningún número de esta pantalla es real.');
+  const cards = PRED_ITEMS.map(it =>
+    '<div class="pred-card"><div class="pred-top"><span class="pred-t">' + esc(it.t) + '</span>' +
+      '<span class="pred-badge">🔒 En desarrollo · requiere wearable</span></div>' +
+      '<div class="pred-mock">' + esc(it.mock) + '</div>' +
+      '<div class="pred-d">' + esc(it.d) + '</div>' +
+      (it.cruce ? '<div class="pred-cruce"><b>Se cruzaría con:</b> ' + esc(it.cruce) + '</div>' : '') +
+    '</div>'
+  ).join('');
+  const medevac = '<div class="pred-card pred-medevac">' +
+    '<div class="pred-top"><span class="pred-t">Botón MedEvac / Triage</span>' +
+      '<span class="pred-badge">🔒 En desarrollo · requiere wearable</span></div>' +
+    '<button type="button" class="pred-medevac-btn" disabled aria-disabled="true" tabindex="-1">🚫 INACTIVO — Evacuación médica / Triage</button>' +
+    '<div class="pred-d">En el Plan Predictivo, un colapso claro en varios indicadores del wearable a la vez (SAFTE, HRV, TROS) dispararía este ' +
+      'botón: aviso inmediato a Dirección y al servicio médico con la ubicación y el estado, para decidir una evacuación médica.</div>' +
+    '<div class="pred-warn">⚠ Este botón <b>no hace nada todavía</b>: no está conectado a ningún sistema de emergencia real ni a ningún ' +
+      'dato. Un botón de emergencia que pareciera funcionar sin estarlo sería peor que no tenerlo.</div>' +
+  '</div>';
+  return intro + '<div class="dash-block"><div class="db-title">Plan Predictivo (360°) — vista previa</div>' +
+    '<div class="db-sub">Ninguno de estos indicadores es un dato real: son esqueletos para mostrar el alcance del próximo nivel comercial.</div>' +
+    '<div class="pred-grid">' + cards + medevac + '</div></div>';
+}
+
 /* ══════════ BANDEJA DE REPORTES (vista del SUPERVISOR) ══════════
    Lo que el empleado manda con "Reporte rápido" (P4) llega acá. Dos grupos con reglas de identidad
    YA decididas del lado del empleado (P4 arma el payload distinto en origen, no acá) — esta pantalla
@@ -7679,7 +7768,7 @@ function dashTurnoCard(){
     '</div>';
   }).join('');
   return '<div class="dash-block sf-turnos"><div class="db-title">Tu turno de hoy</div>' +
-    '<div class="db-sub">Tres registros cortos: cómo llegás, cómo va la carga, y cómo te vas.</div>' + pasos + '</div>';
+    '<div class="db-sub">Tres registros cortos: cómo llegas, cómo va la carga, y cómo te vas.</div>' + pasos + '</div>';
 }
 // Formulario mínimo de un paso: KSS (1-9) para check-in/check-out, percepción de carga (1-5) para
 // el del medio. Se resuelve con selects nativos a propósito: es el esqueleto (P4), no el wizard
@@ -9569,7 +9658,7 @@ function telemSugerirDesde(persona){
 // Acciones de la PERSONA sobre su propia telemedicina (desde su vista de empleado).
 function telemAceptar(id){ telemCambiarEstado(id, 'aceptada', true); renderDash(); showToast('Telemedicina aceptada'); }
 function telemRechazar(id){
-  if (!confirm('¿Rechazar la telemedicina?\n\nQueda registrado para el servicio médico. Podés pedirla más adelante si cambiás de opinión.')) return;
+  if (!confirm('¿Rechazar la telemedicina?\n\nQueda registrado para el servicio médico. Puedes pedirla más adelante si cambias de opinión.')) return;
   telemCambiarEstado(id, 'rechazada', true); renderDash(); showToast('Telemedicina rechazada');
 }
 // El servicio médico marca que efectivamente la realizó.
