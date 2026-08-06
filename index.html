@@ -2826,7 +2826,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.35';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.36';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3186,13 +3186,14 @@ function empFlush(){
 window.addEventListener('online', empFlush);
 
 /* ══════════ ESTADO OFFLINE VISIBLE (P10) ══════════
-   La app tiene CUATRO colas de envío distintas, cada una con su forma:
+   La app tiene CINCO colas de envío distintas, cada una con su forma:
      · tests pendientes (K_PENDING, por URL)
      · cola del empleado — turnos, reportes, confiabilidad, consentimiento (K_EMP_COLA, por acción)
      · gestiones y todo lo que vive en su almacén (K_GESTIONES, con up/del)
      · bitácora (K_BITACORA, sólo up porque es append-only)
+     · casos para Odoo (K_CASOS_ODOO, append-only, dedup por IdCaso · P13)
 
-   NO se unificaron en una sola. Las cuatro funcionan, están probadas, y cada una tiene una
+   NO se unificaron en una sola. Las cinco funcionan, están probadas, y cada una tiene una
    semántica distinta (una necesita borrados, otra es append-only, otra manda URLs armadas).
    Fusionarlas sería un refactor con riesgo real sobre código que ya anda, y a la persona no le
    cambia nada: lo que necesita es UNA respuesta a "¿se guardó lo que hice?".
@@ -3202,6 +3203,7 @@ function offPendientes(){
   try { n += getPending().length; } catch(e){}
   try { n += empPendientes(); } catch(e){}
   try { n += bitacoraPendientes(); } catch(e){}
+  try { n += casosOdooPendientes(); } catch(e){}
   try { const s = gestStore(); n += Object.keys(s.up||{}).length + Object.keys(s.del||{}).length; } catch(e){}
   return n;
 }
@@ -5775,16 +5777,22 @@ function onDashData(d, scopeLabel, params, vista){
   DASH._niveles = Array.isArray(d.niveles) ? d.niveles : null;
   DASH._cfg     = (d.config && typeof d.config === 'object') ? d.config : null;
   nivelCacheClear();
+  casosOdooArmar();                       // P13: abre la espera del puente a Odoo para ESTA carga
   if (DASH.demoMode){
     gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
+    casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
-  else if (!DASH._niveles && gestCanSync()) dashCargarNiveles();
+  else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
   // Trae gestiones/anotaciones del servidor YA AL ENTRAR (antes sólo se traían al abrir el panel
   // completo de Gestiones, así que una anotación cargada desde otro dispositivo no aparecía en
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
-  else if (gestCanSync()){ gestPull().then(ok => { if (ok && DASH) renderDash(); }); }
+  else if (gestCanSync()){
+    casosOdooListo('niveles');            // los niveles ya vinieron en el payload
+    gestPull().then(ok => { if (ok && DASH) renderDash(); }).then(() => casosOdooListo('gestiones'));
+  }
+  else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
   if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
@@ -5815,7 +5823,11 @@ function dashCargarNiveles(){
     nivelCacheClear();
     buildDashFilters();     // el selector de nivel sólo aparece si hay niveles cargados
     renderDash();
-  }).catch(()=>{});
+  }).catch(()=>{})
+    // Se avisa igual si falló: el puente a Odoo (P13) espera a que los niveles ESTÉN RESUELTOS,
+    // y "no hay hoja de niveles" es una resolución válida (se juzga con el default, nivel 3).
+    // Sin este aviso en el camino de error, el puente no evaluaría nunca.
+    .then(() => casosOdooListo('niveles'));
 }
 
 /* Pide la bandeja de reportes al endpoint. ⚠️ A diferencia de reporteEnviar() (P4, escritura sin
@@ -6257,7 +6269,8 @@ function renderDash(){
   // firmar determinaciones y el espejo "Así lo ve el supervisor" — que son del médico.
   const esMedico = DASH.vista === 'medico';
   const anotBloque = !esMedico ? ''
-    : (DASH.f.per ? (dashFichaMedica(rows) + dashAnotacionSupervisor(rows, true, esc(DASH.f.per))) : dashAnotacionesResumen());
+    : (DASH.f.per ? (dashFichaMedica(rows) + dashAnotacionSupervisor(rows, true, esc(DASH.f.per)))
+                  : (dashAnotacionesResumen() + casosOdooBloque()));
   body.innerHTML = dashContext() + anotBloque + aviso + secciones;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
@@ -6534,7 +6547,8 @@ const CFG_DEFAULT = {
   persistencia: 3,     // mediciones seguidas en rojo que definen "patrón persistente" (P3)
   anonN: 5,            // mínimo de personas para mostrar datos anonimizados desagregados (P5)
   mitigaciones: null,  // null = usar la lista base del código (P2)
-  costos: null         // null = módulo de costos "pendiente de configurar" (P7)
+  costos: null,        // null = módulo de costos "pendiente de configurar" (P7)
+  casosOdoo: null      // null = usar CASOS_ODOO_DEFAULTS (P13, puente a Odoo)
 };
 function cfg(k){
   const c = (DASH && DASH._cfg) || null;
@@ -7188,10 +7202,18 @@ const HSEQ_ACCION_LABEL = {
   determinacion_medica:'Determinación médica', determinacion_quitada:'Determinación quitada',
   alta_reincorporacion:'Alta / Reincorporación', nota_clinica:'Nota clínica registrada',
   telemedicina_sugerida:'Telemedicina sugerida', telemedicina_aceptada:'Telemedicina aceptada',
-  telemedicina_rechazada:'Telemedicina rechazada', telemedicina_realizada:'Telemedicina realizada'
+  telemedicina_rechazada:'Telemedicina rechazada', telemedicina_realizada:'Telemedicina realizada',
+  caso_odoo:'Caso enviado a gestión interna'
 };
+/* 🔒 Acciones de la bitácora que NO se muestran en la consola de Dirección / HSEQ.
+   `caso_odoo` (P13) es el traspaso al circuito interno de Silva (telemedicina). Dirección es la
+   EMPRESA CONTRATANTE, y la regla heredada del otro proyecto es explícita: ni la empresa ni la
+   persona deben enterarse de que se abrió un caso. Que el evento no se muestre acá no lo borra
+   ni lo altera — sigue en la bitácora, entero, y el servicio médico lo ve en su propio panel.
+   Es el mismo cortafuegos por el que esta vista ya no muestra el `detalle` clínico. */
+const HSEQ_ACCIONES_OCULTAS = { caso_odoo:1 };
 function renderHseqAuditoria(){
-  const ev = bitacoraDe();
+  const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);
   const ayuda = dashHelp('<b>Trazabilidad</b>: el registro de todo lo que se hizo, en orden. No se puede editar ni ' +
     'borrar desde la aplicación — si algo se hizo mal, la corrección se anota como un hecho nuevo y el error queda a la vista.' +
     '<br><br>Cada línea guarda además <b>con qué umbral se juzgó</b> a esa persona en ese momento. Sin eso, cambiar ' +
@@ -7221,7 +7243,7 @@ function renderHseqAuditoria(){
 /* Exportación del log. Mismo criterio que la pantalla: acción/actor/sujeto/umbral, sin contenido
    clínico. Se arma como CSV y se descarga; no sale de la aplicación por ningún otro canal. */
 function hseqExportar(){
-  const ev = bitacoraDe();
+  const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);   // mismo cortafuegos que la pantalla
   if (!ev.length){ showToast('No hay nada para exportar'); return; }
   const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g,'""') + '"';
   const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version'];
@@ -9029,6 +9051,261 @@ function bitacoraDe(sujeto, accion){
     (!sujeto || e.sujeto === sujeto) && (!accion || e.accion === accion));
 }
 function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
+
+/* ══════════ PUENTE A ODOO — pestaña de traspaso "Casos Odoo" (P13 / Fase C) ══════════
+
+   ⚠️ ESTE ARCHIVO HACE SÓLO LA MITAD DEL CIRCUITO. El lado Odoo ya existe y está terminado
+   (módulo `as_health_telemetry`): sabe leer el Sheet, deduplicar por huella, crear el ticket de
+   Asistencia y la oportunidad de CRM, y esquivar las automatizaciones EVA. Acá NO se reimplementa
+   nada de eso. El trabajo de la PWA termina cuando hay una fila bien formada en la hoja.
+
+   POR QUÉ LA SEVERIDAD LA CALCULA LA PWA Y NO ODOO:
+   la PWA es la única que conoce los umbrales por nivel de riesgo (P1) y el score de confiabilidad
+   (P6). Si Odoo recalculara la severidad habría DOS motores de criterio que se desincronizarían
+   en cuanto alguien tocara un umbral de un lado y no del otro. La PWA decide, Odoo ejecuta.
+
+   CONTRATO DE COLUMNAS (exacto, en este orden — no reordenar sin avisar del otro lado):
+     Fecha | Persona | Empresa | Departamento | Cargo | NivelRiesgo |
+     Severidad | Motivo | Indicadores | Confiabilidad | OrigenApp | IdCaso | Procesado | RefOdoo
+   `Procesado` y `RefOdoo` son del WRITE-BACK de Odoo: la PWA las manda SIEMPRE vacías y nunca
+   las lee. Escribirlas desde acá rompería la idempotencia del otro lado.
+
+   🔒 CONFIDENCIALIDAD (heredada, NO negociable): ni la empresa contratante ni la persona deben
+   enterarse. Por eso el contrato NO tiene teléfono ni correo — y no es un olvido: el módulo Odoo
+   usa `email_from` del lead como dato real de contacto y queda visible en el chatter, así que
+   mandar el correo por acá abriría exactamente el canal de notificación que hay que mantener
+   cerrado. Tampoco se manda ningún VALOR de test: sólo el NOMBRE de los indicadores afectados,
+   que es lo que el servicio médico necesita para priorizar. */
+const CASOS_ODOO_DEFAULTS = {
+  activo: true,             // el puente se puede apagar entero desde Config Empresa
+  disparo: 'rojo',          // 'rojo' = sólo casos en rojo · 'rojo_amarillo' = también los amarillos
+  incluirPersistente: true  // un patrón sostenido (P3) genera caso aunque hoy no esté en rojo
+};
+function casosOdooCfg(k){
+  const v = cfg('casosOdoo');
+  if (v && typeof v === 'object' && v[k] != null && v[k] !== '') return v[k];
+  return CASOS_ODOO_DEFAULTS[k];
+}
+
+const K_CASOS_ODOO = 'silva_fatiga_casos_odoo_v1';
+function casosStoreAll(){ try { return JSON.parse(localStorage.getItem(K_CASOS_ODOO)) || {}; } catch(e){ return {}; } }
+function casosSaveStoreAll(o){ try { localStorage.setItem(K_CASOS_ODOO, JSON.stringify(o)); } catch(e){} }
+function casosStore(){ const all=casosStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; return s; }
+function casosSaveStore(s){ const all=casosStoreAll(); all[gestKey()]=s; casosSaveStoreAll(all); }
+function casosOdooPendientes(){ return Object.keys(casosStore().up || {}).length; }
+
+/* Severidad con el vocabulario que YA usa el módulo Odoo ('rojo' / 'amarillo' / 'verde').
+   No inventar sinónimos: del otro lado, sólo 'rojo' genera oportunidad de CRM. */
+function casosOdooSeveridad(p){
+  if (p.estado === 'pendiente' || p.estado === 'noapto') return 'rojo';
+  if (p.estado === 'seguimiento' || p.estado === 'condiciones') return 'amarillo';
+  return 'verde';
+}
+// Motivo legible por una persona (va tal cual a la ficha del caso en Odoo).
+function casosOdooMotivo(p, sev){
+  const niv = nivelInfo(p.nivel);
+  if (sev === 'rojo' && p.estado === 'noapto') return 'Determinación del servicio médico vigente · puesto nivel ' + p.nivel + ' (' + niv.t + ')';
+  const base = (sev === 'rojo')
+    ? 'Indicadores sobre el límite operativo del puesto'
+    : 'Indicadores cerca del límite operativo del puesto';
+  const persist = p.persist
+    ? ' · patrón sostenido en ' + p.persist.n + ' mediciones (' + (p.persist.motivo === 'repetido' ? 'repetido' : 'tendencia ascendente') + ')'
+    : '';
+  return base + ' · puesto nivel ' + p.nivel + ' (' + niv.t + ')' + persist;
+}
+/* ¿Este caso corresponde mandarlo? Devuelve el motivo de descarte (string) o null si sí va.
+   Se devuelve el motivo en vez de un booleano a propósito: así el bloque de estado puede explicar
+   por qué NO se generó un caso, que es la pregunta que va a hacer el médico. */
+function casosOdooDescarte(p, sev){
+  // ⚠️ LA DEFENSA PRINCIPAL contra las telemedicinas falsas que preocupaban al cliente: si el
+  // último test se llenó de cualquier manera, la lectura de "cómo está ahora" no sirve, y un dato
+  // que no sirve no puede escalar a un caso. Se repite el test, no se abre un expediente.
+  if (p.ultimoPocoConfiable) return 'último test poco confiable';
+  if (!p.n) return 'sin registros';
+  if (!p.ultimaFecha) return 'registros sin fecha';
+  const disparo = casosOdooCfg('disparo');
+  if (sev === 'rojo') return null;
+  if (sev === 'amarillo' && disparo === 'rojo_amarillo') return null;
+  // Un patrón sostenido es materia del servicio médico aunque hoy no esté en rojo: es justo lo que
+  // el cliente llama "línea base". Sólo cuenta si además hay algo elevado (amarillo o más).
+  if (p.persist && casosOdooCfg('incluirPersistente') && sev !== 'verde') return null;
+  return 'no alcanza el criterio de disparo (' + sev + ')';
+}
+
+/* Las 14 columnas del contrato, EN ORDEN. Es la lista que manda: lo que se envía se arma
+   recorriendo esto, así que nada que no esté acá puede colarse en la fila (`creada`, que es
+   bookkeeping local para ordenar la lista en pantalla, quedaba viajando en el payload hasta que
+   se agregó este filtro). */
+const CASOS_ODOO_COLUMNAS = ['Fecha','Persona','Empresa','Departamento','Cargo','NivelRiesgo',
+  'Severidad','Motivo','Indicadores','Confiabilidad','OrigenApp','IdCaso','Procesado','RefOdoo'];
+function casosOdooPayload(c){
+  const out = {};
+  CASOS_ODOO_COLUMNAS.forEach(k => { out[k] = (c[k] == null) ? '' : c[k]; });
+  return out;
+}
+
+/* Arma la fila del contrato. Un solo lugar que conoce el formato: si mañana cambia una columna,
+   cambia acá y en el `.gs`, en ningún otro lado. */
+function casosOdooFila(p){
+  const sev = casosOdooSeveridad(p);
+  const r0 = (p.regs && p.regs[0]) || {};
+  // Nombres de los indicadores afectados, SIN sus valores (ver la nota de confidencialidad).
+  const afectados = (p.metricas || [])
+    .filter(x => x.nivel === 'alto' || (sev === 'amarillo' && x.nivel === 'medio'))
+    .map(x => METRIC_LABELS[x.m] || x.m);
+  if (p.pvt === 'alto' || (sev === 'amarillo' && p.pvt === 'medio')) afectados.push('Tiempo de reacción');
+  const conf = p.pocoConfiable
+    ? ('confiable · ' + p.pocoConfiable + ' test' + (p.pocoConfiable === 1 ? '' : 's') + ' excluido' + (p.pocoConfiable === 1 ? '' : 's') + ' por baja confiabilidad')
+    : 'confiable';
+  return {
+    // IdCaso es la CLAVE DE DEDUPLICACIÓN, y es determinística a propósito: persona + fecha del
+    // último test. Dos dispositivos que evalúen lo mismo generan el MISMO id, así que el endpoint
+    // puede hacer upsert por esta columna y nunca hay dos filas para el mismo hecho.
+    IdCaso: 'caso_' + dashNorm(p.nombre) + '_' + p.ultimaFecha,
+    Fecha: p.ultimaFecha,          // fecha del TEST, no la de hoy: es el hecho clínico que se reporta
+    Persona: p.nombre,
+    Empresa: r0.empresa || gestEmpresaActual(),
+    Departamento: r0.departamento || p.dep || '',
+    Cargo: r0.cargo || '',         // el payload del panel todavía no trae cargo (ver ESTADO.md)
+    NivelRiesgo: p.nivel,
+    Severidad: sev,
+    Motivo: casosOdooMotivo(p, sev),
+    Indicadores: afectados.join(', '),
+    Confiabilidad: conf,
+    OrigenApp: 'PWA Fatiga ' + APP_VERSION,
+    Procesado: '',                 // ← del write-back de Odoo. Siempre vacías desde acá.
+    RefOdoo: ''
+  };
+}
+
+/* Evalúa toda la nómina cargada y encola los casos que correspondan.
+   Idempotente: si el caso ya se generó (mismo IdCaso), no hace nada. */
+function casosOdooEvaluar(){
+  if (!DASH) return 0;
+  if (!casosOdooCfg('activo')) return 0;
+  // Guard de simulación: un caso "firmado" por un rol simulado saldría hacia un CRM real.
+  if (simulando()) return 0;
+  // La demostración usa personas inventadas. Mandarlas al CRM del cliente sería un desastre.
+  if (DASH.demoMode || DASH_DEMO) return 0;
+  if (!gestCanSync()) return 0;
+  /* Sólo la vista del SERVICIO MÉDICO evalúa. Es la única con el dato completo, y es la autoridad
+     clínica del circuito. El supervisor no: su vista existe justamente para NO manejar lo clínico,
+     y que su dispositivo despachara nombres de indicadores contradiría ese cortafuegos.
+     Costo asumido: los casos se generan cuando el médico abre el panel, no en el instante del test.
+     Es aceptable — el circuito de Odoo corre por cron cada 15 min, no en tiempo real. */
+  if (DASH.vista !== 'medico') return 0;
+
+  const g = dashGroup((DASH.registros || []).filter(r => r.persona), 'persona');
+  // ⚠️ Sobre TODOS los registros cargados, NO sobre dashFiltered(): que se genere o no un caso no
+  // puede depender de qué filtro tenga puesto en pantalla quien abrió el panel.
+  const pvtPorPersona = {};
+  (DASH.pvt || []).forEach(r => { const k = r.persona; if (!k) return; (pvtPorPersona[k] = pvtPorPersona[k] || []).push(r); });
+
+  const s = casosStore();
+  const yaHay = {}; s.items.forEach(c => { if (c && c.IdCaso) yaHay[c.IdCaso] = 1; });
+  let nuevos = 0;
+  Object.keys(g).forEach(nombre => {
+    const p = aptPersona(nombre, g[nombre], pvtPorPersona[nombre]);
+    const sev = casosOdooSeveridad(p);
+    if (casosOdooDescarte(p, sev)) return;
+    const fila = casosOdooFila(p);
+    if (yaHay[fila.IdCaso]) return;             // dedup: un caso por persona por fecha de test
+    fila.creada = Date.now();
+    s.items.unshift(fila); s.up[fila.IdCaso] = 1;
+    yaHay[fila.IdCaso] = 1;
+    nuevos++;
+    // Trazabilidad del envío (P1). Origen 'algoritmo': no lo decidió una persona.
+    bitacoraRegistrar('caso_odoo', nombre, { severidad:fila.Severidad, idCaso:fila.IdCaso, fecha:fila.Fecha }, 'algoritmo');
+  });
+  if (nuevos){ casosSaveStore(s); casosOdooSchedulePush(); }
+  return nuevos;
+}
+
+/* ── Cuándo se evalúa ──────────────────────────────────────────────────────────────────────
+   UNA sola vez por carga de datos, y recién cuando llegaron las DOS cosas de las que depende el
+   veredicto:
+     · los NIVELES DE RIESGO → definen el umbral con el que se juzga a la persona;
+     · las GESTIONES         → una determinación médica vigente puede hacer que el caso no corresponda.
+   ⚠️ Evaluar antes de que lleguen no es un detalle de prolijidad: sin niveles, todo el mundo se
+   juzga con el default (nivel 3), y como el IdCaso es determinístico y NO se regenera, un caso
+   abierto con el umbral equivocado quedaría fijo para siempre. Por eso se espera de forma
+   explícita en vez de confiar en un setTimeout "suficientemente largo". */
+function casosOdooArmar(){ if (DASH) DASH._casosEsperando = { niveles:false, gestiones:false }; }
+function casosOdooListo(que){
+  try {
+    if (!DASH || !DASH._casosEsperando) return;
+    DASH._casosEsperando[que] = true;
+    const e = DASH._casosEsperando;
+    if (!e.niveles || !e.gestiones) return;
+    DASH._casosEsperando = null;                   // una sola vez por carga
+    if (casosOdooEvaluar()) renderDash();          // los casos nuevos se ven en Trazabilidad
+  } catch(err){}                                   // nunca romper la carga del panel por el puente
+}
+
+let _casosT = null;
+// Mismo candado de "envíos en vuelo" que las otras tres colas (P10). Sin esto, dos flush casi
+// simultáneos mandan la misma fila dos veces: medido de verdad en P10, no es teórico.
+const _casosEnVuelo = {};
+function casosOdooSchedulePush(){ if(!gestCanSync()) return; clearTimeout(_casosT); _casosT = setTimeout(casosOdooPush, 900); }
+function casosOdooPush(){
+  if(simulando()) return Promise.resolve();
+  if(!gestCanSync()) return Promise.resolve();
+  const s = casosStore(); const jobs = [];
+  Object.keys(s.up).forEach(id => {
+    const c = s.items.find(x => x.IdCaso === id);
+    if (!c){ delete s.up[id]; return; }
+    if (_casosEnVuelo[id]) return;
+    _casosEnVuelo[id] = 1;
+    jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }))
+      .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; casosSaveStore(s2); } }).catch(()=>{})
+      // El candado se libera SIEMPRE, falle o no: si no, un error de red dejaría ese caso
+      // trabado para siempre sin reintentarse.
+      .then(() => { delete _casosEnVuelo[id]; }));
+  });
+  casosSaveStore(s);
+  return Promise.all(jobs);
+}
+window.addEventListener('online', function(){ casosOdooSchedulePush(); });
+
+/* Estado del puente, SÓLO para el servicio médico (la vista de Silva).
+   🔒 A propósito NO se muestra en la consola de Dirección / HSEQ: esa es la empresa contratante,
+   y no debe enterarse de que se abrió un caso (ver HSEQ_ACCIONES_OCULTAS). */
+function casosOdooBloque(){
+  if (!DASH || DASH.vista !== 'medico') return '';
+  if (DASH.demoMode || DASH_DEMO) return '';
+  const s = casosStore(), items = s.items || [], pend = casosOdooPendientes();
+  const activo = !!casosOdooCfg('activo');
+  const disparo = casosOdooCfg('disparo');
+  const ayuda = dashHelp('Cuando una persona queda <b>en rojo</b> con un test confiable, se abre un <b>caso</b> ' +
+    'para el circuito interno de atención (telemedicina). Se manda <b>un caso por persona por test</b>: ' +
+    'aunque haya hecho cinco tests el mismo día, no se abren cinco casos.' +
+    '<br><br>Un <b>test poco confiable no abre caso</b>: si el dato no sirve, lo que corresponde es repetir el test, ' +
+    'no abrir un expediente.' +
+    '<br><br>El caso viaja <b>sin teléfono ni correo</b> de la persona y <b>sin ningún valor de test</b>: sólo el ' +
+    'nombre de los indicadores afectados. Ni la empresa ni la persona reciben ningún aviso.');
+  if (!activo){
+    return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
+      '<div class="hs-nota">El envío automático está <b>desactivado</b> en la configuración de la empresa. ' +
+      'Los casos se siguen viendo acá arriba como <b>Pendientes de revisión</b>, pero no se traspasan solos.</div></div>';
+  }
+  if (!items.length){
+    return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
+      '<div class="hs-nota">Todavía no se generó ningún caso. Se genera solo cuando alguien queda en rojo ' +
+      'con un test confiable' + (disparo === 'rojo_amarillo' ? ' o en amarillo' : '') + '.</div></div>';
+  }
+  const filas = items.map(c =>
+    '<div class="hs-ev"><div class="hs-ev-top">' +
+      '<span class="hs-ev-acc">' + esc(c.Persona) + '</span>' +
+      '<span class="hs-ev-fecha">' + esc(c.Fecha) + '</span></div>' +
+      '<div class="hs-ev-sub">' + esc(c.Severidad === 'rojo' ? 'Rojo' : 'Amarillo') + ' · ' + esc(c.Motivo) + '</div>' +
+      (c.Indicadores ? '<div class="hs-ev-um">' + esc(c.Indicadores) + '</div>' : '') +
+      (s.up[c.IdCaso] ? '<div class="hs-ev-um">⏳ pendiente de enviar</div>' : '') +
+    '</div>');
+  return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna (' + items.length + ')</div>' +
+    '<div class="db-sub">Traspasados al circuito de telemedicina' +
+      (pend ? ' · <b>' + pend + ' sin enviar todavía</b> (se reintenta solo)' : ' · todos enviados') + '</div>' +
+    dashVerMas(filas, 3) + '</div>';
+}
 
 /* ── Casos reales del cuaderno (excluye las anotaciones de aptitud, que no son "gestiones" para
    contar/listar aquí: viven en el mismo almacén/sincronización pero se muestran aparte). ── */
