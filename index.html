@@ -2932,7 +2932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.40';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.41';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9203,18 +9203,28 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
    (P6). Si Odoo recalculara la severidad habría DOS motores de criterio que se desincronizarían
    en cuanto alguien tocara un umbral de un lado y no del otro. La PWA decide, Odoo ejecuta.
 
-   CONTRATO DE COLUMNAS (exacto, en este orden — no reordenar sin avisar del otro lado):
+   CONTRATO DE COLUMNAS — lo que MANDA LA PWA (exacto, en este orden):
      Fecha | Persona | Empresa | Departamento | Cargo | NivelRiesgo |
      Severidad | Motivo | Indicadores | Confiabilidad | OrigenApp | IdCaso | Procesado | RefOdoo
    `Procesado` y `RefOdoo` son del WRITE-BACK de Odoo: la PWA las manda SIEMPRE vacías y nunca
    las lee. Escribirlas desde acá rompería la idempotencia del otro lado.
 
-   🔒 CONFIDENCIALIDAD (heredada, NO negociable): ni la empresa contratante ni la persona deben
-   enterarse. Por eso el contrato NO tiene teléfono ni correo — y no es un olvido: el módulo Odoo
-   usa `email_from` del lead como dato real de contacto y queda visible en el chatter, así que
-   mandar el correo por acá abriría exactamente el canal de notificación que hay que mantener
-   cerrado. Tampoco se manda ningún VALOR de test: sólo el NOMBRE de los indicadores afectados,
-   que es lo que el servicio médico necesita para priorizar. */
+   La hoja tiene DOS columnas más que la PWA no manda — `Telefono` y `Correo` — que las completa
+   el ENDPOINT desde el perfil de la persona (hoja `Registrados Fatiga`).
+   ⚠️ Es a propósito que no viajen desde acá: la telemedicina la dan los médicos de Silva, que
+   necesitan un dato de contacto para poder llamar; pero si el endpoint mandara teléfono y correo
+   dentro de `registros`, el contacto de TODA la nómina quedaría en el dispositivo de cada
+   supervisor que abre el panel. Poniéndolos del lado del servidor, el dato va del perfil a la
+   fila sin pasar por ningún navegador. No mover esto a la PWA.
+
+   🔒 CONFIDENCIALIDAD (heredada, NO negociable): el que no debe enterarse es la EMPRESA
+   CONTRATANTE — y la persona no debe recibir avisos automáticos. Eso NO significa ocultarle los
+   datos al médico de Silva que va a atenderla: sin contacto no hay telemedicina posible.
+   Lo que sigue sin viajar es cualquier VALOR de test: sólo el NOMBRE de los indicadores
+   afectados, que es lo que hace falta para priorizar.
+   ⚠️ Del lado de Odoo, `email_from` del lead queda visible en el chatter: por eso el módulo ya
+   tiene el aviso de responder con "Registrar una nota" y NUNCA con "Enviar mensaje" — eso
+   mandaría un correo a la persona. */
 const CASOS_ODOO_DEFAULTS = {
   /* ⚠️ ARRANCA APAGADO A PROPÓSITO (cambiado el 2026-08-06, antes era `true`).
      Mientras el endpoint no tenía la acción `caso_odoo_guardar`, tener esto en `true` era inocuo:
@@ -9429,8 +9439,11 @@ function casosOdooBloque(){
     'aunque haya hecho cinco tests el mismo día, no se abren cinco casos.' +
     '<br><br>Un <b>test poco confiable no abre caso</b>: si el dato no sirve, lo que corresponde es repetir el test, ' +
     'no abrir un expediente.' +
-    '<br><br>El caso viaja <b>sin teléfono ni correo</b> de la persona y <b>sin ningún valor de test</b>: sólo el ' +
-    'nombre de los indicadores afectados. Ni la empresa ni la persona reciben ningún aviso.');
+    '<br><br>Al caso se le suman el <b>teléfono y el correo</b> de la persona, tomados de su perfil, para que el ' +
+    'médico que la va a atender pueda contactarla. Esos datos <b>no pasan por este panel</b>: se agregan del lado ' +
+    'del servidor.' +
+    '<br><br>Lo que <b>no</b> viaja es ningún <b>valor de test</b>: sólo el nombre de los indicadores afectados, ' +
+    'que es lo que hace falta para priorizar. Y <b>ni la empresa ni la persona reciben ningún aviso automático</b>.');
   if (!activo){
     return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
       '<div class="hs-nota">El traspaso automático al circuito de atención interna está <b>desactivado</b> ' +
