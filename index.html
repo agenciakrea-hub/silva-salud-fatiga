@@ -2798,7 +2798,7 @@
         <li>No toques antes de que aparezca (cuenta como error).</li>
         <li>Dura unos <strong>90 segundos</strong>. Busca un lugar sin distracciones.</li>
       </ul>
-      <label class="pvt-nomas"><input type="checkbox" id="pvtNoMostrar"> No volver a mostrar esta explicación</label>
+      <label class="pvt-nomas"><input type="checkbox" id="pvtNoMostrar" onchange="pvtGuardarNoMostrar(this)"> No volver a mostrar esta explicación</label>
       <button class="save-btn" onclick="pvtStart()">Empezar</button>
       <button class="cancel-btn" onclick="closePVT()">Cancelar</button>
     </div>
@@ -2826,7 +2826,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.37';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.38';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3335,6 +3335,17 @@ let pvtState = null;
 
 const K_PVT_NOINFO = 'silva_fatiga_pvt_noinfo_v1';   // "no volver a mostrar" la explicación del PVT
 function pvtOmiteInfo(){ try { return localStorage.getItem(K_PVT_NOINFO) === '1'; } catch(e){ return false; } }
+// Guarda (o borra) la preferencia EN EL MOMENTO de tocar la casilla, no recién al tocar "Empezar".
+// Antes sólo se guardaba dentro de pvtStart(): si alguien tildaba la casilla y después tocaba
+// "Cancelar" en vez de "Empezar", la preferencia se perdía en silencio — se sentía como que el
+// checkbox "no funciona". Destildar también borra la preferencia: es lo simétrico, y permite
+// volver a ver la explicación sin tener que buscar cómo resetearlo.
+function pvtGuardarNoMostrar(chk){
+  try {
+    if (chk && chk.checked) localStorage.setItem(K_PVT_NOINFO, '1');
+    else localStorage.removeItem(K_PVT_NOINFO);
+  } catch(e){}
+}
 
 function openPVT(item){
   pvtState = { item:item, rts:[], falsos:0, startMs:0, stimMs:0, awaiting:false, ended:false, isiTimer:null, raf:null, tick:null };
@@ -3362,8 +3373,8 @@ function pvtCleanup(){
   pvtState.isiTimer = pvtState.tick = pvtState.raf = null;
 }
 function pvtStart(){
-  const chk = document.getElementById('pvtNoMostrar');
-  if (chk && chk.checked) { try { localStorage.setItem(K_PVT_NOINFO, '1'); } catch(e){} }
+  // La preferencia ya se guarda al tocar la casilla (pvtGuardarNoMostrar, vía onchange) — acá no
+  // hace falta repetirlo.
   document.getElementById('pvtQuick').style.display = 'none';
   document.getElementById('pvtIntro').style.display = 'none';
   document.getElementById('pvtRun').style.display = '';
