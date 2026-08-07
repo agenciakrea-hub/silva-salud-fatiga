@@ -2932,7 +2932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.39';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.40';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9216,7 +9216,16 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
    cerrado. Tampoco se manda ningún VALOR de test: sólo el NOMBRE de los indicadores afectados,
    que es lo que el servicio médico necesita para priorizar. */
 const CASOS_ODOO_DEFAULTS = {
-  activo: true,             // el puente se puede apagar entero desde Config Empresa
+  /* ⚠️ ARRANCA APAGADO A PROPÓSITO (cambiado el 2026-08-06, antes era `true`).
+     Mientras el endpoint no tenía la acción `caso_odoo_guardar`, tener esto en `true` era inocuo:
+     no había a dónde escribir. Desde que el `.gs` está publicado, dejarlo encendido significa que
+     el primer médico que abra el panel de una empresa real, con alguien en rojo, manda un caso con
+     el nombre de esa persona al circuito de telemedicina — con un diseño que el cliente TODAVÍA NO
+     CONFIRMÓ (ver §17 de PENDIENTES_USUARIO.md).
+     Encenderlo es una fila en `Config Empresa`: clave `casosOdoo`, valor
+     {"activo":true}. Es deliberado que sea una decisión explícita y por empresa, y no algo que se
+     active solo el día que alguien publica una versión nueva. */
+  activo: false,
   disparo: 'rojo',          // 'rojo' = sólo casos en rojo · 'rojo_amarillo' = también los amarillos
   incluirPersistente: true  // un patrón sostenido (P3) genera caso aunque hoy no esté en rojo
 };
@@ -9424,8 +9433,12 @@ function casosOdooBloque(){
     'nombre de los indicadores afectados. Ni la empresa ni la persona reciben ningún aviso.');
   if (!activo){
     return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
-      '<div class="hs-nota">El envío automático está <b>desactivado</b> en la configuración de la empresa. ' +
-      'Los casos se siguen viendo acá arriba como <b>Pendientes de revisión</b>, pero no se traspasan solos.</div></div>';
+      '<div class="hs-nota">El traspaso automático al circuito de atención interna está <b>desactivado</b> ' +
+      'para esta empresa. <b>No es una falla:</b> viene apagado de fábrica y se enciende sólo cuando la ' +
+      'empresa lo aprueba, empresa por empresa.' +
+      '<br><br>Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo acá ' +
+      'arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre ' +
+      'es el traspaso solo.</div></div>';
   }
   if (!items.length){
     return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
