@@ -21,7 +21,9 @@
 /* Tema (claro/oscuro), resuelto ACÁ arriba y no al final del script: si se aplicara después de que
    el resto de la página ya se pintó, alguien en modo oscuro vería un flash blanco al abrir la app
    cada vez. La lógica completa (fijarTema, el horario del modo automático) vive más abajo junto al
-   resto de Ajustes; esto es sólo la versión mínima para pintar bien desde el primer frame. */
+   resto de Ajustes; esto es sólo la versión mínima para pintar bien desde el primer frame.
+   Default: CLARO si nunca eligió nada (2026-08-08, pedido explícito del usuario — antes seguía la
+   preferencia del sistema operativo). */
 (function(){
   try {
     var g = localStorage.getItem('silva_fatiga_tema_v1');
@@ -29,7 +31,7 @@
     if (g === 'oscuro') osc = true;
     else if (g === 'claro') osc = false;
     else if (g === 'auto') { var hr = new Date().getHours(); osc = (hr >= 19 || hr < 7); }
-    else { osc = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+    else { osc = false; }   // nunca eligió nada → claro
     document.documentElement.setAttribute('data-tema', osc ? 'oscuro' : 'claro');
   } catch(e){}
 })();
@@ -2395,10 +2397,10 @@
     <div class="rbtn mas-item tema-ctrl">
       <div class="tc-head" style="cursor:default">
         <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></div>
-        <div class="tx"><span class="tt">Apariencia</span><span class="ds" id="temaLbl">Automático</span></div>
+        <div class="tx"><span class="tt">Apariencia</span><span class="ds" id="temaLbl">Claro</span></div>
       </div>
       <div class="tema-opts">
-        <button type="button" class="tema-opt" data-modo="claro" onclick="fijarTema('claro')">Claro</button>
+        <button type="button" class="tema-opt active" data-modo="claro" onclick="fijarTema('claro')">Claro</button>
         <button type="button" class="tema-opt" data-modo="oscuro" onclick="fijarTema('oscuro')">Oscuro</button>
         <button type="button" class="tema-opt" data-modo="auto" onclick="fijarTema('auto')">Automático</button>
       </div>
@@ -2971,7 +2973,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.45';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.46';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4931,8 +4933,10 @@ function tcClickAfuera(e){
 
 /* ── Modo oscuro (P9) ──
    Tres modos que la persona puede elegir en Ajustes: claro, oscuro, o automático por horario.
-   Si nunca eligió nada, sigue la preferencia del sistema operativo (prefers-color-scheme) — eso
-   es lo que arranca la app la primera vez, sin pedir nada.
+   Si nunca eligió nada, arranca en CLARO (2026-08-08, pedido explícito del usuario). Antes seguía
+   la preferencia del sistema operativo (prefers-color-scheme); se sacó ese comportamiento entero,
+   no sólo el default: alguien que jamás tocó el selector no tiene por qué ver la app cambiar de
+   tema sola si su teléfono cambia el suyo (ver más abajo, donde antes había un listener para eso).
 
    ⚠️ NO se implementó con `filter: invert()` ni nada global: eso invertiría los semáforos (el
    rojo pasaría a un verde-agua) — justo lo único que no puede fallar acá. Los colores oscuros
@@ -4948,16 +4952,12 @@ function temaAutoEsOscuroAhora(){
   const h = new Date().getHours();
   return (h >= TEMA_AUTO_DESDE || h < TEMA_AUTO_HASTA);
 }
-function temaSistemaPrefiereOscuro(){
-  try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
-  catch(e){ return false; }
-}
 // Resuelve a 'claro' u 'oscuro' — el único valor que de verdad importa para pintar la pantalla.
 function temaResuelto(){
   const g = temaGuardado();
   if (g === 'claro' || g === 'oscuro') return g;
   if (g === 'auto') return temaAutoEsOscuroAhora() ? 'oscuro' : 'claro';
-  return temaSistemaPrefiereOscuro() ? 'oscuro' : 'claro';   // nunca eligió nada
+  return 'claro';   // nunca eligió nada
 }
 let _temaAutoTimer = null;
 function aplicarTema(){
@@ -4975,18 +4975,12 @@ function fijarTema(modo){
 function temaPintarControl(){
   const g = temaGuardado();
   const lbl = document.getElementById('temaLbl');
-  if (lbl) lbl.textContent = g === 'claro' ? 'Claro' : g === 'oscuro' ? 'Oscuro' : 'Automático';
-  document.querySelectorAll('.tema-opt').forEach(b => b.classList.toggle('active', b.dataset.modo === (g || 'auto')));
+  if (lbl) lbl.textContent = g === 'oscuro' ? 'Oscuro' : g === 'auto' ? 'Automático' : 'Claro';
+  document.querySelectorAll('.tema-opt').forEach(b => b.classList.toggle('active', b.dataset.modo === (g || 'claro')));
   const nota = document.getElementById('temaNota');
   const p2 = n => String(n).padStart(2, '0');
   if (nota) nota.textContent = 'En automático, se pone oscuro de ' + p2(TEMA_AUTO_DESDE) + ':00 a ' + p2(TEMA_AUTO_HASTA) + ':00 — para no encandilar durante un turno nocturno.';
 }
-// Si la persona nunca eligió nada, la app sigue el tema del sistema EN VIVO (sin recargar):
-// si el teléfono pasa a modo oscuro solo (por su propio horario), la app lo sigue.
-try {
-  const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-  if (mq && mq.addEventListener) mq.addEventListener('change', () => { if (!temaGuardado()) aplicarTema(); });
-} catch(e){}
 
 /* ── Botón "atrás" del celular: navega dentro de la app en vez de cerrarla ──
    Se apila un estado del historial cada vez que se abre algo. Al presionar atrás,
