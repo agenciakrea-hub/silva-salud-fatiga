@@ -2043,6 +2043,13 @@
     background:var(--tbg); border-left:3px solid var(--tc); }
   .apt-telem-top { font-size:.76rem; font-weight:800; color:var(--tc); }
   .apt-telem-nota { font-size:.77rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
+  /* Caso abierto en el circuito de telemedicina (P13). Mismo formato que .apt-telem pero con
+     color FIJO (azul) en vez de tomarlo de una variable inline: acá no hay severidad que
+     comunicar — el supervisor ve que existe una consulta, no qué tan grave es. */
+  .apt-caso { margin-top:.5rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
+    background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul-int); }
+  .apt-caso-top { font-size:.76rem; font-weight:800; color:var(--sem-azul-int); }
+  .apt-caso-nota { font-size:.77rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
   .apt-act-telem { border-color:var(--sem-azul-int); color:var(--sem-azul-int); }
   .fm-chip-telem { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .fm-telem-accion { font-size:.82rem; color:var(--text-soft); line-height:1.5; }
@@ -2964,7 +2971,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.44';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.45';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5982,6 +5989,11 @@ function onDashData(d, scopeLabel, params, vista){
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
   if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
+  // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
+  // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
+  if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
+    casosResumenPull().then(ok => { if (ok && DASH) renderDash(); });
+  }
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? ' · ejemplo' : '');
   dashApplyMarca(d.marca);
@@ -7049,6 +7061,19 @@ function aptTarjeta(p, opts){
         ? '<div class="apt-telem" style="--tc:var(--sem-verde-int);--tbg:var(--sem-verde-int-bg)"><div class="apt-telem-top">Se le realizó una telemedicina · ' +
           esc(gestFechaTs(p.telemRealizada.actualizadaEn || p.telemRealizada.creada)) + '</div></div>'
         : '');
+  // ── Caso abierto en el circuito de telemedicina (P13 · puente a Odoo).
+  //    Es lo ÚNICO que el supervisor ve del puente: que se abrió y por qué test. Nunca la
+  //    severidad, los valores ni el contacto — eso lo recorta el servidor, no esta pantalla.
+  //    R2: dice explícitamente que no es una determinación de aptitud.
+  const casoAbierto = (DASH && DASH._casosResumen) ? DASH._casosResumen[p.nombre] : null;
+  const casoBanner = casoAbierto
+    ? '<div class="apt-caso"><div class="apt-caso-top">Se inició una consulta de telemedicina</div>' +
+        (casoAbierto.tests
+          ? '<div class="apt-caso-nota">Por el resultado de: <b>' + esc(casoAbierto.tests) + '</b></div>'
+          : '') +
+        '<div class="apt-caso-nota">La atiende el equipo médico. No es una determinación de aptitud.</div>' +
+      '</div>'
+    : '';
   // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
   // El nombre va con JSON.stringify + &quot; (patrón ya probado en esta función): así un nombre con
   // tilde o apóstrofe no rompe el atributo.
@@ -7071,7 +7096,7 @@ function aptTarjeta(p, opts){
             esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelInfo(p.nivel).d) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
         '</div></div>' +
       '<span class="apt-badge" style="background:' + semSolido(est.c) + ';color:#fff">' + est.t + '</span>' +
-    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner +
+    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +
     '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + avisoConf + acciones +
   '</div>';
 }
@@ -9274,9 +9299,11 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
 
    CONTRATO DE COLUMNAS — lo que MANDA LA PWA (exacto, en este orden):
      Fecha | Persona | Empresa | Departamento | Cargo | NivelRiesgo |
-     Severidad | Motivo | Indicadores | Confiabilidad | OrigenApp | IdCaso | Procesado | RefOdoo
+     Severidad | Motivo | Indicadores | Confiabilidad | OrigenApp | IdCaso | Procesado | RefOdoo |
+     Valores
    `Procesado` y `RefOdoo` son del WRITE-BACK de Odoo: la PWA las manda SIEMPRE vacías y nunca
    las lee. Escribirlas desde acá rompería la idempotencia del otro lado.
+   `Valores` va DESPUÉS de ellas a propósito — ver la nota en casosOdooValores().
 
    La hoja tiene DOS columnas más que la PWA no manda — `Telefono` y `Correo` — que las completa
    el ENDPOINT desde el perfil de la persona (hoja `Registrados Fatiga`).
@@ -9289,11 +9316,21 @@ function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
    🔒 CONFIDENCIALIDAD (heredada, NO negociable): el que no debe enterarse es la EMPRESA
    CONTRATANTE — y la persona no debe recibir avisos automáticos. Eso NO significa ocultarle los
    datos al médico de Silva que va a atenderla: sin contacto no hay telemedicina posible.
-   Lo que sigue sin viajar es cualquier VALOR de test: sólo el NOMBRE de los indicadores
-   afectados, que es lo que hace falta para priorizar.
    ⚠️ Del lado de Odoo, `email_from` del lead queda visible en el chatter: por eso el módulo ya
    tiene el aviso de responder con "Registrar una nota" y NUNCA con "Enviar mensaje" — eso
-   mandaría un correo a la persona. */
+   mandaría un correo a la persona.
+
+   ── QUÉ VE CADA ROL (decidido por el cliente el 2026-08-07) ──────────────────────────────────
+   · SERVICIO MÉDICO: todo. Es la autoridad clínica y la única vista que GENERA casos.
+   · SUPERVISOR: que se inició un caso de telemedicina y POR QUÉ TEST. Nada más — ni severidad,
+     ni valores, ni contacto. Lo filtra el SERVIDOR (acción `casos_odoo_resumen` del `.gs`), no
+     la pantalla: si filtrara la pantalla, el dato igual habría viajado hasta su navegador.
+     No agrega fuga: el supervisor ya ve qué indicadores tiene elevados esa persona en los
+     cuadritos de su tarjeta (`.apt-boxes`) — lo que nunca ve es un valor.
+   · DIRECCIÓN / HSEQ: NADA, sin cambios. Es la empresa contratante (ver HSEQ_ACCIONES_OCULTAS).
+   ⚠️ Antes de 2026-08-07 sólo viajaban los NOMBRES de los indicadores. Ahora viajan también los
+   VALORES de los tests: es una decisión explícita del cliente, registrada en §17 de
+   PENDIENTES_USUARIO.md junto con la salvedad de que el texto de consentimiento no la declara. */
 const CASOS_ODOO_DEFAULTS = {
   /* ⚠️ ARRANCA APAGADO A PROPÓSITO (cambiado el 2026-08-06, antes era `true`).
      Mientras el endpoint no tenía la acción `caso_odoo_guardar`, tener esto en `true` era inocuo:
@@ -9364,7 +9401,45 @@ function casosOdooDescarte(p, sev){
    bookkeeping local para ordenar la lista en pantalla, quedaba viajando en el payload hasta que
    se agregó este filtro). */
 const CASOS_ODOO_COLUMNAS = ['Fecha','Persona','Empresa','Departamento','Cargo','NivelRiesgo',
-  'Severidad','Motivo','Indicadores','Confiabilidad','OrigenApp','IdCaso','Procesado','RefOdoo'];
+  'Severidad','Motivo','Indicadores','Confiabilidad','OrigenApp','IdCaso','Procesado','RefOdoo',
+  'Valores'];
+
+/* Valores de los tests del último registro (2026-08-07: el cliente decidió que viajen TODOS).
+   Antes viajaba sólo el NOMBRE de los indicadores afectados.
+
+   ⚠️ `Valores` va AL FINAL del contrato, después de Procesado/RefOdoo, aunque semánticamente
+   pegue al lado de `Indicadores`. Es a propósito: el `.gs` ubica las columnas del write-back de
+   Odoo por ÍNDICE FIJO (COL_ID/COL_PROC/COL_REF), y la hoja ya existe en producción con filas
+   cargadas. Meter una columna en el medio correría todos los datos existentes respecto del
+   encabezado y rompería la idempotencia del otro lado. Agregar al final no toca nada.
+
+   Formato: JSON autodescriptivo — clave de máquina + etiqueta legible + valor + referencia
+   clínica + nivel. Lleva la etiqueta adentro para que el módulo de Odoo no tenga que mantener
+   su propia tabla de nombres en paralelo y quede desincronizada.
+   ⚠️ ÚNICO lugar que conoce este formato. Si cambia, cambia acá y en el `.gs`, en ningún otro lado.
+
+   Se toma del registro MÁS RECIENTE, que siempre es confiable: `casosOdooDescarte()` descarta el
+   caso entero si el último test es poco confiable, así que acá nunca llega uno malo. */
+function casosOdooValores(p){
+  const r0 = (p.regs && p.regs[0]) || {};
+  const nivelDe = {};
+  (p.metricas || []).forEach(x => { nivelDe[x.m] = x.nivel; });
+  const out = [];
+  (DASH.metrics || []).forEach(m => {
+    if (r0[m] == null) return;
+    out.push({ k:m, t:(METRIC_LABELS[m] || m), v:r0[m],
+      ref:((DASH.ref && DASH.ref[m] != null) ? DASH.ref[m] : null), n:(nivelDe[m] || 'sin') });
+  });
+  // Reacción (PVT): va en la misma lista pero MENOS ES MEJOR, y su referencia sale del corte
+  // ajustado por nivel de riesgo, no de DASH.ref. Se marca con `menosEsMejor` para que del otro
+  // lado nadie lo compare al revés.
+  const pv = (p.pvtRegs && p.pvtRegs[0]) || null;
+  if (pv && pv.rt_prom != null){
+    out.push({ k:'pvt', t:'Tiempo de reacción', v:pv.rt_prom, ref:Math.round(pvtCortes(p.mrg).med),
+      n:(p.pvt || 'sin'), lapsos:(pv.lapsos == null ? 0 : pv.lapsos), menosEsMejor:true });
+  }
+  return JSON.stringify(out);
+}
 function casosOdooPayload(c){
   const out = {};
   CASOS_ODOO_COLUMNAS.forEach(k => { out[k] = (c[k] == null) ? '' : c[k]; });
@@ -9401,7 +9476,8 @@ function casosOdooFila(p){
     Confiabilidad: conf,
     OrigenApp: 'PWA Fatiga ' + APP_VERSION,
     Procesado: '',                 // ← del write-back de Odoo. Siempre vacías desde acá.
-    RefOdoo: ''
+    RefOdoo: '',
+    Valores: casosOdooValores(p)   // valores de los tests (ver casosOdooValores)
   };
 }
 
@@ -9493,6 +9569,41 @@ function casosOdooPush(){
   return Promise.all(jobs);
 }
 window.addEventListener('online', function(){ casosOdooSchedulePush(); });
+
+/* ── Lo que el SUPERVISOR ve del puente (decisión del cliente, 2026-08-07) ──────────────────
+   El supervisor tiene que enterarse de que se abrió un caso de telemedicina y de por qué test,
+   pero su dispositivo NO tiene de dónde sacarlo: los casos se generan sólo en la vista médica y
+   viven en el localStorage de ESE dispositivo y en la hoja. Por eso hace falta pedirlo al
+   servidor.
+
+   ⚠️ Por qué una acción NUEVA y acotada, y no reusar la bitácora: `bitPull()` bajaría la bitácora
+   ENTERA — todos los eventos con su `detalle` clínico — al dispositivo del supervisor, para
+   mostrar un renglón. El filtro tiene que estar del lado del SERVIDOR y devolver sólo los tres
+   campos que corresponden; si filtráramos en la pantalla, el dato igual ya habría viajado hasta
+   su navegador y estaría a un F12 de distancia. Mismo criterio que ya usa `accionGestiones()`
+   con el cuaderno del médico.
+   (Nota al pasar: `bitPull()` hoy no lo llama nadie — está definida y sin uso.)
+
+   El médico también la usa, en vez de leer su store local: así el espejo "Así lo ve el
+   supervisor" muestra literalmente lo mismo que el supervisor, sin una segunda fuente de verdad
+   que se pueda desincronizar. */
+function casosResumenPull(){
+  if (!gestCanSync()) return Promise.resolve(false);
+  if (simulando()) return Promise.resolve(false);
+  return gestPost(gestAuth({ action:'casos_odoo_resumen' })).then(d => {
+    if (!d || !d.ok || !Array.isArray(d.casos) || !DASH) return false;
+    // Una persona puede tener varios casos (uno por fecha de test): gana el más reciente, que es
+    // el que corresponde mostrar en la tarjeta.
+    const porPersona = {};
+    d.casos.forEach(c => {
+      if (!c || !c.persona) return;
+      const prev = porPersona[c.persona];
+      if (!prev || String(c.fecha || '') > String(prev.fecha || '')) porPersona[c.persona] = c;
+    });
+    DASH._casosResumen = porPersona;
+    return true;
+  }).catch(()=>false);
+}
 
 /* Estado del puente, SÓLO para el servicio médico (la vista de Silva).
    🔒 A propósito NO se muestra en la consola de Dirección / HSEQ: esa es la empresa contratante,
