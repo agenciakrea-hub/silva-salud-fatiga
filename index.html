@@ -112,6 +112,7 @@
     --sem-ambar-solid:   #8a5700;
     --sem-verde-solid:   #0d7a4f;
     --sem-violeta-solid: #8e2f8e;
+    --sem-gris-solid:    #5a6474;
 
     --sup-bg:      #f4f6fa;   /* fondo de las superficies claras (paneles, documentación) */
     --sup-borde:   #d7dce6;
@@ -225,6 +226,7 @@
     --sem-ambar-solid:   #8a5700;
     --sem-verde-solid:   #0d7a4f;
     --sem-violeta-solid: #8e2f8e;
+    --sem-gris-solid:    #5a6474;
 
     --sup-bg:      #0e1724;
     --sup-borde:   #2c3a4d;
@@ -1927,7 +1929,11 @@
   .adm-doc-btn { margin-top:.2rem; }
 
   /* ── Documentación interna (P8) ── */
-  .doc-win { position:fixed; inset:0; background:var(--bg,#f4f6fa); display:flex; flex-direction:column; }
+  /* ⚠️ Usaba var(--bg,#f4f6fa) y --bg NO EXISTE en ningún tema: caía SIEMPRE al gris claro fijo,
+     así que en modo oscuro quedaba un panel claro con texto claro encima (la intro daba 1.77:1,
+     ilegible). --sup-bg es el token que ya existe para esto ("superficies claras: paneles,
+     documentación") y su valor en tema claro es exactamente ese mismo #f4f6fa. */
+  .doc-win { position:fixed; inset:0; background:var(--sup-bg); display:flex; flex-direction:column; }
   .doc-top { display:flex; align-items:center; gap:.6rem; padding:.8rem 1rem;
     background:var(--navy); color:#fff; flex:0 0 auto; }
   .doc-title { flex:1 1 auto; font-size:1rem; font-weight:800; }
@@ -2977,7 +2983,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.47';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.48';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5699,7 +5705,7 @@ function admRenderDoc(){
     '<p>Un indicador se pone en <b>rojo sólo si los DOS últimos tests</b> están por encima del límite. Un valor ' +
     'alto suelto queda en amarillo: un mal día no dispara una revisión médica.</p>' +
     docTabla(['Color','Qué significa'], Object.keys(APT_NIVELES).filter(k => k !== 'sin').map(k =>
-      ['<span class="doc-chip" style="color:' + APT_NIVELES[k].c + ';background:' + APT_NIVELES[k].bg + '">' + esc(APT_NIVELES[k].t) + '</span>',
+      ['<span class="doc-chip" style="background:' + semSolido(APT_NIVELES[k].c) + ';color:#fff">' + esc(APT_NIVELES[k].t) + '</span>',
        k === 'alto' ? 'Por encima del límite en los dos últimos tests' : k === 'medio' ? 'Cerca del límite, o un solo valor alto' : 'Dentro de lo esperado'])));
 
   h += docSec('4 · La referencia clínica no se mueve; lo que cambia es cuándo se actúa',
@@ -5743,7 +5749,7 @@ function admRenderDoc(){
 
   h += docSec('7 · Estados posibles de una persona',
     docTabla(['Estado','Quién lo determina'], Object.keys(APT_ESTADOS).map(k => [
-      '<span class="doc-chip" style="color:' + APT_ESTADOS[k].c + ';background:' + APT_ESTADOS[k].bg + '">' + esc(APT_ESTADOS[k].t) + '</span>',
+      '<span class="doc-chip" style="background:' + semSolido(APT_ESTADOS[k].c) + ';color:#fff">' + esc(APT_ESTADOS[k].t) + '</span>',
       APT_ESTADOS[k].medico ? '<b>El servicio médico</b> (lo firma una persona)' : 'El control automático'
     ])) +
     '<p><b>La app nunca declara a nadie "no apto" por su cuenta.</b> Cuando el control automático detecta algo, ' +
@@ -5796,19 +5802,181 @@ function admRenderDoc(){
     '<p>Hay una segunda protección: en un reporte anónimo, el departamento sólo se muestra si tiene ' +
     '<b>' + cfg('anonN') + ' personas o más</b>. Con menos gente, decir el área equivale a decir el nombre.</p>');
 
-  h += docSec('13 · Qué está hecho y qué falta',
+  /* ── A partir de acá: el volcado COMPLETO de la lógica (pedido del cliente, 2026-08-08).
+     La idea es que Dirección pueda leer esto y decir "noté X, me gustaría que fuera así" sobre
+     algo concreto. Por eso cada sección dice, cuando corresponde, DÓNDE se cambia ese valor. */
+
+  h += docSec('13 · Qué mide cada indicador',
+    '<p>La app no inventa escalas: usa instrumentos ya validados. Esto es lo que mide cada uno y ' +
+    'para qué lado es peor.</p>' +
+    docTabla(['Indicador','Qué es'], GLOSS_ITEMS.map(g => ['<b>' + esc(g[0]) + '</b>', esc(g[1])])) +
+    ((typeof DASH !== 'undefined' && DASH && DASH.ref)
+      ? '<p><b>Referencias clínicas en uso ahora mismo</b> (el valor por encima del cual el indicador ' +
+        'necesita atención):</p>' +
+        docTabla(['Indicador','Referencia'], Object.keys(METRIC_LABELS)
+          .filter(k => DASH.ref[k] != null)
+          .map(k => [esc(METRIC_LABELS[k]), '<b>' + esc(String(DASH.ref[k])) + '</b>']))
+      : '<p>Las referencias clínicas de cada indicador las envía el servidor junto con los datos, ' +
+        'para que sean las mismas en todos los dispositivos. Se ven en el panel de estadísticas.</p>') +
+    '<p class="doc-ej"><b>Recordá el punto 4:</b> esta referencia es clínica y es igual para todo el ' +
+    'mundo. Lo que cambia según el puesto no es este número, sino a qué distancia de él se actúa.</p>');
+
+  h += docSec('14 · El test de reacción (PVT), que funciona al revés',
+    '<p>Todos los indicadores anteriores son cuestionarios: la persona responde cómo se siente. El PVT ' +
+    'es distinto — <b>mide una reacción real</b>, en milisegundos, y por eso es la medición más difícil ' +
+    'de falsear de todas.</p>' +
+    '<p>Tiene una particularidad que conviene tener presente: <b>acá menos es mejor</b>. En todos los ' +
+    'demás indicadores un número más alto es peor; en este, un número más alto significa que la persona ' +
+    'tardó más en reaccionar.</p>' +
+    '<p>Se miran dos cosas: el <b>tiempo de reacción promedio</b> y los <b>lapsos</b> (las veces que la ' +
+    'persona directamente no reaccionó a tiempo). Los cortes se ajustan por nivel de riesgo del puesto, ' +
+    'con el mismo criterio que el resto:</p>' +
+    docTabla(['Nivel del puesto','Hasta (bien)','Desde (por encima)','Lapsos tolerados'],
+      [1,2,3,4,5].map(n => {
+        const c = pvtCortes(NIVEL_RIESGO[n]);
+        return ['<b class="doc-niv doc-niv-' + n + '">' + n + ' · ' + esc(NIVEL_RIESGO[n].t) + '</b>',
+                Math.round(c.ok) + ' ms', Math.round(c.med) + ' ms', c.lapOk + ' / ' + c.lapMed];
+      })) +
+    '<p>El nivel 3 da exactamente ' + PVT_BASE_OK + ' y ' + PVT_BASE_MED + ' ms, que son los valores ' +
+    'de referencia históricos. Los demás niveles se calculan a partir de ese.</p>');
+
+  h += docSec('15 · Cómo se decide el nivel de riesgo de cada persona',
+    '<p>El nivel del puesto es lo que determina cuándo se actúa (punto 4). Se resuelve buscando la regla ' +
+    '<b>más específica</b> que aplique a esa persona, en este orden:</p>' +
+    docTabla(['Orden','Regla','Para qué sirve'], [
+      ['1','Por <b>persona</b>','Un caso puntual, sin tener que inventar un cargo'],
+      ['2','Por <b>cargo</b>','Lo habitual: "piloto de helicóptero" es nivel 5'],
+      ['3','Por <b>departamento</b>','Cuando todo un área comparte exposición'],
+      ['4','Por <b>empresa</b>','El default de esa empresa'],
+      ['5','Default general','Nivel <b>' + NIVEL_DEFAULT + '</b> si no hay ninguna regla']
+    ]) +
+    '<p>La primera que coincide gana. Se configura en una hoja del sistema, sin tocar la aplicación, ' +
+    'así que se puede corregir en cualquier momento.</p>' +
+    '<p class="doc-ej"><b>Estado actual:</b> mientras esa hoja esté vacía, <b>todo el mundo cae en nivel ' +
+    NIVEL_DEFAULT + '</b>, que es exactamente cómo se comportaba la app antes de que existieran los ' +
+    'niveles. No se rompe nada: simplemente la función no se nota hasta que se cargue la lista real.</p>');
+
+  h += docSec('16 · Qué puede hacer el supervisor, y por cuánto tiempo',
+    '<p>El supervisor no determina aptitud. Lo que puede hacer es sacar a alguien de <b>una tarea ' +
+    'puntual</b> y dejar registrado qué acción tomó.</p>' +
+    '<p><b>Acciones disponibles hoy:</b></p>' +
+    docTabla(['Acción','¿Saca a la persona de la tarea?'], mitigaciones().map(m =>
+      [esc(m.t), m.saca ? '<b>Sí</b>' : 'No'])) +
+    '<p><b>Por cuánto tiempo puede sostenerlo sin que intervenga el médico:</b> cuanto más riesgoso el ' +
+    'puesto, menos tiempo. Al vencerse el plazo, la persona entra sí o sí a la cola del servicio médico.</p>' +
+    docTabla(['Nivel del puesto','Tope','Opciones que ofrece la app'],
+      [1,2,3,4,5].map(n => ['<b class="doc-niv doc-niv-' + n + '">' + n + ' · ' + esc(NIVEL_RIESGO[n].t) + '</b>',
+        '<b>' + esc(restTextoDuracion(NIVEL_RIESGO[n].maxRestrH)) + '</b>',
+        restDuracionesPara(n).map(h2 => esc(restTextoDuracion(h2))).join(' · ')])));
+
+  h += docSec('17 · El registro del turno',
+    '<p>Además de los tests, la persona puede dejar tres marcas a lo largo de su jornada. Son ' +
+    'voluntarias y toman segundos:</p>' +
+    docTabla(['Momento','Qué se pregunta'], TURNO_TIPOS.map(t => ['<b>' + esc(t.t) + '</b>', esc(t.sub)])) +
+    '<p>Sirven para ver el <b>arco del día</b>, no sólo una foto: alguien que llega bien y termina ' +
+    'agotado todos los días es un patrón que un test aislado no muestra.</p>');
+
+  h += docSec('18 · El reporte rápido y cuál lleva nombre',
+    '<p>Es el canal para avisar algo sin tener que hacer un test completo. <b>Cada opción tiene ya ' +
+    'decidido si viaja con nombre o no</b>, y la app se lo dice a la persona antes de enviarlo.</p>' +
+    docTabla(['Opción','Cómo viaja'], REPORTE_OPCIONES.map(o =>
+      [esc(o.t), o.identificado ? 'Con tu nombre' : '<b>Anónimo</b>'])) +
+    '<p>El criterio: lo que es <b>sobre la persona</b> va identificado, porque el supervisor necesita ' +
+    'saber a quién reasignar. Lo que es <b>sobre el entorno, el turno o la carga</b> va anónimo, porque ' +
+    'es clima organizacional y con nombre nadie lo reporta con honestidad.</p>' +
+    '<p>Como dice el punto 12: en los anónimos el nombre <b>no se envía</b>, no es que se oculte.</p>');
+
+  h += docSec('19 · Qué le pide la app a cada persona',
+    '<p>Sólo lo necesario para poder interpretar sus resultados y saber a quién corresponden:</p>' +
+    docTabla(['Dato','Para qué'], [
+      ['Nombre','Identificar sus registros y que el médico sepa a quién ve'],
+      ['Cédula','Distinguir a dos personas con el mismo nombre'],
+      ['Empresa y departamento','Aplicar el nivel de riesgo y agrupar los totales'],
+      ['Cargo','Es lo que determina el nivel de riesgo del puesto'],
+      ['Sexo y edad','Contexto clínico para el servicio médico'],
+      ['Teléfono y correo','Que el equipo médico pueda contactarla si hace falta una consulta']
+    ]) +
+    '<p>Los datos quedan guardados en el dispositivo de la persona y en el sistema de la empresa. ' +
+    '<b>El supervisor nunca ve teléfono ni correo</b> de nadie desde la aplicación.</p>');
+
+  h += docSec('20 · Los consentimientos y cómo se actualizan',
+    '<p>Antes de poder usar la app, la persona tiene que leer y aceptar <b>' + CONSENTIMIENTOS.length +
+    ' apartados</b>. No es una casilla suelta: cada uno se despliega y se lee por separado.</p>' +
+    docTabla(['Apartado','Versión aceptada hoy'], CONSENTIMIENTOS.map(c =>
+      ['<b>' + esc(c.t) + '</b>', 'v' + c.v])) +
+    '<p><b>Cómo funciona un cambio de texto:</b> cada apartado tiene su propio número de versión. Si se ' +
+    'corrige uno, sube su número y la app <b>vuelve a pedir sólo ese</b> a todo el mundo, incluidos ' +
+    'quienes ya lo habían aceptado. Los otros no se vuelven a mostrar.</p>' +
+    '<p>Cada aceptación queda registrada con la fecha y la versión exacta que la persona leyó. Es la ' +
+    'evidencia de qué se le informó y cuándo.</p>');
+
+  h += docSec('21 · Qué pasa cuando no hay señal',
+    '<p>La app funciona <b>sin conexión</b>. Los tests, los turnos y los reportes se completan igual, ' +
+    'quedan guardados en el teléfono y se envían solos cuando vuelve la señal.</p>' +
+    '<p>Mientras haya envíos pendientes, la app muestra cuántos son. <b>No se pierde ningún registro</b> ' +
+    'por falta de señal durante un turno — que es justo cuando más falta hace, porque los lugares donde ' +
+    'esto importa (hangar, rampa, plataforma) suelen ser los que peor cobertura tienen.</p>');
+
+  h += docSec('22 · El puente al circuito de atención (telemedicina)',
+    '<p>Cuando una persona queda <b>en rojo con un test confiable</b>, la app puede abrir automáticamente ' +
+    'un <b>caso</b> para el circuito interno de atención de Silva, que es quien después la contacta.</p>' +
+    '<p><b>Estado actual: ' + (CASOS_ODOO_DEFAULTS.activo ? 'ENCENDIDO' : 'APAGADO') + '.</b> ' +
+    (CASOS_ODOO_DEFAULTS.activo
+      ? 'Se están generando casos.'
+      : 'No se genera ningún caso. Se enciende empresa por empresa, con una decisión explícita — no se ' +
+        'activa solo.') + '</p>' +
+    docTabla(['Regla','Cómo está hoy'], [
+      ['Cuándo se abre un caso', CASOS_ODOO_DEFAULTS.disparo === 'rojo' ? 'Sólo los que están en <b>rojo</b>' : 'Rojos <b>y amarillos</b>'],
+      ['Un patrón sostenido abre caso', CASOS_ODOO_DEFAULTS.incluirPersistente ? 'Sí, aunque hoy no esté en rojo' : 'No'],
+      ['Test poco confiable','<b>Nunca</b> abre un caso'],
+      ['Varios tests el mismo día','Un solo caso por persona por test, nunca duplicados']
+    ]) +
+    '<p><b>Quién se entera de que se abrió un caso:</b></p>' +
+    docTabla(['Rol','Qué ve'], [
+      ['Servicio médico','Todo: el caso completo'],
+      ['Supervisor','Que se inició una consulta y <b>por qué test</b>. Nada más — ni valores, ni contacto'],
+      ['Dirección / HSEQ','<b>Nada.</b> No se entera de que existe el caso'],
+      ['La persona','No recibe ningún aviso automático']
+    ]) +
+    '<p>La última fila es deliberada: el contacto lo hace una persona del equipo médico, no un correo ' +
+    'automático.</p>');
+
+  h += docSec('23 · Cada cuánto conviene medir',
+    '<p>La app no obliga a una frecuencia, pero sí tiene una recomendación por nivel de riesgo, y avisa ' +
+    'cuando el dato de alguien ya está viejo:</p>' +
+    docTabla(['Nivel del puesto','Frecuencia sugerida'],
+      [1,2,3,4,5].map(n => ['<b class="doc-niv doc-niv-' + n + '">' + n + ' · ' + esc(NIVEL_RIESGO[n].t) + '</b>',
+        'cada ' + NIVEL_RIESGO[n].frecDias + ' días'])) +
+    '<p>Un resultado de hace más de <b>' + APT_DIAS_FRESCO + ' días</b> se marca como "dato no reciente": ' +
+    'se sigue viendo, pero atenuado y con un aviso. No se borra ni se oculta — que alguien no se mida hace ' +
+    'un mes también es información.</p>');
+
+  h += docSec('24 · Lo que falta para poder calcular costos',
+    '<p>La sección de costos <b>no muestra ninguna cifra inventada</b>. Hasta que la empresa cargue estos ' +
+    'valores, muestra exactamente cuáles faltan y para qué sirve cada uno.</p>' +
+    docTabla(['Dato','Para qué'], HSEQ_COSTOS_CAMPOS.map(f =>
+      ['<b>' + esc(f.t) + '</b>', f.d ? esc(f.d) : '—'])) +
+    '<p class="doc-ej">Los dos marcados son los importantes. Sin la <b>línea base de incidentes</b> no hay ' +
+    'contra qué comparar, y el <b>factor de conversión</b> no es un dato sino una decisión de negocio: es ' +
+    'lo primero que una junta directiva va a cuestionar, así que conviene que lo fije la empresa ' +
+    'explícitamente y no la aplicación.</p>');
+
+  h += docSec('25 · Qué está hecho y qué falta',
     docTabla(['Parte','Estado'], [
-      ['Niveles de riesgo y tolerancia por puesto','Hecho'],
+      ['Niveles de riesgo y tolerancia por puesto','Hecho · <b>falta cargar la lista real de puestos</b>'],
       ['Acciones del supervisor y mitigaciones','Hecho'],
       ['Patrón sostenido y ficha médica','Hecho'],
       ['Vista personal, turno y reporte rápido','Hecho'],
       ['Bandeja de reportes con anonimato','Hecho'],
       ['Confiabilidad de tests y telemedicina','Hecho'],
-      ['Consola de Dirección','Hecho · <b>requiere publicar el endpoint</b>'],
-      ['Costos y retorno','Esperando los datos de la empresa'],
+      ['Consola de Dirección','Hecho'],
+      ['Costos y retorno','Esperando los datos de la empresa (punto 24)'],
       ['Wearables y predicción a 24 h','<b>No disponible</b> · requiere el plan con dispositivos'],
-      ['Envío automático a Odoo','Pendiente']
-    ]));
+      ['Envío automático al circuito de atención', CASOS_ODOO_DEFAULTS.activo ? 'Encendido' : 'Hecho · <b>apagado</b> hasta que se decida encenderlo']
+    ]) +
+    '<p class="doc-ej"><b>Si al leer esto encontraste algo que preferirías distinto</b> — un plazo, una ' +
+    'acción de la lista, quién ve qué, cada cuánto se mide — anotalo y decilo. Casi todo lo que está acá ' +
+    'es configurable sin rehacer la aplicación.</p>');
 
   h += '<p class="doc-pie">Versión ' + esc(APP_VERSION) + '</p>';
   return h;
@@ -9070,6 +9238,7 @@ function semSolido(c){
   if (c.indexOf('ambar')   > -1) return 'var(--sem-ambar-solid)';
   if (c.indexOf('verde')   > -1) return 'var(--sem-verde-solid)';
   if (c.indexOf('violeta') > -1) return 'var(--sem-violeta-solid)';
+  if (c.indexOf('gris')    > -1) return 'var(--sem-gris-solid)';
   return c;
 }
 
