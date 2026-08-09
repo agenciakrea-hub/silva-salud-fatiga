@@ -2983,7 +2983,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.49';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.50';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5918,28 +5918,37 @@ function admRenderDoc(){
     'esto importa (hangar, rampa, plataforma) suelen ser los que peor cobertura tienen.</p>');
 
   h += docSec('22 · El puente al circuito de atención (telemedicina)',
-    '<p>Cuando una persona queda <b>en rojo con un test confiable</b>, la app puede abrir automáticamente ' +
-    'un <b>caso</b> para el circuito interno de atención de Silva, que es quien después la contacta.</p>' +
+    '<p>El caso lo abre <b>el servidor</b>, revisando el CH cada 15 minutos — no depende de que nadie ' +
+    'abra ningún panel. Se le suman teléfono y correo desde el perfil, para que el equipo que la va a ' +
+    'atender pueda contactarla directamente.</p>' +
     '<p><b>Estado actual: ' + (CASOS_ODOO_DEFAULTS.activo ? 'ENCENDIDO' : 'APAGADO') + '.</b> ' +
     (CASOS_ODOO_DEFAULTS.activo
       ? 'Se están generando casos.'
       : 'No se genera ningún caso. Se enciende empresa por empresa, con una decisión explícita — no se ' +
         'activa solo.') + '</p>' +
-    docTabla(['Regla','Cómo está hoy'], [
-      ['Cuándo se abre un caso', CASOS_ODOO_DEFAULTS.disparo === 'rojo' ? 'Sólo los que están en <b>rojo</b>' : 'Rojos <b>y amarillos</b>'],
-      ['Un patrón sostenido abre caso', CASOS_ODOO_DEFAULTS.incluirPersistente ? 'Sí, aunque hoy no esté en rojo' : 'No'],
-      ['Test poco confiable','<b>Nunca</b> abre un caso'],
-      ['Varios tests el mismo día','Un solo caso por persona por test, nunca duplicados']
+    '<p><b>Se abre un caso cuando se cumplen TODAS estas condiciones:</b></p>' +
+    docTabla(['#','Condición'], [
+      ['1','La empresa tiene el puente encendido'],
+      ['2','La persona tiene al menos un test cargado'],
+      ['3','Ese último test es <b>confiable</b> — uno mal respondido no cuenta, hay que repetirlo'],
+      ['4','La severidad da ' + (CASOS_ODOO_DEFAULTS.disparo === 'rojo' ? '<b>rojo</b>' : '<b>rojo o amarillo</b>') +
+        ' — dos últimos tests seguidos por encima del límite del puesto, o un valor extremo'],
+      ['5','Nadie le dio de alta ya — si el médico de esa empresa la declaró apta, no se abre aunque el número siga alto']
     ]) +
+    '<p>Un solo caso por persona por fecha de test: si el cron corre dos veces sobre el mismo resultado, ' +
+    'actualiza la misma fila en vez de duplicarla.</p>' +
+    '<p class="doc-ej">⚠️ <b>Pendiente:</b> el "patrón sostenido" (varias mediciones subiendo aunque hoy no ' +
+    'esté en rojo) hoy <b>no</b> abre caso por este camino — sólo aparece en Pendientes de revisión, para ' +
+    'el médico de la empresa. Es una diferencia real con el diseño original, todavía sin decidir si se ' +
+    'agrega.</p>' +
     '<p><b>Quién se entera de que se abrió un caso:</b></p>' +
     docTabla(['Rol','Qué ve'], [
-      ['Servicio médico','Todo: el caso completo'],
-      ['Supervisor','Que se inició una consulta y <b>por qué test</b>. Nada más — ni valores, ni contacto'],
+      ['Servicio médico (de la empresa)','Que se inició una consulta y por qué test. Nada más'],
+      ['Supervisor','Lo mismo que el médico: se inició una consulta y por qué test'],
       ['Dirección / HSEQ','<b>Nada.</b> No se entera de que existe el caso'],
       ['La persona','No recibe ningún aviso automático']
     ]) +
-    '<p>La última fila es deliberada: el contacto lo hace una persona del equipo médico, no un correo ' +
-    'automático.</p>');
+    '<p>El contacto lo hace una persona del equipo de Silva, no un correo automático.</p>');
 
   h += docSec('23 · Cada cuánto conviene medir',
     '<p>La app no obliga a una frecuencia, pero sí tiene una recomendación por nivel de riesgo, y avisa ' +
