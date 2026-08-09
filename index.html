@@ -2983,7 +2983,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.48';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.49';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9700,17 +9700,21 @@ function casosOdooEvaluar(){
    juzga con el default (nivel 3), y como el IdCaso es determinístico y NO se regenera, un caso
    abierto con el umbral equivocado quedaría fijo para siempre. Por eso se espera de forma
    explícita en vez de confiar en un setTimeout "suficientemente largo". */
-function casosOdooArmar(){ if (DASH) DASH._casosEsperando = { niveles:false, gestiones:false }; }
-function casosOdooListo(que){
-  try {
-    if (!DASH || !DASH._casosEsperando) return;
-    DASH._casosEsperando[que] = true;
-    const e = DASH._casosEsperando;
-    if (!e.niveles || !e.gestiones) return;
-    DASH._casosEsperando = null;                   // una sola vez por carga
-    if (casosOdooEvaluar()) renderDash();          // los casos nuevos se ven en Trazabilidad
-  } catch(err){}                                   // nunca romper la carga del panel por el puente
-}
+/* ⚠️ VACIADAS EL 2026-08-08 — la PWA YA NO GENERA CASOS.
+
+   Antes, el caso se creaba acá: cuando el servicio médico terminaba de cargar el panel. Estaba
+   mal de raíz y lo señaló el cliente. El médico que usa este panel es el de la EMPRESA CLIENTE;
+   Silva es quien presta la telemedicina. Que Silva se entere de que hay alguien para atender no
+   puede depender de que un tercero abra una pantalla — si nadie la abría, el caso no existía.
+
+   Ahora lo hace el ENDPOINT, con un activador por tiempo (`cronCasosOdoo` en el `.gs`), mirando
+   el CH cada 15 minutos. No depende de ningún dispositivo ni de quién haya cargado el test.
+
+   Las dos funciones se dejan como no-op en vez de borrarlas porque `onDashData` las sigue
+   llamando en cuatro puntos; sacarlas de ahí también obligaría a tocar esos caminos sin ninguna
+   ganancia. Si algún día se limpian, limpiar los cuatro llamados juntos. */
+function casosOdooArmar(){ /* la generación de casos vive ahora en el endpoint */ }
+function casosOdooListo(que){ /* ídem */ }
 
 let _casosT = null;
 // Mismo candado de "envíos en vuelo" que las otras tres colas (P10). Sin esto, dos flush casi
@@ -9778,19 +9782,18 @@ function casosResumenPull(){
 function casosOdooBloque(){
   if (!DASH || DASH.vista !== 'medico') return '';
   if (DASH.demoMode || DASH_DEMO) return '';
-  const s = casosStore(), items = s.items || [], pend = casosOdooPendientes();
   const activo = !!casosOdooCfg('activo');
   const disparo = casosOdooCfg('disparo');
   const ayuda = dashHelp('Cuando una persona queda <b>en rojo</b> con un test confiable, se abre un <b>caso</b> ' +
-    'para el circuito interno de atención (telemedicina). Se manda <b>un caso por persona por test</b>: ' +
-    'aunque haya hecho cinco tests el mismo día, no se abren cinco casos.' +
+    'para el circuito de telemedicina. Se abre <b>un caso por persona por test</b>: aunque haya hecho cinco ' +
+    'tests el mismo día, no se abren cinco casos.' +
+    '<br><br><b>Esto no depende de este panel.</b> Lo hace el servidor solo, cada 15 minutos, mire quien mire. ' +
+    'No hace falta que nadie entre acá para que el caso se abra.' +
     '<br><br>Un <b>test poco confiable no abre caso</b>: si el dato no sirve, lo que corresponde es repetir el test, ' +
-    'no abrir un expediente.' +
+    'no abrir un expediente. Y si vos ya diste el alta, tampoco se abre.' +
     '<br><br>Al caso se le suman el <b>teléfono y el correo</b> de la persona, tomados de su perfil, para que el ' +
-    'médico que la va a atender pueda contactarla. Esos datos <b>no pasan por este panel</b>: se agregan del lado ' +
-    'del servidor.' +
-    '<br><br>Lo que <b>no</b> viaja es ningún <b>valor de test</b>: sólo el nombre de los indicadores afectados, ' +
-    'que es lo que hace falta para priorizar. Y <b>ni la empresa ni la persona reciben ningún aviso automático</b>.');
+    'equipo que la va a atender pueda contactarla. Esos datos <b>no pasan por este panel</b>.' +
+    '<br><br><b>Ni la empresa ni la persona reciben ningún aviso automático</b>: el contacto lo hace una persona.');
   if (!activo){
     return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
       '<div class="hs-nota">El traspaso automático al circuito de atención interna está <b>desactivado</b> ' +
@@ -9800,22 +9803,28 @@ function casosOdooBloque(){
       'arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre ' +
       'es el traspaso solo.</div></div>';
   }
-  if (!items.length){
+  /* ⚠️ 2026-08-08: la lista sale del SERVIDOR (`casos_odoo_resumen`), no del almacén local.
+     Antes se leía de localStorage porque este mismo dispositivo era el que generaba los casos.
+     Ahora los genera el endpoint por su cuenta, así que el almacén local está siempre vacío y
+     leerlo mostraría "todavía no se generó ninguno" aunque hubiera veinte. */
+  const delServidor = (DASH._casosResumen && Object.keys(DASH._casosResumen).length)
+    ? Object.keys(DASH._casosResumen).map(k => DASH._casosResumen[k])
+    : [];
+  if (!delServidor.length){
     return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
-      '<div class="hs-nota">Todavía no se generó ningún caso. Se genera solo cuando alguien queda en rojo ' +
+      '<div class="hs-nota">Todavía no hay ningún caso abierto. Se abre solo cuando alguien queda en rojo ' +
       'con un test confiable' + (disparo === 'rojo_amarillo' ? ' o en amarillo' : '') + '.</div></div>';
   }
-  const filas = items.map(c =>
-    '<div class="hs-ev"><div class="hs-ev-top">' +
-      '<span class="hs-ev-acc">' + esc(c.Persona) + '</span>' +
-      '<span class="hs-ev-fecha">' + esc(c.Fecha) + '</span></div>' +
-      '<div class="hs-ev-sub">' + esc(c.Severidad === 'rojo' ? 'Rojo' : 'Amarillo') + ' · ' + esc(c.Motivo) + '</div>' +
-      (c.Indicadores ? '<div class="hs-ev-um">' + esc(c.Indicadores) + '</div>' : '') +
-      (s.up[c.IdCaso] ? '<div class="hs-ev-um">⏳ pendiente de enviar</div>' : '') +
-    '</div>');
-  return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna (' + items.length + ')</div>' +
-    '<div class="db-sub">Traspasados al circuito de telemedicina' +
-      (pend ? ' · <b>' + pend + ' sin enviar todavía</b> (se reintenta solo)' : ' · todos enviados') + '</div>' +
+  const filas = delServidor
+    .sort((a,b) => String(b.fecha||'').localeCompare(String(a.fecha||'')))
+    .map(c =>
+      '<div class="hs-ev"><div class="hs-ev-top">' +
+        '<span class="hs-ev-acc">' + esc(c.persona) + '</span>' +
+        '<span class="hs-ev-fecha">' + esc(c.fecha || '') + '</span></div>' +
+        (c.tests ? '<div class="hs-ev-um">' + esc(c.tests) + '</div>' : '') +
+      '</div>');
+  return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna (' + delServidor.length + ')</div>' +
+    '<div class="db-sub">Abiertos automáticamente y tomados por el circuito de telemedicina</div>' +
     dashVerMas(filas, 3) + '</div>';
 }
 
