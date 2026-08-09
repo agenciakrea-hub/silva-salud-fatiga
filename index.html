@@ -608,7 +608,14 @@
   .portal-back { width: 36px; height: 36px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
     border-radius: 10px; font-size: 1.15rem; color: #fff; cursor: pointer; flex-shrink: 0; }
   .dash-scope-wrap { flex: 1; min-width: 0; }
+  .dash-scope-top { display: flex; align-items: center; gap: .45rem; min-width: 0; }
   .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
+     viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
+     arriba de todo. Antes no había forma de saberlo salvo mirando qué pestañas aparecen abajo. */
+  .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
+    padding: .12rem .5rem; white-space: nowrap; }
   .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
     background: var(--card); padding: 2px; }
@@ -2795,7 +2802,10 @@
         <button class="portal-back" id="portalBackBtn" onclick="portalBackToGate()">←</button>
         <img id="dashBrandLogo" class="dash-brand-logo" alt="" style="display:none">
         <div class="dash-scope-wrap">
-          <div class="dash-scope" id="dashScope">—</div>
+          <div class="dash-scope-top">
+            <div class="dash-scope" id="dashScope">—</div>
+            <span class="dash-vista" id="dashVista"></span>
+          </div>
           <div class="dash-updated" id="dashUpdated"></div>
         </div>
         <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar">
@@ -2983,7 +2993,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.50';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.51';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6100,6 +6110,14 @@ const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individ
   idc:'Disponibilidad', mrfo:'Mapa de riesgo', intervenciones:'Intervenciones', auditoria:'Trazabilidad', costos:'Costos', predictivo:'Predictivo' };
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
+// "Dónde estoy parado": la insignia arriba de todo que dice qué panel se está viendo. Un solo
+// lugar con las 4 etiquetas, para que coincidan siempre con las que ya usan las pestañas del
+// selector (.portal-tabs) — si el día de mañana cambia un nombre, cambia acá y en ningún otro lado.
+const DASH_VISTA_LABEL = { empleado:'Personal', supervisor:'Supervisor', medico:'Servicio médico', hseq:'Dirección / HSEQ' };
+function dashPintarVista(vista){
+  const el = document.getElementById('dashVista');
+  if (el) el.textContent = DASH_VISTA_LABEL[vista] || '';
+}
 function dashTabsFor(rol, hasPvt, vista){
   // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes. Nada de indicadores,
   // comentarios ni informes: eso es del servicio médico.
@@ -6171,6 +6189,7 @@ function onDashData(d, scopeLabel, params, vista){
   }
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? ' · ejemplo' : '');
+  dashPintarVista(vista);
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
   dashUpdateBackBtn();
