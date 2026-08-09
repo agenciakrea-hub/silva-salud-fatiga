@@ -2993,7 +2993,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6057,6 +6057,21 @@ function portalLoginSupervisor(btn){
         errEl.textContent = d.vista
           ? 'Esa contraseña no corresponde al acceso de Dirección / HSEQ.'
           : 'El servidor todavía no reconoce el acceso de Dirección / HSEQ. Falta publicar la nueva versión del endpoint.';
+        return;
+      }
+      /* ⚠️ MISMO PROBLEMA DE SEGURIDAD QUE ARRIBA, encontrado por el usuario probando con una
+         empresa real (Aeroambulancias Silva, que sí tiene contraseña médica separada): elegir la
+         pestaña "Servicio médico" y escribir la contraseña de SUPERVISOR entraba igual, en
+         silencio, con vista de supervisor — sin avisar que esa no era la contraseña médica.
+         `validarAcceso()` en el `.gs` ya distingue bien las dos (columna B da vista:'supervisor'
+         cuando existe una columna E separada); lo que faltaba era este mismo candado del lado del
+         cliente. No se puede aplicar el candado si la empresa NO tiene contraseña médica separada:
+         ahí una sola contraseña abre las dos secciones a propósito (vista:'medico' de entrada), y
+         ese caso ya pasa sin problema porque d.vista ya viene 'medico'. */
+      if (PORTAL_VISTA === 'medico' && d.vista !== 'medico'){
+        errEl.textContent = (d.vista === 'hseq')
+          ? 'Esa contraseña es la de Dirección / HSEQ, no la de servicio médico.'
+          : 'Esa no es la contraseña de servicio médico — es la de supervisor.';
         return;
       }
       onDashData(d, label, params, d.vista || PORTAL_VISTA);   // el servidor decide la vista según la contraseña
