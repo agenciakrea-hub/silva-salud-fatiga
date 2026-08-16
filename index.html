@@ -494,6 +494,34 @@
   .pilot-banner.active .pilot-check { background: var(--orange); border-color: var(--orange); color: #fff; font-size: 13px; font-weight: 700; }
   .privacy { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 1rem; line-height: 1.5; }
 
+  /* ── Alta por nómina precargada (2026-08-11) ── */
+  .nom-lbl { display: block; font-size: .78rem; font-weight: 800; color: var(--text-muted); margin: 1rem 0 .4rem; }
+  .nom-lista { display: flex; flex-direction: column; gap: .4rem; max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .nom-op { display: flex; align-items: center; justify-content: space-between; gap: .6rem; width: 100%;
+    padding: .8rem .9rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; background: var(--card);
+    color: var(--text); font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; text-align: left; }
+  .nom-op:active { transform: scale(.99); border-color: var(--orange); }
+  .nom-op-chev { flex-shrink: 0; color: var(--orange); font-weight: 900; }
+  /* Aviso de que esa persona ya se dio de alta en otro dispositivo. NO bloquea: alguien que cambió
+     de teléfono tiene que poder volver a entrar. */
+  /* Insignia SÓLIDA (relleno + blanco), mismo patrón que las insignias de estado desde el 07/08.
+     Primero la puse como texto de color sobre fondo pálido y falló en los dos temas por motivos
+     distintos: con --sem-verde-solid daba 2,55:1 en oscuro (ese token es un RELLENO, no un color
+     de texto), y con --sem-verde daba 2,81:1 en claro (el par texto+fondo-pálido es justamente el
+     que viene flojo en tema claro). El relleno sólido da 5,37:1 en ambos. */
+  .nom-op-ya { flex-shrink: 0; font-size: .66rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .03em; color: #fff; background: var(--sem-verde-solid);
+    border-radius: 999px; padding: .1rem .45rem; }
+  .nom-cargando, .nom-vacio { font-size: .84rem; color: var(--text-muted); padding: .8rem .2rem; line-height: 1.5; }
+  .nom-elegido { background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 12px;
+    padding: .7rem .85rem; font-size: .9rem; font-weight: 800; color: var(--sem-ambar-txt); }
+  .nom-err { color: var(--sem-rojo-alt); font-size: .8rem; font-weight: 700; margin-top: .5rem; min-height: 1.1rem; line-height: 1.4; }
+  .nom-pie { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: 1.1rem;
+    padding-top: .8rem; border-top: 1px solid var(--linea); }
+  .nom-link { border: none; background: none; padding: .3rem 0; font-family: inherit; font-size: .8rem;
+    font-weight: 700; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
+  .nom-link:active { color: var(--orange-txt); }
+
   /* ── Test interactivo (prueba) ── */
   #testOverlay .sheet { min-height: 600px; display: flex; flex-direction: column; }
   .test-progress { width: 100%; height: 6px; background: var(--linea); border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
@@ -2572,6 +2600,41 @@
 </div>
 
 <!-- Setup overlay -->
+<!-- Alta por NÓMINA PRECARGADA (2026-08-11).
+     La empresa nos pasa su personal, lo cargamos en la hoja "Nómina" del CH, y la persona sólo se
+     elige de la lista y confirma su cédula. El formulario largo (#setup) queda como respaldo para
+     quien no esté cargado, y también es lo que se ve después, ya completo, para revisar y guardar. -->
+<div class="overlay" id="nominaOv">
+  <div class="sheet">
+    <h2 id="nomTitulo">¿Quién eres?</h2>
+    <p class="lead" id="nomLead">Tu empresa ya nos pasó los datos. Búscate en la lista y no tendrás que cargar nada.</p>
+
+    <div id="nomPaso1">
+      <label class="nom-lbl">Elige tu empresa</label>
+      <div class="nom-lista" id="nomEmpresas"><div class="nom-cargando">Buscando empresas…</div></div>
+    </div>
+
+    <div id="nomPaso2" style="display:none">
+      <label class="nom-lbl" for="nomBuscar">Búscate en la lista</label>
+      <input type="text" id="nomBuscar" class="restr-input" placeholder="Escribe tu nombre para filtrar" oninput="nominaFiltrar()" autocomplete="off">
+      <div class="nom-lista" id="nomPersonas"></div>
+    </div>
+
+    <div id="nomPaso3" style="display:none">
+      <div class="nom-elegido" id="nomElegido"></div>
+      <label class="nom-lbl" for="nomCedula">Confirma tu número de cédula</label>
+      <input type="tel" id="nomCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" autocomplete="off" onkeydown="if(event.key==='Enter')nominaConfirmar()">
+      <div class="nom-err" id="nomErr"></div>
+      <button class="save-btn" id="nomBtnConfirmar" onclick="nominaConfirmar()">Confirmar y entrar</button>
+    </div>
+
+    <div class="nom-pie">
+      <button type="button" class="nom-link" id="nomVolver" style="display:none" onclick="nominaVolver()">‹ Volver</button>
+      <button type="button" class="nom-link" onclick="nominaManual()">No estoy en la lista</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="setup">
   <div class="sheet">
     <h2 id="setupTitle">Bienvenido 👋</h2>
@@ -2999,7 +3062,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.53';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.54';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5034,6 +5097,127 @@ window.addEventListener('popstate', function(){
 });
 
 let editing = false;
+/* ══════════ ALTA POR NÓMINA PRECARGADA (2026-08-11) ══════════════════════════════════════════
+   Antes, cada persona cargaba sus 10 datos a mano la primera vez. Además de la fricción, eso
+   ensuciaba el CH: cada uno escribía su empresa y su departamento como se le ocurría y después los
+   registros no cruzaban con la nómina real.
+
+   Ahora la empresa nos pasa su personal en una planilla, la pegamos en la hoja `Nómina` del CH, y
+   acá la persona sólo: elige su empresa → se busca en la lista → escribe su cédula.
+
+   🔒 La lista de nombres se pide sin contraseña (la persona todavía no tiene credenciales: recién
+   se está dando de alta). Pero cédula, teléfono y correo NO viajan con esa lista — el servidor los
+   entrega recién cuando la cédula coincide (`nomina_confirmar`). Si la lista trajera todo, el
+   teléfono de la nómina entera quedaría en el navegador de cualquiera que abra la app.
+
+   El formulario largo de siempre (#setup) NO se elimina: es el respaldo para quien no esté cargado
+   ("No estoy en la lista"), y es lo que se ve al final ya completo, para revisar y guardar. Se
+   eligió mostrarlo en vez de saltarlo para que la persona pueda corregir un teléfono mal cargado
+   antes de que quede fijo. */
+const NOM = { empresa:'', persona:'', personas:[] };
+function nominaEl(id){ return document.getElementById(id); }
+function nominaPaso(n){
+  nominaEl('nomPaso1').style.display = (n===1) ? '' : 'none';
+  nominaEl('nomPaso2').style.display = (n===2) ? '' : 'none';
+  nominaEl('nomPaso3').style.display = (n===3) ? '' : 'none';
+  nominaEl('nomVolver').style.display = (n===1) ? 'none' : '';
+  const t = nominaEl('nomTitulo'), l = nominaEl('nomLead');
+  if (n===1){ t.textContent = '¿Quién eres?'; l.textContent = 'Tu empresa ya nos pasó los datos. Búscate en la lista y no tendrás que cargar nada.'; }
+  if (n===2){ t.textContent = 'Búscate en la lista'; l.textContent = 'Toca tu nombre. Si no aparece, avísale a tu supervisor.'; }
+  if (n===3){ t.textContent = 'Confirma que eres tú'; l.textContent = 'Escribe tu número de cédula para completar tu alta.'; }
+}
+/* Punto de entrada. Si no hay endpoint, o la nómina viene vacía, o falla la red, cae DERECHO al
+   formulario manual: nadie puede quedar sin poder darse de alta porque la nómina no cargó. */
+function nominaAbrir(){
+  if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
+  NOM.empresa = ''; NOM.persona = ''; NOM.personas = [];
+  nominaPaso(1);
+  nominaEl('nomEmpresas').innerHTML = '<div class="nom-cargando">Buscando empresas…</div>';
+  nominaEl('nominaOv').classList.add('show');
+  syncScrollLock();
+  fetch(SHEETS_DASHBOARD_URL + '?action=nomina_empresas&_=' + Date.now(), { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      const emps = (d && d.ok && Array.isArray(d.empresas)) ? d.empresas : [];
+      if (!emps.length){ nominaManual(); return; }              // todavía no hay nómina cargada
+      nominaEl('nomEmpresas').innerHTML = emps.map(e =>
+        '<button type="button" class="nom-op" onclick="nominaElegirEmpresa(this.dataset.e)" data-e="' + esc(e) + '">' +
+          '<span>' + esc(e) + '</span><span class="nom-op-chev">›</span></button>').join('');
+    })
+    .catch(() => nominaManual());
+}
+function nominaCerrar(){ nominaEl('nominaOv').classList.remove('show'); syncScrollLock(); }
+// "No estoy en la lista" y todos los caminos de error terminan acá: el formulario de siempre.
+function nominaManual(){ nominaCerrar(); openSetup(false); }
+function nominaVolver(){
+  if (nominaEl('nomPaso3').style.display !== 'none'){ nominaPaso(2); return; }
+  nominaPaso(1);
+}
+function nominaElegirEmpresa(emp){
+  NOM.empresa = emp;
+  nominaPaso(2);
+  nominaEl('nomBuscar').value = '';
+  nominaEl('nomPersonas').innerHTML = '<div class="nom-cargando">Buscando personas…</div>';
+  fetch(SHEETS_DASHBOARD_URL + '?action=nomina_personas&empresa=' + encodeURIComponent(emp) + '&_=' + Date.now(), { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      NOM.personas = (d && d.ok && Array.isArray(d.personas)) ? d.personas : [];
+      nominaFiltrar();
+    })
+    .catch(() => { nominaEl('nomPersonas').innerHTML = '<div class="nom-vacio">No se pudo conectar. Puedes cargar tus datos a mano con “No estoy en la lista”.</div>'; });
+}
+function nominaFiltrar(){
+  const q = dashNorm(nominaEl('nomBuscar').value.trim());
+  const lista = q ? NOM.personas.filter(p => dashNorm(p.nombre).indexOf(q) >= 0) : NOM.personas;
+  if (!lista.length){
+    nominaEl('nomPersonas').innerHTML = '<div class="nom-vacio">' +
+      (NOM.personas.length ? 'Ningún nombre coincide con lo que escribiste.' : 'Todavía no hay personas cargadas para esta empresa.') + '</div>';
+    return;
+  }
+  nominaEl('nomPersonas').innerHTML = lista.map(p =>
+    '<button type="button" class="nom-op" onclick="nominaElegirPersona(this.dataset.n)" data-n="' + esc(p.nombre) + '">' +
+      '<span>' + esc(p.nombre) + '</span>' +
+      (p.yaRegistrado ? '<span class="nom-op-ya">ya se dio de alta</span>' : '<span class="nom-op-chev">›</span>') +
+    '</button>').join('');
+}
+function nominaElegirPersona(nombre){
+  NOM.persona = nombre;
+  nominaPaso(3);
+  nominaEl('nomElegido').textContent = nombre;
+  nominaEl('nomCedula').value = '';
+  nominaEl('nomErr').textContent = '';
+  setTimeout(() => { try { nominaEl('nomCedula').focus(); } catch(e){} }, 60);
+}
+function nominaConfirmar(){
+  const ced = nominaEl('nomCedula').value.trim();
+  const err = nominaEl('nomErr');
+  if (!ced){ err.textContent = 'Escribe tu número de cédula.'; return; }
+  const btn = nominaEl('nomBtnConfirmar');
+  btnSpin(btn, true, 'Confirmando…');
+  err.textContent = '';
+  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+      action:'nomina_confirmar', empresa: NOM.empresa, persona: NOM.persona, cedula: ced }) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok || !d.perfil){ err.textContent = (d && d.error) || 'No se pudo confirmar.'; return; }
+      const q = d.perfil;
+      /* Se guarda como perfil y se abre el formulario YA COMPLETO. Ese formulario es el único
+         lugar que valida y que sincroniza con `Registrados Fatiga` (saveProfile): pasar por él
+         evita duplicar esa lógica acá y deja que la persona corrija un dato mal cargado. */
+      const prev = getProfile() || {};
+      setProfile(Object.assign({}, prev, {
+        nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
+        cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
+        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||''
+      }));
+      nominaCerrar();
+      openSetup(false);
+      showToast('Encontramos tus datos');
+    })
+    .catch(() => { btnSpin(btn, false); err.textContent = 'No se pudo conectar. Intenta de nuevo.'; });
+}
+
 function openSetup(isEdit){
   editing = !!isEdit;
   // Alta nueva: los dos toggles arrancan DESACTIVADOS (antes "piloto" venía marcado por defecto)
@@ -11061,7 +11245,9 @@ function seguirTrasTamanoTexto(){
   // — y estaríamos dando por consentido algo que esa persona no leyó.
   if (!hasConsent()){ consentRender(); document.getElementById('consent').classList.add('show'); return; }
   if (perfilCompleto(getProfile())) return;              // ya está todo cargado: no molestamos
-  openSetup(false);
+  // Primero se intenta el alta por nómina (elegirse de la lista). Si no hay nómina cargada, no hay
+  // endpoint o falla la red, nominaAbrir() cae solo al formulario manual de siempre.
+  nominaAbrir();
 }
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
