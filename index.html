@@ -3062,7 +3062,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3191,7 +3191,14 @@ function acceptConsent(){
   document.getElementById('consent').classList.remove('show');
   // Sólo se pasa a cargar datos si de verdad faltan. A quien ya tiene el perfil completo y sólo
   // estaba aceptando un texto actualizado, mandarlo al formulario sería incomprensible.
-  if (!perfilCompleto(getProfile())) openSetup(false);
+  // ⚠️ 2026-08-17: BUG REAL reportado por el usuario. Este llamaba a openSetup(false) DIRECTO,
+  // salteándose nominaAbrir() — que es el único lugar que intenta la nómina precargada.
+  // seguirTrasTamanoTexto() (el otro punto de entrada) SÍ llama a nominaAbrir(), pero para
+  // cualquiera que use la app por primera vez el camino real es JUSTO este: sin consentimiento
+  // todavía, seguirTrasTamanoTexto() lo muestra y hace return SIN evaluar nómina, y quien lo
+  // acepta cae acá. O sea que en el flujo de un usuario nuevo nunca se llegaba a nominaAbrir() —
+  // por eso Helitec veía el formulario manual completo pese a tener la nómina cargada.
+  if (!perfilCompleto(getProfile())) nominaAbrir();
   return aceptados;
 }
 /* La aceptación se manda al servidor por el mismo canal sin contraseña que usa el registro de
@@ -5343,6 +5350,18 @@ function saveProfile(){
       if (errEmp) errEmp.textContent = 'Elige tu empresa de la lista. Si no aparece, avísale a tu administrador.';
       ok = false;
     }
+  } else if (empresa && SHEETS_DASHBOARD_URL && !SETUP_LISTS_FAILED){
+    /* ⚠️ 2026-08-17: BUG REAL, así se coló "Consorcio Helitec" junto a "Helitec" en una prueba en
+       vivo con varias personas guardando casi al mismo tiempo. loadSetupLists() es async; si
+       alguien tocaba "Guardar" antes de que la lista llegara, SETUP_LISTS.empresas todavía estaba
+       vacía y el bloque de arriba se saltaba ENTERO — dejando pasar cualquier texto libre sin
+       chequear contra la lista oficial. La distinción con SETUP_LISTS_FAILED es a propósito: a
+       alguien SIN CONEXIÓN de verdad no hay que bloquearlo (ese era el motivo original de no
+       validar acá), pero "todavía no llegó" no es lo mismo que "no va a llegar". */
+    document.getElementById('fEmp').classList.add('invalid');
+    const errEmp = document.getElementById('fEmp').querySelector('.err');
+    if (errEmp) errEmp.textContent = 'Todavía estamos cargando la lista de empresas. Espera un momento y toca Guardar de nuevo.';
+    ok = false;
   }
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
@@ -5439,13 +5458,19 @@ function onMedicoToggle(el){
 
 const SETUP_LISTS = { empresas: [], departamentos: [] };
 let SETUP_LISTS_LOADED = false;
+// ⚠️ 2026-08-17: distinto de SETUP_LISTS_LOADED. Ese se pone en `true` al DISPARAR el fetch, no
+// cuando llega la respuesta — así que "cargada && vacía" no distinguía "todavía en camino" de
+// "falló de verdad / sin conexión". saveProfile() necesita esa distinción (ver más abajo): a
+// alguien sin conexión real no hay que bloquearlo, pero a alguien que guardó más rápido de lo que
+// tardó la lista en llegar, sí — o pasa cualquier texto libre sin chequear contra la oficial.
+let SETUP_LISTS_FAILED = false;
 function loadSetupLists(){
   if (SETUP_LISTS_LOADED || !SHEETS_DASHBOARD_URL) return;   // sin endpoint no hay listas (queda como texto libre)
   SETUP_LISTS_LOADED = true;
   fetch(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
-    .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; } })
-    .catch(() => { SETUP_LISTS_LOADED = false; });
+    .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; SETUP_LISTS_FAILED = false; } })
+    .catch(() => { SETUP_LISTS_LOADED = false; SETUP_LISTS_FAILED = true; });
 }
 function comboBuild(which){
   const inp = document.getElementById('in' + which);
