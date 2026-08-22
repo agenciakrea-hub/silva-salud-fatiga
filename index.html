@@ -3063,7 +3063,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.57';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3765,7 +3765,10 @@ function renderSections(){
   if (sleep) sleep.style.display = pilot ? 'none' : '';
   root.innerHTML = '';
   SECTIONS.forEach(sec => {
-    if (sec.id === 'operacional' && pilot) return;
+    // "Data Operacional" (salir de casa → llegar al aeropuerto con KSS → salir del aeropuerto con
+    // Perelli → llegar a casa) es el flujo de piloto/tripulación. La condición estaba invertida:
+    // se ocultaba justo para quien SÍ es piloto y se mostraba para todos los demás.
+    if (sec.id === 'operacional' && !pilot) return;
     const s = document.createElement('section');
     s.className = 'section';
     // El PVT no notifica por WhatsApp: una sección que sólo tiene PVT no lleva el distintivo.
@@ -7043,7 +7046,10 @@ function dashContext(){
   if (DASH.f.dep) chips += '<span class="ctx-chip">' + esc(DASH.f.dep) + ' <b onclick="dashClear(\'dep\')">×</b></span>';
   if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
   if (!chips) return '';
-  const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep))
+  // Admin filtrando por empresa (sin depto/persona todavía) también necesita el botón: si no,
+  // la única forma de volver a "todas las empresas" era el botón atrás del teléfono, que cierra
+  // el panel entero en vez de sólo destrabar el filtro.
+  const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep) || (DASH.rol==='admin' && DASH.f.emp))
     ? '<button class="ctx-back" onclick="dashClearOne()">‹ Quitar filtro</button>' : '';
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
 }
@@ -7068,7 +7074,7 @@ function dashClear(level){
   else if (level==='per'){ DASH.f.per=''; }
   buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
 }
-function dashClearOne(){ dashClear(DASH.f.per ? 'per' : 'dep'); }   // "‹ Volver" sube un nivel, no desloguea
+function dashClearOne(){ dashClear(DASH.f.per ? 'per' : (DASH.f.dep ? 'dep' : 'emp')); }   // "‹ Volver" sube un nivel, no desloguea
 function dashDrill(level, value){
   ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
