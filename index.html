@@ -2166,34 +2166,58 @@
   .cic-chip-vencido  { color:var(--sem-rojo-txt);   background:var(--sem-rojo-int-bg); }
   .cic-chip-completo { color:var(--sem-verde-int);  background:var(--sem-verde-int-bg); }
   .cic-chip-sin      { color:var(--text-muted);     background:var(--chip-bg); }
+  .cic-chip-historico{ color:var(--text-muted);     background:var(--chip-bg); }
+  .cic-est-historico { opacity:.72; }
+  .cic-est-historico .cic-paso { opacity:.75; }
   .cic-sub { font-size:.73rem; color:var(--text-muted); font-weight:600; margin-top:.15rem; }
   .cic-reloj { font-weight:700; color:var(--text-soft); }
   .cic-reloj b { color:var(--orange-legible); font-variant-numeric:tabular-nums; }
   .cic-reloj-off { color:var(--text-muted); font-weight:600; }
 
-  .cic-barra { position:relative; display:flex; height:30px; margin:.6rem 0 .75rem; }
-  .cic-tramo { display:flex; align-items:center; justify-content:center; overflow:hidden; min-width:0; }
-  .cic-tramo:first-child { border-radius:8px 0 0 8px; }
-  .cic-tramo:last-child  { border-radius:0 8px 8px 0; }
-  .cic-tramo span { font-size:.66rem; font-weight:800; letter-spacing:.02em; white-space:nowrap;
-    padding:0 .2rem; text-overflow:ellipsis; overflow:hidden; }
-  .cic-tras { background:var(--sem-azul-bg);  color:var(--sem-azul-int); }
-  .cic-serv { background:var(--orange-bg);    color:var(--orange-legible); }
-  .cic-desc { background:var(--sem-verde-bg); color:var(--sem-verde-int); }
-  .cic-tras span { display:none; }            /* 1 h sobre 24 h: no entra el texto, va en la ayuda */
-  .cic-off .cic-tramo { background:var(--chip-bg); color:var(--text-muted); }
+  /* Esquema fiel al archivo de Helitec: traslados como badge "T" naranja de ancho FIJO (1 h sobre
+     24 h a escala serían 4 px), servicio y descanso proporcionales entre sí (12:10). */
+  .cic-riel { margin:.55rem 0 .7rem; }
+  .cic-horas { display:flex; margin-bottom:.2rem; }
+  .cic-h { flex:none; font-size:.66rem; font-weight:800; color:var(--text-muted);
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .cic-h[data-seg="t1"], .cic-h[data-seg="t2"] { width:26px; }
+  .cic-h[data-seg="serv"] { flex:12 1 0; }
+  .cic-h[data-seg="desc"] { flex:10 1 0; }
+  .cic-h-ok    { color:var(--sem-verde-int); }
+  .cic-h-antes { color:var(--sem-azul-int); }
+  .cic-h-tarde { color:var(--sem-ambar-txt); }
+  .cic-h-venc  { color:var(--sem-rojo-txt); }
+  .cic-h-pend, .cic-h-off { color:var(--text-muted); }
 
-  .cic-mark { position:absolute; top:-4px; width:3px; height:calc(100% + 8px); border-radius:2px;
-    transform:translateX(-50%); }
-  .cic-mark-ok    { background:var(--sem-verde-int); }
-  .cic-mark-antes { background:var(--sem-azul-int); }
-  .cic-mark-tarde { background:var(--sem-ambar-txt); }
-  .cic-mark-venc  { background:var(--sem-rojo-int); width:4px; }
-  .cic-mark-pend  { background:var(--ch-neutro); opacity:.6; }
-  .cic-now { position:absolute; top:-7px; width:2px; height:calc(100% + 14px);
-    background:var(--ch-ref); transform:translateX(-50%); }
-  .cic-now::after { content:''; position:absolute; top:-3px; left:50%; transform:translateX(-50%);
-    width:7px; height:7px; border-radius:50%; background:var(--ch-ref); }
+  .cic-barra { position:relative; display:flex; height:30px; align-items:stretch; }
+  .cic-t { position:relative; flex:none; width:26px; display:flex; align-items:center; justify-content:center;
+    background:var(--orange-txt); color:#fff; font-size:.72rem; font-weight:800; border-radius:7px; z-index:2; }
+  .cic-seg { position:relative; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; min-width:0; }
+  .cic-seg span { font-size:.65rem; font-weight:800; color:#fff; letter-spacing:.02em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
+  .cic-serv { flex:12 1 0; background:var(--navy-card); border-radius:6px 0 0 6px; margin-left:-4px; padding-left:4px; }
+  .cic-desc { flex:10 1 0; background:var(--sem-gris-solid); border-radius:0 6px 6px 0; margin-left:-4px; padding-left:4px; }
+  .cic-off .cic-t    { background:var(--sem-gris-solid); opacity:.55; }
+  .cic-off .cic-serv, .cic-off .cic-desc { background:var(--chip-bg); }
+  .cic-off .cic-seg span { color:var(--text-muted); }
+
+  /* Los 4 eventos: puntos en los bordes de los traslados, igual que la lámina "Data Operacional". */
+  .cic-pt { position:absolute; top:50%; width:11px; height:11px; border-radius:50%; z-index:3;
+    transform:translate(-50%,-50%); box-shadow:0 0 0 2px var(--card); }
+  .cic-pt-ini { left:0; }
+  .cic-pt-fin { left:100%; }
+  .cic-pt-ok    { background:var(--sem-verde-int); }
+  .cic-pt-antes { background:var(--sem-azul-int); }
+  .cic-pt-tarde { background:var(--sem-ambar-txt); }
+  .cic-pt-venc  { background:var(--sem-rojo-int); }
+  .cic-pt-pend  { background:var(--ch-neutro); opacity:.75; }
+  .cic-pt-off   { background:var(--ch-neutro); opacity:.45; }
+
+  .cic-now { position:absolute; top:-6px; left:0; width:2px; height:calc(100% + 12px);
+    background:var(--ch-ref); z-index:4; transform:translateX(-50%); }
+  .cic-now::after { content:''; position:absolute; top:-4px; left:50%; transform:translateX(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--ch-ref); }
 
   .cic-pasos { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:.4rem; }
   .cic-paso { background:var(--card); border-radius:9px; padding:.4rem .45rem; min-width:0;
@@ -3147,7 +3171,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.59';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.60';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6532,6 +6556,7 @@ function onDashData(d, scopeLabel, params, vista){
     gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
+    DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -7041,8 +7066,10 @@ function renderDash(){
   dashWireScrollspy();
   dashWireAnimaciones();
   dashUpdateGestFab();
-  // Reloj del ciclo operativo: sólo corre si la sección está en pantalla.
-  if (ord.indexOf('ciclo') >= 0) cicloTickStart(); else cicloTickStop();
+  // Reloj del ciclo operativo: sólo corre si la sección está en pantalla. La aguja se ubica
+  // después del layout (necesita medir los tramos ya dibujados).
+  if (ord.indexOf('ciclo') >= 0){ cicloTickStart(); requestAnimationFrame(() => cicloUbicarAgujas()); }
+  else cicloTickStop();
   requestAnimationFrame(dashWireAnResMarquee);
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
@@ -8243,12 +8270,6 @@ const CICLO_PASOS = [
   { ev:'salida_aero',  corto:'Sale del aeropuerto', min:780, testLbl:'Perelli' },
   { ev:'llegada_casa', corto:'Llega a casa',        min:840 }
 ];
-const CICLO_TRAMOS = [
-  { desde:0,   hasta:60,   lbl:'Traslado',        cls:'tras' },
-  { desde:60,  hasta:780,  lbl:'Servicio activo', cls:'serv' },
-  { desde:780, hasta:840,  lbl:'Traslado',        cls:'tras' },
-  { desde:840, hasta:1440, lbl:'Descanso',        cls:'desc' }
-];
 function cicloHM(min){
   const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
   return h ? (h + ' h ' + String(r).padStart(2,'0') + ' min') : (r + ' min');
@@ -8256,6 +8277,15 @@ function cicloHM(min){
 function cicloHora(iso){
   const d = new Date(iso), p = n => String(n).padStart(2,'0');
   return isNaN(d.getTime()) ? '--:--' : (p(d.getHours()) + ':' + p(d.getMinutes()));
+}
+// "hoy" / "ayer" / "20/08" — en una vista en vivo importa más eso que la fecha completa.
+function cicloFechaLabel(ms){
+  const d = new Date(ms), hoy = new Date(), ayer = new Date(hoy.getTime() - 86400000);
+  const mismo = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  if (mismo(d, hoy))  return 'hoy';
+  if (mismo(d, ayer)) return 'ayer';
+  const p = n => String(n).padStart(2,'0');
+  return p(d.getDate()) + '/' + p(d.getMonth()+1);
 }
 /* Devuelve el ÚLTIMO ciclo de cada persona. Si alguien no marcó nada hoy pero sí ayer, se ve su
    último ciclo (cerrado) en vez de desaparecer de la lista.
@@ -8282,7 +8312,10 @@ function cicloArmar(){
     evs.forEach(o => {
       const t = new Date(o.iso).getTime();
       if (o.evento === 'salida_casa' || !actual || (t - actual.t0) > CICLO_MIN_TOTAL*60000){
-        actual = { persona:o.persona, departamento:o.departamento, fecha:o.fecha, ev:{}, t0:t };
+        // La fecha se saca del ISO, NO de la columna Fecha: Sheets reinterpreta "2026-08-22" como
+        // fecha y la devuelve como objeto Date ("Sat Aug 22 2026 01:00:00 GMT-0300…"). El ISO es
+        // el único de los tres campos que sobrevive intacto.
+        actual = { persona:o.persona, departamento:o.departamento, fecha:cicloFechaLabel(t), ev:{}, t0:t };
       }
       const prev = actual.ev[o.evento];
       if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;   // el más nuevo gana
@@ -8307,31 +8340,85 @@ function cicloEstado(c, ahora){
   });
   const cerrado = !!c.ev['llegada_casa'];
   const hayVencido = pasos.some(p => !p.hecho && p.vencido);
-  return { estado: cerrado ? 'completo' : (hayVencido ? 'vencido' : 'curso'),
-           inicio:t0, pasos:pasos, transcurrido: Math.round((ahora - t0)/60000), cerrado:cerrado };
+  /* Un ciclo YA CERRADO de hace más de 24 h es historia, no la jornada de hoy: se pinta gris. Si
+     se mostrara en verde, el supervisor leería "esta persona está bien hoy" cuando en realidad
+     hoy no arrancó. Un ciclo viejo SIN cerrar sí se mantiene en rojo a propósito: es justamente
+     el evento sin marcar sobre el que hay que accionar. */
+  const viejo = (ahora - t0) > CICLO_MIN_TOTAL*60000;
+  const estado = (viejo && cerrado) ? 'historico'
+               : (cerrado ? 'completo' : (hayVencido ? 'vencido' : 'curso'));
+  return { estado:estado, inicio:t0, pasos:pasos,
+           transcurrido: Math.round((ahora - t0)/60000), cerrado:cerrado };
+}
+/* La barra reproduce el esquema del archivo de Helitec: los dos traslados son BADGES fijos con una
+   "T" (no franjas a escala — 1 h sobre 24 h serían 4 px y no se verían), y servicio activo y
+   descanso van proporcionales entre sí (12:10). Los 4 eventos son los PUNTOS de las uniones, igual
+   que en la lámina "Data Operacional": salir de casa y llegar al aeropuerto en los bordes del
+   primer traslado, salir del aeropuerto y llegar a casa en los del segundo. */
+function cicloClasePunto(p, off){
+  if (off || !p) return 'off';
+  if (p.hecho) return Math.abs(p.desvio) <= CICLO_TOLERANCIA ? 'ok' : (p.desvio < 0 ? 'antes' : 'tarde');
+  return p.vencido ? 'venc' : 'pend';
+}
+function cicloTitulo(p, off){
+  if (off || !p) return p ? (p.corto + ' · sin iniciar') : '';
+  if (p.hecho){
+    const d = p.desvio;
+    const det = Math.abs(d) <= CICLO_TOLERANCIA ? 'en hora'
+              : (d < 0 ? (cicloHM(-d) + ' antes') : (cicloHM(d) + ' después'));
+    return p.corto + ' · ' + cicloHora(p.real) + ' · ' + det;
+  }
+  return p.corto + (p.vencido ? ' · sin marcar' : ' · pendiente');
 }
 function cicloBarra(st){
-  const pct = m => (m / CICLO_MIN_TOTAL * 100);
-  const tramos = CICLO_TRAMOS.map(t =>
-    '<div class="cic-tramo cic-' + t.cls + '" style="width:' + pct(t.hasta - t.desde).toFixed(3) + '%">' +
-      '<span>' + t.lbl + '</span></div>').join('');
-  let marcas = '', aguja = '';
-  if (st.estado !== 'sin'){
-    marcas = st.pasos.map(p => {
-      const cls = p.hecho ? (Math.abs(p.desvio) <= CICLO_TOLERANCIA ? 'ok' : (p.desvio < 0 ? 'antes' : 'tarde'))
-                          : (p.vencido ? 'venc' : 'pend');
-      const tit = p.corto + (p.hecho ? (' · ' + cicloHora(p.real)) : (p.vencido ? ' · sin marcar' : ' · pendiente'));
-      return '<i class="cic-mark cic-mark-' + cls + '" style="left:' + pct(p.min).toFixed(3) + '%" title="' + esc(tit) + '"></i>';
-    }).join('');
-    if (!st.cerrado){
-      const ap = Math.min(100, Math.max(0, pct(st.transcurrido)));
-      aguja = '<i class="cic-now" data-cic-needle="' + st.inicio + '" style="left:' + ap.toFixed(3) + '%"></i>';
-    }
+  const apagado = (st.estado === 'sin' || st.estado === 'historico');   // segmentos en gris
+  const sinDatos = !st.pasos.length;                                    // nunca arrancó: no hay nada que contar
+  const P = sinDatos ? CICLO_PASOS.map(s => Object.assign({}, s, { hecho:false })) : st.pasos;
+  const punto = (i, lado) => '<i class="cic-pt cic-pt-' + cicloClasePunto(P[i], sinDatos) + ' cic-pt-' + lado +
+    '" title="' + esc(cicloTitulo(P[i], sinDatos)) + '"></i>';
+  // Hora de cada evento: la REAL si ya ocurrió, si no la prevista para ese ciclo (como el archivo,
+  // que muestra el horario planificado). Cada etiqueta se alinea sola con el borde de su tramo
+  // porque esta fila copia exactamente las proporciones de la barra de abajo.
+  const horas = P.map((p, i) => {
+    const cls = cicloClasePunto(p, sinDatos);
+    const txt = sinDatos ? '--:--' : (p.hecho ? cicloHora(p.real) : cicloHora(new Date(p.esperado).toISOString()));
+    return '<span class="cic-h cic-h-' + cls + '" data-seg="' + ['t1','serv','t2','desc'][i] + '">' + txt + '</span>';
+  }).join('');
+  return '<div class="cic-riel' + (apagado ? ' cic-off' : '') + '">' +
+    '<div class="cic-horas">' + horas + '</div>' +
+    '<div class="cic-barra">' +
+      '<span class="cic-t" data-seg="t1" title="Traslado · 1 hora">T' + punto(0,'ini') + punto(1,'fin') + '</span>' +
+      '<div class="cic-seg cic-serv" data-seg="serv"><span>Servicio activo · 12 h</span></div>' +
+      '<span class="cic-t" data-seg="t2" title="Traslado · 1 hora">T' + punto(2,'ini') + punto(3,'fin') + '</span>' +
+      '<div class="cic-seg cic-desc" data-seg="desc"><span>Descanso · 10 h</span></div>' +
+      ((apagado || st.cerrado) ? '' : '<i class="cic-now" data-cic-needle="' + st.inicio + '"></i>') +
+    '</div></div>';
+}
+/* La aguja del "ahora" no puede ir a un % del ancho total: los traslados son badges de ancho fijo,
+   así que el tiempo NO es lineal a lo largo de la barra. Se ubica midiendo el tramo real en el DOM
+   e interpolando dentro de él. */
+function cicloUbicarAguja(barra){
+  const aguja = barra.querySelector('.cic-now');
+  if (!aguja) return;
+  const t0 = Number(aguja.getAttribute('data-cic-needle'));
+  if (!t0) return;
+  const min = (Date.now() - t0) / 60000;
+  const segs = [['t1',0,60], ['serv',60,780], ['t2',780,840], ['desc',840,CICLO_MIN_TOTAL]];
+  let x = null;
+  for (let i = 0; i < segs.length; i++){
+    const el = barra.querySelector('[data-seg="' + segs[i][0] + '"]');
+    if (!el) continue;
+    const d = segs[i][1], h = segs[i][2];
+    if (min >= d && min <= h){ x = el.offsetLeft + el.offsetWidth * ((min - d) / (h - d)); break; }
   }
-  return '<div class="cic-barra' + (st.estado === 'sin' ? ' cic-off' : '') + '">' + tramos + marcas + aguja + '</div>';
+  if (x == null) x = (min < 0) ? 0 : barra.offsetWidth;
+  aguja.style.left = Math.max(0, Math.min(barra.offsetWidth, x)) + 'px';
+}
+function cicloUbicarAgujas(sec){
+  (sec || document).querySelectorAll('.cic-barra').forEach(cicloUbicarAguja);
 }
 function cicloPasosHtml(st){
-  if (st.estado === 'sin'){
+  if (!st.pasos.length){
     return '<div class="cic-pasos">' + CICLO_PASOS.map(s =>
       '<div class="cic-paso cic-paso-off"><span class="cic-paso-t">' + esc(s.corto) + '</span>' +
       '<span class="cic-paso-h">--:--</span></div>').join('') + '</div>';
@@ -8360,6 +8447,41 @@ function cicloPasosHtml(st){
       '<span class="cic-paso-d">' + detalle + '</span>' + test + '</div>';
   }).join('') + '</div>';
 }
+/* Datos de ejemplo del ciclo, para "Ver Empresa Demo" y para el simulador de roles del admin.
+   Se anclan a la hora ACTUAL (no a horas fijas), así el ejemplo siempre se ve vivo: el cronómetro
+   corre y la aguja está donde tiene que estar, se abra a la hora que se abra. Cubre los 4 estados
+   a propósito, que es lo que hay que poder mostrar. */
+function cicloDemo(){
+  const M = 60000, ahora = Date.now(), p = n => String(n).padStart(2,'0');
+  const ev = (persona, dep, evento, ms, test, res) => {
+    const d = new Date(ms);
+    return { fecha:d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()),
+      hora:p(d.getHours())+':'+p(d.getMinutes()), iso:d.toISOString(),
+      persona:persona, empresa:'Empresa Demo', departamento:dep, cargo:'Piloto',
+      evento:evento, test:test||'', resultado:(res==null?null:res) };
+  };
+  const A = ahora - 3*60*M;      // en curso: salió hace 3 h, ya está en servicio activo
+  const B = ahora - 15*60*M;     // sin marcar: nunca cerró la salida del aeropuerto
+  const C = ahora - 20*60*M;     // completo: arrancó hace 20 h y ya cerró (dentro de la ventana de 24 h)
+  const D = ahora - 4*24*60*M;   // sin iniciar: su último ciclo fue hace días
+  return [
+    ev('Nicolás Herrera','Tripulación','salida_casa',  A),
+    ev('Nicolás Herrera','Tripulación','llegada_aero', A + 72*M, 'kss', 6),
+
+    ev('Ana Suárez','Operaciones','salida_casa',  B),
+    ev('Ana Suárez','Operaciones','llegada_aero', B + 45*M, 'kss', 4),
+
+    ev('Luis Ferrer','Tripulación','salida_casa',  C),
+    ev('Luis Ferrer','Tripulación','llegada_aero', C + 58*M,  'kss', 3),
+    ev('Luis Ferrer','Tripulación','salida_aero',  C + 784*M, 'perelli', 5.4),
+    ev('Luis Ferrer','Tripulación','llegada_casa', C + 843*M),
+
+    ev('Marta Vieira','Operaciones','salida_casa',  D),
+    ev('Marta Vieira','Operaciones','llegada_aero', D + 61*M,  'kss', 2),
+    ev('Marta Vieira','Operaciones','salida_aero',  D + 779*M, 'perelli', 3.1),
+    ev('Marta Vieira','Operaciones','llegada_casa', D + 841*M)
+  ];
+}
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
   const ayuda = dashHelp('El <b>ciclo operativo</b> de cada persona, en vivo: sale de casa → 1 h de ' +
@@ -8377,20 +8499,21 @@ function renderCicloOperativo(){
   }
   const ahora = Date.now();
   const conEstado = ciclos.map(c => ({ c:c, st:cicloEstado(c, ahora) }));
-  const n = { curso:0, sin:0, vencido:0, completo:0 };
+  const n = { curso:0, sin:0, vencido:0, completo:0, historico:0 };
   conEstado.forEach(x => { n[x.st.estado]++; });
   const resumen = '<div class="cic-resumen">' +
     '<span class="cic-kpi cic-kpi-curso"><b>' + n.curso + '</b> en curso</span>' +
     '<span class="cic-kpi cic-kpi-venc"><b>' + n.vencido + '</b> con evento sin marcar</span>' +
     '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> completos</span>' +
-    '<span class="cic-kpi cic-kpi-sin"><b>' + n.sin + '</b> sin iniciar</span></div>';
+    '<span class="cic-kpi cic-kpi-sin"><b>' + (n.sin + n.historico) + '</b> sin iniciar</span></div>';
   // Los nombres van por ÍNDICE, nunca inline en el onclick: un apóstrofe o un acento rompe el
   // atributo HTML (mismo patrón que DASH._repNames, por el mismo bug ya visto).
   DASH._cicNames = conEstado.map(x => x.c.persona);
-  const ETIQ = { curso:'En curso', sin:'Sin iniciar', vencido:'Sin marcar', completo:'Completo' };
+  const ETIQ = { curso:'En curso', sin:'Sin iniciar', vencido:'Sin marcar', completo:'Completo', historico:'Sin iniciar' };
   const filas = conEstado.map((x, i) => {
     const st = x.st, c = x.c;
     const reloj = (st.estado === 'sin') ? '<span class="cic-reloj cic-reloj-off">Sin iniciar</span>'
+      : (st.estado === 'historico') ? '<span class="cic-reloj cic-reloj-off">Hoy no inició · último ciclo cerrado</span>'
       : st.cerrado ? '<span class="cic-reloj">Cerrado · ' + cicloHM(st.transcurrido) + '</span>'
       : '<span class="cic-reloj"><b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b> de ciclo</span>';
     return '<div class="cic-card cic-est-' + st.estado + '">' +
@@ -8398,7 +8521,7 @@ function renderCicloOperativo(){
         '<span class="cic-nom">' + esc(c.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + esc(c.departamento || '') + (c.departamento ? ' · ' : '') +
-        esc(c.fecha) + ' · ' + reloj + '</div>' +
+        'Ciclo de ' + esc(c.fecha) + ' · ' + reloj + '</div>' +
       cicloBarra(st) + cicloPasosHtml(st) + '</div>';
   }).join('');
   return ayuda + resumen + '<div class="cic-lista">' + filas + '</div>';
@@ -8426,17 +8549,16 @@ function cicloTick(){
     _cicloUltimoPull = ahora;
     try { dashRefresh(false); } catch(e){}
   }
-  if (ahora - _cicloUltimoRender > 60000){ sec.innerHTML = renderCicloOperativo(); return; }
+  if (ahora - _cicloUltimoRender > 60000){
+    sec.innerHTML = renderCicloOperativo();
+    requestAnimationFrame(() => cicloUbicarAgujas(sec));
+    return;
+  }
   sec.querySelectorAll('[data-cic-from]').forEach(el => {
     const t0 = Number(el.getAttribute('data-cic-from'));
     if (t0) el.textContent = cicloHM((ahora - t0)/60000);
   });
-  sec.querySelectorAll('[data-cic-needle]').forEach(el => {
-    const t0 = Number(el.getAttribute('data-cic-needle'));
-    if (!t0) return;
-    const p = Math.min(100, Math.max(0, (ahora - t0)/60000 / CICLO_MIN_TOTAL * 100));
-    el.style.left = p.toFixed(3) + '%';
-  });
+  cicloUbicarAgujas(sec);
 }
 
 function renderReportesSupervisor(){
