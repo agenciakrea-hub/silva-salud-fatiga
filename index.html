@@ -68,6 +68,12 @@
        #b8500a con blanco da 4.6:1 y se sigue leyendo como el mismo naranja. */
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;
+    /* Naranja de marca para TEXTO sobre las superficies del tema (tarjetas, --orange-bg, chips).
+       Distinto de --orange-txt, que está calibrado sólo contra fondos CLAROS y por eso no cambia
+       entre temas: en oscuro ese mismo #b8500a sobre --orange-bg da 2.91:1 y sobre --sup-suave
+       3.05:1, los dos por debajo del mínimo (medido el 2026-08-22 al armar el ciclo operativo).
+       Éste sí se aclara en oscuro: 7.06:1 y 7.40:1 sobre esos mismos fondos. */
+    --orange-legible: #b8500a;
     --card:        #ffffff;
     --text:        #16233d;
     --text-soft:   #525d73;
@@ -276,6 +282,7 @@
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
+    --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
   }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden; }
@@ -2135,6 +2142,83 @@
   .rep-nuevo { box-shadow:0 0 0 1.5px #f4c2be inset; }
   .rep-block-anon .db-title { color:var(--sem-morado); }
 
+  /* ── Ciclo operativo de 24 h (supervisor y Dirección/HSEQ) ──
+     Sin un solo color escrito a mano: todo sale de los tokens de los dos temas (R13). */
+  .cic-resumen { display:flex; flex-wrap:wrap; gap:.4rem; margin:.7rem 0 .9rem; }
+  .cic-kpi { font-size:.75rem; font-weight:700; color:var(--text-soft); background:var(--chip-bg);
+    padding:.22rem .6rem; border-radius:999px; white-space:nowrap; }
+  .cic-kpi b { font-weight:800; color:var(--text); }
+  .cic-kpi-curso b { color:var(--orange-legible); }
+  .cic-kpi-venc  b { color:var(--sem-rojo-int); }
+  .cic-kpi-comp  b { color:var(--sem-verde-int); }
+  .cic-lista { display:flex; flex-direction:column; gap:.7rem; }
+  .cic-card { background:var(--sup-suave); border:1px solid var(--sup-linea); border-radius:var(--radius-sm);
+    padding:.7rem .75rem .6rem; }
+  .cic-est-vencido { border-color:var(--sem-rojo); }
+  .cic-est-sin { opacity:.72; }
+  .cic-head { display:flex; align-items:center; gap:.5rem; cursor:pointer; }
+  .cic-head:active { transform:scale(.995); }
+  .cic-nom { font-size:.88rem; font-weight:800; color:var(--text);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cic-chip { margin-left:auto; font-size:.68rem; font-weight:800; padding:.1rem .5rem; border-radius:999px;
+    white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+  .cic-chip-curso    { color:var(--orange-legible); background:var(--orange-bg); }
+  .cic-chip-vencido  { color:var(--sem-rojo-txt);   background:var(--sem-rojo-int-bg); }
+  .cic-chip-completo { color:var(--sem-verde-int);  background:var(--sem-verde-int-bg); }
+  .cic-chip-sin      { color:var(--text-muted);     background:var(--chip-bg); }
+  .cic-sub { font-size:.73rem; color:var(--text-muted); font-weight:600; margin-top:.15rem; }
+  .cic-reloj { font-weight:700; color:var(--text-soft); }
+  .cic-reloj b { color:var(--orange-legible); font-variant-numeric:tabular-nums; }
+  .cic-reloj-off { color:var(--text-muted); font-weight:600; }
+
+  .cic-barra { position:relative; display:flex; height:30px; margin:.6rem 0 .75rem; }
+  .cic-tramo { display:flex; align-items:center; justify-content:center; overflow:hidden; min-width:0; }
+  .cic-tramo:first-child { border-radius:8px 0 0 8px; }
+  .cic-tramo:last-child  { border-radius:0 8px 8px 0; }
+  .cic-tramo span { font-size:.66rem; font-weight:800; letter-spacing:.02em; white-space:nowrap;
+    padding:0 .2rem; text-overflow:ellipsis; overflow:hidden; }
+  .cic-tras { background:var(--sem-azul-bg);  color:var(--sem-azul-int); }
+  .cic-serv { background:var(--orange-bg);    color:var(--orange-legible); }
+  .cic-desc { background:var(--sem-verde-bg); color:var(--sem-verde-int); }
+  .cic-tras span { display:none; }            /* 1 h sobre 24 h: no entra el texto, va en la ayuda */
+  .cic-off .cic-tramo { background:var(--chip-bg); color:var(--text-muted); }
+
+  .cic-mark { position:absolute; top:-4px; width:3px; height:calc(100% + 8px); border-radius:2px;
+    transform:translateX(-50%); }
+  .cic-mark-ok    { background:var(--sem-verde-int); }
+  .cic-mark-antes { background:var(--sem-azul-int); }
+  .cic-mark-tarde { background:var(--sem-ambar-txt); }
+  .cic-mark-venc  { background:var(--sem-rojo-int); width:4px; }
+  .cic-mark-pend  { background:var(--ch-neutro); opacity:.6; }
+  .cic-now { position:absolute; top:-7px; width:2px; height:calc(100% + 14px);
+    background:var(--ch-ref); transform:translateX(-50%); }
+  .cic-now::after { content:''; position:absolute; top:-3px; left:50%; transform:translateX(-50%);
+    width:7px; height:7px; border-radius:50%; background:var(--ch-ref); }
+
+  .cic-pasos { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:.4rem; }
+  .cic-paso { background:var(--card); border-radius:9px; padding:.4rem .45rem; min-width:0;
+    border-left:3px solid var(--ch-neutro); }
+  .cic-paso-t { display:block; font-size:.69rem; font-weight:800; color:var(--text-soft);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cic-paso-h { display:block; font-size:.95rem; font-weight:800; color:var(--text);
+    font-variant-numeric:tabular-nums; line-height:1.25; }
+  .cic-paso-d { display:block; font-size:.68rem; font-weight:600; color:var(--text-muted); }
+  .cic-paso-d b { font-variant-numeric:tabular-nums; color:var(--sem-rojo-txt); }
+  .cic-paso-ok    { border-left-color:var(--sem-verde-int); }
+  .cic-paso-antes { border-left-color:var(--sem-azul-int); }
+  .cic-paso-tarde { border-left-color:var(--sem-ambar-txt); }
+  .cic-paso-tarde .cic-paso-d { color:var(--sem-ambar-txt); font-weight:700; }
+  .cic-paso-venc  { border-left-color:var(--sem-rojo-int); background:var(--sem-rojo-bg); }
+  .cic-paso-pend  { border-left-color:var(--ch-neutro); }
+  .cic-paso-off   { border-left-color:var(--ch-neutro); opacity:.7; }
+  .cic-paso-off .cic-paso-h { color:var(--text-muted); }
+  .cic-test { display:inline-block; margin-top:.25rem; font-size:.66rem; font-weight:800;
+    padding:.05rem .4rem; border-radius:999px; color:var(--sem-azul-int); background:var(--sem-azul-bg); }
+  .cic-test-off { color:var(--text-muted); background:var(--chip-bg); }
+  @media (max-width:560px){
+    .cic-pasos { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  }
+
   /* ── Ficha médica interna (exclusiva del servicio médico) ── */
   .fm-block { border-top:3px solid var(--sem-verde-int); }
   .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
@@ -3063,7 +3147,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3564,13 +3648,36 @@ function buildMessage(item){
 function waUrl(item){
   return `https://api.whatsapp.com/send/?phone=${EVA_PHONE}&text=${encodeURIComponent(buildMessage(item))}&type=phone_number&app_absent=0`;
 }
-function enviarOperacional(campo){
-  if (!SHEETS_OPERACIONAL_URL || !campo) return;
+/* Registra un evento del CICLO OPERATIVO (salir de casa → aeropuerto → aeropuerto → casa).
+   Va a DOS lados a propósito:
+   1) El endpoint operacional de siempre (planilla vieja + aviso). No se toca: lo que ya funciona
+      sigue igual.
+   2) El endpoint del dashboard, hoja "Operacional" del CH. Éste es el que alimenta la vista de
+      Ciclo Operativo del supervisor/HSEQ. Antes NO existía: por eso la data operacional no se
+      veía en ningún panel — el endpoint del dashboard ni siquiera la recibía.
+   La hora es la del DISPOSITIVO, del momento exacto del botón: es la que la persona ve y la que
+   el supervisor necesita para medir adelanto/atraso. `test`/`resultado` viajan pegados al evento
+   para que el gráfico muestre el resultado sin tener que cruzar con la hoja del test. */
+function enviarOperacional(campo, test, resultado){
+  if (!campo) return;
   const p = getProfile() || {};
-  enviarConCola(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
-    nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'',
-    sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'', campo
-  }));
+  if (SHEETS_OPERACIONAL_URL){
+    enviarConCola(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
+      nombre: p.nombre||'', empresa: p.empresa||'', dpto: p.departamento||'',
+      sexo: p.sexo||'', edad: p.edad||'', telefono: p.telefono||'', campo
+    }));
+  }
+  if (SHEETS_DASHBOARD_URL){
+    const now = new Date(), pad = n => String(n).padStart(2,'0');
+    const fecha = todayStr();
+    enviarConCola(SHEETS_DASHBOARD_URL + '?' + new URLSearchParams({
+      action:'operacional_guardar',
+      id: 'op_' + dashNorm(p.nombre||'') + '_' + fecha + '_' + campo,   // uno por persona/día/evento
+      fecha: fecha, hora: pad(now.getHours()) + ':' + pad(now.getMinutes()), iso: now.toISOString(),
+      persona: p.nombre||'', empresa: p.empresa||'', departamento: p.departamento||'', cargo: p.cargo||'',
+      evento: campo, test: test||'', resultado: (resultado != null ? String(resultado) : '')
+    }));
+  }
 }
 
 /* ════════════════ TEST DE REACCIÓN (PVT) ════════════════ */
@@ -4408,6 +4515,12 @@ function finalizarPerelli(){
   const msg = base
     ? `${base} Se adjunta el *Test de Fatiga (Perelli SP)* completado desde el portal web.\n\n${details}`
     : `Completé el *Test de Fatiga (Perelli SP)* desde el portal web.\n\n${details}`;
+  /* El evento del ciclo operativo se registra SIEMPRE, sea piloto o no. Antes vivía sólo dentro
+     del `else` (rama sin piloto), así que para un piloto —justamente el único que usa el ciclo
+     operativo— la salida del aeropuerto nunca quedaba registrada. Va antes de la bifurcación,
+     igual que el envío a la hoja del test, que ya se hacía así. */
+  enviarOperacional(perelliState.item.operacionalCampo, 'perelli',
+    scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad));
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(perelliState.item.id);
@@ -4417,7 +4530,6 @@ function finalizarPerelli(){
     const itemFinal = { ...perelliState.item, msg };
     document.getElementById('testOverlay').classList.remove('show');
     window.open(waUrl(itemFinal), '_blank');
-    enviarOperacional(perelliState.item.operacionalCampo);
     mark(perelliState.item.id);
     perelliState = null;
   }
@@ -4600,6 +4712,8 @@ function finalizarKss(){
   const msg = base
     ? `${base} Se adjunta el *Test de Somnolencia (Escala KSS)* completado desde el portal web.\n\n${details}`
     : `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n${details}`;
+  // Mismo caso que en Perelli: el evento del ciclo se registra siempre, no sólo sin piloto.
+  enviarOperacional(kssState.item.operacionalCampo, 'kss', parseInt(nivelAlerta));
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(kssState.item.id);
@@ -4609,7 +4723,6 @@ function finalizarKss(){
     const itemFinal = { ...kssState.item, msg };
     document.getElementById('testOverlay').classList.remove('show');
     window.open(waUrl(itemFinal), '_blank');
-    enviarOperacional(kssState.item.operacionalCampo);
     mark(kssState.item.id);
     kssState = null;
   }
@@ -5676,7 +5789,7 @@ function portalAutoLoginSupervisor(c, credKey){
 // toques — se sentía como "no puedo salir" aunque el botón de cerrar funcionaba.
 function closePortal(){
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
-  stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
+  stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); cicloTickStop();
   const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
   const pvtOv = document.getElementById('pvtOverlay'); if (pvtOv) pvtOv.classList.remove('show');
   document.getElementById('portalOverlay').classList.remove('show');
@@ -6354,7 +6467,7 @@ function portalLoginAdmin(btn){
     .catch(() => { btnSpin(btn, false); errEl.textContent = 'No se pudo conectar.'; });
 }
 
-const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud', reportes:'Reportes',
+const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud', reportes:'Reportes', ciclo:'Ciclo operativo',
   idc:'Disponibilidad', mrfo:'Mapa de riesgo', intervenciones:'Intervenciones', auditoria:'Trazabilidad', costos:'Costos', predictivo:'Predictivo' };
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
@@ -6367,11 +6480,12 @@ function dashPintarVista(vista){
   if (el) el.textContent = DASH_VISTA_LABEL[vista] || '';
 }
 function dashTabsFor(rol, hasPvt, vista){
-  // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes. Nada de indicadores,
-  // comentarios ni informes: eso es del servicio médico.
-  if (vista === 'supervisor') return ['aptitud','reportes'];
+  // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes + el ciclo operativo del día.
+  // Nada de indicadores, comentarios ni informes: eso es del servicio médico.
+  if (vista === 'supervisor') return ['aptitud','reportes','ciclo'];
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
-  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo'];
+  // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
+  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
@@ -6400,12 +6514,13 @@ function onDashData(d, scopeLabel, params, vista){
   vista = vista || ((d.rol === 'empleado') ? 'empleado' : 'medico');
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
+           operacional: d.operacional || [],   // ciclo operativo (endpoint viejo no lo manda → [])
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:null, _reportes:null, _reportesPedidos:false,
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
-           params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]) };
+           params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]) };
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
   // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
@@ -6531,13 +6646,15 @@ function dashRefresh(manual){
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
     const pvt = d.pvt || null;
-    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[]);
+    // El ciclo operativo entra en la firma: si no, un evento nuevo (alguien que acaba de llegar al
+    // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
+    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]);
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
     if (!changed){ if (manual) showToast('Ya estaba al día'); return; }   // sin cambios → no re-renderiza (no salta el scroll)
     const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
-    DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.rawSig = sig;
+    DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.operacional = d.operacional || []; DASH.rawSig = sig;
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
@@ -6575,8 +6692,8 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 // Orden de secciones en la página única (Informe IA al FINAL de todo). Comparar/Individual se ocultan
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
 function dashOrderedTabs(){
-  if (DASH.vista === 'supervisor') return ['aptitud','reportes'];
-  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo'];
+  if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
+  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
   let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
@@ -6890,6 +7007,7 @@ function renderDash(){
     else if (t === 'gestiones') html = '';    // ya no es una sección para scrollear: es el acceso FIJO (ver dashUpdateGestFab)
     else if (t === 'aptitud') html = renderAptitud(rows);            // vista de supervisor (sin datos médicos)
     else if (t === 'reportes') html = renderReportesSupervisor();    // bandeja del supervisor (dataset propio)
+    else if (t === 'ciclo') html = renderCicloOperativo();           // ciclo operativo del día (dataset propio)
     else if (t === 'idc') html = renderHseqIdc(rows);                // ── Dirección / HSEQ ──
     else if (t === 'mrfo') html = renderHseqMrfo(rows);
     else if (t === 'intervenciones') html = renderHseqIntervenciones();
@@ -6923,6 +7041,8 @@ function renderDash(){
   dashWireScrollspy();
   dashWireAnimaciones();
   dashUpdateGestFab();
+  // Reloj del ciclo operativo: sólo corre si la sección está en pantalla.
+  if (ord.indexOf('ciclo') >= 0) cicloTickStart(); else cicloTickStop();
   requestAnimationFrame(dashWireAnResMarquee);
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
@@ -8094,6 +8214,229 @@ function dashReportesDemo(){
     { id:'demo_r4', opcion:'carga_excesiva', identificado:false, empresa:'Empresa Demo',
       departamento:'Mantenimiento', comentario:'', creada: ahora - 90000000 }
   ];
+}
+
+/* ══════════ CICLO OPERATIVO (2026-08-22) ══════════════════════════════════════════════════════
+   Lo que faltaba: ver qué está pasando AHORA con la jornada de cada persona. Los 4 botones de
+   "Data Operacional" de la app ya existían, pero sus eventos iban sólo a una planilla aparte que
+   el dashboard no leía — o sea que no se veían en ningún panel.
+
+   Modelo (planilla "Gestión del tiempo · Helitec", plantilla 1):
+     sale de casa → 1 h traslado → 12 h servicio activo → 1 h traslado → 10 h descanso = 24 h.
+
+   ⚠️ El ciclo NO se ancla a una hora de reloj fija (las 06:00 del archivo): se ancla al momento
+   REAL en que la persona toca "Saliendo de casa". Anclarlo a un horario teórico rompería con
+   cualquier turno rotativo o nocturno, y la app no sabe qué turno le toca hoy a cada uno. Así el
+   adelanto/atraso se mide siempre contra lo que correspondía a ESE ciclo.
+
+   Estados por persona:
+     · SIN INICIAR — no tocó el primer botón. El gráfico está igual, pero gris y sin reloj.
+     · EN CURSO    — arrancó: barra con color, reloj vivo y aguja de dónde está parada.
+     · VENCIDO     — pasó la hora del siguiente evento y no lo marcó: rojo, con el acumulado
+                     corriendo, para poder accionar sobre eso después.
+     · COMPLETO    — cerró el ciclo (llegó a casa). */
+const CICLO_MIN_TOTAL = 1440;                                  // 24 h
+const CICLO_TOLERANCIA = 10;                                   // ±10 min = "en hora"
+const CICLO_PASOS = [
+  { ev:'salida_casa',  corto:'Sale de casa',        min:0 },
+  { ev:'llegada_aero', corto:'Llega al aeropuerto', min:60,  testLbl:'KSS' },
+  { ev:'salida_aero',  corto:'Sale del aeropuerto', min:780, testLbl:'Perelli' },
+  { ev:'llegada_casa', corto:'Llega a casa',        min:840 }
+];
+const CICLO_TRAMOS = [
+  { desde:0,   hasta:60,   lbl:'Traslado',        cls:'tras' },
+  { desde:60,  hasta:780,  lbl:'Servicio activo', cls:'serv' },
+  { desde:780, hasta:840,  lbl:'Traslado',        cls:'tras' },
+  { desde:840, hasta:1440, lbl:'Descanso',        cls:'desc' }
+];
+function cicloHM(min){
+  const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
+  return h ? (h + ' h ' + String(r).padStart(2,'0') + ' min') : (r + ' min');
+}
+function cicloHora(iso){
+  const d = new Date(iso), p = n => String(n).padStart(2,'0');
+  return isNaN(d.getTime()) ? '--:--' : (p(d.getHours()) + ':' + p(d.getMinutes()));
+}
+/* Devuelve el ÚLTIMO ciclo de cada persona. Si alguien no marcó nada hoy pero sí ayer, se ve su
+   último ciclo (cerrado) en vez de desaparecer de la lista.
+
+   ⚠️ Los ciclos se arman cronológicamente, NO agrupando por fecha de calendario: un turno que
+   cruza la medianoche (sale 18:30, vuelve 08:30) quedaría partido en dos días, y la mitad de
+   after-midnight se vería como "sin iniciar" aunque la persona sí había arrancado. Un
+   "Saliendo de casa" abre ciclo; el resto de los eventos se cuelgan del ciclo abierto mientras
+   estén dentro de las 24 h. Un evento suelto sin ciclo abierto (marcó el aeropuerto sin marcar
+   la salida de casa) abre su propio ciclo, que queda justamente como "sin iniciar". */
+function cicloArmar(){
+  const rows = (DASH.operacional || []).filter(o => {
+    if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
+    if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
+    if (DASH.f.per && o.persona !== DASH.f.per) return false;
+    return !!o.iso && !isNaN(new Date(o.iso).getTime());
+  });
+  const porPersona = {};
+  rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
+  const out = [];
+  Object.keys(porPersona).forEach(k => {
+    const evs = porPersona[k].slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
+    let actual = null;
+    evs.forEach(o => {
+      const t = new Date(o.iso).getTime();
+      if (o.evento === 'salida_casa' || !actual || (t - actual.t0) > CICLO_MIN_TOTAL*60000){
+        actual = { persona:o.persona, departamento:o.departamento, fecha:o.fecha, ev:{}, t0:t };
+      }
+      const prev = actual.ev[o.evento];
+      if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;   // el más nuevo gana
+    });
+    if (actual) out.push(actual);                       // sólo interesa el ciclo más reciente
+  });
+  return out.sort((a,b) => a.persona.localeCompare(b.persona));
+}
+function cicloEstado(c, ahora){
+  const ini = c.ev['salida_casa'];
+  if (!ini) return { estado:'sin', pasos:[], inicio:null, transcurrido:0, cerrado:false };
+  const t0 = new Date(ini.iso).getTime();
+  const pasos = CICLO_PASOS.map(s => {
+    const e = c.ev[s.ev], esperado = t0 + s.min*60000;
+    if (e){
+      const real = new Date(e.iso).getTime();
+      return Object.assign({}, s, { hecho:true, real:real, esperado:esperado,
+        desvio: Math.round((real - esperado)/60000), test:e.test||'', resultado:e.resultado });
+    }
+    const vencido = ahora > esperado;
+    return Object.assign({}, s, { hecho:false, real:null, esperado:esperado, vencido:vencido });
+  });
+  const cerrado = !!c.ev['llegada_casa'];
+  const hayVencido = pasos.some(p => !p.hecho && p.vencido);
+  return { estado: cerrado ? 'completo' : (hayVencido ? 'vencido' : 'curso'),
+           inicio:t0, pasos:pasos, transcurrido: Math.round((ahora - t0)/60000), cerrado:cerrado };
+}
+function cicloBarra(st){
+  const pct = m => (m / CICLO_MIN_TOTAL * 100);
+  const tramos = CICLO_TRAMOS.map(t =>
+    '<div class="cic-tramo cic-' + t.cls + '" style="width:' + pct(t.hasta - t.desde).toFixed(3) + '%">' +
+      '<span>' + t.lbl + '</span></div>').join('');
+  let marcas = '', aguja = '';
+  if (st.estado !== 'sin'){
+    marcas = st.pasos.map(p => {
+      const cls = p.hecho ? (Math.abs(p.desvio) <= CICLO_TOLERANCIA ? 'ok' : (p.desvio < 0 ? 'antes' : 'tarde'))
+                          : (p.vencido ? 'venc' : 'pend');
+      const tit = p.corto + (p.hecho ? (' · ' + cicloHora(p.real)) : (p.vencido ? ' · sin marcar' : ' · pendiente'));
+      return '<i class="cic-mark cic-mark-' + cls + '" style="left:' + pct(p.min).toFixed(3) + '%" title="' + esc(tit) + '"></i>';
+    }).join('');
+    if (!st.cerrado){
+      const ap = Math.min(100, Math.max(0, pct(st.transcurrido)));
+      aguja = '<i class="cic-now" data-cic-needle="' + st.inicio + '" style="left:' + ap.toFixed(3) + '%"></i>';
+    }
+  }
+  return '<div class="cic-barra' + (st.estado === 'sin' ? ' cic-off' : '') + '">' + tramos + marcas + aguja + '</div>';
+}
+function cicloPasosHtml(st){
+  if (st.estado === 'sin'){
+    return '<div class="cic-pasos">' + CICLO_PASOS.map(s =>
+      '<div class="cic-paso cic-paso-off"><span class="cic-paso-t">' + esc(s.corto) + '</span>' +
+      '<span class="cic-paso-h">--:--</span></div>').join('') + '</div>';
+  }
+  return '<div class="cic-pasos">' + st.pasos.map(p => {
+    let clase, hora, detalle;
+    if (p.hecho){
+      const d = p.desvio;
+      clase = Math.abs(d) <= CICLO_TOLERANCIA ? 'ok' : (d < 0 ? 'antes' : 'tarde');
+      hora = cicloHora(p.real);
+      detalle = Math.abs(d) <= CICLO_TOLERANCIA ? 'En hora'
+              : (d < 0 ? (cicloHM(-d) + ' antes') : (cicloHM(d) + ' después'));
+    } else if (p.vencido){
+      clase = 'venc'; hora = '--:--';
+      detalle = 'Sin marcar · <b data-cic-from="' + p.esperado + '">' + cicloHM((Date.now() - p.esperado)/60000) + '</b>';
+    } else {
+      clase = 'pend'; hora = '--:--';
+      detalle = 'Previsto ' + cicloHora(new Date(p.esperado).toISOString());
+    }
+    const test = (p.hecho && p.testLbl && p.resultado != null)
+      ? '<span class="cic-test">' + esc(p.testLbl) + ' ' + esc(String(p.resultado)) + '</span>'
+      : (p.testLbl ? '<span class="cic-test cic-test-off">' + esc(p.testLbl) + ' —</span>' : '');
+    return '<div class="cic-paso cic-paso-' + clase + '">' +
+      '<span class="cic-paso-t">' + esc(p.corto) + '</span>' +
+      '<span class="cic-paso-h">' + hora + '</span>' +
+      '<span class="cic-paso-d">' + detalle + '</span>' + test + '</div>';
+  }).join('') + '</div>';
+}
+function renderCicloOperativo(){
+  _cicloUltimoRender = Date.now();
+  const ayuda = dashHelp('El <b>ciclo operativo</b> de cada persona, en vivo: sale de casa → 1 h de ' +
+    'traslado → 12 h de servicio activo → 1 h de traslado → 10 h de descanso. Se arma con los cuatro ' +
+    'botones de <b>Data Operacional</b> de la app, y el reloj arranca cuando la persona toca ' +
+    '"Saliendo de casa" — no a una hora fija, para que sirva igual en turnos rotativos. ' +
+    'Cada marca dice si llegó <b>antes</b>, <b>en hora</b> (±' + CICLO_TOLERANCIA + ' min) o <b>después</b>. ' +
+    'Si pasó la hora de un evento y no lo marcó, queda en <b style="color:var(--sem-rojo)">rojo</b> con el ' +
+    'tiempo acumulado corriendo. Los tests que dispara el ciclo (KSS al llegar, Perelli al salir) ' +
+    'muestran su resultado en el mismo punto donde se tocó el botón.');
+  const ciclos = cicloArmar();
+  if (!ciclos.length){
+    return ayuda + '<div class="dash-empty">Todavía no hay registros de ciclo operativo. ' +
+      'Aparecen cuando el personal de vuelo usa los botones de <b>Data Operacional</b> en la app.</div>';
+  }
+  const ahora = Date.now();
+  const conEstado = ciclos.map(c => ({ c:c, st:cicloEstado(c, ahora) }));
+  const n = { curso:0, sin:0, vencido:0, completo:0 };
+  conEstado.forEach(x => { n[x.st.estado]++; });
+  const resumen = '<div class="cic-resumen">' +
+    '<span class="cic-kpi cic-kpi-curso"><b>' + n.curso + '</b> en curso</span>' +
+    '<span class="cic-kpi cic-kpi-venc"><b>' + n.vencido + '</b> con evento sin marcar</span>' +
+    '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> completos</span>' +
+    '<span class="cic-kpi cic-kpi-sin"><b>' + n.sin + '</b> sin iniciar</span></div>';
+  // Los nombres van por ÍNDICE, nunca inline en el onclick: un apóstrofe o un acento rompe el
+  // atributo HTML (mismo patrón que DASH._repNames, por el mismo bug ya visto).
+  DASH._cicNames = conEstado.map(x => x.c.persona);
+  const ETIQ = { curso:'En curso', sin:'Sin iniciar', vencido:'Sin marcar', completo:'Completo' };
+  const filas = conEstado.map((x, i) => {
+    const st = x.st, c = x.c;
+    const reloj = (st.estado === 'sin') ? '<span class="cic-reloj cic-reloj-off">Sin iniciar</span>'
+      : st.cerrado ? '<span class="cic-reloj">Cerrado · ' + cicloHM(st.transcurrido) + '</span>'
+      : '<span class="cic-reloj"><b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b> de ciclo</span>';
+    return '<div class="cic-card cic-est-' + st.estado + '">' +
+      '<div class="cic-head" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
+        '<span class="cic-nom">' + esc(c.persona) + '</span>' +
+        '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
+      '<div class="cic-sub">' + esc(c.departamento || '') + (c.departamento ? ' · ' : '') +
+        esc(c.fecha) + ' · ' + reloj + '</div>' +
+      cicloBarra(st) + cicloPasosHtml(st) + '</div>';
+  }).join('');
+  return ayuda + resumen + '<div class="cic-lista">' + filas + '</div>';
+}
+/* Reloj en vivo. Cada segundo actualiza SOLO los números y la aguja (no re-arma el HTML: eso
+   pierde el scroll y hace parpadear). Una vez por minuto sí rearma la sección entera, que es
+   cuando un evento puede pasar de "pendiente" a "vencido" y cambiar de color, no sólo de número. */
+let _cicloTimer = null, _cicloUltimoRender = 0, _cicloUltimoPull = 0;
+function cicloTickStart(){
+  if (_cicloTimer) return;
+  _cicloUltimoPull = Date.now();
+  _cicloTimer = setInterval(cicloTick, 1000);
+}
+function cicloTickStop(){ if (_cicloTimer){ clearInterval(_cicloTimer); _cicloTimer = null; } }
+function cicloTick(){
+  const sec = document.getElementById('dsec-ciclo');
+  if (!sec || !DASH){ cicloTickStop(); return; }
+  const ahora = Date.now();
+  /* Los eventos NUEVOS (alguien que acaba de tocar un botón) sólo llegan volviendo a pedir datos.
+     El auto-refresco general de la app es DIARIO a propósito (cuidar la cuota del endpoint), y con
+     eso una llegada al aeropuerto tardaría 24 h en verse — o sea, nada de "en vivo". Mientras esta
+     sección está en pantalla se pide cada 2 min: alcanza de sobra para un ciclo de 24 h con 4
+     eventos, y es suave con la cuota. Al salir de la sección el reloj se apaga y deja de pedir. */
+  if (!DASH.demoMode && (ahora - _cicloUltimoPull) > 120000){
+    _cicloUltimoPull = ahora;
+    try { dashRefresh(false); } catch(e){}
+  }
+  if (ahora - _cicloUltimoRender > 60000){ sec.innerHTML = renderCicloOperativo(); return; }
+  sec.querySelectorAll('[data-cic-from]').forEach(el => {
+    const t0 = Number(el.getAttribute('data-cic-from'));
+    if (t0) el.textContent = cicloHM((ahora - t0)/60000);
+  });
+  sec.querySelectorAll('[data-cic-needle]').forEach(el => {
+    const t0 = Number(el.getAttribute('data-cic-needle'));
+    if (!t0) return;
+    const p = Math.min(100, Math.max(0, (ahora - t0)/60000 / CICLO_MIN_TOTAL * 100));
+    el.style.left = p.toFixed(3) + '%';
+  });
 }
 
 function renderReportesSupervisor(){
