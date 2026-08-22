@@ -3062,7 +3062,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.55';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.56';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6344,11 +6344,13 @@ const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individ
 // lugar con las 4 etiquetas, para que coincidan siempre con las que ya usan las pestañas del
 // selector (.portal-tabs) — si el día de mañana cambia un nombre, cambia acá y en ningún otro lado.
 const DASH_VISTA_LABEL = { empleado:'Personal', supervisor:'Supervisor', medico:'Servicio médico', hseq:'Dirección / HSEQ' };
-function dashPintarVista(vista){
+function dashPintarVista(vista, combinada){
   const el = document.getElementById('dashVista');
-  if (el) el.textContent = DASH_VISTA_LABEL[vista] || '';
+  // Con contraseña combinada la insignia aclara que también trae lo operativo — si no, alguien
+  // que entra y ve "Servicio médico" no entiende por qué tiene además Aptitud y Reportes.
+  if (el) el.textContent = (DASH_VISTA_LABEL[vista] || '') + (combinada ? ' (acceso completo)' : '');
 }
-function dashTabsFor(rol, hasPvt, vista){
+function dashTabsFor(rol, hasPvt, vista, combinada){
   // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes. Nada de indicadores,
   // comentarios ni informes: eso es del servicio médico.
   if (vista === 'supervisor') return ['aptitud','reportes'];
@@ -6357,6 +6359,10 @@ function dashTabsFor(rol, hasPvt, vista){
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
+  // Empresa sin contraseña médica separada: la única clave ya trae comentarios y datos médicos
+  // completos (ver accionSupervisor en el .gs), así que le faltaban acá las pestañas operativas
+  // para que "abre las dos secciones" fuera cierto de verdad, no sólo en el dato.
+  if (vista === 'medico' && combinada) base.push('aptitud','reportes');
   return base;
 }
 
@@ -6380,8 +6386,9 @@ function onDashData(d, scopeLabel, params, vista){
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
   const pvt = d.pvt || null;
   vista = vista || ((d.rol === 'empleado') ? 'empleado' : 'medico');
-  const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista);
-  DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
+  const combinada = !!d.combinada;   // empresa sin contraseña médica separada: esta vista médica ya trae también lo operativo
+  const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista, combinada);
+  DASH = { rol:d.rol, vista:vista, combinada:combinada, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:null, _reportes:null, _reportesPedidos:false,
@@ -6398,7 +6405,7 @@ function onDashData(d, scopeLabel, params, vista){
   if (DASH.demoMode){
     gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
-    if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
+    if (vista === 'supervisor' || combinada) DASH._reportes = dashReportesDemo();
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -6411,7 +6418,8 @@ function onDashData(d, scopeLabel, params, vista){
   }
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
-  if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
+  // Con contraseña combinada, la vista médica también la necesita: ya tiene la pestaña.
+  if (!DASH.demoMode && (vista === 'supervisor' || combinada) && gestCanSync()) dashCargarReportes();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
@@ -6419,7 +6427,7 @@ function onDashData(d, scopeLabel, params, vista){
   }
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? ' · ejemplo' : '');
-  dashPintarVista(vista);
+  dashPintarVista(vista, combinada);
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
   dashUpdateBackBtn();
@@ -6524,7 +6532,7 @@ function dashRefresh(manual){
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
     if (metrics.indexOf(DASH.pickDist) < 0) DASH.pickDist = metrics[0] || null;
-    if (hadPvt !== hasPvt){ DASH.tabs = dashTabsFor(DASH.rol, hasPvt, DASH.vista); if (DASH.tabs.indexOf(DASH.tab) < 0) DASH.tab = DASH.tabs[0]; buildDashTabs(); }
+    if (hadPvt !== hasPvt){ DASH.tabs = dashTabsFor(DASH.rol, hasPvt, DASH.vista, DASH.combinada); if (DASH.tabs.indexOf(DASH.tab) < 0) DASH.tab = DASH.tabs[0]; buildDashTabs(); }
     buildDashFilters();   // DASH.f conserva el estado; reconstruye opciones (deptos/personas nuevos)
     renderDash();
     if (manual) showToast('Actualizado');
@@ -10593,7 +10601,7 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
    Se abre sobre la tarjeta de una persona concreta. Es deliberadamente corto: el supervisor está
    en planta, con el celular, y tiene que poder resolverlo en pocos toques. */
 const RESTR = { persona:null, tarea:'', mitigacion:'', horas:null, motivo:'' };
-function restPuede(){ return !!(DASH && DASH.vista === 'supervisor'); }
+function restPuede(){ return !!(DASH && (DASH.vista === 'supervisor' || DASH.combinada)); }
 function restAbrir(persona){
   if (!restPuede()) return;
   RESTR.persona = persona; RESTR.tarea = ''; RESTR.mitigacion = ''; RESTR.motivo = '';
