@@ -1730,12 +1730,43 @@
   @media (prefers-reduced-motion: no-preference) {
     .ent-logo-entra { animation: entLogoEntra var(--dur-mov) var(--ease-app) both; }
     .ent-texto-entra { animation: entTextoEntra var(--dur-mov) var(--ease-app) both; }
-    .ent-texto-entra:nth-of-type(2) { animation-delay: .08s; }
-    .ent-texto-entra:nth-of-type(3) { animation-delay: .16s; }
-    .ent-texto-entra:nth-of-type(4) { animation-delay: .24s; }
+    /* ⚠️ Bug real de A2, encontrado al usar esto en B1: era `:nth-of-type`, que cuenta entre
+       HERMANOS DEL MISMO TAG — con <h1>/<p>/<button> intercalados (el caso real del splash)
+       nunca hacía match, así que ninguno tenía delay y "escalonado" no escalonaba nada.
+       Clases explícitas, no dependen de qué tag sea cada elemento. */
+    .ent-texto-entra--2 { animation-delay: .08s; }
+    .ent-texto-entra--3 { animation-delay: .16s; }
+    .ent-texto-entra--4 { animation-delay: .24s; }
   }
   @keyframes entLogoEntra { from { opacity:0; transform:scale(.86); } to { opacity:1; transform:scale(1); } }
   @keyframes entTextoEntra { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── Splash (B1, 2026-08-25) ── */
+  #splashOv.overlay { background:var(--navy); backdrop-filter:none; align-items:stretch; padding:0; }
+  .splash-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
+    display:flex; flex-direction:column; overflow:hidden; }
+  .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
+  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
+    background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:999px; padding:.4rem .8rem;
+    font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer; }
+  .splash-cuerpo { position:relative; z-index:2; flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:0 28px; gap:6px; }
+  .splash-logo { width:96px; height:auto; margin-bottom:18px; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
+    max-width:22ch; text-wrap:balance; margin-bottom:4px; }
+  .splash-sub { color:rgba(255,255,255,.72); font-size:.94rem; line-height:1.5; max-width:36ch; margin-bottom:26px; }
+  .splash-cta { max-width:320px; }
+  .splash-empresa { margin-top:18px; font-size:.78rem; font-weight:700; color:rgba(255,255,255,.8);
+    background:rgba(255,255,255,.1); padding:.35rem .9rem; border-radius:999px; }
+  .splash-pie { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
+    gap:.55rem; padding:22px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+  .splash-link { background:none; border:none; color:rgba(255,255,255,.68); font-family:inherit;
+    font-size:.82rem; font-weight:600; cursor:pointer; padding:.3rem .5rem; }
+  /* .42 medía 3.7:1 sobre --navy (compuesto con el alfa, no el rgba crudo) — por debajo del
+     mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
+     por debajo de lo legible. */
+  .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
+  @media (max-width:340px){ .splash-logo{ width:76px; } .splash-sub{ margin-bottom:18px; } }
 
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
   .gest-overlay { padding: 0; }
@@ -2823,6 +2854,28 @@
 
 
 <!-- Paso 1 (solo la primera vez): elegir el tamaño de letra con ejemplos reales -->
+<!-- Splash (B1, 2026-08-25) — SÓLO para quien nunca inició sesión. Con perfil guardado en el
+     dispositivo, la app entra directo al inicio de siempre y esto no se muestra nunca: ver el
+     gate en el arranque (busca "splashMostrar" más abajo), que decide por perfilCompleto(). -->
+<div class="overlay" id="splashOv">
+  <div class="splash-wrap">
+    <div class="splash-circ-band"><div class="ent-circulos ent-circulos--naranja-navy" aria-hidden="true"></div></div>
+    <button type="button" class="splash-lang" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma">ES</button>
+    <div class="splash-cuerpo">
+      <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
+      <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
+      <p class="splash-sub ent-texto-entra ent-texto-entra--3" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
+      <button type="button" class="ent-btn ent-btn--solid splash-cta ent-texto-entra ent-texto-entra--4" onclick="splashIngresar()" data-i18n="splash_ingresar">Ingresar</button>
+      <div class="splash-empresa" id="splashEmpresaMarca" style="display:none"></div>
+    </div>
+    <div class="splash-pie">
+      <button type="button" class="splash-link" onclick="splashVerDemo(this)" data-i18n="splash_demo">Ver una demostración</button>
+      <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
+      <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="textoOverlay">
   <div class="sheet">
     <h2>¿Cómo lo lees mejor?</h2>
@@ -3324,7 +3377,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.65';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.66';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3393,6 +3446,13 @@ const I18N = {
       tamano_texto:'Tamaño del texto', apariencia:'Apariencia',
       tema_claro:'Claro', tema_oscuro:'Oscuro', tema_auto:'Automático',
       cambiar_datos:'Cambiar mis datos', cambiar_datos_d:'Nombre, empresa, email, teléfono…',
+      splash_h1:'Tu bienestar y seguridad, en un solo lugar',
+      splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
+      splash_ingresar:'Ingresar',
+      splash_demo:'Ver una demostración',
+      splash_portal:'Soy supervisor o servicio médico',
+      splash_admin:'Administrador',
+      splash_nomina_de:'Nómina de {empresa}',
       // ── Data operacional: lo genérico (los términos de lugar van por sector) ──
       op_titulo:'Data Operacional',
       op_sub:'Registra el evento y avisa por WhatsApp',
@@ -3454,6 +3514,13 @@ const I18N = {
       tamano_texto:'Text size', apariencia:'Appearance',
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
+      splash_h1:'Your wellbeing and safety, in one place',
+      splash_sub:'Preventing, detecting and acting on operational fatigue.',
+      splash_ingresar:'Get started',
+      splash_demo:'See a demo',
+      splash_portal:'I am a supervisor or medical staff',
+      splash_admin:'Administrator',
+      splash_nomina_de:'{empresa} roster',
       op_titulo:'Operational Data',
       op_sub:'Logs the event and notifies via WhatsApp',
       op_salir_casa:'Leaving home',          op_salir_casa_d:'Commute starts',
@@ -12391,12 +12458,83 @@ function confirmarTamanoTexto(){
   document.getElementById('textoOverlay').classList.remove('show');
   seguirTrasTamanoTexto();
 }
-if (!textoYaElegido() && !_complete){
-  document.getElementById('textoOverlay').classList.add('show');   // primer paso
+/* Lo que arrancaba solo acá (tamaño → consentimiento → alta) ahora es una función: el splash
+   (B1) necesita poder DISPARARLO recién cuando se toca "Ingresar", en vez de que arranque solo
+   al cargar la página. El cuerpo es EXACTAMENTE el que había — nada de esto cambia para quien
+   ya tiene perfil completo. */
+function continuarAlta(){
+  if (!textoYaElegido() && !_complete){
+    document.getElementById('textoOverlay').classList.add('show');   // primer paso
+  } else {
+    seguirTrasTamanoTexto();   // cubre también al perfil completo con un consentimiento nuevo por leer
+  }
+}
+/* ⚠️ EL GATE QUE IMPORTA. Perfil completo (ya se dio de alta alguna vez, en este dispositivo) →
+   SIN CAMBIOS: continuarAlta() corre directo, exactamente como corría este mismo código antes
+   de que existiera el splash. Es la app en producción con Helitec probando en vivo: nada de lo
+   de acá abajo puede tocar ese camino. Sólo quien NUNCA completó su perfil ve el splash. */
+if (_complete){
+  continuarAlta();
 } else {
-  seguirTrasTamanoTexto();   // cubre también al perfil completo con un consentimiento nuevo por leer
+  splashMostrar();
 }
 consentSync();   // si quedó una aceptación sin enviar (se firmó antes de existir el perfil), va ahora
+
+/* ════════════════ SPLASH (B1, 2026-08-25) ════════════════════════════════════════════════════ */
+function splashMostrar(){
+  const g = empresaPerfilGuardado();
+  const marca = document.getElementById('splashEmpresaMarca');
+  if (g && g.empresa){
+    marca.style.display = '';
+    marca.textContent = t('splash_nomina_de', { empresa: g.nombre || g.empresa });
+    if (g.color) marca.style.background = g.color + '26';   // ~15% de opacidad, sin tocar el color real
+  } else {
+    marca.style.display = 'none';
+  }
+  document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
+  document.getElementById('splashOv').classList.add('show');
+}
+function splashCambiarIdioma(){
+  fijarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
+  document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
+}
+function splashIngresar(){
+  document.getElementById('splashOv').classList.remove('show');
+  continuarAlta();
+}
+// Abre el portal de estadísticas por fuera del recorrido normal (sin bottomNav, sin perfil
+// todavía). Común a "Ver demostración", "Soy supervisor" y "Administrador".
+function splashAbrirPortal(){
+  document.getElementById('splashOv').classList.remove('show');
+  document.getElementById('portalOverlay').classList.add('show');
+  document.getElementById('portalGate').style.display = '';
+  document.getElementById('portalDash').style.display = 'none';
+  const err = document.getElementById('portalErr'); if (err) err.textContent = '';
+  syncScrollLock(); navPush();
+}
+function splashVerDemo(btn){
+  splashAbrirPortal();
+  portalVerDemo(btn);
+}
+/* ⚠️ NO usa openPortalGate(): esa función oculta las pestañas de Supervisor/Servicio médico
+   salvo que el PERFIL DE EMPLEADO ya tenga esPiloto/esSupervisor marcado — correcto para quien
+   entra por "Estadísticas" (ya se dio de alta), pero exactamente lo contrario de lo que hace
+   falta acá: alguien que llega por el splash puede no tener perfil de empleado en absoluto (el
+   médico de la empresa cliente, por ejemplo) y aun así necesita entrar con su contraseña. Las
+   pestañas se muestran SIEMPRE en este camino — quien no tenga la contraseña correcta no entra
+   igual, eso lo decide el servidor. */
+function splashPortal(){
+  splashAbrirPortal();
+  document.getElementById('ptabSup').style.display = '';
+  document.getElementById('ptabMed').style.display = '';
+  portalMode('sup');
+}
+function splashAdmin(){
+  splashPortal();
+  toggleAdminLogin();
+  const pass = document.getElementById('pAdminPass');
+  if (pass) pass.focus();
+}
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
 document.addEventListener('visibilitychange', () => {
