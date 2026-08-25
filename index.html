@@ -3324,7 +3324,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.64';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.65';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3355,7 +3355,21 @@ const LINK_TRYVITAL = 'https://link.tryvital.io/?token=eyJhbGciOiJSUzI1NiIsImtpZ
 const K_LANG   = 'silva_fatiga_idioma_v1';
 const K_SECTOR = 'silva_fatiga_sector_v1';   // lo escribe el perfil de empresa (A3)
 const IDIOMAS  = [{ k:'es', t:'Español' }, { k:'en', t:'English' }];
-const SECTOR_DEFAULT = 'generico';
+
+/* Dos constantes distintas para dos cosas que NO son lo mismo — estaban mezcladas en una sola y
+   eso causó una regresión real (2026-08-25, detectada al verificar A3):
+
+   · SECTOR_DEFAULT  = qué asume la app cuando NADIE configuró el sector todavía.
+     Tiene que ser `aviacion`: hoy el 100% del padrón instalado es de aviación (Helitec), y un
+     default debe PRESERVAR lo que la gente ya venía viendo. Con `generico` acá, los pilotos
+     pasaron de leer "Llegando al aeropuerto" a "Llegando al trabajo" sin que nadie lo pidiera.
+     Cuando el CH tenga el sector de cada empresa cargado (A3), este default deja de usarse.
+
+   · SECTOR_FALLBACK = a qué bloque del diccionario se cae cuando el sector vigente no tiene esa
+     clave. Acá SÍ va `generico`: un término neutro es lo correcto cuando falta una traducción
+     específica, y usar `aviacion` haría que una petrolera leyera "aeropuerto" por accidente. */
+const SECTOR_DEFAULT  = 'aviacion';
+const SECTOR_FALLBACK = 'generico';
 
 const I18N = {
   es: {
@@ -3511,7 +3525,7 @@ function _i18nBuscar(lang, sector, clave){
   const L = I18N[lang];
   if (!L) return null;
   if (L[sector] && L[sector][clave] != null) return L[sector][clave];
-  if (sector !== SECTOR_DEFAULT && L[SECTOR_DEFAULT] && L[SECTOR_DEFAULT][clave] != null) return L[SECTOR_DEFAULT][clave];
+  if (sector !== SECTOR_FALLBACK && L[SECTOR_FALLBACK] && L[SECTOR_FALLBACK][clave] != null) return L[SECTOR_FALLBACK][clave];
   if (L._ && L._[clave] != null) return L._[clave];
   return null;
 }
@@ -3583,6 +3597,71 @@ function idiomaPintarControl(){
   const act = idiomaActual();
   if (lbl){ const o = IDIOMAS.filter(x => x.k === act)[0]; lbl.textContent = o ? o.t : act; }
   document.querySelectorAll('.idioma-opt').forEach(b => b.classList.toggle('active', b.dataset.lang === act));
+}
+
+/* ════════════════ PERFIL DE EMPRESA · sector e identidad (A3, 2026-08-25) ══════════════════════
+   Lo que define "qué es esta empresa": su sector (que decide la terminología, ver el motor de
+   textos arriba) y su identidad visual (nombre a mostrar y color).
+
+   Todo vive en el CH: el sector y el código de registro en `Config Empresa`, la identidad en la
+   hoja `Marca` que ya existía. Acá sólo se lee y se guarda en el dispositivo — la app nunca
+   decide el sector de una empresa por su cuenta.
+
+   🔒 El código de registro NO se maneja acá y nunca llega al navegador: el endpoint sólo lo
+   verifica. Lo único que la app sabe es SI una empresa pide código (`pideCodigo`), para mostrar
+   el campo — no cuál es. */
+const K_EMPRESA_PERFIL = 'silva_fatiga_empresa_perfil_v1';
+
+// Guarda el sector en su propia clave además de en el perfil: así sobrevive aunque el perfil se
+// esté reescribiendo, y `sectorActual()` lo encuentra desde el primer pintado.
+function sectorRecordar(sector){
+  const s = String(sector || '').trim();
+  try { if (s) localStorage.setItem(K_SECTOR, s); } catch(e){}
+}
+function empresaPerfilGuardado(){
+  try { return JSON.parse(localStorage.getItem(K_EMPRESA_PERFIL)) || null; } catch(e){ return null; }
+}
+function empresaPerfilGuardar(perfil){
+  if (!perfil) return;
+  try { localStorage.setItem(K_EMPRESA_PERFIL, JSON.stringify(perfil)); } catch(e){}
+  sectorRecordar(perfil.sector);
+}
+/* Trae la identidad pública de una empresa. Se cachea en el dispositivo porque la pantalla de
+   entrada la necesita para pintarse y no puede quedarse esperando a la red: si ya se conocía,
+   se usa lo guardado y la respuesta del servidor sólo la actualiza cuando llega. */
+function empresaPerfilCargar(empresa){
+  const nombre = String(empresa || '').trim();
+  if (!nombre || !SHEETS_DASHBOARD_URL) return Promise.resolve(empresaPerfilGuardado());
+  return fetch(SHEETS_DASHBOARD_URL + '?action=empresa_perfil&empresa=' + encodeURIComponent(nombre) + '&_=' + Date.now(),
+               { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.ok && d.perfil){ empresaPerfilGuardar(d.perfil); return d.perfil; }
+      return empresaPerfilGuardado();
+    })
+    .catch(() => empresaPerfilGuardado());   // sin red: lo que ya se sabía, nunca romper la entrada
+}
+
+/* Vuelve a preguntar por el sector de la empresa al abrir la app, y repinta si cambió.
+
+   ⚠️ SIN ESTO EL CRITERIO NO SE CUMPLE. El sector se guarda con el perfil en el momento del
+   alta; si sólo se leyera ahí, alguien que se dio de alta cuando el sector estaba mal cargado
+   —o antes de que existiera— se quedaría con la terminología equivocada para siempre, y
+   "cambiar el sector en el CH cambia lo que ve su gente" sería falso para todos los que ya
+   están registrados. Justamente el caso de los 7 de Helitec.
+
+   Va en segundo plano y en silencio: si no hay red no pasa nada, y sólo repinta cuando el valor
+   cambió de verdad, para no redibujar la pantalla en cada arranque sin motivo. */
+function sectorRefrescar(){
+  const p = getProfile();
+  if (!p || !p.empresa) return;
+  empresaPerfilCargar(p.empresa).then(perfil => {
+    if (!perfil || !perfil.sector) return;
+    const actual = getProfile() || {};
+    if (actual.sector === perfil.sector) return;
+    setProfile(Object.assign({}, actual, { sector: perfil.sector }));
+    aplicarIdioma();
+  }).catch(() => {});
 }
 
 /* ════════════════ PIEZAS DE ENTRADA (A2, 2026-08-25) ═══════════════════════════════════════════
@@ -5780,10 +5859,15 @@ function nominaConfirmar(){
       setProfile(Object.assign({}, prev, {
         nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
         cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
-        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||''
+        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'',
+        // A3: el sector viene con el perfil y define toda la terminología que verá esta persona
+        // (aeropuerto vs. planta). Se guarda con sus datos para no tener que volver a pedirlo.
+        sector: q.sector || ''
       }));
+      sectorRecordar(q.sector);
       nominaCerrar();
       openSetup(false);
+      aplicarIdioma();      // el sector cambió: repinta con la terminología que le corresponde
       showToast('Encontramos tus datos');
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
@@ -12264,6 +12348,7 @@ if (_prof) paintProfile();
 document.getElementById('webSilvaLink').href = WEB_SILVA;   // web de Aeroambulancias Silva (en "Más")
 document.getElementById('bottomNav').style.display = 'flex'; // barra inferior Inicio/Estadísticas/Más
 mostrarVista('inicio');
+sectorRefrescar();   // A3: si su empresa cambió de sector en el CH, la terminología se actualiza sola
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
 empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento
 offPintar();      // muestra el estado de envío si quedó algo de una sesión anterior
