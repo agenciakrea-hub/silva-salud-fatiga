@@ -190,6 +190,40 @@
        ⚠️ Existe tambien para que un futuro reemplazo masivo de "color: #16233d" no se lo lleve
        puesto: ya paso una vez y dejo el icono invisible. */
     --sobre-claro: #16233d;
+
+    /* ── Pantallas de entrada (A2, 2026-08-25: splash, carrusel, alta) ──
+       Naranja PROPIO de estas pantallas, elegido por el usuario (#ff9900) — DISTINTO del
+       --orange (#f47a1f) que ya usa el resto de la app en botones y chips, que NO se toca.
+       Igual que --orange, es invariante entre temas (decisión de marca, no de contraste). */
+    --entrada-naranja:     #ff9900;
+    /* Versión oscurecida para texto/ícono naranja sobre superficie CLARA: el naranja crudo da
+       2.14:1 sobre blanco (medido), muy por debajo del mínimo. Ésta da 5.45:1.
+       ⚠️ Por eso ES theme-aware (valor DISTINTO en el bloque oscuro, no invariante como
+       --entrada-naranja): se probó sobre --card en modo oscuro y el mismo #995b00 daba 3.0:1 —
+       calibrado sólo para fondos claros, fallaba en uno oscuro. Mismo problema que ya apareció
+       con --orange-txt/--orange-legible, mismo arreglo: en oscuro vale igual que el naranja
+       crudo (#ff9900 ya da 7.65:1 sobre --card oscuro y sobre navy, de sobra). */
+    --entrada-naranja-ink: #995b00;
+
+    /* Radio más grande que --radius, sólo para las tarjetas/círculos de estas pantallas
+       (mockup de referencia: ui.ruman). No es color, no hace falta en el bloque oscuro —
+       mismo criterio que --radius/--radius-sm, que tampoco se repiten ahí. */
+    --radius-lg: 28px;
+
+    /* ── Sistema de movimiento: UNA curva, TRES duraciones, para toda la app ──
+       --ease-app tiene un ligero rebasamiento (~10%, "back-ease-out"): es la diferencia entre
+       "elástico" (una entrada que se pasa un poco y asienta — se ve caro) y "rebote" (que
+       vuelve para atrás varias veces — se ve a relleno). Se pidió explícitamente la primera
+       cosa y NO la segunda. Sirve igual para la entrada del logo, la transición entre pantallas
+       Y el asentamiento del carrusel — por eso alcanza con una sola curva.
+       Las tres duraciones cubren registros bien distintos a propósito:
+       --dur-tap   → respuesta al tocar un botón (casi instantánea)
+       --dur-mov   → entradas, transiciones entre pantallas, el settle del carrusel
+       --dur-deriva→ el desplazamiento ambiente de los círculos de fondo (ver .ent-circulos) */
+    --ease-app:   cubic-bezier(.34,1.56,.64,1);
+    --dur-tap:    140ms;
+    --dur-mov:    380ms;
+    --dur-deriva: 26s;
   }
 
   /* ── MODO OSCURO ──
@@ -283,6 +317,13 @@
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
     --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
+
+    /* --entrada-naranja: mismo valor que en :root, a propósito (decisión de marca invariante,
+       igual que --orange) — ver el comentario junto a su declaración arriba.
+       --entrada-naranja-ink: acá SÍ cambia — ver por qué en el comentario de :root. Vale igual
+       que --entrada-naranja porque el crudo ya cumple contraste sobre superficies oscuras. */
+    --entrada-naranja:     #ff9900;
+    --entrada-naranja-ink: #ff9900;
   }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden; }
@@ -1614,6 +1655,87 @@
   html.sin-animaciones .sheet, html.sin-animaciones .overlay, html.sin-animaciones .section {
     opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important;
   }
+  html.sin-animaciones .ent-logo-entra, html.sin-animaciones .ent-texto-entra {
+    opacity: 1 !important; transform: none !important;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     PIEZAS REUTILIZABLES · pantallas de entrada (A2, 2026-08-25)
+     Splash, carrusel y alta (fase B) consumen esto — acá sólo se define, no se usa todavía.
+     Ver PROMPTS_ENTRADA.md. Estética de referencia: mockup "login ui concept" de ui.ruman,
+     trasladado a los tokens --entrada-* de arriba. */
+
+  /* ── Círculos superpuestos ──
+     Dos formas por CSS puro (::before/::after), nada de markup extra: el JS sólo pone
+     <div class="ent-circulos ent-circulos--VARIANTE">. `overflow:hidden` en el contenedor
+     recorta lo que se sale — así el padre puede ser una tarjeta con esquinas redondeadas y los
+     círculos nunca asoman por fuera. */
+  .ent-circulos { position:absolute; inset:0; overflow:hidden; pointer-events:none;
+    border-radius:inherit; z-index:0; }
+  .ent-circulos::before, .ent-circulos::after {
+    content:''; position:absolute; aspect-ratio:1/1; border-radius:50%;
+  }
+  /* Variante 1: naranja sobre navy — el fondo es navy, el círculo naranja se superpone arriba.
+     Es la que va en el splash (fondo navy de toda la app) y en la mitad "Iniciar sesión" del
+     mockup de referencia. */
+  .ent-circulos--naranja-navy::before { width:78%; background:var(--navy-card); top:-30%; right:-24%; z-index:1; }
+  .ent-circulos--naranja-navy::after  { width:56%; background:var(--entrada-naranja); top:-20%; right:-10%; z-index:2; }
+  /* Variante 2: navy sobre naranja — la inversa, para distinguir visualmente un segundo bloque
+     (p. ej. "Crear cuenta" al lado de "Iniciar sesión", como en el mockup: dos tarjetas
+     contiguas que alternan cuál color queda arriba). */
+  .ent-circulos--navy-naranja::before { width:78%; background:var(--entrada-naranja); top:-30%; right:-24%; z-index:1; }
+  .ent-circulos--navy-naranja::after  { width:56%; background:var(--navy-card); top:-20%; right:-10%; z-index:2; }
+  /* Variante 3: neutra — dos tonos de navy, sin naranja. Para contextos de menor énfasis (un
+     encabezado secundario, una tarjeta de fondo) donde el acento naranja distraería. */
+  .ent-circulos--neutro::before { width:78%; background:var(--navy-card); top:-30%; right:-24%; z-index:1; }
+  .ent-circulos--neutro::after  { width:56%; background:var(--navy-deep); top:-20%; right:-10%; z-index:2; }
+
+  /* Deriva MUY lenta — casi imperceptible, es fondo vivo, no un elemento que pida atención.
+     Las dos formas se desfasan (delay negativo en la segunda) para que no se muevan en espejo. */
+  @media (prefers-reduced-motion: no-preference) {
+    .ent-circulos::before { animation: entDeriva var(--dur-deriva) ease-in-out infinite; }
+    .ent-circulos::after  { animation: entDeriva var(--dur-deriva) ease-in-out infinite reverse;
+      animation-delay: calc(var(--dur-deriva) / -3); }
+  }
+  @keyframes entDeriva { 0%,100% { transform:translate(0,0); } 50% { transform:translate(-3%,2.5%); } }
+
+  /* ── Campos de formulario ──
+     Dos variantes por superficie, no dos componentes: `.ent-field` es la de línea inferior
+     (para una tarjeta clara), `.ent-field--oscuro` es de relleno suave (para escribir
+     directamente sobre el navy de fondo, sin una tarjeta blanca debajo). */
+  .ent-field { width:100%; border:none; border-bottom:2px solid var(--sup-borde); background:transparent;
+    padding:.65rem .1rem; font-size:1rem; font-family:inherit; color:var(--text);
+    transition:border-color var(--dur-tap) ease; }
+  .ent-field::placeholder { color:var(--text-muted); }
+  .ent-field:focus { outline:none; border-bottom-color:var(--entrada-naranja-ink); }
+  .ent-field--oscuro { border:1px solid rgba(255,255,255,.16); border-bottom:1px solid rgba(255,255,255,.16);
+    border-radius:var(--radius-sm); background:rgba(255,255,255,.08); color:#fff; padding:.75rem .9rem; }
+  .ent-field--oscuro::placeholder { color:rgba(255,255,255,.58); }
+  .ent-field--oscuro:focus { border-color:var(--entrada-naranja); background:rgba(255,255,255,.12); }
+
+  /* ── Botón pill ── */
+  .ent-btn { width:100%; border:none; border-radius:999px; padding:.9rem 1.5rem;
+    font-family:inherit; font-size:.98rem; font-weight:700; cursor:pointer;
+    transition:transform var(--dur-tap) var(--ease-app), box-shadow var(--dur-tap) ease; }
+  .ent-btn--solid { color:#fff; background:linear-gradient(135deg, var(--entrada-naranja), var(--orange-txt-2));
+    box-shadow:0 10px 26px color-mix(in srgb, var(--entrada-naranja) 38%, transparent); }
+  .ent-btn--fantasma { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.22); }
+  .ent-btn:active { transform:scale(.96); }
+  .ent-btn:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+
+  /* ── Entrada del logo y texto escalonado ──
+     Regla de oro de siempre (ver arriba): el estado en reposo es visible. `from` en el keyframe
+     es lo único que oculta, y sólo mientras la animación corre — si se desactiva (media query o
+     .sin-animaciones), el elemento se queda en su opacidad normal, nunca en 0 para siempre. */
+  @media (prefers-reduced-motion: no-preference) {
+    .ent-logo-entra { animation: entLogoEntra var(--dur-mov) var(--ease-app) both; }
+    .ent-texto-entra { animation: entTextoEntra var(--dur-mov) var(--ease-app) both; }
+    .ent-texto-entra:nth-of-type(2) { animation-delay: .08s; }
+    .ent-texto-entra:nth-of-type(3) { animation-delay: .16s; }
+    .ent-texto-entra:nth-of-type(4) { animation-delay: .24s; }
+  }
+  @keyframes entLogoEntra { from { opacity:0; transform:scale(.86); } to { opacity:1; transform:scale(1); } }
+  @keyframes entTextoEntra { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
   .gest-overlay { padding: 0; }
@@ -3202,7 +3324,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.63';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.64';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3461,6 +3583,15 @@ function idiomaPintarControl(){
   const act = idiomaActual();
   if (lbl){ const o = IDIOMAS.filter(x => x.k === act)[0]; lbl.textContent = o ? o.t : act; }
   document.querySelectorAll('.idioma-opt').forEach(b => b.classList.toggle('active', b.dataset.lang === act));
+}
+
+/* ════════════════ PIEZAS DE ENTRADA (A2, 2026-08-25) ═══════════════════════════════════════════
+   Helpers de JS para las piezas visuales de .ent-* (CSS más abajo). El splash/carrusel/alta
+   (fase B) las consume; acá sólo se definen. Variantes válidas: 'naranja-navy' | 'navy-naranja'
+   | 'neutro' — ver el comentario de cada una en el CSS de .ent-circulos. */
+function entradaCirculosHtml(variante){
+  const v = ['naranja-navy','navy-naranja','neutro'].indexOf(variante) >= 0 ? variante : 'naranja-navy';
+  return '<div class="ent-circulos ent-circulos--' + v + '" aria-hidden="true"></div>';
 }
 
 // Iconos SVG reutilizables
