@@ -3474,7 +3474,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.69';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.70';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4437,7 +4437,10 @@ function acceptConsent(){
   // todavía, seguirTrasTamanoTexto() lo muestra y hace return SIN evaluar nómina, y quien lo
   // acepta cae acá. O sea que en el flujo de un usuario nuevo nunca se llegaba a nominaAbrir() —
   // por eso Helitec veía el formulario manual completo pese a tener la nómina cargada.
-  if (!perfilCompleto(getProfile())) nominaAbrir();
+  /* B4: el orden cambió y el alta ya ocurrió ANTES de esto. Igual se vuelve a preguntar por el
+     paso siguiente en vez de asumirlo: si alguien llegó acá sin perfil (por ejemplo, aceptando un
+     consentimiento actualizado tras borrar sus datos), `avanzarAlta()` lo manda al alta igual. */
+  avanzarAlta();
   return aceptados;
 }
 /* La aceptación se manda al servidor por el mismo canal sin contraseña que usa el registro de
@@ -6847,7 +6850,10 @@ function saveProfile(){
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
 
   const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, esServicioMedico, empresa, departamento, cargo, sexo, edad, telefono, email };
-  const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar'); };
+  const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar');
+    // B4: recién ahora vienen consentimiento y tamaño. Al EDITAR datos no corresponde: esa
+    // persona ya hizo el recorrido y sólo vino a corregir un teléfono.
+    if (!editing) avanzarAlta(); };
 
   // Las contraseñas (supervisor y/o servicio médico, pueden ser distintas) se verifican contra
   // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
@@ -13192,32 +13198,54 @@ if (_complete) sincronizarRegistro(_prof);
 // Arranque por pasos: 1) tamaño de letra (solo la primera vez) → 2) consentimiento → 3) datos.
 // Se le pide a TODO el que no tenga el perfil completo, incluidos los ya registrados
 // (ahora hay datos obligatorios nuevos, como el email).
-function seguirTrasTamanoTexto(){
-  // ⚠️ El consentimiento se evalúa SIEMPRE, tenga o no el perfil completo. Antes se saltaba a
-  // quien ya estaba registrado, con lo cual un texto actualizado no se le habría mostrado nunca
-  // — y estaríamos dando por consentido algo que esa persona no leyó.
-  if (!hasConsent()){ consentRender(); document.getElementById('consent').classList.add('show'); return; }
-  if (perfilCompleto(getProfile())) return;              // ya está todo cargado: no molestamos
-  // Primero se intenta el alta por nómina (elegirse de la lista). Si no hay nómina cargada, no hay
-  // endpoint o falla la red, nominaAbrir() cae solo al formulario manual de siempre.
-  nominaAbrir();
+/* ════════════ EL ORDEN DEL ALTA, EN UN SOLO LUGAR (B4, 2026-08-25) ═══════════════════════════
+   Orden nuevo:  splash → carrusel → ALTA → CONSENTIMIENTO → TAMAÑO DE TEXTO → app.
+   (Antes era: tamaño → consentimiento → alta.)
+
+   ⚠️ POR QUÉ ES UNA MÁQUINA DE ESTADOS Y NO UNA CADENA DE LLAMADAS. Antes cada paso llamaba al
+   siguiente a mano, y así fue como `acceptConsent()` terminó llamando a `openSetup()` en vez de
+   `nominaAbrir()`: durante semanas ningún piloto llegó al selector de nómina y todos cargaron sus
+   datos a mano teniendo la nómina precargada. Nadie lo vio porque cada función, leída sola,
+   parecía correcta. Acá hay UN solo lugar que decide "¿qué falta?" y lo muestra; cada paso, al
+   terminar, sólo vuelve a preguntar. Mover un paso es reordenar estas tres líneas.
+
+   Se muestra el PRIMER paso pendiente, no todos: cada paso vuelve a llamar acá al cerrarse. */
+function avanzarAlta(){
+  // 1 · Identificarse. nominaAbrir() cae solo al formulario manual si no hay nómina o no hay red.
+  if (!perfilCompleto(getProfile())){ nominaAbrir(); return; }
+
+  // 2 · Consentimiento. Se evalúa SIEMPRE, tenga o no el perfil completo: es lo que hace que un
+  //     texto actualizado se le vuelva a mostrar a quien ya estaba registrado. Sacarlo de acá
+  //     sería dar por consentido algo que esa persona no leyó.
+  if (!hasConsent()){
+    consentRender();
+    document.getElementById('consent').classList.add('show');
+    syncScrollLock();
+    return;
+  }
+
+  /* 3 · Tamaño de texto. SÓLO para quien se está dando de alta ahora.
+     ⚠️ El `!_complete` no es opcional: `_complete` se calcula AL ARRANCAR, antes de que este alta
+     escriba nada. Sin él, a los pilotos de Helitec —que ya están registrados y nunca pasaron por
+     este paso— les aparecería una pantalla nueva al abrir la app, sin haber pedido nada. */
+  if (!textoYaElegido() && !_complete){
+    document.getElementById('textoOverlay').classList.add('show');
+    syncScrollLock();
+    return;
+  }
+  // Nada pendiente: la app queda a la vista.
 }
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
   document.getElementById('textoOverlay').classList.remove('show');
-  seguirTrasTamanoTexto();
+  syncScrollLock();
+  avanzarAlta();
 }
-/* Lo que arrancaba solo acá (tamaño → consentimiento → alta) ahora es una función: el splash
-   (B1) necesita poder DISPARARLO recién cuando se toca "Ingresar", en vez de que arranque solo
-   al cargar la página. El cuerpo es EXACTAMENTE el que había — nada de esto cambia para quien
-   ya tiene perfil completo. */
-function continuarAlta(){
-  if (!textoYaElegido() && !_complete){
-    document.getElementById('textoOverlay').classList.add('show');   // primer paso
-  } else {
-    seguirTrasTamanoTexto();   // cubre también al perfil completo con un consentimiento nuevo por leer
-  }
-}
+// Nombre viejo, mantenido porque lo llaman otros puntos del arranque. Es el mismo criterio.
+function seguirTrasTamanoTexto(){ avanzarAlta(); }
+/* Lo dispara el carrusel al tocar "Registrarse" (B2), y el arranque para quien ya tiene perfil
+   completo — a ése lo único que puede frenarlo es un consentimiento actualizado. */
+function continuarAlta(){ avanzarAlta(); }
 /* ⚠️ EL GATE QUE IMPORTA. Perfil completo (ya se dio de alta alguna vez, en este dispositivo) →
    SIN CAMBIOS: continuarAlta() corre directo, exactamente como corría este mismo código antes
    de que existiera el splash. Es la app en producción con Helitec probando en vivo: nada de lo
