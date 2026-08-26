@@ -1809,6 +1809,38 @@
   .car-sig { flex:1; }
   @media (max-width:340px){ .car-slide{ padding-top:40px; } .car-ic{ width:54px; height:54px; } .car-ic svg{ width:26px; height:26px; } }
 
+  /* ── Tareas (D1) ── */
+  .hh-tareas { position:relative; }
+  .hh-badge { position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; padding:0 4px;
+    border-radius:999px; background:var(--sem-rojo); color:#fff; font-size:.66rem; font-weight:900;
+    line-height:18px; text-align:center; }
+  .tar-item { border:1.5px solid var(--sup-borde); border-radius:12px; padding:.7rem .8rem;
+    margin-bottom:.55rem; background:var(--card); }
+  .tar-item.tar-hecha { opacity:.62; }
+  .tar-top { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.25rem; }
+  .tar-tit { font-weight:800; font-size:.92rem; color:var(--text); flex:1; min-width:0; }
+  .tar-org { font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em;
+    padding:.1rem .45rem; border-radius:999px; }
+  .tar-org-medico { color:var(--sem-violeta); background:var(--sem-violeta-bg); }
+  .tar-org-supervisor { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
+  .tar-org-sistema { color:var(--text-soft); background:var(--chip-bg); }
+  .tar-det { font-size:.84rem; color:var(--text-soft); line-height:1.5; }
+  .tar-pie { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.5rem; }
+  .tar-vence { font-size:.75rem; font-weight:700; color:var(--text-muted); }
+  .tar-vence.tar-venc { color:var(--sem-rojo); }
+  .tar-btn { border:none; background:var(--orange-txt); color:#fff; border-radius:10px;
+    padding:.4rem .7rem; font-family:inherit; font-weight:800; font-size:.78rem; cursor:pointer; }
+  .tar-hecha-lbl { font-size:.75rem; font-weight:800; color:var(--sem-verde-solid); }
+  .tar-nueva { display:flex; flex-direction:column; gap:.5rem; margin-top:.4rem; }
+  .tar-vence-f { display:flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:700; color:var(--text-soft); }
+  .tar-vence-f input { flex:1; }
+  .tar-mini { display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    padding:.45rem .6rem; border:1px solid var(--linea); border-radius:10px; margin-bottom:.3rem; }
+  .tar-mini-t { font-size:.84rem; font-weight:700; color:var(--text); min-width:0; }
+  .tar-mini-e { font-size:.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); flex-shrink:0; }
+  .tar-mini-hecha .tar-mini-e { color:var(--sem-verde-solid); }
+  .tar-mini-vencida .tar-mini-e { color:var(--sem-rojo); }
+
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
   .gest-overlay { padding: 0; }
   .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
@@ -2686,6 +2718,10 @@
     <header class="home-head">
       <div class="hh-top">
         <div class="hh-hola"><span data-i18n="hola">¡Hola,</span> <span id="hhNombre">—</span>!</div>
+        <button class="hh-edit hh-tareas" onclick="tareasAbrir()" aria-label="Tareas" data-i18n-attr="aria-label:tar_titulo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+          <span class="hh-badge" id="tareasBadge" style="display:none">0</span>
+        </button>
         <button class="hh-edit" onclick="openSetup(true)" aria-label="Editar mis datos" data-i18n-attr="aria-label:editar_datos">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>
@@ -2913,6 +2949,22 @@
       <button type="button" class="splash-link" onclick="splashVerDemo(this)" data-i18n="splash_demo">Ver una demostración</button>
       <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
       <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Tareas y notificaciones (D1, 2026-08-26). Lo que el supervisor o el servicio médico le piden
+     a esta persona. Las del servicio médico son privadas: el supervisor no las ve ni sabe que
+     existen (el recorte está en el endpoint, no acá). -->
+<div class="overlay" id="tareasOv">
+  <div class="sheet">
+    <h2 data-i18n="tar_titulo">Tus tareas</h2>
+    <p class="lead" data-i18n="tar_lead">Lo que tu supervisor o el servicio médico te pidieron.</p>
+    <div id="tareasLista"><div class="nom-cargando" data-i18n="cargando">Cargando…</div></div>
+    <div class="nom-pie">
+      <button type="button" class="nom-link" onclick="tareasRefrescar()" data-i18n="tar_actualizar">Actualizar</button>
+      <button type="button" class="nom-link" onclick="tareasCerrar()" data-i18n="cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3474,7 +3526,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3766,6 +3818,33 @@ const I18N = {
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
       cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
       rango_admin:'Administrador', rango_personal:'Personal',
+      // ── Tareas y notificaciones (D1) ──
+      tar_titulo:'Tus tareas',
+      tar_lead:'Lo que tu supervisor o el servicio médico te pidieron.',
+      tar_vacio:'No tienes tareas pendientes.',
+      tar_sin_perfil:'Completa tus datos para ver tus tareas.',
+      tar_actualizar:'Actualizar',
+      tar_de_medico:'Servicio médico', tar_de_supervisor:'Supervisor', tar_de_sistema:'Sistema',
+      tar_vence:'Vence el {f}', tar_vencio:'Venció el {f}', tar_sin_plazo:'Sin plazo',
+      tar_marcar:'Marcar como hecha', tar_hecha:'Hecha', tar_listo:'Listo, quedó registrado',
+      tar_est_sin_leer:'Sin leer', tar_est_leida:'Leída', tar_est_hecha:'Hecha', tar_est_vencida:'Vencida',
+      // ── Crear tareas desde la ficha ──
+      tar_pedirle:'Pedirle algo a esta persona',
+      tar_ficha_vacio:'Todavía no le pediste nada.',
+      tar_p_telemed:'Tienes una telemedicina agendada',
+      tar_p_test:'Completa un test de fatiga',
+      tar_p_consult:'Pasa por consultorio',
+      tar_p_turno:'Cambio de turno',
+      tar_p_reporte:'Completa tu reporte del turno',
+      tar_p_reunion:'Reunión de seguridad',
+      tar_p_libre:'Otro (escribirlo)',
+      tar_ph_titulo:'¿Qué le pides? (máx. 80 caracteres)',
+      tar_ph_detalle:'Detalle, opcional: día, hora, lugar…',
+      tar_vence_lbl:'Vence el', tar_crear:'Enviar tarea', tar_creada:'Tarea enviada',
+      tar_err_persona:'Elige primero una persona.',
+      tar_err_titulo:'Escribe qué le pides.',
+      tar_err_creds:'Vuelve a entrar con tu usuario para poder enviar.',
+      guardado_ejemplo:'Guardado (ejemplo)',
       /* ── Perelli y KSS: lo que NO cambia por sector (C2) ──
          Éstas son las ESCALAS de los instrumentos y las preguntas neutras. Van en el bloque común
          a propósito: si estuvieran repetidas por sector, alguien podría "mejorar" la redacción de
@@ -4338,6 +4417,33 @@ const I18N = {
       kss_ph_coment:'Type your comment here...',
       cic_kpi_comp:'complete', cic_kpi_sin:'not started',
       rango_admin:'Administrator', rango_personal:'Staff',
+      // ── Tasks and notifications (D1) ──
+      tar_titulo:'Your tasks',
+      tar_lead:'What your supervisor or the medical service asked of you.',
+      tar_vacio:'You have no pending tasks.',
+      tar_sin_perfil:'Complete your details to see your tasks.',
+      tar_actualizar:'Refresh',
+      tar_de_medico:'Medical staff', tar_de_supervisor:'Supervisor', tar_de_sistema:'System',
+      tar_vence:'Due {f}', tar_vencio:'Was due {f}', tar_sin_plazo:'No deadline',
+      tar_marcar:'Mark as done', tar_hecha:'Done', tar_listo:'Done, it has been logged',
+      tar_est_sin_leer:'Unread', tar_est_leida:'Read', tar_est_hecha:'Done', tar_est_vencida:'Overdue',
+      // ── Creating tasks from the record ──
+      tar_pedirle:'Ask this person for something',
+      tar_ficha_vacio:'You have not asked for anything yet.',
+      tar_p_telemed:'You have a telemedicine appointment',
+      tar_p_test:'Complete a fatigue test',
+      tar_p_consult:'Come by the medical office',
+      tar_p_turno:'Shift change',
+      tar_p_reporte:'Complete your shift report',
+      tar_p_reunion:'Safety meeting',
+      tar_p_libre:'Other (write it)',
+      tar_ph_titulo:'What are you asking for? (max. 80 characters)',
+      tar_ph_detalle:'Details, optional: day, time, place…',
+      tar_vence_lbl:'Due on', tar_crear:'Send task', tar_creada:'Task sent',
+      tar_err_persona:'Choose a person first.',
+      tar_err_titulo:'Write what you are asking for.',
+      tar_err_creds:'Sign in again with your username to be able to send.',
+      guardado_ejemplo:'Saved (example)',
       tam_0:'Small', tam_1:'Normal', tam_2:'Large', tam_3:'Very large'
     },
     aviacion: {
@@ -13053,6 +13159,7 @@ function dashFichaMedica(rows){
       ? '<div class="fm-sec-t">Telemedicina</div>' +
         '<div class="fm-telem-accion">Sugerida, esperando que la persona decida. Puede aceptarla o rechazarla desde su app.</div>'
       : '') +
+    '<div class="fm-sec-t">' + esc(t('tar_pedirle')) + '</div>' + tareasFichaHtml() +
     '<div class="fm-sec-t">Nota clínica</div>' +
     '<textarea id="fmNota" class="fm-nota" maxlength="600" placeholder="Observación clínica, antecedente, resultado de un estudio…"></textarea>' +
     '<div class="fm-nota-aviso">Queda sólo en la ficha médica. <b>El supervisor no la ve.</b> Para escribirle a él, usa la determinación de aptitud.</div>' +
@@ -13998,6 +14105,218 @@ function splashAdmin(){
   if (pass) pass.focus();
 }
 
+
+/* ════════════════ TAREAS Y NOTIFICACIONES · lado de la persona (D1, 2026-08-26) ═════════════
+   El contador vive en la cabecera del inicio. Se pide al abrir la app y al abrir el panel.
+
+   ⚠️ Se consulta con NOMBRE + CÉDULA. El endpoint lo exige, y la razón es concreta: las tareas
+   del servicio médico son privadas de esta persona, y con sólo el nombre —que es público dentro
+   de la empresa— cualquiera podría leerlas. La cédula ya la tiene el perfil, así que no se le
+   pide nada a la persona. */
+const TAREAS = { lista: [], pendientes: 0, cargando: false };
+
+function tareasPuedeConsultar(){
+  const p = getProfile();
+  return !!(p && p.nombre && p.cedula && p.empresa && SHEETS_DASHBOARD_URL);
+}
+function tareasPintarBadge(){
+  const b = document.getElementById('tareasBadge');
+  if (!b) return;
+  b.textContent = String(TAREAS.pendientes);
+  b.style.display = TAREAS.pendientes > 0 ? '' : 'none';
+}
+function tareasCargar(){
+  if (!tareasPuedeConsultar() || TAREAS.cargando) return Promise.resolve();
+  const p = getProfile();
+  TAREAS.cargando = true;
+  const url = SHEETS_DASHBOARD_URL + '?action=tareas_mias'
+    + '&empresa=' + encodeURIComponent(p.empresa)
+    + '&persona=' + encodeURIComponent(p.nombre)
+    + '&cedula=' + encodeURIComponent(p.cedula)
+    + '&_=' + Date.now();
+  return fetch(url, { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      TAREAS.cargando = false;
+      if (!d || !d.ok) return;
+      TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
+      TAREAS.pendientes = Number(d.pendientes) || 0;
+      tareasPintarBadge();
+    })
+    .catch(() => { TAREAS.cargando = false; });   // sin red: el contador queda como estaba
+}
+function tareasAbrir(){
+  document.getElementById('tareasOv').classList.add('show');
+  syncScrollLock(); navPush();
+  tareasPintar();
+  tareasRefrescar();
+}
+function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('show'); syncScrollLock(); }
+function tareasRefrescar(){
+  const cont = document.getElementById('tareasLista');
+  if (cont && !TAREAS.lista.length) cont.innerHTML = '<div class="nom-cargando">' + esc(t('cargando')) + '</div>';
+  tareasCargar().then(tareasPintar);
+}
+function tareasPintar(){
+  const cont = document.getElementById('tareasLista');
+  if (!cont) return;
+  if (!tareasPuedeConsultar()){
+    cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_sin_perfil')) + '</div>';
+    return;
+  }
+  if (!TAREAS.lista.length){
+    cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_vacio')) + '</div>';
+    return;
+  }
+  cont.innerHTML = TAREAS.lista.map(x => {
+    const hecha = x.estado === 'hecha';
+    const venc  = x.estado === 'vencida';
+    return '<div class="tar-item' + (hecha ? ' tar-hecha' : '') + '">' +
+      '<div class="tar-top">' +
+        '<span class="tar-tit">' + esc(x.titulo) + '</span>' +
+        '<span class="tar-org tar-org-' + esc(x.origen || 'sistema') + '">' + esc(t('tar_de_' + (x.origen || 'sistema'))) + '</span>' +
+      '</div>' +
+      (x.detalle ? '<div class="tar-det">' + esc(x.detalle) + '</div>' : '') +
+      '<div class="tar-pie">' +
+        '<span class="tar-vence' + (venc ? ' tar-venc' : '') + '">' +
+          esc(x.vence ? t(venc ? 'tar_vencio' : 'tar_vence', { f: tareaFechaLinda(x.vence) }) : t('tar_sin_plazo')) +
+        '</span>' +
+        (hecha
+          ? '<span class="tar-hecha-lbl">' + esc(t('tar_hecha')) + '</span>'
+          : '<button type="button" class="tar-btn" onclick="tareaMarcarHecha(\'' + esc(x.id) + '\', this)">' + esc(t('tar_marcar')) + '</button>') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+// "AAAA-MM-DD" → "dd/mm". Se arma a mano y no con Date: `new Date('2026-08-26')` se interpreta en
+// UTC y en husos al oeste devuelve el día ANTERIOR — un vencimiento que se corre un día.
+function tareaFechaLinda(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3] + '/' + m[2]) : String(iso || '');
+}
+/* ⚠️ El contador se pide ACÁ y no en el bloque INIT de arriba, aunque conceptualmente sea parte
+   del arranque: `TAREAS` es un `const` y no se hoistea, así que llamarlo desde INIT —que está
+   ANTES en el archivo— tiraba "Cannot access 'TAREAS' before initialization" y dejaba la app
+   entera sin cargar. Acá abajo las declaraciones ya corrieron. */
+function tareasArranque(){ try { tareasCargar(); } catch(e){} }
+
+function tareaMarcarHecha(id, btn){
+  const p = getProfile(); if (!p) return;
+  btnSpin(btn, true, t('guardando'));
+  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+      action:'tarea_estado', id:id, estado:'hecha',
+      empresa:p.empresa, persona:p.nombre, cedula:p.cedula }) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){ showToast((d && d.error) || t('err_generico')); return; }
+      const it = TAREAS.lista.find(x => x.id === id);
+      if (it) it.estado = 'hecha';
+      TAREAS.pendientes = TAREAS.lista.filter(x => x.estado !== 'hecha').length;
+      tareasPintarBadge(); tareasPintar();
+      showToast(t('tar_listo'));
+    })
+    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); });
+}
+
+
+/* ── Crear tareas desde la ficha (D1) ────────────────────────────────────────────────────────
+   El médico (y el supervisor, desde su propia vista) le pide algo concreto a la persona.
+
+   ⚠️ R2: NINGUNA TAREA PUEDE DECIR "NO APTO". Las plantillas de abajo no lo dicen, y el texto
+   libre lo rechaza el ENDPOINT (no sólo esta pantalla): la determinación de aptitud la firma el
+   servicio médico por su canal, que ya existe, y disfrazarla de tarea la sacaría de ese registro.
+
+   ⚠️ El ORIGEN no se manda desde acá: lo decide el servidor según con qué contraseña se entró.
+   Si lo mandara el cliente, un supervisor podría crear una tarea marcada como médica. */
+const TAREAS_FICHA = { lista: [], persona: '', cargando: false };
+
+function tareasPlantillas(){
+  const med = (DASH && DASH.vista === 'medico');
+  return med
+    ? [ {k:'telemedicina', t:t('tar_p_telemed')}, {k:'test',    t:t('tar_p_test')},
+        {k:'consultorio',  t:t('tar_p_consult')}, {k:'libre',   t:t('tar_p_libre')} ]
+    : [ {k:'turno',   t:t('tar_p_turno')},   {k:'reporte', t:t('tar_p_reporte')},
+        {k:'reunion', t:t('tar_p_reunion')}, {k:'libre',   t:t('tar_p_libre')} ];
+}
+function tareasFichaHtml(){
+  const per = (DASH && DASH.f && DASH.f.per) || '';
+  if (TAREAS_FICHA.persona !== per){ TAREAS_FICHA.persona = per; TAREAS_FICHA.lista = []; tareasFichaCargar(); }
+  const yaHay = TAREAS_FICHA.lista.length
+    ? '<div class="tar-ficha-lista">' + TAREAS_FICHA.lista.map(x =>
+        '<div class="tar-mini tar-mini-' + esc(x.estado) + '">' +
+          '<span class="tar-mini-t">' + esc(x.titulo) + '</span>' +
+          '<span class="tar-mini-e">' + esc(t('tar_est_' + x.estado)) + '</span>' +
+        '</div>').join('') + '</div>'
+    : '<div class="dash-empty">' + esc(t('tar_ficha_vacio')) + '</div>';
+  const opts = tareasPlantillas().map(p =>
+    '<option value="' + esc(p.k) + '">' + esc(p.t) + '</option>').join('');
+  return yaHay +
+    '<div class="tar-nueva">' +
+      '<select id="tarTipo" class="restr-input" onchange="tareaTipoCambio()">' + opts + '</select>' +
+      '<input type="text" id="tarTitulo" class="restr-input" maxlength="80" style="display:none" ' +
+        'placeholder="' + esc(t('tar_ph_titulo')) + '">' +
+      '<textarea id="tarDetalle" class="fm-nota" maxlength="300" placeholder="' + esc(t('tar_ph_detalle')) + '"></textarea>' +
+      '<label class="tar-vence-f"><span>' + esc(t('tar_vence_lbl')) + '</span>' +
+        '<input type="date" id="tarVence" class="restr-input"></label>' +
+      '<div class="nom-err" id="tarErr"></div>' +
+      '<button type="button" class="fm-nota-btn" onclick="tareaCrear(this)">' + esc(t('tar_crear')) + '</button>' +
+    '</div>';
+}
+function tareaTipoCambio(){
+  const sel = document.getElementById('tarTipo');
+  const inp = document.getElementById('tarTitulo');
+  if (sel && inp) inp.style.display = (sel.value === 'libre') ? '' : 'none';
+}
+function tareasFichaCargar(){
+  const per = TAREAS_FICHA.persona;
+  if (!per || TAREAS_FICHA.cargando || !DASH || DASH.demoMode) return;
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass) return;
+  TAREAS_FICHA.cargando = true;
+  dashRequest({ action:'tareas_persona', usuario:cred.usuario,
+                empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass, persona:per })
+    .then(d => {
+      TAREAS_FICHA.cargando = false;
+      if (!d || !d.ok || TAREAS_FICHA.persona !== per) return;
+      TAREAS_FICHA.lista = d.tareas || [];
+      const sec = document.getElementById('dsec-ficha');
+      if (sec && typeof renderDash === 'function') renderDash();
+    })
+    .catch(() => { TAREAS_FICHA.cargando = false; });
+}
+function tareaCrear(btn){
+  const err = document.getElementById('tarErr');
+  const per = (DASH && DASH.f && DASH.f.per) || '';
+  if (err) err.textContent = '';
+  if (!per){ if (err) err.textContent = t('tar_err_persona'); return; }
+  const tipo = (document.getElementById('tarTipo')||{}).value || 'libre';
+  const titulo = (tipo === 'libre')
+    ? ((document.getElementById('tarTitulo')||{}).value || '').trim()
+    : (tareasPlantillas().find(x => x.k === tipo) || {}).t;
+  if (!titulo){ if (err) err.textContent = t('tar_err_titulo'); return; }
+  const detalle = ((document.getElementById('tarDetalle')||{}).value || '').trim();
+  const vence = (document.getElementById('tarVence')||{}).value || '';
+  if (DASH.demoMode){ showToast(t('guardado_ejemplo')); return; }
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass){ if (err) err.textContent = t('tar_err_creds'); return; }
+  // Id determinístico del lado del cliente: si el envío se reintenta, el endpoint hace upsert
+  // sobre la misma fila en vez de crear dos pedidos iguales (R15).
+  const id = 'tar_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  btnSpin(btn, true, t('guardando'));
+  dashRequest({ action:'tarea_guardar', usuario:cred.usuario,
+      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass,
+      tarea: JSON.stringify({ id:id, persona:per, titulo:titulo, detalle:detalle, vence:vence }) })
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){ if (err) err.textContent = (d && d.error) || t('err_generico'); return; }
+      TAREAS_FICHA.lista = [];
+      tareasFichaCargar();
+      showToast(t('tar_creada'));
+    })
+    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion'); });
+}
+
 /* ════════════════ CARRUSEL DE PRESENTACIÓN (B2, 2026-08-25) ════════════════════════════════
    Se abre al tocar "Ingresar" en el splash. 5 pantallas fijas (definidas en el HTML), con gesto
    de arrastre, botón "Siguiente"/"Registrarse" y puntos — todos llevan al mismo lugar. La última
@@ -14074,6 +14393,10 @@ function carruselCerrar(){
   vp.addEventListener('pointerup', soltar);
   vp.addEventListener('pointercancel', soltar);
 })();
+
+// D1: pedir el contador de tareas. Va al final del script, después de todas las
+// declaraciones — ver la nota en tareasArranque().
+tareasArranque();
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
 document.addEventListener('visibilitychange', () => {
