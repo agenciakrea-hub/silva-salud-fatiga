@@ -1768,6 +1768,39 @@
   .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
   @media (max-width:340px){ .splash-logo{ width:76px; } .splash-sub{ margin-bottom:18px; } }
 
+  /* ── Carrusel de presentación (B2, 2026-08-25) ──
+     .car-track se desliza con transform (JS calcula % según CAR_IDX). La transición se apaga
+     sola con la regla global de html.sin-animaciones (arriba, "*{transition:none!important}"),
+     que ya cubre prefers-reduced-motion porque esa clase se agrega en boot si el SO lo pide. */
+  #carruselOv.overlay { background:var(--card); backdrop-filter:none; align-items:stretch; padding:0; }
+  .car-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
+    display:flex; flex-direction:column; overflow:hidden; }
+  .car-cerrar { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
+    background:var(--chip-bg); color:var(--text-soft); border:none; border-radius:999px; width:34px; height:34px;
+    font-size:1rem; line-height:1; cursor:pointer; }
+  .car-viewport { flex:1; overflow:hidden; position:relative; touch-action:pan-y; }
+  .car-track { display:flex; height:100%; width:500%; will-change:transform;
+    transition:transform var(--dur-mov) var(--ease-app); }
+  .car-slide { width:20%; flex:none; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:56px 30px 0; gap:14px; }
+  .car-ic { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:var(--entrada-naranja-ink); background:color-mix(in srgb, var(--entrada-naranja) 16%, transparent);
+    margin-bottom:6px; }
+  .car-ic svg { width:32px; height:32px; }
+  .car-tit { color:var(--text); font-size:clamp(1.2rem,4.6vw,1.5rem); font-weight:800; line-height:1.3;
+    max-width:26ch; text-wrap:balance; }
+  .car-cuerpo { color:var(--text-soft); font-size:.92rem; line-height:1.55; max-width:38ch; }
+  .car-dots { display:flex; justify-content:center; gap:8px; padding:18px 0 4px; }
+  .car-dots span { width:7px; height:7px; border-radius:50%; background:var(--linea-2);
+    transition:background var(--dur-tap), transform var(--dur-tap); }
+  .car-dots span.on { background:var(--entrada-naranja); transform:scale(1.3); }
+  .car-nav { display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+  .car-atras { background:none; border:none; color:var(--text-soft); font-family:inherit; font-weight:700;
+    font-size:.9rem; cursor:pointer; padding:.6rem .5rem; visibility:hidden; }
+  .car-atras.on { visibility:visible; }
+  .car-sig { flex:1; }
+  @media (max-width:340px){ .car-slide{ padding-top:40px; } .car-ic{ width:54px; height:54px; } .car-ic svg{ width:26px; height:26px; } }
+
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
   .gest-overlay { padding: 0; }
   .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
@@ -2876,6 +2909,49 @@
   </div>
 </div>
 
+<!-- Carrusel de presentación (B2, 2026-08-25) — se abre al tocar "Ingresar" en el splash.
+     5 pantallas, gesto + botón + puntos. La última pasa a continuarAlta() (paso de tamaño de letra
+     o directo al alta, según corresponda). El slide 4 está redactado contra CONSENTIMIENTOS real. -->
+<div class="overlay" id="carruselOv">
+  <div class="car-wrap">
+    <button type="button" class="car-cerrar" onclick="carruselCerrar()" aria-label="Cerrar">✕</button>
+    <div class="car-viewport" id="carViewport">
+      <div class="car-track" id="carTrack">
+        <div class="car-slide">
+          <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 17.5a2.5 2.5 0 0 1-.95-4.81A2.5 2.5 0 0 1 4 8a2.5 2.5 0 0 1 2.96-3.44A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 17.5a2.5 2.5 0 0 0 .95-4.81A2.5 2.5 0 0 0 20 8a2.5 2.5 0 0 0-2.96-3.44A2.5 2.5 0 0 0 14.5 2z"/></svg></div>
+          <h2 class="car-tit" data-i18n="car1_tit">La fatiga es un riesgo, no una debilidad</h2>
+          <p class="car-cuerpo" data-i18n="car1_cuerpo">El cansancio acumulado afecta el juicio, los tiempos de reacción y la seguridad — la tuya y la de quienes dependen de tu trabajo. Por eso se mide como cualquier otro riesgo del puesto.</p>
+        </div>
+        <div class="car-slide">
+          <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></div>
+          <h2 class="car-tit" data-i18n="car2_tit">Reportas en segundos</h2>
+          <p class="car-cuerpo" data-i18n="car2_cuerpo">Tests breves antes y después de tu turno, un test de reacción, y el registro del ciclo de tu jornada. Funciona incluso sin conexión: nada se pierde, se envía solo apenas vuelve la señal.</p>
+        </div>
+        <div class="car-slide">
+          <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/><line x1="6" y1="11" x2="6" y2="13"/></svg></div>
+          <h2 class="car-tit" data-i18n="car3_tit">Hacia dónde vamos</h2>
+          <p class="car-cuerpo" data-i18n="car3_cuerpo">Estamos sumando pulseras y relojes que miden sueño y frecuencia cardíaca, para completar lo que ya reportas con datos objetivos. Todavía no está activo: por ahora, todo lo que ve el sistema es lo que tú mismo registras.</p>
+        </div>
+        <div class="car-slide">
+          <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h2 class="car-tit" data-i18n="car4_tit">Quién ve qué</h2>
+          <p class="car-cuerpo" data-i18n="car4_cuerpo">Tu supervisor ve tu condición operativa del día, nunca los valores de tus evaluaciones. El servicio médico es el único que accede a los resultados completos. La aplicación nunca declara «no apto»: sólo señala que conviene una revisión médica.</p>
+        </div>
+        <div class="car-slide">
+          <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg></div>
+          <h2 class="car-tit" data-i18n="car5_tit">Listos para empezar</h2>
+          <p class="car-cuerpo" data-i18n="car5_cuerpo">Elige tu empresa, identifícate, y en menos de un minuto quedas dentro.</p>
+        </div>
+      </div>
+    </div>
+    <div class="car-dots" id="carDots" role="tablist" aria-label="Pantallas"></div>
+    <div class="car-nav">
+      <button type="button" class="car-atras" id="carAtrasBtn" onclick="carruselAtras()" data-i18n="atras">Atrás</button>
+      <button type="button" class="ent-btn ent-btn--solid car-sig" id="carSigBtn" onclick="carruselSiguiente()" data-i18n="siguiente">Siguiente</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="textoOverlay">
   <div class="sheet">
     <h2>¿Cómo lo lees mejor?</h2>
@@ -3377,7 +3453,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.66';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.67';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3453,6 +3529,18 @@ const I18N = {
       splash_portal:'Soy supervisor o servicio médico',
       splash_admin:'Administrador',
       splash_nomina_de:'Nómina de {empresa}',
+      // ── Carrusel de presentación (B2) ──
+      car1_tit:'La fatiga es un riesgo, no una debilidad',
+      car1_cuerpo:'El cansancio acumulado afecta el juicio, los tiempos de reacción y la seguridad — la tuya y la de quienes dependen de tu trabajo. Por eso se mide como cualquier otro riesgo del puesto.',
+      car2_tit:'Reportas en segundos',
+      car2_cuerpo:'Tests breves antes y después de tu turno, un test de reacción, y el registro del ciclo de tu jornada. Funciona incluso sin conexión: nada se pierde, se envía solo apenas vuelve la señal.',
+      car3_tit:'Hacia dónde vamos',
+      car3_cuerpo:'Estamos sumando pulseras y relojes que miden sueño y frecuencia cardíaca, para completar lo que ya reportas con datos objetivos. Todavía no está activo: por ahora, todo lo que ve el sistema es lo que tú mismo registras.',
+      car4_tit:'Quién ve qué',
+      car4_cuerpo:'Tu supervisor ve tu condición operativa del día, nunca los valores de tus evaluaciones. El servicio médico es el único que accede a los resultados completos. La aplicación nunca declara «no apto»: sólo señala que conviene una revisión médica.',
+      car5_tit:'Listos para empezar',
+      car5_cuerpo:'Elige tu empresa, identifícate, y en menos de un minuto quedas dentro.',
+      car_registrarse:'Registrarse',
       // ── Data operacional: lo genérico (los términos de lugar van por sector) ──
       op_titulo:'Data Operacional',
       op_sub:'Registra el evento y avisa por WhatsApp',
@@ -3521,6 +3609,18 @@ const I18N = {
       splash_portal:'I am a supervisor or medical staff',
       splash_admin:'Administrator',
       splash_nomina_de:'{empresa} roster',
+      // ── Onboarding carousel (B2) ──
+      car1_tit:'Fatigue is a risk, not a weakness',
+      car1_cuerpo:'Accumulated tiredness affects judgment, reaction time and safety — yours and everyone who depends on your work. That is why it is measured like any other job-site risk.',
+      car2_tit:'Report in seconds',
+      car2_cuerpo:'Short tests before and after your shift, a reaction test, and a log of your day\'s cycle. It works even offline: nothing is lost, it sends automatically once you are back online.',
+      car3_tit:'Where this is going',
+      car3_cuerpo:'We are adding wristbands and watches that measure sleep and heart rate, to complement what you already report with objective data. It is not active yet — for now, everything the system sees is what you report yourself.',
+      car4_tit:'Who sees what',
+      car4_cuerpo:'Your supervisor sees your operational condition for the day, never your test scores. Medical staff are the only ones with access to full results. The app never declares someone "unfit" — it only flags that a medical review is advisable.',
+      car5_tit:'Ready to start',
+      car5_cuerpo:'Pick your company, identify yourself, and you are in within a minute.',
+      car_registrarse:'Sign up',
       op_titulo:'Operational Data',
       op_sub:'Logs the event and notifies via WhatsApp',
       op_salir_casa:'Leaving home',          op_salir_casa_d:'Commute starts',
@@ -3753,7 +3853,10 @@ const I = {
   brain:    '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 17.5a2.5 2.5 0 0 1-.95-4.81A2.5 2.5 0 0 1 4 8a2.5 2.5 0 0 1 2.96-3.44A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 17.5a2.5 2.5 0 0 0 .95-4.81A2.5 2.5 0 0 0 20 8a2.5 2.5 0 0 0-2.96-3.44A2.5 2.5 0 0 0 14.5 2z"/>',
   dizzy:    '<circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-2 4-2 4 2 4 2"/><path d="m7.5 8 3 3M10.5 8l-3 3M13.5 8l3 3M16.5 8l-3 3"/>',
   sad:      '<circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/>',
-  pill:     '<rect x="3" y="8" width="18" height="8" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/>'
+  pill:     '<rect x="3" y="8" width="18" height="8" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/>',
+  reloj:    '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+  escudo:   '<path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/>',
+  check:    '<circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/>'
 };
 
 /* ════════════════ SECCIONES ════════════════ */
@@ -12499,8 +12602,7 @@ function splashCambiarIdioma(){
   document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
 }
 function splashIngresar(){
-  document.getElementById('splashOv').classList.remove('show');
-  continuarAlta();
+  carruselMostrar();
 }
 // Abre el portal de estadísticas por fuera del recorrido normal (sin bottomNav, sin perfil
 // todavía). Común a "Ver demostración", "Soy supervisor" y "Administrador".
@@ -12535,6 +12637,83 @@ function splashAdmin(){
   const pass = document.getElementById('pAdminPass');
   if (pass) pass.focus();
 }
+
+/* ════════════════ CARRUSEL DE PRESENTACIÓN (B2, 2026-08-25) ════════════════════════════════
+   Se abre al tocar "Ingresar" en el splash. 5 pantallas fijas (definidas en el HTML), con gesto
+   de arrastre, botón "Siguiente"/"Registrarse" y puntos — todos llevan al mismo lugar. La última
+   pantalla llama a continuarAlta(): el mismo camino que seguía "Ingresar" antes de que existiera
+   este carrusel, así que para quien complete el recorrido nada cambia después de este punto. */
+const CAR_TOTAL = 5;
+let CAR_IDX = 0;
+let _carDragX0 = null, _carDragging = false, _carDragDX = 0;
+
+function carruselMostrar(){
+  CAR_IDX = 0;
+  const dots = document.getElementById('carDots');
+  if (!dots.childElementCount){
+    for (let i=0; i<CAR_TOTAL; i++){
+      const b = document.createElement('span');
+      b.setAttribute('role','tab');
+      b.setAttribute('aria-label', 'Pantalla ' + (i+1));
+      b.onclick = () => { CAR_IDX = i; carruselPintar(); };
+      dots.appendChild(b);
+    }
+  }
+  document.getElementById('splashOv').classList.remove('show');
+  document.getElementById('carruselOv').classList.add('show');
+  carruselPintar();
+}
+function carruselPintar(){
+  document.getElementById('carTrack').style.transform = 'translateX(-' + (CAR_IDX*20) + '%)';
+  document.getElementById('carDots').querySelectorAll('span').forEach((s,i) => s.classList.toggle('on', i===CAR_IDX));
+  document.getElementById('carAtrasBtn').classList.toggle('on', CAR_IDX > 0);
+  const sig = document.getElementById('carSigBtn');
+  sig.textContent = (CAR_IDX === CAR_TOTAL - 1) ? t('car_registrarse') : t('siguiente');
+}
+function carruselSiguiente(){
+  if (CAR_IDX >= CAR_TOTAL - 1){ carruselTerminar(); return; }
+  CAR_IDX++; carruselPintar();
+}
+function carruselAtras(){
+  if (CAR_IDX <= 0) return;
+  CAR_IDX--; carruselPintar();
+}
+function carruselTerminar(){
+  document.getElementById('carruselOv').classList.remove('show');
+  continuarAlta();
+}
+function carruselCerrar(){
+  document.getElementById('carruselOv').classList.remove('show');
+  document.getElementById('splashOv').classList.add('show');
+}
+// Gesto: arrastre horizontal sobre el visor. Pointer Events cubre mouse y dedo por igual.
+(function(){
+  const vp = document.getElementById('carViewport');
+  const track = document.getElementById('carTrack');
+  vp.addEventListener('pointerdown', e => {
+    _carDragging = true; _carDragX0 = e.clientX; _carDragDX = 0;
+    track.style.transition = 'none';
+    try { vp.setPointerCapture(e.pointerId); } catch(err){}
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!_carDragging) return;
+    _carDragDX = e.clientX - _carDragX0;
+    const pct = (_carDragDX / vp.offsetWidth) * 20;
+    track.style.transform = 'translateX(' + (-CAR_IDX*20 + pct) + '%)';
+  });
+  function soltar(){
+    if (!_carDragging) return;
+    _carDragging = false;
+    track.style.transition = '';
+    const umbral = vp.offsetWidth * 0.16;
+    if (_carDragDX < -umbral && CAR_IDX < CAR_TOTAL-1) CAR_IDX++;
+    else if (_carDragDX > umbral && CAR_IDX > 0) CAR_IDX--;
+    _carDragDX = 0;
+    carruselPintar();
+  }
+  vp.addEventListener('pointerup', soltar);
+  vp.addEventListener('pointercancel', soltar);
+})();
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
 document.addEventListener('visibilitychange', () => {
