@@ -3474,7 +3474,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.72';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.73';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3764,7 +3764,47 @@ const I18N = {
       cic_cfg_err:'Revisa los valores: cada tramo va entre 5 y 1440 minutos.',
       cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
-      cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar'
+      cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
+      rango_admin:'Administrador', rango_personal:'Personal',
+      /* ── Perelli y KSS: lo que NO cambia por sector (C2) ──
+         Éstas son las ESCALAS de los instrumentos y las preguntas neutras. Van en el bloque común
+         a propósito: si estuvieran repetidas por sector, alguien podría "mejorar" la redacción de
+         una sola y los puntajes dejarían de significar lo mismo entre empresas. */
+      pf_q_nivel:'¿Cómo calificarías tu estado general de fatiga actual?',
+      pf_nivel_0:'1 = Completamente alerta, despierto/a',
+      pf_nivel_1:'2 = Muy fresco/a, buen nivel de energía',
+      pf_nivel_2:'3 = Bien, normal',
+      pf_nivel_3:'4 = Un poco fatigado/a, rendimiento levemente afectado',
+      pf_nivel_4:'5 = Moderadamente fatigado/a, esfuerzo para mantener la concentración',
+      pf_nivel_5:'6 = Extremadamente fatigado/a, funcionamiento comprometido',
+      pf_nivel_6:'7 = Completamente exhausto/a, capacidad operacional severamente afectada',
+      pf_q_sintomas:'¿Qué síntomas de fatiga experimentas actualmente? Elige uno o varios.',
+      pf_sint_0:'Dificultad para concentrarte', pf_sint_1:'Pesadez en los párpados',
+      pf_sint_2:'Bostezos frecuentes', pf_sint_3:'Irritabilidad o cambios de humor',
+      pf_sint_4:'Dolores musculares', pf_sint_5:'Visión borrosa o dificultad para enfocar',
+      pf_sint_6:'Lentitud en las reacciones', pf_sint_7:'Ninguno de los anteriores',
+      pf_q_func:'¿Cómo afecta tu fatiga actual a cada una de estas funciones?',
+      pf_q_suenio:'¿Cómo fue la calidad de tu sueño en las últimas 24 h?',
+      pf_suenio_0:'Excelente', pf_suenio_1:'Bueno', pf_suenio_2:'Regular',
+      pf_suenio_3:'Malo', pf_suenio_4:'Muy malo',
+      pf_q_factores:'¿Qué factores han contribuido más a tu fatiga actual? Elige uno o varios.',
+      pf_cap_0:'1 = Capacidad óptima', pf_cap_1:'2 = Capacidad levemente reducida',
+      pf_cap_2:'3 = Capacidad moderadamente reducida', pf_cap_3:'4 = Capacidad severamente reducida',
+      pf_cap_4:'5 = Incapacidad operacional',
+      pf_q_coment:'¿Tienes algún comentario adicional sobre tu estado actual?',
+      pf_ph_coment:'Opcional · máx. 200 caracteres',
+      kss_q_alerta:'¿Cómo describirías tu nivel de alerta en este momento?',
+      kss_alerta_0:'1 = Extremadamente alerta', kss_alerta_1:'2 = Muy alerta',
+      kss_alerta_2:'3 = Alerta', kss_alerta_3:'4 = Bastante alerta',
+      kss_alerta_4:'5 = Ni alerta ni somnoliento', kss_alerta_5:'6 = Algunos signos de somnolencia',
+      kss_alerta_6:'7 = Somnoliento, sin esfuerzo para permanecer despierto',
+      kss_alerta_7:'8 = Somnoliento, con esfuerzo para permanecer despierto',
+      kss_alerta_8:'9 = Muy somnoliento, gran esfuerzo, luchando contra el sueño',
+      kss_q_horas:'¿Cuántas horas dormiste en las últimas 24 h?',
+      kss_horas_0:'Menos de 4 horas', kss_horas_1:'Entre 4 y 6 horas',
+      kss_horas_2:'Entre 6 y 8 horas', kss_horas_3:'Más de 8 horas',
+      kss_q_coment:'¿Quieres agregar algún comentario adicional? (opcional)',
+      kss_ph_coment:'Escribe aquí tu comentario...'
     },
     aviacion: {
       op_lleg_sitio:'Llegando al aeropuerto',
@@ -3772,7 +3812,54 @@ const I18N = {
       op_msg_salir_casa:'Notifico que estoy *saliendo de casa* rumbo al aeropuerto para iniciar mi turno de vuelo.',
       op_msg_lleg_sitio:'Notifico que estoy *llegando al aeropuerto*.',
       op_msg_salir_sitio:'Notifico que *terminé mi turno*.',
-      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.'
+      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno de vuelo.',
+      // ── Contexto de los tests (C2). Las ESCALAS no están acá: son comunes. ──
+      pf_q_fase:'¿En qué fase del vuelo te encuentras actualmente?',
+      pf_fase_0:'Pre-vuelo',
+      pf_fase_1:'Durante el vuelo (primera mitad)',
+      pf_fase_2:'Durante el vuelo (segunda mitad)',
+      pf_fase_3:'Post-vuelo inmediato',
+      pf_fase_4:'Post-vuelo (+2 horas)',
+      pf_func_0:'Toma de decisiones',
+      pf_func_1:'Comunicación',
+      pf_func_2:'Monitoreo de instrumentos',
+      pf_func_3:'Coordinación de crew',
+      pf_func_4:'Manejo de emergencias',
+      pf_fact_0:'Horario de trabajo irregular',
+      pf_fact_1:'Vuelos nocturnos',
+      pf_fact_2:'Cambios de huso horario',
+      pf_fact_3:'Alta carga de trabajo',
+      pf_fact_4:'Estrés operacional',
+      pf_fact_5:'Factores personales o familiares',
+      pf_fact_6:'Condiciones ambientales (ruido, turbulencia)',
+      pf_fact_7:'Otros',
+      pf_q_capacidad:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
+      pf_lbl_fase:'Fase del vuelo',
+      rango_operativo:'Piloto',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Oficina, administrativo, comercial',
+      niv_d_2:'Logística liviana, salas VIP, terminal ejecutivo',
+      niv_d_3:'Tripulante de cabina, inspector, laboratorio',
+      niv_d_4:'Piloto ala fija, mecánico de hangar, rampa, cisterna',
+      niv_d_5:'Helicóptero off-shore, MEDEVAC, combustible, perforación',
+      kss_q_fase:'¿En qué fase del vuelo te encuentras actualmente?',
+      kss_fase_0:'Pre-vuelo',
+      kss_fase_1:'Durante el vuelo',
+      kss_fase_2:'Post-vuelo',
+      kss_fase_3:'En descanso',
+      kss_fase_4:'En standby',
+      kss_q_operacion:'¿Cuál es el tipo de operación actual?',
+      kss_oper_0:'Vuelo corto (1–3 h)',
+      kss_oper_1:'Vuelo medio (3–6 h)',
+      kss_oper_2:'Vuelo largo sin pernocta',
+      kss_oper_3:'Vuelo largo con pernocta',
+      kss_oper_4:'En tierra o administrativo',
+      kss_lbl_fase:'Fase del vuelo',
+      // ── Rol operativo en el perfil ──
+      rol_aviacion:'Personal de aviación',
+      f_idpiloto:'Identificador de Piloto',
+      f_idpiloto_err:'Por favor ingresa tu identificador de piloto.',
+      f_cargo_ph:'Ej: Piloto'
     },
     planta: {
       op_lleg_sitio:'Llegando a la planta',
@@ -3780,7 +3867,54 @@ const I18N = {
       op_msg_salir_casa:'Notifico que estoy *saliendo de casa* rumbo a la planta para iniciar mi turno.',
       op_msg_lleg_sitio:'Notifico que estoy *llegando a la planta*.',
       op_msg_salir_sitio:'Notifico que *terminé mi turno*.',
-      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.'
+      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.',
+      // ── Contexto de los tests (C2). Las ESCALAS no están acá: son comunes. ──
+      pf_q_fase:'¿En qué momento de tu turno te encuentras actualmente?',
+      pf_fase_0:'Antes del turno',
+      pf_fase_1:'Primera mitad del turno',
+      pf_fase_2:'Segunda mitad del turno',
+      pf_fase_3:'Recién terminado el turno',
+      pf_fase_4:'Terminado el turno (+2 horas)',
+      pf_func_0:'Toma de decisiones',
+      pf_func_1:'Comunicación',
+      pf_func_2:'Monitoreo de equipos e instrumentos',
+      pf_func_3:'Coordinación con el equipo',
+      pf_func_4:'Respuesta ante emergencias',
+      pf_fact_0:'Horario de trabajo irregular',
+      pf_fact_1:'Turnos nocturnos',
+      pf_fact_2:'Rotación de turnos',
+      pf_fact_3:'Alta carga de trabajo',
+      pf_fact_4:'Estrés operacional',
+      pf_fact_5:'Factores personales o familiares',
+      pf_fact_6:'Condiciones ambientales (ruido, calor, vibración)',
+      pf_fact_7:'Otros',
+      pf_q_capacidad:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas?',
+      pf_lbl_fase:'Momento del turno',
+      rango_operativo:'Personal operativo',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Oficina, administrativo, comercial',
+      niv_d_2:'Almacén, logística liviana, control de acceso',
+      niv_d_3:'Operador de sala de control, inspector, laboratorio',
+      niv_d_4:'Operador de planta, mantenimiento mecánico, montacargas',
+      niv_d_5:'Espacios confinados, altura, caliente, sustancias peligrosas',
+      kss_q_fase:'¿En qué momento de tu turno te encuentras actualmente?',
+      kss_fase_0:'Antes del turno',
+      kss_fase_1:'Durante el turno',
+      kss_fase_2:'Terminado el turno',
+      kss_fase_3:'En descanso',
+      kss_fase_4:'En disponibilidad',
+      kss_q_operacion:'¿Cuál es el tipo de jornada actual?',
+      kss_oper_0:'Turno corto (1–3 h)',
+      kss_oper_1:'Turno medio (3–6 h)',
+      kss_oper_2:'Turno largo sin pernocta',
+      kss_oper_3:'Turno largo con pernocta',
+      kss_oper_4:'En oficina o administrativo',
+      kss_lbl_fase:'Momento del turno',
+      // ── Rol operativo en el perfil ──
+      rol_aviacion:'Personal operativo',
+      f_idpiloto:'Identificador de operario',
+      f_idpiloto_err:'Por favor ingresa tu identificador de operario.',
+      f_cargo_ph:'Ej: Operador de planta'
     },
     campo: {
       op_lleg_sitio:'Llegando al sitio de trabajo',
@@ -3788,7 +3922,54 @@ const I18N = {
       op_msg_salir_casa:'Notifico que estoy *saliendo de casa* rumbo al sitio de trabajo para iniciar mi turno.',
       op_msg_lleg_sitio:'Notifico que estoy *llegando al sitio de trabajo*.',
       op_msg_salir_sitio:'Notifico que *terminé mi turno*.',
-      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.'
+      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.',
+      // ── Contexto de los tests (C2). Las ESCALAS no están acá: son comunes. ──
+      pf_q_fase:'¿En qué momento de tu jornada te encuentras actualmente?',
+      pf_fase_0:'Antes de salir',
+      pf_fase_1:'Durante el traslado',
+      pf_fase_2:'Primera mitad en el sitio',
+      pf_fase_3:'Segunda mitad en el sitio',
+      pf_fase_4:'Terminada la jornada',
+      pf_func_0:'Toma de decisiones',
+      pf_func_1:'Comunicación',
+      pf_func_2:'Manejo de vehículo o maquinaria',
+      pf_func_3:'Coordinación con la cuadrilla',
+      pf_func_4:'Respuesta ante emergencias',
+      pf_fact_0:'Horario de trabajo irregular',
+      pf_fact_1:'Turnos nocturnos',
+      pf_fact_2:'Traslados largos',
+      pf_fact_3:'Alta carga de trabajo',
+      pf_fact_4:'Estrés operacional',
+      pf_fact_5:'Factores personales o familiares',
+      pf_fact_6:'Condiciones ambientales (calor, polvo, terreno)',
+      pf_fact_7:'Otros',
+      pf_q_capacidad:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas?',
+      pf_lbl_fase:'Momento de la jornada',
+      rango_operativo:'Personal de campo',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Oficina, administrativo, comercial',
+      niv_d_2:'Base, almacén, apoyo logístico',
+      niv_d_3:'Supervisión de campo, inspección, laboratorio móvil',
+      niv_d_4:'Operador de maquinaria, conductor de larga distancia',
+      niv_d_5:'Perforación, línea energizada, altura, sitio remoto sin relevo',
+      kss_q_fase:'¿En qué momento de tu jornada te encuentras actualmente?',
+      kss_fase_0:'Antes de salir',
+      kss_fase_1:'En traslado',
+      kss_fase_2:'En el sitio',
+      kss_fase_3:'Terminada la jornada',
+      kss_fase_4:'En descanso',
+      kss_q_operacion:'¿Cuál es el tipo de jornada actual?',
+      kss_oper_0:'Jornada corta (1–3 h)',
+      kss_oper_1:'Jornada media (3–6 h)',
+      kss_oper_2:'Jornada larga sin pernocta',
+      kss_oper_3:'Jornada larga con pernocta',
+      kss_oper_4:'En base o administrativo',
+      kss_lbl_fase:'Momento de la jornada',
+      // ── Rol operativo en el perfil ──
+      rol_aviacion:'Personal de campo',
+      f_idpiloto:'Identificador de operario',
+      f_idpiloto_err:'Por favor ingresa tu identificador de operario.',
+      f_cargo_ph:'Ej: Técnico de campo'
     },
     generico: {
       op_lleg_sitio:'Llegando al trabajo',
@@ -3796,7 +3977,54 @@ const I18N = {
       op_msg_salir_casa:'Notifico que estoy *saliendo de casa* para iniciar mi turno.',
       op_msg_lleg_sitio:'Notifico que estoy *llegando al trabajo*.',
       op_msg_salir_sitio:'Notifico que *terminé mi turno*.',
-      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.'
+      op_msg_lleg_casa:'Notifico que estoy *llegando a casa* tras finalizar mi turno.',
+      // ── Contexto de los tests (C2). Las ESCALAS no están acá: son comunes. ──
+      pf_q_fase:'¿En qué momento de tu turno te encuentras actualmente?',
+      pf_fase_0:'Antes del turno',
+      pf_fase_1:'Primera mitad del turno',
+      pf_fase_2:'Segunda mitad del turno',
+      pf_fase_3:'Recién terminado el turno',
+      pf_fase_4:'Terminado el turno (+2 horas)',
+      pf_func_0:'Toma de decisiones',
+      pf_func_1:'Comunicación',
+      pf_func_2:'Monitoreo de equipos',
+      pf_func_3:'Coordinación con el equipo',
+      pf_func_4:'Respuesta ante emergencias',
+      pf_fact_0:'Horario de trabajo irregular',
+      pf_fact_1:'Turnos nocturnos',
+      pf_fact_2:'Rotación de turnos',
+      pf_fact_3:'Alta carga de trabajo',
+      pf_fact_4:'Estrés operacional',
+      pf_fact_5:'Factores personales o familiares',
+      pf_fact_6:'Condiciones ambientales',
+      pf_fact_7:'Otros',
+      pf_q_capacidad:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas?',
+      pf_lbl_fase:'Momento del turno',
+      rango_operativo:'Personal operativo',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Oficina, administrativo, comercial',
+      niv_d_2:'Almacén, logística liviana, control de acceso',
+      niv_d_3:'Operador de sala de control, inspector, laboratorio',
+      niv_d_4:'Operador de planta, mantenimiento mecánico, montacargas',
+      niv_d_5:'Espacios confinados, altura, caliente, sustancias peligrosas',
+      kss_q_fase:'¿En qué momento de tu turno te encuentras actualmente?',
+      kss_fase_0:'Antes del turno',
+      kss_fase_1:'Durante el turno',
+      kss_fase_2:'Terminado el turno',
+      kss_fase_3:'En descanso',
+      kss_fase_4:'En disponibilidad',
+      kss_q_operacion:'¿Cuál es el tipo de jornada actual?',
+      kss_oper_0:'Turno corto (1–3 h)',
+      kss_oper_1:'Turno medio (3–6 h)',
+      kss_oper_2:'Turno largo sin pernocta',
+      kss_oper_3:'Turno largo con pernocta',
+      kss_oper_4:'En oficina o administrativo',
+      kss_lbl_fase:'Momento del turno',
+      // ── Rol operativo en el perfil ──
+      rol_aviacion:'Personal operativo',
+      f_idpiloto:'Identificador de empleado',
+      f_idpiloto_err:'Por favor ingresa tu identificador.',
+      f_cargo_ph:'Ej: Operario'
     }
   },
 
@@ -3971,17 +4199,10 @@ const I18N = {
       bai_q12:'Excessive worry about your health',
       bai_q13:'Weight loss',
       bai_q14:'Awareness of how you are feeling',
-      // ── KSS (Karolinska Sleepiness Scale). Redacción oficial en inglés. ──
-      kss_q0:'Which phase of the flight are you currently in?',
-      kss_o0_0:'Pre-flight', kss_o0_1:'In flight', kss_o0_2:'Post-flight',
-      kss_o0_3:'Resting', kss_o0_4:'On standby',
-      kss_q1:'How would you describe your level of alertness right now?',
-      kss_o1_0:'1 = Extremely alert', kss_o1_1:'2 = Very alert', kss_o1_2:'3 = Alert',
-      kss_o1_3:'4 = Rather alert', kss_o1_4:'5 = Neither alert nor sleepy',
-      kss_o1_5:'6 = Some signs of sleepiness',
-      kss_o1_6:'7 = Sleepy, but no effort to stay awake',
-      kss_o1_7:'8 = Sleepy, some effort to stay awake',
-      kss_o1_8:'9 = Very sleepy, great effort to stay awake, fighting sleep',
+      // Las claves kss_q0, kss_o0_N y kss_o1_N que había acá se borraron en C2: las reemplazan
+      // kss_q_fase + kss_fase_N (que ahora cambian por sector) y kss_q_alerta + kss_alerta_N (que
+      // no cambian nunca: son la escala de Karolinska). Dejarlas habría sido peor que borrarlas:
+      // dos juegos de claves para lo mismo, y la próxima corrección se haría en el que ya no se usa.
       // ── MBI (agotamiento emocional). Redacción del instrumento original. ──
       mbi_e0:'0 = Never', mbi_e1:'1 = A few times a year or less', mbi_e2:'2 = Once a month or less',
       mbi_e3:'3 = A few times a month', mbi_e4:'4 = Once a week',
@@ -4079,7 +4300,44 @@ const I18N = {
       cic_cfg_err:'Check the values: each segment must be between 5 and 1440 minutes.',
       cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo)">red</b> with the excess counting up, so you can act on it. Anyone who has not tapped anything still appears, <b>in grey</b>.',
       cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
+      // ── Perelli and KSS: what does NOT change by sector (C2). Instrument scales. ──
+      pf_q_nivel:'How would you rate your overall level of fatigue right now?',
+      pf_nivel_0:'1 = Fully alert, wide awake',
+      pf_nivel_1:'2 = Very lively, good energy level',
+      pf_nivel_2:'3 = Okay, normal',
+      pf_nivel_3:'4 = A little tired, performance slightly affected',
+      pf_nivel_4:'5 = Moderately tired, effort needed to stay focused',
+      pf_nivel_5:'6 = Extremely tired, functioning compromised',
+      pf_nivel_6:'7 = Completely exhausted, operational capacity severely affected',
+      pf_q_sintomas:'Which fatigue symptoms are you experiencing right now? Choose one or more.',
+      pf_sint_0:'Difficulty concentrating', pf_sint_1:'Heavy eyelids',
+      pf_sint_2:'Frequent yawning', pf_sint_3:'Irritability or mood changes',
+      pf_sint_4:'Muscle aches', pf_sint_5:'Blurred vision or trouble focusing',
+      pf_sint_6:'Slowed reactions', pf_sint_7:'None of the above',
+      pf_q_func:'How is your current fatigue affecting each of these functions?',
+      pf_q_suenio:'How was the quality of your sleep in the last 24 h?',
+      pf_suenio_0:'Excellent', pf_suenio_1:'Good', pf_suenio_2:'Fair',
+      pf_suenio_3:'Poor', pf_suenio_4:'Very poor',
+      pf_q_factores:'Which factors contributed most to your current fatigue? Choose one or more.',
+      pf_cap_0:'1 = Optimal capacity', pf_cap_1:'2 = Slightly reduced capacity',
+      pf_cap_2:'3 = Moderately reduced capacity', pf_cap_3:'4 = Severely reduced capacity',
+      pf_cap_4:'5 = Operationally unfit',
+      pf_q_coment:'Do you have any further comment about how you are doing?',
+      pf_ph_coment:'Optional · max. 200 characters',
+      kss_q_alerta:'How would you describe your level of alertness right now?',
+      kss_alerta_0:'1 = Extremely alert', kss_alerta_1:'2 = Very alert',
+      kss_alerta_2:'3 = Alert', kss_alerta_3:'4 = Rather alert',
+      kss_alerta_4:'5 = Neither alert nor sleepy', kss_alerta_5:'6 = Some signs of sleepiness',
+      kss_alerta_6:'7 = Sleepy, but no effort to stay awake',
+      kss_alerta_7:'8 = Sleepy, some effort to stay awake',
+      kss_alerta_8:'9 = Very sleepy, great effort to stay awake, fighting sleep',
+      kss_q_horas:'How many hours did you sleep in the last 24 h?',
+      kss_horas_0:'Less than 4 hours', kss_horas_1:'Between 4 and 6 hours',
+      kss_horas_2:'Between 6 and 8 hours', kss_horas_3:'More than 8 hours',
+      kss_q_coment:'Would you like to add any further comment? (optional)',
+      kss_ph_coment:'Type your comment here...',
       cic_kpi_comp:'complete', cic_kpi_sin:'not started',
+      rango_admin:'Administrator', rango_personal:'Staff',
       tam_0:'Small', tam_1:'Normal', tam_2:'Large', tam_3:'Very large'
     },
     aviacion: {
@@ -4088,7 +4346,53 @@ const I18N = {
       op_msg_salir_casa:'I am *leaving home* for the airport to start my flight duty.',
       op_msg_lleg_sitio:'I am *arriving at the airport*.',
       op_msg_salir_sitio:'I have *finished my duty*.',
-      op_msg_lleg_casa:'I am *arriving home* after finishing my flight duty.'
+      op_msg_lleg_casa:'I am *arriving home* after finishing my flight duty.',
+      // ── Test context (C2). The SCALES are not here: they are shared. ──
+      pf_q_fase:'Which phase of the flight are you currently in?',
+      pf_fase_0:'Pre-flight',
+      pf_fase_1:'In flight (first half)',
+      pf_fase_2:'In flight (second half)',
+      pf_fase_3:'Immediately post-flight',
+      pf_fase_4:'Post-flight (+2 hours)',
+      pf_func_0:'Decision making',
+      pf_func_1:'Communication',
+      pf_func_2:'Instrument monitoring',
+      pf_func_3:'Crew coordination',
+      pf_func_4:'Emergency handling',
+      pf_fact_0:'Irregular work schedule',
+      pf_fact_1:'Night flights',
+      pf_fact_2:'Time zone changes',
+      pf_fact_3:'High workload',
+      pf_fact_4:'Operational stress',
+      pf_fact_5:'Personal or family factors',
+      pf_fact_6:'Environmental conditions (noise, turbulence)',
+      pf_fact_7:'Other',
+      pf_q_capacidad:'How would you rate your current ability to perform flight-critical tasks?',
+      pf_lbl_fase:'Phase of flight',
+      rango_operativo:'Pilot',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Office, administrative, commercial',
+      niv_d_2:'Light logistics, VIP lounges, executive terminal',
+      niv_d_3:'Cabin crew, inspector, laboratory',
+      niv_d_4:'Fixed-wing pilot, hangar mechanic, ramp, fuel truck',
+      niv_d_5:'Offshore helicopter, MEDEVAC, fuelling, drilling',
+      kss_q_fase:'Which phase of the flight are you currently in?',
+      kss_fase_0:'Pre-flight',
+      kss_fase_1:'In flight',
+      kss_fase_2:'Post-flight',
+      kss_fase_3:'Resting',
+      kss_fase_4:'On standby',
+      kss_q_operacion:'What type of operation is this?',
+      kss_oper_0:'Short flight (1–3 h)',
+      kss_oper_1:'Medium flight (3–6 h)',
+      kss_oper_2:'Long flight, no layover',
+      kss_oper_3:'Long flight with layover',
+      kss_oper_4:'On ground or administrative',
+      kss_lbl_fase:'Phase of flight',
+      rol_aviacion:'Aviation personnel',
+      f_idpiloto:'Pilot ID',
+      f_idpiloto_err:'Please enter your pilot ID.',
+      f_cargo_ph:'e.g. Pilot'
     },
     planta: {
       op_lleg_sitio:'Arriving at the plant',
@@ -4096,7 +4400,53 @@ const I18N = {
       op_msg_salir_casa:'I am *leaving home* for the plant to start my shift.',
       op_msg_lleg_sitio:'I am *arriving at the plant*.',
       op_msg_salir_sitio:'I have *finished my shift*.',
-      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.'
+      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.',
+      // ── Test context (C2). The SCALES are not here: they are shared. ──
+      pf_q_fase:'Where are you in your shift right now?',
+      pf_fase_0:'Before the shift',
+      pf_fase_1:'First half of the shift',
+      pf_fase_2:'Second half of the shift',
+      pf_fase_3:'Just finished the shift',
+      pf_fase_4:'Shift finished (+2 hours)',
+      pf_func_0:'Decision making',
+      pf_func_1:'Communication',
+      pf_func_2:'Equipment and instrument monitoring',
+      pf_func_3:'Coordination with the team',
+      pf_func_4:'Emergency response',
+      pf_fact_0:'Irregular work schedule',
+      pf_fact_1:'Night shifts',
+      pf_fact_2:'Shift rotation',
+      pf_fact_3:'High workload',
+      pf_fact_4:'Operational stress',
+      pf_fact_5:'Personal or family factors',
+      pf_fact_6:'Environmental conditions (noise, heat, vibration)',
+      pf_fact_7:'Other',
+      pf_q_capacidad:'How would you rate your current ability to perform safety-critical tasks?',
+      pf_lbl_fase:'Point in shift',
+      rango_operativo:'Operational staff',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Office, administrative, commercial',
+      niv_d_2:'Warehouse, light logistics, access control',
+      niv_d_3:'Control room operator, inspector, laboratory',
+      niv_d_4:'Plant operator, mechanical maintenance, forklift',
+      niv_d_5:'Confined spaces, work at height, hot work, hazardous substances',
+      kss_q_fase:'Where are you in your shift right now?',
+      kss_fase_0:'Before the shift',
+      kss_fase_1:'During the shift',
+      kss_fase_2:'Shift finished',
+      kss_fase_3:'Resting',
+      kss_fase_4:'On call',
+      kss_q_operacion:'What type of shift is this?',
+      kss_oper_0:'Short shift (1–3 h)',
+      kss_oper_1:'Medium shift (3–6 h)',
+      kss_oper_2:'Long shift, no overnight',
+      kss_oper_3:'Long shift with overnight',
+      kss_oper_4:'Office or administrative',
+      kss_lbl_fase:'Point in shift',
+      rol_aviacion:'Operational personnel',
+      f_idpiloto:'Operator ID',
+      f_idpiloto_err:'Please enter your operator ID.',
+      f_cargo_ph:'e.g. Plant operator'
     },
     campo: {
       op_lleg_sitio:'Arriving at the work site',
@@ -4104,7 +4454,53 @@ const I18N = {
       op_msg_salir_casa:'I am *leaving home* for the work site to start my shift.',
       op_msg_lleg_sitio:'I am *arriving at the work site*.',
       op_msg_salir_sitio:'I have *finished my shift*.',
-      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.'
+      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.',
+      // ── Test context (C2). The SCALES are not here: they are shared. ──
+      pf_q_fase:'Where are you in your workday right now?',
+      pf_fase_0:'Before setting out',
+      pf_fase_1:'During the commute',
+      pf_fase_2:'First half on site',
+      pf_fase_3:'Second half on site',
+      pf_fase_4:'Workday finished',
+      pf_func_0:'Decision making',
+      pf_func_1:'Communication',
+      pf_func_2:'Driving or operating machinery',
+      pf_func_3:'Coordination with the crew',
+      pf_func_4:'Emergency response',
+      pf_fact_0:'Irregular work schedule',
+      pf_fact_1:'Night shifts',
+      pf_fact_2:'Long commutes',
+      pf_fact_3:'High workload',
+      pf_fact_4:'Operational stress',
+      pf_fact_5:'Personal or family factors',
+      pf_fact_6:'Environmental conditions (heat, dust, terrain)',
+      pf_fact_7:'Other',
+      pf_q_capacidad:'How would you rate your current ability to perform safety-critical tasks?',
+      pf_lbl_fase:'Point in workday',
+      rango_operativo:'Field staff',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Office, administrative, commercial',
+      niv_d_2:'Base, warehouse, logistics support',
+      niv_d_3:'Field supervision, inspection, mobile laboratory',
+      niv_d_4:'Machinery operator, long-distance driver',
+      niv_d_5:'Drilling, live lines, work at height, remote site with no relief',
+      kss_q_fase:'Where are you in your workday right now?',
+      kss_fase_0:'Before setting out',
+      kss_fase_1:'Commuting',
+      kss_fase_2:'On site',
+      kss_fase_3:'Workday finished',
+      kss_fase_4:'Resting',
+      kss_q_operacion:'What type of workday is this?',
+      kss_oper_0:'Short day (1–3 h)',
+      kss_oper_1:'Medium day (3–6 h)',
+      kss_oper_2:'Long day, no overnight',
+      kss_oper_3:'Long day with overnight',
+      kss_oper_4:'At base or administrative',
+      kss_lbl_fase:'Point in workday',
+      rol_aviacion:'Field personnel',
+      f_idpiloto:'Operator ID',
+      f_idpiloto_err:'Please enter your operator ID.',
+      f_cargo_ph:'e.g. Field technician'
     },
     generico: {
       op_lleg_sitio:'Arriving at work',
@@ -4112,7 +4508,53 @@ const I18N = {
       op_msg_salir_casa:'I am *leaving home* to start my shift.',
       op_msg_lleg_sitio:'I am *arriving at work*.',
       op_msg_salir_sitio:'I have *finished my shift*.',
-      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.'
+      op_msg_lleg_casa:'I am *arriving home* after finishing my shift.',
+      // ── Test context (C2). The SCALES are not here: they are shared. ──
+      pf_q_fase:'Where are you in your shift right now?',
+      pf_fase_0:'Before the shift',
+      pf_fase_1:'First half of the shift',
+      pf_fase_2:'Second half of the shift',
+      pf_fase_3:'Just finished the shift',
+      pf_fase_4:'Shift finished (+2 hours)',
+      pf_func_0:'Decision making',
+      pf_func_1:'Communication',
+      pf_func_2:'Equipment monitoring',
+      pf_func_3:'Coordination with the team',
+      pf_func_4:'Emergency response',
+      pf_fact_0:'Irregular work schedule',
+      pf_fact_1:'Night shifts',
+      pf_fact_2:'Shift rotation',
+      pf_fact_3:'High workload',
+      pf_fact_4:'Operational stress',
+      pf_fact_5:'Personal or family factors',
+      pf_fact_6:'Environmental conditions',
+      pf_fact_7:'Other',
+      pf_q_capacidad:'How would you rate your current ability to perform safety-critical tasks?',
+      pf_lbl_fase:'Point in shift',
+      rango_operativo:'Operational staff',
+      // Ejemplos de puesto por nivel. Los UMBRALES no están acá: son iguales en todo sector.
+      niv_d_1:'Office, administrative, commercial',
+      niv_d_2:'Warehouse, light logistics, access control',
+      niv_d_3:'Control room operator, inspector, laboratory',
+      niv_d_4:'Plant operator, mechanical maintenance, forklift',
+      niv_d_5:'Confined spaces, work at height, hot work, hazardous substances',
+      kss_q_fase:'Where are you in your shift right now?',
+      kss_fase_0:'Before the shift',
+      kss_fase_1:'During the shift',
+      kss_fase_2:'Shift finished',
+      kss_fase_3:'Resting',
+      kss_fase_4:'On call',
+      kss_q_operacion:'What type of shift is this?',
+      kss_oper_0:'Short shift (1–3 h)',
+      kss_oper_1:'Medium shift (3–6 h)',
+      kss_oper_2:'Long shift, no overnight',
+      kss_oper_3:'Long shift with overnight',
+      kss_oper_4:'Office or administrative',
+      kss_lbl_fase:'Point in shift',
+      rol_aviacion:'Operational personnel',
+      f_idpiloto:'Employee ID',
+      f_idpiloto_err:'Please enter your ID.',
+      f_cargo_ph:'e.g. Operator'
     }
   }
 };
@@ -4158,6 +4600,21 @@ function t(clave, vars){
   if (s == null) s = String(clave);
   if (vars) for (const k in vars) s = s.split('{' + k + '}').join(String(vars[k]));
   return s;
+}
+/* El valor CANÓNICO de una clave: su resolución en ESPAÑOL, sea cual sea el idioma en pantalla,
+   pero SÍ respetando el sector.
+
+   Es lo que se guarda en el CH cuando el texto elegido por la persona es el dato (las opciones de
+   los tests). Sin esto, alguien usando la app en inglés escribiría "Pre-flight" en la misma
+   columna donde el resto tiene "Pre-vuelo", y la hoja de esa empresa quedaría con dos vocabularios
+   — imposible de agrupar y sin que nadie se entere hasta que el médico intente contar.
+
+   El sector SÍ se respeta: una planta guarda "Antes del turno" y una aérea "Pre-vuelo". Son
+   empresas distintas, hojas distintas y significan cosas distintas; lo que no puede pasar es que
+   DENTRO de una misma empresa el vocabulario dependa del idioma que eligió cada persona. */
+function tCanon(clave){
+  const s = _i18nBuscar('es', sectorActual(), clave);
+  return s == null ? String(clave) : s;
 }
 // Claves que guardan una lista separada por espacios (meses, por ahora).
 function tLista(clave){ return t(clave).split(/\s+/).filter(Boolean); }
@@ -4225,6 +4682,10 @@ function aplicarIdioma(){
     const ov = document.getElementById('nominaOv');
     if (ov && ov.classList.contains('show') && NOM.paso) nominaPaso(NOM.paso);
   } catch(e){}
+  /* C2: los pasos de Perelli y KSS se arman con textos que dependen de idioma × sector, así que
+     hay que rehacerlos cuando cambia cualquiera de los dos. Se reconstruyen enteros en vez de
+     parchear en su lugar: son arrays chicos y así no queda ningún texto viejo colgado. */
+  try { PERELLI_STEPS = construirPerelliSteps(); KSS_STEPS = construirKssSteps(); } catch(e){}
 }
 function fijarIdioma(k){
   try { localStorage.setItem(K_LANG, k); } catch(e){}
@@ -5336,6 +5797,10 @@ function scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad){
     const m = p.match(/: (\d)/); const v = m ? parseInt(m[1]) : 1;
     return s + (v - 1) * 0.5;
   }, 0);
+  /* ⚠️ Lista CANÓNICA en español, a propósito. Lo que llega acá es lo que se guardó (que siempre
+     es el canónico, sea cual sea el idioma de la pantalla): si esta lista se tradujera, el índice
+     no matchearía y ese término del puntaje quedaría en 0 sin que nadie lo note — un test daría
+     más sano de lo que es. */
   const calidadOpts = ['Excelente','Bueno','Regular','Malo','Muy malo'];
   const ci = calidadOpts.indexOf(calidadSuenio);
   const cap = parseInt(capacidad) || 1;
@@ -5587,46 +6052,80 @@ function finalizarTest(){
 }
 
 // ── Fatiga · Perelli SP ───────────────────────────────────────────────────────
-const PERELLI_STEPS = [
+/* ══════════ CONTEXTO DE LOS TESTS POR SECTOR (C2, 2026-08-25) ══════════════════════════════
+   Un operario de planta no tiene "fase del vuelo" ni "coordinación de crew". Lo que se adapta es
+   el CONTEXTO de la pregunta; la ESCALA y sus anclajes NO se tocan nunca — cambiarlos invalidaría
+   el instrumento y los puntajes dejarían de significar lo mismo.
+
+   ⚠️⚠️ LA CANTIDAD DE ÍTEMS PUNTUADOS ES LA MISMA EN TODOS LOS SECTORES, y no es una convención
+   estética: `scorePerelli()` SUMA sobre los ítems de la grilla de funciones ((v-1)*0.5 cada uno).
+   Con 5 ítems el máximo de ese término es 10; con 4 sería 8. Los cortes de RANGES_PERELLI son
+   fijos, así que un operario de planta igual de fatigado que un piloto daría MENOS puntaje y se
+   vería más sano de lo que está. Por eso los nombres de las funciones cambian por sector, pero
+   son SIEMPRE CINCO. Hay una verificación abajo que lo hace saltar si alguien lo rompe.
+
+   Los textos viven en el diccionario (bloques por sector), así que resuelven por idioma × sector
+   con el mismo motor de A1. Lo que VIAJA al CH sale de `tCanon()`: la resolución en ESPAÑOL de la
+   misma clave, sea cual sea el idioma en pantalla — así la hoja de cada empresa tiene un solo
+   vocabulario y nunca queda mezclada en dos idiomas. */
+const PERELLI_FUNC_N = 5;      // ⚠️ no cambiar sin revisar scorePerelli() y RANGES_PERELLI
+const PERELLI_FACTORES_N = 8;
+const PERELLI_FASE_N = 5;
+
+// Lista de opciones para pantalla (traducida) y su gemela canónica en español (la que se guarda).
+function optsVis(prefijo, n){ return Array.from({length:n}, (_, i) => t(prefijo + i)); }
+function optsCanon(prefijo, n){ return Array.from({length:n}, (_, i) => tCanon(prefijo + i)); }
+
+function construirPerelliSteps(){
+  const funcs = optsVis('pf_func_', PERELLI_FUNC_N);
+  // Guardarraíl: si un sector define menos/más funciones, el puntaje deja de ser comparable.
+  if (funcs.length !== PERELLI_FUNC_N) console.error('Perelli: la grilla debe tener', PERELLI_FUNC_N, 'funciones');
+  return [
   {
-    type:'single', question:'¿En qué fase del vuelo te encuentras actualmente?',
-    options:['Pre-vuelo','Durante el vuelo (primera mitad)','Durante el vuelo (segunda mitad)','Post-vuelo inmediato','Post-vuelo (+2 horas)']
+    type:'single', question:t('pf_q_fase'),
+    options:optsVis('pf_fase_', PERELLI_FASE_N), canon:optsCanon('pf_fase_', PERELLI_FASE_N)
   },
   {
-    type:'single', question:'¿Cómo calificarías tu estado general de fatiga actual?',
-    options:['1 = Completamente alerta, despierto/a','2 = Muy fresco/a, buen nivel de energía','3 = Bien, normal','4 = Un poco fatigado/a, rendimiento levemente afectado','5 = Moderadamente fatigado/a, esfuerzo para mantener la concentración','6 = Extremadamente fatigado/a, funcionamiento comprometido','7 = Completamente exhausto/a, capacidad operacional severamente afectada'],
+    // ⚠️ ESCALA DEL INSTRUMENTO: igual en todos los sectores. Sólo se traduce por idioma.
+    type:'single', question:t('pf_q_nivel'),
+    options:optsVis('pf_nivel_', 7), canon:optsCanon('pf_nivel_', 7),
     colors:['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)']
   },
   {
-    type:'multi', question:'¿Qué síntomas de fatiga experimentas actualmente? Elige uno o varios.',
-    options:['Dificultad para concentrarte','Pesadez en los párpados','Bostezos frecuentes','Irritabilidad o cambios de humor','Dolores musculares','Visión borrosa o dificultad para enfocar','Lentitud en las reacciones','Ninguno de los anteriores'],
+    type:'multi', question:t('pf_q_sintomas'),
+    options:optsVis('pf_sint_', 8), canon:optsCanon('pf_sint_', 8),
     noneIdx:7
   },
   {
-    type:'rating-grid', question:'¿Cómo afecta tu fatiga actual a cada una de estas funciones?',
-    items:['Toma de decisiones','Comunicación','Monitoreo de instrumentos','Coordinación de crew','Manejo de emergencias'],
+    type:'rating-grid', question:t('pf_q_func'),
+    items:funcs, itemsCanon:optsCanon('pf_func_', PERELLI_FUNC_N),
     scale:5
   },
   {
-    type:'single', question:'¿Cómo fue la calidad de tu sueño en las últimas 24 h?',
-    options:['Excelente','Bueno','Regular','Malo','Muy malo'],
+    // ⚠️ ESCALA: `scorePerelli` busca esta respuesta en una lista fija en español (ver allá).
+    type:'single', question:t('pf_q_suenio'),
+    options:optsVis('pf_suenio_', 5), canon:optsCanon('pf_suenio_', 5),
     colors:['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)']
   },
   {
-    type:'multi', question:'¿Qué factores han contribuido más a tu fatiga actual? Elige uno o varios.',
-    options:['Horario de trabajo irregular','Vuelos nocturnos','Cambios de huso horario','Alta carga de trabajo','Estrés operacional','Factores personales o familiares','Condiciones ambientales (ruido, turbulencia)','Otros'],
+    type:'multi', question:t('pf_q_factores'),
+    options:optsVis('pf_fact_', PERELLI_FACTORES_N), canon:optsCanon('pf_fact_', PERELLI_FACTORES_N),
     otrosIdx:7
   },
   {
-    type:'single', question:'¿Cómo calificarías tu capacidad actual para realizar tareas críticas de vuelo?',
-    options:['1 = Capacidad óptima','2 = Capacidad levemente reducida','3 = Capacidad moderadamente reducida','4 = Capacidad severamente reducida','5 = Incapacidad operacional'],
+    // ⚠️ ESCALA: la pregunta cambia por sector ("tareas críticas de vuelo" → "tareas críticas"),
+    // los cinco anclajes no.
+    type:'single', question:t('pf_q_capacidad'),
+    options:optsVis('pf_cap_', 5), canon:optsCanon('pf_cap_', 5),
     colors:['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)']
   },
   {
-    type:'text-input', question:'¿Tienes algún comentario adicional sobre tu estado actual?',
-    placeholder:'Opcional · máx. 200 caracteres', maxlength:200
+    type:'text-input', question:t('pf_q_coment'),
+    placeholder:t('pf_ph_coment'), maxlength:200
   }
 ];
+}
+let PERELLI_STEPS = construirPerelliSteps();
 
 function renderPerelliStep(){
   const { stepIdx } = perelliState;
@@ -5658,7 +6157,9 @@ function renderPerelliSingle(step){
   }).join('');
 }
 function perelliPickSingle(i){
-  perelliAdvance(PERELLI_STEPS[perelliState.stepIdx].options[i]);
+  // Se guarda el CANÓNICO en español, no la etiqueta traducida: es lo que viaja al CH.
+  const _ps = PERELLI_STEPS[perelliState.stepIdx];
+  perelliAdvance((_ps.canon && _ps.canon[i] != null) ? _ps.canon[i] : _ps.options[i]);
 }
 function renderPerelliMulti(step){
   const noneIdx = step.noneIdx !== undefined ? step.noneIdx : -1;
@@ -5697,7 +6198,7 @@ function perelliAdvanceMulti(){
       const txt = (document.getElementById('otrosTxt')?.value || '').trim();
       return txt ? `Otros: ${txt}` : 'Otros';
     }
-    return step.options[i];
+    return (step.canon && step.canon[i] != null) ? step.canon[i] : step.options[i];
   });
   perelliAdvance(selected.join(', '));
 }
@@ -5724,11 +6225,15 @@ function perelliRate(itemIdx, val){
   if (nb) nb.disabled = !step.items.every((_, i) => perelliState.currentGridRatings[i] !== undefined);
 }
 function perelliAdvanceGrid(){
+  /* ⚠️ Estas etiquetas son la ESCALA de la grilla y van SIEMPRE en español: `scorePerelli()` no
+     las lee (parsea el número), pero el servicio médico sí lee esta cadena en la hoja, y tiene
+     que estar en un solo idioma para poder compararla entre personas. */
   const GRID_LABELS = ['No la afecta','Leve','Moderado','Alto','Severo'];
   const step = PERELLI_STEPS[perelliState.stepIdx];
+  const nombres = step.itemsCanon || step.items;
   const summary = step.items.map((item, i) => {
     const v = perelliState.currentGridRatings[i];
-    return `${item}: ${v} = ${GRID_LABELS[v-1]}`;
+    return `${nombres[i] || item}: ${v} = ${GRID_LABELS[v-1]}`;
   }).join(', ');
   perelliAdvance(summary);
 }
@@ -5763,7 +6268,7 @@ function finalizarPerelli(){
       calidad_suenio: calidadSuenio, factores, capacidad, comentarios: comentarios||''
     }));
   }
-  const details = `*Fase del vuelo:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}${comentarios ? '\n\n*Comentarios:* ' + comentarios : ''}`;
+  const details = `*${tCanon('pf_lbl_fase')}:* ${fase}\n\n*Nivel de fatiga (1–7):* ${nivelFatiga}\n\n*Síntomas actuales:* ${sintomas}\n\n*Impacto en funciones (1–5):* ${funciones}\n\n*Calidad del sueño (24 h):* ${calidadSuenio}\n\n*Factores contribuyentes:* ${factores}\n\n*Capacidad operacional (1–5):* ${capacidad}${comentarios ? '\n\n*Comentarios:* ' + comentarios : ''}`;
   const base = perelliState.item.baseNotification;
   const msg = base
     ? `${base} Se adjunta el *Test de Fatiga (Perelli SP)* completado desde el portal web.\n\n${details}`
@@ -5789,40 +6294,36 @@ function finalizarPerelli(){
 }
 
 // ── Somnolencia · Escala KSS ─────────────────────────────────────────────────
-const KSS_STEPS = [
+function construirKssSteps(){ return [
   {
-    type:'single', question:'¿En qué fase del vuelo te encuentras actualmente?',
-    options:['Pre-vuelo','Durante el vuelo','Post-vuelo','En descanso','En standby']
+    type:'single', question:t('kss_q_fase'),
+    options:optsVis('kss_fase_', 5), canon:optsCanon('kss_fase_', 5)
   },
   {
-    type:'single', question:'¿Cómo describirías tu nivel de alerta en este momento?',
-    options:[
-      '1 = Extremadamente alerta',
-      '2 = Muy alerta',
-      '3 = Alerta',
-      '4 = Bastante alerta',
-      '5 = Ni alerta ni somnoliento',
-      '6 = Algunos signos de somnolencia',
-      '7 = Somnoliento, sin esfuerzo para permanecer despierto',
-      '8 = Somnoliento, con esfuerzo para permanecer despierto',
-      '9 = Muy somnoliento, gran esfuerzo, luchando contra el sueño'
-    ],
+    /* ⚠️ ESCALA KSS DE KAROLINSKA. Los nueve anclajes son el instrumento: NO cambian por sector,
+       ni se reordenan, ni se recortan. Sólo se traducen por idioma (redacción oficial en inglés). */
+    type:'single', question:t('kss_q_alerta'),
+    options:optsVis('kss_alerta_', 9), canon:optsCanon('kss_alerta_', 9),
     colors:['var(--sem-verde)','#4cbb5e','#8cc830','#c0d416','#e8c400','#f0930f','#f2640f','#d92b2b','#b30000']
   },
   {
-    type:'single', question:'¿Cuántas horas dormiste en las últimas 24 h?',
-    options:['Menos de 4 horas','Entre 4 y 6 horas','Entre 6 y 8 horas','Más de 8 horas'],
+    type:'single', question:t('kss_q_horas'),
+    options:optsVis('kss_horas_', 4), canon:optsCanon('kss_horas_', 4),
     colors:['var(--sem-rojo)','#f0930f','#5fb84a','var(--sem-verde)']
   },
   {
-    type:'single', question:'¿Cuál es el tipo de operación actual?',
-    options:['Vuelo corto (1–3 h)','Vuelo medio (3–6 h)','Vuelo largo sin pernocta','Vuelo largo con pernocta','En tierra o administrativo']
+    // Tipo de operación: es CONTEXTO puro (no se puntúa), y es lo más distinto entre sectores —
+    // un vuelo largo con pernocta no significa nada en una planta.
+    type:'single', question:t('kss_q_operacion'),
+    options:optsVis('kss_oper_', 5), canon:optsCanon('kss_oper_', 5)
   },
   {
-    type:'optional-text', question:'¿Quieres agregar algún comentario adicional? (opcional)',
-    placeholder:'Escribe aquí tu comentario...', maxlength:200
+    type:'optional-text', question:t('kss_q_coment'),
+    placeholder:t('kss_ph_coment'), maxlength:200
   }
 ];
+}
+let KSS_STEPS = construirKssSteps();
 
 const ESTRES_SINTOMAS = [
   'Imposibilidad de conciliar el sueño',
@@ -5916,7 +6417,9 @@ function renderKssSingle(step){
   }).join('');
 }
 function kssPickSingle(i){
-  kssAdvance(KSS_STEPS[kssState.stepIdx].options[i]);
+  // Idem KSS: al CH va el español canónico del sector, no lo que se ve en pantalla.
+  const _ks = KSS_STEPS[kssState.stepIdx];
+  kssAdvance((_ks.canon && _ks.canon[i] != null) ? _ks.canon[i] : _ks.options[i]);
 }
 function renderKssComment(step){
   document.getElementById('testOptions').innerHTML =
@@ -5962,7 +6465,7 @@ function finalizarKss(){
   }
 
   // Mensaje WhatsApp (texto completo, sin cambios)
-  let details = `*Fase del vuelo:* ${fase}\n\n*Nivel de alerta (KSS 1–9):* ${nivelAlerta}\n\n*Horas de sueño (24 h):* ${horasSuenio}\n\n*Tipo de operación:* ${tipoOp}`;
+  let details = `*${tCanon('kss_lbl_fase')}:* ${fase}\n\n*Nivel de alerta (KSS 1–9):* ${nivelAlerta}\n\n*Horas de sueño (24 h):* ${horasSuenio}\n\n*Tipo de operación:* ${tipoOp}`;
   if (comentario) details += `\n\n*Comentario:* ${comentario}`;
   const base = kssState.item.baseNotification;
   const msg = base
@@ -6240,11 +6743,14 @@ function refreshStates(){
 // Rango que se muestra en la insignia naranja del header
 function rangoDe(p){
   const c = dashGetCreds();
-  if (c && String(c.usuario || '').trim() === '*') return 'Administrador';
-  if (p && p.esServicioMedico) return 'Servicio médico';
-  if (p && p.esSupervisor) return 'Supervisor';
-  if (p && p.esPiloto) return 'Piloto';
-  return 'Personal';
+  if (c && String(c.usuario || '').trim() === '*') return t('rango_admin');
+  if (p && p.esServicioMedico) return t('rol_medico');
+  if (p && p.esSupervisor) return t('rol_supervisor');
+  /* C2: `esPiloto` es el nombre del CAMPO GUARDADO y no se toca (está en el perfil de todos los
+     dispositivos y en la hoja `Registrados Fatiga`, columna "¿Piloto?"). Lo que cambia es cómo se
+     LLAMA ese rol en pantalla: "Piloto" en una aérea, "Personal operativo" en una planta. */
+  if (p && p.esPiloto) return t('rango_operativo');
+  return t('rango_personal');
 }
 function paintProfile(){
   const p = getProfile();
@@ -6771,7 +7277,10 @@ function openSetup(isEdit){
   document.getElementById('inEsPiloto').checked = ep;
   document.getElementById('pilotBanner').classList.toggle('active', ep);
   document.getElementById('pilotCheckIcon').textContent = ep ? '✓' : '';
-  document.getElementById('fPiloto').style.display = ep ? '' : 'none';          // ID de piloto solo si es personal de aviación
+  /* El campo se llama `id_piloto` en el perfil y en la hoja para SIEMPRE (C2): renombrarlo
+     dejaría sin identificador a todos los que ya se registraron. La etiqueta visible sí cambia
+     por sector (clave `f_idpiloto`): "Identificador de Piloto" / "Identificador de operario". */
+  document.getElementById('fPiloto').style.display = ep ? '' : 'none';
   document.getElementById('inEsSupervisor').checked = es;
   document.getElementById('supBanner').classList.toggle('active', es);
   document.getElementById('supCheckIcon').textContent = es ? '✓' : '';
@@ -7505,7 +8014,7 @@ function admRenderDoc(){
     'conviene empezar a actuar. En un puesto de riesgo máximo se actúa antes, porque el margen de error es menor.</p>' +
     docTabla(['Nivel del puesto','Ejemplos','Amarillo desde','Rojo desde'],
       [1,2,3,4,5].map(n => ['<b class="doc-niv doc-niv-' + n + '">' + n + ' · ' + esc(NIVEL_RIESGO[n].t) + '</b>',
-        esc(NIVEL_RIESGO[n].d), Math.round(NIVEL_RIESGO[n].amarillo*100) + '% del límite', Math.round(NIVEL_RIESGO[n].rojo*100) + '% del límite'])) +
+        esc(nivelDesc(n)), Math.round(NIVEL_RIESGO[n].amarillo*100) + '% del límite', Math.round(NIVEL_RIESGO[n].rojo*100) + '% del límite'])) +
     '<p class="doc-ej"><b>Ejemplo concreto.</b> Una misma persona con el mismo resultado de test: en un puesto ' +
     'administrativo (nivel 1) queda en verde, y en un piloto de helicóptero para operaciones off-shore (nivel 5) ' +
     'el mismo resultado ya requiere acción. El dato clínico es idéntico; lo que cambia es lo que está en juego.</p>');
@@ -8662,6 +9171,21 @@ const NIVEL_RIESGO = {
   5: { t:'Máximo', d:'Helicóptero off-shore, MEDEVAC, combustible, perforación', amarillo:0.70, rojo:0.85, lapOk:0, lapMed:1, maxRestrH:24, frecDias:7 }
 };
 const NIVEL_DEFAULT = 3;
+/* Los EJEMPLOS DE PUESTO de cada nivel cambian por sector (C2): "Piloto ala fija, mecánico de
+   hangar" no le dice nada a una petrolera. Lo que NO cambia por sector son los umbrales
+   (amarillo/rojo/lapsos/frecuencia) ni el nombre del nivel: ésa es la escala de tolerancia
+   operativa, y moverla por industria haría que "nivel 4" significara cosas distintas en dos
+   empresas — justo lo que hace que un número deje de servir para comparar.
+   ⚠️ Y ojo con la otra confusión, la de siempre: la REFERENCIA CLÍNICA no se toca nunca por
+   nivel de riesgo. Lo que el nivel mueve es a qué distancia del límite se acciona. */
+function nivelDesc(n){
+  const k = 'niv_d_' + n;
+  const s = t(k);
+  return (s === k) ? ((NIVEL_RIESGO[n] || NIVEL_RIESGO[NIVEL_DEFAULT]).d) : s;
+}
+/* nivelInfo() sigue devolviendo EL MISMO objeto de la tabla, a propósito: devolver una copia por
+   llamada haría que cualquier código que guarde la referencia o la compare dejara de funcionar sin
+   avisar. Para la descripción por sector se usa nivelDesc(n) donde haga falta. */
 function nivelInfo(n){ return NIVEL_RIESGO[n] || NIVEL_RIESGO[NIVEL_DEFAULT]; }
 function nivelValido(n){ n = parseInt(n, 10); return (n >= 1 && n <= 5) ? n : null; }
 
@@ -9097,7 +9621,7 @@ function aptTarjeta(p, opts){
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
         '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) +
           (p.nivel ? '<span class="apt-nivel apt-nivel-' + p.nivel + '" title="Nivel de riesgo del puesto: ' +
-            esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelInfo(p.nivel).d) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
+            esc(nivelInfo(p.nivel).t) + ' — ' + esc(nivelDesc(p.nivel)) + '">Riesgo ' + esc(nivelInfo(p.nivel).t) + '</span>' : '') +
         '</div></div>' +
       '<span class="apt-badge" style="background:' + semSolido(est.c) + ';color:#fff">' + est.t + '</span>' +
     '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +
