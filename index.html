@@ -54,6 +54,10 @@
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* G4: un solo anillo de foco, consistente en toda la app. `:focus-visible` (no `:focus` a
+     secas) hace que sólo aparezca navegando con teclado — un tap en celular no dispara esto en
+     los navegadores que lo soportan, así que no hay un anillo naranja saltando en cada toque. */
+  :focus-visible { outline: 2.5px solid var(--orange-txt); outline-offset: 2px; border-radius: 4px; }
 
   :root {
     --navy:        #0e2a56;
@@ -483,16 +487,29 @@
     background: rgba(244,122,31,0.12); border: 1px solid rgba(244,122,31,0.3); padding: 0.18rem 0.6rem; border-radius: 999px; }
 
   /* ── Setup overlay ── */
+  /* G4: `animation: fadeIn` sólo animaba la ENTRADA (display:none → flex). El cierre
+     (`classList.remove('show')`, ~40 sitios en todo el archivo) saltaba de golpe porque una
+     `animation` por keyframes no vuelve a jugar al revés cuando se quita la clase. Con
+     `transition` + `allow-discrete` + `@starting-style`, el mismo cambio de `display` anima en
+     los dos sentidos sin tocar ninguno de esos 40 sitios. */
   .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86); backdrop-filter: blur(6px);
-    display: none; align-items: center; justify-content: center; padding: 1.2rem; animation: fadeIn .25s ease; }
-  .overlay.show { display: flex; }
+    display: none; align-items: center; justify-content: center; padding: 1.2rem;
+    opacity: 0; transition: opacity .22s ease, display .22s ease allow-discrete; }
+  .overlay.show { display: flex; opacity: 1; }
+  @starting-style { .overlay.show { opacity: 0; } }
   body.modal-open { overflow: hidden; }   /* evita scrollear el fondo con un overlay abierto */
   /* El scroller real de la página es <html>: si no lo bloqueamos, queda una 2da barra de scroll
      detrás del panel (la del inicio). Con CUALQUIER overlay abierto, ni <html> ni <body> scrollean. */
   html:has(.overlay.show) { overflow: hidden; }
   html:has(.overlay.show) body { overflow: hidden; }
   .sheet { width: 100%; max-width: 410px; background: var(--card); border-radius: 24px; padding: 1.6rem 1.4rem 1.5rem;
-    color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp .3s ease; max-height: 90vh; overflow-y: auto; }
+    color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,0.4); max-height: 90vh; overflow-y: auto;
+    opacity: 0; transform: translateY(20px); transition: opacity .28s ease, transform .28s cubic-bezier(.22,.61,.36,1); }
+  /* La hoja nunca cambia de `display` (sólo el `.overlay` que la contiene), así que su propia
+     transición corre sin necesitar allow-discrete: entra deslizando hacia arriba y, al cerrarse,
+     el mismo camino a la inversa mientras el overlay todavía está pintado. */
+  .overlay.show .sheet { opacity: 1; transform: translateY(0); }
+  @starting-style { .overlay.show .sheet { opacity: 0; transform: translateY(20px); } }
   .consent-sub { font-size: 0.98rem; font-weight: 700; color: var(--text); margin-top: 1.2rem; }
   .consent-text { font-size: 0.81rem; color: var(--text-soft); line-height: 1.55; margin-top: 0.55rem; }
   .consent-text strong { color: var(--text); }
@@ -525,7 +542,7 @@
   .field label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-soft); margin-bottom: 0.35rem; }
   .field input, .field select { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid var(--sup-borde); border-radius: 12px;
     font-size: 0.95rem; font-family: inherit; color: var(--text); background: var(--sup-campo); transition: border-color .15s; }
-  .field input:focus, .field select:focus { outline: none; border-color: var(--orange); background: var(--card); }
+  .field input:focus, .field select:focus { border-color: var(--orange); background: var(--card); }
   .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.9rem center; padding-right: 2.2rem; }
   .field .err { color: var(--sem-rojo-alt); font-size: 0.72rem; margin-top: 0.3rem; display: none; }
   .field.invalid input, .field.invalid select { border-color: var(--sem-rojo-alt); }
@@ -640,12 +657,12 @@
   .otros-input-wrap { margin-top: 0.4rem; }
   .otros-input { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
     font-family: inherit; font-size: 0.86rem; color: var(--text); background: var(--sup-campo); }
-  .otros-input:focus { outline: none; border-color: var(--orange); }
+  .otros-input:focus { border-color: var(--orange); }
   /* Comentario opcional (KSS) */
   .kss-comment { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid var(--sup-borde); border-radius: 13px;
     font-family: inherit; font-size: 0.86rem; color: var(--text); background: var(--sup-campo);
     resize: none; line-height: 1.5; margin-bottom: 0.6rem; }
-  .kss-comment:focus { outline: none; border-color: var(--orange); }
+  .kss-comment:focus { border-color: var(--orange); }
 
   /* ── iOS / Android modal ── */
   .ios-modal { position: fixed; inset: 0; z-index: 1001; background: rgba(0,0,0,0.6); display: none;
@@ -854,7 +871,8 @@
     .test-next-btn, .save-btn, .cancel-btn, .hh-edit { display: none !important; }
     /* El panel deja de ser una ventana con scroll propio y pasa a ser un documento continuo */
     .overlay, .overlay.show { position: static !important; display: block !important;
-      background: #fff !important; }
+      background: #fff !important; opacity: 1 !important; transform: none !important; }
+    .sheet { opacity: 1 !important; transform: none !important; }
     .sheet, .gest-sheet, .dash-scroll, #portalDash, #dashScroll {
       max-height: none !important; height: auto !important; overflow: visible !important;
       box-shadow: none !important; border: none !important; }
@@ -938,7 +956,7 @@
   /* Tabla estadística */
   .stat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .stat-table { border-collapse: collapse; width: 100%; min-width: 360px; }
-  .stat-table th, .stat-table td { padding: .55rem .6rem; font-size: .84rem; text-align: right; border-bottom: 1px solid var(--linea-2); }
+  .stat-table th, .stat-table td { padding: .55rem .6rem; font-size: .84rem; text-align: right; border-bottom: 1px solid var(--linea-2); font-variant-numeric: tabular-nums; }
   .stat-table th { color: var(--text-muted); font-weight: 700; font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
   .stat-table td.metric, .stat-table th.metric { text-align: left; font-weight: 700; color: var(--text); }
   .stat-table td.over { color: var(--sem-rojo-alt); font-weight: 800; }
@@ -1008,10 +1026,10 @@
     border: none; background: var(--orange-txt); color: #fff;
     font-family: inherit; font-size: .84rem; font-weight: 800; cursor: pointer; }
   .rank-item { display: grid; grid-template-columns: 24px 1fr auto 16px; gap: .55rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
-  .rank-pos { font-size: .82rem; font-weight: 800; color: var(--text-muted); text-align: center; }
+  .rank-pos { font-size: .82rem; font-weight: 800; color: var(--text-muted); text-align: center; font-variant-numeric: tabular-nums; }
   .rank-name { font-size: .9rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rank-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
-  .rank-val { font-size: .94rem; font-weight: 800; text-align: right; }
+  .rank-val { font-size: .94rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
   .rank-val.over { color: var(--sem-rojo-alt); }
   .rank-go { color: var(--orange); font-weight: 900; font-size: 1.15rem; line-height: 1; text-align: center; }   /* flecha: "lleva a otra vista" */
   .rank-val.ok { color: var(--green); }
@@ -1104,12 +1122,12 @@
      mismo naranja, más oscuro, ya usado en toda la app exactamente para blanco encima. */
   .pvt-circle { width: 160px; height: 160px; border-radius: 50%; background: var(--orange-txt); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800; box-shadow: 0 0 45px rgba(244,122,31,.65); }
   .pvt-hint { font-size: .78rem; color: var(--text-muted); margin: .75rem 0 .4rem; }
-  .pvt-result-big { font-size: 2.6rem; font-weight: 800; color: var(--text); line-height: 1; margin-top: .4rem; }
+  .pvt-result-big { font-size: 2.6rem; font-weight: 800; color: var(--text); line-height: 1; margin-top: .4rem; font-variant-numeric: tabular-nums; }
   .pvt-result-lbl { font-size: .78rem; color: var(--text-muted); margin-bottom: .3rem; }
   .pvt-verdict { font-size: .92rem; font-weight: 700; margin: .5rem 0 1rem; }
   .pvt-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin: 1rem 0 .4rem; }
   .pvt-stat { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .55rem .4rem; }
-  .pvt-stat .v { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+  .pvt-stat .v { font-size: 1.1rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
   .pvt-stat .k { font-size: .62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .02em; margin-top: .1rem; }
 
   /* Informe IA */
@@ -1150,7 +1168,7 @@
   .inf-obj-t span { font-weight: 600; color: var(--text-muted); font-size: .76rem; }
   .inf-obj-txt { width: 100%; min-height: 62px; padding: .6rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px;
     font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); resize: vertical; line-height: 1.45; }
-  .inf-obj-txt:focus { outline: none; border-color: var(--orange); }
+  .inf-obj-txt:focus { border-color: var(--orange); }
   .inf-obj-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
   .inf-obj-row label { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
   .inf-obj-row label span { font-weight: 500; color: var(--text-muted); }
@@ -1207,7 +1225,7 @@
   .dash-collapse > .dc-sum::-webkit-details-marker { display: none; }
   .dash-collapse > .dc-sum:hover { background: var(--chip-bg); }
   .dash-collapse .dc-t { flex: 1; min-width: 0; }
-  .dash-collapse .dc-count { background: var(--chip-bg-h); color: var(--text-soft); font-size: .78rem; font-weight: 800;
+  .dash-collapse .dc-count { background: var(--chip-bg-h); color: var(--text-soft); font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums;
     border-radius: 999px; padding: .1rem .5rem; min-width: 1.4rem; text-align: center; }
   .dash-collapse .dc-caret { color: var(--text-muted); font-size: .8rem; transition: transform .2s; }
   .dash-collapse[open] > .dc-sum .dc-caret { transform: rotate(180deg); }
@@ -1834,7 +1852,7 @@
     padding:.65rem .1rem; font-size:1rem; font-family:inherit; color:var(--text);
     transition:border-color var(--dur-tap) ease; }
   .ent-field::placeholder { color:var(--text-muted); }
-  .ent-field:focus { outline:none; border-bottom-color:var(--entrada-naranja-ink); }
+  .ent-field:focus { border-bottom-color:var(--entrada-naranja-ink); }
   .ent-field--oscuro { border:1px solid rgba(255,255,255,.16); border-bottom:1px solid rgba(255,255,255,.16);
     border-radius:var(--radius-sm); background:rgba(255,255,255,.08); color:#fff; padding:.75rem .9rem; }
   .ent-field--oscuro::placeholder { color:rgba(255,255,255,.58); }
@@ -1930,7 +1948,7 @@
 
   /* ── Tareas (D1) ── */
   .hh-tareas { position:relative; }
-  .hh-badge { position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; padding:0 4px;
+  .hh-badge { position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; padding:0 4px; font-variant-numeric: tabular-nums;
     border-radius:999px; background:var(--sem-rojo); color:#fff; font-size:.66rem; font-weight:900;
     line-height:18px; text-align:center; }
   .tar-item { border:1.5px solid var(--sup-borde); border-radius:12px; padding:.7rem .8rem;
@@ -1979,7 +1997,7 @@
   .gest-quick { display: flex; gap: .4rem; margin-bottom: .55rem; }
   .gest-quick-in { flex: 1; min-width: 0; padding: .6rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
     font-family: inherit; font-size: .9rem; background: var(--card); color: var(--text); }
-  .gest-quick-in:focus { outline: none; border-color: var(--orange); }
+  .gest-quick-in:focus { border-color: var(--orange); }
   .gest-quick-btn { flex-shrink: 0; width: 40px; border: none; border-radius: 11px; cursor: pointer;
     background: var(--orange-txt); color: #fff; font-size: 1.25rem; font-weight: 800; line-height: 1; }
   .gest-sync { font-size: .72rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
@@ -1991,7 +2009,7 @@
   /* Resumen compacto: una tira de chips, no 5 tarjetas grandes */
   .gest-sum { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
   .gest-sum:empty { margin-bottom: 0; }
-  .gs-chip { font-size: .72rem; font-weight: 800; padding: .22rem .55rem; border-radius: 999px;
+  .gs-chip { font-size: .72rem; font-weight: 800; padding: .22rem .55rem; border-radius: 999px; font-variant-numeric: tabular-nums;
     background: var(--linea); color: var(--text-soft); }
   .gs-ab { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); } .gs-seg { background: var(--sem-ambar-bg); color: var(--sem-ambar); }
   .gs-res { background: var(--sem-verde-bg); color: var(--sem-verde); } .gs-venc { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); }
@@ -1999,7 +2017,7 @@
   .gest-tools { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .6rem; }
   .gest-search { width: 100%; padding: .55rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
     font-family: inherit; font-size: .88rem; background: var(--card); color: var(--text); }
-  .gest-search:focus { outline: none; border-color: var(--orange); }
+  .gest-search:focus { border-color: var(--orange); }
   .gest-filters { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: .2rem; }
   .gest-filters::-webkit-scrollbar { display: none; }
   .gest-fchip { border: 1px solid var(--sup-borde); background: var(--card); color: var(--text-muted); border-radius: 999px;
@@ -2029,7 +2047,7 @@
   .gest-fl { display: block; font-size: .68rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid var(--sup-borde); border-radius: 9px;
     font-family: inherit; font-size: .88rem; background: var(--sup-campo); color: var(--text); }
-  .gest-in:focus { outline: none; border-color: var(--orange); background: var(--card); }
+  .gest-in:focus { border-color: var(--orange); background: var(--card); }
   select.gest-in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem; }
   .gest-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
   .gest-fl-hint { font-weight: 700; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
@@ -2041,7 +2059,7 @@
   .gest-ptag button:hover { background: rgba(45,91,184,.28); }
 
   /* Checklist de tareas (se tildan a medida que se hacen) */
-  .gest-tcount { font-weight: 800; color: var(--text-muted); font-size: .72rem; }
+  .gest-tcount { font-weight: 800; color: var(--text-muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
   .gest-tareas { display: flex; flex-direction: column; gap: .1rem; margin-bottom: .35rem; }
   .gest-tarea { display: flex; align-items: center; gap: .5rem; padding: .3rem .1rem; cursor: pointer; font-size: .88rem; color: var(--text); }
   .gest-tarea input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--orange); cursor: pointer; }
@@ -2103,7 +2121,7 @@
   html.texto-grande .gest-prio-pills { flex-direction: column; }
   .gest-ta { width: 100%; min-height: 84px; resize: vertical; padding: .65rem .75rem; border: 1.5px solid var(--sup-borde);
     border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: var(--sup-campo); color: var(--text); }
-  .gest-ta:focus { outline: none; border-color: var(--orange); background: var(--card); }
+  .gest-ta:focus { border-color: var(--orange); background: var(--card); }
 
   .gest-seg-head { font-size: .74rem; font-weight: 800; color: var(--text); margin: .8rem 0 .35rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-seg-add { display: flex; gap: .4rem; }
@@ -2167,7 +2185,7 @@
   .apt-buscar { width: 100%; min-height: 44px; padding: .55rem 2.2rem .55rem 2.3rem;
     border: 1.5px solid var(--sup-borde); border-radius: 999px; background: var(--sup-campo);
     color: var(--text); font-size: .88rem; font-family: inherit; }
-  .apt-buscar:focus { outline: none; border-color: var(--sem-azul); background: var(--card); }
+  .apt-buscar:focus { border-color: var(--sem-azul); background: var(--card); }
   .apt-buscar::-webkit-search-cancel-button { display: none; }   /* usamos nuestra propia ✕ */
   .apt-buscar-x { position: absolute; right: .5rem; width: 28px; height: 28px; border: none;
     border-radius: 50%; background: var(--sup-linea); color: var(--text-soft);
@@ -2237,7 +2255,7 @@
   .restr-sheet { max-width: 560px; }
   .restr-quien { font-size:1.05rem; font-weight:800; color:var(--text); }
   .restr-sub { font-size:.78rem; font-weight:600; color:var(--text-muted); margin-top:.1rem; }
-  .restr-tope { display:inline-block; margin-left:.3rem; padding:.05rem .4rem; border-radius:999px;
+  .restr-tope { display:inline-block; margin-left:.3rem; padding:.05rem .4rem; border-radius:999px; font-variant-numeric: tabular-nums;
     background:var(--sem-gris-bg); font-size:.7rem; font-weight:700; }
   .restr-aviso { margin:.7rem 0; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
@@ -2343,7 +2361,7 @@
   .doc-c p { margin:.5rem 0; }
   .doc-c b { color:var(--text); }
   .doc-tw { overflow-x:auto; margin:.6rem 0; -webkit-overflow-scrolling:touch; }
-  .doc-t { width:100%; border-collapse:collapse; font-size:.78rem; min-width:340px; }
+  .doc-t { width:100%; border-collapse:collapse; font-size:.78rem; min-width:340px; font-variant-numeric: tabular-nums; }
   .doc-t th { text-align:left; padding:.4rem .5rem; background:var(--sup-suave); color:var(--text);
     font-weight:800; border-bottom:1.5px solid var(--sup-borde); white-space:nowrap; }
   .doc-t td { padding:.4rem .5rem; border-bottom:1px solid var(--sup-linea); vertical-align:top; }
@@ -2369,7 +2387,7 @@
   .hs-duo-flojo .hs-pct-big { color:var(--text-muted); }        /* poca cobertura: no es dato confiable */
   .hs-duo-alerta { background:var(--sem-ambar-bg); }
   .hs-duo-alerta .hs-pct-big { color:var(--sem-ambar); }
-  .hs-pct-big { font-size:2.4rem; font-weight:800; color:var(--text); line-height:1.05; }
+  .hs-pct-big { font-size:2.4rem; font-weight:800; color:var(--text); line-height:1.05; font-variant-numeric: tabular-nums; }
   .hs-cap { font-size:.8rem; color:var(--text-soft); font-weight:600; margin-top:.15rem; }
   .hs-bar { height:9px; border-radius:999px; background:var(--sup-linea); overflow:hidden; }
   .hs-bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--sem-verde),#3ec98f); }
@@ -2680,7 +2698,7 @@
   /* Campo "quién lo determina" (opcional) */
   .an-medico { width: 100%; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .86rem; color: var(--text); box-sizing: border-box; }
-  .an-medico:focus { outline: none; border-color: var(--orange); }
+  .an-medico:focus { border-color: var(--orange); }
   .an-opt { font-size: .64rem; font-weight: 800; color: var(--text-muted); background: var(--sem-azul-bg);
     padding: .1rem .35rem; border-radius: 999px; margin-left: .3rem; text-transform: none; }
   /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ──
@@ -2734,14 +2752,14 @@
   .an-dur-label { font-size: .74rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
   /* Vigencia: número libre + selector de unidad, en vez de chips fijos */
   .an-dur-row { display: flex; gap: .5rem; }
-  .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
+  .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem; font-variant-numeric: tabular-nums;
     font-family: inherit; font-size: .88rem; color: var(--text); box-sizing: border-box; }
   .an-dur-unidad { flex: 1; min-width: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--text); background: var(--card); box-sizing: border-box; }
-  .an-dur-num:focus, .an-dur-unidad:focus { outline: none; border-color: var(--orange); }
+  .an-dur-num:focus, .an-dur-unidad:focus { border-color: var(--orange); }
   .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .8rem;
     font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
-  .an-nota:focus { outline: none; border-color: var(--orange); }
+  .an-nota:focus { border-color: var(--orange); }
   .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: 9px; padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
   .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
   .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid var(--sup-borde); background: var(--card);
@@ -2988,14 +3006,14 @@
     <button type="button" class="rbtn mas-item" onclick="openSetup(true)">
       <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="cambiar_datos">Cambiar mis datos</span><span class="ds" data-i18n="cambiar_datos_d">Nombre, empresa, email, teléfono…</span></div>
-      <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
     <div class="rbtn mas-item texto-ctrl" id="textoCtrl">
       <button type="button" class="tc-head" onclick="tcToggle()" aria-expanded="false" aria-controls="tcSliderWrap">
         <div class="ic" style="background:var(--sem-azul-bg);color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
         <div class="tx"><span class="tt" data-i18n="tamano_texto">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
-        <div class="st"><svg class="chev" id="tcChev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="st"><svg class="chev" id="tcChev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </button>
       <div class="tc-slider-wrap" id="tcSliderWrap">
         <div class="tc-slider">
@@ -3025,7 +3043,7 @@
       <button type="button" class="rbtn" id="appleHealthBtn" onclick="enDesarrollo()">
         <div class="ic" style="background:var(--orange-bg);color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
         <div class="tx"><span class="tt">Apple Health</span><span class="ds" data-i18n="ah_sinc">Sincronizar desde iPhone</span></div>
-        <div class="st"><svg class="chev" id="appleChev" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="st"><svg class="chev" id="appleChev" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </button>
 
       <div class="ios-card" id="guiaApple" hidden>
@@ -3042,7 +3060,7 @@
       <button type="button" class="rbtn" id="cloudSyncBtn" onclick="enDesarrollo()">
         <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
         <div class="tx"><span class="tt">Oura / Garmin / Fitbit</span><span class="ds" data-i18n="cloud_sinc">Sincronizar dispositivo cloud</span></div>
-        <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+        <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </button>
     </div>
 
@@ -3050,7 +3068,7 @@
     <a class="rbtn" id="webSilvaLink" href="#" target="_blank" rel="noopener">
       <div class="ic" style="background:var(--sem-rojo-bg);color:var(--sem-rojo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="sitio_web">Sitio web</span><span class="ds" data-i18n="sitio_web_d">Ir a la web de Aeroambulancias Silva</span></div>
-      <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div>
+      <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div>
     </a>
 
     <!-- Acceso de administrador: colapsado y al final, con contraseña. No es una sección para el
@@ -3059,7 +3077,7 @@
     <button type="button" class="rbtn mas-item" onclick="admToggle()">
       <div class="ic" style="background:var(--sem-azul-bg);color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="adm_ver">Ver como administrador</span><span class="ds" data-i18n="adm_ver_d">Simular roles y ver cómo funciona la app por dentro</span></div>
-      <div class="st"><svg class="chev" id="admChev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      <div class="st"><svg class="chev" id="admChev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
     <div class="adm-box" id="admBox" hidden>
       <div class="field"><label for="admPass" data-i18n="adm_pass">Contraseña de administrador</label>
@@ -3579,7 +3597,7 @@
           <button type="button" class="dfm-toggle" id="dfmToggle" onclick="dfmToggle()" aria-expanded="false">
             <span class="dfm-toggle-ic" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="1.8" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="7" cy="18" r="1.8" fill="currentColor" stroke="none"/></svg>
-              <svg class="dfm-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg class="dfm-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </span>
             <span class="dfm-toggle-text">
               <span class="dfm-toggle-title" data-i18n="mnu_filtros">Menú y filtros</span>
@@ -3588,7 +3606,7 @@
           </button>
           <button type="button" class="gloss-toggle" id="glossToggle" onclick="glossToggle()" aria-expanded="false" aria-label="Glosario de indicadores" data-i18n-attr="aria-label:gloss_titulo">
             <svg class="gloss-toggle-ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            <svg class="gloss-toggle-ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            <svg class="gloss-toggle-ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
             <span class="gloss-toggle-label" data-i18n="gloss_btn">Glosario</span>
           </button>
         </div>
@@ -3775,7 +3793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.86';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.87';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4103,7 +4121,6 @@ const I18N = {
       ts_no_guardar_disp:'No se pudo guardar en este dispositivo',
       ts_simulacion:'Modo simulación: no se guarda nada',
       ts_reporte_enviado:'Reporte enviado',
-      ts_test_registrado:'Test registrado',
       ts_en_desarrollo:'Función en desarrollo',
       ts_datos_encontrados:'Encontramos tus datos',
       ts_admin_cerrada:'Cerraste la sesión de administrador',
@@ -4114,6 +4131,7 @@ const I18N = {
       ts_no_actualizar:'No se pudo actualizar',
       ts_ya_al_dia:'Ya estaba al día',
       ts_actualizado:'Actualizado',
+      ts_actualizado_n:'Actualizado · {n} registros nuevos',
       ts_sin_conexion:'Sin conexión',
       ts_nada_exportar:'No hay nada para exportar',
       ts_archivo_ok:'Archivo generado',
@@ -4268,6 +4286,7 @@ const I18N = {
       mot_revisar:'Revisar', mot_desact:'test nuevo tras la indicación', mot_sin_revisar:'sin revisar',
       mot_empeoro:'empeoró', mot_ya_revisado:'ya revisado antes',
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
+      dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
       dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
       dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
       dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
@@ -4565,6 +4584,9 @@ const I18N = {
       apt_reaccion:'Reacción',
       trn_checkin_t:'Antes del turno',  trn_checkin_s:'¿Cómo llegas hoy?',
       trn_carga_t:'Durante el turno',   trn_carga_s:'¿Cómo se siente la carga de trabajo ahora?',
+      trn_carga_o1:'Muy liviana', trn_carga_o2:'Liviana', trn_carga_o3:'Normal', trn_carga_o4:'Pesada', trn_carga_o5:'Muy pesada',
+      trn_alerta_s:'Nivel de alerta (1 muy despierto/a — 9 muy somnoliento/a)',
+      trn_elegir:'Elige una opción', trn_registrar:'Registrar',
       trn_checkout_t:'Al terminar',     trn_checkout_s:'¿Cómo te vas?',
       mit_pausa:'Pausa activa de 20 minutos', mit_piso:'Reasignar a tarea de piso',
       mit_turno:'Rotar turno', mit_acomp:'Acompañamiento en tarea crítica',
@@ -4778,6 +4800,19 @@ const I18N = {
       evo_concentran_sus:'En qué valores se concentran sus registros de {m}.',
       evo_concentran_tus:'En qué valores se concentran tus registros de {m}.',
       inf_analisis_de:'Análisis de {q}: tendencias, picos y patrones según los datos y la metodología.',
+      inf_demo_nota:'Estás en la <b>demostración</b>. Abajo tienes un <b>informe de ejemplo</b> ya generado para que veas cómo queda. En una empresa real, aquí generas informes con IA a partir de tus propios datos.',
+      inf_bloqueado_tt:'Ya se generó uno hoy', inf_bloqueado_prox:'Próximo disponible: {f}',
+      inf_generar:'Generar informe',
+      inf_obj_titulo:'Objetivo del análisis', inf_obj_opcional:'opcional',
+      inf_obj_placeholder:'Ej: el 10/07 pasamos a horario rotativo. Quiero ver el efecto en los indicadores.',
+      inf_obj_fecha:'Fecha del cambio', inf_obj_fecha_sub:'compara antes/después',
+      inf_cargando:'Cargando informes previos…',
+      inf_hist_vacio:'Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.',
+      casos_odoo_titulo:'Casos para atención interna',
+      casos_odoo_off_1:'El traspaso automático al circuito de atención interna está <b>desactivado</b> para esta empresa. <b>No es una falla:</b> viene apagado de fábrica y se enciende sólo cuando la empresa lo aprueba, empresa por empresa.',
+      casos_odoo_off_2:'Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo acá arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre es el traspaso solo.',
+      casos_odoo_vacio:'Todavía no hay ningún caso abierto. Se abre solo cuando alguien queda en rojo con un test confiable{extra}.',
+      casos_odoo_vacio_extra:' o en amarillo',
       inf_historial:'Historial ({n})', inf_ver:'Ver ▾', inf_ocultar:'Ocultar ▴',
       gest_sin_cargadas:'Todavía no hay gestiones cargadas.',
       mnu_filtros:'Menú y filtros', gloss_btn:'Glosario', gloss_titulo:'Glosario de indicadores',
@@ -5469,7 +5504,6 @@ const I18N = {
       ts_no_guardar_disp:'Could not save on this device',
       ts_simulacion:'Simulation mode: nothing is saved',
       ts_reporte_enviado:'Report sent',
-      ts_test_registrado:'Test recorded',
       ts_en_desarrollo:'Feature in development',
       ts_datos_encontrados:'We found your details',
       ts_admin_cerrada:'You signed out of administrator',
@@ -5480,6 +5514,7 @@ const I18N = {
       ts_no_actualizar:'Could not refresh',
       ts_ya_al_dia:'Already up to date',
       ts_actualizado:'Refreshed',
+      ts_actualizado_n:'Updated · {n} new records',
       ts_sin_conexion:'No connection',
       ts_nada_exportar:'Nothing to export',
       ts_archivo_ok:'File generated',
@@ -5632,6 +5667,7 @@ const I18N = {
       mot_revisar:'Review', mot_desact:'new test after the instruction', mot_sin_revisar:'not reviewed',
       mot_empeoro:'got worse', mot_ya_revisado:'reviewed before',
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
+      dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
       dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
       dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
       dw_radar_3:'3+ indicators are needed for the radar.',
@@ -5926,6 +5962,9 @@ const I18N = {
       apt_reaccion:'Reaction',
       trn_checkin_t:'Before the shift',  trn_checkin_s:'How are you arriving today?',
       trn_carga_t:'During the shift',    trn_carga_s:'How does the workload feel right now?',
+      trn_carga_o1:'Very light', trn_carga_o2:'Light', trn_carga_o3:'Normal', trn_carga_o4:'Heavy', trn_carga_o5:'Very heavy',
+      trn_alerta_s:'Alert level (1 very alert — 9 very sleepy)',
+      trn_elegir:'Choose an option', trn_registrar:'Record',
       trn_checkout_t:'At the end',       trn_checkout_s:'How are you leaving?',
       mit_pausa:'20-minute active break', mit_piso:'Reassign to a ground-level task',
       mit_turno:'Rotate shift', mit_acomp:'Supervision during a critical task',
@@ -6199,6 +6238,19 @@ const I18N = {
       evo_concentran_sus:'Where their {m} records concentrate.',
       evo_concentran_tus:'Where your {m} records concentrate.',
       inf_analisis_de:'Analysis of {q}: trends, peaks and patterns based on the data and the methodology.',
+      inf_demo_nota:'You are in the <b>demo</b>. Below is a <b>sample report</b> already generated so you can see how it looks. In a real company, this is where you generate AI reports from your own data.',
+      inf_bloqueado_tt:'One was already generated today', inf_bloqueado_prox:'Next available: {f}',
+      inf_generar:'Generate report',
+      inf_obj_titulo:'Analysis objective', inf_obj_opcional:'optional',
+      inf_obj_placeholder:'E.g.: on 07/10 we switched to a rotating schedule. I want to see the effect on the indicators.',
+      inf_obj_fecha:'Date of the change', inf_obj_fecha_sub:'compares before/after',
+      inf_cargando:'Loading previous reports…',
+      inf_hist_vacio:'No reports have been generated for this company yet. Tap “Generate report” to create the first one.',
+      casos_odoo_titulo:'Cases for internal follow-up',
+      casos_odoo_off_1:'Automatic hand-off to the internal follow-up workflow is <b>disabled</b> for this company. <b>This is not a malfunction:</b> it ships off by default and is turned on only when the company approves it, company by company.',
+      casos_odoo_off_2:'In the meantime <b>nothing is lost</b>: the cases that would qualify are still shown above, in <b>Pending review</b>, and are handled by hand as always. The only thing that does not happen is the automatic hand-off.',
+      casos_odoo_vacio:'No case is open yet. One opens automatically when someone lands in red on a reliable test{extra}.',
+      casos_odoo_vacio_extra:' or in amber',
       inf_historial:'History ({n})', inf_ver:'View ▾', inf_ocultar:'Hide ▴',
       gest_sin_cargadas:'No case notes recorded yet.',
       mnu_filtros:'Menu and filters', gloss_btn:'Glossary', gloss_titulo:'Indicator glossary',
@@ -6911,6 +6963,7 @@ function consentPendientes(){
 }
 function hasConsent(){ return consentPendientes().length === 0; }
 function acceptConsent(){
+  haptic(12);
   const s = consentStore();
   if (!s.items) s.items = {};
   const aceptados = consentPendientes().map(c => { s.items[c.k] = c.v; return c.k + ' v' + c.v; });
@@ -7508,7 +7561,7 @@ function redirigirATryVital(){
 
 /* ════════════════ RENDER ════════════════ */
 const checkSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
-const chevSVG  = '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>';
+const chevSVG  = '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
 const undoSVG  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>';
 const waSVG    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M9.5 13.5l4-4"/><path d="M10 9.2h3.5v3.5"/></svg>';
 // Ícono de "registro": planilla con tilde (queda asentado en el sistema)
@@ -7697,7 +7750,7 @@ function renderInicio(){
       '</div><span class="chev">' + chevSVG + '</span></button>';
   } else {
     html += '<div class="ini-ahora ini-listo">' +
-      '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+      '<div class="ic">' + checkSVG + '</div>' +
       '<div class="ini-ahora-tx"><div class="ini-ahora-t">' + esc(t('ini_al_dia_t')) + '</div>' +
       '<div class="ini-ahora-d">' + esc(t('ini_al_dia_d')) + '</div></div></div>';
   }
@@ -7826,6 +7879,7 @@ function mark(id){
   const time = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   r[id] = { date: todayStr(), time, ts: d.getTime() };
   saveReports(r);
+  haptic(12);
   registrarActividad();                    // suma al panel de actividad
   try { renderInicio(); } catch(e){}       // cambia "lo que te toca ahora" y la racha
   setTimeout(refreshStates, 60);           // tras abrir WhatsApp
@@ -8354,8 +8408,7 @@ function finalizarTest(){
   }
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(testItem.id);
-    showToast(t('ts_test_registrado'));
+    mark(testItem.id);   // mark() ya avisa "Reporte registrado · hh:mm": no repetir el toast
   } else {
     const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
     document.getElementById('testOverlay').classList.remove('show');
@@ -8597,8 +8650,7 @@ function finalizarPerelli(){
     scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad));
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(perelliState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(perelliState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     perelliState = null;
   } else {
     const itemFinal = { ...perelliState.item, msg };
@@ -8792,8 +8844,7 @@ function finalizarKss(){
   enviarOperacional(kssState.item.operacionalCampo, 'kss', parseInt(nivelAlerta));
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(kssState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(kssState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     kssState = null;
   } else {
     const itemFinal = { ...kssState.item, msg };
@@ -8855,8 +8906,7 @@ function finalizarEstres(){
   const msg = `Completé el *Test de Estrés* desde el portal web.\n\n${details}`;
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(estresState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(estresState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     estresState = null;
   } else {
     const itemFinal = { ...estresState.item, msg };
@@ -8913,8 +8963,7 @@ function finalizarAnsiedad(){
   const msg = `Completé el *Test de Ansiedad (BAI)* desde el portal web.\n\n${details}`;
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(ansiedadState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(ansiedadState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     ansiedadState = null;
   } else {
     const itemFinal = { ...ansiedadState.item, msg };
@@ -8973,8 +9022,7 @@ function finalizarGastro(){
   const msg = `Completé el *Test Gastrointestinal* desde el portal web.\n\n${details}`;
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(gastroState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(gastroState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     gastroState = null;
   } else {
     const itemFinal = { ...gastroState.item, msg };
@@ -9033,8 +9081,7 @@ function finalizarCansancio(){
   const msg = `Completé el *Test de Cansancio / Agotamiento Emocional* desde el portal web.\n\n${details}`;
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
-    mark(cansancioState.item.id);
-    showToast(t('ts_test_registrado'));
+    mark(cansancioState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
     cansancioState = null;
   } else {
     const itemFinal = { ...cansancioState.item, msg };
@@ -10858,6 +10905,7 @@ function dashRefresh(manual){
     const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]);
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
     if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return; }   // sin cambios → no re-renderiza (no salta el scroll)
+    const nuevosRegs = Math.max(0, d.registros.length - (DASH.registros || []).length);
     const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
@@ -10869,7 +10917,7 @@ function dashRefresh(manual){
     if (hadPvt !== hasPvt){ DASH.tabs = dashTabsFor(DASH.rol, hasPvt, DASH.vista); if (DASH.tabs.indexOf(DASH.tab) < 0) DASH.tab = DASH.tabs[0]; buildDashTabs(); }
     buildDashFilters();   // DASH.f conserva el estado; reconstruye opciones (deptos/personas nuevos)
     renderDash();
-    if (manual) showToast(t('ts_actualizado'));
+    if (manual) showToast(nuevosRegs > 0 ? t('ts_actualizado_n', { n: nuevosRegs }) : t('ts_actualizado'));
   }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast(t('ts_sin_conexion')); });
 }
 function setFilterValues(f){
@@ -13023,7 +13071,7 @@ function renderCicloOperativo(){
     }
     const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
     return '<div class="cic-card cic-est-' + st.estado + '">' +
-      '<div class="cic-head" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
+      '<div class="cic-head" tabindex="0" role="button" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + ' · ' + reloj + '</div>' +
@@ -13092,7 +13140,7 @@ function renderReportesSupervisor(){
   const reps = reportesFiltrados().slice().sort((a,b) => b.creada - a.creada);
   const ayuda = dashHelp(t('hlp_reportes', { n: cfg('anonN') }));
   if (!DASH._reportesPedidos && !DASH.demoMode){
-    return ayuda + dashWarn('Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.');
+    return ayuda + dashWarn(t('dw_reportes_reintentar'));
   }
   if (!reps.length){
     return ayuda + dashVacio('reportes', 'buzon');
@@ -13109,7 +13157,7 @@ function renderReportesSupervisor(){
   const filaIdent = (r, i) => {
     const op = reporteOpcionInfo(r.opcion);
     const nuevo = !vistos.has(r.id);
-    return '<div class="rep-item' + (nuevo ? ' rep-nuevo' : '') + '" onclick="dashGoPerson(DASH._repNames[' + i + '])">' +
+    return '<div class="rep-item' + (nuevo ? ' rep-nuevo' : '') + '" tabindex="0" role="button" onclick="dashGoPerson(DASH._repNames[' + i + '])">' +
       (nuevo ? APT_TAP_INLINE : '') +
       '<div class="rep-top"><span class="rep-name">' + esc(r.persona) + '</span>' +
         (nuevo ? '<span class="rep-badge-nuevo">Nuevo</span>' : '') +
@@ -13595,15 +13643,15 @@ function dashTurnoCard(){
 function dashTurnoForm(tipo){
   const id = 'turnoSel_' + tipo;
   if (tipo === 'carga'){
-    const opts = [1,2,3,4,5].map(n => '<option value="' + n + '">' + n + ' — ' + esc(['Muy liviana','Liviana','Normal','Pesada','Muy pesada'][n-1]) + '</option>').join('');
-    return '<div class="sf-turno-form"><label>¿Cómo se siente la carga de trabajo ahora?</label>' +
-      '<select id="' + id + '"><option value="">Elegí una opción</option>' + opts + '</select>' +
-      '<button type="button" onclick="dashTurnoEnviar(\'carga\',\'' + id + '\')">Registrar</button></div>';
+    const opts = [1,2,3,4,5].map(n => '<option value="' + n + '">' + n + ' — ' + esc(t('trn_carga_o' + n)) + '</option>').join('');
+    return '<div class="sf-turno-form"><label>' + esc(t('trn_carga_s')) + '</label>' +
+      '<select id="' + id + '"><option value="">' + esc(t('trn_elegir')) + '</option>' + opts + '</select>' +
+      '<button type="button" onclick="dashTurnoEnviar(\'carga\',\'' + id + '\')">' + esc(t('trn_registrar')) + '</button></div>';
   }
   const opts = [1,2,3,4,5,6,7,8,9].map(n => '<option value="' + n + '">' + n + '</option>').join('');
-  return '<div class="sf-turno-form"><label>Nivel de alerta (1 muy despierto/a — 9 muy somnoliento/a)</label>' +
-    '<select id="' + id + '"><option value="">Elegí una opción</option>' + opts + '</select>' +
-    '<button type="button" onclick="dashTurnoEnviar(\'' + tipo + '\',\'' + id + '\')">Registrar</button></div>';
+  return '<div class="sf-turno-form"><label>' + esc(t('trn_alerta_s')) + '</label>' +
+    '<select id="' + id + '"><option value="">' + esc(t('trn_elegir')) + '</option>' + opts + '</select>' +
+    '<button type="button" onclick="dashTurnoEnviar(\'' + tipo + '\',\'' + id + '\')">' + esc(t('trn_registrar')) + '</button></div>';
 }
 function dashTurnoEnviar(tipo, selId){
   const el = document.getElementById(selId);
@@ -13618,7 +13666,7 @@ function dashTurnoEnviar(tipo, selId){
 function dashReporteCard(){
   const abierto = !!(DASH && DASH._reporteAbierto);
   if (!abierto){
-    return '<div class="dash-block sf-reporte-cerrado" onclick="dashReporteToggle()">' +
+    return '<div class="dash-block sf-reporte-cerrado" tabindex="0" role="button" onclick="dashReporteToggle()">' +
       '<div class="sf-reporte-btn">' + esc(t('sf_enviar_reporte')) + '</div>' +
       '<div class="db-sub">' + esc(t('sub_avisa_sup')) + '</div></div>';
   }
@@ -13888,7 +13936,7 @@ function renderIndividual(rows){
   const fmt = v => composite ? (v.toFixed(2) + '×') : v.toFixed(1);
   const itemHtmls = items.map((x,i) => {
     const over = x.val > ref;
-    return '<div class="rank-item" onclick="dashGoPersonIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
+    return '<div class="rank-item" tabindex="0" role="button" onclick="dashGoPersonIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
       '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
       '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' ' + esc(t('n_reg_abr')) + '</div></div>' +
       '<div class="rank-val ' + (over?'over':'ok') + '">' + fmt(x.val) + '</div><span class="rank-go">›</span></div>';
@@ -14037,7 +14085,7 @@ function renderPVT(){
     }).filter(x => x.rt != null).sort((a,b) => b.rt - a.rt);
     DASH._pvtNames = items.map(x => x.name);
     const pvtCards = items.map((x,i) => { const v = pvtVerdict(x.rt, x.lp);
-      return '<div class="rank-item" onclick="dashGoPvtIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
+      return '<div class="rank-item" tabindex="0" role="button" onclick="dashGoPvtIdx(' + i + ')"><div class="rank-pos">' + (i+1) + '</div>' +
         '<div style="min-width:0"><div class="rank-name">' + esc(x.name) + '</div>' +
         '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' test</div></div>' +
         '<div class="rank-val" style="color:' + v.c + '">' + x.rt + '</div><span class="rank-go">›</span></div>';
@@ -14110,23 +14158,23 @@ function renderInforme(rows){
   const help = dashHelp(t('hlp_informe') + ' ' + t(DASH.rol==='admin' ? 'hlp_informe_admin' : 'hlp_informe_limite'));
   const bloqueado = DASH.rol!=='admin' && DASH._informesProximo;
   const btn = DASH.demoMode
-    ? '<div class="informe-demo-nota">Estás en la <b>demostración</b>. Abajo tienes un <b>informe de ejemplo</b> ya generado para que veas cómo queda. En una empresa real, aquí generas informes con IA a partir de tus propios datos.</div>'
+    ? '<div class="informe-demo-nota">' + t('inf_demo_nota') + '</div>'
     : (bloqueado
-      ? '<button class="save-btn informe-btn" disabled title="Ya se generó uno hoy">Próximo disponible: ' + esc(DASH._informesProximo) + '</button>'
-      : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">Generar informe</button>');
+      ? '<button class="save-btn informe-btn" disabled title="' + esc(t('inf_bloqueado_tt')) + '">' + esc(t('inf_bloqueado_prox', { f: DASH._informesProximo })) + '</button>'
+      : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">' + esc(t('inf_generar')) + '</button>');
   const sub = '<div class="db-sub">' + t('inf_analisis_de', { q: '<b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b>' }) + '</div>';
   // Objetivo opcional: si se pone una fecha de cambio, el informe compara antes/después (como correlación, no causa)
   const obj = '<div class="inf-obj">' +
-    '<div class="inf-obj-t">Objetivo del análisis <span>· opcional</span></div>' +
-    '<textarea id="infObjetivo" class="inf-obj-txt" maxlength="500" placeholder="Ej: el 10/07 pasamos a horario rotativo. Quiero ver el efecto en los indicadores." oninput="DASH._objetivo=this.value">' + esc(DASH._objetivo||'') + '</textarea>' +
-    '<div class="inf-obj-row"><label>Fecha del cambio <span>(compara antes/después)</span></label>' +
+    '<div class="inf-obj-t">' + esc(t('inf_obj_titulo')) + ' <span>· ' + esc(t('inf_obj_opcional')) + '</span></div>' +
+    '<textarea id="infObjetivo" class="inf-obj-txt" maxlength="500" placeholder="' + esc(t('inf_obj_placeholder')) + '" oninput="DASH._objetivo=this.value">' + esc(DASH._objetivo||'') + '</textarea>' +
+    '<div class="inf-obj-row"><label>' + esc(t('inf_obj_fecha')) + ' <span>(' + esc(t('inf_obj_fecha_sub')) + ')</span></label>' +
     '<input type="date" id="infObjetivoFecha" value="' + esc(DASH._objetivoFecha||'') + '" onchange="DASH._objetivoFecha=this.value"></div>' +
     '</div>';
   const objBlock = DASH.demoMode ? '' : obj;    // en la demo el objetivo no aplica (no se genera nada)
   const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
   let hist;
-  if (!DASH._informesLoaded) hist = '<div class="informe-loading">Cargando informes previos…</div>';
-  else if (!DASH._informes.length) hist = '<div class="informe-empty">Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.</div>';
+  if (!DASH._informesLoaded) hist = '<div class="informe-loading">' + esc(t('inf_cargando')) + '</div>';
+  else if (!DASH._informes.length) hist = '<div class="informe-empty">' + esc(t('inf_hist_vacio')) + '</div>';
   else hist = '<div class="db-sub2">' + esc(t('inf_historial', { n: DASH._informes.length })) + '</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_informe_ia')) + '</div>' + sub + objBlock + btn + out + hist + '</div>';
 }
@@ -14657,7 +14705,7 @@ function dashAlerts(rows){
   function group(title, items, type){
     if (!items.length) return '';
     const cards = items.map((x,i) =>
-      '<div class="alert-card" onclick="' + (type==='dep' ? "dashDrill('dep', DASH._alertDep["+i+"])" : "dashGoPerson(DASH._alertPer["+i+"])") + '">' +
+      '<div class="alert-card" tabindex="0" role="button" onclick="' + (type==='dep' ? "dashDrill('dep', DASH._alertDep["+i+"])" : "dashGoPerson(DASH._alertPer["+i+"])") + '">' +
       '<div class="ac-name">' + esc(x.name) + ' ›</div><div class="ac-badges">' +
       x.over.map(o => '<span class="ac-badge">' + (METRIC_LABELS[o.m]||o.m) + ' <b>' + o.a.toFixed(1) + '</b><i>/' + o.ref + '</i></span>').join('') +
       '</div></div>');
@@ -15253,13 +15301,9 @@ function casosOdooBloque(){
   const disparo = casosOdooCfg('disparo');
   const ayuda = dashHelp(t('hlp_casos'));
   if (!activo){
-    return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
-      '<div class="hs-nota">El traspaso automático al circuito de atención interna está <b>desactivado</b> ' +
-      'para esta empresa. <b>No es una falla:</b> viene apagado de fábrica y se enciende sólo cuando la ' +
-      'empresa lo aprueba, empresa por empresa.' +
-      '<br><br>Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo acá ' +
-      'arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre ' +
-      'es el traspaso solo.</div></div>';
+    return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('casos_odoo_titulo')) + '</div>' +
+      '<div class="hs-nota">' + t('casos_odoo_off_1') +
+      '<br><br>' + t('casos_odoo_off_2') + '</div></div>';
   }
   /* ⚠️ 2026-08-08: la lista sale del SERVIDOR (`casos_odoo_resumen`), no del almacén local.
      Antes se leía de localStorage porque este mismo dispositivo era el que generaba los casos.
@@ -15269,9 +15313,8 @@ function casosOdooBloque(){
     ? Object.keys(DASH._casosResumen).map(k => DASH._casosResumen[k])
     : [];
   if (!delServidor.length){
-    return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna</div>' +
-      '<div class="hs-nota">Todavía no hay ningún caso abierto. Se abre solo cuando alguien queda en rojo ' +
-      'con un test confiable' + (disparo === 'rojo_amarillo' ? ' o en amarillo' : '') + '.</div></div>';
+    return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('casos_odoo_titulo')) + '</div>' +
+      '<div class="hs-nota">' + esc(t('casos_odoo_vacio', { extra: disparo === 'rojo_amarillo' ? t('casos_odoo_vacio_extra') : '' })) + '</div></div>';
   }
   const filas = delServidor
     .sort((a,b) => String(b.fecha||'').localeCompare(String(a.fecha||'')))
@@ -15281,7 +15324,7 @@ function casosOdooBloque(){
         '<span class="hs-ev-fecha">' + esc(c.fecha || '') + '</span></div>' +
         (c.tests ? '<div class="hs-ev-um">' + esc(c.tests) + '</div>' : '') +
       '</div>');
-  return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna (' + delServidor.length + ')</div>' +
+  return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('casos_odoo_titulo')) + ' (' + delServidor.length + ')</div>' +
     '<div class="db-sub">' + esc(t('sub_casos_auto')) + '</div>' +
     dashVerMas(filas, 3) + '</div>';
 }
@@ -15487,6 +15530,17 @@ function telemCambiarEstado(id, nuevo, porPersona){
    Por eso es mejora progresiva: si no funciona, no pasa absolutamente nada. NUNCA condicionar
    el flujo a que el háptico ande. */
 let _hapticSwitch = null;
+/* G4: activa con Enter/Espacio cualquier elemento con role="button" que no sea nativamente
+   enfocable (las tarjetas armadas como <div onclick=...> en vez de <button>). Un solo listener
+   delegado en el documento, en vez de un onkeydown repetido en cada una de esas tarjetas. */
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[role="button"]');
+  if (!el || el.tagName === 'BUTTON' || el.tagName === 'A') return;   // esos ya lo hacen solos
+  e.preventDefault();
+  el.click();
+});
+
 function haptic(ms){
   try { if (navigator.vibrate){ navigator.vibrate(ms || 14); return; } } catch(e){}
   try {
@@ -15696,7 +15750,7 @@ function dashAnotacionesResumen(){
     // indicación") es texto largo y apretado al lado del nombre quedaba ilegible.
     const filas = pendientes.map((p, i) => {
       const mot = aptMotivoCola(p);
-      return '<div class="an-res-item an-res-col" style="--anc:' + mot.c + ';--anbg:' + mot.bg + ';--ansol:' + semSolido(mot.c) + '" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
+      return '<div class="an-res-item an-res-col" style="--anc:' + mot.c + ';--anbg:' + mot.bg + ';--ansol:' + semSolido(mot.c) + '" tabindex="0" role="button" onclick="dashGoPerson(DASH._anotResNames[' + i + '])">' +
         '<div class="an-res-top">' + APT_TAP_INLINE + '<span class="an-res-badge">' + esc(mot.badge) + '</span>' +
         '<span class="an-res-name">' + esc(p.nombre) + '</span></div>' +
         '<div class="an-res-why">' + esc(mot.why) + ' · ' + esc(aptTextoFecha(p)) + '</div>' +
@@ -15715,7 +15769,7 @@ function dashAnotacionesResumen(){
     const filas = conInd.map((p, i) => {
       const info = apAnotInfo(p.anot.nivel);
       const pronto = (p.anot.vigenciaHasta - Date.now()) < 86400000;
-      return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + ';--ansol:' + semSolido(info.c) + '" onclick="dashGoPerson(DASH._anotResNames[' + (base+i) + '])">' + APT_TAP_INLINE +
+      return '<div class="an-res-item" style="--anc:' + info.c + ';--anbg:' + info.bg + ';--ansol:' + semSolido(info.c) + '" tabindex="0" role="button" onclick="dashGoPerson(DASH._anotResNames[' + (base+i) + '])">' + APT_TAP_INLINE +
         '<span class="an-res-badge">' + esc(info.corto || info.t) + '</span>' +
         '<span class="an-res-name">' + esc(p.nombre) + '</span>' +
         '<span class="an-res-hasta' + (pronto ? ' an-res-pronto' : '') + '"><span class="an-res-hasta-in">' +
@@ -16259,6 +16313,7 @@ function gestTituloBlur(id){ gestUpdateCard(id); }
 function gestBorrar(id){
   if (!gestFind(id)) return;
   if (!confirm(t('gst_borrar_q'))) return;
+  haptic(12);
   const card=document.querySelector('.gest-card[data-id="'+id+'"]');
   gestSaveList(gestList().filter(x=>x.id!==id)); delete GEST.exp[id];
   if (card){ card.classList.add('gest-out'); setTimeout(renderGestiones, 200); } else renderGestiones();
@@ -16801,6 +16856,7 @@ function tareaMarcarHecha(id, btn){
       if (it) it.estado = 'hecha';
       TAREAS.pendientes = TAREAS.lista.filter(x => x.estado !== 'hecha').length;
       tareasPintarBadge(); tareasPintar();
+      haptic(12);
       showToast(t('tar_listo'));
     })
     .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); });
