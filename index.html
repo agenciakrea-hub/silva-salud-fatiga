@@ -4041,7 +4041,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.96';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.97';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11753,7 +11753,10 @@ function renderDash(){
   const anotBloque = !esMedico ? ''
     : (DASH.f.per ? (dashFichaMedica(rows) + dashAnotacionSupervisor(rows, true, esc(DASH.f.per)))
                   : (dashAnotacionesResumen() + casosOdooBloque()));
-  body.innerHTML = dashImprimirCabecera() + dashContext() + anotBloque + aviso + secciones + dashImprimirPie();
+  /* ⚠️ "Imprimir este panel" SACADO a pedido del usuario (2026-08-26): andaba mal y prefirió
+     quitarlo antes que arreglarlo ahora. Las funciones siguen abajo, sin llamadores, para que
+     volver a encenderlo sea restituir esta línea. */
+  body.innerHTML = dashContext() + anotBloque + aviso + secciones;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -13846,7 +13849,10 @@ function dashImprimirPie(){
   return '<div class="imp-pie print-solo"><b>' + esc(t('imp_aviso')) + '</b><br>' +
     esc(t('imp_pie', { f: f, q: quien, v: APP_VERSION })) + '</div>';
 }
-function dashImprimir(){
+/* SACADO (2026-08-26). Se deja inerte en vez de borrarlo: si una pestaña vieja quedó abierta con
+   el botón todavía pintado, tocarlo no hace nada en vez de tirar "dashImprimir is not defined". */
+function dashImprimir(){ return; }
+function dashImprimirDesactivado(){
   // Se despliegan las ayudas y los "ver más" ANTES de imprimir: el @media print los muestra, pero
   // <details> sin `open` no expande su contenido con CSS solo.
   const abiertos = [];
