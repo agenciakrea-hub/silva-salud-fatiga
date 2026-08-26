@@ -960,6 +960,53 @@
   .al-val small { color: var(--text-muted); font-weight: 600; }
   .dash-ok { font-size: .9rem; color: var(--green); font-weight: 600; padding: .3rem 0; }
   .dash-empty { text-align: center; color: var(--text-muted); padding: 2.5rem 0; font-size: .92rem; }
+  /* ══════════ G3 · Los cuatro estados ══════════ */
+  /* ── VACÍO QUE ENSEÑA ──
+     Un "Sin datos." centrado no distingue entre "esto está roto", "todavía no cargaron nada" y
+     "tus filtros dejaron fuera todo". Las tres cosas se ven igual y la persona no sabe si esperar,
+     tocar algo o llamar a alguien. Este bloque dice SIEMPRE dos cosas: qué va a aparecer ahí, y
+     cómo se llena. */
+  .dv { text-align: center; padding: 2rem 1rem; }
+  .dv-ic { width: 44px; height: 44px; margin: 0 auto .6rem; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sup-suave); color: var(--text-muted); }
+  .dv-ic svg { width: 22px; height: 22px; }
+  .dv-t { font-size: .95rem; font-weight: 800; color: var(--text); }
+  .dv-d { font-size: .82rem; color: var(--text-soft); line-height: 1.5; margin-top: .3rem;
+    max-width: 34ch; margin-left: auto; margin-right: auto; }
+  .dv-btn { margin-top: .8rem; padding: .5rem .9rem; border-radius: var(--radius-sm);
+    border: 1px solid var(--sup-borde); background: var(--card); color: var(--text-soft);
+    font-family: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+
+  /* ── ESQUELETO ──
+     Con la FORMA REAL de lo que viene: cuatro tarjetas de número y dos bloques. Un spinner dice
+     "espera"; un esqueleto dice además "esto es lo que vas a ver", y cuando llega el contenido no
+     salta el layout porque ya estaba reservado. */
+  @keyframes dsk { 0%{opacity:.55} 50%{opacity:1} 100%{opacity:.55} }
+  .dsk { animation: dsk 1.4s ease-in-out infinite; }
+  .sin-animaciones .dsk { animation: none; opacity: .8; }
+  .dsk-bar { background: var(--sup-suave); border-radius: 7px; height: 12px; }
+  .dsk-kpi { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 13px;
+    height: 148px; }
+  .dsk-block { background: var(--card); border: 1px solid var(--sup-borde); border-radius: var(--radius);
+    padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); }
+  .dsk-chart { background: var(--sup-suave); border-radius: 10px; height: 150px; margin-top: .8rem; }
+
+  /* ── ERROR ACCIONABLE ──
+     Nunca "Error". Qué pasó, qué hacer, y el botón para hacerlo. Va DENTRO del panel: mandar a
+     alguien de vuelta a la pantalla de login porque se cortó el wifi le hace perder los filtros
+     que tenía puestos y no le explica nada. */
+  .derr { text-align: center; padding: 2rem 1rem; }
+  .derr-ic { width: 46px; height: 46px; margin: 0 auto .6rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sem-ambar-bg); color: var(--sem-ambar-txt); }
+  .derr-ic svg { width: 24px; height: 24px; }
+  .derr-t { font-size: .98rem; font-weight: 800; color: var(--text); }
+  .derr-d { font-size: .84rem; color: var(--text-soft); line-height: 1.5; margin-top: .35rem;
+    max-width: 36ch; margin-left: auto; margin-right: auto; }
+  .derr-btn { margin-top: .9rem; padding: .6rem 1.1rem; border-radius: var(--radius-sm);
+    border: none; background: var(--orange-txt); color: #fff;
+    font-family: inherit; font-size: .84rem; font-weight: 800; cursor: pointer; }
   .rank-item { display: grid; grid-template-columns: 24px 1fr auto 16px; gap: .55rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
   .rank-pos { font-size: .82rem; font-weight: 800; color: var(--text-muted); text-align: center; }
   .rank-name { font-size: .9rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3728,7 +3775,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.85';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.86';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4169,6 +4216,48 @@ const I18N = {
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
       apt_mostrando:'Mostrando', apt_con_indic_chip:'Con <b>indicación médica</b>',
       quitar_filtro:'Quitar filtro',
+      vac_areas_t:'Sin áreas para desglosar',
+      vac_tareas_t:'Todavía no le pediste nada',
+      vac_tareas_d:'Acá aparecen las tareas que le pidas a esta persona. Las ve en su app, con un contador, y puede marcarlas como hechas.',
+      // ══════ G3 · Los cuatro estados ══════
+      // Cada vacío dice DOS cosas: qué va a aparecer ahí y cómo se llena. Un "Sin datos." no
+      // distingue entre "está roto", "todavía nadie cargó nada" y "tus filtros dejaron todo fuera".
+      vac_tests_t:'Todavía no hay tests',
+      vac_tests_d:'Acá van los promedios de cada indicador. Aparecen en cuanto alguien del equipo completa su primer test.',
+      vac_idc_t:'Todavía no hay a quién medir',
+      vac_idc_d:'La disponibilidad se calcula sobre las personas con registros. En cuanto alguien complete un test, este número aparece solo.',
+      vac_mrfo_t:'Sin datos para el mapa',
+      vac_mrfo_d:'El mapa compara departamentos entre sí. Necesita registros de al menos un área para poder dibujarse.',
+      vac_acciones_t:'Todavía no se registró ninguna acción',
+      vac_acciones_d:'Acá se cuentan las tareas reasignadas, las consultas ofrecidas y las determinaciones médicas. Que esté vacío es normal al empezar.',
+      vac_personal_t:'Todavía no hay personal en este alcance',
+      vac_personal_d:'Aparece cada persona con su semáforo en cuanto complete un test. Si esperabas ver a alguien, revisa los filtros de arriba.',
+      vac_reportes_t:'Sin reportes por ahora',
+      vac_reportes_d:'Acá llega lo que tu equipo manda con <b>Reporte rápido</b> desde su app. No hace falta que hagas nada para recibirlos.',
+      vac_personas_t:'Todavía no hay con quién comparar',
+      vac_personas_d:'Esta vista compara grupos entre sí. Necesita registros de al menos dos departamentos.',
+      vac_filtros_t:'Nadie coincide con estos filtros',
+      vac_filtros_d:'Hay datos cargados, pero los filtros de arriba los dejan todos fuera. Prueba ampliando el período o quitando el departamento.',
+      vac_por_persona_t:'Sin datos por persona',
+      vac_por_persona_d:'El ranking necesita al menos una persona con registros del indicador elegido en este período.',
+      vac_endpoint_t:'Los comentarios todavía no están habilitados',
+      vac_endpoint_d:'Hace falta actualizar el endpoint del maestro. Es un cambio del lado del servidor: avisale a quien administra el sistema.',
+      vac_comentarios_t:'Sin comentarios en este filtro',
+      vac_comentarios_d:'Acá aparece el texto libre que las personas escriben al terminar un test. Es opcional, así que puede pasar tiempo sin ninguno.',
+      vac_ficha_t:'Ficha sin movimientos',
+      vac_ficha_d:'Acá se va a ir armando la historia de esta persona: determinaciones, restricciones del supervisor y tus notas clínicas.',
+      vac_indicadores_t:'Sin indicadores con datos',
+      vac_indicadores_d:'La línea base compara el primer registro con el último. Necesita al menos un test completado.',
+      // ── Error accionable ──
+      err_t_generico:'No se pudieron cargar los datos',
+      err_d_generico:'Puede haber sido un corte momentáneo. Vuelve a intentarlo; si sigue pasando, avisale a quien administra el sistema.',
+      err_t_sin_red:'Sin conexión',
+      err_d_sin_red:'No hay internet en este momento. Lo que hayas registrado está guardado en el teléfono y se envía solo cuando vuelva la señal.',
+      err_t_no_cargo:'No se pudo cargar',
+      err_reintentar:'Reintentar',
+      // ── Sin conexión ──
+      off_enviando_1:'Enviando 1 registro…', off_enviando_n:'Enviando {n} registros…',
+      off_guardado_1:'1 registro guardado en este teléfono', off_guardado_n:'{n} registros guardados en este teléfono',
       mot_patron:'Patrón sostenido',
       mot_patron_rep:'{m} por encima del límite en {n} mediciones seguidas',
       mot_patron_sube:'{m} subiendo en {n} mediciones seguidas',
@@ -5493,6 +5582,46 @@ const I18N = {
       apt_lg_bien:'Fine', apt_lg_medio:'Near the limit', apt_lg_alto:'Above', apt_lg_sin:'No data',
       apt_mostrando:'Showing', apt_con_indic_chip:'With <b>medical instruction</b>',
       quitar_filtro:'Remove filter',
+      vac_areas_t:'No areas to break down',
+      vac_tareas_t:'You have not asked for anything yet',
+      vac_tareas_d:'This is where the things you ask of this person appear. They see them in their app, with a counter, and can mark them as done.',
+      // ══════ G3 · The four states ══════
+      vac_tests_t:'No tests yet',
+      vac_tests_d:'This is where the average of each indicator goes. It appears as soon as someone on the team completes their first test.',
+      vac_idc_t:'Nobody to measure yet',
+      vac_idc_d:'Availability is calculated over people who have records. As soon as someone completes a test, this figure appears on its own.',
+      vac_mrfo_t:'No data for the map',
+      vac_mrfo_d:'The map compares departments against each other. It needs records from at least one area to be drawn.',
+      vac_acciones_t:'No action logged yet',
+      vac_acciones_d:'This counts reassigned tasks, consultations offered and medical determinations. Being empty is normal at the start.',
+      vac_personal_t:'No staff in this scope yet',
+      vac_personal_d:'Each person appears with their status light as soon as they complete a test. If you expected to see someone, check the filters above.',
+      vac_reportes_t:'No reports for now',
+      vac_reportes_d:'This is where what your team sends with <b>Quick report</b> arrives. You do not have to do anything to receive them.',
+      vac_personas_t:'Nothing to compare yet',
+      vac_personas_d:'This view compares groups against each other. It needs records from at least two departments.',
+      vac_filtros_t:'Nobody matches these filters',
+      vac_filtros_d:'There is data recorded, but the filters above leave all of it out. Try widening the period or clearing the department.',
+      vac_por_persona_t:'No data per person',
+      vac_por_persona_d:'The ranking needs at least one person with records of the chosen indicator in this period.',
+      vac_endpoint_t:'Comments are not enabled yet',
+      vac_endpoint_d:'The master endpoint needs updating. That is a server-side change: let whoever administers the system know.',
+      vac_comentarios_t:'No comments in this filter',
+      vac_comentarios_d:'This is where the free text people write when finishing a test appears. It is optional, so there may be none for a while.',
+      vac_ficha_t:'Record with no entries',
+      vac_ficha_d:'This is where this person\u2019s history will build up: determinations, supervisor restrictions and your clinical notes.',
+      vac_indicadores_t:'No indicators with data',
+      vac_indicadores_d:'The baseline compares the first record with the latest. It needs at least one completed test.',
+      // ── Actionable error ──
+      err_t_generico:'The data could not be loaded',
+      err_d_generico:'It may have been a momentary outage. Try again; if it keeps happening, let whoever administers the system know.',
+      err_t_sin_red:'No connection',
+      err_d_sin_red:'There is no internet right now. Anything you recorded is saved on the phone and is sent on its own when the signal returns.',
+      err_t_no_cargo:'Could not load',
+      err_reintentar:'Try again',
+      // ── Offline ──
+      off_enviando_1:'Sending 1 record…', off_enviando_n:'Sending {n} records…',
+      off_guardado_1:'1 record saved on this phone', off_guardado_n:'{n} records saved on this phone',
       mot_patron:'Sustained pattern',
       mot_patron_rep:'{m} above the limit in {n} measurements in a row',
       mot_patron_sube:'{m} rising over {n} measurements in a row',
@@ -7072,8 +7201,8 @@ function offPintar(){
   el.style.display = '';
   el.className = 'off-bar' + (online ? ' off-bar-sync' : '');
   el.textContent = online
-    ? (n === 1 ? 'Enviando 1 registro…' : 'Enviando ' + n + ' registros…')
-    : 'Sin conexión' + (n ? ' · ' + n + (n === 1 ? ' registro guardado en este teléfono' : ' registros guardados en este teléfono') : '');
+    ? t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n })
+    : (t('ts_sin_conexion') + (n ? (' · ' + t(n === 1 ? 'off_guardado_1' : 'off_guardado_n', { n: n })) : ''));
 }
 window.addEventListener('online',  offPintar);
 window.addEventListener('offline', offPintar);
@@ -9921,7 +10050,8 @@ function portalAutoLoginSupervisor(c, credKey){
   credKey = credKey || K_DASH_CREDS;
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = 'Cargando…';
+  document.getElementById('dashScope').textContent = t('cargando');
+  dashMostrarEsqueleto();
   const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:c.pass };
   dashRequest(params).then(d => {
     if (!d || !d.ok){                                    // contraseña cambiada / usuario borrado → volver al gate
@@ -10082,7 +10212,7 @@ function btnSpin(btn, on, labelOn){
   if (on){
     if (btn.dataset.orig == null) btn.dataset.orig = btn.innerHTML;
     btn.disabled = true; btn.classList.add('btn-loading');
-    btn.innerHTML = '<span class="btn-spin" aria-hidden="true"></span>' + (labelOn || 'Cargando…');
+    btn.innerHTML = '<span class="btn-spin" aria-hidden="true"></span>' + esc(labelOn || t('cargando'));
   } else {
     btn.disabled = false; btn.classList.remove('btn-loading');
     if (btn.dataset.orig != null){ btn.innerHTML = btn.dataset.orig; delete btn.dataset.orig; }
@@ -10166,7 +10296,8 @@ function simEntrar(vista){
   syncScrollLock(); navPush();
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = 'Cargando…';
+  document.getElementById('dashScope').textContent = t('cargando');
+  dashMostrarEsqueleto();
   dashRequest({ action:'demo' })
     .then(d => {
       if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(); return; }
@@ -10420,7 +10551,7 @@ function portalLoginEmpleado(btn){
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
   const carga = cargaIniciar();
-  btnSpin(btn, true, 'Cargando…');
+  btnSpin(btn, true, t('cargando'));
   dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return; btnSpin(btn, false); onDashData(d, p.nombre || 'Mis registros', params); })
     .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); });
@@ -10432,13 +10563,19 @@ function portalLoginEmpleado(btn){
 function portalAutoLoginEmpleado(){
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = 'Cargando…';
+  document.getElementById('dashScope').textContent = t('cargando');
+  dashMostrarEsqueleto();
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
   const carga = cargaIniciar();
   dashRequest(params)
-    .then(d => { if (!cargaVigente(carga)) return; onDashData(d, p.nombre || 'Mis registros', params); })
-    .catch(() => { openPortalGate(); showToast(t('sin_conexion')); });
+    .then(d => { if (!cargaVigente(carga)) return;
+      if (!d || !d.ok) { dashMostrarError(tError(d && d.error), portalAutoLoginEmpleado); return; }
+      onDashData(d, p.nombre || 'Mis registros', params); })
+    /* Antes esto mandaba a la persona de vuelta a la pantalla de acceso con un toast. Perder el
+       panel entero porque se cortó el wifi un segundo no explica nada y obliga a rehacer el
+       camino: ahora el error se muestra DENTRO, con el botón para reintentar. */
+    .catch(() => { if (!cargaVigente(carga)) return; dashMostrarError('', portalAutoLoginEmpleado); });
 }
 function portalLoginSupervisor(btn){
   const usuario = document.getElementById('pEmpresa').value.trim();
@@ -11179,7 +11316,7 @@ function renderDash(){
     else if (tb === 'auditoria') html = renderHseqAuditoria();
     else if (tb === 'costos') html = renderHseqCostos(rows);
     else if (tb === 'predictivo') html = renderHseqPredictivo();
-    else if (!rows.length) html = '<div class="dash-empty">' + esc(t('vac_sin_tests')) + '</div>';
+    else if (!rows.length) html = dashVacio('tests', 'tests');
     else if (tb === 'comparar') html = renderComparar(rows);
     else if (tb === 'individual') html = renderIndividual(rows);
     else if (tb === 'evolucion') html = renderEvolucion(rows);
@@ -12020,7 +12157,7 @@ function hseqGente(rows){ return aptGente(rows); }
    dato, y los que quedan afuera se informan al lado, con el mismo tamaño, no en letra chica. */
 function renderHseqIdc(rows){
   const gente = hseqGente(rows);
-  if (!gente.length) return dashHelp(t('hlp_sin_registros')) + '<div class="dash-empty">' + esc(t('vac_sin_datos')) + '</div>';
+  if (!gente.length) return dashHelp(t('hlp_sin_registros')) + dashVacio('idc', 'gente');
   const conDato = gente.filter(p => p.estado !== 'sindato');
   const disp = conDato.filter(p => p.estado === 'ok' || p.estado === 'aptomed').length;
   const sinDato = gente.length - conDato.length;
@@ -12084,7 +12221,7 @@ function renderHseqIdc(rows){
    lo accionable: dónde mirar primero. Nunca valores de tests. */
 function renderHseqMrfo(rows){
   const gente = hseqGente(rows);
-  if (!gente.length) return '<div class="dash-empty">' + esc(t('vac_sin_datos')) + '</div>';
+  if (!gente.length) return dashVacio('mrfo', 'grafico');
   const min = cfg('anonN');
   const porDep = {};
   gente.forEach(p => {
@@ -12118,7 +12255,7 @@ function renderHseqMrfo(rows){
   return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_mapa_area')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_pct_atencion')) + '</div>' +
     (grandes.length ? '<div class="hs-grid">' + grandes.map(celda).join('') + '</div>'
-                    : '<div class="dash-empty">' + esc(t('hs_ninguna_area', { n: min })) + '</div>') +
+                    : dashVacioTexto(t('vac_areas_t'), t('hs_ninguna_area', { n: min }), 'grafico')) +
     (chicos.length ? '<div class="hs-agregado"><b>' + esc(t('hs_areas_chicas')) + '</b> (' + chicos.length + ' ' +
       t(chicos.length===1?'n_area':'n_areas') + ', ' + totChicos + ' ' + t(totChicos===1?'n_persona':'n_personas') + '): ' +
       (totChicos ? Math.round(malChicos/totChicos*100) : 0) + esc(t('hs_requiere_atencion')) +
@@ -12193,7 +12330,7 @@ const HSEQ_ACCIONES_OCULTAS = { caso_odoo:1 };
 function renderHseqAuditoria(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);
   const ayuda = dashHelp(t('hlp_trazabilidad'));
-  if (!ev.length) return ayuda + '<div class="dash-empty">' + esc(t('vac_sin_acciones')) + '</div>';
+  if (!ev.length) return ayuda + dashVacio('acciones', 'nota');
   const filas = ev.map(e => {
     const u = e.umbral;
     return '<div class="hs-ev">' +
@@ -12852,7 +12989,7 @@ function renderCicloOperativo(){
   const personas = cicloPersonas(ciclos);
   const cfgHtml = cicloCfgHtml(plan);
   if (!personas.length){
-    return ayuda + cfgHtml + '<div class="dash-empty">' + esc(t('vac_sin_personal')) + '</div>';
+    return ayuda + cfgHtml + dashVacio('personal', 'gente');
   }
   const ahora = Date.now();
   const filas = personas.map(p => ({ p:p, st:cicloEstado(p.ciclo, ahora, plan) }));
@@ -12958,7 +13095,7 @@ function renderReportesSupervisor(){
     return ayuda + dashWarn('Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.');
   }
   if (!reps.length){
-    return ayuda + '<div class="dash-empty">' + esc(t('vac_sin_reportes')) + '</div>';
+    return ayuda + dashVacio('reportes', 'buzon');
   }
   const idents = reps.filter(r => r.identificado);
   const anons  = reps.filter(r => !r.identificado);
@@ -13025,7 +13162,7 @@ function renderAptitud(rows){
   const gente = aptGente(rows);
   if (!gente.length){
     return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_aptitud')) + '</div>' +
-      '<div class="dash-empty">' + esc(t('vac_sin_personas')) + '</div></div>';
+      dashVacio('personas', 'gente') + '</div>';
   }
 
   // Con UNA persona filtrada no tiene sentido el tablero de grupo: los contadores quedarían todos
@@ -13097,7 +13234,7 @@ function renderAptitud(rows){
   // muestra COMPLETA: quien acaba de acotar la lista ya eligió qué quiere ver — volver a
   // esconderle la mitad sería trabajar en su contra.
   const tarjetasArr = visibles.map(p => aptTarjeta(p, { acciones: restPuede() }));
-  const tarjetas = !visibles.length ? '<div class="dash-empty">' + esc(t('vac_nadie_filtros')) + '</div>'
+  const tarjetas = !visibles.length ? dashVacio('filtros', 'filtro')
     : (hayFiltroExtra ? tarjetasArr.join('') : dashVerMas(tarjetasArr, 6));
 
   const leyenda = '<div class="apt-leyenda">' +
@@ -13168,6 +13305,89 @@ function renderResumen(rows){
    mismos gráficos. Un generador separado empieza igual y se desincroniza a la primera pestaña
    nueva; esto no puede desincronizarse porque es lo mismo.
    La cabecera y el pie sólo existen en papel (`.print-solo`): en pantalla el encabezado ya está. */
+/* ══════════ G3 · Los cuatro estados de cada pantalla ══════════
+   Vacío, cargando, error y sin conexión — diseñados, no lo que queda cuando falla lo normal.
+
+   El VACÍO es el que más importa: una empresa recién dada de alta abre el panel y TODAS las
+   pantallas están vacías. Si cada una dice "Sin datos.", la primera impresión del producto es que
+   está roto. Cada estado vacío dice ahora dos cosas: qué va a aparecer ahí, y cómo se llena. */
+
+const DV_ICONOS = {
+  tests:   '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
+  gente:   '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>',
+  grafico: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  nota:    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  filtro:  '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
+  buzon:   '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
+};
+
+/* `k` es el sufijo: busca vac_<k>_t y vac_<k>_d. Si falta la explicación, cae al texto corto que
+   ya existía — así una clave sin traducir muestra menos, pero nunca un hueco. */
+function dashVacioTexto(titulo, desc, icono, accion){
+  return '<div class="dv">' +
+    '<div class="dv-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      (DV_ICONOS[icono] || DV_ICONOS.grafico) + '</svg></div>' +
+    '<div class="dv-t">' + esc(titulo) + '</div>' +
+    (desc ? '<div class="dv-d">' + desc + '</div>' : '') +
+    (accion ? '<button type="button" class="dv-btn" onclick="' + accion.fn + '">' + esc(t(accion.lbl)) + '</button>' : '') +
+  '</div>';
+}
+function dashVacio(k, icono, accion){
+  const tk = 'vac_' + k + '_t', dk = 'vac_' + k + '_d';
+  const titulo = t(tk), desc = t(dk);
+  return '<div class="dv">' +
+    '<div class="dv-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      (DV_ICONOS[icono] || DV_ICONOS.grafico) + '</svg></div>' +
+    '<div class="dv-t">' + esc(titulo === tk ? t('vac_sin_datos') : titulo) + '</div>' +
+    (desc === dk ? '' : '<div class="dv-d">' + desc + '</div>') +
+    (accion ? '<button type="button" class="dv-btn" onclick="' + accion.fn + '">' + esc(t(accion.lbl)) + '</button>' : '') +
+  '</div>';
+}
+
+/* ── CARGANDO: el esqueleto, con la forma real del panel ── */
+function dashEsqueleto(){
+  const kpis = '<div class="kpi-grid">' + '<div class="kpi dsk-kpi dsk"></div>'.repeat(4) + '</div>';
+  const bloque = h => '<div class="dsk-block">' +
+    '<div class="dsk-bar dsk" style="width:38%"></div>' +
+    '<div class="dsk-bar dsk" style="width:62%;height:9px;margin-top:.5rem"></div>' +
+    '<div class="dsk-chart dsk" style="height:' + h + 'px"></div></div>';
+  return '<div class="dsk-block">' +
+      '<div class="dsk-bar dsk" style="width:45%"></div>' +
+      '<div class="dsk-bar dsk" style="width:70%;height:9px;margin-top:.5rem"></div>' +
+      '<div style="margin-top:.9rem">' + kpis + '</div></div>' +
+    bloque(140) + bloque(170);
+}
+function dashMostrarEsqueleto(){
+  const body = document.getElementById('dashBody');
+  if (body) body.innerHTML = dashEsqueleto();
+}
+
+/* ── ERROR: qué pasó, qué hacer, y el botón para hacerlo ── */
+let _dashReintento = null;
+function dashMostrarError(msg, reintentar){
+  const body = document.getElementById('dashBody');
+  if (!body) return;
+  _dashReintento = (typeof reintentar === 'function') ? reintentar : null;
+  const sinRed = !offHayConexion();
+  body.innerHTML = '<div class="derr">' +
+    '<div class="derr-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      (sinRed ? '<line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>'
+              : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>') +
+      '</svg></div>' +
+    '<div class="derr-t">' + esc(sinRed ? t('err_t_sin_red') : t('err_t_generico')) + '</div>' +
+    '<div class="derr-d">' + esc(msg || (sinRed ? t('err_d_sin_red') : t('err_d_generico'))) + '</div>' +
+    (_dashReintento ? '<button type="button" class="derr-btn" onclick="dashReintentar()">' + esc(t('err_reintentar')) + '</button>' : '') +
+  '</div>';
+  const sc = document.getElementById('dashScope');
+  if (sc) sc.textContent = t('err_t_no_cargo');
+}
+function dashReintentar(){
+  const f = _dashReintento;
+  if (!f) return;
+  dashMostrarEsqueleto();
+  f();
+}
+
 function dashImprimirCabecera(){
   const quien = DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope || '';
   return '<button type="button" class="imp-btn" onclick="dashImprimir()">' +
@@ -13675,7 +13895,7 @@ function renderIndividual(rows){
   });
   const help = dashHelp(t('hlp_ranking_1') + ' ' + t(composite ? 'hlp_ranking_indice' : 'hlp_ranking_elige') + ' ' + t('hlp_ranking_2'));
   // Muestra los 3 primeros y el resto detrás de "Ver más".
-  const listado = items.length ? dashVerMas(itemHtmls, 3) : '<div class="dash-empty">' + esc(t('vac_sin_por_persona')) + '</div>';
+  const listado = items.length ? dashVerMas(itemHtmls, 3) : dashVacio('por_persona', 'gente');
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_ranking')) + '</div>' +
     /* `ref` puede venir undefined (una métrica sin referencia cargada): antes se imprimía
        "referencia undefined" en pantalla. Ahora, sin referencia, se muestra sólo el promedio. */
@@ -13723,7 +13943,7 @@ function renderEvolucion(rows){
 function renderComentarios(rows){
   if (!DASH.comentarios){
     return '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + '</div>' +
-      '<div class="dash-empty">' + esc(t('vac_endpoint_com')) + '</div></div>';
+      dashVacio('endpoint', 'nota') + '</div>';
   }
   const rng = dashEffectiveRange();
   const list = DASH.comentarios.filter(c => {
@@ -13734,7 +13954,7 @@ function renderComentarios(rows){
     if (rng.hasta && c.fecha > rng.hasta) return false;
     return esComentarioValido(c.texto);
   }).sort((a,b) => a.fecha < b.fecha ? 1 : -1);
-  if (!list.length) return dashHelp(t('hlp_com_vacio')) + '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + '</div><div class="db-sub">' + esc(t('sub_texto_libre')) + '</div><div class="dash-empty">' + esc(t('vac_sin_comentarios')) + '</div></div>';
+  if (!list.length) return dashHelp(t('hlp_com_vacio')) + '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + '</div><div class="db-sub">' + esc(t('sub_texto_libre')) + '</div>' + dashVacio('comentarios', 'nota') + '</div>';
   return dashHelp(t('hlp_com')) +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + ' (' + list.length + ')</div>' +
     '<div class="db-sub">' + esc(t('sub_texto_libre')) + '</div>' +
@@ -15353,7 +15573,7 @@ function fmTimeline(persona){
       pie:(g.estado !== 'sugerida' && g.actualizadaEn) ? (i.corto + ' el ' + gestFechaTs(g.actualizadaEn)) : '' });
   });
   ev.sort((a,b) => b.ts - a.ts);
-  if (!ev.length) return '<div class="dash-empty">' + esc(t('vac_sin_ficha')) + '</div>';
+  if (!ev.length) return dashVacio('ficha', 'nota');
   const filas = ev.map(e =>
     '<div class="fm-ev" style="--anc:' + e.c + ';--anbg:' + e.bg + '">' +
       '<div class="fm-ev-top"><span class="fm-ev-tipo">' + esc(e.tipo) + '</span>' +
@@ -15416,7 +15636,7 @@ function dashFichaMedica(rows){
     '<div class="db-sub">' + esc(t('fm_sub')) + '</div>' +
     '<div class="fm-chips">' + chips.join('') + '</div>' + persistTxt +
     '<div class="fm-sec-t">' + esc(t('fm_linea_base')) + '</div>' +
-    '<div class="fm-lb">' + (lineas || '<div class="dash-empty">' + esc(t('vac_sin_indicadores')) + '</div>') + '</div>' +
+    '<div class="fm-lb">' + (lineas || dashVacio('indicadores', 'grafico')) + '</div>' +
     '<div class="fm-sec-t">' + esc(t('fm_historia')) + '</div>' + fmTimeline(DASH.f.per) +
     // El médico cierra el ciclo: marcar que la telemedicina efectivamente se hizo.
     (p.telem && p.telem.estado === 'aceptada'
@@ -16615,7 +16835,7 @@ function tareasFichaHtml(){
           '<span class="tar-mini-t">' + esc(x.titulo) + '</span>' +
           '<span class="tar-mini-e">' + esc(t('tar_est_' + x.estado)) + '</span>' +
         '</div>').join('') + '</div>'
-    : '<div class="dash-empty">' + esc(t('tar_ficha_vacio')) + '</div>';
+    : dashVacioTexto(t('vac_tareas_t'), t('vac_tareas_d'), 'nota');
   const opts = tareasPlantillas().map(p =>
     '<option value="' + esc(p.k) + '">' + esc(p.t) + '</option>').join('');
   return yaHay +
