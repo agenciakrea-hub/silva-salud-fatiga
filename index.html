@@ -102,10 +102,10 @@
     /* G1: color y fondo del semáforo del inicio. renderInicio() los reasigna por estado; estos
        son el valor neutro con el que arranca (sin datos todavía). */
     --inic-c: #6b7a90;  --inic-bg: #f3f6fa;  --inic-txt: #414b5a;
-    /* Color de TEXTO de cada semántico sobre su propio fondo teñido. Los --sem-* normales están
-       calibrados como relleno y en tema claro se quedan cortos como texto (verde 2.81:1). */
-    --sem-verde-txt: #166534;  --sem-ambar-txt: #7c4a02;
-    --sem-rojo-txt:  #a01b13;  --sem-gris-txt:  #414b5a;
+    /* Completa la familia *-txt que ya existía para rojo y ámbar (ver más abajo): el mismo
+       criterio, para los dos semánticos que faltaban. Los --sem-* normales están calibrados como
+       RELLENO y en tema claro se quedan cortos como texto (verde 2.81:1, gris 3.40:1). */
+    --sem-verde-txt: #166534;  --sem-gris-txt: #414b5a;
     --sem-ambar-alt:   #c98a00;  --sem-ambar-alt-bg: #fffaed;
     --sem-verde:       #1aa672;  --sem-verde-bg:     #e6f7f0;
     --sem-verde-int:   #128a5e;  --sem-verde-int-bg: #e2f6ee;   /* verde firmado por el médico */
@@ -261,8 +261,9 @@
     --inic-c: #9aa8bd;  --inic-bg: #1b2432;  --inic-txt: #9aa8bd;
     /* En oscuro los semánticos de siempre ya dan 6–8:1 sobre sus fondos: el token vale lo mismo
        que el de relleno y no hace falta un segundo color. */
-    --sem-verde-txt: var(--sem-verde);  --sem-ambar-txt: var(--sem-ambar);
-    --sem-rojo-txt:  var(--sem-rojo);   --sem-gris-txt:  var(--sem-gris);
+    /* En oscuro los semánticos ya dan 6–8:1 sobre sus fondos, así que el token de texto vale lo
+       mismo que el de relleno. (rojo y ámbar tienen su propio valor más abajo, como siempre.) */
+    --sem-verde-txt: var(--sem-verde);  --sem-gris-txt: var(--sem-gris);
     --sem-ambar-alt:   #f2c65c;  --sem-ambar-alt-bg: #3a2f15;
     --sem-verde:       #4fd4a0;  --sem-verde-bg:     #12332a;
     --sem-verde-int:   #46c795;  --sem-verde-int-bg: #103029;
@@ -827,14 +828,73 @@
   .df input, .df select { width: 100%; padding: .62rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; color: var(--text); background: var(--sup-campo); }
 
   .dash-count { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin-bottom: .8rem; }
-  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin-bottom: 1.3rem; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-bottom: 1.3rem; }
   .kpi { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 13px; padding: .75rem .5rem; text-align: center; }
-  .kpi.over { background: var(--sem-rojo-bg); border-color: #f3c2bf; }
-  .kpi .km { font-size: .74rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; }
+  .kpi.over { background: var(--sem-rojo-bg); border-color: var(--sem-rojo-alt); }
+  .kpi .km { font-size: .74rem; font-weight: 700; color: var(--text-soft); text-transform: uppercase; letter-spacing: .02em; }
   .kpi .kv { font-size: 1.6rem; font-weight: 800; color: var(--text); margin: .14rem 0; }
-  .kpi.over .kv { color: var(--sem-rojo-alt); }
-  .kpi .kref { font-size: .68rem; font-weight: 600; color: var(--text-muted); line-height: 1.3; }
-  .kpi.over .kref { color: var(--sem-rojo-alt); }
+  .kpi.over .kv { color: var(--sem-rojo-txt); }
+  .kpi .kref { font-size: .68rem; font-weight: 600; color: var(--text-soft); line-height: 1.3; }
+
+  /* ══════════ G2 · Informe imprimible ══════════
+     No se genera un documento aparte: se IMPRIME el panel tal como está, con los filtros que la
+     persona tenga puestos. Es lo único que garantiza que el papel diga lo mismo que la pantalla —
+     un generador separado se desincroniza del panel a la primera pestaña nueva que se agregue.
+     Lo que hace este bloque es sacar lo que no es contenido (barras, botones, ayudas plegadas) y
+     desplegar los detalles, que en papel no se pueden abrir. */
+  .print-solo { display: none; }
+  @media print {
+    @page { margin: 14mm 12mm; }
+    html, body { background: #fff !important; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Fuera todo lo que no se puede tocar en papel */
+    .bottom-nav, .install, .gest-fab, .dash-top-actions, #dashRefreshBtn, .dfm-toggle,
+    .dash-filters, .gest-quick, .gest-tools, .undo, .sim-bar, .imp-btn, .ctx-back,
+    .an-row, .an-form, .rl-click, .pchip, .metric-picker, .dtab, .dash-tabs, .period-chips,
+    .test-next-btn, .save-btn, .cancel-btn, .hh-edit { display: none !important; }
+    /* El panel deja de ser una ventana con scroll propio y pasa a ser un documento continuo */
+    .overlay, .overlay.show { position: static !important; display: block !important;
+      background: #fff !important; }
+    .sheet, .gest-sheet, .dash-scroll, #portalDash, #dashScroll {
+      max-height: none !important; height: auto !important; overflow: visible !important;
+      box-shadow: none !important; border: none !important; }
+    /* Las ayudas y los "ver más" plegados: en papel no se pueden abrir, así que van abiertos */
+    details { display: block !important; }
+    details > summary { list-style: none; font-weight: 800; }
+    details > *:not(summary) { display: block !important; }
+    .dash-block { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important;
+      border: 1px solid #ddd !important; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+    .print-solo { display: block !important; }
+    /* Lo que NO se imprime nunca: la vista de inicio con los datos personales de quien imprime */
+    #viewInicio, #viewMas { display: none !important; }
+  }
+  .imp-btn { display: inline-flex; align-items: center; gap: .4rem; margin: .2rem 0 1rem;
+    padding: .5rem .85rem; border-radius: var(--radius-sm); border: 1px solid var(--sup-borde);
+    background: var(--card); color: var(--text-soft); font-family: inherit; font-size: .78rem;
+    font-weight: 700; cursor: pointer; }
+  .imp-btn svg { width: 15px; height: 15px; }
+  .imp-cab { border-bottom: 2px solid #333; padding-bottom: .4rem; margin-bottom: .8rem; }
+  .imp-cab-t { font-size: 1.1rem; font-weight: 800; }
+  .imp-cab-s { font-size: .8rem; color: #444; margin-top: .2rem; }
+  .imp-pie { margin-top: 1rem; padding-top: .5rem; border-top: 1px solid #999;
+    font-size: .7rem; color: #444; line-height: 1.5; }
+
+  /* ── G2 · La tarjeta de número ── */
+  /* Dos columnas en celular, no tres: con la miniatura y la distancia a la referencia adentro,
+     a tres columnas cada tarjeta queda de 110 px y el texto se parte en cuatro renglones. */
+  .kpi { display: flex; flex-direction: column; gap: .1rem; }
+  .kpi .kv { margin: .1rem 0 .05rem; font-variant-numeric: tabular-nums; }
+  .ktrend { font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .ktrend-mal { color: var(--sem-rojo-txt); }
+  .ktrend-bien { color: var(--sem-verde-txt); }
+  .ktrend-igual { color: var(--text-muted); }
+  .spark { display: block; width: 100%; height: 26px; margin: .18rem 0 .1rem; }
+  .spark-vacia { height: 26px; }
+  .kconf { font-size: .64rem; font-weight: 700; color: var(--sem-ambar-txt); line-height: 1.25; margin-top: .15rem; }
+  .kfresco { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: -.9rem; margin-bottom: 1.1rem; }
+  .kfresco-viejo { color: var(--sem-ambar-txt); font-weight: 700; }
+  .kpi.over .kref { color: var(--sem-rojo-txt); }
 
   .dash-block { margin-bottom: 1.5rem; }
   .db-title { font-size: 1.02rem; font-weight: 800; color: var(--text); margin-bottom: .75rem; }
@@ -1157,7 +1217,7 @@
   @media (min-width: 760px) {
     .sheet.portal { max-width: 960px; height: 90vh; max-height: 90vh; }
     .dash-scroll { padding: 1.4rem 1.8rem 2.6rem; }
-    .kpi-grid { grid-template-columns: repeat(6, 1fr); gap: .7rem; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: .7rem; }
     .dash-2col { flex-direction: row; gap: 1.4rem; }
     .dash-2col > .dash-block { flex: 1; }
     .dash-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.6rem; align-items: start; }
@@ -3668,7 +3728,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.84';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.85';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4109,6 +4169,43 @@ const I18N = {
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
       apt_mostrando:'Mostrando', apt_con_indic_chip:'Con <b>indicación médica</b>',
       quitar_filtro:'Quitar filtro',
+      mot_patron:'Patrón sostenido',
+      mot_patron_rep:'{m} por encima del límite en {n} mediciones seguidas',
+      mot_patron_sube:'{m} subiendo en {n} mediciones seguidas',
+      mot_plazo:'Plazo vencido', mot_una_tarea:'una tarea',
+      mot_plazo_w:'se venció la restricción operativa de "{q}" y nadie la revisó',
+      mot_conf:'Test poco confiable',
+      mot_conf_w:'el último test se respondió demasiado rápido: no se puede leer, conviene repetirlo',
+      mot_revisar:'Revisar', mot_desact:'test nuevo tras la indicación', mot_sin_revisar:'sin revisar',
+      mot_empeoro:'empeoró', mot_ya_revisado:'ya revisado antes',
+      dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
+      dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
+      dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
+      dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
+      apt_restr_vencida:'Se venció una restricción operativa y nadie la revisó: corresponde que la vea el servicio médico.',
+      apt_conf_ultimo:'El último test se respondió demasiado rápido para ser confiable. No se tuvo en cuenta para el semáforo: <b>conviene repetirlo</b>.',
+      apt_conf_previo_1:'1 test previo quedó fuera del cálculo por baja confiabilidad.',
+      apt_conf_previo_n:'{n} tests previos quedaron fuera del cálculo por baja confiabilidad.',
+      hs_ninguna_area:'Ningún área alcanza las {n} personas para poder desglosarla.',
+      dw_faltan:'Faltan estadísticas',
+      lt_faltan_dias:'Para ver la evolución hacen falta registros de <b>al menos 2 días distintos</b>.',
+      lt_todos_del_dia:'Por ahora todos los registros son del {f}',
+      lt_n_ese_dia:'{n} registros ese día', lt_sin_fecha:'Todavía no hay registros con fecha.',
+      // ── G2 · Estadísticas de nivel profesional ──
+      kpi_igual:'igual',
+      kpi_sobre_ref:'{p}% sobre ref {r}', kpi_bajo_ref:'{p}% bajo ref {r}',
+      kpi_justo_ref:'justo en ref {r}', kpi_sin_dato:'sin datos en el período',
+      kpi_conf_1:'1 poco confiable', kpi_conf_n:'{n} poco confiables',
+      kpi_conf_ayuda:'Tests respondidos tan rápido que no se alcanzaron a leer. Están incluidos en el promedio; el semáforo sí los excluye.',
+      fresco_hoy:'hoy', fresco_ayer:'ayer', fresco_dias:'hace {n} días',
+      fresco_ultimo:'Último registro: {q}',
+      sub_vs_previo:'Las flechas comparan contra el período anterior del mismo largo.',
+      // ── Anotaciones en los gráficos ──
+      anot_g_determinacion:'Determinación médica', anot_g_restriccion:'Restricción de tarea',
+      // ── Informe imprimible ──
+      imp_boton:'Imprimir este panel',
+      imp_pie:'Generado el {f} · {q} · Silva Salud Fatiga {v}',
+      imp_aviso:'Documento orientativo generado por la aplicación. No es un diagnóstico ni una determinación de aptitud: sólo el servicio médico puede emitirlas.',
       // ── G1 · El inicio del empleado ──
       ini_estado_k:'Tu estado hoy',
       ini_dato_viejo:'Tu último registro es de hace {n} días. Un dato viejo dice menos de cómo estás ahora.',
@@ -5396,6 +5493,43 @@ const I18N = {
       apt_lg_bien:'Fine', apt_lg_medio:'Near the limit', apt_lg_alto:'Above', apt_lg_sin:'No data',
       apt_mostrando:'Showing', apt_con_indic_chip:'With <b>medical instruction</b>',
       quitar_filtro:'Remove filter',
+      mot_patron:'Sustained pattern',
+      mot_patron_rep:'{m} above the limit in {n} measurements in a row',
+      mot_patron_sube:'{m} rising over {n} measurements in a row',
+      mot_plazo:'Deadline expired', mot_una_tarea:'a task',
+      mot_plazo_w:'the operational restriction on "{q}" expired and nobody reviewed it',
+      mot_conf:'Unreliable test',
+      mot_conf_w:'the latest test was answered too fast: it cannot be read, it is worth repeating',
+      mot_revisar:'Review', mot_desact:'new test after the instruction', mot_sin_revisar:'not reviewed',
+      mot_empeoro:'got worse', mot_ya_revisado:'reviewed before',
+      dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
+      dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
+      dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
+      dw_radar_3:'3+ indicators are needed for the radar.',
+      apt_restr_vencida:'An operational restriction expired and nobody reviewed it: it should go to medical staff.',
+      apt_conf_ultimo:'The latest test was answered too fast to be reliable. It was not counted towards the status light: <b>it is worth repeating it</b>.',
+      apt_conf_previo_1:'1 earlier test was left out of the calculation for low reliability.',
+      apt_conf_previo_n:'{n} earlier tests were left out of the calculation for low reliability.',
+      hs_ninguna_area:'No area reaches {n} people, so none can be broken down.',
+      dw_faltan:'Not enough data',
+      lt_faltan_dias:'To see the trend, records from <b>at least 2 different days</b> are needed.',
+      lt_todos_del_dia:'So far every record is from {f}',
+      lt_n_ese_dia:'{n} records that day', lt_sin_fecha:'There are no dated records yet.',
+      // ── G2 · Professional-grade statistics ──
+      kpi_igual:'unchanged',
+      kpi_sobre_ref:'{p}% above ref {r}', kpi_bajo_ref:'{p}% below ref {r}',
+      kpi_justo_ref:'exactly at ref {r}', kpi_sin_dato:'no data in this period',
+      kpi_conf_1:'1 unreliable', kpi_conf_n:'{n} unreliable',
+      kpi_conf_ayuda:'Tests answered so fast they cannot have been read. They are included in the average; the status light does exclude them.',
+      fresco_hoy:'today', fresco_ayer:'yesterday', fresco_dias:'{n} days ago',
+      fresco_ultimo:'Latest record: {q}',
+      sub_vs_previo:'The arrows compare against the previous period of the same length.',
+      // ── Chart annotations ──
+      anot_g_determinacion:'Medical determination', anot_g_restriccion:'Task restriction',
+      // ── Printable report ──
+      imp_boton:'Print this panel',
+      imp_pie:'Generated on {f} · {q} · Silva Salud Fatiga {v}',
+      imp_aviso:'Indicative document generated by the application. It is not a diagnosis nor a fitness determination: only medical staff can issue those.',
       // ── G1 · The employee home screen ──
       ini_estado_k:'How you are today',
       ini_dato_viejo:'Your latest record is {n} days old. Old data says less about how you are right now.',
@@ -10829,20 +10963,100 @@ function dashEffectiveRange(){
   if (DASH.f.period === 'custom') return { desde:DASH.f.desde, hasta:DASH.f.hasta };
   return dashPeriodRange(DASH.f.period) || { desde:'', hasta:'' };
 }
-function dashFiltered(){
-  const rng = dashEffectiveRange();
+/* El filtro de ALCANCE (empresa / departamento / persona / nivel), sin la fecha. Se separó de
+   dashFiltered() porque G2 compara contra el PERÍODO ANTERIOR: hay que aplicar exactamente el
+   mismo alcance sobre otra ventana de tiempo, y tener esos cinco filtros escritos en dos lugares
+   es garantizar que algún día se despeguen — y una comparación con alcances distintos a cada lado
+   no está mal por poco, está mal del todo. */
+function dashEnAlcance(r){
+  if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
+  if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
+  if (DASH.f.per && r.persona !== DASH.f.per) return false;
+  // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
+  // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
+  if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
+  return true;
+}
+function dashFiltradoEn(rng){
   return DASH.registros.filter(r => {
     if (rng.desde && r.fecha < rng.desde) return false;
     if (rng.hasta && r.fecha > rng.hasta) return false;
-    if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
-    if (DASH.f.per && r.persona !== DASH.f.per) return false;
-    // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
-    // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
-    if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
-    return true;
+    return dashEnAlcance(r);
   });
 }
+function dashFiltered(){ return dashFiltradoEn(dashEffectiveRange()); }
+
+/* La ventana INMEDIATAMENTE ANTERIOR, del mismo largo. Devuelve null cuando no hay contra qué
+   comparar (período "todo el historial", o un rango a medio elegir): en ese caso G2 no muestra
+   tendencia en vez de inventar una. */
+function dashRangoPrevio(){
+  const rng = dashEffectiveRange();
+  if (!rng.desde || !rng.hasta) return null;
+  const d1 = new Date(rng.desde + 'T00:00:00'), d2 = new Date(rng.hasta + 'T00:00:00');
+  if (isNaN(d1) || isNaN(d2) || d2 < d1) return null;
+  const dias = Math.round((d2 - d1) / 86400000) + 1;
+  const hasta = new Date(d1); hasta.setDate(d1.getDate() - 1);
+  const desde = new Date(hasta); desde.setDate(hasta.getDate() - dias + 1);
+  return { desde: dashISO(desde), hasta: dashISO(hasta) };
+}
+/* Cacheado por render: lo consultan los 7 indicadores del resumen y volver a filtrar los
+   registros siete veces por cada repintado se nota en un teléfono con 400 filas. */
+let _dashPrevCache = null;
+function dashFilasPrevias(){
+  const rng = dashRangoPrevio();
+  if (!rng) return null;
+  const clave = rng.desde + '|' + rng.hasta + '|' + DASH.f.emp + '|' + DASH.f.dep + '|' + DASH.f.per + '|' + DASH.f.nivel;
+  if (_dashPrevCache && _dashPrevCache.clave === clave) return _dashPrevCache.filas;
+  const filas = dashFiltradoEn(rng);
+  _dashPrevCache = { clave: clave, filas: filas };
+  return filas;
+}
+
+/* Cuántos registros de ESTE indicador vienen marcados como poco confiables. El endpoint marca
+   `confiable:false` cuando el test se respondió tan rápido que no se pudo leer.
+   ⚠️ El promedio NO los excluye: cambiarlo movería todos los números del panel de golpe y
+   dejaría de cuadrar con cualquier informe emitido antes. Lo que se hace es AVISAR, que es lo que
+   pedía el prompt. Que el semáforo sí los excluya y el promedio no es una diferencia real y está
+   anotada en PENDIENTES_USUARIO.md para que la decida el servicio médico. */
+function dashPocoConfiables(rows, m){
+  return rows.filter(r => r[m] != null && r.confiable === false).length;
+}
+
+/* Serie por FECHA para la miniatura: un punto por día (promedio si ese día hubo varios tests),
+   en orden cronológico. Sin esto la miniatura dibujaría los registros en el orden en que vinieron
+   del servidor, que no es el orden del tiempo. */
+function dashSerieDiaria(rows, m){
+  const porDia = {};
+  rows.forEach(r => { if (r[m] != null && r.fecha){ const k = String(r.fecha).slice(0,10);
+    (porDia[k] = porDia[k] || []).push(r[m]); } });
+  return Object.keys(porDia).sort().map(k => dashMean(porDia[k]));
+}
+
+/* Miniatura de tendencia: sin ejes, sin números, sin interacción. Es un gesto, no un gráfico —
+   dice "esto viene subiendo/bajando" de un vistazo y el gráfico de verdad está más abajo.
+   La línea punteada es la REFERENCIA: sin ella la miniatura mostraría la forma pero no diría si
+   esa forma está bien o mal, que es justo lo que hay que poder leer de un vistazo. */
+function dashSpark(vals, ref){
+  const n = vals.length;
+  if (n < 2) return '<div class="spark spark-vacia"></div>';
+  const W = 100, H = 26, p = 3;
+  const todos = ref != null ? vals.concat([ref]) : vals;
+  let min = Math.min.apply(null, todos), max = Math.max.apply(null, todos);
+  if (max === min){ max = min + 1; }
+  const x = i => p + (i / (n - 1)) * (W - p * 2);
+  const y = v => H - p - ((v - min) / (max - min)) * (H - p * 2);
+  const d = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const area = d + ' L' + x(n-1).toFixed(1) + ' ' + (H - p) + ' L' + x(0).toFixed(1) + ' ' + (H - p) + ' Z';
+  const sube = vals[n-1] > vals[0];
+  const col = sube ? 'var(--sem-rojo-alt)' : 'var(--sem-verde-int)';
+  const refLn = ref != null ? '<line x1="'+p+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-p)+'" y2="'+y(ref).toFixed(1)+
+    '" stroke="var(--ch-ref)" stroke-width="1" stroke-dasharray="2 2"/>' : '';
+  return '<svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+    '<path d="' + area + '" fill="' + col + '" opacity=".12"/>' + refLn +
+    '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<circle cx="' + x(n-1).toFixed(1) + '" cy="' + y(vals[n-1]).toFixed(1) + '" r="2" fill="' + col + '"/></svg>';
+}
+
 
 /* ── Unificar variantes del mismo nombre (acentos/mayúsculas/espacios) ── */
 function dashNorm(s){ return String(s||'').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
@@ -10944,7 +11158,7 @@ function renderDash(){
   const ord = dashOrderedTabs();
   // Aviso de pocos datos: no oculta nada, sólo advierte que puede no ser representativo
   const aviso = (rows.length && rows.length < 3)
-    ? dashWarn('Hay pocos registros para este filtro (' + rows.length + '). Los promedios y tendencias pueden no ser representativos todavía.')
+    ? dashWarn(t('dw_pocos_registros', { n: rows.length }))
     : '';
   /* ⚠️ El parámetro se llamaba `t` y TAPABA la función t() de traducción. La rama del estado
      vacío llama a t('vac_sin_tests'), así que tiraba "t is not a function" y el panel entero no
@@ -10981,7 +11195,7 @@ function renderDash(){
   const anotBloque = !esMedico ? ''
     : (DASH.f.per ? (dashFichaMedica(rows) + dashAnotacionSupervisor(rows, true, esc(DASH.f.per)))
                   : (dashAnotacionesResumen() + casosOdooBloque()));
-  body.innerHTML = dashContext() + anotBloque + aviso + secciones;
+  body.innerHTML = dashImprimirCabecera() + dashContext() + anotBloque + aviso + secciones + dashImprimirPie();
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -11597,15 +11811,13 @@ function aptTarjeta(p, opts){
         '<div class="apt-restr-nota apt-restr-pie">Es una decisión operativa para esa tarea, no una determinación médica.</div>' +
       '</div>' : '';
   const avisoVencida = (!p.restriccion && p.restrVencida)
-    ? '<div class="apt-aviso">Se venció una restricción operativa y nadie la revisó: corresponde que la vea el servicio médico.</div>' : '';
+    ? '<div class="apt-aviso">' + esc(t('apt_restr_vencida')) + '</div>' : '';
   // ── Calidad del dato (P6). Es un aviso de que NO SE PUEDE LEER a esta persona, no un dato de
   //    salud: por eso es gris y dice explícitamente que el semáforo no lo tuvo en cuenta.
   const avisoConf = p.ultimoPocoConfiable
-    ? '<div class="apt-aviso apt-aviso-gris">El último test se respondió demasiado rápido para ser confiable. ' +
-      'No se tuvo en cuenta para el semáforo: <b>conviene repetirlo</b>.</div>'
-    : (p.pocoConfiable ? '<div class="apt-aviso apt-aviso-gris">' + p.pocoConfiable +
-      (p.pocoConfiable === 1 ? ' test previo quedó' : ' tests previos quedaron') +
-      ' fuera del cálculo por baja confiabilidad.</div>' : '');
+    ? '<div class="apt-aviso apt-aviso-gris">' + t('apt_conf_ultimo') + '</div>'
+    : (p.pocoConfiable ? '<div class="apt-aviso apt-aviso-gris">' +
+      esc(t(p.pocoConfiable === 1 ? 'apt_conf_previo_1' : 'apt_conf_previo_n', { n: p.pocoConfiable })) + '</div>' : '');
   // ── Capa de TELEMEDICINA. Tercera capa, distinta de la médica y de la operativa.
   const tInfo = p.telem ? telemInfo(p.telem.estado) : null;
   const telemBanner = p.telem
@@ -11906,7 +12118,7 @@ function renderHseqMrfo(rows){
   return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_mapa_area')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_pct_atencion')) + '</div>' +
     (grandes.length ? '<div class="hs-grid">' + grandes.map(celda).join('') + '</div>'
-                    : '<div class="dash-empty">Ningún área alcanza las ' + min + ' personas para poder desglosarla.</div>') +
+                    : '<div class="dash-empty">' + esc(t('hs_ninguna_area', { n: min })) + '</div>') +
     (chicos.length ? '<div class="hs-agregado"><b>' + esc(t('hs_areas_chicas')) + '</b> (' + chicos.length + ' ' +
       t(chicos.length===1?'n_area':'n_areas') + ', ' + totChicos + ' ' + t(totChicos===1?'n_persona':'n_personas') + '): ' +
       (totChicos ? Math.round(malChicos/totChicos*100) : 0) + esc(t('hs_requiere_atencion')) +
@@ -12925,15 +13137,12 @@ function renderResumen(rows){
   const subProm = esOtraPersona ? 'res_sub_sus' : (single ? 'res_sub_tus' : 'res_sub_los');
   let head = '<div class="dash-block"><div class="db-title">' +
       (esOtraPersona ? esc(t('res_prom_de', { q: who })) : (single ? esc(t('res_tus_prom')) : (who ? esc(t('res_prom_scope', { q: who })) : esc(t('res_promedios'))))) + '</div>' +
-    '<div class="db-sub">' + esc(t(subProm, { n: nReg })) + '</div>' +
+    '<div class="db-sub">' + esc(t(subProm, { n: nReg })) +
+      (dashRangoPrevio() ? (' ' + esc(t('sub_vs_previo'))) : '') + '</div>' +
     '<div class="kpi-grid">';
-  DASH.metrics.forEach(m => {
-    const a = dashAvg(rows, m), ref = DASH.ref[m], over = a!=null && a>ref;
-    head += '<div class="kpi ' + (over?'over':'') + '"><div class="km">' + (METRIC_LABELS[m]||m) + '</div>' +
-      '<div class="kv">' + (a==null?'—':a.toFixed(1)) + '</div>' +
-      '<div class="kref">ref ' + ref + (over?' · ▲':'') + '</div></div>';
-  });
-  head += '</div></div>';
+  const filasPrev = dashFilasPrevias();
+  DASH.metrics.forEach(m => { head += dashKpiCard(rows, m, filasPrev); });
+  head += '</div>' + dashFrescura(rows) + '</div>';
   // El gráfico de barras "grupo vs. referencia" es para el grupo. En la vista personal NO se
   // muestra: la misma comparación aparece más clara en "Tus indicadores vs. lo normal" (no se
   // repite lo mismo dos veces). Así la vista personal queda más ordenada, sin perder información.
@@ -12952,6 +13161,118 @@ function renderResumen(rows){
   const esEmpleadoPropio = DASH.rol === 'empleado' && !esOtraPersona;
   const nivel1 = esEmpleadoPropio ? (dashSemaforoPersonal(rows) + dashTelemedicinaCard(rows) + dashTurnoCard() + dashReporteCard()) : '';
   return help + nivel1 + head + bars + radar + extra;
+}
+
+/* ══════════ G2 · Informe imprimible ══════════
+   Se imprime EL PANEL, no un documento aparte: con los filtros puestos, las mismas cifras y los
+   mismos gráficos. Un generador separado empieza igual y se desincroniza a la primera pestaña
+   nueva; esto no puede desincronizarse porque es lo mismo.
+   La cabecera y el pie sólo existen en papel (`.print-solo`): en pantalla el encabezado ya está. */
+function dashImprimirCabecera(){
+  const quien = DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope || '';
+  return '<button type="button" class="imp-btn" onclick="dashImprimir()">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>' +
+      esc(t('imp_boton')) + '</button>' +
+    '<div class="imp-cab print-solo">' +
+      '<div class="imp-cab-t">' + esc(vistaLabel(DASH.vista) || '') + ' · ' + esc(quien) + '</div>' +
+      '<div class="imp-cab-s">' + esc(periodoLabel(DASH.f.period)) + ' · ' + esc(dashRangoTexto(dashFiltered())) + '</div>' +
+    '</div>';
+}
+function dashImprimirPie(){
+  const quien = DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope || '';
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  const f = dashFechaLinda(dashISO(d)) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  /* R2 en papel. Una hoja impresa se separa de la app y circula sola: si no dice ahí mismo que no
+     es una determinación de aptitud, alguien la va a leer como si lo fuera. */
+  return '<div class="imp-pie print-solo"><b>' + esc(t('imp_aviso')) + '</b><br>' +
+    esc(t('imp_pie', { f: f, q: quien, v: APP_VERSION })) + '</div>';
+}
+function dashImprimir(){
+  // Se despliegan las ayudas y los "ver más" ANTES de imprimir: el @media print los muestra, pero
+  // <details> sin `open` no expande su contenido con CSS solo.
+  const abiertos = [];
+  document.querySelectorAll('#dashBody details:not([open])').forEach(d => { abiertos.push(d); d.open = true; });
+  const volver = () => { abiertos.forEach(d => { d.open = false; }); window.removeEventListener('afterprint', volver); };
+  window.addEventListener('afterprint', volver);
+  setTimeout(function(){ try { window.print(); } catch(e){ volver(); } }, 60);
+}
+
+/* ══════════ G2 · La tarjeta de un número ══════════
+   Aceptación del prompt: «cada número dice qué es, contra qué se compara, hacia dónde va y qué
+   tan confiable es». Las cuatro cosas van en la misma tarjeta y en ese orden de lectura:
+
+     NOMBRE          ← qué es
+     18,4            ← el número
+     ▼ 12%           ← hacia dónde va (contra el período ANTERIOR del mismo largo)
+     ▁▂▃▅▂▁          ← la forma, con la referencia punteada
+     49% bajo ref 36 ← contra qué se compara
+     ⚠ 2 poco confiables ← qué tan confiable es (sólo si los hay)
+
+   Lo que NO se hace: cambiar el promedio para excluir los tests poco confiables. Ver la nota de
+   dashPocoConfiables(). */
+function dashKpiCard(rows, m, filasPrev){
+  const a = dashAvg(rows, m), ref = DASH.ref[m];
+  const over = a != null && ref != null && a > ref;
+  let html = '<div class="kpi ' + (over ? 'over' : '') + '">' +
+    '<div class="km">' + esc(METRIC_LABELS[m] || m) + '</div>' +
+    '<div class="kv">' + (a == null ? '—' : a.toFixed(1)) + '</div>';
+
+  // ── Hacia dónde va ──
+  // Sólo si HAY período anterior y HAY dato en los dos lados. Con un lado vacío no hay
+  // comparación posible, y un "▲ 100%" contra la nada sería un número inventado.
+  if (a != null && filasPrev){
+    const prev = dashAvg(filasPrev, m);
+    if (prev != null && Math.abs(prev) > 0.01){
+      const pct = Math.round((a - prev) / Math.abs(prev) * 100);
+      if (pct === 0){
+        html += '<div class="ktrend ktrend-igual">= ' + esc(t('kpi_igual')) + '</div>';
+      } else {
+        // En TODOS los indicadores más alto es peor, así que subir siempre es la mala noticia.
+        const mal = pct > 0;
+        html += '<div class="ktrend ' + (mal ? 'ktrend-mal' : 'ktrend-bien') + '">' +
+          (mal ? '▲' : '▼') + ' ' + Math.abs(pct) + '%</div>';
+      }
+    }
+  }
+
+  // ── La forma ──
+  html += dashSpark(dashSerieDiaria(rows, m), ref);
+
+  // ── Contra qué se compara ──
+  // El número solo no dice nada: "18,4" es tranquilizador o alarmante según cuál sea el límite.
+  if (a != null && ref){
+    const dif = Math.round(Math.abs(a / ref - 1) * 100);
+    html += '<div class="kref">' +
+      (dif === 0 ? esc(t('kpi_justo_ref', { r: ref }))
+                 : esc(t(over ? 'kpi_sobre_ref' : 'kpi_bajo_ref', { p: dif, r: ref }))) + '</div>';
+  } else {
+    html += '<div class="kref">' + esc(t('kpi_sin_dato')) + '</div>';
+  }
+
+  // ── Qué tan confiable es ──
+  const nMal = dashPocoConfiables(rows, m);
+  if (nMal > 0){
+    html += '<div class="kconf" title="' + esc(t('kpi_conf_ayuda')) + '">⚠ ' +
+      esc(t(nMal === 1 ? 'kpi_conf_1' : 'kpi_conf_n', { n: nMal })) + '</div>';
+  }
+  return html + '</div>';
+}
+
+/* Frescura del dato. Un panel lleno de números sin decir de cuándo son invita a leerlos como si
+   fueran de hoy. Va debajo de la grilla y se pone en ámbar cuando el último registro ya pasó el
+   umbral de "dato no reciente" que usa el resto de la app. */
+function dashFrescura(rows){
+  const fechas = rows.map(r => r.fecha).filter(Boolean).sort();
+  if (!fechas.length) return '';
+  const ultima = fechas[fechas.length - 1];
+  const dias = aptDiasDesde(ultima);
+  if (dias == null) return '';
+  const viejo = dias > APT_DIAS_FRESCO;
+  const txt = dias === 0 ? t('fresco_hoy') : (dias === 1 ? t('fresco_ayer') : t('fresco_dias', { n: dias }));
+  return '<div class="kfresco' + (viejo ? ' kfresco-viejo' : '') + '">' +
+    (viejo ? '⚠ ' : '') + esc(t('fresco_ultimo', { q: txt })) + ' · ' + esc(dashFechaLinda(ultima)) + '</div>';
 }
 
 /* ══════════ Semáforo personal — "¿Estoy apto hoy?" ══════════
@@ -13158,7 +13479,7 @@ function dashVerMas(items, n){
   return primeros + '<details class="ver-mas"><summary class="ver-mas-sum">' + esc(t('ver_mas_n', { n: resto.length })) + ' <span class="hm-caret">▾</span></summary><div>' + resto.join('') + '</div></details>';
 }
 // Aviso "faltan estadísticas": cuando no hay datos suficientes para un gráfico, no lo mostramos y explicamos por qué.
-function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ Faltan estadísticas</div><div class="dw-d">' + detail + '</div></div>'; }
+function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ ' + esc(t('dw_faltan')) + '</div><div class="dw-d">' + detail + '</div></div>'; }
 // Cuántos meses distintos con datos hay en estas filas (para saber si se puede graficar evolución)
 function dashMonthsCount(rows){ const s={}; rows.forEach(r=>{ if(r.fecha) s[String(r.fecha).slice(0,7)]=1; }); return Object.keys(s).length; }
 
@@ -13377,7 +13698,7 @@ function renderEvolucion(rows){
   const nMeses = dashMonthsCount(rows);
   if (nMeses < 2){
     return dashHelp(t('hlp_evo_vacia')) + picker +
-      dashWarn('Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay ' + (nMeses===0?'registros sin fecha':'registros de un solo mes') + ' (' + rows.length + ' registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.');
+      dashWarn(t('dw_dos_meses', { q: t(nMeses===0 ? 'dw_sin_fecha' : 'dw_un_mes'), n: rows.length }));
   }
   if (m === '__all__'){
     const help = dashHelp(t('hlp_evo_multi'));
@@ -13897,7 +14218,7 @@ function dashStatsTable(rows){
 /* ── Radar SVG (perfil multi-métrica normalizado a la referencia) ── */
 function dashRadar(series){
   const M = DASH.metrics, N = M.length;
-  if (N < 3) return '<div class="lc-empty">Se necesitan 3+ métricas para el radar.</div>';
+  if (N < 3) return '<div class="lc-empty">' + esc(t('dw_radar_3')) + '</div>';
   const W=280, H=240, cx=W/2, cy=H/2+4, R=76, MAXN=2;
   const ang = i => -Math.PI/2 + i*2*Math.PI/N;
   const rad = norm => Math.max(0, Math.min(MAXN, norm))/MAXN * R;
@@ -13971,6 +14292,32 @@ function dashHistograma(rows, m){
 }
 
 /* ── LÍNEA DE TIEMPO: cada registro como un punto sobre el eje del tiempo ── */
+/* Hechos con fecha que explican la forma de una curva: cuándo el médico firmó una determinación
+   y cuándo el supervisor puso una restricción. Se devuelven sólo los que caen DENTRO de la ventana
+   dibujada — una marca fuera del eje no se puede colocar y confundiría más de lo que explica.
+   ⚠️ Nunca se muestra la NOTA de la determinación: es contenido clínico y este gráfico lo ve
+   también el supervisor. Sólo el hecho y la fecha, igual que en la trazabilidad. */
+function dashAnotacionesGrafico(t0, t1){
+  const per = DASH && DASH.f && DASH.f.per;
+  if (!per) return [];
+  const out = [];
+  try {
+    gestAnotacionesTodasDe(per).forEach(g => {
+      if (g.creada >= t0 && g.creada <= t1)
+        out.push({ ts:g.creada, tipo:'det', color:'var(--sem-violeta)',
+                   txt: t('anot_g_determinacion') + ' · ' + apAnotInfo(g.nivel).corto + ' · ' + gestFechaTs(g.creada) });
+    });
+  } catch(e){}
+  try {
+    restTodasDe(per).forEach(g => {
+      if (g.creada >= t0 && g.creada <= t1)
+        out.push({ ts:g.creada, tipo:'restr', color:'var(--sem-azul-int)',
+                   txt: t('anot_g_restriccion') + ' · ' + (g.tarea || '—') + ' · ' + gestFechaTs(g.creada) });
+    });
+  } catch(e){}
+  return out.sort((a,b) => a.ts - b.ts);
+}
+
 function dashLineaTiempo(rows, m){
   // Se agrupa por DÍA. Si el mismo día hay varios registros se toma el PEOR (el más alto), porque
   // una línea que "sube" entre dos puntos del mismo día no significa nada. Y si todo es del mismo
@@ -13985,10 +14332,11 @@ function dashLineaTiempo(rows, m){
   const dias = Object.keys(peorPorDia).sort();
   const diasConVarios = dias.filter(d => cuentaPorDia[d] > 1).length;
   if (dias.length < 2){
-    return dashWarn('Para ver la evolución hacen falta registros de <b>al menos 2 días distintos</b>. ' +
+    return dashWarn(t('lt_faltan_dias') + ' ' +
       (dias.length === 1
-        ? 'Por ahora todos los registros son del <b>' + esc(dashFechaLinda(dias[0])) + '</b>' + (cuentaPorDia[dias[0]] > 1 ? ' (' + cuentaPorDia[dias[0]] + ' registros ese día)' : '') + '.'
-        : 'Todavía no hay registros con fecha.'));
+        ? t('lt_todos_del_dia', { f: '<b>' + esc(dashFechaLinda(dias[0])) + '</b>' }) +
+          (cuentaPorDia[dias[0]] > 1 ? (' (' + t('lt_n_ese_dia', { n: cuentaPorDia[dias[0]] }) + ')') : '') + '.'
+        : t('lt_sin_fecha')));
   }
   const pts = dias.map(d => ({ t:new Date(d + 'T00:00:00').getTime(), v:peorPorDia[d], f:d }))
     .filter(p => !isNaN(p.t));
@@ -14004,10 +14352,28 @@ function dashLineaTiempo(rows, m){
   const dPath = pts.map((p,i) => (i?'L':'M') + x(p.t).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   svg += '<path d="'+dPath+'" fill="none" stroke="var(--sem-azul)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
   pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+(p.v>ref?'var(--sem-rojo)':'var(--sem-azul)')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
+  /* G2 · Anotaciones. Un pico sin contexto no se puede interpretar: no es lo mismo un valor alto
+     porque sí que uno alto el día antes de que el médico firmara una determinación. Se marcan los
+     dos hechos que dejan rastro y que explican la forma de la curva.
+     Sólo cuando hay UNA persona seleccionada: sobre un grupo, veinte líneas verticales de veinte
+     personas distintas no son contexto, son ruido. */
+  const anots = dashAnotacionesGrafico(t0, t1);
+  anots.forEach(a => {
+    const px = x(a.ts);
+    svg += '<line x1="'+px.toFixed(1)+'" y1="'+padT+'" x2="'+px.toFixed(1)+'" y2="'+(padT+ih)+
+      '" stroke="'+a.color+'" stroke-width="1.2" stroke-dasharray="3 2" opacity=".75"><title>'+esc(a.txt)+'</title></line>';
+    svg += '<circle cx="'+px.toFixed(1)+'" cy="'+(padT+3)+'" r="3" fill="'+a.color+'"><title>'+esc(a.txt)+'</title></circle>';
+  });
   svg += '<text x="'+padL+'" y="'+(H-9)+'" font-size="8" fill="var(--ch-label)">'+esc(dashFechaLinda(pts[0].f))+'</text>';
   svg += '<text x="'+(W-padR)+'" y="'+(H-9)+'" font-size="8" fill="var(--ch-label)" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
   svg += '</svg>';
+  const leyendaAnot = anots.length
+    ? [...new Set(anots.map(a => a.tipo))].map(tp => '<span class="rl-item"><span class="rl-dot" style="background:' +
+        (tp === 'det' ? 'var(--sem-violeta)' : 'var(--sem-azul-int)') + '"></span>' +
+        esc(t(tp === 'det' ? 'anot_g_determinacion' : 'anot_g_restriccion')) + '</span>').join('')
+    : '';
   return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">' + t('lt_cada_punto') + '</span>' +
+    leyendaAnot +
     (diasConVarios ? '<span class="rl-item rl-nota">' + t('lt_varios_dia') + '</span>' : '') +
     '</div></div>';
 }
@@ -15077,22 +15443,19 @@ function dashFichaMedica(rows){
 function aptMotivoCola(p){
   if (p.persist){
     const met = METRIC_LABELS[p.persist.metrica] || p.persist.metrica;
-    return p.persist.motivo === 'repetido'
-      ? { badge:'Patrón sostenido', c:'var(--sem-violeta)', bg:'var(--sem-violeta-bg)',
-          why: met + ' por encima del límite en ' + p.persist.n + ' mediciones seguidas' }
-      : { badge:'Patrón sostenido', c:'var(--sem-violeta)', bg:'var(--sem-violeta-bg)',
-          why: met + ' subiendo en ' + p.persist.n + ' mediciones seguidas' };
+    return { badge:t('mot_patron'), c:'var(--sem-violeta)', bg:'var(--sem-violeta-bg)',
+      why: t(p.persist.motivo === 'repetido' ? 'mot_patron_rep' : 'mot_patron_sube', { m: met, n: p.persist.n }) };
   }
-  if (p.restrVencida) return { badge:'Plazo vencido', c:'var(--sem-azul)', bg:'var(--sem-azul-bg)',
-    why: 'se venció la restricción operativa de "' + (p.restrVencida.tarea || 'una tarea') + '" y nadie la revisó' };
+  if (p.restrVencida) return { badge:t('mot_plazo'), c:'var(--sem-azul)', bg:'var(--sem-azul-bg)',
+    why: t('mot_plazo_w', { q: p.restrVencida.tarea || t('mot_una_tarea') }) };
   // Calidad del dato, no salud: no hay nada clínico que determinar todavía, hace falta un test
   // que sirva. Va con su propio color para que no se confunda con un caso a evaluar.
-  if (p.ultimoPocoConfiable) return { badge:'Test poco confiable', c:'var(--sem-gris)', bg:'var(--sem-gris-bg)',
-    why: 'el último test se respondió demasiado rápido: no se puede leer, conviene repetirlo' };
-  if (p.desactualizada) return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'test nuevo tras la indicación' };
-  if (!p.revisado)      return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'sin revisar' };
-  if (p.empeoro)        return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'empeoró' };
-  return { badge:'Revisar', c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:'ya revisado antes' };
+  if (p.ultimoPocoConfiable) return { badge:t('mot_conf'), c:'var(--sem-gris)', bg:'var(--sem-gris-bg)',
+    why: t('mot_conf_w') };
+  if (p.desactualizada) return { badge:t('mot_revisar'), c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:t('mot_desact') };
+  if (!p.revisado)      return { badge:t('mot_revisar'), c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:t('mot_sin_revisar') };
+  if (p.empeoro)        return { badge:t('mot_revisar'), c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:t('mot_empeoro') };
+  return { badge:t('mot_revisar'), c:'var(--sem-rojo)', bg:'var(--sem-rojo-bg)', why:t('mot_ya_revisado') };
 }
 function dashAnotacionesResumen(){
   if (!DASH || DASH.vista !== 'medico') return '';
