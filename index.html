@@ -2435,8 +2435,8 @@
   .cic-pt-off  { background:var(--ch-neutro); opacity:.45; }
   .cic-seg { position:relative; display:flex; align-items:center; justify-content:center; min-width:24px;
     overflow:hidden; background:var(--chip-bg); }
-  .cic-seg span { font-size:.66rem; font-weight:800; color:var(--text-muted); letter-spacing:.02em;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .35rem; }
+  .cic-seg span { font-size:.62rem; font-weight:800; color:var(--text-muted); letter-spacing:.01em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
   .cic-seg:first-of-type { border-radius:7px 0 0 7px; }
   .cic-seg:last-of-type  { border-radius:0 7px 7px 0; }
   .cic-tras.on { background:var(--orange-txt); }
@@ -3593,7 +3593,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.79';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.80';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3879,7 +3879,7 @@ const I18N = {
       pvt_resultado:'Resultado', listo:'Listo', recomendado:'(recomendado)', editar:'Editar',
       // ── Ciclo operativo (C1). Los tramos, no los eventos: los eventos van por sector. ──
       cic_traslado_ida:'Traslado de ida', cic_traslado_vta:'Traslado de vuelta',
-      cic_jornada:'Jornada (servicio activo)', cic_descanso:'Descanso',
+      cic_jornada:'Jornada', cic_descanso:'Descanso',
       cic_c_traslado:'Traslado', cic_c_jornada:'Jornada', cic_c_regreso:'Regreso', cic_c_descanso:'Descanso',
       cic_sin_marcar:'sin marcar',
       cic_previsto:'Previsto {d}', cic_de_previsto:'de {d}',
@@ -3893,6 +3893,136 @@ const I18N = {
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
       cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
       rango_admin:'Administrador', rango_personal:'Personal',
+      // ── F1 · Pestañas del panel ──
+      tab_resumen:'Resumen', tab_comparar:'Comparar', tab_individual:'Individual',
+      tab_evolucion:'Evolución', tab_pvt:'Reacción', tab_comentarios:'Comentarios',
+      tab_informe:'Informe IA', tab_gestiones:'Gestiones', tab_aptitud:'Aptitud',
+      tab_reportes:'Reportes', tab_ciclo:'Ciclo operativo', tab_idc:'Disponibilidad',
+      tab_mrfo:'Mapa de riesgo', tab_intervenciones:'Intervenciones',
+      tab_auditoria:'Trazabilidad', tab_costos:'Costos', tab_predictivo:'Predictivo',
+      // ── F1 · Períodos ──
+      per_all:'Todo', per_dia:'Día', per_semana:'Semana', per_mes:'Mes',
+      per_trimestre:'Trimestre', per_semestre:'Semestre', per_anio:'Año',
+      per_custom:'Personalizado',
+      // ── F1 · Estados vacíos ──
+      vac_sin_tests:'Sin registros de tests para este filtro.',
+      vac_sin_datos:'Sin datos.',
+      vac_sin_acciones:'Todavía no hay acciones registradas.',
+      vac_sin_personal:'No hay personal en este alcance todavía.',
+      vac_sin_reportes:'No hay reportes por ahora.',
+      vac_sin_personas:'Sin registros de personas para este filtro.',
+      vac_nadie_filtros:'Nadie con los filtros actuales.',
+      vac_sin_por_persona:'Sin datos por persona.',
+      vac_endpoint_com:'Actualiza el endpoint del maestro para habilitar los comentarios.',
+      vac_sin_comentarios:'Sin comentarios para este filtro.',
+      vac_sin_ficha:'Todavía no hay determinaciones, restricciones ni notas de esta persona.',
+      vac_sin_indicadores:'Sin indicadores con datos.',
+      // ── F1 · Avisos ──
+      ts_no_guardar_disp:'No se pudo guardar en este dispositivo',
+      ts_simulacion:'Modo simulación: no se guarda nada',
+      ts_reporte_enviado:'Reporte enviado',
+      ts_test_registrado:'Test registrado',
+      ts_en_desarrollo:'Función en desarrollo',
+      ts_datos_encontrados:'Encontramos tus datos',
+      ts_admin_cerrada:'Cerraste la sesión de administrador',
+      ts_admin_activo:'Acceso de administrador activo',
+      ts_sim_no_abre:'No se pudo abrir la simulación',
+      ts_sim_salida:'Saliste del modo simulación',
+      ts_guardado_disp:'Guardado en este dispositivo',
+      ts_no_actualizar:'No se pudo actualizar',
+      ts_ya_al_dia:'Ya estaba al día',
+      ts_actualizado:'Actualizado',
+      ts_sin_conexion:'Sin conexión',
+      ts_nada_exportar:'No hay nada para exportar',
+      ts_archivo_ok:'Archivo generado',
+      ts_archivo_error:'No se pudo generar el archivo',
+      ts_ciclo_guardado:'Horas del ciclo guardadas para toda la empresa',
+      ts_copiado:'Informe copiado al portapapeles',
+      ts_no_copiar:'No se pudo copiar',
+      ts_no_compartir:'Compartir no está disponible en este navegador',
+      ts_informe_ok:'Informe generado · tócalo para leerlo',
+      ts_indica_tarea:'Indica qué tarea no debe hacer',
+      ts_restr_ok:'Restricción registrada',
+      ts_restr_off:'Restricción levantada',
+      ts_telem_sug:'Telemedicina sugerida',
+      ts_telem_ok:'Telemedicina aceptada',
+      ts_telem_no:'Telemedicina rechazada',
+      ts_telem_hecha:'Telemedicina marcada como realizada',
+      // ── F1 · Títulos de bloque ──
+      db_estado_equipo:'Estado general del equipo',
+      db_disp_cognitiva:'Disponibilidad cognitiva',
+      db_reparto_estado:'Reparto por estado',
+      db_exposicion_nivel:'Exposición por nivel de riesgo',
+      db_mapa_area:'Mapa de riesgo por área',
+      db_intervenciones:'Intervenciones preventivas',
+      db_telemedicina:'Telemedicina',
+      db_pend_config:'Pendiente de configurar',
+      db_estim_retorno:'Estimación de retorno',
+      db_aptitud:'Aptitud del personal',
+      db_grupo_normal:'El grupo vs. lo normal',
+      db_perfil_riesgo:'Perfil de riesgo',
+      db_turno_hoy:'Tu turno de hoy',
+      db_reporte_rapido:'Reporte rápido',
+      db_mes_a_mes:'Cómo vas mes a mes',
+      db_linea_tiempo:'Línea de tiempo',
+      db_distribucion:'Distribución',
+      db_perfil_comparado:'Perfil comparado',
+      db_indicador_pesa:'¿Qué indicador pesa más?',
+      db_dist_grupo:'Distribución por grupo',
+      db_cruce:'Cruce de indicadores',
+      db_ranking:'Ranking individual',
+      db_evolucion:'Evolución en el tiempo',
+      db_com_adic:'Comentarios adicionales',
+      db_comentarios:'Comentarios',
+      db_resumen_reaccion:'Resumen de reacción',
+      db_ranking_reaccion:'Ranking por tiempo de reacción',
+      db_evo_reaccion:'Cómo evolucionó la reacción',
+      db_informe_ia:'Informe IA',
+      db_numeros:'Números en detalle, por indicador',
+      db_sobre_ref:'Sobre la referencia',
+      ts_anonimo_suf:'de forma anónima',
+      // ── F1 · Subtítulos de bloque ──
+      sub_resumen_op:'Resumen operativo del grupo que tengas filtrado',
+      sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
+      sub_gente_nivel:'Cuánta gente hay en cada nivel y qué proporción está en condiciones',
+      sub_pct_atencion:'% de personas con indicadores que requieren atención · ordenado de mayor a menor',
+      sub_total_acc:'Total de acciones de cuidado registradas',
+      sub_consultas:'Consultas ofrecidas y qué decidió cada persona',
+      sub_inalterable:'Registro inalterable, de lo más reciente a lo más antiguo',
+      sub_supuestos:'Calculado con los supuestos cargados por la empresa',
+      sub_esqueleto:'Ninguno de estos indicadores es un dato real: son esqueletos para mostrar el alcance del próximo nivel comercial.',
+      sub_identificados:'Sabes quién lo mandó. Toca para ver a la persona.',
+      sub_anonimos:'Sobre el puesto o el turno. Nadie puede saber quién los mandó.',
+      sub_elegi_ajuste:'Elige lo que más se ajuste. Las opciones marcadas ',
+      sub_barra_ref:'Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal). Toca un indicador abajo para aislarlo o volver a mostrarlo.',
+      sub_radar:'Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.',
+      sub_tres_reg:'Tres registros cortos: cómo llegas, cómo va la carga, y cómo te vas.',
+      sub_avisa_sup:'Si algo te está afectando, avísale a tu supervisor en un toque.',
+      sub_cada_ind_ref:'Cada indicador ÷ su referencia (1.0 = valor normal). Todos en la misma escala.',
+      sub_aporta:'Cuánto aporta cada indicador al riesgo de hoy. Mientras más grande la porción, más cerca (o por encima) de su límite está ese indicador.',
+      sub_prom_mensual:'Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)',
+      sub_texto_libre:'Texto libre que escribió el propio personal al completar sus tests',
+      sub_peor_arriba:'Peor (más lento) arriba · toca a una persona para ver su detalle',
+      sub_cada_punto:'Cada punto es un test. Cuanto más abajo, más rápido reaccionó (mejor).',
+      sub_reciente:'Del más reciente al más antiguo',
+      sub_casos_auto:'Abiertos automáticamente y tomados por el circuito de telemedicina',
+      // ── F1 · Aptitud, ciclo y reportes (vista del supervisor) ──
+      apt_toca_numero:'Toca un número para ver sólo ese grupo en la lista.',
+      apt_dato_viejo:'Con dato de más de {n} días',
+      apt_solo_cantidades:'Son cantidades de personas y datos del grupo: nunca valores de tests ni detalle individual.',
+      apt_orden_norm:'Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después',
+      apt_orden_inv:'Primero lo que ya está tranquilo; lo urgente va después',
+      apt_btn_urg:'Más urgentes primero', apt_btn_tranq:'Más tranquilos primero',
+      apt_con_indic:'Con indicación médica',
+      apt_ultimo_test:'último test hace {n} días',
+      apt_no_reciente:'Dato no reciente: puede no reflejar cómo está hoy.',
+      ver_mas_n:'Ver {n} más',
+      cic_ciclo_de:'Ciclo de {f}', cic_sin_iniciar:'Sin ciclo iniciado',
+      cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
+      cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
+      cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
+      rep_grupo_agregado:'Empresa (grupo agregado)',
+      sub_determ:'Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión',
       // ── Tareas y notificaciones (D1) ──
       tar_titulo:'Tus tareas',
       tar_lead:'Lo que tu supervisor o el servicio médico te pidieron.',
@@ -4457,7 +4587,7 @@ const I18N = {
       pvt_resultado:'Result', listo:'Done', recomendado:'(recommended)', editar:'Edit',
       // ── Operational cycle (C1) ──
       cic_traslado_ida:'Outbound commute', cic_traslado_vta:'Return commute',
-      cic_jornada:'Working time (on duty)', cic_descanso:'Rest',
+      cic_jornada:'Working time', cic_descanso:'Rest',
       cic_c_traslado:'Commute', cic_c_jornada:'On duty', cic_c_regreso:'Return', cic_c_descanso:'Rest',
       cic_sin_marcar:'not logged',
       cic_previsto:'Planned {d}', cic_de_previsto:'of {d}',
@@ -4507,6 +4637,136 @@ const I18N = {
       kss_ph_coment:'Type your comment here...',
       cic_kpi_comp:'complete', cic_kpi_sin:'not started',
       rango_admin:'Administrator', rango_personal:'Staff',
+      // ── F1 · Dashboard tabs ──
+      tab_resumen:'Summary', tab_comparar:'Compare', tab_individual:'Individual',
+      tab_evolucion:'Trend', tab_pvt:'Reaction', tab_comentarios:'Comments',
+      tab_informe:'AI report', tab_gestiones:'Case notes', tab_aptitud:'Fitness',
+      tab_reportes:'Reports', tab_ciclo:'Operational cycle', tab_idc:'Availability',
+      tab_mrfo:'Risk map', tab_intervenciones:'Interventions',
+      tab_auditoria:'Traceability', tab_costos:'Costs', tab_predictivo:'Predictive',
+      // ── F1 · Periods ──
+      per_all:'All', per_dia:'Day', per_semana:'Week', per_mes:'Month',
+      per_trimestre:'Quarter', per_semestre:'Half-year', per_anio:'Year',
+      per_custom:'Custom',
+      // ── F1 · Empty states ──
+      vac_sin_tests:'No test records for this filter.',
+      vac_sin_datos:'No data.',
+      vac_sin_acciones:'No actions logged yet.',
+      vac_sin_personal:'No staff in this scope yet.',
+      vac_sin_reportes:'No reports right now.',
+      vac_sin_personas:'No people records for this filter.',
+      vac_nadie_filtros:'Nobody matches the current filters.',
+      vac_sin_por_persona:'No per-person data.',
+      vac_endpoint_com:'Update the master endpoint to enable comments.',
+      vac_sin_comentarios:'No comments for this filter.',
+      vac_sin_ficha:'No determinations, restrictions or notes for this person yet.',
+      vac_sin_indicadores:'No indicators with data.',
+      // ── F1 · Toasts ──
+      ts_no_guardar_disp:'Could not save on this device',
+      ts_simulacion:'Simulation mode: nothing is saved',
+      ts_reporte_enviado:'Report sent',
+      ts_test_registrado:'Test recorded',
+      ts_en_desarrollo:'Feature in development',
+      ts_datos_encontrados:'We found your details',
+      ts_admin_cerrada:'You signed out of administrator',
+      ts_admin_activo:'Administrator access active',
+      ts_sim_no_abre:'Could not open the simulation',
+      ts_sim_salida:'You left simulation mode',
+      ts_guardado_disp:'Saved on this device',
+      ts_no_actualizar:'Could not refresh',
+      ts_ya_al_dia:'Already up to date',
+      ts_actualizado:'Refreshed',
+      ts_sin_conexion:'No connection',
+      ts_nada_exportar:'Nothing to export',
+      ts_archivo_ok:'File generated',
+      ts_archivo_error:'Could not generate the file',
+      ts_ciclo_guardado:'Cycle hours saved for the whole company',
+      ts_copiado:'Report copied to clipboard',
+      ts_no_copiar:'Could not copy',
+      ts_no_compartir:'Sharing is not available in this browser',
+      ts_informe_ok:'Report generated · tap to read it',
+      ts_indica_tarea:'State which task they should not do',
+      ts_restr_ok:'Restriction logged',
+      ts_restr_off:'Restriction lifted',
+      ts_telem_sug:'Telemedicine suggested',
+      ts_telem_ok:'Telemedicine accepted',
+      ts_telem_no:'Telemedicine declined',
+      ts_telem_hecha:'Telemedicine marked as done',
+      // ── F1 · Block titles ──
+      db_estado_equipo:'Overall team status',
+      db_disp_cognitiva:'Cognitive availability',
+      db_reparto_estado:'Breakdown by status',
+      db_exposicion_nivel:'Exposure by risk level',
+      db_mapa_area:'Risk map by area',
+      db_intervenciones:'Preventive interventions',
+      db_telemedicina:'Telemedicine',
+      db_pend_config:'Pending configuration',
+      db_estim_retorno:'Estimated return',
+      db_aptitud:'Staff fitness',
+      db_grupo_normal:'The group vs. normal',
+      db_perfil_riesgo:'Risk profile',
+      db_turno_hoy:'Your shift today',
+      db_reporte_rapido:'Quick report',
+      db_mes_a_mes:'How you are doing month by month',
+      db_linea_tiempo:'Timeline',
+      db_distribucion:'Distribution',
+      db_perfil_comparado:'Compared profile',
+      db_indicador_pesa:'Which indicator weighs most?',
+      db_dist_grupo:'Distribution by group',
+      db_cruce:'Indicator cross-check',
+      db_ranking:'Individual ranking',
+      db_evolucion:'Trend over time',
+      db_com_adic:'Additional comments',
+      db_comentarios:'Comments',
+      db_resumen_reaccion:'Reaction summary',
+      db_ranking_reaccion:'Ranking by reaction time',
+      db_evo_reaccion:'How reaction time evolved',
+      db_informe_ia:'AI report',
+      db_numeros:'Numbers in detail, by indicator',
+      db_sobre_ref:'Above the reference',
+      ts_anonimo_suf:'anonymously',
+      // ── F1 · Block subtitles ──
+      sub_resumen_op:'Operational summary of the group you have filtered',
+      sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
+      sub_gente_nivel:'How many people are at each level and what share is fit',
+      sub_pct_atencion:'% of people with indicators needing attention · highest first',
+      sub_total_acc:'Total care actions logged',
+      sub_consultas:'Consultations offered and what each person decided',
+      sub_inalterable:'Tamper-proof log, newest first',
+      sub_supuestos:'Calculated with the assumptions loaded by the company',
+      sub_esqueleto:'None of these indicators is real data: they are placeholders showing the scope of the next commercial tier.',
+      sub_identificados:'You know who sent it. Tap to see the person.',
+      sub_anonimos:'About the job or the shift. Nobody can know who sent them.',
+      sub_elegi_ajuste:'Choose the closest match. The options marked ',
+      sub_barra_ref:'Coloured bar = group average · grey bar = reference value (normal). Tap an indicator below to isolate it or show it again.',
+      sub_radar:'Each axis ÷ its reference. If the shape goes past the dotted ring, that metric is above normal.',
+      sub_tres_reg:'Three short logs: how you arrive, how the workload is going, and how you leave.',
+      sub_avisa_sup:'If something is affecting you, tell your supervisor in one tap.',
+      sub_cada_ind_ref:'Each indicator ÷ its reference (1.0 = normal). All on the same scale.',
+      sub_aporta:"How much each indicator adds to today's risk. The bigger the slice, the closer to (or past) its limit that indicator is.",
+      sub_prom_mensual:'Monthly average of each metric ÷ its reference (1.0 = normal)',
+      sub_texto_libre:'Free text written by the staff themselves when completing their tests',
+      sub_peor_arriba:'Worst (slowest) at the top · tap a person to see their detail',
+      sub_cada_punto:'Each dot is one test. The lower it is, the faster they reacted (better).',
+      sub_reciente:'Newest to oldest',
+      sub_casos_auto:'Opened automatically and picked up by the telemedicine circuit',
+      // ── F1 · Fitness, cycle and reports (supervisor view) ──
+      apt_toca_numero:'Tap a number to see only that group in the list.',
+      apt_dato_viejo:'With data older than {n} days',
+      apt_solo_cantidades:'These are counts of people and group data: never test values or individual detail.',
+      apt_orden_norm:'New and worsening first; anything already being followed up comes after',
+      apt_orden_inv:'Settled cases first; the urgent ones come after',
+      apt_btn_urg:'Most urgent first', apt_btn_tranq:'Calmest first',
+      apt_con_indic:'With medical instruction',
+      apt_ultimo_test:'last test {n} days ago',
+      apt_no_reciente:'Data is not recent: it may not reflect how they are today.',
+      ver_mas_n:'See {n} more',
+      cic_ciclo_de:'Cycle of {f}', cic_sin_iniciar:'Cycle not started',
+      cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
+      cic_e_comp:'Complete', cic_e_sin:'Not started',
+      cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
+      rep_grupo_agregado:'Company (aggregated group)',
+      sub_determ:'Your active determinations · on expiry, the person returns to Pending review',
       // ── Tasks and notifications (D1) ──
       tar_titulo:'Your tasks',
       tar_lead:'What your supervisor or the medical service asked of you.',
@@ -5236,7 +5496,7 @@ function consentRender(){
 
 // Guardado seguro: en modo privado / sin espacio, localStorage.setItem tira excepción.
 // Si falla, avisamos con un toast en vez de romper toda la app.
-function lsSet(key, val){ try { localStorage.setItem(key, val); return true; } catch(e){ try { showToast('No se pudo guardar en este dispositivo'); } catch(_){} return false; } }
+function lsSet(key, val){ try { localStorage.setItem(key, val); return true; } catch(e){ try { showToast(t('ts_no_guardar_disp')); } catch(_){} return false; } }
 
 /* ══════════ MODO SIMULACIÓN (P8) — GUARD DE ESCRITURA ══════════
    El administrador puede mirar la app "como" cualquier rol para revisarla o mostrarla. Mientras
@@ -5265,7 +5525,7 @@ function simulando(){ return !!SIMUL; }
 // Devuelve true y avisa si la escritura fue bloqueada. Se usa como: if (simulBloquea('...')) return;
 function simulBloquea(queIntentaba){
   if (!SIMUL) return false;
-  try { showToast('Modo simulación: no se guarda nada' + (queIntentaba ? ' (' + queIntentaba + ')' : '')); } catch(e){}
+  try { showToast(t('ts_simulacion') + (queIntentaba ? ' (' + queIntentaba + ')' : '')); } catch(e){}
   return true;
 }
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
@@ -5537,7 +5797,7 @@ function reporteEnviar(k, comentario){
         departamento:perfil.departamento||'', comentario:(comentario||'').slice(0,300), creada:Date.now() };
   empEncolar(id, 'reporte_guardar', payload);
   haptic(12);
-  showToast('Reporte enviado' + (op.identificado ? '' : ' de forma anónima'));
+  showToast(t('ts_reporte_enviado') + (op.identificado ? '' : ' ' + t('ts_anonimo_suf')));
 }
 
 /* ════════════════ MENSAJES ════════════════ */
@@ -6255,7 +6515,7 @@ function finalizarTest(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(testItem.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
   } else {
     const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
     document.getElementById('testOverlay').classList.remove('show');
@@ -6495,7 +6755,7 @@ function finalizarPerelli(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(perelliState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     perelliState = null;
   } else {
     const itemFinal = { ...perelliState.item, msg };
@@ -6689,7 +6949,7 @@ function finalizarKss(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(kssState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     kssState = null;
   } else {
     const itemFinal = { ...kssState.item, msg };
@@ -6751,7 +7011,7 @@ function finalizarEstres(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(estresState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     estresState = null;
   } else {
     const itemFinal = { ...estresState.item, msg };
@@ -6808,7 +7068,7 @@ function finalizarAnsiedad(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(ansiedadState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     ansiedadState = null;
   } else {
     const itemFinal = { ...ansiedadState.item, msg };
@@ -6867,7 +7127,7 @@ function finalizarGastro(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(gastroState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     gastroState = null;
   } else {
     const itemFinal = { ...gastroState.item, msg };
@@ -6926,7 +7186,7 @@ function finalizarCansancio(){
   if ((getProfile()||{}).esPiloto) {
     document.getElementById('testOverlay').classList.remove('show');
     mark(cansancioState.item.id);
-    showToast('Test registrado');
+    showToast(t('ts_test_registrado'));
     cansancioState = null;
   } else {
     const itemFinal = { ...cansancioState.item, msg };
@@ -7053,7 +7313,7 @@ function abrirDestinoEstadisticas(){
 }
 
 // Funciones todavía no disponibles (wearables): aviso breve, mismo estilo que el resto de avisos.
-function enDesarrollo(){ showToast('Función en desarrollo'); }
+function enDesarrollo(){ showToast(t('ts_en_desarrollo')); }
 
 /* ── Tamaño del texto (accesibilidad) ──
    4 posiciones: una MÁS CHICA que la normal, la normal, y dos más grandes.
@@ -7485,7 +7745,7 @@ function nominaConfirmar(){
       nominaCerrar();
       openSetup(false);
       aplicarIdioma();      // el sector cambió: repinta con la terminología que le corresponde
-      showToast('Encontramos tus datos');
+      showToast(t('ts_datos_encontrados'));
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
 }
@@ -7790,7 +8050,11 @@ const METRIC_COLORS = { kss:'var(--dato-2)', estres:'var(--dato-5)', ansiedad:'v
   fatiga:'var(--dato-1)', gastro:'var(--dato-3)', depresion:'var(--dato-6)', cansancio:'var(--dato-7)' };
 const PIE_PALETTE   = ['var(--dato-1)','var(--dato-2)','var(--dato-3)','var(--dato-4)',
   'var(--dato-5)','var(--dato-6)','var(--dato-7)','var(--dato-8)'];
-const DASH_PERIODS  = [['all','Todo'],['dia','Día'],['semana','Semana'],['mes','Mes'],['trimestre','Trimestre'],['semestre','Semestre'],['anio','Año'],['custom','Personalizado']];
+/* F1: sólo las CLAVES son constantes; la etiqueta se resuelve al pintar (ver TAB_KEYS). */
+const DASH_PERIOD_KEYS = ['all','dia','semana','mes','trimestre','semestre','anio','custom'];
+function periodoLabel(k){ return t('per_' + k); }
+// Compatibilidad: varios lugares recorren DASH_PERIODS como pares [clave, etiqueta].
+function dashPeriods(){ return DASH_PERIOD_KEYS.map(function(k){ return [k, periodoLabel(k)]; }); }
 
 // Informe de EJEMPLO para la Empresa Demo: así, al explorar la demostración, se ve cómo queda
 // un informe de IA ya generado (en una empresa real, el informe lo escribe la IA con sus datos).
@@ -8110,7 +8374,7 @@ function admSalir(){
   document.getElementById('admPanel').hidden = true;
   document.getElementById('admBox').hidden = false;
   document.getElementById('admPass').value = '';
-  showToast('Cerraste la sesión de administrador');
+  showToast(t('ts_admin_cerrada'));
 }
 function admToggle(){
   const box = document.getElementById('admBox'), panel = document.getElementById('admPanel');
@@ -8144,7 +8408,7 @@ function admEntrar(btn){
       document.getElementById('admBox').hidden = true;
       document.getElementById('admPanel').hidden = false;
       admPintarRoles();
-      showToast('Acceso de administrador activo');
+      showToast(t('ts_admin_activo'));
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion') + '.'; });
 }
@@ -8176,7 +8440,7 @@ function simEntrar(vista){
   document.getElementById('dashScope').textContent = 'Cargando…';
   dashRequest({ action:'demo' })
     .then(d => {
-      if (!d || !d.ok){ showToast('No se pudo abrir la simulación'); simSalir(); return; }
+      if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(); return; }
       if (vista === 'empleado'){
         // Para la vista personal se acota a UNA persona de la demo: es lo que ve el empleado.
         const quien = (d.registros[0] || {}).persona || '';
@@ -8195,7 +8459,7 @@ function simSalir(){
   try { closePortal(); } catch(e){}   // closePortal ya limpia SIMUL y repinta la barra
   SIMUL = null; simPintarBarra();     // por si closePortal fallara, no quedar simulando
   mostrarVista('mas');
-  showToast('Saliste del modo simulación');
+  showToast(t('ts_sim_salida'));
 }
 function simPintarBarra(){
   const bar = document.getElementById('simBar'); if (!bar) return;
@@ -8646,7 +8910,7 @@ function offerRemember(usuario, pass){
   DASH_PENDING_CREDS = { usuario:usuario, pass:pass };
   document.getElementById('dashRemember').classList.add('show');
 }
-function dashSaveCreds(){ if (DASH_PENDING_CREDS) localStorage.setItem(K_DASH_CREDS, JSON.stringify(DASH_PENDING_CREDS)); document.getElementById('dashRemember').classList.remove('show'); showToast('Guardado en este dispositivo'); }
+function dashSaveCreds(){ if (DASH_PENDING_CREDS) localStorage.setItem(K_DASH_CREDS, JSON.stringify(DASH_PENDING_CREDS)); document.getElementById('dashRemember').classList.remove('show'); showToast(t('ts_guardado_disp')); }
 function dismissRemember(){ document.getElementById('dashRemember').classList.remove('show'); }
 function toggleAdminLogin(){ const b = document.getElementById('adminBox'); b.style.display = (b.style.display==='none') ? '' : 'none'; }
 function portalLoginAdmin(btn){
@@ -8666,8 +8930,12 @@ function portalLoginAdmin(btn){
     .catch(() => { btnSpin(btn, false); errEl.textContent = t('sin_conexion') + '.'; });
 }
 
-const TAB_LABELS = { resumen:'Resumen', comparar:'Comparar', individual:'Individual', evolucion:'Evolución', pvt:'Reacción', comentarios:'Comentarios', informe:'Informe IA', gestiones:'Gestiones', aptitud:'Aptitud', reportes:'Reportes', ciclo:'Ciclo operativo',
-  idc:'Disponibilidad', mrfo:'Mapa de riesgo', intervenciones:'Intervenciones', auditoria:'Trazabilidad', costos:'Costos', predictivo:'Predictivo' };
+/* F1: las etiquetas de las pestañas pasan por el diccionario. Se resuelven al PINTAR y no en una
+   constante, porque una constante se congelaría en el idioma que hubiera al cargar el archivo y
+   cambiar de idioma no la tocaría. */
+const TAB_KEYS = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe',
+  'gestiones','aptitud','reportes','ciclo','idc','mrfo','intervenciones','auditoria','costos','predictivo'];
+function tabLabel(k){ return t('tab_' + k); }
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
 // "Dónde estoy parado": la insignia arriba de todo que dice qué panel se está viendo. Un solo
@@ -8842,7 +9110,7 @@ function dashRefresh(manual){
   const params = manual ? Object.assign({}, DASH.params, { fresh:'1' }) : DASH.params;
   dashRequest(params).then(d => {
     if (btn) btn.classList.remove('spin');
-    if (!d || !d.ok){ if (manual) showToast('No se pudo actualizar'); return; }
+    if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return; }
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
     const pvt = d.pvt || null;
@@ -8850,7 +9118,7 @@ function dashRefresh(manual){
     // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
     const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]);
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
-    if (!changed){ if (manual) showToast('Ya estaba al día'); return; }   // sin cambios → no re-renderiza (no salta el scroll)
+    if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return; }   // sin cambios → no re-renderiza (no salta el scroll)
     const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
@@ -8862,8 +9130,8 @@ function dashRefresh(manual){
     if (hadPvt !== hasPvt){ DASH.tabs = dashTabsFor(DASH.rol, hasPvt, DASH.vista); if (DASH.tabs.indexOf(DASH.tab) < 0) DASH.tab = DASH.tabs[0]; buildDashTabs(); }
     buildDashFilters();   // DASH.f conserva el estado; reconstruye opciones (deptos/personas nuevos)
     renderDash();
-    if (manual) showToast('Actualizado');
-  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast('Sin conexión'); });
+    if (manual) showToast(t('ts_actualizado'));
+  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast(t('ts_sin_conexion')); });
 }
 function setFilterValues(f){
   const set = (id,v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
@@ -8927,14 +9195,14 @@ function dfmClose(){
 function dfmUpdateLabel(){
   const lbl = document.getElementById('dfmToggleLabel');
   if (!lbl || !DASH) return;
-  const tabLabel = TAB_LABELS[_dashActiveTab || DASH.tab] || '';
-  const perLabel = (DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0] || ['','Todo'])[1];
-  lbl.textContent = (tabLabel ? (tabLabel + ' · ') : '') + perLabel;
+  const tabLbl = tabLabel(_dashActiveTab || DASH.tab);
+  const perLabel = periodoLabel(DASH.f.period);
+  lbl.textContent = (tabLbl ? (tabLbl + ' · ') : '') + perLabel;
 }
 function buildDashTabs(){
   const bar = document.getElementById('dashTabs');
   bar.innerHTML = dashOrderedTabs().map(t =>
-    '<button class="dtab" data-tab="' + t + '" onclick="dashScrollTo(\'' + t + '\')">' + TAB_LABELS[t] + '</button>'
+    '<button class="dtab" data-tab="' + t + '" onclick="dashScrollTo(\'' + t + '\')">' + esc(tabLabel(t)) + '</button>'
   ).join('');
   if (!bar._pistaLista){                                  // engancha la pista de "se desliza" una sola vez
     bar._pistaLista = true;
@@ -8983,7 +9251,7 @@ function dashSetTab(t){ dashScrollTo(t); }   // compat con llamadas viejas
 
 function buildDashFilters(){
   const showGroup = DASH.rol !== 'empleado';
-  let html = '<div class="period-chips">' + DASH_PERIODS.map(p =>
+  let html = '<div class="period-chips">' + dashPeriods().map(p =>
     '<button class="pchip ' + (DASH.f.period===p[0]?'active':'') + '" onclick="dashSetPeriod(\''+p[0]+'\')">' + p[1] + '</button>'
   ).join('') + '</div>';
   if (DASH.f.period === 'custom'){
@@ -9224,7 +9492,7 @@ function renderDash(){
     else if (t === 'auditoria') html = renderHseqAuditoria();
     else if (t === 'costos') html = renderHseqCostos(rows);
     else if (t === 'predictivo') html = renderHseqPredictivo();
-    else if (!rows.length) html = '<div class="dash-empty">Sin registros de tests para este filtro.</div>';
+    else if (!rows.length) html = '<div class="dash-empty">' + esc(t('vac_sin_tests')) + '</div>';
     else if (t === 'comparar') html = renderComparar(rows);
     else if (t === 'individual') html = renderIndividual(rows);
     else if (t === 'evolucion') html = renderEvolucion(rows);
@@ -9391,7 +9659,7 @@ function dashContext(){
 }
 // Período + "viendo tal a tal fecha · N registros": se pinta DENTRO del panel desplegable.
 function dashContextRango(){
-  const perLabel = (DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0] || ['','Todo'])[1];
+  const perLabel = periodoLabel(DASH.f.period);
   const rows = dashFiltered();
   const n = rows.length;
   let texto;
@@ -9677,7 +9945,7 @@ function aptTextoFecha(p){
   if (p.dias == null) return p.n ? (p.n + ' ' + (p.n===1?'registro':'registros') + ' · sin fecha') : 'sin registros';
   if (p.dias === 0) return 'último test hoy';
   if (p.dias === 1) return 'último test ayer';
-  return 'último test hace ' + p.dias + ' días';
+  return t('apt_ultimo_test', { n: p.dias });
 }
 // Resuelve el estado operativo de una persona: cálculo automático sobre los datos recientes, y
 // encima la determinación del servicio médico (que manda mientras esté vigente y al día).
@@ -9819,7 +10087,7 @@ function aptTarjeta(p, opts){
   const avisoDesact = p.desactualizada
     ? '<div class="apt-aviso">Hay un test nuevo posterior a la última indicación médica: vuelve a revisión.</div>' : '';
   const avisoViejo = (p.viejo && p.estado !== 'sindato')
-    ? '<div class="apt-aviso apt-aviso-gris">Dato no reciente: puede no reflejar cómo está hoy.</div>' : '';
+    ? '<div class="apt-aviso apt-aviso-gris">' + esc(t('apt_no_reciente')) + '</div>' : '';
   // ── Capa OPERATIVA: restricción de tarea del supervisor. Va aparte de la capa médica a
   //    propósito, con su propio color y su propio encabezado, para que no se lean como lo mismo.
   const mit = p.restriccion && p.restriccion.mitigacion ? mitigacionInfo(p.restriccion.mitigacion) : null;
@@ -9994,19 +10262,19 @@ function renderAptitudEquipo(gente){
 
   const fila = (k, v, cls) => '<div class="apt-eq-row"><span class="apt-eq-k">' + k + '</span>' +
     '<span class="apt-eq-v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
-  return '<div class="dash-block"><div class="db-title">Estado general del equipo</div>' +
-    '<div class="db-sub">Resumen operativo del grupo que tengas filtrado</div>' +
+  return '<div class="dash-block"><div class="db-title">' + esc(t('db_estado_equipo')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_resumen_op')) + '</div>' +
     '<div class="apt-eq-gauge"><div class="apt-eq-pct">' + pct + '%</div>' +
       '<div class="apt-eq-cap">del equipo <b>en condiciones</b><br>' + enCond + ' de ' + n + ' ' + (n===1?'persona':'personas') + '</div></div>' +
     '<div class="apt-eq-bar"><i style="width:' + pct + '%"></i></div>' +
     (sinRevisar ? fila('Nunca revisadas por el servicio médico', sinRevisar, 'rojo') : '') +
     (empeoraron ? fila('Empeoraron vs. su test anterior', empeoraron, 'rojo') : '') +
     (porVencer ? fila('Indicaciones que vencen en 24 h', porVencer, 'amarillo') : '') +
-    fila('Con dato de más de ' + APT_DIAS_FRESCO + ' días', noRecientes, noRecientes ? 'gris' : '') +
+    fila(t('apt_dato_viejo', { n: APT_DIAS_FRESCO }), noRecientes, noRecientes ? 'gris' : '') +
     (topM ? fila('Indicador que más pesa', esc(topM === '__pvt' ? 'Reacción' : (METRIC_LABELS[topM] || topM)) +
       ' <small>· ' + topN + '</small>', '') : '') +
     (topD ? fila('Departamento a mirar', esc(topD) + ' <small>· ' + topDN + '</small>', '') : '') +
-    '<div class="apt-eq-nota">Son cantidades de personas y datos del grupo: nunca valores de tests ni detalle individual.</div>' +
+    '<div class="apt-eq-nota">' + esc(t('apt_solo_cantidades')) + '</div>' +
   '</div>';
 }
 // Arma la lista de personas con su estado resuelto (compartido por el panel del supervisor y por
@@ -10039,7 +10307,7 @@ function hseqGente(rows){ return aptGente(rows); }
    dato, y los que quedan afuera se informan al lado, con el mismo tamaño, no en letra chica. */
 function renderHseqIdc(rows){
   const gente = hseqGente(rows);
-  if (!gente.length) return dashHelp('Sin registros para este filtro.') + '<div class="dash-empty">Sin datos.</div>';
+  if (!gente.length) return dashHelp('Sin registros para este filtro.') + '<div class="dash-empty">' + esc(t('vac_sin_datos')) + '</div>';
   const conDato = gente.filter(p => p.estado !== 'sindato');
   const disp = conDato.filter(p => p.estado === 'ok' || p.estado === 'aptomed').length;
   const sinDato = gente.length - conDato.length;
@@ -10081,8 +10349,8 @@ function renderHseqIdc(rows){
   const COBERTURA_MINIMA = 70;
   const cobFlaca = cobertura < COBERTURA_MINIMA;
   return ayuda +
-    '<div class="dash-block"><div class="db-title">Disponibilidad cognitiva</div>' +
-      '<div class="db-sub">Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_disp_cognitiva')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_cobertura')) + '</div>' +
       '<div class="hs-duo">' +
         '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-flojo' : '') + '">' +
           '<div class="hs-pct-big">' + (pct == null ? '—' : pct + '%') + '</div>' +
@@ -10098,10 +10366,10 @@ function renderHseqIdc(rows){
           'lo primero a resolver es que la gente se mida, no el porcentaje.' : '') + '</div>'
               : '<div class="hs-ok">Cobertura de medición completa: las ' + gente.length + ' personas tienen registros.</div>') +
     '</div>' +
-    '<div class="dash-block"><div class="db-title">Reparto por estado</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_reparto_estado')) + '</div>' +
       '<div class="db-sub">Cantidad de personas en cada estado · ' + gente.length + ' en total</div>' + filas + '</div>' +
-    (filasNivel ? '<div class="dash-block"><div class="db-title">Exposición por nivel de riesgo</div>' +
-      '<div class="db-sub">Cuánta gente hay en cada nivel y qué proporción está en condiciones</div>' + filasNivel + '</div>' : '');
+    (filasNivel ? '<div class="dash-block"><div class="db-title">' + esc(t('db_exposicion_nivel')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_gente_nivel')) + '</div>' + filasNivel + '</div>' : '');
 }
 
 /* MRFO — Matriz de Riesgo de Fatiga Organizacional.
@@ -10109,7 +10377,7 @@ function renderHseqIdc(rows){
    lo accionable: dónde mirar primero. Nunca valores de tests. */
 function renderHseqMrfo(rows){
   const gente = hseqGente(rows);
-  if (!gente.length) return '<div class="dash-empty">Sin datos.</div>';
+  if (!gente.length) return '<div class="dash-empty">' + esc(t('vac_sin_datos')) + '</div>';
   const min = cfg('anonN');
   const porDep = {};
   gente.forEach(p => {
@@ -10143,8 +10411,8 @@ function renderHseqMrfo(rows){
   const totChicos = chicos.reduce((s,k) => s + porDep[k].n, 0);
   const malChicos = chicos.reduce((s,k) => s + porDep[k].mal, 0);
 
-  return ayuda + '<div class="dash-block"><div class="db-title">Mapa de riesgo por área</div>' +
-    '<div class="db-sub">% de personas con indicadores que requieren atención · ordenado de mayor a menor</div>' +
+  return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_mapa_area')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_pct_atencion')) + '</div>' +
     (grandes.length ? '<div class="hs-grid">' + grandes.map(celda).join('') + '</div>'
                     : '<div class="dash-empty">Ningún área alcanza las ' + min + ' personas para poder desglosarla.</div>') +
     (chicos.length ? '<div class="hs-agregado"><b>Áreas pequeñas agrupadas</b> (' + chicos.length + ' ' +
@@ -10181,8 +10449,8 @@ function renderHseqIntervenciones(){
   const tasaAcept = telemSug ? Math.round((telemAcep / telemSug) * 100) : null;
 
   return ayuda +
-    '<div class="dash-block"><div class="db-title">Intervenciones preventivas</div>' +
-      '<div class="db-sub">Total de acciones de cuidado registradas</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_intervenciones')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_total_acc')) + '</div>' +
       '<div class="hs-gauge"><div class="hs-pct-big">' + total + '</div>' +
         '<div class="hs-cap">' + (total === 1 ? 'intervención registrada' : 'intervenciones registradas') + '</div></div>' +
       fila('Restricciones de tarea', restricciones, 'el supervisor sacó a alguien de una tarea puntual') +
@@ -10190,8 +10458,8 @@ function renderHseqIntervenciones(){
       fila('Determinaciones médicas', determinaciones) +
       fila('Altas / reincorporaciones', altas) +
     '</div>' +
-    '<div class="dash-block"><div class="db-title">Telemedicina</div>' +
-      '<div class="db-sub">Consultas ofrecidas y qué decidió cada persona</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_telemedicina')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_consultas')) + '</div>' +
       fila('Sugeridas', telemSug) +
       fila('Aceptadas', telemAcep) +
       fila('Rechazadas', telemRech, 'rechazar no tiene consecuencias: es parte del diseño') +
@@ -10228,7 +10496,7 @@ function renderHseqAuditoria(){
     'un umbral mañana reescribiría en silencio el sentido de todas las decisiones pasadas.' +
     '<br><br>Se ve <b>qué se hizo y quién lo hizo</b>. El contenido clínico de cada acción no se muestra acá: ' +
     'eso es del servicio médico.');
-  if (!ev.length) return ayuda + '<div class="dash-empty">Todavía no hay acciones registradas.</div>';
+  if (!ev.length) return ayuda + '<div class="dash-empty">' + esc(t('vac_sin_acciones')) + '</div>';
   const filas = ev.map(e => {
     const u = e.umbral;
     return '<div class="hs-ev">' +
@@ -10244,7 +10512,7 @@ function renderHseqAuditoria(){
     '</div>';
   });
   return ayuda + '<div class="dash-block"><div class="db-title">Trazabilidad (' + ev.length + ')</div>' +
-    '<div class="db-sub">Registro inalterable, de lo más reciente a lo más antiguo</div>' +
+    '<div class="db-sub">' + esc(t('sub_inalterable')) + '</div>' +
     dashVerMas(filas, 5) +
     '<button type="button" class="hs-exp" onclick="hseqExportar()">Exportar como CSV</button></div>';
 }
@@ -10252,7 +10520,7 @@ function renderHseqAuditoria(){
    clínico. Se arma como CSV y se descarga; no sale de la aplicación por ningún otro canal. */
 function hseqExportar(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);   // mismo cortafuegos que la pantalla
-  if (!ev.length){ showToast('No hay nada para exportar'); return; }
+  if (!ev.length){ showToast(t('ts_nada_exportar')); return; }
   const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g,'""') + '"';
   const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version'];
   const cuerpo = ev.map(e => [ gestFechaTs(e.ts), HSEQ_ACCION_LABEL[e.accion] || e.accion, e.sujeto || '',
@@ -10265,8 +10533,8 @@ function hseqExportar(){
     a.href = url; a.download = 'trazabilidad-' + todayStr() + '.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('Archivo generado');
-  } catch(e){ showToast('No se pudo generar el archivo'); }
+    showToast(t('ts_archivo_ok'));
+  } catch(e){ showToast(t('ts_archivo_error')); }
 }
 
 /* Costos — el módulo que el cliente todavía no configuró.
@@ -10295,7 +10563,7 @@ function renderHseqCostos(rows){
   if (faltantes.length){
     const lista = faltantes.map(f => '<div class="hs-falta"><span class="hs-falta-t">' + esc(f.t) + '</span>' +
       (f.d ? '<span class="hs-falta-d">' + esc(f.d) + '</span>' : '') + '</div>').join('');
-    return ayuda + '<div class="dash-block"><div class="db-title">Pendiente de configurar</div>' +
+    return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_pend_config')) + '</div>' +
       '<div class="db-sub">Faltan ' + faltantes.length + ' de ' + HSEQ_COSTOS_CAMPOS.length +
       ' datos para poder calcular costos y retorno</div>' + lista +
       '<div class="hs-nota">Estos valores se cargan una sola vez en la configuración de la empresa. ' +
@@ -10308,8 +10576,8 @@ function renderHseqCostos(rows){
   const evitados = intervenciones * (parseFloat(c.factorConversion) || 0);
   const ahorro = evitados * (parseFloat(c.incidenteGrave) || 0);
   const fmt = n => '$' + Math.round(n).toLocaleString('es-VE');
-  return ayuda + '<div class="dash-block"><div class="db-title">Estimación de retorno</div>' +
-    '<div class="db-sub">Calculado con los supuestos cargados por la empresa</div>' +
+  return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_estim_retorno')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_supuestos')) + '</div>' +
     '<div class="hs-gauge"><div class="hs-pct-big">' + fmt(ahorro) + '</div>' +
       '<div class="hs-cap">estimación de costo evitado</div></div>' +
     '<div class="hs-supuestos"><b>Cómo se llega a ese número</b>' +
@@ -10384,7 +10652,7 @@ function renderHseqPredictivo(){
       'dato. Un botón de emergencia que pareciera funcionar sin estarlo sería peor que no tenerlo.</div>' +
   '</div>';
   return intro + '<div class="dash-block"><div class="db-title">Plan Predictivo (360°) — vista previa</div>' +
-    '<div class="db-sub">Ninguno de estos indicadores es un dato real: son esqueletos para mostrar el alcance del próximo nivel comercial.</div>' +
+    '<div class="db-sub">' + esc(t('sub_esqueleto')) + '</div>' +
     '<div class="pred-grid">' + cards + medevac + '</div></div>';
 }
 
@@ -10564,6 +10832,14 @@ function cicloHM(min){
   const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
   return h ? (h + ' h ' + String(r).padStart(2,'0') + ' min') : (r + ' min');
 }
+/* Duración COMPACTA para la barra: "12 h", "1 h 30", "45 min". `cicloHM` ("12 h 00 min") es la
+   forma larga y sigue usándose en el detalle y los tooltips, donde hay lugar; acá cada carácter
+   compite con el ancho del segmento. */
+function cicloHMCorto(min){
+  const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
+  if (!h) return r + ' min';
+  return h + ' h' + (r ? ' ' + String(r).padStart(2,'0') : '');
+}
 function cicloHora(ms){
   const d = new Date(ms), p = n => String(n).padStart(2,'0');
   return isNaN(d.getTime()) ? '--:--' : (p(d.getHours()) + ':' + p(d.getMinutes()));
@@ -10693,10 +10969,13 @@ function cicloBarra(st, plan){
   const TRAMOS = cicloTramos();
   let cuerpo = '';
   TRAMOS.forEach(tr => {
-    // Los traslados se rotulan "T" porque el segmento es angosto y no entra la palabra entera;
-    // el nombre completo sigue estando en el title (tooltip) que arma seg().
+    /* El rótulo de la barra es el nombre CORTO más las horas ("Jornada · 12 h"), no el nombre
+       largo. Medido en 390 px: "Jornada (servicio activo)" ocupaba 146 de los 171 px del
+       segmento — llenaba su tramo y dejaba la barra sin aire. El nombre completo sigue estando
+       en el tooltip, y la duración es justamente el dato que se quiere leer de un vistazo.
+       Los traslados siguen con "T": su segmento es de ~24 px y ahí no entra ninguna palabra. */
     const clase = (tr.k === 'jornada') ? 'serv' : (tr.k === 'descanso' ? 'desc' : 'tras');
-    const corto = (clase === 'tras') ? 'T' : t(tr.lbl);
+    const corto = (clase === 'tras') ? 'T' : (t(tr.corto) + ' · ' + cicloHMCorto(plan[tr.k]));
     cuerpo += '<span class="cic-pt-wrap">' + punto(tr.desde) + '</span>' + seg(tr.k, clase, t(tr.lbl), corto);
   });
   const ultimo = TRAMOS[TRAMOS.length - 1];
@@ -10820,7 +11099,7 @@ function cicloCfgGuardar(btn){
       if (!d || !d.ok){ if (err) err.textContent = (d && d.error) || 'No se pudo guardar.'; return; }
       DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
       CICLO_CFG_ABIERTO = false; cicloRepintar();
-      showToast('Horas del ciclo guardadas para toda la empresa');
+      showToast(t('ts_ciclo_guardado'));
     })
     .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; });
 }
@@ -10896,7 +11175,7 @@ function renderCicloOperativo(){
   const personas = cicloPersonas(ciclos);
   const cfgHtml = cicloCfgHtml(plan);
   if (!personas.length){
-    return ayuda + cfgHtml + '<div class="dash-empty">No hay personal en este alcance todavía.</div>';
+    return ayuda + cfgHtml + '<div class="dash-empty">' + esc(t('vac_sin_personal')) + '</div>';
   }
   const ahora = Date.now();
   const filas = personas.map(p => ({ p:p, st:cicloEstado(p.ciclo, ahora, plan) }));
@@ -10913,18 +11192,22 @@ function renderCicloOperativo(){
     '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> ' + esc(t('cic_kpi_comp')) + '</span>' +
     '<span class="cic-kpi cic-kpi-sin"><b>' + n.inactivo + '</b> ' + esc(t('cic_kpi_sin')) + '</span></div>';
   DASH._cicNames = filas.map(f => f.p.persona);
-  const ETIQ = { curso:'En curso', excedido:'Pasado de tiempo', descanso:'En descanso', completo:'Completo', inactivo:'Sin iniciar' };
+  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
   const cards = filas.map((f, i) => {
     const st = f.st, pe = f.p;
     let reloj;
-    if (st.estado === 'inactivo') reloj = '<span class="cic-reloj cic-reloj-off">Todavía no inició su ciclo</span>';
-    else if (st.estado === 'completo') reloj = '<span class="cic-reloj">Ciclo cerrado · ' + cicloHM(st.transcurrido) + '</span>';
+    if (st.estado === 'inactivo') reloj = '<span class="cic-reloj cic-reloj-off">' + esc(t('cic_no_inicio')) + '</span>';
+    else if (st.estado === 'completo') reloj = '<span class="cic-reloj">' + esc(t('cic_cerrado')) + ' · ' + cicloHM(st.transcurrido) + '</span>';
     else {
-      const t = st.tramos[st.activo];
-      reloj = '<span class="cic-reloj">' + esc(t.corto) + ': <b data-cic-from="' + t.ini + '">' +
-        cicloHM(t.real) + '</b> · ciclo <b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b></span>';
+      /* ⚠️ Esta local se llamaba `t` y TAPABA la función t() de traducción. Con C1, `corto` dejó
+         de ser la etiqueta ("Jornada") y pasó a ser la CLAVE ('cic_c_jornada'), así que
+         `esc(t.corto)` empezó a imprimir la clave cruda en pantalla. Se ve igual que un bug de
+         traducción pero es de scope: el mismo tropiezo que ya había en cicloTramosHtml. */
+      const tra = st.tramos[st.activo];
+      reloj = '<span class="cic-reloj">' + esc(t(tra.corto)) + ': <b data-cic-from="' + tra.ini + '">' +
+        cicloHM(tra.real) + '</b> · ' + esc(t('cic_ciclo_lbl')) + ' <b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b></span>';
     }
-    const fecha = st.inicio ? ('Ciclo de ' + cicloFechaLabel(st.inicio)) : 'Sin ciclo iniciado';
+    const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
     return '<div class="cic-card cic-est-' + st.estado + '">' +
       '<div class="cic-head" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
@@ -11003,7 +11286,7 @@ function renderReportesSupervisor(){
     return ayuda + dashWarn('Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.');
   }
   if (!reps.length){
-    return ayuda + '<div class="dash-empty">No hay reportes por ahora.</div>';
+    return ayuda + '<div class="dash-empty">' + esc(t('vac_sin_reportes')) + '</div>';
   }
   const idents = reps.filter(r => r.identificado);
   const anons  = reps.filter(r => !r.identificado);
@@ -11038,17 +11321,17 @@ function renderReportesSupervisor(){
         '<span class="rep-fecha">' + esc(gestFechaTs(r.creada)) + '</span></div>' +
       '<div class="rep-op">' + esc(op ? op.t : r.opcion) + '</div>' +
       (r.comentario ? '<div class="rep-coment">' + esc(r.comentario) + '</div>' : '') +
-      '<div class="rep-dep">' + esc(depVisible || 'Empresa (grupo agregado)') + '</div>' +
+      '<div class="rep-dep">' + esc(depVisible || t('rep_grupo_agregado')) + '</div>' +
     '</div>';
   };
 
   const bloqueIdent = idents.length
     ? '<div class="dash-block"><div class="db-title">Identificados (' + idents.length + ')</div>' +
-      '<div class="db-sub">Sabés quién lo mandó. Tocá para ver a la persona.</div>' +
+      '<div class="db-sub">' + esc(t('sub_identificados')) + '</div>' +
       dashVerMas(idents.map(filaIdent), 3) + '</div>' : '';
   const bloqueAnon = anons.length
     ? '<div class="dash-block rep-block-anon"><div class="db-title">Anónimos (' + anons.length + ')</div>' +
-      '<div class="db-sub">Sobre el puesto o el turno. Nadie puede saber quién los mandó.</div>' +
+      '<div class="db-sub">' + esc(t('sub_anonimos')) + '</div>' +
       dashVerMas(anons.map(filaAnon), 3) + '</div>' : '';
 
   // Se marca como "visto" recién ahora que ya se armó el HTML (con el "Nuevo" correcto en pantalla);
@@ -11094,8 +11377,8 @@ function renderAptitud(rows){
 
   const gente = aptGente(rows);
   if (!gente.length){
-    return ayuda + '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
-      '<div class="dash-empty">Sin registros de personas para este filtro.</div></div>';
+    return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_aptitud')) + '</div>' +
+      '<div class="dash-empty">' + esc(t('vac_sin_personas')) + '</div></div>';
   }
 
   // Con UNA persona filtrada no tiene sentido el tablero de grupo: los contadores quedarían todos
@@ -11118,10 +11401,10 @@ function renderAptitud(rows){
       ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="aptSetFiltro(\'' + k + '\')">' + APT_TAP +
       '<span class="apt-sum-n">' + n + '</span><span class="apt-sum-l">' + g.t + '</span></button>';
   }).join('');
-  const resumen = '<div class="dash-block"><div class="db-title">Aptitud del personal</div>' +
+  const resumen = '<div class="dash-block"><div class="db-title">' + esc(t('db_aptitud')) + '</div>' +
     '<div class="db-sub">' + gente.length + ' ' + (gente.length===1?'persona':'personas') + ' con registros en el período seleccionado</div>' +
     '<div class="apt-sum">' + tarjetasSum + '</div>' +
-    '<div class="apt-sum-hint">Toca un número para ver sólo ese grupo en la lista.</div></div>';
+    '<div class="apt-sum-hint">' + esc(t('apt_toca_numero')) + '</div></div>';
 
   // "Estado por persona" se puede acomodar: invertir el orden (lo más urgente al final en vez de
   // arriba) y quedarse sólo con quienes tienen una indicación firmada por el servicio médico.
@@ -11150,10 +11433,10 @@ function renderAptitud(rows){
   const controles = '<div class="apt-ctrls">' +
     '<button type="button" class="apt-ctrl-btn' + (invertido ? ' on' : '') + '" aria-pressed="' + (invertido?'true':'false') + '" onclick="aptToggleOrden()">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l4-4 4 4M8 17l4 4 4-4M12 3v18"/></svg>' +
-      '<span>' + (invertido ? 'Más tranquilos primero' : 'Más urgentes primero') + '</span></button>' +
+      '<span>' + esc(t(invertido ? 'apt_btn_tranq' : 'apt_btn_urg')) + '</span></button>' +
     '<button type="button" class="apt-ctrl-btn' + (soloAnot ? ' on' : '') + '" aria-pressed="' + (soloAnot?'true':'false') + '" onclick="aptToggleSoloAnot()">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
-      '<span>Con indicación médica</span></button>' +
+      '<span>' + esc(t('apt_con_indic')) + '</span></button>' +
   '</div>';
 
   const chipsFiltro = [];
@@ -11170,7 +11453,7 @@ function renderAptitud(rows){
   // muestra COMPLETA: quien acaba de acotar la lista ya eligió qué quiere ver — volver a
   // esconderle la mitad sería trabajar en su contra.
   const tarjetasArr = visibles.map(p => aptTarjeta(p, { acciones: restPuede() }));
-  const tarjetas = !visibles.length ? '<div class="dash-empty">Nadie con los filtros actuales.</div>'
+  const tarjetas = !visibles.length ? '<div class="dash-empty">' + esc(t('vac_nadie_filtros')) + '</div>'
     : (hayFiltroExtra ? tarjetasArr.join('') : dashVerMas(tarjetasArr, 6));
 
   const leyenda = '<div class="apt-leyenda">' +
@@ -11192,7 +11475,7 @@ function renderAptitud(rows){
       '<div class="apt-col">' +
         '<div class="dash-block"><div class="db-title">Estado por persona' +
           (hayFiltroExtra ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
-        '<div class="db-sub">' + (invertido ? 'Primero lo que ya está tranquilo; lo urgente va después' : 'Primero lo nuevo y lo que empeoró; lo que ya está en seguimiento va después') + '</div>' +
+        '<div class="db-sub">' + esc(t(invertido ? 'apt_orden_inv' : 'apt_orden_norm')) + '</div>' +
         buscador + controles + chip + leyenda + tarjetas + nota + '</div>' +
       '</div>' +
     '</div>';
@@ -11232,12 +11515,12 @@ function renderResumen(rows){
   // El gráfico de barras "grupo vs. referencia" es para el grupo. En la vista personal NO se
   // muestra: la misma comparación aparece más clara en "Tus indicadores vs. lo normal" (no se
   // repite lo mismo dos veces). Así la vista personal queda más ordenada, sin perder información.
-  const bars = single ? '' : ('<div class="dash-block"><div class="db-title">El grupo vs. lo normal</div>' +
-    '<div class="db-sub">Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal). Toca un indicador abajo para aislarlo o volver a mostrarlo.</div>' +
+  const bars = single ? '' : ('<div class="dash-block"><div class="db-title">' + esc(t('db_grupo_normal')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_barra_ref')) + '</div>' +
     dashGroupedBars(rows) + '</div>');
   const series = [{ name:(single?'Perfil':'Promedio'), color:'#f47a1f', get:m=>dashAvg(rows,m) }];
-  const radar = '<div class="dash-block"><div class="db-title">Perfil de riesgo</div>' +
-    '<div class="db-sub">Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.</div>' + dashRadar(series) + '</div>';
+  const radar = '<div class="dash-block"><div class="db-title">' + esc(t('db_perfil_riesgo')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_radar')) + '</div>' + dashRadar(series) + '</div>';
   // Los comentarios van en el Resumen SOLO si no hay pestaña propia de Comentarios (empleado);
   // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
   const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
@@ -11341,8 +11624,8 @@ function dashTurnoCard(){
       (!hecho && habilitado ? dashTurnoForm(t.k) : (!hecho ? '<div class="sf-turno-sub">' + esc(t.sub) + '</div>' : '')) +
     '</div>';
   }).join('');
-  return '<div class="dash-block sf-turnos"><div class="db-title">Tu turno de hoy</div>' +
-    '<div class="db-sub">Tres registros cortos: cómo llegas, cómo va la carga, y cómo te vas.</div>' + pasos + '</div>';
+  return '<div class="dash-block sf-turnos"><div class="db-title">' + esc(t('db_turno_hoy')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_tres_reg')) + '</div>' + pasos + '</div>';
 }
 // Formulario mínimo de un paso: KSS (1-9) para check-in/check-out, percepción de carga (1-5) para
 // el del medio. Se resuelve con selects nativos a propósito: es el esqueleto (P4), no el wizard
@@ -11375,14 +11658,14 @@ function dashReporteCard(){
   if (!abierto){
     return '<div class="dash-block sf-reporte-cerrado" onclick="dashReporteToggle()">' +
       '<div class="sf-reporte-btn">Enviar reporte rápido</div>' +
-      '<div class="db-sub">Si algo te está afectando, avisale a tu supervisor en un toque.</div></div>';
+      '<div class="db-sub">' + esc(t('sub_avisa_sup')) + '</div></div>';
   }
   const chips = REPORTE_OPCIONES.map(o =>
     '<button type="button" class="sf-rep-chip' + (DASH._reporteOpcion===o.k?' active':'') + '" onclick="dashReporteElegir(\'' + o.k + '\')">' +
       esc(o.t) + (o.identificado ? '' : ' <small>· anónimo</small>') + '</button>').join('');
   const op = DASH._reporteOpcion ? reporteOpcionInfo(DASH._reporteOpcion) : null;
-  return '<div class="dash-block sf-reporte-abierto"><div class="db-title">Reporte rápido</div>' +
-    '<div class="db-sub">Elegí lo que más se ajuste. Las opciones marcadas <b>anónimo</b> no llevan tu nombre.</div>' +
+  return '<div class="dash-block sf-reporte-abierto"><div class="db-title">' + esc(t('db_reporte_rapido')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_elegi_ajuste')) + '<b>anónimo</b> no llevan tu nombre.</div>' +
     '<div class="sf-rep-chips">' + chips + '</div>' +
     (op ? ('<textarea id="repComentario" class="sf-rep-coment" maxlength="300" placeholder="' +
       (op.identificado ? 'Comentario opcional…' : 'Comentario opcional (no escribas datos que puedan identificarte)…') + '"></textarea>' +
@@ -11419,19 +11702,19 @@ function dashEvolucionPersonal(rows, esOtraPersona){
   const conDatos = DASH.metrics.filter(m => dashVals(rows, m).length);
   let html = '';
   if (dashMonthsCount(rows) >= 2){
-    html += '<div class="dash-block"><div class="db-title">Cómo vas mes a mes</div>' +
-      '<div class="db-sub">Cada indicador ÷ su referencia (1.0 = valor normal). Todos en la misma escala.</div>' + dashEvoMulti(rows) + '</div>';
+    html += '<div class="dash-block"><div class="db-title">' + esc(t('db_mes_a_mes')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_cada_ind_ref')) + '</div>' + dashEvoMulti(rows) + '</div>';
   }
   if (conDatos.length && rows.length >= 2){
     const mt = conDatos.indexOf(DASH.pickTiempo) >= 0 ? DASH.pickTiempo : conDatos[0];
-    html += '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
+    html += '<div class="dash-block"><div class="db-title">' + esc(t('db_linea_tiempo')) + '</div>' +
       '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[mt]||mt) + ', uno por uno, unidos en el tiempo.</div>' +
       (conDatos.length > 1 ? dashMetricPickerFrom('pickTiempo', mt, conDatos) : '') +
       dashLineaTiempo(rows, mt) + '</div>';
   }
   if (conDatos.length && rows.length >= 3){
     const md = conDatos.indexOf(DASH.pickDist) >= 0 ? DASH.pickDist : conDatos[0];
-    html += '<div class="dash-block"><div class="db-title">Distribución</div>' +
+    html += '<div class="dash-block"><div class="db-title">' + esc(t('db_distribucion')) + '</div>' +
       '<div class="db-sub">En qué valores se concentran ' + (esOtraPersona ? 'sus' : 'tus') + ' registros de ' + (METRIC_LABELS[md]||md) + '.</div>' +
       (conDatos.length > 1 ? dashMetricPickerFrom('pickDist', md, conDatos) : '') +
       dashHistograma(rows, md) + '</div>';
@@ -11451,7 +11734,7 @@ function dashVerMas(items, n){
   const primeros = items.slice(0, n).join('');
   const resto = items.slice(n);
   if (!resto.length) return primeros;
-  return primeros + '<details class="ver-mas"><summary class="ver-mas-sum">Ver ' + resto.length + ' más <span class="hm-caret">▾</span></summary><div>' + resto.join('') + '</div></details>';
+  return primeros + '<details class="ver-mas"><summary class="ver-mas-sum">' + esc(t('ver_mas_n', { n: resto.length })) + ' <span class="hm-caret">▾</span></summary><div>' + resto.join('') + '</div></details>';
 }
 // Aviso "faltan estadísticas": cuando no hay datos suficientes para un gráfico, no lo mostramos y explicamos por qué.
 function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ Faltan estadísticas</div><div class="dw-d">' + detail + '</div></div>'; }
@@ -11591,14 +11874,14 @@ function renderComparar(rows){
   heat = help + heat;
 
   const series = names.slice(0,5).map((n,i) => ({ name:n, color:PIE_PALETTE[i%PIE_PALETTE.length], get:m=>dashAvg(g[n],m) }));
-  const radar = series.length ? ('<div class="dash-block"><div class="db-title">Perfil comparado</div>' +
+  const radar = series.length ? ('<div class="dash-block"><div class="db-title">' + esc(t('db_perfil_comparado')) + '</div>' +
     '<div class="db-sub">Los ' + series.length + ' primeros ' + groupKey + 's</div>' + dashRadar(series) + '</div>') : '';
 
   const pieItems = names.map((n,i) => ({ label:n, value:g[n].length, color:PIE_PALETTE[i%PIE_PALETTE.length] }));
   const pie = '<div class="dash-block"><div class="db-title">Registros por ' + groupKey + '</div>' + dashPie(pieItems, {}) + '</div>';
   const donutItems = DASH.metrics.map(m => ({ label:METRIC_LABELS[m]||m, value:Math.max(0,(dashAvg(rows,m)||0)/DASH.ref[m]), color:METRIC_COLORS[m]||'var(--ch-neutro)' }));
-  const donut = '<div class="dash-block"><div class="db-title">¿Qué indicador pesa más?</div>' +
-    '<div class="db-sub">Cuánto aporta cada indicador al riesgo de hoy. Mientras más grande la porción, más cerca (o por encima) de su límite está ese indicador.</div>' + dashPie(donutItems, {donut:true}) + '</div>';
+  const donut = '<div class="dash-block"><div class="db-title">' + esc(t('db_indicador_pesa')) + '</div>' +
+    '<div class="db-sub">' + esc(t('sub_aporta')) + '</div>' + dashPie(donutItems, {donut:true}) + '</div>';
 
   // Distribución por grupo (diagrama de caja): por defecto agrupa igual que el heatmap de arriba
   // (empresa o departamento, según el rol/filtro), con la opción de agrupar por nivel de riesgo.
@@ -11607,7 +11890,7 @@ function renderComparar(rows){
   const boxHelp = dashHelp('La <b>caja</b> muestra dónde se concentra el 50% central de los registros (de Q1 a Q3); la <b>línea dentro</b> es la mediana; los <b>bigotes</b> llegan al mínimo y al máximo registrado. Cajas más arriba de la línea punteada (la referencia) indican un grupo más cargado en ese indicador. Se necesitan al menos 3 registros por grupo para dibujar su caja.');
   const boxToggle = '<div class="period-chips"><button type="button" class="pchip' + (boxGroupKey!=='nivel'?' active':'') + '" onclick="dashPick(\'pickBoxGroup\',\'' + groupKey + '\')">Por ' + (groupKey==='empresa'?'empresa':'departamento') + '</button>' +
     '<button type="button" class="pchip' + (boxGroupKey==='nivel'?' active':'') + '" onclick="dashPick(\'pickBoxGroup\',\'nivel\')">Por nivel de riesgo</button></div>';
-  const box = boxHelp + '<div class="dash-block"><div class="db-title">Distribución por grupo</div>' +
+  const box = boxHelp + '<div class="dash-block"><div class="db-title">' + esc(t('db_dist_grupo')) + '</div>' +
     '<div class="db-sub">Diagrama de caja de ' + (METRIC_LABELS[boxMetric]||boxMetric) + ' · punteada = referencia (' + DASH.ref[boxMetric] + ')</div>' +
     boxToggle + dashMetricPicker('pickBox', boxMetric, false) + dashBoxPlot(rows, boxMetric, boxGroupKey) + '</div>';
 
@@ -11617,7 +11900,7 @@ function renderComparar(rows){
     const mx = DASH.metrics.indexOf(DASH.pickDispX) >= 0 ? DASH.pickDispX : DASH.metrics[0];
     const my = DASH.metrics.indexOf(DASH.pickDispY) >= 0 ? DASH.pickDispY : (DASH.metrics[1] || DASH.metrics[0]);
     const dispHelp = dashHelp('Cruza dos indicadores: cada punto es una persona (el promedio de sus tests). Las líneas punteadas marcan la referencia de cada eje. <b style="color:var(--sem-verde)">Verde</b> = los dos están bien · <b>amarillo</b> = uno de los dos está sobre lo normal · <b style="color:var(--sem-rojo-alt)">rojo</b> = los dos están sobre lo normal — ahí vale la pena mirar más de cerca.');
-    dispersion = dispHelp + '<div class="dash-block"><div class="db-title">Cruce de indicadores</div>' +
+    dispersion = dispHelp + '<div class="dash-block"><div class="db-title">' + esc(t('db_cruce')) + '</div>' +
       '<div class="db-sub">¿Suben juntos ' + (METRIC_LABELS[mx]||mx) + ' y ' + (METRIC_LABELS[my]||my) + '?</div>' +
       dashMetricPickerLabeled('pickDispX', mx, 'Eje X') + dashMetricPickerLabeled('pickDispY', my, 'Eje Y') +
       dashDispersion(rows, mx, my) + '</div>';
@@ -11650,8 +11933,8 @@ function renderIndividual(rows){
   });
   const help = dashHelp('Ranking de personas ordenado de mayor a menor. ' + (composite ? 'El <b>índice global</b> resume las 6 métricas: 1.00× = justo en la media, más alto = peor.' : 'Elige la métrica arriba.') + ' <b>Toca a una persona</b> para ver su detalle completo.');
   // Muestra los 3 primeros y el resto detrás de "Ver más".
-  const listado = items.length ? dashVerMas(itemHtmls, 3) : '<div class="dash-empty">Sin datos por persona.</div>';
-  return help + '<div class="dash-block"><div class="db-title">Ranking individual</div>' +
+  const listado = items.length ? dashVerMas(itemHtmls, 3) : '<div class="dash-empty">' + esc(t('vac_sin_por_persona')) + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_ranking')) + '</div>' +
     '<div class="db-sub">' + (composite ? 'Índice global (1.00× = en la media)' : 'Promedio por persona · referencia ' + ref) + '</div>' +
     dashMetricPicker('pickInd', m, true) + listado + '</div>';
 }
@@ -11674,8 +11957,8 @@ function renderEvolucion(rows){
   }
   if (m === '__all__'){
     const help = dashHelp('Cómo evolucionó cada indicador <b>mes a mes</b>. Los valores están divididos por su referencia, así entran todos en la misma escala: la <b>línea punteada en 1.0</b> es lo normal — todo lo que esté por encima necesita atención. El eje horizontal son los meses. <b>Toca un indicador en la leyenda</b> para ocultarlo y comparar mejor los que quedan (el gráfico reajusta la escala solo). <b>Elige un indicador</b> arriba para verlo en detalle (línea de tiempo y distribución).');
-    return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
-      '<div class="db-sub">Promedio mensual de cada métrica ÷ su referencia (1.0 = valor normal)</div>' + picker + dashEvoMulti(rows) + '</div>';
+    return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_evolucion')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_prom_mensual')) + '</div>' + picker + dashEvoMulti(rows) + '</div>';
   }
   const ref = DASH.ref[m], buckets = {};
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
@@ -11683,19 +11966,19 @@ function renderEvolucion(rows){
   const points = keys.map(k => ({ label:k, value:dashMean(buckets[k]), n:buckets[k].length }));
   const chart = points.length ? dashLineChart(points, ref) : '<div class="lc-empty">Sin fechas suficientes para graficar.</div>';
   const help = dashHelp('Promedio de <b>' + (METRIC_LABELS[m]||m) + '</b> por mes. La <b>línea punteada</b> es la referencia (' + ref + '): si los puntos suben por encima, ese mes estuvo peor que lo normal. Eje horizontal = meses (AA-MM).');
-  return help + '<div class="dash-block"><div class="db-title">Evolución en el tiempo</div>' +
+  return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_evolucion')) + '</div>' +
     '<div class="db-sub">Promedio mensual de ' + (METRIC_LABELS[m]||m) + ' · punteada = referencia (' + ref + ')</div>' + picker + chart + '</div>' +
-    '<div class="dash-block"><div class="db-title">Línea de tiempo</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_linea_tiempo')) + '</div>' +
     '<div class="db-sub">Cada registro de ' + (METRIC_LABELS[m]||m) + ', uno por uno</div>' + dashLineaTiempo(rows, m) + '</div>' +
-    '<div class="dash-block"><div class="db-title">Distribución</div>' +
+    '<div class="dash-block"><div class="db-title">' + esc(t('db_distribucion')) + '</div>' +
     '<div class="db-sub">En qué valores se concentran los registros de ' + (METRIC_LABELS[m]||m) + '</div>' + dashHistograma(rows, m) + '</div>';
 }
 
 /* ── COMENTARIOS adicionales ── */
 function renderComentarios(rows){
   if (!DASH.comentarios){
-    return '<div class="dash-block"><div class="db-title">Comentarios adicionales</div>' +
-      '<div class="dash-empty">Actualiza el endpoint del maestro para habilitar los comentarios.</div></div>';
+    return '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + '</div>' +
+      '<div class="dash-empty">' + esc(t('vac_endpoint_com')) + '</div></div>';
   }
   const rng = dashEffectiveRange();
   const list = DASH.comentarios.filter(c => {
@@ -11706,10 +11989,10 @@ function renderComentarios(rows){
     if (rng.hasta && c.fecha > rng.hasta) return false;
     return esComentarioValido(c.texto);
   }).sort((a,b) => a.fecha < b.fecha ? 1 : -1);
-  if (!list.length) return dashHelp('Aquí aparecen los comentarios que las personas escribieron al completar sus tests, respetando los filtros de arriba.') + '<div class="dash-block"><div class="db-title">Comentarios adicionales</div><div class="db-sub">Texto libre que escribió el propio personal al completar sus tests</div><div class="dash-empty">Sin comentarios para este filtro.</div></div>';
+  if (!list.length) return dashHelp('Aquí aparecen los comentarios que las personas escribieron al completar sus tests, respetando los filtros de arriba.') + '<div class="dash-block"><div class="db-title">' + esc(t('db_com_adic')) + '</div><div class="db-sub">' + esc(t('sub_texto_libre')) + '</div><div class="dash-empty">' + esc(t('vac_sin_comentarios')) + '</div></div>';
   return dashHelp('Comentarios que las personas escribieron al completar sus tests. Respetan el período, departamento y empleado que tengas filtrados arriba.') +
     '<div class="dash-block"><div class="db-title">Comentarios adicionales (' + list.length + ')</div>' +
-    '<div class="db-sub">Texto libre que escribió el propio personal al completar sus tests</div>' +
+    '<div class="db-sub">' + esc(t('sub_texto_libre')) + '</div>' +
     list.slice(0,100).map(cmtCard).join('') + '</div>';
 }
 // Ignora comentarios vacíos o que son solo "no"/"No" (gente que no quiso comentar pero no dejó vacío)
@@ -11719,7 +12002,7 @@ function dashPersonComments(){
   const cs = DASH.comentarios.filter(c => c.persona === DASH.f.per && esComentarioValido(c.texto))
     .sort((a,b) => a.fecha < b.fecha ? 1 : -1);
   if (!cs.length) return '';
-  return '<div class="dash-block"><div class="db-title">Comentarios</div>' + cs.slice(0,40).map(cmtCard).join('') + '</div>';
+  return '<div class="dash-block"><div class="db-title">' + esc(t('db_comentarios')) + '</div>' + cs.slice(0,40).map(cmtCard).join('') + '</div>';
 }
 function cmtCard(c){
   return '<div class="cmt-item"><div class="cmt-head"><span class="cmt-name">' + esc(c.persona||'—') + '</span>' +
@@ -11760,7 +12043,7 @@ function renderPVT(){
   const rtMean = rtAll.length ? Math.round(rtAll.reduce((a,b)=>a+b,0)/rtAll.length) : null;
   const lapMean = lapAll.length ? (lapAll.reduce((a,b)=>a+b,0)/lapAll.length) : null;
   const fatig = pv.filter(r => pvtVerdict(r.rt_prom, r.lapsos).over).length;
-  const kpis = '<div class="dash-block"><div class="db-title">Resumen de reacción</div>' +
+  const kpis = '<div class="dash-block"><div class="db-title">' + esc(t('db_resumen_reaccion')) + '</div>' +
     '<div class="db-sub">Promedio de los ' + pv.length + ' test(s) del período seleccionado</div>' +
     '<div class="kpi-grid">' +
       '<div class="kpi"><div class="km">RT promedio</div><div class="kv">' + (rtMean==null?'—':rtMean) + '</div><div class="kref">ms</div></div>' +
@@ -11794,15 +12077,15 @@ function renderPVT(){
         '<div class="rank-sub">' + esc(x.dep||'—') + ' · ' + x.n + ' test</div></div>' +
         '<div class="rank-val" style="color:' + v.c + '">' + x.rt + '</div><span class="rank-go">›</span></div>';
     });
-    body = '<div class="dash-block"><div class="db-title">Ranking por tiempo de reacción</div>' +
-      '<div class="db-sub">Peor (más lento) arriba · toca a una persona para ver su detalle</div>' +
+    body = '<div class="dash-block"><div class="db-title">' + esc(t('db_ranking_reaccion')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_peor_arriba')) + '</div>' +
       dashVerMas(pvtCards, 3) + '</div>';   // 3 y "Ver más"
   }
   let evo = '';
   const grafico = dashPvtEvolucion(pv);
   if (grafico){
-    evo = '<div class="dash-block"><div class="db-title">Cómo evolucionó la reacción</div>' +
-      '<div class="db-sub">Cada punto es un test. Cuanto más abajo, más rápido reaccionó (mejor).</div>' +
+    evo = '<div class="dash-block"><div class="db-title">' + esc(t('db_evo_reaccion')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_cada_punto')) + '</div>' +
       dashHelp('El <b>tiempo de reacción</b> es cuánto tardas en responder, medido en milisegundos (ms). <b>Cuanto más bajo, mejor.</b> No hace falta entender los números: fíjate en el color de la franja donde caen los puntos — <b style="color:var(--sem-verde)">verde</b> es un buen estado, <b style="color:var(--sem-ambar)">amarillo</b> es intermedio y <b style="color:var(--sem-rojo-alt)">rojo</b> son señales de fatiga.') +
       grafico + '</div>';
   }
@@ -11881,7 +12164,7 @@ function renderInforme(rows){
   if (!DASH._informesLoaded) hist = '<div class="informe-loading">Cargando informes previos…</div>';
   else if (!DASH._informes.length) hist = '<div class="informe-empty">Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.</div>';
   else hist = '<div class="db-sub2">Historial (' + DASH._informes.length + ')</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
-  return help + '<div class="dash-block"><div class="db-title">Informe IA</div>' + sub + objBlock + btn + out + hist + '</div>';
+  return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_informe_ia')) + '</div>' + sub + objBlock + btn + out + hist + '</div>';
 }
 function dashLoadInformes(){
   DASH._informes = DASH._informes || [];
@@ -11924,8 +12207,8 @@ function dashShareInforme(id){
   if (!inf) return;
   const texto = 'Informe · Aeroambulancias Silva' + (inf.fecha ? ' (' + inf.fecha + ')' : '') + '\n\n' + inf.texto;
   if (navigator.share){ navigator.share({ title:'Informe · Aeroambulancias Silva', text:texto }).catch(()=>{}); }
-  else if (navigator.clipboard){ navigator.clipboard.writeText(texto).then(()=>showToast('Informe copiado al portapapeles')).catch(()=>showToast('No se pudo copiar')); }
-  else showToast('Compartir no está disponible en este navegador');
+  else if (navigator.clipboard){ navigator.clipboard.writeText(texto).then(()=>showToast(t('ts_copiado'))).catch(()=>showToast(t('ts_no_copiar'))); }
+  else showToast(t('ts_no_compartir'));
 }
 function dashGenerarInforme(){
   const btn = document.getElementById('informeBtn');
@@ -11948,7 +12231,7 @@ function dashGenerarInforme(){
       DASH._informes.unshift({ id:d.id, fecha:d.generado, texto:d.informe });   // el más nuevo arriba
       DASH._informesProximo = d.proximo || null;
       renderDash();
-      showToast('Informe generado · tócalo para leerlo');   // aparece MINIMIZADO en el historial
+      showToast(t('ts_informe_ok'));   // aparece MINIMIZADO en el historial
     })
     .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintenta.</div>'; });
 }
@@ -12048,7 +12331,7 @@ function dashBuildSummary(rows, opts){
   }).map(c => ({ persona:c.persona, fecha:c.fecha, tipo:c.tipo, texto:c.texto })).slice(0,60);
   const out = {
     empresa: DASH.scope,
-    periodo: { label:(DASH_PERIODS.filter(p=>p[0]===DASH.f.period)[0]||['','Todo'])[1], desde:rng.desde||null, hasta:rng.hasta||null },
+    periodo: { label:periodoLabel(DASH.f.period), desde:rng.desde||null, hasta:rng.hasta||null },
     filtros: { departamento:DASH.f.dep||'(todos)', empleado:DASH.f.per||'(todos)' },
     nRegistros: rows.length, referencias: DASH.ref,
     metricas: metricas, departamentos: departamentos, alertas: alertas.slice(0,25), comentarios: comentarios
@@ -12169,7 +12452,7 @@ function dashEvoMulti(rows){
 
 /* ── Estadística descriptiva ── */
 function dashStatsTable(rows){
-  let html = '<div class="dash-block"><div class="db-title">Números en detalle, por indicador</div>' +
+  let html = '<div class="dash-block"><div class="db-title">' + esc(t('db_numeros')) + '</div>' +
     dashHelp('Para quien quiera el detalle fino de cada indicador:<br>' +
       '· <b>Media</b>: el promedio de todos los tests.<br>' +
       '· <b>Mediana</b>: el valor del medio (no lo mueven los casos extremos).<br>' +
@@ -12365,7 +12648,7 @@ function dashAlerts(rows){
   DASH._alertDep = deptos.map(x=>x.name);
   DASH._alertPer = personas.map(x=>x.name);
   if (!deptos.length && !personas.length)
-    return '<div class="dash-block"><div class="db-title">Sobre la referencia</div><div class="dash-ok">✓ Nada por encima de la media.</div></div>';
+    return '<div class="dash-block"><div class="db-title">' + esc(t('db_sobre_ref')) + '</div><div class="dash-ok">✓ Nada por encima de la media.</div></div>';
   function group(title, items, type){
     if (!items.length) return '';
     const cards = items.map((x,i) =>
@@ -12397,7 +12680,7 @@ function dashHistory(rows, esOtraPersona, who){
       '<div class="hist-more-body">' + resto.map(row).join('') + '</div></details>'
     : '';
   return '<div class="dash-block"><div class="db-title">' + (esOtraPersona ? ('Registros de ' + who) : 'Mis registros') + '</div>' +
-    '<div class="db-sub">Del más reciente al más antiguo</div>' + primeros + mas + '</div>';
+    '<div class="db-sub">' + esc(t('sub_reciente')) + '</div>' + primeros + mas + '</div>';
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -12998,7 +13281,7 @@ function casosOdooBloque(){
         (c.tests ? '<div class="hs-ev-um">' + esc(c.tests) + '</div>' : '') +
       '</div>');
   return ayuda + '<div class="dash-block"><div class="db-title">Casos para atención interna (' + delServidor.length + ')</div>' +
-    '<div class="db-sub">Abiertos automáticamente y tomados por el circuito de telemedicina</div>' +
+    '<div class="db-sub">' + esc(t('sub_casos_auto')) + '</div>' +
     dashVerMas(filas, 3) + '</div>';
 }
 
@@ -13279,7 +13562,7 @@ function fmTimeline(persona){
       pie:(g.estado !== 'sugerida' && g.actualizadaEn) ? (i.corto + ' el ' + gestFechaTs(g.actualizadaEn)) : '' });
   });
   ev.sort((a,b) => b.ts - a.ts);
-  if (!ev.length) return '<div class="dash-empty">Todavía no hay determinaciones, restricciones ni notas de esta persona.</div>';
+  if (!ev.length) return '<div class="dash-empty">' + esc(t('vac_sin_ficha')) + '</div>';
   const filas = ev.map(e =>
     '<div class="fm-ev" style="--anc:' + e.c + ';--anbg:' + e.bg + '">' +
       '<div class="fm-ev-top"><span class="fm-ev-tipo">' + esc(e.tipo) + '</span>' +
@@ -13343,7 +13626,7 @@ function dashFichaMedica(rows){
       'determinaciones, restricciones del supervisor y tus notas.</div>' +
     '<div class="fm-chips">' + chips.join('') + '</div>' + persistTxt +
     '<div class="fm-sec-t">Línea base · primer registro → último</div>' +
-    '<div class="fm-lb">' + (lineas || '<div class="dash-empty">Sin indicadores con datos.</div>') + '</div>' +
+    '<div class="fm-lb">' + (lineas || '<div class="dash-empty">' + esc(t('vac_sin_indicadores')) + '</div>') + '</div>' +
     '<div class="fm-sec-t">Historia</div>' + fmTimeline(DASH.f.per) +
     // El médico cierra el ciclo: marcar que la telemedicina efectivamente se hizo.
     (p.telem && p.telem.estado === 'aceptada'
@@ -13434,7 +13717,7 @@ function dashAnotacionesResumen(){
       '</div>';
     });
     html += '<div class="dash-block"><div class="db-title">Indicaciones vigentes (' + conInd.length + ')</div>' +
-      '<div class="db-sub">Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión</div>' + dashVerMas(filas, 3) + '</div>';
+      '<div class="db-sub">' + esc(t('sub_determ')) + '</div>' + dashVerMas(filas, 3) + '</div>';
   }
   // El wrapper permite que en escritorio las dos listas convivan lado a lado (hay ancho de sobra)
   // en vez de quedar una arriba de la otra ocupando toda la pantalla.
@@ -13574,7 +13857,7 @@ function restGuardar(){
   if (!t){
     const el = document.getElementById('restrTarea');
     if (el){ el.classList.add('invalid'); el.focus(); }
-    showToast('Indica qué tarea no debe hacer');
+    showToast(t('ts_indica_tarea'));
     return;
   }
   const motivo = String(((document.getElementById('restrMotivo')||{}).value) || '').trim();
@@ -13600,7 +13883,7 @@ function restGuardar(){
   haptic(16);
   restCerrar();
   renderDash();
-  showToast('Restricción registrada');
+  showToast(t('ts_restr_ok'));
 }
 function restLevantar(id){
   if (!restPuede()) return;
@@ -13612,7 +13895,7 @@ function restLevantar(id){
   bitacoraRegistrar('restriccion_levantada', g.persona, { id:g.id, tarea:g.tarea });
   haptic(10);
   renderDash();
-  showToast('Restricción levantada');
+  showToast(t('ts_restr_off'));
 }
 
 /* Sugerir telemedicina desde la tarjeta. Lo pueden hacer supervisor y servicio médico —
@@ -13626,18 +13909,18 @@ function telemSugerirDesde(persona){
   telemSugerir(persona, '', quien);
   haptic(14);
   renderDash();
-  showToast('Telemedicina sugerida');
+  showToast(t('ts_telem_sug'));
 }
 // Acciones de la PERSONA sobre su propia telemedicina (desde su vista de empleado).
-function telemAceptar(id){ telemCambiarEstado(id, 'aceptada', true); renderDash(); showToast('Telemedicina aceptada'); }
+function telemAceptar(id){ telemCambiarEstado(id, 'aceptada', true); renderDash(); showToast(t('ts_telem_ok')); }
 function telemRechazar(id){
   if (!confirm('¿Rechazar la telemedicina?\n\nQueda registrado para el servicio médico. Puedes pedirla más adelante si cambias de opinión.')) return;
-  telemCambiarEstado(id, 'rechazada', true); renderDash(); showToast('Telemedicina rechazada');
+  telemCambiarEstado(id, 'rechazada', true); renderDash(); showToast(t('ts_telem_no'));
 }
 // El servicio médico marca que efectivamente la realizó.
 function telemMarcarRealizada(id){
   if (!DASH || DASH.vista !== 'medico') return;
-  telemCambiarEstado(id, 'realizada', false); renderDash(); showToast('Telemedicina marcada como realizada');
+  telemCambiarEstado(id, 'realizada', false); renderDash(); showToast(t('ts_telem_hecha'));
 }
 
 function anotAbrir(){
