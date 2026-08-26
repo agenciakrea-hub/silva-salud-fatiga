@@ -3052,6 +3052,13 @@
   .inicio:empty { display: none; }
 
   /* ── Tu estado hoy ── */
+  /* La determinación FIRMADA por el médico. Se distingue del semáforo automático a propósito:
+     borde sólido y marcado, no el relleno suave del de abajo — una la firmó una persona y la
+     otra la calculó el sistema, y eso no puede leerse igual. */
+  .ini-firmada { border:2px solid var(--inic-c); background:var(--inic-bg); border-radius:var(--radius);
+    padding:.85rem 1rem; margin-bottom:.7rem; }
+  .ini-firmada-t { font-size:1.12rem; font-weight:800; color:var(--inic-c); line-height:1.2; margin-top:.1rem; }
+  .ini-firmada-x { font-size:.8rem; color:var(--text-soft); margin-top:.2rem; }
   .ini-estado { border-radius: 16px; padding: .95rem 1.05rem; border: 1px solid var(--sup-borde);
     background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm); }
   .ini-est-k { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
@@ -4001,7 +4008,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.92';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.93';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4499,6 +4506,8 @@ const I18N = {
       ct_sin_referencia:'Este indicador todavía no tiene un límite cargado para comparar.',
       apt_sin_dato:'Sin ningún test todavía (sí entran en el total de arriba)',
       ts_turno_registrado:'{q}: registrado',
+      ini_firmada_k:'DETERMINACIÓN DEL SERVICIO MÉDICO',
+      ini_firmada_por:'Firmada por {m}',
       dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
       dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
       dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
@@ -5884,6 +5893,8 @@ const I18N = {
       ct_sin_referencia:'This indicator does not have a limit set to compare against yet.',
       apt_sin_dato:'No test at all yet (they do count in the total above)',
       ts_turno_registrado:'{q}: recorded',
+      ini_firmada_k:'MEDICAL SERVICE DETERMINATION',
+      ini_firmada_por:'Signed by {m}',
       dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
       dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
       dw_radar_3:'3+ indicators are needed for the radar.',
@@ -8012,7 +8023,27 @@ function renderInicio(){
     if (per.viejo) nota = t('ini_dato_viejo', { n: per.dias });
     else if (per.ultimoPocoConfiable) nota = t('ini_poco_confiable');
   }
-  let html = '<div class="ini-estado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
+  /* R2: esto NO lo decide la app. Es una determinación que FIRMÓ el servicio médico, y se
+     muestra como tal: qué determinó, quién y hasta cuándo. Va arriba del semáforo automático
+     porque lo pisa — si un médico ya te evaluó, eso manda sobre lo que calcule el control. */
+  let firmada = '';
+  /* ⚠️ try/catch y NO `typeof`: `TAREAS` es un `const` declarado mucho más abajo, y renderInicio()
+     corre antes. `typeof` no salva de la zona muerta temporal —es la única excepción a que
+     `typeof` nunca lanza— y tiraba "Cannot access 'TAREAS' before initialization", dejando la
+     app sin arrancar. Misma forma que iniTareasPend(), tres funciones más arriba. Ya había
+     pasado en G1 y en D1: si se lee TAREAS desde acá, va envuelto. */
+  const det = (function(){ try { return TAREAS.determinacion || null; } catch(e){ return null; } })();
+  if (det && det.nivel){
+    const inf = apAnotInfo(det.nivel);
+    const hasta = det.vigenciaHasta ? gestFechaTs(det.vigenciaHasta) : '';
+    firmada = '<div class="ini-firmada" style="--inic-c:' + inf.c + ';--inic-bg:' + inf.bg + '">' +
+      '<div class="ini-est-k">' + esc(t('ini_firmada_k')) + '</div>' +
+      '<div class="ini-firmada-t">' + esc(inf.corto) + '</div>' +
+      (det.medico ? '<div class="ini-firmada-x">' + esc(t('ini_firmada_por', { m: det.medico })) + '</div>' : '') +
+      (hasta ? '<div class="ini-firmada-x">' + esc(t('an_vigente_hasta', { f: hasta })) + '</div>' : '') +
+    '</div>';
+  }
+  let html = firmada + '<div class="ini-estado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
     '<div class="ini-est-k">' + esc(t('ini_estado_k')) + '</div>' +
     '<div class="ini-est-t">' + esc(titulo) + '</div>' +
     '<div class="ini-est-x">' + esc(texto) + '</div>' +
@@ -11022,7 +11053,15 @@ function dashTabsFor(rol, hasPvt, vista){
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
   if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
-  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
+  /* I1 (hallazgos 4 y 5): el médico es el único rol que puede FIRMAR una determinación y era el
+     único que no veía ni las horas de servicio ni los reportes identificados ("no dormí"). Las
+     horas de jornada son de las variables de exposición más relevantes que existen para esa
+     firma, y un "no dormí" con nombre es un autoreporte clínico de primer orden que sólo le
+     llegaba al supervisor.
+     No hizo falta tocar el endpoint: `operacional` ya viaja para todos los roles y
+     `accionReportesLeer` no recorta por rol — el dato ya le llegaba, sólo que no tenía dónde
+     verlo. */
+  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','reportes','ciclo','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
   return base;
 }
@@ -17110,6 +17149,12 @@ function tareasCargar(){
       if (!d || !d.ok) return;
       TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
       TAREAS.pendientes = Number(d.pendientes) || 0;
+      /* La determinación médica vigente sobre ESTA persona. Viene por este canal porque es el
+         único del endpoint que identifica a alguien sin contraseña (nombre + cédula contra la
+         nómina), y el empleado no tiene credenciales. El servidor manda el HECHO y nunca la nota
+         clínica. Si el endpoint todavía no se actualizó, llega undefined y queda en null: la app
+         se comporta igual que antes. */
+      TAREAS.determinacion = (d.determinacion && d.determinacion.nivel) ? d.determinacion : null;
       tareasPintarBadge();
       try { renderInicio(); } catch(e){}
     })
