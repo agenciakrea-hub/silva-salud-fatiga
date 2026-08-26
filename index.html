@@ -4001,7 +4001,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.91';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.92';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7699,6 +7699,9 @@ function pvtCleanup(){
   pvtState.isiTimer = pvtState.tick = pvtState.raf = null;
 }
 function pvtStart(){
+  // I5: la misma guarda que ya tienen pvtCleanup() y pvtScheduleNext(). Sin ella, arrancar con
+  // el overlay visible pero el estado en null tira "Cannot set properties of null".
+  if (!pvtState) return;
   // La preferencia ya se guarda al tocar la casilla (pvtGuardarNoMostrar, vía onchange) — acá no
   // hace falta repetirlo.
   document.getElementById('pvtQuick').style.display = 'none';
@@ -7798,12 +7801,31 @@ function pvtSummaryHTML(m){
     '</div>' +
     '<p class="pvt-hint">' + esc(t('pvt_hint_lapso', { ms: PVT_LAPSE_MS })) + '</p>';
 }
+/* R15: id determinístico del resultado. El PVT era lo ÚNICO que viaja por la cola de reintentos
+   sin ningún id: `accionPvt` hace appendRow pelado y `leerPVT` no deduplica, así que un reenvío
+   (cola tras un fallo, o el aborto por reloj de I4 sobre un pedido que el servidor sí procesó)
+   agregaba una segunda fila idéntica que volvía a contar en el promedio de reacción y en el
+   ranking, sin que nada lo dijera.
+
+   Se arma con persona + fecha + hora al minuto + los valores del resultado: dos envíos del MISMO
+   PVT dan el mismo id, y dos PVT distintos (que no pueden caer en el mismo minuto con los mismos
+   milisegundos) dan ids distintos.
+
+   ⚠️ Esto es la mitad del cliente y por ahora es INERTE: el endpoint todavía ignora el campo. La
+   otra mitad —que `accionPvt` barra el id y responda `{ok:true, duplicado:true}`, igual que ya
+   hace `accionReporteGuardar`— está anotada en PENDIENTES_USUARIO.md para la próxima pegada. */
+function pvtIdDe(m, p){
+  const d = new Date(), z = n => String(n).padStart(2,'0');
+  const cuando = d.getFullYear() + z(d.getMonth()+1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes());
+  return 'pvt_' + dashNorm(p.nombre || '') + '_' + cuando + '_' +
+    [m.validas, m.rt_prom, m.rt_min, m.rt_max, m.rt_mediana, m.lapsos, m.falsos].join('-');
+}
 function pvtSend(m){
   misGuardarPvt(m);
   const p = getProfile() || {};
   if (!SHEETS_DASHBOARD_URL) return;
   enviarConCola(SHEETS_DASHBOARD_URL + '?' + new URLSearchParams({
-    action:'pvt', nombre:p.nombre||'', empresa:p.empresa||'', departamento:p.departamento||'',
+    action:'pvt', id: pvtIdDe(m, p), nombre:p.nombre||'', empresa:p.empresa||'', departamento:p.departamento||'',
     validas:m.validas, rt_prom:m.rt_prom, rt_min:m.rt_min, rt_max:m.rt_max, rt_mediana:m.rt_mediana, lapsos:m.lapsos, falsos:m.falsos
   }));
 }
