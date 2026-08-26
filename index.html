@@ -3593,7 +3593,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.77';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.78';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10547,6 +10547,15 @@ function cicloArmar(){
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
     if (DASH.f.per && o.persona !== DASH.f.per) return false;
+    /* E2 (2026-08-26): faltaba el filtro por NIVEL DE RIESGO. `dashFiltered` y `dashFilteredPVT`
+       ya lo aplicaban —y su comentario explica por qué tiene que ser en las dos: si sólo una lo
+       aplica, las dos quedan fuera de sincronía—. El ciclo se sumó después (2026-08-22) y no lo
+       tomó: un supervisor que filtraba por "nivel 5" veía los indicadores de los de nivel 5 pero
+       el ciclo de TODOS, y los números de las dos pestañas no cerraban entre sí.
+       ⚠️ El filtro de FECHA no se aplica acá a propósito: el ciclo es "lo que está pasando hoy",
+       no una serie histórica — filtrarlo por el período dejaría la pestaña vacía apenas alguien
+       eligiera "último mes". */
+    if (DASH.f.nivel && String(nivelRiesgoDe(o.persona, o.departamento, o.empresa, o.cargo)) !== String(DASH.f.nivel)) return false;
     return !!o.iso && !isNaN(new Date(o.iso).getTime());
   });
   const porPersona = {};
@@ -10918,8 +10927,33 @@ function cicloTick(){
   cicloUbicarAgujas(sec);
 }
 
+/* E2 (2026-08-26): esta bandeja no aplicaba NINGÚN filtro del panel. El recorte por EMPRESA sí
+   estaba (y está) del lado del servidor —`accionReportesLeer` filtra por la empresa de la cuenta—,
+   así que nunca fue una fuga; pero al filtrar por departamento o por una persona, el resto del
+   panel se achicaba y esta pestaña seguía mostrando todo. Los números no cerraban entre pestañas.
+
+   ⚠️ EL ANÓNIMO NO SE PUEDE FILTRAR POR PERSONA, y no es una omisión: un reporte anónimo no trae
+   `persona` en ningún punto del circuito (el servidor sólo la agrega cuando `identificado` es
+   true). Al filtrar por una persona quedan fuera solos, que es lo correcto — no hay forma de
+   decir "estos anónimos son de Juan" sin romper el anonimato que se le prometió. */
+function reportesFiltrados(){
+  const rng = dashEffectiveRange();
+  return (DASH._reportes || []).filter(r => {
+    if (rng.desde && r.creada && dashIsoDeEpoch(r.creada) < rng.desde) return false;
+    if (rng.hasta && r.creada && dashIsoDeEpoch(r.creada) > rng.hasta) return false;
+    if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
+    if (DASH.f.per && r.persona !== DASH.f.per) return false;   // anónimo: sin persona → no matchea
+    return true;
+  });
+}
+// epoch → "AAAA-MM-DD" en hora LOCAL. No se usa toISOString(): eso pasa a UTC y en husos al oeste
+// devuelve el día anterior, corriendo un reporte de fecha (mismo cuidado que tareaFechaLinda).
+function dashIsoDeEpoch(ms){
+  const d = new Date(ms), p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
 function renderReportesSupervisor(){
-  const reps = (DASH._reportes || []).slice().sort((a,b) => b.creada - a.creada);
+  const reps = reportesFiltrados().slice().sort((a,b) => b.creada - a.creada);
   const ayuda = dashHelp('Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia ' +
     'se decide del lado del empleado, no acá: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — ' +
     'necesitás saber quién es para poder reasignarlo) y <b style="color:var(--sem-morado)">anónimos</b> (algo del puesto ' +
