@@ -3593,7 +3593,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.78';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7186,7 +7186,13 @@ function silvaAtras(){
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
-  if (visible('portalOverlay')){ closePortal(); return true; }
+  if (visible('portalOverlay')){
+    /* Atrás del teléfono: primero deshace filtros, igual que la flecha del panel. Antes cerraba
+       el panel entero y lo sacaba de supervisor — el reflejo de "volver un paso" terminaba en
+       tener que volver a escribir la contraseña. */
+    if (dashAtras()) return true;
+    closePortal(); return true;
+  }
   if (visible('setup')){
     // Si el perfil está incompleto no lo dejamos salir (necesita cargar sus datos)
     if (perfilCompleto(getProfile())) closeSetup();
@@ -7969,7 +7975,33 @@ function closePortal(){
 // supervisor ni servicio médico entró derecho a sus estadísticas sin selector, así que para esa
 // persona el botón ni se muestra (ver dashUpdateBackBtn); si por algún motivo se llega a llamar
 // igual, cierra en vez de mandar a un selector que no le corresponde.
+/* ¿Hay algún filtro puesto en el panel? Empresa sólo cuenta para el admin: para un supervisor su
+   empresa no es un filtro que haya elegido, es su alcance — quitárselo no lo llevaría a ningún
+   lado más amplio. */
+function dashHayFiltro(){
+  if (!DASH || !DASH.f) return false;
+  return !!(DASH.f.per || DASH.f.dep || (DASH.rol === 'admin' && DASH.f.emp));
+}
+
+/* "Atrás" dentro de Estadísticas (2026-08-26, pedido del usuario).
+
+   El problema real: el jefe filtraba por una persona, tocaba atrás para volver a la lista, y en
+   vez de eso el panel se cerraba y lo sacaba de supervisor. Tenía que volver a entrar con la
+   contraseña sólo para quitar un filtro.
+
+   Ahora "atrás" desarma lo que la persona fue armando, en orden inverso: persona → departamento
+   → (empresa, sólo admin) → recién ahí sale del panel. Es lo mismo que ya hacía el botón
+   "‹ Quitar filtro" de la barra de contexto; lo que faltaba era que el gesto de atrás —el de la
+   flecha Y el del teléfono— hiciera lo mismo, porque es el que la gente usa por reflejo.
+
+   Devuelve true si consumió el gesto (había algo que deshacer). */
+function dashAtras(){
+  if (dashHayFiltro()){ dashClearOne(); return true; }
+  return false;
+}
+
 function portalBackToGate(){
+  if (dashAtras()) return;              // primero se deshacen los filtros, no se cierra la sesión
   const p = getProfile() || {};
   if (p.esSupervisor || p.esServicioMedico){
     stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
@@ -7985,7 +8017,11 @@ function portalBackToGate(){
 function dashUpdateBackBtn(){
   const btn = document.getElementById('portalBackBtn'); if (!btn) return;
   const p = getProfile() || {};
-  btn.style.display = (p.esSupervisor || p.esServicioMedico) ? '' : 'none';
+  /* Se muestra también cuando hay un filtro puesto, aunque la persona no sea supervisor ni
+     servicio médico: si entró por "Mis estadísticas" y filtró algo, la flecha es lo que le
+     deshace ese filtro. Antes, para esa persona, la flecha no existía y el único atrás posible
+     cerraba todo. */
+  btn.style.display = (p.esSupervisor || p.esServicioMedico || dashHayFiltro()) ? '' : 'none';
 }
 // Vista que se abrirá al entrar con credenciales de empresa: 'supervisor' (sólo aptitud, sin
 // datos médicos) o 'medico' (todo). El formulario es el mismo; cambia lo que se muestra después.
@@ -9216,6 +9252,9 @@ function renderDash(){
   dashWireAnimaciones();
   dashUpdateGestFab();
   dashUpdateNomFab();
+  // La flecha "atrás" ahora también depende de si hay un filtro puesto, así que hay que
+  // recalcularla en cada repintado y no sólo al cargar el panel.
+  dashUpdateBackBtn();
   // Reloj del ciclo operativo: sólo corre si la sección está en pantalla. La aguja se ubica
   // después del layout (necesita medir los tramos ya dibujados).
   if (ord.indexOf('ciclo') >= 0){ cicloTickStart(); requestAnimationFrame(() => cicloUbicarAgujas()); }
