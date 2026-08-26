@@ -99,6 +99,13 @@
     --sem-rojo-int:    #c0271f;  --sem-rojo-int-bg:  #fde8e6;   /* rojo más intenso (no apto) */
     --sem-rojo-alt:    #d63031;  --sem-rojo-alt-bg:  #feecec;
     --sem-ambar:       #b8860b;  --sem-ambar-bg:     #fff8e6;
+    /* G1: color y fondo del semáforo del inicio. renderInicio() los reasigna por estado; estos
+       son el valor neutro con el que arranca (sin datos todavía). */
+    --inic-c: #6b7a90;  --inic-bg: #f3f6fa;  --inic-txt: #414b5a;
+    /* Color de TEXTO de cada semántico sobre su propio fondo teñido. Los --sem-* normales están
+       calibrados como relleno y en tema claro se quedan cortos como texto (verde 2.81:1). */
+    --sem-verde-txt: #166534;  --sem-ambar-txt: #7c4a02;
+    --sem-rojo-txt:  #a01b13;  --sem-gris-txt:  #414b5a;
     --sem-ambar-alt:   #c98a00;  --sem-ambar-alt-bg: #fffaed;
     --sem-verde:       #1aa672;  --sem-verde-bg:     #e6f7f0;
     --sem-verde-int:   #128a5e;  --sem-verde-int-bg: #e2f6ee;   /* verde firmado por el médico */
@@ -251,6 +258,11 @@
     --sem-rojo-int:    #ff9d97;  --sem-rojo-int-bg:  #45191a;
     --sem-rojo-alt:    #ff8a86;  --sem-rojo-alt-bg:  #3a1a1c;
     --sem-ambar:       #f0c04a;  --sem-ambar-bg:     #362c14;
+    --inic-c: #9aa8bd;  --inic-bg: #1b2432;  --inic-txt: #9aa8bd;
+    /* En oscuro los semánticos de siempre ya dan 6–8:1 sobre sus fondos: el token vale lo mismo
+       que el de relleno y no hace falta un segundo color. */
+    --sem-verde-txt: var(--sem-verde);  --sem-ambar-txt: var(--sem-ambar);
+    --sem-rojo-txt:  var(--sem-rojo);   --sem-gris-txt:  var(--sem-gris);
     --sem-ambar-alt:   #f2c65c;  --sem-ambar-alt-bg: #3a2f15;
     --sem-verde:       #4fd4a0;  --sem-verde-bg:     #12332a;
     --sem-verde-int:   #46c795;  --sem-verde-int-bg: #103029;
@@ -2711,6 +2723,65 @@
   .gest-fab-info-sub { font-size: .8rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
   .gest-fab-info-count { font-size: .8rem; color: var(--text-soft); margin-top: .5rem; font-weight: 700; }
 
+
+  /* ══════════ G1 · Bloque de inicio ══════════
+     Tres alturas de jerarquía, a propósito: el ESTADO manda (es la pregunta con la que se abre
+     la app), abajo va UNA acción grande (lo que toca ahora) y al final tiras finas de contexto.
+     La grilla de ocho tests iguales pasa a estar DEBAJO de todo esto, no arriba. */
+  .inicio { padding: 0 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: .7rem; }
+  .inicio:empty { display: none; }
+
+  /* ── Tu estado hoy ── */
+  .ini-estado { border-radius: 16px; padding: .95rem 1.05rem; border: 1px solid var(--sup-borde);
+    background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm); }
+  .ini-est-k { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-muted); }
+  .ini-est-t { font-size: 1.18rem; font-weight: 800; color: var(--inic-txt); margin-top: .15rem; line-height: 1.25; }
+  .ini-est-x { font-size: .85rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
+  .ini-est-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .6rem; }
+  .ini-chip { display: inline-flex; align-items: center; gap: .28rem; font-size: .7rem; font-weight: 700;
+    padding: .22rem .5rem; border-radius: 999px; background: var(--chip-bg); color: var(--text-soft); }
+  .ini-chip i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ini-est-nota { font-size: .74rem; color: var(--text-muted); margin-top: .55rem; line-height: 1.4; }
+
+  /* ── Lo que te toca ahora ── */
+  .ini-ahora { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
+    border-radius: 16px; padding: .9rem 1rem; border: none; cursor: pointer; font-family: inherit;
+    background: var(--orange-txt); color: #fff; box-shadow: 0 10px 24px rgba(184,80,10,.3); }
+  .ini-ahora:active { transform: scale(.985); }
+  .ini-ahora .ic { width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; background: rgba(255,255,255,.2); }
+  .ini-ahora .ic svg { width: 22px; height: 22px; }
+  .ini-ahora-tx { flex: 1 1 auto; min-width: 0; }
+  .ini-ahora-k { font-size: .68rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+  .ini-ahora-t { font-size: 1.02rem; font-weight: 800; line-height: 1.25; margin-top: .1rem; }
+  .ini-ahora-d { font-size: .78rem; line-height: 1.35; margin-top: .1rem; }
+  .ini-ahora .chev { flex-shrink: 0; opacity: .8; }
+  /* Cuando ya no queda nada por hacer hoy, la tarjeta deja de gritar: se vuelve una confirmación
+     tranquila. Un botón naranja que dice "listo" invita a tocarlo sin motivo. */
+  .ini-ahora.ini-listo { background: var(--sem-verde-bg); color: var(--sem-verde-int);
+    box-shadow: var(--shadow-sm); border: 1px solid var(--sup-borde); cursor: default; }
+  .ini-ahora.ini-listo .ic { background: var(--card); }
+
+  /* ── Tiras de contexto ── */
+  .ini-tiras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; }
+  .ini-tira { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem; border-radius: 13px;
+    background: var(--card); border: 1px solid var(--sup-borde); font-family: inherit; text-align: left;
+    width: 100%; cursor: default; }
+  button.ini-tira { cursor: pointer; }
+  button.ini-tira:active { transform: scale(.985); }
+  .ini-tira .ic { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; }
+  .ini-tira .ic svg { width: 16px; height: 16px; }
+  .ini-tira-tx { min-width: 0; }
+  .ini-tira-v { font-size: .88rem; font-weight: 800; color: var(--text); line-height: 1.2;
+    font-variant-numeric: tabular-nums; }
+  .ini-tira-k { font-size: .7rem; color: var(--text-muted); font-weight: 600; line-height: 1.3; margin-top: .1rem; }
+
+  @media (min-width: 700px) {
+    .inicio { padding: 0 1.6rem; }
+  }
+
   @media (min-width: 700px) {
     .gest-top { padding: 1.1rem 1.6rem; }
     .gest-title { font-size: 1.2rem; }
@@ -2752,6 +2823,10 @@
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="instalar_app">Instalar la app</span><span class="ds" data-i18n="instalar_app_d">Añadir Silva Salud Fatiga a tu inicio</span></div>
     </button>
+
+    <!-- G1 · El inicio responde primero la pregunta con la que la persona abre la app:
+         cómo estoy, qué me toca ahora, y si alguien me pidió algo. Lo pinta renderInicio(). -->
+    <section id="inicio" class="inicio"></section>
 
     <div class="home-cols">
     <main id="sections"></main>
@@ -3593,7 +3668,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.83';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.84';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4034,6 +4109,22 @@ const I18N = {
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
       apt_mostrando:'Mostrando', apt_con_indic_chip:'Con <b>indicación médica</b>',
       quitar_filtro:'Quitar filtro',
+      // ── G1 · El inicio del empleado ──
+      ini_estado_k:'Tu estado hoy',
+      ini_dato_viejo:'Tu último registro es de hace {n} días. Un dato viejo dice menos de cómo estás ahora.',
+      ini_poco_confiable:'Tu último test se respondió muy rápido, así que no cuenta para esto. Conviene repetirlo.',
+      ini_k_ciclo:'Lo que te toca ahora', ini_k_sugerido:'Hace falta medir',
+      ini_al_dia_t:'Estás al día', ini_al_dia_d:'No te queda nada pendiente por hoy.',
+      ini_racha_v:'{n} días seguidos', ini_racha_k:'registrando',
+      ini_tareas_v:'{n} sin hacer', ini_tareas_k:'te pidieron algo',
+      ini_tend_baja:'{m} bajó {p}%', ini_tend_sube:'{m} subió {p}%',
+      ini_tend_k:'vs. la semana pasada',
+      // ── Panel de actividad (restos que la fase F no alcanzó) ──
+      act_dia_mes:'{d} de {m}', act_dia_sin:'{d}: sin registros', act_dia_con:'{d}: {n} {u}',
+      act_nada:'Todavía no registraste nada',
+      act_resumen:'{n} {u} en {a} {ua}',
+      n_dia_activo:'día activo', n_dias_activos:'días activos',
+      ts_reporte_registrado:'Reporte registrado · {h}',
       // ══════ F3 · Documentación interna del panel de administrador ══════
       // Cabeceras de tabla, compartidas entre secciones.
       doc_h_nivel:'Nivel', doc_h_quien:'Quién', doc_h_pregunta:'Qué pregunta responde',
@@ -5305,6 +5396,22 @@ const I18N = {
       apt_lg_bien:'Fine', apt_lg_medio:'Near the limit', apt_lg_alto:'Above', apt_lg_sin:'No data',
       apt_mostrando:'Showing', apt_con_indic_chip:'With <b>medical instruction</b>',
       quitar_filtro:'Remove filter',
+      // ── G1 · The employee home screen ──
+      ini_estado_k:'How you are today',
+      ini_dato_viejo:'Your latest record is {n} days old. Old data says less about how you are right now.',
+      ini_poco_confiable:'Your latest test was answered very fast, so it does not count here. It is worth repeating it.',
+      ini_k_ciclo:'What you have to do now', ini_k_sugerido:'Worth measuring',
+      ini_al_dia_t:'You are up to date', ini_al_dia_d:'Nothing left pending for today.',
+      ini_racha_v:'{n} days in a row', ini_racha_k:'recording',
+      ini_tareas_v:'{n} not done', ini_tareas_k:'someone asked you for something',
+      ini_tend_baja:'{m} down {p}%', ini_tend_sube:'{m} up {p}%',
+      ini_tend_k:'vs. last week',
+      // ── Activity panel (leftovers phase F did not reach) ──
+      act_dia_mes:'{d} {m}', act_dia_sin:'{d}: no records', act_dia_con:'{d}: {n} {u}',
+      act_nada:'You have not recorded anything yet',
+      act_resumen:'{n} {u} over {a} {ua}',
+      n_dia_activo:'active day', n_dias_activos:'active days',
+      ts_reporte_registrado:'Report recorded · {h}',
       // ══════ F3 · Internal documentation (admin panel) ══════
       doc_h_nivel:'Level', doc_h_quien:'Who', doc_h_pregunta:'Which question it answers',
       doc_h_color:'Colour', doc_h_significa:'What it means',
@@ -7116,6 +7223,7 @@ function pvtSummaryHTML(m){
     '<p class="pvt-hint">' + esc(t('pvt_hint_lapso', { ms: PVT_LAPSE_MS })) + '</p>';
 }
 function pvtSend(m){
+  misGuardarPvt(m);
   const p = getProfile() || {};
   if (!SHEETS_DASHBOARD_URL) return;
   enviarConCola(SHEETS_DASHBOARD_URL + '?' + new URLSearchParams({
@@ -7153,6 +7261,224 @@ function waFlagHtml(){
     '<b class="wf-plus">+</b><span class="wf-c wf-wa">' + waSVG + '</span></span>';
 }
 
+/* ══════════ G1 · EL INICIO DEL EMPLEADO ══════════
+   Antes, al abrir la app, lo primero era una grilla de ocho tests todos del mismo tamaño. Eso
+   no responde ninguna de las tres preguntas con las que alguien abre esto en la puerta de un
+   hangar a las 5 de la mañana: cómo estoy, qué me toca ahora, y si alguien me pidió algo.
+
+   El orden de abajo ES el contenido: estado → la acción que sigue → contexto. La grilla de tests
+   no desaparece; pasa a estar debajo, que es donde corresponde para lo que se usa una vez cada
+   tanto y a propósito. */
+
+// Racha de días seguidos con al menos un registro. Cuenta desde hoy, o desde ayer si hoy
+// todavía no registró nada — si no, la racha se "rompería" cada mañana hasta el primer test.
+function iniRacha(){
+  const act = getActividad();
+  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const d = new Date(hoy);
+  if (!act[iso(d)]) d.setDate(d.getDate() - 1);     // sin registro hoy: la racha se mide hasta ayer
+  let n = 0;
+  while (act[iso(d)] > 0 && n < 400){ n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+/* Tendencia: promedio de los últimos 7 días contra los 7 anteriores, sobre el indicador con más
+   datos. En TODOS los indicadores más alto es peor, así que bajar es mejorar. Se exige un mínimo
+   de un dato por ventana: con menos, decir "vienes mejorando" sería inventar. */
+function iniTendencia(){
+  const d = misDatos();
+  const ctx = misCtx();
+  if (!ctx || !d.registros.length) return null;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const diasDesde = f => Math.round((hoy - new Date(f + 'T00:00:00')) / 86400000);
+  let mejor = null;
+  ctx.metrics.forEach(m => {
+    const recientes = [], previos = [];
+    d.registros.forEach(r => {
+      if (r[m] == null || !r.fecha) return;
+      const dd = diasDesde(r.fecha);
+      if (dd < 0) return;
+      if (dd < 7) recientes.push(r[m]);
+      else if (dd < 14) previos.push(r[m]);
+    });
+    if (!recientes.length || !previos.length) return;
+    const prom = a => a.reduce((s,v) => s+v, 0) / a.length;
+    const a = prom(previos), b = prom(recientes);
+    if (a === 0) return;
+    const pct = Math.round(Math.abs(b - a) / Math.abs(a) * 100);
+    const cand = { m:m, pct:pct, baja:(b < a), n:recientes.length + previos.length };
+    // Gana el movimiento más grande; con empate, el que tenga más datos detrás.
+    if (!mejor || cand.pct > mejor.pct || (cand.pct === mejor.pct && cand.n > mejor.n)) mejor = cand;
+  });
+  /* Menos del 10% no es una tendencia: con uno o dos tests por ventana entra dentro del ruido de
+     una escala de autoreporte, y decirle a alguien "vienes mejorando" por eso sería inventarle
+     una mejora que no midió nadie. */
+  if (!mejor || mejor.pct < 10) return null;
+  return mejor;
+}
+
+/* Lo que toca AHORA. Dos caminos, según la persona tenga o no un ciclo operativo:
+   · Con ciclo (pilotos, tripulación, campo): el próximo evento del día que todavía no marcó.
+   · Sin ciclo: el indicador que hace más falta medir — el que no tiene ningún dato, o el más
+     viejo. Sugerir "haz un test" a secas no ayuda a nadie; decir CUÁL, sí. */
+const INI_TEST_DE_METRICA = { kss:'sen_somnoliencia', estres:'sen_estres', ansiedad:'sen_ansiedad',
+  fatiga:'sen_fatiga', gastro:'sen_gastro', depresion:'sen_depresion', cansancio:'sen_cansancio' };
+
+function iniSiguiente(){
+  const p = getProfile() || {};
+  const hechos = getReports();
+  const secs = seccionesApp();
+  if (p.esPiloto){
+    const op = secs.filter(s => s.id === 'operacional')[0];
+    if (op){
+      const pend = op.items.filter(it => !hechos[it.id]);
+      if (pend.length) return { item: pend[0], k: 'ini_k_ciclo' };
+      return null;                                   // ciclo del día completo
+    }
+  }
+  // Sin ciclo: el indicador con el dato más viejo (o sin ningún dato).
+  const d = misDatos();
+  const ultimo = {};
+  d.registros.forEach(r => {
+    MIS_METRICAS_DEF.forEach(m => { if (r[m] != null && (!ultimo[m] || r.fecha > ultimo[m])) ultimo[m] = r.fecha; });
+  });
+  const sens = secs.filter(s => s.id === 'sensaciones')[0];
+  if (!sens) return null;
+  const candidatas = MIS_METRICAS_DEF.filter(m => INI_TEST_DE_METRICA[m]);
+  candidatas.sort((a,b) => {
+    const fa = ultimo[a] || '', fb = ultimo[b] || '';
+    return fa < fb ? -1 : (fa > fb ? 1 : 0);          // sin dato ('') primero, luego el más viejo
+  });
+  for (let i = 0; i < candidatas.length; i++){
+    const id = INI_TEST_DE_METRICA[candidatas[i]];
+    const it = sens.items.filter(x => x.id === id)[0];
+    if (it && !hechos[it.id]) return { item: it, k: 'ini_k_sugerido' };
+  }
+  return null;
+}
+
+/* Dos colores por estado, a propósito: el BORDE lleva el color vivo (es un relleno, y ahí el
+   --sem-* de siempre está bien calibrado) y el TÍTULO lleva el legible. Con un solo color, o el
+   borde se apaga o el título no llega a 4.5:1 en tema claro. */
+const INI_TXT_ESTADO = {
+  noapto:'var(--sem-rojo-txt)',  pendiente:'var(--sem-rojo-txt)',
+  condiciones:'var(--sem-ambar-txt)', seguimiento:'var(--sem-ambar-txt)',
+  aptomed:'var(--sem-verde-txt)', ok:'var(--sem-verde-txt)', sindato:'var(--sem-gris-txt)'
+};
+
+const INI_SVG_RACHA = '<path d="M12 2c1.5 4 5 5.5 5 9.5A5 5 0 0 1 7 11.5C7 7.5 10.5 6 12 2z"/>';
+const INI_SVG_TAREAS = '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>';
+const INI_SVG_SUBE = '<polyline points="4 17 10 11 14 15 20 8"/><polyline points="15 8 20 8 20 13"/>';
+const INI_SVG_BAJA = '<polyline points="4 8 10 14 14 10 20 17"/><polyline points="15 17 20 17 20 12"/>';
+
+/* ⚠️ `const TAREAS` se declara MUCHO más abajo en el archivo, y renderInicio() corre desde
+   renderSections() durante el arranque — o sea, antes de que esa línea se haya evaluado. Leerla
+   directo tira "Cannot access 'TAREAS' before initialization" y se cae el inicio entero. Es el
+   mismo tropiezo que ya hubo en D1 con tareasCargar(). `typeof` no sirve acá: sobre un `const`
+   en zona muerta también tira. Por eso va un try/catch, que sí funciona. */
+function iniTareasPend(){ try { return TAREAS.pendientes || 0; } catch(e){ return 0; } }
+
+function iniIcono(paths, bg, color){
+  return '<div class="ic" style="background:' + bg + ';color:' + color + '">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    paths + '</svg></div>';
+}
+
+function renderInicio(){
+  const cont = document.getElementById('inicio');
+  if (!cont) return;
+  const p = getProfile();
+  if (!p || !p.nombre){ cont.innerHTML = ''; return; }
+
+  // ── Tu estado hoy ──────────────────────────────────────────────────────────────────────
+  const d = misDatos();
+  const ctx = misCtx();
+  let color = 'var(--sem-gris)', bg = 'var(--sem-gris-bg)', txt = 'var(--sem-gris-txt)';
+  let titulo = t('sf_t_sindato'), texto = t('sf_x_sindato'), chips = '', nota = '';
+  if (ctx && d.registros.length){
+    const per = aptPersona(p.nombre, d.registros, d.pvt, ctx);
+    const info = aptEstadoInfo(per.estado);
+    color = info.c; bg = info.bg; txt = INI_TXT_ESTADO[per.estado] || 'var(--sem-gris-txt)';
+    /* Se reusa el MISMO texto que el semáforo del panel (las claves sf_*): si el inicio dijera
+       las cosas con otras palabras, la persona leería dos mensajes distintos sobre su propio
+       estado en dos pantallas de la misma app. */
+    if (per.estado === 'sindato'){ titulo = t('sf_t_sindato'); texto = t('sf_x_sindato'); }
+    else if (per.estado === 'pendiente' || per.estado === 'seguimiento'){ titulo = t('sf_t_revisar'); texto = t('sf_x_revisar'); }
+    else { titulo = t('sf_t_ok'); texto = t('sf_x_ok'); }
+    // Un cuadrito por indicador, con el color de su último test. Sin números: el detalle está en
+    // "Mis estadísticas" y acá sería ruido (R2: esto es orientación, no un diagnóstico).
+    chips = per.metricas.filter(x => x.nivel !== 'sin').map(x =>
+      '<span class="ini-chip"><i style="background:' + APT_NIVELES[x.nivel].c + '"></i>' +
+      esc(METRIC_LABELS[x.m] || x.m) + '</span>').join('');
+    if (per.viejo) nota = t('ini_dato_viejo', { n: per.dias });
+    else if (per.ultimoPocoConfiable) nota = t('ini_poco_confiable');
+  }
+  let html = '<div class="ini-estado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
+    '<div class="ini-est-k">' + esc(t('ini_estado_k')) + '</div>' +
+    '<div class="ini-est-t">' + esc(titulo) + '</div>' +
+    '<div class="ini-est-x">' + esc(texto) + '</div>' +
+    (chips ? '<div class="ini-est-chips">' + chips + '</div>' : '') +
+    (nota ? '<div class="ini-est-nota">' + esc(nota) + '</div>' : '') +
+  '</div>';
+
+  // ── Lo que te toca ahora ───────────────────────────────────────────────────────────────
+  const sig = iniSiguiente();
+  if (sig){
+    html += '<button type="button" class="ini-ahora" data-ini-item="' + esc(sig.item.id) + '">' +
+      '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + sig.item.icon + '</svg></div>' +
+      '<div class="ini-ahora-tx">' +
+        '<div class="ini-ahora-k">' + esc(t(sig.k)) + '</div>' +
+        '<div class="ini-ahora-t">' + esc(sig.item.label) + '</div>' +
+        '<div class="ini-ahora-d">' + esc(sig.item.desc) + '</div>' +
+      '</div><span class="chev">' + chevSVG + '</span></button>';
+  } else {
+    html += '<div class="ini-ahora ini-listo">' +
+      '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+      '<div class="ini-ahora-tx"><div class="ini-ahora-t">' + esc(t('ini_al_dia_t')) + '</div>' +
+      '<div class="ini-ahora-d">' + esc(t('ini_al_dia_d')) + '</div></div></div>';
+  }
+
+  // ── Tiras de contexto: constancia · tareas · tendencia ─────────────────────────────────
+  const tiras = [];
+  const racha = iniRacha();
+  if (racha > 0){
+    tiras.push('<div class="ini-tira">' + iniIcono(INI_SVG_RACHA, 'var(--orange-bg)', 'var(--orange)') +
+      '<div class="ini-tira-tx"><div class="ini-tira-v">' + esc(t('ini_racha_v', { n: racha })) + '</div>' +
+      '<div class="ini-tira-k">' + esc(t('ini_racha_k')) + '</div></div></div>');
+  }
+  const nTareas = iniTareasPend();
+  if (nTareas > 0){
+    tiras.push('<button type="button" class="ini-tira" onclick="tareasAbrir()">' +
+      iniIcono(INI_SVG_TAREAS, 'var(--sem-azul-bg)', 'var(--sem-azul)') +
+      '<div class="ini-tira-tx"><div class="ini-tira-v">' + esc(t('ini_tareas_v', { n: nTareas })) + '</div>' +
+      '<div class="ini-tira-k">' + esc(t('ini_tareas_k')) + '</div></div></button>');
+  }
+  const tend = iniTendencia();
+  if (tend){
+    const buena = tend.baja;
+    tiras.push('<div class="ini-tira">' +
+      iniIcono(buena ? INI_SVG_BAJA : INI_SVG_SUBE,
+               buena ? 'var(--sem-verde-bg)' : 'var(--sem-ambar-bg)',
+               buena ? 'var(--sem-verde-int)' : 'var(--sem-ambar)') +
+      '<div class="ini-tira-tx"><div class="ini-tira-v">' +
+        esc(t(buena ? 'ini_tend_baja' : 'ini_tend_sube', { m: (METRIC_LABELS[tend.m] || tend.m), p: tend.pct })) +
+      '</div><div class="ini-tira-k">' + esc(t('ini_tend_k')) + '</div></div></div>');
+  }
+  if (tiras.length) html += '<div class="ini-tiras">' + tiras.join('') + '</div>';
+
+  cont.innerHTML = html;
+
+  // El botón grande dispara EXACTAMENTE lo mismo que la tarjeta de abajo: se busca el item por
+  // id y se reusa su manejador, en vez de duplicar la lógica de abrir test / marcar / WhatsApp.
+  const btn = cont.querySelector('[data-ini-item]');
+  if (btn) btn.addEventListener('click', function(){
+    const id = btn.getAttribute('data-ini-item');
+    const tarjeta = document.querySelector('#sections .item[data-id="' + id + '"] a');
+    if (tarjeta) tarjeta.click();
+  });
+}
+
 function renderSections(){
   const root = document.getElementById('sections');
   const _p = getProfile();
@@ -7179,6 +7505,9 @@ function renderSections(){
     root.appendChild(s);
   });
   refreshStates();
+  /* Va DESPUÉS de las secciones a propósito: el botón grande del inicio delega el clic en la
+     tarjeta de abajo, así que esas tarjetas tienen que existir cuando el inicio se pinta. */
+  renderInicio();
 }
 
 function buildItem(it, layout, i){
@@ -7235,12 +7564,125 @@ function mark(id){
   r[id] = { date: todayStr(), time, ts: d.getTime() };
   saveReports(r);
   registrarActividad();                    // suma al panel de actividad
+  try { renderInicio(); } catch(e){}       // cambia "lo que te toca ahora" y la racha
   setTimeout(refreshStates, 60);           // tras abrir WhatsApp
-  showToast('Reporte registrado · ' + time);
+  showToast(t('ts_reporte_registrado', { h: time }));
 }
 
 /* ── Panel de actividad (estilo GitHub) ──
    Cuenta cuántos registros/tests completaste cada día. Vive en el dispositivo. */
+/* ══════════ G1 · MIS DATOS — la copia local de los resultados de la propia persona ══════════
+   El inicio tiene que poder decir "cómo estás" en el momento en que se abre la app, sin red y
+   sin esperar a nadie. El CH sigue siendo la fuente de verdad; esto es una COPIA, y se llena por
+   dos caminos que se complementan:
+
+   · Al terminar un test, acá mismo. Es lo que hace que funcione sin señal y que el semáforo
+     cambie en el instante en que la persona termina, no cuando vuelve la conexión.
+   · Al arrancar, pidiendo `action=empleado` al endpoint y MEZCLANDO. Es lo que cubre el caso de
+     alguien que cambió de teléfono, reinstaló, o hizo un test desde otro dispositivo: sin esto
+     la app le diría "todavía sin registros" a alguien con dos años de historial.
+
+   ⚠️ El servidor GANA sobre lo local cuando hay una fila para la misma fecha: el CH puede tener
+   la marca de confiabilidad, que el cliente no calcula igual.
+
+   ⚠️ Lo que NO tiene esta copia son las determinaciones del servicio médico: viajan por el canal
+   de gestiones, que pide contraseña, y el empleado no tiene. O sea que el semáforo del inicio
+   muestra exactamente lo mismo que hoy muestra el panel del propio empleado — que es el punto:
+   no puede haber dos respuestas distintas a la misma pregunta. Está anotado en
+   PENDIENTES_USUARIO.md porque merece decidirse. */
+const K_MIS_DATOS = 'silva_fatiga_mis_datos_v1';
+const MIS_METRICAS_DEF = ['kss','estres','ansiedad','fatiga','gastro','depresion','cansancio'];
+
+function misDatos(){
+  try {
+    const d = JSON.parse(localStorage.getItem(K_MIS_DATOS)) || {};
+    return { registros: Array.isArray(d.registros) ? d.registros : [],
+             pvt:       Array.isArray(d.pvt) ? d.pvt : [],
+             ref:       d.ref || null,
+             metrics:   Array.isArray(d.metrics) && d.metrics.length ? d.metrics : MIS_METRICAS_DEF,
+             actualizado: d.actualizado || 0 };
+  } catch(e){ return { registros:[], pvt:[], ref:null, metrics:MIS_METRICAS_DEF, actualizado:0 }; }
+}
+function misDatosSave(d){ return lsSet(K_MIS_DATOS, JSON.stringify(d)); }
+
+/* Contexto para aptPersona(). Sin referencias del servidor no se puede calcular NADA: el corte
+   clínico lo manda el CH a propósito, para que sea el mismo en todos los dispositivos y no una
+   copia que se quede vieja. Por eso devuelve null y el inicio muestra el estado "sin datos"
+   en vez de inventar un umbral. */
+function misCtx(){
+  const d = misDatos();
+  if (!d.ref) return null;
+  const p = getProfile() || {};
+  return { metrics: d.metrics.filter(m => d.registros.some(r => r[m] != null)), ref: d.ref, emp: p.empresa || '' };
+}
+
+// Upsert por FECHA: un día con varios tests es UNA fila con varias columnas, igual que en el CH.
+function misGuardarMetricas(vals){
+  if (!vals) return;
+  const p = getProfile() || {};
+  if (!p.nombre) return;
+  const d = misDatos();
+  const hoy = todayStr();
+  let fila = d.registros.find(r => r.fecha === hoy);
+  if (!fila){
+    fila = { persona:p.nombre, empresa:p.empresa||'', departamento:p.departamento||'', cargo:p.cargo||'', fecha:hoy };
+    d.registros.push(fila);
+  }
+  Object.keys(vals).forEach(k => { if (vals[k] != null) fila[k] = vals[k]; });
+  d.registros = misPodar(d.registros);
+  misDatosSave(d);
+  try { renderInicio(); } catch(e){}
+}
+function misGuardarPvt(m){
+  const p = getProfile() || {};
+  if (!p.nombre || !m || !m.rt_prom) return;
+  const d = misDatos();
+  const hoy = todayStr();
+  d.pvt = d.pvt.filter(r => r.fecha !== hoy);
+  d.pvt.push({ persona:p.nombre, fecha:hoy, rt_prom:m.rt_prom, lapsos:m.lapsos });
+  d.pvt = misPodar(d.pvt);
+  misDatosSave(d);
+  try { renderInicio(); } catch(e){}
+}
+// Un año alcanza de sobra para todo lo que el inicio muestra, y evita que localStorage crezca sin
+// techo en un teléfono que se usa todos los días durante años.
+function misPodar(arr){
+  return arr.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 400);
+}
+
+let _misSincronizando = false;
+function misSincronizar(){
+  if (_misSincronizando || !SHEETS_DASHBOARD_URL) return Promise.resolve(false);
+  if (simulando()) return Promise.resolve(false);          // en simulación no se toca nada real
+  const p = getProfile();
+  if (!p || !p.nombre || !p.empresa) return Promise.resolve(false);
+  _misSincronizando = true;
+  const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre, _:Date.now() });
+  return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      _misSincronizando = false;
+      if (!d || !d.ok) return false;
+      const local = misDatos();
+      const srv = Array.isArray(d.registros) ? d.registros : [];
+      // El servidor manda sobre lo local para una misma fecha (trae `confiable`, que el cliente
+      // no calcula). Lo local que el servidor todavía no vio se conserva: puede ser un test de
+      // hace un minuto que aún está en la cola de envío.
+      const porFecha = {};
+      local.registros.forEach(r => { porFecha[r.fecha] = r; });
+      srv.forEach(r => { porFecha[r.fecha] = r; });
+      const merged = { registros: misPodar(Object.keys(porFecha).map(k => porFecha[k])),
+                       pvt: misPodar((Array.isArray(d.pvt) && d.pvt.length) ? d.pvt : local.pvt),
+                       ref: d.referencia || local.ref,
+                       metrics: (Array.isArray(d.metricas) && d.metricas.length) ? d.metricas : local.metrics,
+                       actualizado: Date.now() };
+      misDatosSave(merged);
+      try { renderInicio(); } catch(e){}
+      return true;
+    })
+    .catch(() => { _misSincronizando = false; return false; });
+}
+
 const K_ACTIVIDAD = 'silva_fatiga_actividad_v1';
 function getActividad(){ try { return JSON.parse(localStorage.getItem(K_ACTIVIDAD)) || {}; } catch(e){ return {}; } }
 function registrarActividad(n){
@@ -7278,8 +7720,9 @@ function renderActividad(){
       const futuro = f > hoy;
       if (!futuro){ total += n; if (n > 0) activos++; }
       const nivel = futuro ? 'fut' : (n === 0 ? 'l0' : n === 1 ? 'l1' : n === 2 ? 'l2' : n <= 4 ? 'l3' : 'l4');
-      const dia = f.getDate() + ' de ' + MESES[f.getMonth()];
-      const detalle = futuro ? '' : (n === 0 ? dia + ': sin registros' : dia + ': ' + n + (n === 1 ? ' registro' : ' registros'));
+      const dia = t('act_dia_mes', { d: f.getDate(), m: MESES[f.getMonth()] });
+      const detalle = futuro ? '' : (n === 0 ? t('act_dia_sin', { d: dia })
+                                             : t('act_dia_con', { d: dia, n: n, u: t(n === 1 ? 'n_registro' : 'n_registros') }));
       html += '<i class="act-d ' + nivel + '" title="' + detalle + '"></i>';
     }
     html += '</div>';
@@ -7291,14 +7734,16 @@ function renderActividad(){
   if (sc) sc.scrollLeft = sc.scrollWidth;   // arranca mostrando lo más reciente
   const res = document.getElementById('actResumen');
   if (res) res.textContent = total === 0
-    ? 'Todavía no registraste nada'
-    : total + (total === 1 ? ' registro' : ' registros') + ' en ' + activos + (activos === 1 ? ' día activo' : ' días activos');
+    ? t('act_nada')
+    : t('act_resumen', { n: total, u: t(total === 1 ? 'n_registro' : 'n_registros'),
+                         a: activos, ua: t(activos === 1 ? 'n_dia_activo' : 'n_dias_activos') });
 }
 function unmark(id){
   const r = getReports();
   delete r[id];
   saveReports(r);
   refreshStates();
+  try { renderInicio(); } catch(e){}
 }
 
 /* ════════════════ TEST INTERACTIVO (PRUEBA) ════════════════ */
@@ -7633,6 +8078,7 @@ function renderTestFinal(){
   document.getElementById('testOptions').innerHTML = resultCardHTML(cat) + resultBtnHTML('finalizarTest');
 }
 function finalizarTest(){
+  misGuardarMetricas({ depresion: testRespuestas.reduce((s, r) => s + parseInt(r), 0) });
   const resumen = TEST_DEPRESION.map((preg, i) => `${i + 1}. ${preg}: ${testRespuestas[i]} = ${TEST_ESCALA[testRespuestas[i]]}`).join('\n');
   if (SHEETS_DEPRESION_URL) {
     const p = getProfile() || {};
@@ -7865,6 +8311,7 @@ function renderPerelliFinal(){
 function finalizarPerelli(){
   confGuardar('perelli', perelliState);
   const [fase, nivelFatiga, sintomas, funciones, calidadSuenio, factores, capacidad, comentarios] = perelliState.answers;
+  misGuardarMetricas({ fatiga: scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad) });
   if (SHEETS_PERELLI_URL) {
     const p = getProfile() || {};
     enviarConCola(SHEETS_PERELLI_URL + '?' + new URLSearchParams({
@@ -8047,6 +8494,7 @@ function renderKssFinal(){
 function finalizarKss(){
   confGuardar('kss', kssState);
   const [fase, nivelAlerta, horasSuenio, tipoOp, comentario] = kssState.answers;
+  misGuardarMetricas({ kss: parseInt(nivelAlerta) || null });
 
   // Enviar a Google Sheets (GET con parámetros)
   if (SHEETS_KSS_URL) {
@@ -8126,6 +8574,7 @@ function renderEstresFinal(){
 }
 function finalizarEstres(){
   confGuardar('estres', estresState);
+  misGuardarMetricas({ estres: estresState.answers.reduce((s, a) => s + parseInt(a), 0) });
   const FREQ_LABELS =['Nunca','Raramente','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
   const ratings = estresState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
   if (SHEETS_ESTRES_URL) {
@@ -8187,6 +8636,7 @@ function renderAnsiedadFinal(){
 }
 function finalizarAnsiedad(){
   confGuardar('ansiedad', ansiedadState);
+  misGuardarMetricas({ ansiedad: ansiedadState.answers.reduce((s, a) => s + parseInt(a), 0) });
   const ANSIEDAD_LABELS =['No ha estado presente','Levemente, no me ha molestado','Moderadamente, pero lo pude superar','Severamente, difícil lo soporté'];
   const ratings = ansiedadState.answers.map(a => { const n = parseInt(a); return `${n} = ${ANSIEDAD_LABELS[n]}`; });
   if (SHEETS_ANSIEDAD_URL) {
@@ -8244,6 +8694,7 @@ function renderGastroFinal(){
 }
 function finalizarGastro(){
   confGuardar('gastro', gastroState);
+  misGuardarMetricas({ gastro: gastroState.answers.reduce((s, a) => s + parseInt(a), 0) });
   const GASTRO_LABELS =['Muy en desacuerdo','En desacuerdo','De acuerdo'];
   const ratings = gastroState.answers.map(a => { const n = parseInt(a); return `${n} = ${GASTRO_LABELS[n]}`; });
   if (SHEETS_GASTRO_URL) {
@@ -8304,6 +8755,7 @@ function renderCansancioFinal(){
 }
 function finalizarCansancio(){
   confGuardar('cansancio', cansancioState);
+  misGuardarMetricas({ cansancio: cansancioState.answers.reduce((s, a) => s + parseInt(a), 0) });
   const FREQ_LABELS =['Nunca','Alguna vez al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
   const ratings = cansancioState.answers.map(a => { const n = parseInt(a); return `${n} = ${FREQ_LABELS[n]}`; });
   if (SHEETS_CANSANCIO_URL) {
@@ -10921,14 +11373,16 @@ function aptNivelMetrica(valsRecientesPrimero, ref, mrg){
 // Incremento mínimo (como fracción de la referencia clínica) para que un paso cuente como subida
 // y no como ruido de medición. Ver el comentario del caso (b) más abajo.
 const PERSIST_PASO_MIN = 0.10;
-function aptPersistencia(rsRecientesPrimero, mrg, n){
+function aptPersistencia(rsRecientesPrimero, mrg, n, ctx){
   const rs = rsRecientesPrimero || [];
   const req = Math.max(2, parseInt(n, 10) || 3);
   if (rs.length < req) return null;
   const m = mrg || NIVEL_RIESGO[NIVEL_DEFAULT];
+  // Mismo `ctx` que aptPersona: sin él se usa DASH, que es lo que hacía antes.
+  const CTX = ctx || (typeof DASH !== 'undefined' && DASH) || { metrics:[], ref:{} };
   let mejor = null;
-  (DASH.metrics || []).forEach(met => {
-    const ref = DASH.ref[met];
+  (CTX.metrics || []).forEach(met => {
+    const ref = (CTX.ref || {})[met];
     if (!ref) return;
     const vals = rs.map(r => r[met]).filter(v => v != null);
     if (vals.length < req) return;
@@ -10983,7 +11437,14 @@ function aptTextoFecha(p){
 }
 // Resuelve el estado operativo de una persona: cálculo automático sobre los datos recientes, y
 // encima la determinación del servicio médico (que manda mientras esté vigente y al día).
-function aptPersona(nombre, regs, pvtRegs){
+function aptPersona(nombre, regs, pvtRegs, ctx){
+  /* `ctx` = { metrics, ref, emp }. Sin él se usa DASH, que es lo que hacían todos los llamados
+     anteriores. Existe para que la pantalla de INICIO (G1) pueda calcular el semáforo de la
+     persona sin tener un panel abierto, con este mismo motor y no con una copia. */
+  const CTX = ctx || (typeof DASH !== 'undefined' && DASH) || { metrics:[], ref:{}, emp:'' };
+  const _met = CTX.metrics || [];
+  const _ref = CTX.ref || {};
+  const _emp = CTX.emp != null ? CTX.emp : ((typeof DASH !== 'undefined' && DASH && DASH.f) ? DASH.f.emp : '');
   const porFecha = (a,b) => (a.fecha < b.fecha ? 1 : -1);          // más reciente primero
   const rs = (regs || []).slice().sort(porFecha);
   const ultimaFecha = rs.length ? rs[0].fecha : '';
@@ -10992,7 +11453,7 @@ function aptPersona(nombre, regs, pvtRegs){
 
   // Nivel de riesgo del PUESTO → tolerancia operativa. El corte clínico (DASH.ref) no se toca.
   const r0 = rs[0] || {};
-  const nivel = nivelRiesgoDe(nombre, r0.departamento, r0.empresa || (DASH && DASH.f.emp), r0.cargo);
+  const nivel = nivelRiesgoDe(nombre, r0.departamento, r0.empresa || _emp, r0.cargo);
   const mrg = nivelInfo(nivel);
 
   /* CONFIABILIDAD (P6): un test llenado de cualquier manera no puede arrastrar el semáforo.
@@ -11009,9 +11470,9 @@ function aptPersona(nombre, regs, pvtRegs){
   // de "cómo está ahora" no sirve y hay que repetirla.
   const ultimoPocoConfiable = !!(rs.length && rs[0].confiable === false);
 
-  const metricas = DASH.metrics.map(m => {
+  const metricas = _met.map(m => {
     const vals = rsOk.map(r => r[m]).filter(v => v != null);
-    return { m:m, nivel: aptNivelMetrica(vals, DASH.ref[m], mrg) };
+    return { m:m, nivel: aptNivelMetrica(vals, _ref[m], mrg) };
   });
   // Reacción (PVT): mismo criterio de "los dos últimos" que el resto de los indicadores.
   // Los cortes salen de pvtCortes(), que ajusta por nivel de riesgo respetando que acá
@@ -11035,7 +11496,7 @@ function aptPersona(nombre, regs, pvtRegs){
   let empeoro = false;
   metricas.forEach(x => {
     const vals = rsOk.map(r => r[x.m]).filter(v => v != null);
-    if (vals.length > 1 && vals[0] > vals[1] && vals[0] > DASH.ref[x.m] * mrg.rojo) empeoro = true;
+    if (vals.length > 1 && vals[0] > vals[1] && vals[0] > _ref[x.m] * mrg.rojo) empeoro = true;
   });
 
   const vigentes  = gestAnotacionesDe(nombre);        // determinaciones que no vencieron
@@ -11063,7 +11524,7 @@ function aptPersona(nombre, regs, pvtRegs){
   const restrVencida = restVencidasDe(nombre)[0] || null;
   // Patrón sostenido vs. pico aislado. NO cambia el estado: es información de PRIORIDAD para la
   // cola del servicio médico. Un patrón persistente es lo que amerita una mirada ocupacional.
-  const persist = aptPersistencia(rsOk, mrg, cfg('persistencia'));
+  const persist = aptPersistencia(rsOk, mrg, cfg('persistencia'), { metrics:_met, ref:_ref });
   // Telemedicina: sugerida/aceptada/rechazada vigente + si alguna vez se le realizó una.
   const telem = telemVigenteDe(nombre);
   const telemRealizada = telemRealizadaDe(nombre);
@@ -15678,6 +16139,7 @@ function tareasCargar(){
       TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
       TAREAS.pendientes = Number(d.pendientes) || 0;
       tareasPintarBadge();
+      try { renderInicio(); } catch(e){}
     })
     .catch(() => { TAREAS.cargando = false; });   // sin red: el contador queda como estaba
 }
@@ -15734,7 +16196,13 @@ function tareaFechaLinda(iso){
    del arranque: `TAREAS` es un `const` y no se hoistea, así que llamarlo desde INIT —que está
    ANTES en el archivo— tiraba "Cannot access 'TAREAS' before initialization" y dejaba la app
    entera sin cargar. Acá abajo las declaraciones ya corrieron. */
-function tareasArranque(){ try { tareasCargar(); } catch(e){} }
+function tareasArranque(){
+  try { tareasCargar().then(function(){ try { renderInicio(); } catch(e){} }); } catch(e){}
+  /* G1: la copia local de los propios resultados. Va acá y no en el render porque es una llamada
+     de red: el inicio se pinta ya con lo que haya en el dispositivo, y se repinta solo cuando
+     llega la respuesta. Sin conexión no pasa nada — para eso está la copia local. */
+  try { misSincronizar(); } catch(e){}
+}
 
 function tareaMarcarHecha(id, btn){
   const p = getProfile(); if (!p) return;
