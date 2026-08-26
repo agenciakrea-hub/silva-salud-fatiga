@@ -3474,7 +3474,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.71';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.72';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3749,7 +3749,22 @@ const I18N = {
       adm_doc_d:'La lógica de cada decisión, explicada. Las tablas se generan con los valores que la app usa de verdad, así que no pueden quedar desactualizadas.',
       adm_abrir_doc:'Abrir documentación', adm_salir:'Cerrar sesión de administrador',
       pie_sms:'Sistema SMS de Gestión de Fatiga & IA EVA Virtual',
-      pvt_resultado:'Resultado', listo:'Listo', recomendado:'(recomendado)'
+      pvt_resultado:'Resultado', listo:'Listo', recomendado:'(recomendado)', editar:'Editar',
+      // ── Ciclo operativo (C1). Los tramos, no los eventos: los eventos van por sector. ──
+      cic_traslado_ida:'Traslado de ida', cic_traslado_vta:'Traslado de vuelta',
+      cic_jornada:'Jornada (servicio activo)', cic_descanso:'Descanso',
+      cic_c_traslado:'Traslado', cic_c_jornada:'Jornada', cic_c_regreso:'Regreso', cic_c_descanso:'Descanso',
+      cic_sin_marcar:'sin marcar',
+      cic_previsto:'Previsto {d}', cic_de_previsto:'de {d}',
+      cic_de_mas:'+{d} de más', cic_de_mas_suf:'de más', cic_menos:'{d} menos', cic_justo:'Justo',
+      cic_excedido:'Excedido', cic_quedan:'Quedan {q} de {d}',
+      cic_horas:'Horas del ciclo', cic_cfg_tit:'Horas del ciclo de esta empresa',
+      cic_cfg_ayuda:'Se aplica a todo el personal del alcance actual y la ven todos los supervisores, no sólo este dispositivo. Cuando alguien toca «{evento}», el reloj de jornada corre contra las horas que pongas aquí.',
+      cic_guardar_emp:'Guardar para toda la empresa',
+      cic_cfg_err:'Revisa los valores: cada tramo va entre 5 y 1440 minutos.',
+      cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
+      cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
+      cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar'
     },
     aviacion: {
       op_lleg_sitio:'Llegando al aeropuerto',
@@ -4049,7 +4064,22 @@ const I18N = {
       adm_doc_d:'The logic behind every decision, explained. The tables are generated from the values the app actually uses, so they cannot go out of date.',
       adm_abrir_doc:'Open documentation', adm_salir:'Sign out of administrator',
       pie_sms:'Fatigue Management SMS & EVA Virtual AI',
-      pvt_resultado:'Result', listo:'Done', recomendado:'(recommended)',
+      pvt_resultado:'Result', listo:'Done', recomendado:'(recommended)', editar:'Edit',
+      // ── Operational cycle (C1) ──
+      cic_traslado_ida:'Outbound commute', cic_traslado_vta:'Return commute',
+      cic_jornada:'Working time (on duty)', cic_descanso:'Rest',
+      cic_c_traslado:'Commute', cic_c_jornada:'On duty', cic_c_regreso:'Return', cic_c_descanso:'Rest',
+      cic_sin_marcar:'not logged',
+      cic_previsto:'Planned {d}', cic_de_previsto:'of {d}',
+      cic_de_mas:'+{d} over', cic_de_mas_suf:'over', cic_menos:'{d} under', cic_justo:'On plan',
+      cic_excedido:'Over', cic_quedan:'{q} left of {d}',
+      cic_horas:'Cycle hours', cic_cfg_tit:'Cycle hours for this company',
+      cic_cfg_ayuda:'Applies to everyone in the current scope and is seen by every supervisor, not just this device. When someone taps "{evento}", the on-duty clock runs against the hours you set here.',
+      cic_guardar_emp:'Save for the whole company',
+      cic_cfg_err:'Check the values: each segment must be between 5 and 1440 minutes.',
+      cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo)">red</b> with the excess counting up, so you can act on it. Anyone who has not tapped anything still appears, <b>in grey</b>.',
+      cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
+      cic_kpi_comp:'complete', cic_kpi_sin:'not started',
       tam_0:'Small', tam_1:'Normal', tam_2:'Large', tam_3:'Very large'
     },
     aviacion: {
@@ -4323,15 +4353,56 @@ const I = {
    del alta a medio completar. Como función, se rearma en cada `renderSections()` y sale siempre en
    el idioma y el sector vigentes.
    La sección operacional ya pasa por `t()` (R14). Las demás siguen en español hasta la fase F. */
+/* Icono y claves de texto por evento canónico. Van aparte de CICLO_FORMAS porque son cosméticos
+   y comunes a todos los sectores: la forma dice QUÉ eventos hay y qué test dispara cada uno; esto
+   dice cómo se dibuja cada uno. La descripción de la ranura "llegada"/"salida" cambia según qué
+   test tenga la forma, así que se resuelve abajo, no acá. */
+const CICLO_ITEM_ICONO = {
+  salida_casa:  I.homeOut,
+  llegada_aero: I.planeIn,
+  salida_aero:  I.planeOut,
+  llegada_casa: I.homeIn
+};
+const CICLO_ITEM_MSG = {
+  salida_casa:  'op_msg_salir_casa',
+  llegada_aero: 'op_msg_lleg_sitio',
+  salida_aero:  'op_msg_salir_sitio',
+  llegada_casa: 'op_msg_lleg_casa'
+};
+const CICLO_ITEM_DESC = {
+  salida_casa:  'op_salir_casa_d',
+  llegada_aero: 'op_lleg_sitio_d',
+  salida_aero:  'op_salir_sitio_d',
+  llegada_casa: 'op_lleg_casa_d'
+};
+/* ⚠️ EL ID DE LA TARJETA NO SE DERIVA DE LA CLAVE DEL EVENTO, y esto no es un capricho: el id es
+   la clave con la que se guarda en el dispositivo el "Hecho · hh:mm" de cada botón (ver mark() /
+   K_REPORTS). Si al armar las tarjetas desde la forma se generara `'op_' + ev.k`, los ids
+   pasarían de `op_lleg_aero` a `op_llegada_aero` y TODOS los pilotos de Helitec que estén a mitad
+   de turno perderían sus marcas del día: la app se vería como si no hubieran reportado nada.
+   Estos cuatro ids son los que están escritos en los dispositivos hoy y no se tocan nunca. */
+const CICLO_ITEM_ID = {
+  salida_casa:  'op_salir_casa',
+  llegada_aero: 'op_lleg_aero',
+  salida_aero:  'op_salir_aero',
+  llegada_casa: 'op_lleg_casa'
+};
 function seccionesApp(){ return [
   {
     id:'operacional', title:t('op_titulo'), sub:t('op_sub'), layout:'grid',
-    items:[
-      {id:'op_salir_casa', label:t('op_salir_casa'),  desc:t('op_salir_casa_d'),  icon:I.homeOut,  ic:'var(--orange-bg)', icc:'#f47a1f', msg:t('op_msg_salir_casa'), operacionalCampo:'salida_casa'},
-      {id:'op_lleg_aero',  label:t('op_lleg_sitio'),  desc:t('op_lleg_sitio_d'),  icon:I.planeIn,  ic:'var(--orange-bg)', icc:'#f47a1f', msg:t('op_msg_lleg_sitio'), testFlow:'kss',     baseNotification:t('op_msg_lleg_sitio'),  operacionalCampo:'llegada_aero'},
-      {id:'op_salir_aero', label:t('op_salir_sitio'), desc:t('op_salir_sitio_d'), icon:I.planeOut, ic:'var(--orange-bg)', icc:'#f47a1f', msg:t('op_msg_salir_sitio'), testFlow:'perelli', baseNotification:t('op_msg_salir_sitio'), operacionalCampo:'salida_aero'},
-      {id:'op_lleg_casa',  label:t('op_lleg_casa'),   desc:t('op_lleg_casa_d'),   icon:I.homeIn,   ic:'var(--orange-bg)', icc:'#f47a1f', msg:t('op_msg_lleg_casa'), operacionalCampo:'llegada_casa'}
-    ]
+    /* Las tarjetas salen de la FORMA del sector (C1), no de cuatro líneas escritas a mano: un
+       sector con otra cantidad de eventos, o con el test en otro momento, se dibuja solo.
+       `operacionalCampo` es la CLAVE CANÓNICA que viaja al CH — nunca se traduce (ver la nota
+       grande de CICLO_FORMAS). Lo que se traduce es `label`/`desc`, y `msg` va siempre en
+       español porque lo lee EVA por WhatsApp. */
+    items: cicloEventos().map(ev => Object.assign(
+      { id:CICLO_ITEM_ID[ev.k] || ('op_' + ev.k), label:t(ev.lbl), desc:t(CICLO_ITEM_DESC[ev.k] || ev.lbl + '_d'),
+        icon:CICLO_ITEM_ICONO[ev.k] || I.homeOut, ic:'var(--orange-bg)', icc:'#f47a1f',
+        msg:t(CICLO_ITEM_MSG[ev.k] || ''), operacionalCampo:ev.k },
+      // El test lo declara la forma del sector: en aviación el KSS va al llegar; en campo, donde
+      // el riesgo es el traslado largo, va al salir de casa.
+      ev.test ? { testFlow:(ev.test === 'KSS' ? 'kss' : 'perelli'), baseNotification:t(CICLO_ITEM_MSG[ev.k] || '') } : {}
+    ))
   },
   /* ⚠️ `label` y `desc` se VEN (van por t()); `msg` VIAJA por WhatsApp a EVA y se queda SIEMPRE
      en español, en todos los idiomas. EVA lee ese texto para saber qué test iniciar: traducirlo
@@ -9605,34 +9676,97 @@ function dashReportesDemo(){
    Las 4 duraciones se editan desde la app y se guardan en la hoja "Config Empresa" del CH (clave
    `cicloPlan`), NO en el dispositivo: la cambia un supervisor y la ven todos. Cada empresa tiene la
    suya; si no cargó ninguna, se usan los valores del archivo de Helitec (1 h / 12 h / 1 h / 10 h). */
-const CICLO_PLAN_DEFAULT = { traslado:60, jornada:720, regreso:60, descanso:600 };
-const CICLO_TRAMOS = [
-  { k:'traslado', lbl:'Traslado',        corto:'Traslado',  desde:'salida_casa',  hasta:'llegada_aero' },
-  { k:'jornada',  lbl:'Servicio activo', corto:'Jornada',   desde:'llegada_aero', hasta:'salida_aero'  },
-  { k:'regreso',  lbl:'Traslado',        corto:'Regreso',   desde:'salida_aero',  hasta:'llegada_casa' },
-  { k:'descanso', lbl:'Descanso',        corto:'Descanso',  desde:'llegada_casa', hasta:null           }
-];
-const CICLO_EVENTOS = {
-  salida_casa:  'Sale de casa',
-  llegada_aero: 'Llega al aeropuerto',
-  salida_aero:  'Sale del aeropuerto',
-  llegada_casa: 'Llega a casa'
-};
-const CICLO_TEST_DE = { llegada_aero:'KSS', salida_aero:'Perelli' };
+/* ══════════ EL CICLO, POR SECTOR (C1, 2026-08-25) ══════════════════════════════════════════
+   Antes eran cuatro eventos fijos con nombres de aviación escritos a mano. Ahora la FORMA del
+   ciclo (cuántos eventos, cómo se llaman, qué test dispara cada uno, qué tramos hay y cuánto
+   dura cada uno por defecto) se define por sector.
 
-// El plan vigente para el alcance actual. Sale de la config de la empresa; el default es el archivo.
+   ⚠️⚠️ LAS CLAVES DE EVENTO NO SE TRADUCEN NI SE RENOMBRAN NUNCA. `llegada_aero` es lo que está
+   escrito en la columna `Evento` de la hoja `Operacional` para TODO el histórico de Helitec. Para
+   una planta esa clave se lee rara —"aero" en una petrolera— pero es un IDENTIFICADOR DE RANURA,
+   no el nombre del lugar: significa "llegó al sitio de trabajo". Renombrarla por sector partiría
+   el histórico en dos y dejaría los ciclos viejos sin poder armarse. Lo que cambia por sector es
+   la ETIQUETA que se muestra (vía t(), R14), nunca la clave que viaja al CH (R15).
+
+   Una forma NUEVA puede agregar claves nuevas (`salida_base`, etc.): eso es aditivo y no toca
+   nada de lo que ya está escrito. Lo prohibido es reusar una clave existente con otro sentido. */
+const CICLO_FORMAS = {
+  /* La forma que ya estaba en producción. La usan aviación, planta y genérico: las tres tienen el
+     mismo recorrido (casa → sitio → sitio → casa) y sólo cambian las palabras, que ya resuelve el
+     motor de textos. Tenerlas como tres copias sería tres lugares donde arreglar el mismo bug. */
+  estandar: {
+    plan: { traslado:60, jornada:720, regreso:60, descanso:600 },
+    eventos: [
+      { k:'salida_casa',  lbl:'op_salir_casa'  },
+      { k:'llegada_aero', lbl:'op_lleg_sitio',  test:'KSS'     },
+      { k:'salida_aero',  lbl:'op_salir_sitio', test:'Perelli' },
+      { k:'llegada_casa', lbl:'op_lleg_casa'   }
+    ],
+    tramos: [
+      { k:'traslado', lbl:'cic_traslado_ida',  corto:'cic_c_traslado', desde:'salida_casa',  hasta:'llegada_aero' },
+      { k:'jornada',  lbl:'cic_jornada',       corto:'cic_c_jornada',  desde:'llegada_aero', hasta:'salida_aero'  },
+      { k:'regreso',  lbl:'cic_traslado_vta',  corto:'cic_c_regreso',  desde:'salida_aero',  hasta:'llegada_casa' },
+      { k:'descanso', lbl:'cic_descanso',      corto:'cic_c_descanso', desde:'llegada_casa', hasta:null           }
+    ]
+  },
+  /* Campo / operación remota: el traslado deja de ser un trámite y pasa a ser el tramo más largo
+     y el riesgo principal, así que se mide con su propio test al salir de casa.
+     ⚠️ ESTOS NÚMEROS SON UN DEFAULT NUESTRO, NO ALGO QUE EL CLIENTE HAYA CONFIRMADO — está
+     anotado en PENDIENTES_USUARIO.md. La empresa los edita desde la app como cualquier otra. */
+  campo: {
+    plan: { traslado:180, jornada:600, regreso:180, descanso:600 },
+    eventos: [
+      { k:'salida_casa',  lbl:'op_salir_casa',  test:'KSS'     },
+      { k:'llegada_aero', lbl:'op_lleg_sitio'   },
+      { k:'salida_aero',  lbl:'op_salir_sitio', test:'Perelli' },
+      { k:'llegada_casa', lbl:'op_lleg_casa'   }
+    ],
+    tramos: [
+      { k:'traslado', lbl:'cic_traslado_ida',  corto:'cic_c_traslado', desde:'salida_casa',  hasta:'llegada_aero' },
+      { k:'jornada',  lbl:'cic_jornada',       corto:'cic_c_jornada',  desde:'llegada_aero', hasta:'salida_aero'  },
+      { k:'regreso',  lbl:'cic_traslado_vta',  corto:'cic_c_regreso',  desde:'salida_aero',  hasta:'llegada_casa' },
+      { k:'descanso', lbl:'cic_descanso',      corto:'cic_c_descanso', desde:'llegada_casa', hasta:null           }
+    ]
+  }
+};
+const CICLO_FORMA_DE_SECTOR = { aviacion:'estandar', planta:'estandar', generico:'estandar', campo:'campo' };
+
+/* La forma vigente. Un sector desconocido (typo en el CH, industria nueva) cae a `estandar`: es
+   lo mismo que hace el motor de textos con una traducción que falta — se degrada, no se rompe. */
+function cicloForma(){
+  const f = CICLO_FORMA_DE_SECTOR[sectorActual()];
+  return CICLO_FORMAS[f] || CICLO_FORMAS.estandar;
+}
+function cicloTramos(){ return cicloForma().tramos; }
+function cicloEventos(){ return cicloForma().eventos; }
+// La clave del evento que ABRE el ciclo. No se asume `salida_casa`: lo dice la forma.
+function cicloEventoInicial(){ return cicloEventos()[0].k; }
+// Etiqueta de un evento, ya traducida por idioma × sector. Si la forma no lo declara (dato viejo
+// de una empresa que cambió de sector), se devuelve la clave: visible y arreglable, nunca vacío.
+function cicloEventoLabel(k){
+  const e = cicloEventos().find(x => x.k === k);
+  return e ? t(e.lbl) : k;
+}
+function cicloTestDe(k){
+  const e = cicloEventos().find(x => x.k === k);
+  return e && e.test ? e.test : null;
+}
+
+// El plan vigente para el alcance actual. Sale de la config de la empresa; el default, de la forma.
 function cicloPlan(){
   const c = cfg('cicloPlan');
-  const p = Object.assign({}, CICLO_PLAN_DEFAULT);
+  const p = Object.assign({}, cicloForma().plan);
   if (c && typeof c === 'object'){
-    ['traslado','jornada','regreso','descanso'].forEach(k => {
-      const v = Number(c[k]);
-      if (isFinite(v) && v > 0) p[k] = Math.round(v);
+    // Sólo se aceptan los tramos que la forma vigente declara: una config vieja con un tramo que
+    // ya no existe se ignora en vez de meter un tramo fantasma en la barra.
+    cicloTramos().forEach(tr => {
+      const v = Number(c[tr.k]);
+      if (isFinite(v) && v > 0) p[tr.k] = Math.round(v);
     });
   }
   return p;
 }
-function cicloTotalMin(p){ return p.traslado + p.jornada + p.regreso + p.descanso; }
+function cicloTotalMin(p){ return cicloTramos().reduce((s, tr) => s + (p[tr.k] || 0), 0); }
 
 function cicloHM(min){
   const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
@@ -9665,12 +9799,13 @@ function cicloArmar(){
   const porPersona = {};
   rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
   const out = {};
+  const evInicial = cicloEventoInicial();
   Object.keys(porPersona).forEach(k => {
     const evs = porPersona[k].slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
     let actual = null;
     evs.forEach(o => {
       const t = new Date(o.iso).getTime();
-      if (o.evento === 'salida_casa' || !actual || (t - actual.t0) > ventana){
+      if (o.evento === evInicial || !actual || (t - actual.t0) > ventana){
         actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
       }
       const prev = actual.ev[o.evento];
@@ -9686,11 +9821,13 @@ function cicloArmar(){
 function cicloEstado(c, ahora, plan){
   if (!c) return { estado:'inactivo', tramos:[], eventos:{}, inicio:null, activo:-1 };
   const ev = c.ev;
-  if (!ev['salida_casa']) return { estado:'inactivo', tramos:[], eventos:ev, inicio:null, activo:-1 };
-  const t0 = new Date(ev['salida_casa'].iso).getTime();
+  const evInicial = cicloEventoInicial();
+  if (!ev[evInicial]) return { estado:'inactivo', tramos:[], eventos:ev, inicio:null, activo:-1 };
+  const t0 = new Date(ev[evInicial].iso).getTime();
   const ms = k => ev[k] ? new Date(ev[k].iso).getTime() : null;
   let activo = -1, excedido = false;
-  const tramos = CICLO_TRAMOS.map((tr, i) => {
+  const TRAMOS = cicloTramos();
+  const tramos = TRAMOS.map((tr, i) => {
     const ini = ms(tr.desde);
     const fin = tr.hasta ? ms(tr.hasta) : null;
     const previsto = plan[tr.k];
@@ -9718,7 +9855,7 @@ function cicloEstado(c, ahora, plan){
   // El ultimo tramo es el descanso: quien esta ahi ya termino de trabajar y esta reposando en su
   // casa. Se separa de "en curso" porque para un supervisor que barre la lista "en curso" se lee
   // como "esta trabajando ahora", y no es lo mismo.
-  else if (activo === CICLO_TRAMOS.length - 1) estado = 'descanso';
+  else if (activo === TRAMOS.length - 1) estado = 'descanso';
   else if (activo >= 0) estado = 'curso';
   else estado = 'completo';
   if (estado === 'completo' && cerradoAlgunoDeMas) estado = 'completo';   // cerrado, pero con excesos en el detalle
@@ -9733,34 +9870,38 @@ function cicloBarra(st, plan){
   const off = (st.estado === 'inactivo');
   const total = cicloTotalMin(plan);
   const pct = m => Math.max(0, m / total * 100);
-  const seg = (k, cls, txt) => {
+  const seg = (k, cls, txt, rotulo) => {
     const t = st.tramos.find(x => x.k === k);
     const on = !off && t && (t.estado === 'cerrado' || t.estado === 'curso');
     const exc = !off && t && ((t.estado === 'curso' && t.excedido) || (t.estado === 'cerrado' && t.delta > 0));
     return '<div class="cic-seg cic-' + cls + (on ? ' on' : '') + (exc ? ' exc' : '') +
       '" data-seg="' + k + '" style="flex:' + plan[k].toFixed(0) + ' 1 0" title="' + esc(txt + ' · ' + cicloHM(plan[k])) + '">' +
-      '<span>' + esc(txt) + '</span></div>';
+      '<span>' + esc(rotulo == null ? txt : rotulo) + '</span></div>';
   };
   const punto = (evk) => {
     const e = st.eventos && st.eventos[evk];
     const cls = off ? 'off' : (e ? 'on' : 'pend');
-    const tit = CICLO_EVENTOS[evk] + (e ? (' · ' + cicloHora(new Date(e.iso).getTime())) : ' · sin marcar');
+    const tit = cicloEventoLabel(evk) + (e ? (' · ' + cicloHora(new Date(e.iso).getTime())) : ' · ' + t('cic_sin_marcar'));
     return '<i class="cic-pt cic-pt-' + cls + '" title="' + esc(tit) + '"></i>';
   };
   const aguja = (off || st.activo < 0 || st.estado === 'completo') ? ''
     : '<i class="cic-now" data-cic-needle="' + st.inicio + '" data-cic-total="' + total + '"></i>';
+  /* La barra se arma recorriendo la forma: punto de apertura, tramo, punto de apertura del
+     siguiente… y el punto de cierre del último. Antes eran 8 líneas escritas a mano con los
+     cuatro tramos de aviación, así que un sector con otra cantidad no se podía dibujar. */
+  const TRAMOS = cicloTramos();
+  let cuerpo = '';
+  TRAMOS.forEach(tr => {
+    // Los traslados se rotulan "T" porque el segmento es angosto y no entra la palabra entera;
+    // el nombre completo sigue estando en el title (tooltip) que arma seg().
+    const clase = (tr.k === 'jornada') ? 'serv' : (tr.k === 'descanso' ? 'desc' : 'tras');
+    const corto = (clase === 'tras') ? 'T' : t(tr.lbl);
+    cuerpo += '<span class="cic-pt-wrap">' + punto(tr.desde) + '</span>' + seg(tr.k, clase, t(tr.lbl), corto);
+  });
+  const ultimo = TRAMOS[TRAMOS.length - 1];
+  if (ultimo && ultimo.hasta) cuerpo += '<span class="cic-pt-wrap">' + punto(ultimo.hasta) + '</span>';
   return '<div class="cic-riel' + (off ? ' cic-off' : '') + '">' +
-    '<div class="cic-barra">' +
-      '<span class="cic-pt-wrap">' + punto('salida_casa') + '</span>' +
-      seg('traslado','tras','T') +
-      '<span class="cic-pt-wrap">' + punto('llegada_aero') + '</span>' +
-      seg('jornada','serv','Servicio activo') +
-      '<span class="cic-pt-wrap">' + punto('salida_aero') + '</span>' +
-      seg('regreso','tras','T') +
-      '<span class="cic-pt-wrap">' + punto('llegada_casa') + '</span>' +
-      seg('descanso','desc','Descanso') +
-      aguja +
-    '</div></div>';
+    '<div class="cic-barra">' + cuerpo + aguja + '</div></div>';
 }
 /* La aguja no puede ir a un % del ancho: los puntos ocupan lugar y los tramos tienen mínimos, así
    que el tiempo no es lineal a lo largo de la barra. Se ubica midiendo el tramo real en el DOM. */
@@ -9771,8 +9912,9 @@ function cicloUbicarAguja(barra){
   if (!t0) return;
   const plan = cicloPlan();
   let min = (Date.now() - t0) / 60000, acum = 0, x = null;
-  for (let i = 0; i < CICLO_TRAMOS.length; i++){
-    const k = CICLO_TRAMOS[i].k, dur = plan[k];
+  const TRAMOS = cicloTramos();
+  for (let i = 0; i < TRAMOS.length; i++){
+    const k = TRAMOS[i].k, dur = plan[k];
     const el = barra.querySelector('[data-seg="' + k + '"]');
     if (el && min >= acum && min <= acum + dur){
       x = el.offsetLeft + el.offsetWidth * ((min - acum) / dur);
@@ -9788,35 +9930,38 @@ function cicloUbicarAgujas(sec){ (sec || document).querySelectorAll('.cic-barra'
 // Detalle: una fila por tramo, con lo que duró contra lo que debía durar.
 function cicloTramosHtml(st, plan){
   const off = (st.estado === 'inactivo');
-  const filas = CICLO_TRAMOS.map(tr => {
-    const t = off ? null : st.tramos.find(x => x.k === tr.k);
+  const filas = cicloTramos().map(tr => {
+    /* ⚠️ Esta local se llamaba `t` y TAPABA la función t() de traducción en todo este cuerpo:
+       cualquier intento de traducir acá adentro llamaba al objeto del tramo. Renombrada a `tra`. */
+    const tra = off ? null : st.tramos.find(x => x.k === tr.k);
     const previsto = plan[tr.k];
-    const evIni = CICLO_EVENTOS[tr.desde];
-    let clase = 'futuro', valor = '—', detalle = 'Previsto ' + cicloHM(previsto), extra = '';
-    if (t && t.estado === 'cerrado'){
-      const d = t.delta;
+    const evIni = cicloEventoLabel(tr.desde);
+    let clase = 'futuro', valor = '—', detalle = t('cic_previsto', { d: cicloHM(previsto) }), extra = '';
+    if (tra && tra.estado === 'cerrado'){
+      const d = tra.delta;
       clase = d > 0 ? 'exc' : 'ok';
-      valor = cicloHM(t.real);
-      detalle = (d > 0 ? ('+' + cicloHM(d) + ' de más') : (d < 0 ? (cicloHM(-d) + ' menos') : 'Justo')) +
-                ' · de ' + cicloHM(previsto);
-    } else if (t && t.estado === 'curso'){
-      clase = t.excedido ? 'exc' : 'curso';
-      valor = '<b data-cic-from="' + t.ini + '">' + cicloHM(t.real) + '</b>';
-      detalle = t.excedido
-        ? ('Excedido · <b data-cic-from="' + (t.ini + previsto*60000) + '">' + cicloHM(t.real - previsto) + '</b> de más')
-        : ('Quedan ' + cicloHM(previsto - t.real) + ' de ' + cicloHM(previsto));
+      valor = cicloHM(tra.real);
+      detalle = (d > 0 ? t('cic_de_mas', { d: cicloHM(d) })
+                       : (d < 0 ? t('cic_menos', { d: cicloHM(-d) }) : t('cic_justo'))) +
+                ' · ' + t('cic_de_previsto', { d: cicloHM(previsto) });
+    } else if (tra && tra.estado === 'curso'){
+      clase = tra.excedido ? 'exc' : 'curso';
+      valor = '<b data-cic-from="' + tra.ini + '">' + cicloHM(tra.real) + '</b>';
+      detalle = tra.excedido
+        ? (t('cic_excedido') + ' · <b data-cic-from="' + (tra.ini + previsto*60000) + '">' + cicloHM(tra.real - previsto) + '</b> ' + t('cic_de_mas_suf'))
+        : t('cic_quedan', { q: cicloHM(previsto - tra.real), d: cicloHM(previsto) });
     }
-    // El test que dispara el evento que ABRE este tramo (KSS al llegar, Perelli al salir).
-    const testLbl = CICLO_TEST_DE[tr.desde];
+    // El test que dispara el evento que ABRE este tramo. Lo declara la forma del sector.
+    const testLbl = cicloTestDe(tr.desde);
     if (testLbl){
       const e = st.eventos && st.eventos[tr.desde];
       extra = (e && e.resultado != null)
         ? '<span class="cic-test">' + esc(testLbl) + ' ' + esc(String(e.resultado)) + '</span>'
         : '<span class="cic-test cic-test-off">' + esc(testLbl) + ' —</span>';
     }
-    const hora = (t && t.ini) ? cicloHora(t.ini) : '--:--';
+    const hora = (tra && tra.ini) ? cicloHora(tra.ini) : '--:--';
     return '<div class="cic-tramo cic-tr-' + clase + '">' +
-      '<span class="cic-tr-top"><b>' + esc(tr.corto) + '</b>' +
+      '<span class="cic-tr-top"><b>' + esc(t(tr.corto)) + '</b>' +
         '<span class="cic-tr-desde">' + esc(evIni) + ' · ' + hora + '</span></span>' +
       '<span class="cic-tr-val">' + valor + '</span>' +
       '<span class="cic-tr-det">' + detalle + '</span>' +
@@ -9832,32 +9977,33 @@ function cicloTramosHtml(st, plan){
 let CICLO_CFG_ABIERTO = false;
 function cicloCfgToggle(){ CICLO_CFG_ABIERTO = !CICLO_CFG_ABIERTO; cicloRepintar(); }
 function cicloCfgHtml(plan){
+  const TRAMOS = cicloTramos();
   if (!CICLO_CFG_ABIERTO){
+    // El resumen se arma desde la forma: un sector con otra cantidad de tramos se lista solo.
+    const resumen = TRAMOS.map(tr => cicloHM(plan[tr.k]) + ' ' + t(tr.corto).toLowerCase()).join(' · ');
     return '<button type="button" class="cic-cfg-btn" onclick="cicloCfgToggle()">' +
-      'Horas del ciclo: ' + cicloHM(plan.traslado) + ' traslado · ' + cicloHM(plan.jornada) + ' jornada · ' +
-      cicloHM(plan.regreso) + ' regreso · ' + cicloHM(plan.descanso) + ' descanso · <b>Editar</b></button>';
+      esc(t('cic_horas') + ': ' + resumen) + ' · <b>' + esc(t('editar')) + '</b></button>';
   }
   const campo = (k, lbl) =>
-    '<label class="cic-cfg-f"><span>' + lbl + '</span>' +
+    '<label class="cic-cfg-f"><span>' + esc(lbl) + '</span>' +
       '<input type="number" min="5" max="1440" step="5" id="cicCfg_' + k + '" value="' + plan[k] + '"> min</label>';
   return '<div class="cic-cfg">' +
-    '<div class="cic-cfg-t">Horas del ciclo de esta empresa</div>' +
-    '<p class="cic-cfg-p">Se aplica a todo el personal del alcance actual y la ven todos los supervisores, ' +
-      'no sólo este dispositivo. Cuando alguien toca "Llegando al aeropuerto", el reloj de jornada corre ' +
-      'contra las horas que pongas acá.</p>' +
-    '<div class="cic-cfg-g">' + campo('traslado','Traslado de ida') + campo('jornada','Jornada (servicio activo)') +
-      campo('regreso','Traslado de vuelta') + campo('descanso','Descanso') + '</div>' +
+    '<div class="cic-cfg-t">' + esc(t('cic_cfg_tit')) + '</div>' +
+    '<p class="cic-cfg-p">' + esc(t('cic_cfg_ayuda', { evento: cicloEventoLabel(cicloTramos()[1] ? cicloTramos()[1].desde : cicloEventoInicial()) })) + '</p>' +
+    '<div class="cic-cfg-g">' + TRAMOS.map(tr => campo(tr.k, t(tr.lbl))).join('') + '</div>' +
     '<div class="cic-cfg-acc">' +
-      '<button type="button" class="cic-cfg-ok" onclick="cicloCfgGuardar(this)">Guardar para toda la empresa</button>' +
-      '<button type="button" class="cic-cfg-no" onclick="cicloCfgToggle()">Cancelar</button></div>' +
+      '<button type="button" class="cic-cfg-ok" onclick="cicloCfgGuardar(this)">' + esc(t('cic_guardar_emp')) + '</button>' +
+      '<button type="button" class="cic-cfg-no" onclick="cicloCfgToggle()">' + esc(t('cancelar')) + '</button></div>' +
     '<div class="cic-cfg-err" id="cicCfgErr"></div></div>';
 }
 function cicloCfgGuardar(btn){
   const err = document.getElementById('cicCfgErr');
   const leer = k => Math.round(Number((document.getElementById('cicCfg_' + k)||{}).value));
-  const plan = { traslado:leer('traslado'), jornada:leer('jornada'), regreso:leer('regreso'), descanso:leer('descanso') };
+  // Se guardan los tramos de la FORMA vigente, no cuatro claves fijas.
+  const plan = {};
+  cicloTramos().forEach(tr => { plan[tr.k] = leer(tr.k); });
   const malo = Object.keys(plan).find(k => !isFinite(plan[k]) || plan[k] < 5 || plan[k] > 1440);
-  if (malo){ if (err) err.textContent = 'Revisa los valores: cada tramo va entre 5 y 1440 minutos.'; return; }
+  if (malo){ if (err) err.textContent = t('cic_cfg_err'); return; }
   if (DASH.demoMode){
     DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
     CICLO_CFG_ABIERTO = false; cicloRepintar(); showToast('Guardado (ejemplo)');
@@ -9935,12 +10081,16 @@ function cicloPersonas(ciclos){
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
   const plan = cicloPlan();
-  const ayuda = dashHelp('El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los cuatro botones de ' +
-    '<b>Data Operacional</b> de la app: al tocar "Saliendo de casa" arranca el ciclo, y al tocar ' +
-    '"Llegando al aeropuerto" arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. ' +
-    'Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en ' +
-    '<b style="color:var(--sem-rojo)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. ' +
-    'Quien todavía no tocó nada aparece igual, <b>en gris</b>.');
+  /* R14: la ayuda nombraba "los cuatro botones" y "Llegando al aeropuerto" a mano. Ahora los
+     nombres salen de la forma del sector y la cantidad se cuenta, así una planta lee su propio
+     recorrido y un sector con otra cantidad de eventos no queda diciendo "cuatro". */
+  const evsForma = cicloEventos();
+  const trJornada = cicloTramos().find(x => x.k === 'jornada') || cicloTramos()[1] || cicloTramos()[0];
+  const ayuda = dashHelp(t('cic_ayuda', {
+    n: evsForma.length,
+    primero: cicloEventoLabel(cicloEventoInicial()),
+    jornadaEv: cicloEventoLabel(trJornada.desde)
+  }));
   const ciclos = cicloArmar();
   const personas = cicloPersonas(ciclos);
   const cfgHtml = cicloCfgHtml(plan);
@@ -9956,11 +10106,11 @@ function renderCicloOperativo(){
   const n = { curso:0, excedido:0, descanso:0, completo:0, inactivo:0 };
   filas.forEach(f => { n[f.st.estado]++; });
   const resumen = '<div class="cic-resumen">' +
-    '<span class="cic-kpi cic-kpi-curso"><b>' + n.curso + '</b> en curso</span>' +
-    '<span class="cic-kpi cic-kpi-venc"><b>' + n.excedido + '</b> pasados de tiempo</span>' +
-    '<span class="cic-kpi cic-kpi-desc"><b>' + n.descanso + '</b> en descanso</span>' +
-    '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> completos</span>' +
-    '<span class="cic-kpi cic-kpi-sin"><b>' + n.inactivo + '</b> sin iniciar</span></div>';
+    '<span class="cic-kpi cic-kpi-curso"><b>' + n.curso + '</b> ' + esc(t('cic_kpi_curso')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-venc"><b>' + n.excedido + '</b> ' + esc(t('cic_kpi_exc')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-desc"><b>' + n.descanso + '</b> ' + esc(t('cic_kpi_desc')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> ' + esc(t('cic_kpi_comp')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-sin"><b>' + n.inactivo + '</b> ' + esc(t('cic_kpi_sin')) + '</span></div>';
   DASH._cicNames = filas.map(f => f.p.persona);
   const ETIQ = { curso:'En curso', excedido:'Pasado de tiempo', descanso:'En descanso', completo:'Completo', inactivo:'Sin iniciar' };
   const cards = filas.map((f, i) => {
