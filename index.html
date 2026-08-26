@@ -722,10 +722,16 @@
   #portalGate { padding: 1.7rem 1.5rem 1.5rem; overflow-y: auto; }
   .portal-gate-card { }                 /* en celular es solo un contenedor; en escritorio es la tarjeta */
   .pg-logo { display: none; }           /* el logo del login sólo se muestra en escritorio */
-  /* I2: medía 32x32 y está pegada al borde superior derecho, la zona más incómoda para el
-     pulgar. Sube a 40 de dibujo y el área sensible llega a 44 con el ::after. */
-  .portal-x { position: absolute; top: 1rem; right: 1rem; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
-  .portal-x::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; }
+  /* I2 quería llevar este botón a 44 (medía 32) y lo hizo con un `::after` absoluto de inset
+     -2px. ⚠️ ERROR GRAVE, corregido acá: `.dash-top .portal-x` lo pone en `position:static`, y un
+     pseudo-elemento absoluto dentro de un host ESTÁTICO no se resuelve contra el host — sube al
+     primer ancestro posicionado, que es `.sheet.portal`. El área táctil del ✕ pasó a medir
+     379x816: el panel entero. No se podía scrollear (todo gesto empezaba sobre un botón) y
+     cualquier toque cerraba el panel.
+     Ahora los 44 salen del TAMAÑO del botón. Sin pseudo-elemento absoluto, no puede repetirse.
+     Regla general: no agrandar áreas táctiles con un `::after` absoluto si el host puede quedar
+     estático por otra regla. */
+  .portal-x { position: absolute; top: 1rem; right: 1rem; width: 44px; height: 44px; border: none; border-radius: 50%; background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
   .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
   .stats-entry .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--sem-azul-bg); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
@@ -4035,7 +4041,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.95';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.96';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
