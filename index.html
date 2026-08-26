@@ -3474,7 +3474,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.70';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.71';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7153,6 +7153,17 @@ function closePortal(){
   // el botón atrás del teléfono, y el propio simSalir).
   if (SIMUL){ SIMUL = null; simPintarBarra(); }
   marcarStatsActivo(false); syncScrollLock();
+  /* B5, 2026-08-25 — BUG REAL encontrado probando "Los otros tres caminos". El splash (B1) abre
+     este mismo portal SIN que la persona tenga un perfil de empleado: alguien que sólo quiere ver
+     la demo, entrar como supervisor o como administrador. `app`/`bottomNav` están SIEMPRE
+     pintados detrás de los overlays (así arrancaba la app desde antes del splash) — así que al
+     cerrar este portal con `closePortal()`, si esa persona nunca completó su alta, quedaba viendo
+     el Inicio real: saludo "—", empresa "—", pero con las tarjetas de Sensaciones y Test de
+     Reacción TOCABLES, pudiendo reportar como un empleado fantasma sin perfil.
+     Si el perfil no está completo, cerrar este portal tiene que volver al splash — nunca dejar
+     ver la app de detrás. Para quien sí es empleado y cierra sus propias estadísticas
+     (perfilCompleto = true), este `if` no aplica y el cierre sigue exactamente como siempre. */
+  if (!perfilCompleto(getProfile())) splashMostrar();
 }
 // Flecha "atrás": vuelve al SELECTOR (Personal/Supervisor/Servicio médico), distinto de la ✕
 // que cierra todo el panel. Sólo tiene sentido si hay selector al que volver — quien no es
