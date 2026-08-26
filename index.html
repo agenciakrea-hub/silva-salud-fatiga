@@ -3593,7 +3593,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.81';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.82';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4034,6 +4034,36 @@ const I18N = {
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
       apt_mostrando:'Mostrando', apt_con_indic_chip:'Con <b>indicación médica</b>',
       quitar_filtro:'Quitar filtro',
+      // ── F2 · Controles compartidos de los tests ──
+      test_siguiente:'Siguiente', test_continuar:'Continuar',
+      pf_ph_otros:'¿Cuál? (máx. 50 caracteres)',
+      pf_g_nada:'No la<br>afecta', pf_g_leve:'Leve', pf_g_moderado:'Moderado',
+      pf_g_alto:'Alto', pf_g_severo:'Severo',
+      // ══════ F2 · Los ocho tests ══════
+      // Acá van SÓLO las que no tienen un array canónico detrás. Las preguntas y las opciones de
+      // los tests no se definen en español: tTest() cae al array canónico, que es el mismo texto
+      // que viaja al CH. Definirlas dos veces sería garantizar que algún día se despeguen.
+      test_sintoma_n:'Síntoma {n} de {total}',
+      test_completaste_sint:'Completaste los {n} síntomas',
+      test_registrar:'Registrar resultado', test_enviar_eva:'Enviar a EVA',
+      rg_indeterminada:'Indeterminada', rg_posible:'Posible', rg_probable:'Probable',
+      rg_muy_probable:'Muy probable', rg_altisima:'Altísima probabilidad',
+      rg_kss_alerta:'Alerta', rg_kss_leve:'Somnolencia Leve', rg_kss_grave:'Somnolencia Grave',
+      rg_anx_no:'Estados de no ansiedad', rg_anx_leve:'Ansiedad Leve', rg_anx_mod:'Ansiedad Moderada',
+      rg_anx_mod_gr:'Ansiedad Moderada Grave', rg_anx_severa:'Ansiedad Severa',
+      rg_str_sin:'Sin estrés', rg_str_leve:'Estrés leve', rg_str_medio:'Estrés medio',
+      rg_str_alto:'Estrés alto',
+      pvt_muy_pronto:'¡Muy pronto!',
+      pvt_sin_reaccion:'No registramos ninguna reacción',
+      pvt_sin_reaccion_h:'¿Tocaste el círculo naranja cuando apareció? Vuelve a intentarlo cuando puedas prestar atención a la pantalla.',
+      pvt_v_pocas:'Muy pocas respuestas para evaluar',
+      pvt_v_buena:'Buen estado de alerta',
+      pvt_v_moderada:'Alerta moderada',
+      pvt_v_fatiga:'Signos de fatiga / baja alerta',
+      pvt_rt_prom:'Tiempo de reacción promedio',
+      pvt_k_respuestas:'Respuestas', pvt_k_lapsos:'Lapsos', pvt_k_rapido:'Más rápido',
+      pvt_k_lento:'Más lento', pvt_k_falso:'En falso',
+      pvt_hint_lapso:'Un lapso es una reacción de más de {ms} ms — más lapsos indican más fatiga.',
       fm_restr_operativa:'Restricción operativa', fm_no_asignar:'No asignar: {q}', fm_accion:'Acción',
       fm_levantada_el:'Levantada el {f}', fm_vencio_el:'Venció el {f}',
       // ── F1 · Semáforo personal, columnas y línea de tiempo ──
@@ -4707,23 +4737,23 @@ const I18N = {
       pvt_item_desc:'Measures your alertness by reaction time',
       /* Escala de frecuencia del MBI y del test de ánimo. Redacción del instrumento original en
          inglés, no una retraducción del español. */
-      bai_e0:'Never', bai_e1:'A few times a year or less', bai_e2:'Once a month or less',
-      bai_e3:'A few times a month', bai_e4:'Once a week', bai_e5:'A few times a week', bai_e6:'Every day',
-      bai_q0:'Low mood (sadness, discouragement, feeling worthless)',
-      bai_q1:'Feelings of guilt',
-      bai_q2:'Thoughts about death or about harming yourself',
-      bai_q3:'Insomnia or trouble sleeping',
-      bai_q4:'In your work and activities: fatigue, weakness or loss of interest in what you do',
-      bai_q5:'Slowed thinking or speech, difficulty concentrating, reduced activity',
-      bai_q6:'Agitation or restlessness',
-      bai_q7:'Inner tension, irritability or worry over small things',
-      bai_q8:'Physical signs of anxiety (dry mouth, palpitations, headache, sighing, sweating)',
-      bai_q9:'Gastrointestinal or digestive discomfort',
-      bai_q10:'General physical discomfort (heaviness, body aches, lack of energy)',
-      bai_q11:'Changes in sexual desire or menstrual changes',
-      bai_q12:'Excessive worry about your health',
-      bai_q13:'Weight loss',
-      bai_q14:'Awareness of how you are feeling',
+      dep_e0:'Never', dep_e1:'A few times a year or less', dep_e2:'Once a month or less',
+      dep_e3:'A few times a month', dep_e4:'Once a week', dep_e5:'A few times a week', dep_e6:'Every day',
+      dep_q0:'Low mood (sadness, discouragement, feeling worthless)',
+      dep_q1:'Feelings of guilt',
+      dep_q2:'Thoughts about death or about harming yourself',
+      dep_q3:'Insomnia or trouble sleeping',
+      dep_q4:'In your work and activities: fatigue, weakness or loss of interest in what you do',
+      dep_q5:'Slowed thinking or speech, difficulty concentrating, reduced activity',
+      dep_q6:'Agitation or restlessness',
+      dep_q7:'Inner tension, irritability or worry over small things',
+      dep_q8:'Physical signs of anxiety (dry mouth, palpitations, headache, sighing, sweating)',
+      dep_q9:'Gastrointestinal or digestive discomfort',
+      dep_q10:'General physical discomfort (heaviness, body aches, lack of energy)',
+      dep_q11:'Changes in sexual desire or menstrual changes',
+      dep_q12:'Excessive worry about your health',
+      dep_q13:'Weight loss',
+      dep_q14:'Awareness of how you are feeling',
       // Las claves kss_q0, kss_o0_N y kss_o1_N que había acá se borraron en C2: las reemplazan
       // kss_q_fase + kss_fase_N (que ahora cambian por sector) y kss_q_alerta + kss_alerta_N (que
       // no cambian nunca: son la escala de Karolinska). Dejarlas habría sido peor que borrarlas:
@@ -5012,6 +5042,96 @@ const I18N = {
       apt_lg_bien:'Fine', apt_lg_medio:'Near the limit', apt_lg_alto:'Above', apt_lg_sin:'No data',
       apt_mostrando:'Showing', apt_con_indic_chip:'With <b>medical instruction</b>',
       quitar_filtro:'Remove filter',
+      // ── F2 · Shared test controls ──
+      test_siguiente:'Next', test_continuar:'Continue',
+      pf_ph_otros:'Which one? (max. 50 characters)',
+      pf_g_nada:'Not<br>affected', pf_g_leve:'Mild', pf_g_moderado:'Moderate',
+      pf_g_alto:'High', pf_g_severo:'Severe',
+      // ══════ F2 · Los ocho tests ══════
+      // Sólo EN: en español tTest() cae al array canónico (ver el bloque "lo que VIAJA vs. lo que
+      // se VE"). Así una traducción que falte muestra español, nunca un hueco.
+      test_sintoma_n:'Symptom {n} of {total}',
+      test_completaste_sint:'You completed all {n} symptoms',
+      test_registrar:'Record result', test_enviar_eva:'Send to EVA',
+      // ── Rangos de resultado (sólo pantalla: al CH viaja el puntaje) ──
+      rg_indeterminada:'Inconclusive', rg_posible:'Possible', rg_probable:'Likely',
+      rg_muy_probable:'Very likely', rg_altisima:'Very high likelihood',
+      rg_kss_alerta:'Alert', rg_kss_leve:'Mild sleepiness', rg_kss_grave:'Severe sleepiness',
+      rg_anx_no:'Non-anxious range', rg_anx_leve:'Mild anxiety', rg_anx_mod:'Moderate anxiety',
+      rg_anx_mod_gr:'Moderately severe anxiety', rg_anx_severa:'Severe anxiety',
+      rg_str_sin:'No stress', rg_str_leve:'Mild stress', rg_str_medio:'Moderate stress',
+      rg_str_alto:'High stress',
+      // ── Test de estrés · 12 síntomas. No es un instrumento con versión oficial en inglés:
+      //    esto es una traducción fiel del cuestionario en español (ver PENDIENTES_USUARIO.md).
+      str_q0:'Inability to fall asleep',
+      str_q1:'Migraines and headaches',
+      str_q2:'Indigestion or gastrointestinal discomfort',
+      str_q3:'Feeling extremely tired or worn out',
+      str_q4:'Eating, drinking or smoking more than usual',
+      str_q5:'Reduced sexual interest',
+      str_q6:'Shortness of breath or a feeling of choking',
+      str_q7:'Reduced appetite',
+      str_q8:'Muscle tremors or nervous tics',
+      str_q9:'Stabbing pains or aches in different parts of the body',
+      str_q10:'Not wanting to get up in the morning',
+      str_q11:'Sweating or palpitations',
+      str_e0:'0 = Never', str_e1:'1 = Rarely', str_e2:'2 = Once a month or less',
+      str_e3:'3 = A few times a month', str_e4:'4 = Once a week',
+      str_e5:'5 = A few times a week', str_e6:'6 = Every day',
+      // ── Test de ansiedad · BAI (Beck Anxiety Inventory). Redacción ORIGINAL en inglés del
+      //    instrumento, no una retraducción del español: es una escala validada y su versión
+      //    inglesa ya existe. El orden de los 21 ítems es el del BAI y no se toca.
+      anx_q0:'Numbness or tingling',
+      anx_q1:'Feeling hot',
+      anx_q2:'Wobbliness in legs',
+      anx_q3:'Unable to relax',
+      anx_q4:'Fear of the worst happening',
+      anx_q5:'Dizzy or lightheaded',
+      anx_q6:'Heart pounding or racing',
+      anx_q7:'Unsteady',
+      anx_q8:'Terrified or afraid',
+      anx_q9:'Nervous',
+      anx_q10:'Feeling of choking',
+      anx_q11:'Hands trembling',
+      anx_q12:'Shaky or unsteady',
+      anx_q13:'Fear of losing control',
+      anx_q14:'Difficulty in breathing',
+      anx_q15:'Fear of dying',
+      anx_q16:'Scared',
+      anx_q17:'Indigestion',
+      anx_q18:'Faint or lightheaded',
+      anx_q19:'Face flushed',
+      anx_q20:'Hot or cold sweats',
+      anx_e0:'0 = Not at all',
+      anx_e1:'1 = Mildly, but it did not bother me much',
+      anx_e2:'2 = Moderately, it was not pleasant at times',
+      anx_e3:'3 = Severely, it bothered me a lot',
+      // ── Test gastrointestinal · 12 ítems. Cuestionario propio, sin versión oficial en inglés.
+      gas_q0:'Bloating or reflux three or more times a week',
+      gas_q1:'Tingling, numbness or cramps in the limbs at least once a week',
+      gas_q2:'Swelling of the face or limbs two or more times a week',
+      gas_q3:'Headache at least once a week',
+      gas_q4:'Joint or muscle discomfort two or more times a week (including neck and lower back pain)',
+      gas_q5:'Lack of energy or unexplained tiredness three or more times a week',
+      gas_q6:'Skin rashes or itching anywhere on the body at least once a week',
+      gas_q7:'Blurred vision or brain fog at least once every 15 days',
+      gas_q8:'Mood swings, anxiety or sadness 3 or more times a week for no apparent reason',
+      gas_q9:'Chronic rhinitis (nasal congestion) or chronic sinusitis',
+      gas_q10:'Swollen glands / mouth ulcers / restless legs / plantar fasciitis / candidiasis / asthma / premenstrual syndrome',
+      gas_q11:'History of gallbladder surgery and/or Hashimoto hypothyroidism',
+      gas_e0:'0 = Strongly disagree', gas_e1:'1 = Disagree', gas_e2:'2 = Agree',
+      // ── PVT · test de reacción ──
+      pvt_muy_pronto:'Too soon!',
+      pvt_sin_reaccion:'We did not record any reaction',
+      pvt_sin_reaccion_h:'Did you tap the orange circle when it appeared? Try again when you can give the screen your attention.',
+      pvt_v_pocas:'Too few responses to assess',
+      pvt_v_buena:'Good level of alertness',
+      pvt_v_moderada:'Moderate alertness',
+      pvt_v_fatiga:'Signs of fatigue / low alertness',
+      pvt_rt_prom:'Average reaction time',
+      pvt_k_respuestas:'Responses', pvt_k_lapsos:'Lapses', pvt_k_rapido:'Fastest',
+      pvt_k_lento:'Slowest', pvt_k_falso:'False starts',
+      pvt_hint_lapso:'A lapse is a reaction slower than {ms} ms — more lapses mean more fatigue.',
       fm_restr_operativa:'Operational restriction', fm_no_asignar:'Do not assign: {q}', fm_accion:'Action',
       fm_levantada_el:'Lifted on {f}', fm_vencio_el:'Expired on {f}',
       // ── F1 · Personal status light, columns and timeline ──
@@ -6405,11 +6525,11 @@ function pvtTap(e){
   const now = performance.now();
   if (!pvtState.awaiting){                                   // tocó antes del estímulo
     if (pvtState.isiTimer) clearTimeout(pvtState.isiTimer);
-    pvtState.falsos++; pvtFlash('¡Muy pronto!', 'var(--sem-rojo)'); pvtScheduleNext(); return;
+    pvtState.falsos++; pvtFlash(t('pvt_muy_pronto'), 'var(--sem-rojo)'); pvtScheduleNext(); return;
   }
   if (pvtState.raf) cancelAnimationFrame(pvtState.raf);
   const rt = Math.round(now - pvtState.stimMs);
-  if (rt < PVT_MIN_RT){ pvtState.falsos++; pvtFlash('¡Muy pronto!', 'var(--sem-rojo)'); pvtScheduleNext(); return; }
+  if (rt < PVT_MIN_RT){ pvtState.falsos++; pvtFlash(t('pvt_muy_pronto'), 'var(--sem-rojo)'); pvtScheduleNext(); return; }
   pvtState.rts.push(rt);
   pvtFlash(rt + ' ms', rt > PVT_LAPSE_MS ? '#e8a400' : '#38d39f');
   if (performance.now() - pvtState.startMs >= PVT_DURATION_MS){ pvtEnd(); return; }
@@ -6447,26 +6567,26 @@ function pvtEnd(){
 }
 function pvtSummaryHTML(m){
   if (m.validas === 0){
-    return '<div class="pvt-verdict" style="color:var(--sem-rojo)">No registramos ninguna reacción</div>' +
-      '<p class="pvt-hint">¿Tocaste el círculo naranja cuando apareció? Vuelve a intentarlo cuando puedas prestar atención a la pantalla.</p>';
+    return '<div class="pvt-verdict" style="color:var(--sem-rojo)">' + esc(t('pvt_sin_reaccion')) + '</div>' +
+      '<p class="pvt-hint">' + esc(t('pvt_sin_reaccion_h')) + '</p>';
   }
   let verdict, vcol;
-  if (m.validas < 3){ verdict = 'Muy pocas respuestas para evaluar'; vcol = 'var(--text-muted)'; }
-  else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = 'Buen estado de alerta'; vcol = 'var(--green)'; }
-  else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = 'Alerta moderada'; vcol = '#e8a400'; }
-  else { verdict = 'Signos de fatiga / baja alerta'; vcol = 'var(--sem-rojo)'; }
-  return '<div class="pvt-result-lbl">Tiempo de reacción promedio</div>' +
+  if (m.validas < 3){ verdict = t('pvt_v_pocas'); vcol = 'var(--text-muted)'; }
+  else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = t('pvt_v_buena'); vcol = 'var(--green)'; }
+  else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = t('pvt_v_moderada'); vcol = '#e8a400'; }
+  else { verdict = t('pvt_v_fatiga'); vcol = 'var(--sem-rojo)'; }
+  return '<div class="pvt-result-lbl">' + esc(t('pvt_rt_prom')) + '</div>' +
     '<div class="pvt-result-big">' + m.rt_prom + ' <span style="font-size:1rem;color:var(--text-muted)">ms</span></div>' +
-    '<div class="pvt-verdict" style="color:' + vcol + '">' + verdict + '</div>' +
+    '<div class="pvt-verdict" style="color:' + vcol + '">' + esc(verdict) + '</div>' +
     '<div class="pvt-stats">' +
-      '<div class="pvt-stat"><div class="v">' + m.validas + '</div><div class="k">Respuestas</div></div>' +
-      '<div class="pvt-stat"><div class="v">' + m.lapsos + '</div><div class="k">Lapsos</div></div>' +
-      '<div class="pvt-stat"><div class="v">' + m.rt_min + '</div><div class="k">Más rápido</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.validas + '</div><div class="k">' + esc(t('pvt_k_respuestas')) + '</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.lapsos + '</div><div class="k">' + esc(t('pvt_k_lapsos')) + '</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.rt_min + '</div><div class="k">' + esc(t('pvt_k_rapido')) + '</div></div>' +
       '<div class="pvt-stat"><div class="v">' + m.rt_mediana + '</div><div class="k">' + esc(t('st_mediana')) + '</div></div>' +
-      '<div class="pvt-stat"><div class="v">' + m.rt_max + '</div><div class="k">Más lento</div></div>' +
-      '<div class="pvt-stat"><div class="v">' + m.falsos + '</div><div class="k">En falso</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.rt_max + '</div><div class="k">' + esc(t('pvt_k_lento')) + '</div></div>' +
+      '<div class="pvt-stat"><div class="v">' + m.falsos + '</div><div class="k">' + esc(t('pvt_k_falso')) + '</div></div>' +
     '</div>' +
-    '<p class="pvt-hint">Un lapso es una reacción de más de ' + PVT_LAPSE_MS + ' ms — más lapsos indican más fatiga.</p>';
+    '<p class="pvt-hint">' + esc(t('pvt_hint_lapso', { ms: PVT_LAPSE_MS })) + '</p>';
 }
 function pvtSend(m){
   const p = getProfile() || {};
@@ -6684,64 +6804,67 @@ let gastroState = null;
 let cansancioState = null;
 
 // ── Resultado estimado ───────────────────────────────────────────────────────
+/* ⚠️ `label` y `sub` son CLAVES del diccionario; `max` es el corte clínico y NO se traduce ni se
+   mueve. Estas etiquetas sólo las lee resultCardHTML() para la pantalla: al CH viaja el PUNTAJE,
+   nunca la categoría — por eso traducirlas no parte el histórico. */
 const RANGES_DEPRESION = [
-  {max:18,  label:'Indeterminada',         color:'var(--sem-verde)'},
-  {max:36,  label:'Posible',               color:'#5fb84a'},
-  {max:42,  label:'Probable',              color:'#e8c400'},
-  {max:54,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
+  {max:18,  label:'rg_indeterminada', color:'var(--sem-verde)'},
+  {max:36,  label:'rg_posible',       color:'#5fb84a'},
+  {max:42,  label:'rg_probable',      color:'#e8c400'},
+  {max:54,  label:'rg_muy_probable',  color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
 ];
 const RANGES_GASTRO = [
-  {max:5,   label:'Indeterminada',         color:'var(--sem-verde)'},
-  {max:9,   label:'Posible',               color:'#5fb84a'},
-  {max:11,  label:'Probable',              color:'#e8c400'},
-  {max:13,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
+  {max:5,   label:'rg_indeterminada', color:'var(--sem-verde)'},
+  {max:9,   label:'rg_posible',       color:'#5fb84a'},
+  {max:11,  label:'rg_probable',      color:'#e8c400'},
+  {max:13,  label:'rg_muy_probable',  color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
 ];
 const RANGES_KSS = [
-  {max:4,   label:'Alerta',                color:'var(--sem-verde)'},
-  {max:7,   label:'Somnolencia Leve',      color:'#e8c400'},
-  {max:1e9, label:'Somnolencia Grave',     color:'var(--sem-rojo)'}
+  {max:4,   label:'rg_kss_alerta',    color:'var(--sem-verde)'},
+  {max:7,   label:'rg_kss_leve',      color:'#e8c400'},
+  {max:1e9, label:'rg_kss_grave',     color:'var(--sem-rojo)'}
 ];
 const RANGES_ANSIEDAD = [
-  {max:10,  label:'Indeterminada',         sub:'Estados de no ansiedad',  color:'var(--sem-verde)'},
-  {max:19,  label:'Posible',               sub:'Ansiedad Leve',           color:'#5fb84a'},
-  {max:26,  label:'Probable',              sub:'Ansiedad Moderada',       color:'#e8c400'},
-  {max:36,  label:'Muy probable',          sub:'Ansiedad Moderada Grave', color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', sub:'Ansiedad Severa',         color:'var(--sem-rojo)'}
+  {max:10,  label:'rg_indeterminada', sub:'rg_anx_no',      color:'var(--sem-verde)'},
+  {max:19,  label:'rg_posible',       sub:'rg_anx_leve',    color:'#5fb84a'},
+  {max:26,  label:'rg_probable',      sub:'rg_anx_mod',     color:'#e8c400'},
+  {max:36,  label:'rg_muy_probable',  sub:'rg_anx_mod_gr',  color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      sub:'rg_anx_severa',  color:'var(--sem-rojo)'}
 ];
 const RANGES_ESTRES = [
-  {max:12,  label:'Indeterminada',         color:'var(--sem-verde)'},
-  {max:24,  label:'Posible',               sub:'Sin estrés',              color:'#5fb84a'},
-  {max:36,  label:'Probable',              sub:'Estrés leve',             color:'#e8c400'},
-  {max:60,  label:'Muy probable',          sub:'Estrés medio',            color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', sub:'Estrés alto',             color:'var(--sem-rojo)'}
+  {max:12,  label:'rg_indeterminada', color:'var(--sem-verde)'},
+  {max:24,  label:'rg_posible',       sub:'rg_str_sin',   color:'#5fb84a'},
+  {max:36,  label:'rg_probable',      sub:'rg_str_leve',  color:'#e8c400'},
+  {max:60,  label:'rg_muy_probable',  sub:'rg_str_medio', color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      sub:'rg_str_alto',  color:'var(--sem-rojo)'}
 ];
 const RANGES_PERELLI = [
-  {max:3.4, label:'Indeterminada',         color:'var(--sem-verde)'},
-  {max:6,   label:'Posible',               color:'#5fb84a'},
-  {max:7.3, label:'Probable',              color:'#e8c400'},
-  {max:8.7, label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
+  {max:3.4, label:'rg_indeterminada', color:'var(--sem-verde)'},
+  {max:6,   label:'rg_posible',       color:'#5fb84a'},
+  {max:7.3, label:'rg_probable',      color:'#e8c400'},
+  {max:8.7, label:'rg_muy_probable',  color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
 ];
 const RANGES_CANSANCIO = [
-  {max:7,   label:'Indeterminada',         color:'var(--sem-verde)'},
-  {max:13,  label:'Posible',               color:'#5fb84a'},
-  {max:19,  label:'Probable',              color:'#e8c400'},
-  {max:36,  label:'Muy probable',          color:'#f0930f'},
-  {max:1e9, label:'Altísima probabilidad', color:'var(--sem-rojo)'}
+  {max:7,   label:'rg_indeterminada', color:'var(--sem-verde)'},
+  {max:13,  label:'rg_posible',       color:'#5fb84a'},
+  {max:19,  label:'rg_probable',      color:'#e8c400'},
+  {max:36,  label:'rg_muy_probable',  color:'#f0930f'},
+  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
 ];
 function getCategory(ranges, score){
   return ranges.find(r => score < r.max) || ranges[ranges.length-1];
 }
 function resultCardHTML(cat){
-  return `<div class="test-result-block"><div class="result-badge" style="background:${cat.color}20;border:2px solid ${cat.color}"><span class="result-cat" style="color:${cat.color}">${cat.label}</span>${cat.sub ? `<span class="result-sub" style="color:${cat.color}">${cat.sub}</span>` : ''}</div></div>`;
+  return `<div class="test-result-block"><div class="result-badge" style="background:${cat.color}20;border:2px solid ${cat.color}"><span class="result-cat" style="color:${cat.color}">${esc(t(cat.label))}</span>${cat.sub ? `<span class="result-sub" style="color:${cat.color}">${esc(t(cat.sub))}</span>` : ''}</div></div>`;
 }
 function resultBtnHTML(fn){
   const pilot = !!(getProfile()||{}).esPiloto;
   return pilot
-    ? `<button type="button" class="save-btn" style="background:var(--orange);color:#fff" onclick="${fn}()">✓ Registrar resultado</button>`
-    : `<button type="button" class="save-btn wa-send-btn" onclick="${fn}()">${waSVG}Enviar a EVA</button>`;
+    ? `<button type="button" class="save-btn" style="background:var(--orange);color:#fff" onclick="${fn}()">✓ ${esc(t('test_registrar'))}</button>`
+    : `<button type="button" class="save-btn wa-send-btn" onclick="${fn}()">${waSVG}${esc(t('test_enviar_eva'))}</button>`;
 }
 function scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad){
   const nf = parseInt(nivelFatiga) || 1;
@@ -6960,11 +7083,11 @@ function renderTestPaso(){
   updateBackBtn(testIdx > 0);
   document.getElementById('testCount').textContent = t('test_pregunta_n', { n: testIdx + 1, total: total });
   document.getElementById('testProgressBar').style.width = (testIdx / total * 100) + '%';
-  document.getElementById('testQuestion').textContent = tTest('bai_q' + testIdx, TEST_DEPRESION[testIdx]);
+  document.getElementById('testQuestion').textContent = tTest('dep_q' + testIdx, TEST_DEPRESION[testIdx]);
   document.getElementById('testOptions').innerHTML = TEST_ESCALA.map((lbl, i) => `
     <button type="button" class="test-opt" onclick="responderTest(${i})">
       <span class="dot" style="background:${TEST_COLORES[i]}"></span>
-      <span class="lbl">${esc(tTest('bai_e' + i, lbl))}</span>
+      <span class="lbl">${esc(tTest('dep_e' + i, lbl))}</span>
     </button>`).join('');
 }
 function responderTest(valor){
@@ -7121,10 +7244,10 @@ function renderPerelliMulti(step){
     `<button type="button" class="test-opt" id="pmopt_${i}" onclick="perelliToggleMulti(${i},${noneIdx})"><span class="dot" style="background:var(--ch-ref-fill)" id="pmdot_${i}"></span><span class="lbl">${opt}</span></button>`
   ).join('');
   const otrosHtml = step.otrosIdx !== undefined
-    ? `<div class="otros-input-wrap" id="otrosInputWrap" style="display:none"><input type="text" id="otrosTxt" class="otros-input" maxlength="50" placeholder="¿Cuál? (máx. 50 caracteres)"></div>`
+    ? `<div class="otros-input-wrap" id="otrosInputWrap" style="display:none"><input type="text" id="otrosTxt" class="otros-input" maxlength="50" placeholder="${esc(t('pf_ph_otros'))}"></div>`
     : '';
   document.getElementById('testOptions').innerHTML = opts + otrosHtml +
-    `<button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceMulti()">Siguiente →</button>`;
+    `<button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceMulti()">${esc(t('test_siguiente'))} →</button>`;
 }
 function perelliToggleMulti(idx, noneIdx){
   const sel = perelliState.currentMultiSelected;
@@ -7158,7 +7281,9 @@ function perelliAdvanceMulti(){
 }
 function renderPerelliGrid(step){
   const GRID_COLORS = ['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)'];
-  const GRID_HDRS   = ['No la<br>afecta','Leve','Moderado','Alto','Severo'];
+  /* Sólo pantalla. La gemela que VIAJA es GRID_LABELS, en perelliAdvanceGrid(), y esa se
+     queda en español siempre. Si algún día se agrega un valor hay que tocar las dos. */
+  const GRID_HDRS   = [t('pf_g_nada'), t('pf_g_leve'), t('pf_g_moderado'), t('pf_g_alto'), t('pf_g_severo')];
   const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_COLORS[i]}">${h}</div>`).join('')}</div>`;
   const rows = step.items.map((item, ri) =>
     `<div class="rtable-row"><div class="rtable-lbl">${item}</div>${GRID_COLORS.map((color,v)=>
@@ -7166,7 +7291,7 @@ function renderPerelliGrid(step){
     ).join('')}</div>`
   ).join('');
   document.getElementById('testOptions').innerHTML =
-    `<div class="rtable">${headRow}${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">Siguiente →</button>`;
+    `<div class="rtable">${headRow}${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">${esc(t('test_siguiente'))} →</button>`;
 }
 function perelliRate(itemIdx, val){
   perelliState.currentGridRatings[itemIdx] = val;
@@ -7194,7 +7319,7 @@ function perelliAdvanceGrid(){
 function renderPerelliTextInput(step){
   document.getElementById('testOptions').innerHTML =
     `<textarea id="perelliTxt" class="otros-input" maxlength="${step.maxlength}" placeholder="${step.placeholder}" style="height:90px;width:100%;box-sizing:border-box"></textarea>
-     <button type="button" class="test-next-btn" onclick="perelliAdvanceText()" style="margin-top:8px">Siguiente →</button>`;
+     <button type="button" class="test-next-btn" onclick="perelliAdvanceText()" style="margin-top:8px">${esc(t('test_siguiente'))} →</button>`;
 }
 function perelliAdvanceText(){
   const val = (document.getElementById('perelliTxt')?.value || '').trim();
@@ -7378,7 +7503,7 @@ function kssPickSingle(i){
 function renderKssComment(step){
   document.getElementById('testOptions').innerHTML =
     `<textarea class="kss-comment" id="kssComment" rows="4" maxlength="${step.maxlength}" placeholder="${step.placeholder}"></textarea>
-     <button type="button" class="test-next-btn" onclick="kssAdvanceComment()">Continuar →</button>`;
+     <button type="button" class="test-next-btn" onclick="kssAdvanceComment()">${esc(t('test_continuar'))} →</button>`;
 }
 function kssAdvanceComment(){
   kssAdvance((document.getElementById('kssComment')?.value || '').trim());
@@ -7447,12 +7572,12 @@ function renderEstresStep(){
   const step = ESTRES_STEPS[stepIdx];
   const total = ESTRES_STEPS.length;
   updateBackBtn(stepIdx > 0);
-  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
-  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testQuestion').textContent = tTest('str_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
-    const lbl = opt.replace(/^\d+ = /, '');
-    return `<button type="button" class="test-opt" onclick="estresPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${lbl}</span></button>`;
+    const lbl = tTest('str_e' + i, opt).replace(/^\d+ = /, '');
+    return `<button type="button" class="test-opt" onclick="estresPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${esc(lbl)}</span></button>`;
   }).join('');
 }
 function estresPickSingle(i){ estresAdvance(ESTRES_STEPS[estresState.stepIdx].options[i]); }
@@ -7465,7 +7590,7 @@ function estresAdvance(answer){
 }
 function renderEstresFinal(){
   updateBackBtn(true);
-  document.getElementById('testCount').textContent = `Completaste los ${ESTRES_STEPS.length} síntomas`;
+  document.getElementById('testCount').textContent = t('test_completaste_sint', { n: ESTRES_STEPS.length });
   document.getElementById('testProgressBar').style.width = '100%';
   const score = estresState.answers.reduce((s, a) => s + parseInt(a), 0);
   const cat = getCategory(RANGES_ESTRES, score);
@@ -7509,11 +7634,11 @@ function renderAnsiedadStep(){
   const step = ANSIEDAD_STEPS[stepIdx];
   const total = ANSIEDAD_STEPS.length;
   updateBackBtn(stepIdx > 0);
-  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
-  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testQuestion').textContent = tTest('anx_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
-    `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ = /,'')}</span></button>`
+    `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${esc(tTest('anx_e' + i, opt).replace(/^\d+ = /,''))}</span></button>`
   ).join('');
 }
 function ansiedadPickSingle(i){ ansiedadAdvance(ANSIEDAD_STEPS[ansiedadState.stepIdx].options[i]); }
@@ -7526,7 +7651,7 @@ function ansiedadAdvance(answer){
 }
 function renderAnsiedadFinal(){
   updateBackBtn(true);
-  document.getElementById('testCount').textContent = `Completaste los ${ANSIEDAD_STEPS.length} síntomas`;
+  document.getElementById('testCount').textContent = t('test_completaste_sint', { n: ANSIEDAD_STEPS.length });
   document.getElementById('testProgressBar').style.width = '100%';
   const score = ansiedadState.answers.reduce((s, a) => s + parseInt(a), 0);
   const cat = getCategory(RANGES_ANSIEDAD, score);
@@ -7566,11 +7691,11 @@ function renderGastroStep(){
   const step = GASTRO_STEPS[stepIdx];
   const total = GASTRO_STEPS.length;
   updateBackBtn(stepIdx > 0);
-  document.getElementById('testCount').textContent = `Síntoma ${stepIdx + 1} de ${total}`;
+  document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
   document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
-  document.getElementById('testQuestion').textContent = step.question;
+  document.getElementById('testQuestion').textContent = tTest('gas_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
-    `<button type="button" class="test-opt" onclick="gastroPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${opt.replace(/^\d+ = /,'')}</span></button>`
+    `<button type="button" class="test-opt" onclick="gastroPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${esc(tTest('gas_e' + i, opt).replace(/^\d+ = /,''))}</span></button>`
   ).join('');
 }
 function gastroPickSingle(i){ gastroAdvance(GASTRO_STEPS[gastroState.stepIdx].options[i]); }
@@ -7583,7 +7708,7 @@ function gastroAdvance(answer){
 }
 function renderGastroFinal(){
   updateBackBtn(true);
-  document.getElementById('testCount').textContent = `Completaste los ${GASTRO_STEPS.length} síntomas`;
+  document.getElementById('testCount').textContent = t('test_completaste_sint', { n: GASTRO_STEPS.length });
   document.getElementById('testProgressBar').style.width = '100%';
   const score = gastroState.answers.reduce((s, a) => s + parseInt(a), 0);
   const cat = getCategory(RANGES_GASTRO, score);
