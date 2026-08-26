@@ -4001,7 +4001,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.89';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.90';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4495,6 +4495,9 @@ const I18N = {
       mot_empeoro:'empeoró', mot_ya_revisado:'ya revisado antes',
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
       dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
+      sin_referencia:'sin referencia cargada',
+      ct_sin_referencia:'Este indicador todavía no tiene un límite cargado para comparar.',
+      apt_sin_dato:'Sin ningún test todavía (sí entran en el total de arriba)',
       dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
       dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
       dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
@@ -5876,6 +5879,9 @@ const I18N = {
       mot_empeoro:'got worse', mot_ya_revisado:'reviewed before',
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
       dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
+      sin_referencia:'no reference set',
+      ct_sin_referencia:'This indicator does not have a limit set to compare against yet.',
+      apt_sin_dato:'No test at all yet (they do count in the total above)',
       dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
       dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
       dw_radar_3:'3+ indicators are needed for the radar.',
@@ -12349,6 +12355,12 @@ function renderAptitudEquipo(gente){
   const enCond = gente.filter(p => aptEnGrupo(p,'ok')).length;
   const pct = Math.round(enCond / n * 100);
   const noRecientes = gente.filter(p => p.viejo).length;
+  /* I3: el % de arriba se calcula sobre TODAS las personas, mientras que el IDC de Dirección lo
+     calcula sólo sobre las que tienen dato. Medido, la misma empresa el mismo día daba 38 % acá
+     y 60 % allá. Las dos cuentas son legítimas —contestan preguntas distintas— pero ninguna
+     pantalla decía cuál era su denominador. Acá se declara, igual que el IDC declara su
+     cobertura. */
+  const sinDato = gente.filter(p => p.estado === 'sindato').length;
   const empeoraron = gente.filter(p => p.empeoro).length;
   const sinRevisar = gente.filter(p => p.estado === 'pendiente' && !p.revisado).length;
   const porVencer = gente.filter(p => p.anot && (p.anot.vigenciaHasta - Date.now()) < 86400000).length;
@@ -12376,6 +12388,7 @@ function renderAptitudEquipo(gente){
     (sinRevisar ? fila(esc(t('apt_nunca_rev')), sinRevisar, 'rojo') : '') +
     (empeoraron ? fila(esc(t('apt_empeoraron')), empeoraron, 'rojo') : '') +
     (porVencer ? fila(esc(t('apt_vencen_24')), porVencer, 'amarillo') : '') +
+    (sinDato ? fila(esc(t('apt_sin_dato')), sinDato, 'gris') : '') +
     fila(t('apt_dato_viejo', { n: APT_DIAS_FRESCO }), noRecientes, noRecientes ? 'gris' : '') +
     (topM ? fila(esc(t('apt_ind_pesa')), esc(topM === '__pvt' ? t('tab_pvt') : (METRIC_LABELS[topM] || topM)) +
       ' <small>· ' + topN + '</small>', '') : '') +
@@ -13968,16 +13981,23 @@ function dashGroupedBars(rows){
   const W=340, H=200, padL=26, padR=8, padT=12, padB=52, iw=W-padL-padR, ih=H-padT-padB;
   // Escala recalculada sólo con lo visible: si se aísla el indicador más alto, los que quedan
   // vuelven a llenar el gráfico en vez de quedar chiquitos contra la escala vieja.
-  const maxV = Math.max.apply(null, items.map(i=>Math.max(i.grupo, i.ref)).concat([1])) * 1.15;
+  /* I3: era `Math.max(i.grupo, i.ref)`. Con UN indicador sin referencia, ese `undefined`
+     convertía `maxV` en NaN — y como `maxV` es el divisor de `y()`, se caían las barras de
+     TODOS los indicadores, no la del que faltaba. Medido: 29 NaN y el gráfico en blanco. */
+  const conRef = it => (typeof it.ref === 'number') && isFinite(it.ref);
+  const maxV = Math.max.apply(null, items.map(i => conRef(i) ? Math.max(i.grupo, i.ref) : i.grupo).concat([1])) * 1.15;
   const n = items.length, gw = iw/n, bw = Math.min(16, gw*0.32);
   const y = v => padT + (1 - v/maxV)*ih, base = padT + ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="var(--ch-label)">0</text>';
   items.forEach((it,i) => {
-    const cx = padL + gw*i + gw/2, over = it.grupo > it.ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--sem-azul)');
+    const hay = conRef(it);
+    const cx = padL + gw*i + gw/2, over = hay && it.grupo > it.ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--sem-azul)');
     svg += '<rect x="'+(cx-bw-1).toFixed(1)+'" y="'+y(it.grupo).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.grupo)).toFixed(1)+'" rx="1.5" fill="'+col+'"/>';
-    svg += '<rect x="'+(cx+1).toFixed(1)+'" y="'+y(it.ref).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.ref)).toFixed(1)+'" rx="1.5" fill="var(--ch-ref-fill)"/>';
+    // Sin referencia no se dibuja la barra gris: no hay contra qué comparar, y una barra en cero
+    // se leería como "la referencia es cero", que es peor que no mostrar nada.
+    if (hay) svg += '<rect x="'+(cx+1).toFixed(1)+'" y="'+y(it.ref).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.ref)).toFixed(1)+'" rx="1.5" fill="var(--ch-ref-fill)"/>';
     svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(it.label)+'</text>';
   });
   svg += '</svg>';
@@ -14012,17 +14032,20 @@ function dashBoxPlot(rows, metric, groupKey){
   if (califican.length < 2) return dashWarn(t('med_faltan_grupos', { m: (METRIC_LABELS[metric]||metric), n: califican.length }));
   const MAXG = 8;
   const box = califican.slice(0, MAXG).map(gr => Object.assign({}, gr, dashCuartiles(gr.vals)));
+  /* I3: sin referencia, el `undefined` entraba en `Math.max` y `maxV` quedaba NaN — con eso
+     TODAS las coordenadas de TODAS las cajas salían NaN y no se dibujaba nada. */
   const ref = DASH.ref[metric];
+  const hayRef = (typeof ref === 'number') && isFinite(ref);
   const W=340, H=210, padL=28, padR=10, padT=14, padB=52, iw=W-padL-padR, ih=H-padT-padB;
-  const maxV = Math.max.apply(null, box.map(b=>b.max).concat([ref])) * 1.1;
+  const maxV = Math.max.apply(null, box.map(b=>b.max).concat(hayRef?[ref]:[])) * 1.1;
   const n = box.length, gw = iw/n, bw = Math.min(26, gw*0.5);
   const y = v => padT + (1 - v/maxV)*ih, base = padT+ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="var(--ch-label)">0</text>';
-  svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
+  if (hayRef) svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
   box.forEach((b,i) => {
-    const cx = padL + gw*i + gw/2, over = b.med > ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[metric]||'var(--sem-azul)');
+    const cx = padL + gw*i + gw/2, over = hayRef && b.med > ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[metric]||'var(--sem-azul)');
     svg += '<line x1="'+cx.toFixed(1)+'" y1="'+y(b.min).toFixed(1)+'" x2="'+cx.toFixed(1)+'" y2="'+y(b.q1).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
     svg += '<line x1="'+cx.toFixed(1)+'" y1="'+y(b.q3).toFixed(1)+'" x2="'+cx.toFixed(1)+'" y2="'+y(b.max).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
     svg += '<line x1="'+(cx-bw/4).toFixed(1)+'" y1="'+y(b.min).toFixed(1)+'" x2="'+(cx+bw/4).toFixed(1)+'" y2="'+y(b.min).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
@@ -14043,8 +14066,10 @@ function dashDispersion(rows, mx, my){
   if (pts.length < 3) return dashWarn(t('med_faltan_personas', { n: pts.length }));
   const refX = DASH.ref[mx], refY = DASH.ref[my];
   const W=300, H=260, padL=32, padR=14, padT=14, padB=34, iw=W-padL-padR, ih=H-padT-padB;
-  const maxX = Math.max.apply(null, pts.map(p=>p.x).concat([refX])) * 1.15;
-  const maxY = Math.max.apply(null, pts.map(p=>p.y).concat([refY])) * 1.15;
+  /* I3: sin referencia `Math.max(..., undefined)` da NaN y se caía la nube COMPLETA. */
+  const num = v => (typeof v === 'number') && isFinite(v);
+  const maxX = Math.max.apply(null, pts.map(p=>p.x).concat(num(refX)?[refX]:[])) * 1.15;
+  const maxY = Math.max.apply(null, pts.map(p=>p.y).concat(num(refY)?[refY]:[])) * 1.15;
   const x = v => padL + (v/maxX)*iw, y = v => padT + (1 - v/maxY)*ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
@@ -14097,7 +14122,11 @@ function renderComparar(rows){
 
   const pieItems = names.map((n,i) => ({ label:n, value:g[n].length, color:PIE_PALETTE[i%PIE_PALETTE.length] }));
   const pie = '<div class="dash-block"><div class="db-title">' + esc(t('med_registros_por', { g: grupoLabel(groupKey) })) + '</div>' + dashPie(pieItems, {}) + '</div>';
-  const donutItems = DASH.metrics.map(m => ({ label:METRIC_LABELS[m]||m, value:Math.max(0,(dashAvg(rows,m)||0)/DASH.ref[m]), color:METRIC_COLORS[m]||'var(--ch-neutro)' }));
+  /* I3: sin referencia la división daba NaN y `dashPie` lo descartaba por su filtro `value > 0`
+     — la porción desaparecía del gráfico sin que nada lo dijera. */
+  const donutItems = DASH.metrics.map(m => ({ label:METRIC_LABELS[m]||m,
+    value: (DASH.ref[m] ? Math.max(0,(dashAvg(rows,m)||0)/DASH.ref[m]) : 0),
+    color:METRIC_COLORS[m]||'var(--ch-neutro)' }));
   const donut = '<div class="dash-block"><div class="db-title">' + esc(t('db_indicador_pesa')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_aporta')) + '</div>' + dashPie(donutItems, {donut:true}) + '</div>';
 
@@ -14134,7 +14163,11 @@ function renderIndividual(rows){
   const items = Object.keys(g).map(n => {
     let val;
     if (composite){
-      const ratios = DASH.metrics.map(mm => { const a = dashAvg(g[n],mm); return (a==null) ? null : a/DASH.ref[mm]; }).filter(x=>x!=null);
+      /* I3: el filtro era `x != null`, y `NaN != null` es TRUE — así que un indicador sin
+         referencia metía un NaN en el promedio y TODAS las personas salían "NaN×". Se filtra
+         por número finito, que es lo que la línea quería decir. */
+      const ratios = DASH.metrics.map(mm => { const a = dashAvg(g[n],mm); const r = DASH.ref[mm];
+        return (a==null || !r) ? null : a/r; }).filter(x => typeof x === 'number' && isFinite(x));
       val = ratios.length ? ratios.reduce((a,b)=>a+b,0)/ratios.length : null;   // 1.0× = en la media
     } else { val = dashAvg(g[n], m); }
     return { name:n, dep:(g[n][0].departamento||''), val:val, n:g[n].length };
@@ -14181,14 +14214,16 @@ function renderEvolucion(rows){
     return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_evolucion')) + '</div>' +
       '<div class="db-sub">' + esc(t('sub_prom_mensual')) + '</div>' + picker + dashEvoMulti(rows) + '</div>';
   }
+  /* I3: `ref` puede venir sin cargar y se escribía tal cual: "la referencia (undefined)". */
   const ref = DASH.ref[m], buckets = {};
+  const refTxt = ((typeof ref === 'number') && isFinite(ref)) ? ref : t('sin_referencia');
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
   const keys = Object.keys(buckets).sort();
   const points = keys.map(k => ({ label:k, value:dashMean(buckets[k]), n:buckets[k].length }));
   const chart = points.length ? dashLineChart(points, ref) : '<div class="lc-empty">' + esc(t('evo_sin_fechas')) + '</div>';
-  const help = dashHelp(t('hlp_evo_metrica', { m: (METRIC_LABELS[m]||m), r: ref }));
+  const help = dashHelp(t('hlp_evo_metrica', { m: (METRIC_LABELS[m]||m), r: refTxt }));
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_evolucion')) + '</div>' +
-    '<div class="db-sub">' + esc(t('evo_prom_mensual_de', { m: (METRIC_LABELS[m]||m), r: ref })) + '</div>' + picker + chart + '</div>' +
+    '<div class="db-sub">' + esc(t('evo_prom_mensual_de', { m: (METRIC_LABELS[m]||m), r: refTxt })) + '</div>' + picker + chart + '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_linea_tiempo')) + '</div>' +
     '<div class="db-sub">' + esc(t('evo_cada_reg', { m: (METRIC_LABELS[m]||m) })) + '</div>' + dashLineaTiempo(rows, m) + '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_distribucion')) + '</div>' +
@@ -14644,7 +14679,7 @@ function dashEvoMulti(rows){
   const ocultas = chartOcultas('evo');
   const series = DASH.metrics.map(m => ({ m:m, color:METRIC_COLORS[m]||'var(--ch-neutro)',
     pts: months.map(k => { const v = rows.filter(r => r.fecha && r.fecha.slice(0,7)===k && r[m]!=null).map(r=>r[m]);
-      return v.length ? (v.reduce((a,b)=>a+b,0)/v.length)/DASH.ref[m] : null; }) }));
+      return (v.length && DASH.ref[m]) ? (v.reduce((a,b)=>a+b,0)/v.length)/DASH.ref[m] : null; }) }));
   const visibles = series.filter(s => !ocultas[s.m]);
   const W=340, H=190, padL=24, padR=10, padT=12, padB=30, iw=W-padL-padR, ih=H-padT-padB;
   // Escala recalculada sólo con las series visibles: si se aísla/oculta la de mayor valor, las
@@ -14726,15 +14761,19 @@ function dashRadar(series){
 function dashLineChart(points, ref){
   const W=320, H=180, padL=26, padR=12, padT=12, padB=30;
   const iw=W-padL-padR, ih=H-padT-padB;
+  /* I3: sin referencia `y(ref)` daba NaN y la punteada salía con y1="NaN" — no se dibujaba y
+     el gráfico quedaba a medio hacer. Sin referencia no hay línea, y ningún punto es "por
+     encima": se dibujan todos en el color normal. */
+  const hayRef = (typeof ref === 'number') && isFinite(ref);
   const maxV = Math.max(ref||0, Math.max.apply(null, points.map(p=>p.value)), 1) * 1.15;
   const x = i => points.length>1 ? padL + i/(points.length-1)*iw : padL+iw/2;
   const y = v => padT + (1 - v/maxV)*ih;
   const path = points.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.value).toFixed(1)).join(' ');
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
-  svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
+  if (hayRef) svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
   svg += '<path d="'+path+'" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
-  points.forEach((p,i)=>{ svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.value).toFixed(1)+'" r="3.4" fill="'+(p.value>ref?'var(--sem-rojo)':'var(--orange)')+'"/>'; });
+  points.forEach((p,i)=>{ svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.value).toFixed(1)+'" r="3.4" fill="'+((hayRef && p.value>ref)?'var(--sem-rojo)':'var(--orange)')+'"/>'; });
   const step = Math.ceil(points.length/6);
   points.forEach((p,i)=>{ if(points.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="var(--ch-label)" text-anchor="middle">'+p.label.slice(2)+'</text>'; });
   svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text>';
@@ -14746,7 +14785,11 @@ function dashLineChart(points, ref){
 function dashHistograma(rows, m){
   const vals = dashVals(rows, m);
   if (vals.length < 3) return '<div class="lc-empty">Se necesitan al menos 3 registros.</div>';
-  const ref = DASH.ref[m] || 1;
+  /* I3: mismo `|| 1` que la línea de tiempo. Acá el efecto era peor: con un umbral inventado
+     de 1, en una escala 0–40 se pintaba de rojo casi toda la distribución. */
+  const refCruda = DASH.ref[m];
+  const hayRef = (typeof refCruda === 'number') && isFinite(refCruda);
+  const ref = hayRef ? refCruda : Infinity;   // sin referencia, nada queda "por encima"
   const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
   const NB = 6, paso = ((max - min) / NB) || 1;
   const bins = new Array(NB).fill(0);
@@ -14816,18 +14859,23 @@ function dashLineaTiempo(rows, m){
   }
   const pts = dias.map(d => ({ t:new Date(d + 'T00:00:00').getTime(), v:peorPorDia[d], f:d }))
     .filter(p => !isNaN(p.t));
-  const ref = DASH.ref[m] || 1;
+  /* I3: era `DASH.ref[m] || 1`, que NO es una guarda: sin referencia dibujaba la punteada en
+     el valor 1 como si ése fuera el umbral clínico, y pintaba de rojo todo punto por encima de
+     1. Un gráfico que no se dibuja se nota; uno que dibuja un umbral inventado se cree. */
+  const refCruda = DASH.ref[m];
+  const hayRef = (typeof refCruda === 'number') && isFinite(refCruda);
+  const ref = hayRef ? refCruda : 0;
   const t0 = pts[0].t, t1 = pts[pts.length-1].t, span = (t1 - t0) || 1;
   const W=340,H=175,padL=26,padR=12,padT=12,padB=34,iw=W-padL-padR,ih=H-padT-padB;
-  const maxV = Math.max(ref, Math.max.apply(null, pts.map(p=>p.v))) * 1.15;
+  const maxV = Math.max(ref, Math.max.apply(null, pts.map(p=>p.v)), 1) * 1.15;
   const x = t => padL + (t-t0)/span*iw, y = v => padT + (1 - v/maxV)*ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
-  svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
+  if (hayRef) svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
   // Línea que UNE los puntos en orden de fecha (la "gracia" de la línea de tiempo).
   const dPath = pts.map((p,i) => (i?'L':'M') + x(p.t).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   svg += '<path d="'+dPath+'" fill="none" stroke="var(--sem-azul)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+(p.v>ref?'var(--sem-rojo)':'var(--sem-azul)')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
+  pts.forEach(p => { svg += '<circle cx="'+x(p.t).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+((hayRef && p.v>ref)?'var(--sem-rojo)':'var(--sem-azul)')+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+'</title></circle>'; });
   /* G2 · Anotaciones. Un pico sin contexto no se puede interpretar: no es lo mismo un valor alto
      porque sí que uno alto el día antes de que el médico firmara una determinación. Se marcan los
      dos hechos que dejan rastro y que explican la forma de la curva.
@@ -14864,6 +14912,16 @@ function dashColumnas(rows, esOtraPersona){
     if (a == null){
       html += '<div class="ct-item"><div class="ct-top"><span class="ct-name">' + label + '</span>' +
         '<span class="ct-num sin">' + esc(t('ct_sin_datos')) + '</span></div></div>';
+      return;
+    }
+    /* I3: sin referencia esto escribía "7.0 de undefined" y "NaN% por debajo del límite" en la
+       pantalla donde la persona mira su PROPIO dato de salud. Ahora se muestra el valor y se
+       dice que no hay límite cargado, en vez de fingir una comparación. */
+    const hayRef = (typeof ref === 'number') && isFinite(ref) && ref > 0;
+    if (!hayRef){
+      html += '<div class="ct-item"><div class="ct-top"><span class="ct-name">' + label + '</span>' +
+        '<span class="ct-num ok">' + a.toFixed(1) + '</span></div>' +
+        '<div class="ct-estado">' + esc(t('ct_sin_referencia')) + '</div></div>';
       return;
     }
     const over = a > ref;
