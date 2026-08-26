@@ -3561,7 +3561,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9030,6 +9030,15 @@ function dashNiceness(s){   // puntúa cuán "bien escrita" está una variante
   if (/\s{2,}/.test(s)) n -= 2;                   // espacios dobles = feo
   return n;
 }
+/* ⚠️ ESTO NO ES REDUNDANTE CON E1, aunque lo parezca. El endpoint ya devuelve los nombres en su
+   forma canónica (resolución por CÉDULA contra el padrón). Pero una variante que el servidor NO
+   pudo resolver —porque el nombre es ambiguo, o porque esa persona no está en el padrón— vuelve
+   tal cual la escribió la persona, a propósito: el servidor prefiere no inventar una identidad
+   antes que juntar los datos de dos seres humanos distintos.
+   Esta función se ocupa SÓLO de lo visual sobre esos casos: que "Ana Ruiz" y "ana ruiz" se vean
+   como una sola fila en la tabla. No asigna cédula ni decide identidad — eso es del servidor.
+   Borrar una de las dos deja un agujero: sin el servidor, se pierde la unificación real; sin
+   esta, la pantalla muestra la misma persona dos veces por una diferencia de mayúsculas. */
 function dashMergeNombres(){
   const arrays = Array.prototype.slice.call(arguments).filter(Boolean);
   const conteo = {};
