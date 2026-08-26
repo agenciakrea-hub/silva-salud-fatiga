@@ -4001,7 +4001,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.90';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.91';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4467,7 +4467,7 @@ const I18N = {
       vac_por_persona_t:'Sin datos por persona',
       vac_por_persona_d:'El ranking necesita al menos una persona con registros del indicador elegido en este período.',
       vac_endpoint_t:'Los comentarios todavía no están habilitados',
-      vac_endpoint_d:'Hace falta actualizar el endpoint del maestro. Es un cambio del lado del servidor: avisale a quien administra el sistema.',
+      vac_endpoint_d:'Hace falta actualizar el endpoint del maestro. Es un cambio del lado del servidor: avísale a quien administra el sistema.',
       vac_comentarios_t:'Sin comentarios en este filtro',
       vac_comentarios_d:'Acá aparece el texto libre que las personas escriben al terminar un test. Es opcional, así que puede pasar tiempo sin ninguno.',
       vac_ficha_t:'Ficha sin movimientos',
@@ -4476,7 +4476,7 @@ const I18N = {
       vac_indicadores_d:'La línea base compara el primer registro con el último. Necesita al menos un test completado.',
       // ── Error accionable ──
       err_t_generico:'No se pudieron cargar los datos',
-      err_d_generico:'Puede haber sido un corte momentáneo. Vuelve a intentarlo; si sigue pasando, avisale a quien administra el sistema.',
+      err_d_generico:'Puede haber sido un corte momentáneo. Vuelve a intentarlo; si sigue pasando, avísale a quien administra el sistema.',
       err_t_sin_red:'Sin conexión',
       err_d_sin_red:'No hay internet en este momento. Lo que hayas registrado está guardado en el teléfono y se envía solo cuando vuelva la señal.',
       err_t_no_cargo:'No se pudo cargar',
@@ -4498,6 +4498,7 @@ const I18N = {
       sin_referencia:'sin referencia cargada',
       ct_sin_referencia:'Este indicador todavía no tiene un límite cargado para comparar.',
       apt_sin_dato:'Sin ningún test todavía (sí entran en el total de arriba)',
+      ts_turno_registrado:'{q}: registrado',
       dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
       dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
       dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
@@ -5882,6 +5883,7 @@ const I18N = {
       sin_referencia:'no reference set',
       ct_sin_referencia:'This indicator does not have a limit set to compare against yet.',
       apt_sin_dato:'No test at all yet (they do count in the total above)',
+      ts_turno_registrado:'{q}: recorded',
       dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
       dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
       dw_radar_3:'3+ indicators are needed for the radar.',
@@ -6972,7 +6974,7 @@ function empresaPerfilGuardar(perfil){
 function empresaPerfilCargar(empresa){
   const nombre = String(empresa || '').trim();
   if (!nombre || !SHEETS_DASHBOARD_URL) return Promise.resolve(empresaPerfilGuardado());
-  return fetch(SHEETS_DASHBOARD_URL + '?action=empresa_perfil&empresa=' + encodeURIComponent(nombre) + '&_=' + Date.now(),
+  return fetchConReloj(SHEETS_DASHBOARD_URL + '?action=empresa_perfil&empresa=' + encodeURIComponent(nombre) + '&_=' + Date.now(),
                { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -7334,13 +7336,30 @@ async function sincronizarRegistro(perfil){
   try {
     const dispositivo = await capturarDispositivo();
     const payload = Object.assign({ action:'registro' }, perfil, { dispositivo: dispositivo });
-    fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })
       .then(r => r.json())
       .then(d => { if (d && d.ok){ try { localStorage.setItem(K_REG_SIG, sig); } catch(e){} } })
       .catch(() => {});   // si falla, se reintenta en la próxima apertura (la firma no se guarda)
   } catch(e){}
 }
 
+/* I4: TODO pedido lleva reloj. `.catch()` cubre el endpoint caído (sin red, conexión rechazada),
+   pero NO el colgado: si acepta la conexión y no contesta, la promesa no se resuelve ni se
+   rechaza nunca, y lo que quedó esperando queda esperando para siempre. Verificado: el botón se
+   quedaba en "Guardando…" y deshabilitado, de forma permanente.
+
+   No hace falta ninguna pantalla de error nueva: las de G3 ya distinguen "sin conexión" de
+   "falló el servidor" y traen botón de reintentar. Lo único que pasaba es que no se llegaba a
+   ellas. Al abortar, la promesa se RECHAZA y todos esos `.catch()` hacen su trabajo.
+
+   Declaración de función (se iza) y el plazo como parámetro por defecto, a propósito: este
+   archivo ya se tropezó con un TDZ por leer un `const` declarado más abajo. */
+function fetchConReloj(url, opts, ms){
+  const ctl = new AbortController();
+  const reloj = setTimeout(() => ctl.abort(), ms || 20000);
+  return fetch(url, Object.assign({}, opts || {}, { signal: ctl.signal }))
+    .finally(() => clearTimeout(reloj));   // sin esto quedarían timers colgados por cada pedido
+}
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
 function getReports(){
@@ -7361,7 +7380,7 @@ function getPending(){ try { return JSON.parse(localStorage.getItem(K_PENDING)) 
 function setPending(arr){ try { localStorage.setItem(K_PENDING, JSON.stringify(arr)); } catch(e){} }
 
 function enviarConCola(url){
-  fetch(url, { mode:'no-cors' }).catch(() => {
+  fetchConReloj(url, { mode:'no-cors' }).catch(() => {
     const q = getPending();
     q.push({ url, ts: Date.now() });
     setPending(q.slice(-50));   // tope de 50 pendientes
@@ -7421,7 +7440,7 @@ function empFlush(){
     if (_empEnVuelo[id]) return;      // ya se está mandando: no duplicar el POST
     _empEnVuelo[id] = 1;
     const item = c[id];
-    fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(Object.assign({ action:item.accion }, item.payload)) })
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(Object.assign({ action:item.accion }, item.payload)) })
       .then(r => r.json())
       .then(d => { if (d && d.ok){ const c2 = empColaAll(); delete c2[id]; empColaSave(c2); offPintar(); } })
       .catch(() => {})   // sigue en cola; se reintenta solo (online + cada 1 min, mismo timer que flushPending)
@@ -7496,9 +7515,32 @@ function turnoInfo(k){ return TURNO_TIPOS.find(t => t.k === k) || TURNO_TIPOS[0]
 function turnosAll(){ try { return JSON.parse(localStorage.getItem(K_TURNOS)) || {}; } catch(e){ return {}; } }
 function turnosSave(o){ return lsSet(K_TURNOS, JSON.stringify(o)); }
 function turnoHoyId(persona, tipo){ return 'turno_' + dashNorm(persona) + '_' + todayStr() + '_' + tipo; }
+/* Cuánto puede durar un turno de punta a punta. Es el techo del ciclo (12 h de jornada + los
+   traslados), y es la ventana que define "este turno" para la pantalla. */
+const TURNO_VENTANA_MS = 14 * 60 * 60 * 1000;
+
+/* I4: los tres registros se guardan con la fecha del día, así que un turno de noche (entra 23:00,
+   sale 07:00) queda partido en dos. Verificado: con el check-in de anoche, `turnosHoy` devolvía
+   sólo ['carga','checkout'] y la tarjeta le volvía a pedir el check-in a alguien que ya lo había
+   hecho — la mitad de las noches, en una operación con turnos nocturnos.
+
+   Se arregla acá, al LEER, y no en `turnoHoyId`: el id y la fecha que viajan al CH quedan
+   idénticos (R15), y lo único que cambia es qué junta la pantalla. Los de hoy mandan; los de
+   ayer sólo se traen si son de las últimas 14 h y hoy no hay uno de ese tipo. */
 function turnosHoy(persona){
   const all = turnosAll(), out = {};
-  TURNO_TIPOS.forEach(t => { const r = all[turnoHoyId(persona, t.k)]; if (r) out[t.k] = r; });
+  TURNO_TIPOS.forEach(tp => { const r = all[turnoHoyId(persona, tp.k)]; if (r) out[tp.k] = r; });
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+  const ayerStr = ayer.getFullYear() + '-' + String(ayer.getMonth()+1).padStart(2,'0') + '-' + String(ayer.getDate()).padStart(2,'0');
+  const corte = Date.now() - TURNO_VENTANA_MS;
+  TURNO_TIPOS.forEach(tp => {
+    if (out[tp.k]) return;                                   // el de hoy siempre gana
+    const r = all['turno_' + dashNorm(persona) + '_' + ayerStr + '_' + tp.k];
+    if (!r) return;
+    // `creada` es lo fiable; si un registro viejo no la trae, se recompone de fecha + hora.
+    const cuando = r.creada || Date.parse((r.fecha || ayerStr) + 'T' + (r.hora || '00:00'));
+    if (isFinite(cuando) && cuando >= corte) out[tp.k] = r;
+  });
   return out;
 }
 function turnoGuardar(tipo, campos){
@@ -7517,7 +7559,11 @@ function turnoGuardar(tipo, campos){
   const all = turnosAll(); all[id] = reg; turnosSave(all);
   empEncolar(id, 'turno_guardar', reg);
   haptic(12);
-  showToast(turnoInfo(tipo).t + ' registrado');
+  /* I4: era `turnoInfo(tipo).t + ' registrado'`. En TURNO_TIPOS, `.t` es la CLAVE del
+     diccionario, no la etiqueta — el aviso decía literalmente "trn_checkin_t registrado", con
+     una clave cruda en pantalla y el verbo escrito a mano en español. La etiqueta sale de
+     turnoT(); el mensaje entero, del diccionario. */
+  showToast(t('ts_turno_registrado', { q: turnoT(turnoInfo(tipo)) }));
 }
 
 /* ══════════ NIVEL 1 · Reporte rápido ══════════
@@ -8189,7 +8235,7 @@ function misSincronizar(){
   if (!p || !p.nombre || !p.empresa) return Promise.resolve(false);
   _misSincronizando = true;
   const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre, _:Date.now() });
-  return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
+  return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       _misSincronizando = false;
@@ -9667,7 +9713,7 @@ function nominaAbrir(){
   nominaEl('nomEmpresas').innerHTML = '<div class="nom-cargando">' + esc(t('nom_buscando_emp')) + '</div>';
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
-  fetch(SHEETS_DASHBOARD_URL + '?action=nomina_empresas&_=' + Date.now(), { cache:'no-store' })
+  fetchConReloj(SHEETS_DASHBOARD_URL + '?action=nomina_empresas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       const emps = (d && d.ok && Array.isArray(d.empresas)) ? d.empresas : [];
@@ -9759,7 +9805,7 @@ function nominaCargarPersonas(){
     + '&codigo=' + encodeURIComponent(NOM.codigo || '')
     + '&dispositivoId=' + encodeURIComponent(dispositivoId())
     + '&_=' + Date.now();
-  fetch(url, { cache:'no-store' })
+  fetchConReloj(url, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       if (enCodigo) btnSpin(btn, false);
@@ -9818,7 +9864,7 @@ function nominaConfirmar(){
   err.textContent = '';
   /* El código va también acá: el servidor lo vuelve a exigir en esta acción (cada acción se
      defiende sola), así que si no se mandara, una empresa con código no podría confirmar nunca. */
-  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'nomina_confirmar', empresa: NOM.empresa, persona: NOM.persona, cedula: ced,
       codigo: NOM.codigo || '', dispositivoId: dispositivoId() }) })
     .then(r => r.json())
@@ -10068,7 +10114,7 @@ function saveProfile(){
 // Verifica usuario+contraseña de supervisor contra el endpoint. 'ok' | 'bad' | 'unknown' (sin conexión)
 function validarSupervisorCreds(usuario, pass){
   if (DASH_DEMO) return Promise.resolve('unknown');
-  return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass }) })
+  return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass }) })
     .then(r => r.json())
     .then(d => (d && d.ok) ? 'ok' : 'bad').catch(() => 'unknown');
 }
@@ -10111,7 +10157,7 @@ let SETUP_LISTS_FAILED = false;
 function loadSetupLists(){
   if (SETUP_LISTS_LOADED || !SHEETS_DASHBOARD_URL) return;   // sin endpoint no hay listas (queda como texto libre)
   SETUP_LISTS_LOADED = true;
-  fetch(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
+  fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
     .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; SETUP_LISTS_FAILED = false; } })
     .catch(() => { SETUP_LISTS_LOADED = false; SETUP_LISTS_FAILED = true; });
@@ -10448,10 +10494,10 @@ function portalMode(m){
 function dashRequest(params){
   if (!DASH_DEMO){
     if (params && params.pass){
-      return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(params) }).then(r => r.json());
+      return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(params) }).then(r => r.json());
     }
     const qs = new URLSearchParams(params).toString() + '&_=' + Date.now();   // cache-buster: nunca respuesta pegada
-    return fetch(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json());
+    return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json());
   }
   return new Promise(res => {
     const ref = { kss:6, estres:36, ansiedad:25, fatiga:7.3, gastro:11, depresion:42, cansancio:19 };
@@ -14432,7 +14478,7 @@ function dashLoadInformes(){
   if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
   DASH._informesLoading = true;
   const payload = { action:'informes', usuario: DASH.params.usuario || DASH.params.empresa || '', empresa: DASH.scope || '', pass: DASH.params.pass || '' };
-  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) }).then(r => r.json()).then(d => {
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) }).then(r => r.json()).then(d => {
     DASH._informesLoading = false; DASH._informesLoaded = true;
     if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; }
     if (DASH.tab === 'informe') renderDash();
@@ -14473,7 +14519,7 @@ function dashGenerarInforme(){
   stopDashAutoRefresh();
   const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass,
     resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) };
-  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
       startDashAutoRefresh();
@@ -15080,7 +15126,7 @@ let _gestSyncT = null;
 function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL && !(DASH && DASH.demoMode); }
 function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || '') }, extra||{}); }
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
-function gestPost(body){ return fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
+function gestPost(body){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
 // Candado de envíos en vuelo — mismo motivo que `_empEnVuelo` (ver el comentario de K_EMP_COLA):
 // el borrado de la cola pasa recién cuando responde el servidor, así que dos gestPush seguidos
 // mandaban el mismo registro dos veces. Se prefija 'u'/'d' porque un mismo id puede estar a la vez
@@ -17035,7 +17081,7 @@ function tareasCargar(){
     + '&persona=' + encodeURIComponent(p.nombre)
     + '&cedula=' + encodeURIComponent(p.cedula)
     + '&_=' + Date.now();
-  return fetch(url, { cache:'no-store' })
+  return fetchConReloj(url, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       TAREAS.cargando = false;
@@ -17111,7 +17157,7 @@ function tareasArranque(){
 function tareaMarcarHecha(id, btn){
   const p = getProfile(); if (!p) return;
   btnSpin(btn, true, t('guardando'));
-  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'tarea_estado', id:id, estado:'hecha',
       empresa:p.empresa, persona:p.nombre, cedula:p.cedula }) })
     .then(r => r.json())
@@ -17247,7 +17293,7 @@ function recuperarAbrir(){
   document.getElementById('recPasoCod').style.display = 'none';
   recuperarPintarDatalist();
   if (!SETUP_LISTS.empresas.length && SHEETS_DASHBOARD_URL){
-    fetch(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
+    fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
       .then(r => r.json())
       .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; recuperarPintarDatalist(); } })
       .catch(() => {});
@@ -17281,7 +17327,7 @@ function recuperarConfirmar(){
   if (!cedula){ err.textContent = t('f_cedula_err'); return; }
   const btn = document.getElementById('recBtn');
   btnSpin(btn, true, t('guardando'));
-  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'recuperar_perfil', empresa:empresa, cedula:cedula, codigo:codigo,
       dispositivoId: dispositivoId() }) })
     .then(r => r.json())
