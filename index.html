@@ -2672,6 +2672,17 @@
   .portal-tabs .ptab { font-size: .76rem; padding: .6rem .35rem; line-height: 1.25; }
 
   /* Acceso flotante FIJO a Gestiones (siempre visible aunque se scrollee el panel de estadísticas) */
+  /* ── Nómina de sólo lectura (D2) ── */
+  .nomlist-resumen { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.7rem; }
+  .nomlist-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    padding:.65rem .8rem; border:1.5px solid var(--sup-borde); border-radius:12px;
+    background:var(--card); margin-bottom:.5rem; }
+  .nomlist-info { min-width:0; flex:1; }
+  .nomlist-info b { display:block; font-size:.9rem; color:var(--text); }
+  .nomlist-sub { display:block; font-size:.76rem; color:var(--text-muted); margin-top:.1rem; }
+  .nomlist-pend { flex-shrink:0; font-size:.66rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--text-soft); background:var(--chip-bg);
+    border-radius:999px; padding:.1rem .45rem; }
   .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
   .gest-fab-row { display: flex; gap: .5rem; }
   .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: 13px; padding: .85rem 1.1rem;
@@ -3341,6 +3352,9 @@
           </div>
           <div class="dash-updated" id="dashUpdated"></div>
         </div>
+        <button class="dash-refresh" id="nomFabBtn" onclick="nominaListAbrir()" style="display:none" title="Nómina" aria-label="Nómina" data-i18n-attr="aria-label:nomlist_titulo;title:nomlist_titulo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h5"/></svg>
+        </button>
         <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -3408,6 +3422,27 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+
+<!-- Nómina para supervisor/servicio médico/HSEQ (D2, 2026-08-26). Sólo lectura: quién está
+     cargado, quién se registró y desde cuándo. El .gs (accionNominaListar) ya recorta cédula,
+     teléfono y correo del lado del servidor — acá no hay nada sensible que cuidar en pantalla. -->
+<div class="overlay gest-overlay" id="nominaListOv">
+  <div class="sheet gest-sheet">
+    <div class="gest-top">
+      <button class="gest-back" onclick="nominaListCerrar()" data-i18n="nomlist_volver">‹ Estadísticas</button>
+      <div class="gest-title" id="nomListTitle">Nómina</div>
+    </div>
+    <div class="gest-scroll">
+      <div class="nomlist-resumen" id="nomListResumen"></div>
+      <div class="gest-tools">
+        <input id="nomListSearch" class="gest-search" type="text" oninput="nominaListFiltrar()" data-i18n-attr="placeholder:buscar_nombre">
+        <select id="nomListDepto" class="gest-sort" onchange="nominaListFiltrar()"></select>
+      </div>
+      <div id="nomListBody"></div>
+    </div>
   </div>
 </div>
 
@@ -3526,7 +3561,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.74';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.75';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3844,6 +3879,13 @@ const I18N = {
       tar_err_persona:'Elige primero una persona.',
       tar_err_titulo:'Escribe qué le pides.',
       tar_err_creds:'Vuelve a entrar con tu usuario para poder enviar.',
+      // ── Nómina de sólo lectura (D2) ──
+      nomlist_titulo:'Nómina', nomlist_volver:'‹ Estadísticas',
+      nomlist_en_nomina:'en la nómina', nomlist_registrados:'registrados', nomlist_sin_registrar:'sin registrar',
+      nomlist_todos_dep:'Todos los departamentos',
+      nomlist_registrado:'Registrado', nomlist_pendiente:'Sin registrar',
+      nomlist_vacio:'Todavía no hay nómina cargada para esta empresa.',
+      buscar_nombre:'Buscar por nombre…',
       guardado_ejemplo:'Guardado (ejemplo)',
       /* ── Perelli y KSS: lo que NO cambia por sector (C2) ──
          Éstas son las ESCALAS de los instrumentos y las preguntas neutras. Van en el bloque común
@@ -4443,6 +4485,13 @@ const I18N = {
       tar_err_persona:'Choose a person first.',
       tar_err_titulo:'Write what you are asking for.',
       tar_err_creds:'Sign in again with your username to be able to send.',
+      // ── Read-only roster (D2) ──
+      nomlist_titulo:'Roster', nomlist_volver:'‹ Statistics',
+      nomlist_en_nomina:'on the roster', nomlist_registrados:'signed up', nomlist_sin_registrar:'not signed up',
+      nomlist_todos_dep:'All departments',
+      nomlist_registrado:'Signed up', nomlist_pendiente:'Not signed up',
+      nomlist_vacio:'No roster has been loaded for this company yet.',
+      buscar_nombre:'Search by name…',
       guardado_ejemplo:'Saved (example)',
       tam_0:'Small', tam_1:'Normal', tam_2:'Large', tam_3:'Very large'
     },
@@ -4792,6 +4841,16 @@ function aplicarIdioma(){
      hay que rehacerlos cuando cambia cualquiera de los dos. Se reconstruyen enteros en vez de
      parchear en su lugar: son arrays chicos y así no queda ningún texto viejo colgado. */
   try { PERELLI_STEPS = construirPerelliSteps(); KSS_STEPS = construirKssSteps(); } catch(e){}
+  /* D2: el título de la nómina y las opciones de departamento se pintan una sola vez al abrir,
+     así que sin esto cambiar de idioma con el panel abierto dejaba el título y el <select> en
+     el idioma anterior — el mismo bug que ya apareció en el alta (B3) y en los tests (C2). */
+  try {
+    const nl = document.getElementById('nominaListOv');
+    if (nl && nl.classList.contains('show')){
+      document.getElementById('nomListTitle').textContent = t('nomlist_titulo') + ' · ' + gestEmpresaActual();
+      nominaListPintarDeptos(); nominaListFiltrar();
+    }
+  } catch(e){}
 }
 function fijarIdioma(k){
   try { localStorage.setItem(K_LANG, k); } catch(e){}
@@ -7076,6 +7135,7 @@ function silvaAtras(){
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
+  if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
   if (visible('portalOverlay')){ closePortal(); return true; }
   if (visible('setup')){
@@ -9093,6 +9153,7 @@ function renderDash(){
   dashWireScrollspy();
   dashWireAnimaciones();
   dashUpdateGestFab();
+  dashUpdateNomFab();
   // Reloj del ciclo operativo: sólo corre si la sección está en pantalla. La aguja se ubica
   // después del layout (necesita medir los tramos ya dibujados).
   if (ord.indexOf('ciclo') >= 0){ cicloTickStart(); requestAnimationFrame(() => cicloUbicarAgujas()); }
@@ -14105,6 +14166,98 @@ function splashAdmin(){
   if (pass) pass.focus();
 }
 
+
+
+/* ════════════════ NÓMINA · SÓLO LECTURA PARA SUPERVISOR/MÉDICO/HSEQ (D2, 2026-08-26) ═════════
+   Quién está cargado, quién se registró y desde cuándo. La acción `nomina_listar` va CON
+   contraseña (a diferencia de las tres de alta): acá no es una persona dándose de alta sin
+   credenciales, es alguien de la empresa consultando a su gente.
+
+   🔒 El recorte de qué NO viaja (cédula, teléfono, correo) está en el servidor
+   (`accionNominaListar`), no acá: no hay nada que ocultar en esta pantalla porque el dato
+   sensible directamente nunca llega al navegador. */
+const NOMLIST = { datos: [], total: 0, registrados: 0, cargando: false };
+
+function dashUpdateNomFab(){
+  const btn = document.getElementById('nomFabBtn'); if (!btn) return;
+  // No en la vista de empleado (no le corresponde) ni en modo demo (no hay credenciales reales
+  // contra las que pedir `nomina_listar`, así que el botón no tendría qué mostrar).
+  btn.style.display = (DASH && DASH.vista !== 'empleado' && !DASH.demoMode) ? '' : 'none';
+}
+function nominaListAbrir(){
+  document.getElementById('nomListTitle').textContent = t('nomlist_titulo') + ' · ' + gestEmpresaActual();
+  document.getElementById('nominaListOv').classList.add('show');
+  document.body.classList.add('modal-open');
+  navPush();
+  const s = document.getElementById('nomListSearch'); if (s) s.value = '';
+  nominaListCargar();
+}
+function nominaListCerrar(){
+  document.getElementById('nominaListOv').classList.remove('show');
+  if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
+}
+function nominaListCargar(){
+  const body = document.getElementById('nomListBody');
+  if (!NOMLIST.datos.length && body) body.innerHTML = '<div class="nom-cargando">' + esc(t('cargando')) + '</div>';
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass){
+    if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
+    return;
+  }
+  NOMLIST.cargando = true;
+  dashRequest({ action:'nomina_listar', usuario:cred.usuario,
+      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass })
+    .then(d => {
+      NOMLIST.cargando = false;
+      if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d && d.error)) + '</div>'; return; }
+      NOMLIST.datos = d.nomina || [];
+      NOMLIST.total = Number(d.total) || NOMLIST.datos.length;
+      NOMLIST.registrados = Number(d.registrados) || 0;
+      nominaListPintarDeptos();
+      nominaListFiltrar();
+    })
+    .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; });
+}
+function nominaListPintarDeptos(){
+  const sel = document.getElementById('nomListDepto'); if (!sel) return;
+  const vistos = {}, deps = [];
+  NOMLIST.datos.forEach(x => { const d = x.departamento || ''; if (d && !vistos[d]){ vistos[d] = 1; deps.push(d); } });
+  deps.sort((a,b) => a.localeCompare(b));
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">' + esc(t('nomlist_todos_dep')) + '</option>' +
+    deps.map(d => '<option value="' + esc(d) + '">' + esc(d) + '</option>').join('');
+  if (deps.indexOf(actual) >= 0) sel.value = actual;
+}
+function nominaListFiltrar(){
+  const body = document.getElementById('nomListBody');
+  const resumen = document.getElementById('nomListResumen');
+  if (!body || !resumen) return;
+  // Varias empresas en el resultado sólo pasa para el admin: recién ahí vale la pena mostrar la
+  // columna empresa por fila — para un supervisor normal (una sola empresa) sería ruido repetido.
+  const empresas = {}; NOMLIST.datos.forEach(x => { if (x.empresa) empresas[x.empresa] = 1; });
+  const mostrarEmpresa = Object.keys(empresas).length > 1;
+  const q = dashNorm((document.getElementById('nomListSearch') || {}).value || '');
+  const dep = (document.getElementById('nomListDepto') || {}).value || '';
+  const lista = NOMLIST.datos.filter(x =>
+    (!q || dashNorm(x.persona).indexOf(q) >= 0) && (!dep || x.departamento === dep));
+
+  resumen.innerHTML =
+    '<span class="cic-kpi"><b>' + NOMLIST.total + '</b> ' + esc(t('nomlist_en_nomina')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-comp"><b>' + NOMLIST.registrados + '</b> ' + esc(t('nomlist_registrados')) + '</span>' +
+    '<span class="cic-kpi cic-kpi-sin"><b>' + (NOMLIST.total - NOMLIST.registrados) + '</b> ' + esc(t('nomlist_sin_registrar')) + '</span>';
+
+  if (!NOMLIST.datos.length){ body.innerHTML = '<div class="nom-vacio">' + esc(t('nomlist_vacio')) + '</div>'; return; }
+  if (!lista.length){ body.innerHTML = '<div class="nom-vacio">' + esc(t('nom_sin_coincidencia')) + '</div>'; return; }
+
+  body.innerHTML = lista.map(x => {
+    const sub = [x.departamento, x.cargo].filter(Boolean).join(' · ') + (mostrarEmpresa && x.empresa ? ' · ' + x.empresa : '');
+    const badge = x.registrado
+      ? '<span class="nom-op-ya">' + esc(t('nomlist_registrado') + (x.desde ? ' · ' + x.desde : '')) + '</span>'
+      : '<span class="nomlist-pend">' + esc(t('nomlist_pendiente')) + '</span>';
+    return '<div class="nomlist-row"><span class="nomlist-info"><b>' + esc(x.persona) + '</b>' +
+      (sub ? '<span class="nomlist-sub">' + esc(sub) + '</span>' : '') + '</span>' + badge + '</div>';
+  }).join('');
+}
 
 /* ════════════════ TAREAS Y NOTIFICACIONES · lado de la persona (D1, 2026-08-26) ═════════════
    El contador vive en la cabecera del inicio. Se pide al abrir la app y al abrir el panel.
