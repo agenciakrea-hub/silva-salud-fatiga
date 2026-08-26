@@ -438,10 +438,17 @@
   /* Sobre el encabezado azul, el "+" gris no se leía: va en blanco translúcido. */
   .wa-flag .wf-plus { font-size: 11px; font-weight: 800; line-height: 1; color: rgba(255,255,255,0.75); }
 
+  /* I2: 26x26 medidos, contra un mínimo de 44. El círculo se sigue DIBUJANDO de 26 px (más
+     grande taparía la tarjeta), pero el área sensible se estira a 44 con un ::after transparente
+     — queda dentro de la tarjeta y, por estar posicionado encima, gana el toque.
+     R13: el fondo era `rgba(26,166,114,…)`, o sea --green del tema CLARO escrito a mano; en tema
+     oscuro --green es otro verde y el fondo se quedaba en el del tema claro. */
   .undo { display: none; align-items: center; justify-content: center; position: absolute; top: 0.6rem; right: 0.6rem;
-    width: 26px; height: 26px; border-radius: 50%; padding: 0; margin: 0; background: rgba(26,166,114,0.12);
+    width: 26px; height: 26px; border-radius: 50%; padding: 0; margin: 0;
+    background: color-mix(in srgb, var(--green) 12%, transparent);
     border: none; color: var(--green); cursor: pointer; }
-  .undo:hover { background: rgba(26,166,114,0.22); }
+  .undo::after { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
+  .undo:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
   .undo svg { width: 13px; height: 13px; flex-shrink: 0; }
   .item.done .undo { display: inline-flex; }
 
@@ -555,8 +562,9 @@
   /* El texto era blanco sobre gris claro (1.4:1): ilegible, venía de antes. Ahora es texto
      atenuado sobre fondo atenuado — se lee que dice, y se entiende que está apagado. */
   .save-btn:disabled { background: var(--chip-bg-h); color: var(--text-muted); box-shadow: none; cursor: not-allowed; transform: none; }
+  /* I2: medía 39 px de alto, a 5 del mínimo. Es el "Cancelar" de todos los tests y del PVT. */
   .cancel-btn { width: 100%; margin-top: 0.6rem; padding: 0.7rem; border: none; background: none; color: var(--text-muted);
-    font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; min-height: 44px; }
   .pilot-banner { margin-top: 1.2rem; border: 2px dashed var(--sup-borde); border-radius: 14px; overflow: hidden; transition: border-color .15s, background .15s, box-shadow .15s; background: var(--sup-suave); }
   .pilot-banner:not(.active):hover { border-color: #b0bac8; background: var(--chip-bg); }
   .pilot-banner.active { border: 2px solid var(--orange); background: var(--orange-bg); box-shadow: 0 2px 10px rgba(244,122,31,0.15); }
@@ -604,7 +612,11 @@
   .nom-err { color: var(--sem-rojo-alt); font-size: .8rem; font-weight: 700; margin-top: .5rem; min-height: 1.1rem; line-height: 1.4; }
   .nom-pie { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: 1.1rem;
     padding-top: .8rem; border-top: 1px solid var(--linea); }
-  .nom-link { border: none; background: none; padding: .3rem 0; font-family: inherit; font-size: .8rem;
+  /* I2: medían 27 px de alto, en seis lugares del flujo de alta (Cerrar, Actualizar, No estoy
+     en la lista, Ya me había registrado…). El padding lateral además los separa entre sí: antes
+     dos enlaces contiguos se tocaban casi sin margen de error. */
+  .nom-link { border: none; background: none; padding: .3rem .6rem; font-family: inherit; font-size: .8rem;
+    display: inline-flex; align-items: center; min-height: 44px;
     font-weight: 700; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
   .nom-link:active { color: var(--orange-txt); }
 
@@ -697,7 +709,10 @@
   #portalGate { padding: 1.7rem 1.5rem 1.5rem; overflow-y: auto; }
   .portal-gate-card { }                 /* en celular es solo un contenedor; en escritorio es la tarjeta */
   .pg-logo { display: none; }           /* el logo del login sólo se muestra en escritorio */
-  .portal-x { position: absolute; top: 1rem; right: 1rem; width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
+  /* I2: medía 32x32 y está pegada al borde superior derecho, la zona más incómoda para el
+     pulgar. Sube a 40 de dibujo y el área sensible llega a 44 con el ::after. */
+  .portal-x { position: absolute; top: 1rem; right: 1rem; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
+  .portal-x::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; }
   .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
   .stats-entry .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--sem-azul-bg); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
@@ -945,7 +960,11 @@
   .radar-legend { display: flex; flex-wrap: wrap; gap: .45rem .9rem; justify-content: center; margin-top: .6rem; }
   .rl-item { display: flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 600; color: var(--text-soft); }
   .rl-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-  .rl-click { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: opacity .15s; }
+  /* I2: medía 17 px de alto. Es la leyenda que además FILTRA la serie al tocarla — el control
+     menos evidente del panel, y el más chico. El mínimo va sólo en la variante clickeable:
+     `.rl-item` a secas también se usa como leyenda que no se toca. */
+  .rl-click { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: opacity .15s;
+    min-height: 44px; padding: 0 .3rem; }
   .rl-click:hover { opacity: .75; }
   .rl-off { opacity: .32; text-decoration: line-through; }
   .rl-toggle-row { margin-top: .25rem; }
@@ -969,7 +988,7 @@
   /* Selector de métrica */
   .metric-picker { display: flex; align-items: center; gap: .55rem; margin-bottom: .9rem; }
   .metric-picker label { font-size: .82rem; font-weight: 700; color: var(--text-soft); white-space: nowrap; }
-  .metric-picker select { flex: 1; padding: .6rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; background: var(--sup-campo); color: var(--text); }
+  .metric-picker select { flex: 1; padding: .6rem .7rem; min-height: 44px; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; background: var(--sup-campo); color: var(--text); }
 
   /* Line chart */
   .linechart { width: 100%; height: auto; }
@@ -1328,7 +1347,8 @@
     animation: fadeUp .45s ease .02s both; }
   .hh-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; padding: 0 .15rem; }
   .hh-hola { font-size: 1.62rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
-  .hh-edit { width: 42px; height: 42px; border-radius: 13px; background: var(--chip-bg); border: 1px solid var(--sup-borde);
+  /* I2: medía 42x42, a 2 px del mínimo de 44. */
+  .hh-edit { width: 44px; height: 44px; border-radius: 13px; background: var(--chip-bg); border: 1px solid var(--sup-borde);
     color: var(--text-soft); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background .15s; }
   .hh-edit:hover { background: var(--chip-bg-h); }
   .hh-edit svg { width: 18px; height: 18px; }
@@ -1336,13 +1356,19 @@
   .hh-card { display: flex; align-items: center; gap: 1.05rem;
     background: var(--sup-suave); border: 1px solid var(--sup-borde); border-radius: 17px; padding: 1.05rem 1.15rem; }
   /* Círculo naranja a la IZQUIERDA con el RANGO adentro */
+  /* I2: el tamaño bajaba por tramos para que un rol largo entrara en UNA línea — 0,6rem normal,
+     0,53 desde 9 letras y 0,46 desde 12. Resultado medido: "PILOTO" a 9,6 px y "ADMINISTRADOR" a
+     7,36 px, o sea que cuanto más larga la palabra, peor se leía. Se invierte: el tamaño tiene
+     piso y lo que cede es el largo de línea. En un círculo de 68 px entran dos renglones de
+     10,5 px de sobra; `anywhere` permite el corte porque son palabras sueltas, sin espacios. */
   .hh-rango { width: 68px; height: 68px; border-radius: 50%; flex-shrink: 0; padding: 0 5px;
     background: var(--orange-txt); color: #fff;
     display: flex; align-items: center; justify-content: center; text-align: center;
-    font-weight: 800; text-transform: uppercase; letter-spacing: .01em; line-height: 1.05;
-    font-size: 0.6rem; box-shadow: var(--shadow-sm); }
-  .hh-rango.r-medio { font-size: 0.53rem; }
-  .hh-rango.r-largo { font-size: 0.46rem; }
+    font-weight: 800; text-transform: uppercase; letter-spacing: .01em; line-height: 1.08;
+    overflow-wrap: anywhere; hyphens: auto;
+    font-size: 0.68rem; box-shadow: var(--shadow-sm); }
+  .hh-rango.r-medio { font-size: 0.66rem; }
+  .hh-rango.r-largo { font-size: 0.64rem; }
   .hh-data { flex: 1; min-width: 0; }
   .hh-full { font-size: 1.1rem; font-weight: 800; color: var(--text); line-height: 1.25;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1461,7 +1487,9 @@
                         80% { opacity: .98; transform: scale(1); } 90%, 100% { opacity: 0; transform: scale(1); } }
 
   /* "No volver a mostrar" del PVT */
-  .pvt-nomas { display: flex; align-items: center; gap: 0.5rem; margin: 1rem 0 0.2rem;
+  /* I2: la etiqueta envuelve a la casilla (bien: el texto también es tocable), pero medía ~20 px
+     de alto entre las dos. */
+  .pvt-nomas { display: flex; align-items: center; gap: 0.5rem; margin: 1rem 0 0.2rem; min-height: 44px;
     font-size: 0.85rem; font-weight: 600; color: var(--text-soft); cursor: pointer; }
   .pvt-nomas input { width: 17px; height: 17px; accent-color: var(--orange); cursor: pointer; }
 
@@ -1481,9 +1509,12 @@
     .hh-edit { width: 44px; height: 44px; border-radius: 14px; }
     .hh-edit svg { width: 20px; height: 20px; }
     .hh-card { padding: 1.25rem 1.6rem; gap: 1.4rem; border-radius: 18px; }
-    .hh-rango { width: 78px; height: 78px; font-size: 0.7rem; }
-    .hh-rango.r-medio { font-size: 0.62rem; }
-    .hh-rango.r-largo { font-size: 0.54rem; }
+    /* I2: los tres tramos también acá, si no un administrador leía su rol más chico en un
+       monitor (0,54rem) que en un teléfono (0,64rem). El círculo mide 78 px: sobra para dos
+       renglones. */
+    .hh-rango { width: 78px; height: 78px; font-size: 0.76rem; }
+    .hh-rango.r-medio { font-size: 0.74rem; }
+    .hh-rango.r-largo { font-size: 0.72rem; }
     .hh-full { font-size: 1.3rem; }
     .hh-line { font-size: 0.98rem; margin-top: 0.28rem; }
 
@@ -1677,7 +1708,8 @@
   .tc-slider .tc-a { font-weight: 800; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
   .tc-slider .tc-a.chico { font-size: 0.95rem; }
   .tc-slider .tc-a.grande { font-size: 1.7rem; }
-  .tc-slider input[type=range] { flex: 1; min-width: 0; height: 40px; -webkit-appearance: none; appearance: none;
+  /* I2: 40 px. Es el control con el que alguien que ve poco agranda la letra de toda la app. */
+  .tc-slider input[type=range] { flex: 1; min-width: 0; height: 44px; -webkit-appearance: none; appearance: none;
     background: transparent; cursor: pointer; }
   .tc-slider input[type=range]::-webkit-slider-runnable-track { height: 12px; border-radius: 999px;
     background: var(--chip-bg-h); border: 1px solid var(--sup-borde); }
@@ -1896,9 +1928,11 @@
   .splash-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
     display:flex; flex-direction:column; overflow:hidden; }
   .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
+  /* I2: medía 41x29. */
   .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
-    background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:999px; padding:.4rem .8rem;
-    font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer; }
+    background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:999px; padding:.4rem .9rem;
+    font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
   .splash-cuerpo { position:relative; z-index:2; flex:1; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; padding:0 28px; gap:6px; }
   .splash-logo { width:96px; height:auto; margin-bottom:18px; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
@@ -1910,8 +1944,12 @@
     background:rgba(255,255,255,.1); padding:.35rem .9rem; border-radius:999px; }
   .splash-pie { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
     gap:.55rem; padding:22px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+  /* I2: medían 27 px de alto. Son los tres caminos secundarios de la PRIMERA pantalla, y se
+     tocan parados, con una sola mano. `inline-flex` + min-height para llegar a 44 sin cambiar
+     cómo se ven. */
   .splash-link { background:none; border:none; color:rgba(255,255,255,.68); font-family:inherit;
-    font-size:.82rem; font-weight:600; cursor:pointer; padding:.3rem .5rem; }
+    font-size:.82rem; font-weight:600; cursor:pointer; padding:.3rem .75rem;
+    display:inline-flex; align-items:center; justify-content:center; min-height:44px; }
   /* .42 medía 3.7:1 sobre --navy (compuesto con el alfa, no el rgba crudo) — por debajo del
      mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
      por debajo de lo legible. */
@@ -1925,6 +1963,9 @@
   #carruselOv.overlay { background:var(--card); backdrop-filter:none; align-items:stretch; padding:0; }
   .car-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
     display:flex; flex-direction:column; overflow:hidden; }
+  /* I2: medía 34x34. El círculo se sigue dibujando de 34 (más grande le pelearía protagonismo
+     al contenido del carrusel); lo que crece a 44 es sólo el área sensible. */
+  .car-cerrar::after { content:''; position:absolute; inset:-5px; border-radius:50%; }
   .car-cerrar { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
     background:var(--chip-bg); color:var(--text-soft); border:none; border-radius:999px; width:34px; height:34px;
     font-size:1rem; line-height:1; cursor:pointer; }
@@ -2130,21 +2171,22 @@
     padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sup-suave); }
   .gest-top { display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
     background: var(--card); border-bottom: 1px solid var(--sup-borde); flex-shrink: 0; }
-  .gest-back { border: none; background: var(--chip-bg); color: var(--text); border-radius: 10px;
+  /* I2: los controles del cuaderno del servicio médico estaban todos entre 34 y 39 px de alto. */
+  .gest-back { border: none; background: var(--chip-bg); color: var(--text); border-radius: 10px; min-height: 44px;
     padding: .5rem .8rem; font-family: inherit; font-weight: 800; font-size: .86rem; cursor: pointer; flex-shrink: 0; }
   .gest-title { flex: 1; min-width: 0; font-weight: 800; font-size: 1.02rem; color: var(--text);
     text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gest-new { border: none; background: var(--orange-txt); color: #fff;
+  .gest-new { border: none; background: var(--orange-txt); color: #fff; min-height: 44px;
     border-radius: 10px; padding: .5rem .85rem; font-family: inherit; font-weight: 800; font-size: .86rem;
     cursor: pointer; flex-shrink: 0; box-shadow: var(--shadow-sm); }
   .gest-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: .7rem .8rem 1.4rem; }
   .gest-scroll > * { max-width: 860px; margin-left: auto; margin-right: auto; }
   /* Captura rápida arriba de todo (como Keep): escribir + Enter y listo */
   .gest-quick { display: flex; gap: .4rem; margin-bottom: .55rem; }
-  .gest-quick-in { flex: 1; min-width: 0; padding: .6rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
+  .gest-quick-in { flex: 1; min-width: 0; padding: .6rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px; min-height: 44px;
     font-family: inherit; font-size: .9rem; background: var(--card); color: var(--text); }
   .gest-quick-in:focus { border-color: var(--orange); }
-  .gest-quick-btn { flex-shrink: 0; width: 40px; border: none; border-radius: 11px; cursor: pointer;
+  .gest-quick-btn { flex-shrink: 0; width: 44px; min-height: 44px; border: none; border-radius: 11px; cursor: pointer;
     background: var(--orange-txt); color: #fff; font-size: 1.25rem; font-weight: 800; line-height: 1; }
   .gest-sync { font-size: .72rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
   .gest-sync:empty { margin-bottom: 0; }
@@ -2161,7 +2203,7 @@
   .gs-res { background: var(--sem-verde-bg); color: var(--sem-verde); } .gs-venc { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); }
 
   .gest-tools { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .6rem; }
-  .gest-search { width: 100%; padding: .55rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px;
+  .gest-search { width: 100%; padding: .55rem .8rem; border: 1.5px solid var(--sup-borde); border-radius: 11px; min-height: 44px;
     font-family: inherit; font-size: .88rem; background: var(--card); color: var(--text); }
   .gest-search:focus { border-color: var(--orange); }
   .gest-filters { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: .2rem; }
@@ -2175,7 +2217,9 @@
   .gest-card.pinned { border-color: #f6c88a; box-shadow: 0 2px 12px rgba(244,122,31,.14); }
   /* Encabezado DENSO: 2 líneas, sin etiquetas grandes (el estado se lee por la barra y el punto). */
   .gest-chead { display: flex; align-items: center; gap: .45rem; padding: .5rem .6rem .5rem .7rem; }
-  .gest-pin { flex-shrink: 0; border: none; background: none; color: #c3cbd8; width: 26px; height: 26px;
+  /* I2/R13: era #c3cbd8, gris casi blanco. Sobre la tarjeta daba 1,63:1 en tema claro — el
+     control estaba, pero no se veía. --text-muted resuelve los dos temas. */
+  .gest-pin { flex-shrink: 0; border: none; background: none; color: var(--text-muted); width: 26px; height: 26px;
     border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
   .gest-pin.on { background: var(--orange-bg); color: var(--orange); }
   .gest-ctitle { flex: 1; min-width: 0; border: none; background: none; text-align: left; cursor: pointer;
@@ -2187,7 +2231,7 @@
   .gest-untitled { color: var(--text-muted); font-style: italic; font-weight: 700; }
   .gest-sub2 { font-size: .72rem; color: var(--text-muted); font-weight: 600; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
-  .gest-caret { flex-shrink: 0; color: #c3cbd8; font-size: .8rem; padding: .2rem; }
+  .gest-caret { flex-shrink: 0; color: var(--text-muted); font-size: .8rem; padding: .2rem; }
 
   .gest-body { padding: 0 .7rem .8rem; border-top: 1px solid var(--linea); }
   .gest-fl { display: block; font-size: .68rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
@@ -2211,7 +2255,7 @@
   .gest-tarea input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--orange); cursor: pointer; }
   .gest-tarea span { flex: 1; min-width: 0; line-height: 1.35; word-break: break-word; }
   .gest-tarea.ok span { text-decoration: line-through; color: var(--text-muted); }
-  .gest-tarea-x { border: none; background: none; color: #c3cbd8; cursor: pointer; font-size: .78rem; padding: .1rem .25rem; flex-shrink: 0; }
+  .gest-tarea-x { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: .78rem; padding: .1rem .25rem; flex-shrink: 0; }
   .gest-tarea-x:hover { color: var(--sem-rojo); }
 
   /* ── Panel de gestiones: versión dinámica ── */
@@ -2225,7 +2269,7 @@
   .gest-filters-wrap .dt-fade-r { background: linear-gradient(to left, var(--sup-suave) 35%, transparent); }
   .gest-filters-wrap.mas-izq .dt-fade-l { opacity: 1; }
   .gest-filters-wrap.mas-der .dt-fade-r { opacity: 1; animation: dtNudge 1.5s ease-in-out infinite; }
-  .gest-sort { border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 10px; padding: .48rem .6rem;
+  .gest-sort { border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 10px; padding: .48rem .6rem; min-height: 44px;
     font-family: inherit; font-weight: 700; font-size: .8rem; color: var(--text); cursor: pointer; flex-shrink: 0; }
   /* Barra de color a la izquierda según estado (se lee de un vistazo). */
   .gest-card { position: relative; animation: gestIn .26s ease both; }
@@ -2319,7 +2363,8 @@
   .apt-tap-inline svg { width: 8px; height: 8px; color: var(--anc); }
   /* Controles de "Estado por persona": invertir el orden / quedarse sólo con indicación médica. */
   .apt-ctrls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
-  .apt-ctrl-btn { display: inline-flex; align-items: center; gap: .4rem; border: 1.5px solid var(--sup-borde);
+  /* I2: medían 32 px de alto. */
+  .apt-ctrl-btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; border: 1.5px solid var(--sup-borde);
     background: var(--card); border-radius: 999px; padding: .45rem .8rem; font-family: inherit; font-weight: 700;
     font-size: .78rem; color: var(--text-soft); cursor: pointer; }
   .apt-ctrl-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
@@ -2653,8 +2698,9 @@
 
   /* ── Ciclo operativo (supervisor y Dirección/HSEQ) ──
      Sin un solo color escrito a mano: todo sale de los tokens de los dos temas (R13). */
+  /* I2: medía 36 px de alto. */
   .cic-cfg-btn { width:100%; text-align:left; background:var(--chip-bg); border:1px solid var(--sup-linea);
-    border-radius:10px; padding:.5rem .7rem; font-family:inherit; font-size:.74rem; font-weight:600;
+    border-radius:10px; padding:.5rem .7rem; min-height:44px; font-family:inherit; font-size:.74rem; font-weight:600;
     color:var(--text-soft); cursor:pointer; margin:.7rem 0 .2rem; line-height:1.5; }
   .cic-cfg-btn b { color:var(--orange-legible); }
   .cic-cfg-btn:hover { background:var(--chip-bg-h); }
@@ -2691,7 +2737,10 @@
     padding:.85rem .85rem .8rem; }
   .cic-est-excedido { border-color:var(--sem-rojo); }
   .cic-est-inactivo { opacity:.66; }
-  .cic-head { display:flex; align-items:center; gap:.5rem; cursor:pointer; }
+  /* I2: medía 307x18. Además de quedar lejos de los 44, era la fila MÁS densa de la tarjeta
+     más densa de la app. Subir el mínimo resuelve las dos cosas de una. */
+  .cic-head { display:flex; align-items:center; gap:.5rem; cursor:pointer;
+    min-height:44px; padding:.15rem 0; }
   .cic-head:active { transform:scale(.995); }
   .cic-nom { font-size:.9rem; font-weight:800; color:var(--text);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -3157,7 +3206,7 @@
 
     <div class="rbtn mas-item texto-ctrl" id="textoCtrl">
       <button type="button" class="tc-head" onclick="tcToggle()" aria-expanded="false" aria-controls="tcSliderWrap">
-        <div class="ic" style="background:var(--sem-azul-bg);color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
+        <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
         <div class="tx"><span class="tt" data-i18n="tamano_texto">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
         <div class="st"><svg class="chev" id="tcChev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
       </button>
@@ -3221,7 +3270,7 @@
          personal — es la herramienta para revisar la app y explicarle su lógica a la Dirección. -->
     <div class="mas-sep" data-i18n="mas_sep_admin">Administración</div>
     <button type="button" class="rbtn mas-item" onclick="admToggle()">
-      <div class="ic" style="background:var(--sem-azul-bg);color:#4338ca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="adm_ver">Ver como administrador</span><span class="ds" data-i18n="adm_ver_d">Simular roles y ver cómo funciona la app por dentro</span></div>
       <div class="st"><svg class="chev" id="admChev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
@@ -3952,7 +4001,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.88';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.89';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7047,7 +7096,7 @@ function seccionesApp(){ return [
       {id:'sen_malestar',    label:t('sens_malestar'),  desc:t('sens_d_gastro'),   icon:I.dizzy,   ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
       {id:'sen_somnoliencia',label:t('sens_somnol'),    desc:t('sens_d_kss'),      icon:I.moon,    ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:t('sens_fatiga'),    desc:t('sens_d_perelli'),  icon:I.bed,     ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
-      {id:'sen_depresion',   label:t('sens_depresion'), desc:t('sens_d_depresion'), icon:I.sad,    ic:'var(--sem-azul-bg)', icc:'#4338ca', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
+      {id:'sen_depresion',   label:t('sens_depresion'), desc:t('sens_d_depresion'), icon:I.sad,    ic:'var(--sem-azul-bg)', icc:'var(--sem-azul-int)', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
       {id:'sen_gastro',      label:t('sens_gastro'),    desc:t('sens_d_gastro'),   icon:I.pill,    ic:'var(--sem-verde-bg)', icc:'#2e7d32', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
     ]
   },
