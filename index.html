@@ -4035,7 +4035,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.94';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.95';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4535,6 +4535,7 @@ const I18N = {
       ts_turno_registrado:'{q}: registrado',
       ini_firmada_k:'DETERMINACIÓN DEL SERVICIO MÉDICO',
       ini_firmada_por:'Firmada por {m}',
+      err_d_tardo:'El servidor tardó más de lo normal en responder. No es tu contraseña: vuelve a intentarlo en un momento.',
       dw_dos_meses:'Se necesitan registros de <b>al menos 2 meses distintos</b> para dibujar una evolución. Por ahora hay {q} ({n} registro(s)). A medida que se carguen más tests en otras fechas, el gráfico va a aparecer solo.',
       dw_sin_fecha:'registros sin fecha', dw_un_mes:'registros de un solo mes',
       dw_radar_3:'Se necesitan 3+ indicadores para el radar.',
@@ -5922,6 +5923,7 @@ const I18N = {
       ts_turno_registrado:'{q}: recorded',
       ini_firmada_k:'MEDICAL SERVICE DETERMINATION',
       ini_firmada_por:'Signed by {m}',
+      err_d_tardo:'The server took longer than usual to respond. It is not your password: try again in a moment.',
       dw_dos_meses:'Records from <b>at least 2 different months</b> are needed to draw a trend. So far there are {q} ({n} record(s)). As more tests are recorded on other dates, the chart will appear on its own.',
       dw_sin_fecha:'undated records', dw_un_mes:'records from a single month',
       dw_radar_3:'3+ indicators are needed for the radar.',
@@ -7393,8 +7395,14 @@ async function sincronizarRegistro(perfil){
    Declaración de función (se iza) y el plazo como parámetro por defecto, a propósito: este
    archivo ya se tropezó con un TDZ por leer un `const` declarado más abajo. */
 function fetchConReloj(url, opts, ms){
+  /* ⚠️ 90 s, NO 20. El reloj está para cortar una conexión COLGADA, no para apurar a un servidor
+     lento: Apps Script leyendo la hoja maestra pasa de 20 s sin ningún problema, y el refresco
+     manual manda `fresh:'1'`, que saltea a propósito la cache de 180 s del endpoint. Con 20 s se
+     abortaban pedidos que iban a llegar bien, y en el camino del supervisor eso terminaba
+     expulsando al login (ver el catch de portalAutoLoginSupervisor). Apps Script corre hasta 6
+     minutos: 90 s deja lugar de sobra y sigue cortando un cuelgue de verdad. */
   const ctl = new AbortController();
-  const reloj = setTimeout(() => ctl.abort(), ms || 20000);
+  const reloj = setTimeout(() => ctl.abort(), ms || 90000);
   return fetch(url, Object.assign({}, opts || {}, { signal: ctl.signal }))
     .finally(() => clearTimeout(reloj));   // sin esto quedarían timers colgados por cada pedido
 }
@@ -10449,7 +10457,17 @@ function portalAutoLoginSupervisor(c, credKey){
     }
     const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || c.usuario);
     onDashData(d, label, params, d.vista || (credKey === K_DASH_CREDS_MED ? 'medico' : 'supervisor'));   // vista la decide el servidor según la contraseña usada
-  }).catch(() => { openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.'; });
+  }).catch(err => {
+    /* Que el pedido TARDE no dice nada sobre la contraseña. Antes cualquier rechazo mandaba al
+       login, y con el reloj de I4 eso empezó a pasarle a pedidos lentos pero válidos: la persona
+       perdía la sesión y los filtros por un servidor demorado. Un vencimiento deja el panel
+       donde está y ofrece reintentar; el resto de los fallos siguen como antes. */
+    if (err && err.name === 'AbortError'){
+      dashMostrarError(t('err_d_tardo'), function(){ portalAutoLoginSupervisor(c, credKey); });
+      return;
+    }
+    openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.';
+  });
 }
 // Cierra también, por las dudas, cualquier ventana anidada (Gestiones/PVT) que haya quedado
 // abierta: comparten el mismo z-index/posición fija que el panel de estadísticas, y si una queda
@@ -10571,13 +10589,17 @@ function portalMode(m){
 // NO viaja en la URL ni queda registrada en los logs de Apps Script. El body va como text/plain
 // (sin preflight CORS) y fetch sigue el redirect 302 igual que en la generación de informes.
 // Las peticiones sin clave (listas, empleado) siguen por GET con cache-buster.
+/* El payload del panel es el pedido más pesado de la app (lee la hoja entera y cruza varias
+   más), y con `fresh:'1'` ni siquiera usa la cache del endpoint. Lleva su propio plazo, más
+   holgado que el general. */
+const DASH_TIMEOUT_MS = 120000;
 function dashRequest(params){
   if (!DASH_DEMO){
     if (params && params.pass){
-      return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(params) }).then(r => r.json());
+      return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(params) }, DASH_TIMEOUT_MS).then(r => r.json());
     }
     const qs = new URLSearchParams(params).toString() + '&_=' + Date.now();   // cache-buster: nunca respuesta pegada
-    return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }).then(r => r.json());
+    return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' }, DASH_TIMEOUT_MS).then(r => r.json());
   }
   return new Promise(res => {
     const ref = { kss:6, estres:36, ansiedad:25, fatiga:7.3, gastro:11, depresion:42, cansancio:19 };
@@ -10962,7 +10984,8 @@ function portalAutoLoginEmpleado(){
     /* Antes esto mandaba a la persona de vuelta a la pantalla de acceso con un toast. Perder el
        panel entero porque se cortó el wifi un segundo no explica nada y obliga a rehacer el
        camino: ahora el error se muestra DENTRO, con el botón para reintentar. */
-    .catch(() => { if (!cargaVigente(carga)) return; dashMostrarError('', portalAutoLoginEmpleado); });
+    .catch(err => { if (!cargaVigente(carga)) return;
+      dashMostrarError((err && err.name === 'AbortError') ? t('err_d_tardo') : '', portalAutoLoginEmpleado); });
 }
 function portalLoginSupervisor(btn){
   const usuario = document.getElementById('pEmpresa').value.trim();
@@ -11080,15 +11103,11 @@ function dashTabsFor(rol, hasPvt, vista){
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
   if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
-  /* I1 (hallazgos 4 y 5): el médico es el único rol que puede FIRMAR una determinación y era el
-     único que no veía ni las horas de servicio ni los reportes identificados ("no dormí"). Las
-     horas de jornada son de las variables de exposición más relevantes que existen para esa
-     firma, y un "no dormí" con nombre es un autoreporte clínico de primer orden que sólo le
-     llegaba al supervisor.
-     No hizo falta tocar el endpoint: `operacional` ya viaja para todos los roles y
-     `accionReportesLeer` no recorta por rol — el dato ya le llegaba, sólo que no tenía dónde
-     verlo. */
-  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','reportes','ciclo','informe','gestiones'];
+  /* ⚠️ Si algún día se le agregan pestañas al médico (I1, hallazgos 4 y 5: horas de jornada y
+     reportes identificados), NO alcanza con tocar esta lista: `dashOrderedTabs()` tiene su PROPIO
+     orden fijo y filtra contra él, así que lo que no esté ahí se descarta en silencio y la
+     pestaña no existe. Hay que tocar las dos. */
+  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
   return base;
 }
