@@ -3106,6 +3106,37 @@
     <div class="nom-pie">
       <button type="button" class="nom-link" id="nomVolver" style="display:none" onclick="nominaVolver()" data-i18n="nom_volver">‹ Volver</button>
       <button type="button" class="nom-link" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
+      <button type="button" class="nom-link" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recuperar perfil (2026-08-26) — para cuando el dispositivo perdió el localStorage (en iOS,
+     instalar la app "Agregar a inicio" arranca con un storage separado del de Safari, así que
+     alguien que ya se había registrado en el navegador vuelve a ver el alta vacía). Trae de
+     vuelta perfil Y consentimientos ya firmados, para no pedir el formulario entero de nuevo. -->
+<div class="overlay" id="recuperarOv">
+  <div class="sheet">
+    <h2 data-i18n="rec_titulo">Recuperar mis datos</h2>
+    <p class="lead" data-i18n="rec_lead">Si ya usaste la app antes, recupera tu perfil sin cargarlo de nuevo.</p>
+
+    <label class="nom-lbl" for="recEmpresa" data-i18n="f_empresa">Empresa</label>
+    <input id="recEmpresa" type="text" list="recEmpresaList" class="restr-input" autocomplete="off" maxlength="60" data-i18n-attr="placeholder:f_empresa_ph" onblur="recuperarEmpresaCambio()">
+    <datalist id="recEmpresaList"></datalist>
+
+    <div id="recPasoCod" style="display:none">
+      <label class="nom-lbl" for="recCodigo" data-i18n="nom_codigo_lbl">Código de tu empresa</label>
+      <input type="text" id="recCodigo" class="restr-input" placeholder="Ej.: ABC-1234" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+
+    <label class="nom-lbl" for="recCedula" data-i18n="f_cedula">Número de cédula</label>
+    <input type="tel" id="recCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" autocomplete="off" onkeydown="if(event.key==='Enter')recuperarConfirmar()">
+
+    <div class="nom-err" id="recErr"></div>
+    <button class="save-btn" id="recBtn" onclick="recuperarConfirmar()" data-i18n="rec_btn">Recuperar mis datos</button>
+
+    <div class="nom-pie">
+      <button type="button" class="nom-link" onclick="recuperarCerrar()" data-i18n="cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3114,6 +3145,7 @@
   <div class="sheet">
     <h2 id="setupTitle" data-i18n="setup_titulo">Bienvenido 👋</h2>
     <p class="lead" id="setupLead" data-i18n="setup_lead">Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.</p>
+    <button type="button" class="nom-link" id="setupRecLink" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
     <div class="pilot-banner" id="pilotBanner">
       <label for="inEsPiloto">
         <span class="pbi">✈</span>
@@ -3561,7 +3593,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.76';                 // ← Subí este número en cada actualización
+const APP_VERSION = '3.77';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -3822,6 +3854,14 @@ const I18N = {
       pg_pass:'Contraseña', pg_pass_ph:'Tu contraseña',
       entrar:'Entrar',
       pg_recordar_q:'¿Recordar usuario y contraseña en este dispositivo?',
+      // ── Recuperar perfil (2026-08-26) ──
+      rec_link:'Ya me había registrado',
+      rec_titulo:'Recuperar mis datos',
+      rec_lead:'Si ya usaste la app antes, recupera tu perfil sin cargarlo de nuevo.',
+      rec_btn:'Recuperar mis datos',
+      rec_falta_empresa:'Elige tu empresa.',
+      rec_no_encontrado:'No encontramos ese registro. Revisa la empresa y la cédula.',
+      rec_listo:'Listo, recuperamos tus datos',
       pg_demo:'Ver demostración con datos simulados',
       pg_demo_para:'Ver demostración con datos simulados (para {rol})',
       pg_demo_d:'Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.',
@@ -4392,6 +4432,14 @@ const I18N = {
       pg_pass:'Password', pg_pass_ph:'Your password',
       entrar:'Sign in',
       pg_recordar_q:'Remember username and password on this device?',
+      // ── Recover profile (2026-08-26) ──
+      rec_link:'I had already signed up',
+      rec_titulo:'Recover my details',
+      rec_lead:'If you have used the app before, recover your profile instead of filling it in again.',
+      rec_btn:'Recover my details',
+      rec_falta_empresa:'Choose your company.',
+      rec_no_encontrado:'We could not find that record. Check the company and the ID number.',
+      rec_listo:'Done, your details are back',
       pg_demo:'See a demo with simulated data',
       pg_demo_para:'See a demo with simulated data (as {rol})',
       pg_demo_d:'Explore the panel with a sample company — no username or password needed.',
@@ -7136,6 +7184,7 @@ function silvaAtras(){
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
+  if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
   if (visible('portalOverlay')){ closePortal(); return true; }
   if (visible('setup')){
@@ -7437,6 +7486,10 @@ function nominaConfirmar(){
 
 function openSetup(isEdit){
   editing = !!isEdit;
+  // El enlace "Ya me había registrado" sólo tiene sentido para un alta nueva: quien ya tiene
+  // perfil completo y abrió esto para EDITAR sus datos no necesita "recuperar" nada.
+  const recLink = document.getElementById('setupRecLink');
+  if (recLink) recLink.style.display = editing ? 'none' : '';
   // Alta nueva: los dos toggles arrancan DESACTIVADOS (antes "piloto" venía marcado por defecto)
   const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:false,esSupervisor:false,esServicioMedico:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:'',email:''};
   const ep = !!p.esPiloto, es = !!p.esSupervisor, em = !!p.esServicioMedico;
@@ -14477,6 +14530,106 @@ function tareaCrear(btn){
       showToast(t('tar_creada'));
     })
     .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion'); });
+}
+
+
+/* ════════════════ RECUPERAR PERFIL (2026-08-26, fuera de plan) ═══════════════════════════════
+   "Si la persona llena el alta la primera vez y después instala la app, le pide todo de nuevo."
+
+   La causa: en iOS, una app agregada a inicio arranca con un `localStorage` SEPARADO del que
+   tenía en Safari mientras la llenaba. El perfil no se "pierde" por un bug — vive únicamente en
+   el dispositivo, y para iOS ese pasa a ser un dispositivo distinto. Esto da una puerta para
+   volver a traer los datos con sólo la cédula, sin rehacer el formulario entero.
+
+   Restaura perfil Y consentimientos ya firmados: restaurar sólo el perfil y dejar que el
+   consentimiento se pida de nuevo seguiría sintiéndose como "empezar de nuevo". */
+function recuperarAbrir(){
+  document.getElementById('recuperarOv').classList.add('show');
+  syncScrollLock(); navPush();
+  document.getElementById('recEmpresa').value = '';
+  document.getElementById('recCodigo').value = '';
+  document.getElementById('recCedula').value = '';
+  document.getElementById('recErr').textContent = '';
+  document.getElementById('recPasoCod').style.display = 'none';
+  recuperarPintarDatalist();
+  if (!SETUP_LISTS.empresas.length && SHEETS_DASHBOARD_URL){
+    fetch(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
+      .then(r => r.json())
+      .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; recuperarPintarDatalist(); } })
+      .catch(() => {});
+  }
+}
+function recuperarPintarDatalist(){
+  const dl = document.getElementById('recEmpresaList');
+  if (dl) dl.innerHTML = SETUP_LISTS.empresas.map(e => '<option value="' + esc(e) + '">').join('');
+}
+function recuperarCerrar(){
+  document.getElementById('recuperarOv').classList.remove('show');
+  if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
+}
+// Al elegir empresa, se adelanta si va a pedir código — igual que en el alta (B3). No es
+// obligatorio (el servidor lo exige igual), es sólo para no sorprender con un campo que aparece
+// después de escribir la cédula.
+function recuperarEmpresaCambio(){
+  const emp = (document.getElementById('recEmpresa').value || '').trim();
+  if (!emp) return;
+  empresaPerfilCargar(emp).then(perfil => {
+    document.getElementById('recPasoCod').style.display = (perfil && perfil.pideCodigo) ? '' : 'none';
+  });
+}
+function recuperarConfirmar(){
+  const empresa = (document.getElementById('recEmpresa').value || '').trim();
+  const codigo  = (document.getElementById('recCodigo').value  || '').trim();
+  const cedula  = (document.getElementById('recCedula').value  || '').trim();
+  const err = document.getElementById('recErr');
+  err.textContent = '';
+  if (!empresa){ err.textContent = t('rec_falta_empresa'); return; }
+  if (!cedula){ err.textContent = t('f_cedula_err'); return; }
+  const btn = document.getElementById('recBtn');
+  btnSpin(btn, true, t('guardando'));
+  fetch(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+      action:'recuperar_perfil', empresa:empresa, cedula:cedula, codigo:codigo,
+      dispositivoId: dispositivoId() }) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && !d.ok && (d.motivo === 'codigo_invalido' || d.motivo === 'codigo_frenado')){
+        document.getElementById('recPasoCod').style.display = '';
+        err.textContent = t(d.motivo === 'codigo_frenado' ? 'nom_codigo_frenado' : 'nom_codigo_malo');
+        return;
+      }
+      if (!d || !d.ok || !d.perfil){ err.textContent = (d && d.error) || t('rec_no_encontrado'); return; }
+      const q = d.perfil;
+      const prev = getProfile() || {};
+      const nuevo = Object.assign({}, prev, {
+        nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
+        cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
+        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'', esSupervisor: !!q.esSupervisor,
+        sector: q.sector||''
+      });
+      setProfile(nuevo);
+      sectorRecordar(q.sector);
+      // Mismo cierre que saveProfile(): sin esto el saludo y las tarjetas de "Data Operacional"
+      // quedan pintadas con el perfil viejo (vacío) hasta el próximo recargo de la página.
+      paintProfile(); renderSections();
+      sincronizarRegistro(nuevo);   // deja "Última actualización" al día en Registrados Fatiga
+      empresaPerfilGuardar({ empresa:q.empresa, nombre:q.empresa, color:'', sector:q.sector||'', pideCodigo:!!codigo });
+      // Los consentimientos que ya firmó no se le vuelven a pedir: ya está en el CH.
+      if (d.consentimientos && Object.keys(d.consentimientos).length){
+        const s = consentStore();
+        s.items = Object.assign({}, s.items, d.consentimientos);
+        s.sincronizado = true;
+        consentSave(s);
+      }
+      // Idem el tamaño de letra: si nunca lo eligió EN ESTE dispositivo nuevo, se asume el
+      // default en vez de volver a preguntar — ya pasó por esa pantalla la primera vez.
+      if (!textoYaElegido()) fijarTamanoTexto(TEXTO_POR_DEFECTO);
+      recuperarCerrar(); nominaCerrar(); closeSetup();
+      aplicarIdioma();
+      showToast(t('rec_listo'));
+      avanzarAlta();   // no debería quedar nada pendiente: entra directo a la app
+    })
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
 }
 
 /* ════════════════ CARRUSEL DE PRESENTACIÓN (B2, 2026-08-25) ════════════════════════════════
