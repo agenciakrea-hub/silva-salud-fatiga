@@ -151,6 +151,10 @@
          que daba verde sin probar nada (ver la memoria de tests en base limpia). */
       comprobaciones: casos.reduce((n, c) => n + c.comprobaciones.length, 0),
       fallas: fallas,
+      /* TODOS los casos, no sólo los que fallaron: es lo que le permite al panel mostrar la lista
+         completa con su tilde o su cruz. Ver la lista entera importa — si un caso desaparece
+         porque alguien lo borró sin querer, en un reporte que sólo lista fallas no se nota. */
+      detalle: casos,
       /* El detalle por grupo, para ver de un vistazo qué área está roja. */
       porGrupo: (function () {
         const g = {};

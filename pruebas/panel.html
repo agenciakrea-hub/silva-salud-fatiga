@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas · Silva Salud Fatiga</title>
+<!--
+  PANEL DE PRUEBAS — se abre y listo, sin consola.
+
+  POR QUÉ EXISTE: la primera versión de L2a se corría pegando una línea en la consola del
+  navegador. El usuario no pudo correrla, y con razón: "un comando" que exige abrir las
+  herramientas de desarrollo y pegar código no es un comando. Esto abre la app en un iframe del
+  MISMO ORIGEN y corre la suite adentro, contra la app de verdad — mismas pruebas, mismo resultado,
+  pero con un botón.
+
+  ⚠️ Las pruebas corren DENTRO del iframe, no acá. Eso es a propósito: tienen que ver el DOM real
+  de la app, con sus medidas reales. Este archivo sólo lanza y muestra.
+-->
+<style>
+  :root {
+    --fondo: #f7f8fa; --papel: #ffffff; --tinta: #16202f; --tinta-suave: #5b6577;
+    --linea: #e2e6ee; --verde: #0f7a3d; --verde-bg: #e7f6ec;
+    --rojo: #b3261e; --rojo-bg: #fdecea; --ambar: #8a5a00; --ambar-bg: #fff4e0;
+    --codigo: #f1f3f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #11161f; --papel: #18202c; --tinta: #e8ecf3; --tinta-suave: #9aa5b8;
+      --linea: #2a3648; --verde: #6ee7a0; --verde-bg: #12301f;
+      --rojo: #ff9c94; --rojo-bg: #3a1815; --ambar: #ffc46b; --ambar-bg: #3a2a0d;
+      --codigo: #131a24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .caja { max-width: 940px; margin: 0 auto; padding: 1.5rem 1.1rem 4rem; }
+  h1 { font-size: 1.35rem; margin: 0 0 .2rem; letter-spacing: -.01em; }
+  .sub { color: var(--tinta-suave); font-size: .87rem; margin-bottom: 1.2rem; }
+  .barra { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.2rem; }
+  button { font: inherit; font-weight: 650; padding: .6rem 1.1rem; border-radius: 9px;
+    border: 1px solid var(--linea); background: var(--papel); color: var(--tinta); cursor: pointer; }
+  button.primario { background: var(--tinta); color: var(--papel); border-color: var(--tinta); }
+  button:disabled { opacity: .5; cursor: default; }
+  .resumen { border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; border: 1px solid var(--linea);
+    background: var(--papel); }
+  .resumen.ok { background: var(--verde-bg); border-color: var(--verde); }
+  .resumen.mal { background: var(--rojo-bg); border-color: var(--rojo); }
+  .resumen h2 { margin: 0 0 .3rem; font-size: 1.05rem; }
+  .resumen.ok h2 { color: var(--verde); } .resumen.mal h2 { color: var(--rojo); }
+  .cifras { color: var(--tinta-suave); font-size: .88rem; font-variant-numeric: tabular-nums; }
+  .aviso { background: var(--ambar-bg); border: 1px solid var(--ambar); color: var(--ambar);
+    border-radius: 10px; padding: .7rem .9rem; margin-bottom: .8rem; font-size: .88rem; }
+  .aviso code { background: rgba(0,0,0,.08); padding: .1rem .35rem; border-radius: 4px; }
+  .grupo { background: var(--papel); border: 1px solid var(--linea); border-radius: 12px;
+    margin-bottom: .8rem; overflow: hidden; }
+  .grupo > h3 { margin: 0; padding: .7rem 1rem; font-size: .8rem; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--tinta-suave); border-bottom: 1px solid var(--linea); }
+  .caso { display: flex; gap: .6rem; padding: .55rem 1rem; border-bottom: 1px solid var(--linea); align-items: baseline; }
+  .caso:last-child { border-bottom: none; }
+  .pin { font-weight: 800; flex-shrink: 0; }
+  .pin.ok { color: var(--verde); } .pin.mal { color: var(--rojo); }
+  .falla { margin: .5rem 0 .1rem 1.6rem; padding: .6rem .8rem; background: var(--rojo-bg);
+    border-left: 3px solid var(--rojo); border-radius: 0 8px 8px 0; font-size: .86rem; }
+  .falla dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: .15rem .6rem; }
+  .falla dt { color: var(--tinta-suave); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  .falla dd { margin: 0; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .84rem;
+    overflow-wrap: anywhere; }
+  .falla .porque { grid-column: 1 / -1; margin-top: .35rem; font-family: inherit; color: var(--tinta);
+    font-size: .87rem; }
+  pre.crudo { background: var(--codigo); border: 1px solid var(--linea); border-radius: 10px;
+    padding: .9rem; overflow-x: auto; font-size: .8rem; }
+  details { margin-top: 1rem; } summary { cursor: pointer; color: var(--tinta-suave); font-size: .88rem; }
+  iframe#app { position: fixed; left: -10000px; top: 0; width: 390px; height: 844px; border: 0; }
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>Pruebas · Silva Salud Fatiga</h1>
+  <div class="sub">Corren contra la app de verdad, cargada acá al lado. No tocan producción.</div>
+
+  <div class="barra">
+    <button id="btn" class="primario">Correr las pruebas</button>
+    <span id="estado" class="cifras"></span>
+  </div>
+
+  <div id="salida"></div>
+
+  <details>
+    <summary>El reporte completo, en crudo</summary>
+    <pre class="crudo" id="crudo">(todavía no se corrió)</pre>
+  </details>
+</div>
+
+<iframe id="app" title="la app, para probarla"></iframe>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const val = v => typeof v === 'object' ? JSON.stringify(v) : String(v);
+
+function cargarApp() {
+  return new Promise((res, rej) => {
+    const f = $('#app');
+    f.onload = () => setTimeout(() => res(f.contentWindow), 350);
+    f.onerror = () => rej(new Error('no se pudo cargar la app en el iframe'));
+    // Se recarga siempre, para que cada corrida arranque de una app limpia y no arrastre el
+    // estado que dejó la corrida anterior.
+    f.src = '/index.html?suite=' + Date.now();
+  });
+}
+
+async function correr() {
+  $('#btn').disabled = true;
+  $('#estado').textContent = 'cargando la app…';
+  $('#salida').innerHTML = '';
+  try {
+    const w = await cargarApp();
+    $('#estado').textContent = 'corriendo…';
+    const src = await (await fetch('/pruebas/correr.js?v=' + Date.now())).text();
+    // Se evalúa DENTRO del iframe: así la suite ve las funciones y el DOM reales de la app.
+    const rep = JSON.parse(await w.eval(src));
+    pintar(rep);
+    $('#crudo').textContent = JSON.stringify(rep, null, 2);
+    $('#estado').textContent = 'listo en ' + (rep.duracionMs || 0) + ' ms';
+  } catch (e) {
+    $('#salida').innerHTML = '<div class="resumen mal"><h2>La suite no pudo arrancar</h2>' +
+      '<div class="cifras">' + esc(e.message) + '</div></div>';
+    $('#estado').textContent = '';
+  }
+  $('#btn').disabled = false;
+}
+
+function pintar(rep) {
+  let h = '';
+  h += '<div class="resumen ' + (rep.ok ? 'ok' : 'mal') + '">' +
+       '<h2>' + (rep.ok ? '✅ Todo verde' : '❌ Hay ' + rep.fallaron + ' caso' + (rep.fallaron === 1 ? '' : 's') + ' fallando') + '</h2>' +
+       '<div class="cifras">' + rep.pasaron + ' de ' + rep.total + ' casos · ' +
+       (rep.comprobaciones || 0) + ' comprobaciones · app ' + esc(rep.version || '?') + '</div></div>';
+
+  (rep.avisos || []).forEach(a => {
+    h += '<div class="aviso">⚠️ ' + esc(a).replace(/(python [^\s)]+)/, '<code>$1</code>') + '</div>';
+  });
+
+  const porGrupo = {};
+  (rep.detalle || []).forEach(c => { (porGrupo[c.grupo] = porGrupo[c.grupo] || []).push(c); });
+
+  Object.keys(porGrupo).forEach(g => {
+    h += '<div class="grupo"><h3>' + esc(g) + '</h3>';
+    porGrupo[g].forEach(c => {
+      h += '<div class="caso"><span class="pin ' + (c.ok ? 'ok' : 'mal') + '">' + (c.ok ? '✔' : '✘') + '</span>' +
+           '<span>' + esc(c.nombre) + '</span></div>';
+      if (!c.ok) {
+        if (c.error) {
+          h += '<div class="falla"><dl><dt>error</dt><dd>' + esc(c.error) + '</dd></dl></div>';
+        }
+        (c.comprobaciones || []).filter(x => !x.ok).forEach(x => {
+          h += '<div class="falla"><dl>' +
+               '<dt>esperaba</dt><dd>' + esc(val(x.esperaba)) + '</dd>' +
+               '<dt>obtuvo</dt><dd>' + esc(val(x.obtuvo)) + '</dd>' +
+               (x.porque ? '<div class="porque">' + esc(x.porque) + '</div>' : '') +
+               '</dl></div>';
+        });
+      }
+    });
+    h += '</div>';
+  });
+
+  $('#salida').innerHTML = h;
+}
+
+$('#btn').addEventListener('click', correr);
+correr();   // arranca sola al abrir: para eso se abre la página
+</script>
+</body>
+</html>
