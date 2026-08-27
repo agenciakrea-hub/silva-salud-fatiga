@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v232';
+const VERSION = 'v233';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [

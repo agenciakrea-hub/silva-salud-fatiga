@@ -4201,7 +4201,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.21';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.22';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4674,6 +4674,10 @@ const I18N = {
       apt_ficha_ind:'Ficha individual · toca <b>‹ Quitar filtro</b> arriba para volver al equipo',
       apt_nota_pendiente:'<b>Pendiente de revisión</b> = según la app esta persona no está en condiciones, pero <b>todavía no la revisó el servicio médico</b>: no está declarada no apta. Sólo el servicio médico puede determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>Esta vista es orientativa y <b>no es un diagnóstico</b>.',
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
+      cic_hseq_t:'Estado de la operación', cic_hseq_d:'{n} personas con ciclo registrado hoy. Sin datos individuales.',
+      cic_hseq_exc:'{n} por encima del tiempo previsto. El detalle por persona lo ve la supervisión.',
+      cic_hseq_ok:'Nadie por encima del tiempo previsto.',
+      cic_hseq_niv_t:'Dónde se concentra', cic_hseq_niv_d:'Personas por nivel de riesgo del puesto, y qué parte está excedida.',
       apt_mostrando:'Mostrando', apt_con_indic_chip:'Con <b>indicación médica</b>',
       quitar_filtro:'Quitar filtro',
       vac_areas_t:'Sin áreas para desglosar',
@@ -6094,6 +6098,10 @@ const I18N = {
       apt_ficha_ind:'Individual record · tap <b>‹ Remove filter</b> above to go back to the team',
       apt_nota_pendiente:'<b>Pending review</b> = according to the app this person is not fit, but <b>medical staff have not reviewed them yet</b>: they have not been declared unfit. Only medical staff can determine <b>Unfit</b> or <b>Fit with conditions</b>.<br>This view is indicative and <b>is not a diagnosis</b>.',
       apt_lg_bien:'Fine', apt_lg_medio:'Near the limit', apt_lg_alto:'Above', apt_lg_sin:'No data',
+      cic_hseq_t:'Operation status', cic_hseq_d:'{n} people with a cycle logged today. No individual data.',
+      cic_hseq_exc:'{n} over the expected time. Supervision sees the per-person detail.',
+      cic_hseq_ok:'Nobody over the expected time.',
+      cic_hseq_niv_t:'Where it concentrates', cic_hseq_niv_d:'People by job risk level, and how many are over time.',
       apt_mostrando:'Showing', apt_con_indic_chip:'With <b>medical instruction</b>',
       quitar_filtro:'Remove filter',
       vac_areas_t:'No areas to break down',
@@ -14070,6 +14078,41 @@ function cicloPersonas(ciclos){
   return out;
 }
 
+/* K1b · El ciclo, agregado, para Dirección/HSEQ.
+   Su contrato dice "agregados de la organización, nada individual": no ve nombres (el servidor ya
+   ni se los manda) ni puede entrar al detalle de nadie. Lo que sí ve es cómo va la operación.
+   Misma estructura visual que el resto de sus pestañas (`hs-row`), a propósito.
+   Se agrega por NIVEL DE RIESGO y no por área: un área con una sola persona la reidentifica. */
+function cicloHseqAgregado(filas, plan, ayuda, resumen){
+  const total = filas.length;
+  const porNivel = {};
+  filas.forEach(f => {
+    const n = f.p.nivel || nivelRiesgoDe(f.p.persona, f.p.departamento, f.p.empresa, f.p.cargo);
+    porNivel[n] = porNivel[n] || { n:0, exc:0, curso:0 };
+    porNivel[n].n++;
+    if (f.st.estado === 'excedido') porNivel[n].exc++;
+    if (f.st.estado === 'curso') porNivel[n].curso++;
+  });
+  const filasNivel = [1,2,3,4,5].filter(n => porNivel[n]).map(n => {
+    const d = porNivel[n];
+    const pct = d.n ? Math.round(d.exc / d.n * 100) : 0;
+    return '<div class="hs-row"><span class="hs-k"><b class="hs-niv hs-niv-' + n + '">N' + n + '</b> ' +
+      esc(nivelLabel(n)) + '</span><span class="hs-v">' + d.n + '</span>' +
+      '<span class="hs-pct">' + pct + '%</span></div>';
+  }).join('');
+  const excedidos = filas.filter(f => f.st.estado === 'excedido').length;
+  return ayuda +
+    '<div class="dash-block"><div class="db-title">' + esc(t('cic_hseq_t')) + '</div>' +
+      '<div class="db-sub">' + esc(t('cic_hseq_d', { n: total })) + '</div>' + resumen +
+      (excedidos
+        ? '<div class="hs-alerta">' + esc(t('cic_hseq_exc', { n: excedidos })) + '</div>'
+        : '<div class="hs-ok">' + esc(t('cic_hseq_ok')) + '</div>') +
+    '</div>' +
+    (filasNivel
+      ? '<div class="dash-block"><div class="db-title">' + esc(t('cic_hseq_niv_t')) + '</div>' +
+        '<div class="db-sub">' + esc(t('cic_hseq_niv_d')) + '</div>' + filasNivel + '</div>'
+      : '');
+}
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
   const plan = cicloPlan();
@@ -14103,6 +14146,11 @@ function renderCicloOperativo(){
     '<span class="cic-kpi cic-kpi-desc"><b>' + n.descanso + '</b> ' + esc(t('cic_kpi_desc')) + '</span>' +
     '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> ' + esc(t('cic_kpi_comp')) + '</span>' +
     '<span class="cic-kpi cic-kpi-sin"><b>' + n.inactivo + '</b> ' + esc(t('cic_kpi_sin')) + '</span></div>';
+  /* K1b: Dirección/HSEQ corta acá. Los agregados (`resumen`) ya están calculados y no llevan
+     nada individual; lo que no se arma son las tarjetas por persona. Tampoco se expone
+     `_cicNames` ni la configuración del ciclo: cambiar los tramos de la operación es una acción
+     de supervisión, no de dirección. */
+  if (DASH.vista === 'hseq') return cicloHseqAgregado(filas, plan, ayuda, resumen);
   DASH._cicNames = filas.map(f => f.p.persona);
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
   const cards = filas.map((f, i) => {
@@ -14137,6 +14185,9 @@ function renderCicloOperativo(){
 let _cicloTimer = null, _cicloUltimoRender = 0, _cicloUltimoPull = 0;
 function cicloTickStart(){
   if (_cicloTimer) return;
+  // K1b: Dirección/HSEQ ve el ciclo agregado, sin tarjetas ni relojes. Nada que refrescar cada
+  // segundo, y de paso no le corre un intervalo permanente al pedo.
+  if (DASH && DASH.vista === 'hseq') return;
   _cicloUltimoPull = Date.now();
   _cicloTimer = setInterval(cicloTick, 1000);
 }
