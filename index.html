@@ -4201,7 +4201,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.22';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.23';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10345,8 +10345,8 @@ function nominaCargarPersonas(){
     });
 }
 function nominaFiltrar(){
-  const q = dashNorm(nominaEl('nomBuscar').value.trim());
-  const lista = q ? NOM.personas.filter(p => dashNorm(p.nombre).indexOf(q) >= 0) : NOM.personas;
+  const q = nominaEl('nomBuscar').value.trim();
+  const lista = q ? NOM.personas.filter(p => buscarCoincide(p.nombre, q)) : NOM.personas;
   if (!lista.length){
     nominaEl('nomPersonas').innerHTML = '<div class="nom-vacio">' +
       esc(t(NOM.personas.length ? 'nom_sin_coincidencia' : 'nom_sin_personas')) + '</div>';
@@ -12145,6 +12145,34 @@ function dashSpark(vals, ref){
 
 /* ── Unificar variantes del mismo nombre (acentos/mayúsculas/espacios) ── */
 function dashNorm(s){ return String(s||'').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' '); }
+/* ── K2 · Normalización SÓLO PARA BUSCAR. NUNCA para identificar. ───────────────────────────────
+   ⚠️ NO usar esto para parear personas ni para armar ids. Para eso está `dashNorm()`, que es la
+   que genera los ids de upsert del CH: si se cambiara lo que ella devuelve, la misma persona
+   dejaría de matchear con las filas que ya están escritas en la planilla. Por eso esto vive
+   aparte y se aplica sólo al texto que alguien tecleó en un buscador.
+
+   El bug que arregla (I7): "Luis O'Brien" no aparecía al escribir "obrien", porque `dashNorm`
+   saca tildes pero no toca la puntuación.
+
+   Cada signo va distinto a propósito:
+     · apóstrofos y puntos UNEN  → se borran:  "O'Brien" → "obrien", "St. John" → "st john"
+     · guiones y barras SEPARAN  → pasan a espacio: "García-López" → "garcia lopez"
+   Tratarlos igual daría mal uno de los dos casos. */
+function buscarNorm(s){
+  return dashNorm(s)
+    .replace(/['\u2019\u02BC´`.]/g, '')     // apóstrofos (recto, tipográfico, modificador) y puntos
+    .replace(/[-\u2010-\u2015_/\\]+/g, ' ')  // guiones (incluidos los tipográficos), barras y guion bajo
+    .replace(/\s+/g, ' ').trim();
+}
+/* ¿El texto contiene lo que se buscó? Por TOKENS y en cualquier orden, así "pérez ana" encuentra
+   a "Ana Pérez" — la gente escribe el apellido primero tanto como el nombre. */
+function buscarCoincide(texto, consulta){
+  const q = buscarNorm(consulta);
+  if (!q) return true;
+  const t = buscarNorm(texto);
+  return q.split(' ').every(tok => t.indexOf(tok) >= 0);
+}
+
 // "José Pérez" y "Jose Perez" → un solo sujeto. Nombre visible = la variante más frecuente y más prolija.
 function dashNiceness(s){   // puntúa cuán "bien escrita" está una variante
   let n = 0;
@@ -14346,8 +14374,11 @@ function renderAptitud(rows){
   // Búsqueda por nombre. Con 18+ personas, encontrar a alguien en el desplegable de arriba obliga
   // a leerlo entero; acá se escribe y la lista se acota sola. Compara con dashNorm (sin tildes ni
   // mayúsculas): buscar "nicolas" tiene que encontrar a "Nicolás".
-  const q = dashNorm(DASH._aptQ || '');
-  if (q) visibles = visibles.filter(p => dashNorm(p.nombre).indexOf(q) >= 0 || dashNorm(p.dep || '').indexOf(q) >= 0);
+  /* K2: se busca sobre nombre Y departamento JUNTOS, no en uno u otro por separado. Así
+     "ana operaciones" encuentra a Ana si está en Operaciones — antes no lo hacía ninguno de los
+     dos, porque los tokens quedaban repartidos entre los dos campos. */
+  const q = DASH._aptQ || '';
+  if (q) visibles = visibles.filter(p => buscarCoincide((p.nombre || '') + ' ' + (p.dep || ''), q));
   if (invertido) visibles = visibles.slice().reverse();
   const hayFiltroExtra = !!filtro || soloAnot || !!q;
 
@@ -17869,10 +17900,10 @@ function nominaListFiltrar(){
   // columna empresa por fila — para un supervisor normal (una sola empresa) sería ruido repetido.
   const empresas = {}; NOMLIST.datos.forEach(x => { if (x.empresa) empresas[x.empresa] = 1; });
   const mostrarEmpresa = Object.keys(empresas).length > 1;
-  const q = dashNorm((document.getElementById('nomListSearch') || {}).value || '');
+  const q = (document.getElementById('nomListSearch') || {}).value || '';
   const dep = (document.getElementById('nomListDepto') || {}).value || '';
   const lista = NOMLIST.datos.filter(x =>
-    (!q || dashNorm(x.persona).indexOf(q) >= 0) && (!dep || x.departamento === dep));
+    (!q || buscarCoincide(x.persona, q)) && (!dep || x.departamento === dep));
 
   resumen.innerHTML =
     '<span class="cic-kpi"><b>' + NOMLIST.total + '</b> ' + esc(t('nomlist_en_nomina')) + '</span>' +
