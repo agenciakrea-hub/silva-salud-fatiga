@@ -123,6 +123,16 @@
     --sem-azul:        #2d6cdf;  --sem-azul-bg:      #eaf1fd;
     --sem-azul-int:    #1d4ea8;  --sem-azul-int-bg:  #eaf1fd;
     --sem-violeta:     #8e2f8e;  --sem-violeta-bg:   #f7ecf7;   /* patrón sostenido */
+    /* Escala de 5 pasos de los resultados de test (I7). Existe como familia propia porque las
+       tablas RANGES_* mezclaban tokens con hex escritos a mano, y porque la tarjeta necesita
+       TRES valores por paso, no uno: borde, fondo y texto. El `-txt` no es un lujo — es el mismo
+       problema ya documentado arriba para verde y gris: el color de relleno se queda corto como
+       texto en tema claro, y acá el nombre de la categoría se pinta a 1,08rem en peso 800. */
+    --rg-1: #1aa672;  --rg-1-bg: #e6f7f0;  --rg-1-txt: #166534;
+    --rg-2: #5fb84a;  --rg-2-bg: #eef8ea;  --rg-2-txt: #2f6b21;
+    --rg-3: #e8c400;  --rg-3-bg: #fdf8e3;  --rg-3-txt: #7a6000;
+    --rg-4: #f0930f;  --rg-4-bg: #fef1e2;  --rg-4-txt: #8a4b06;
+    --rg-5: #e0322f;  --rg-5-bg: #feecec;  --rg-5-txt: #a71f1c;
     --sem-morado:      #6b3fa0;  --sem-morado-bg:    #f6f1fb;   /* anonimizado / cultura justa */
     --sem-morado-badge-bg: #ece3f7;
 
@@ -285,6 +295,13 @@
     --sem-azul:        #7fb0ff;  --sem-azul-bg:      #1a2942;
     --sem-azul-int:    #93bcff;  --sem-azul-int-bg:  #1c2d49;
     --sem-violeta:     #d99ad9;  --sem-violeta-bg:   #33203a;
+    /* Escala de resultados en oscuro: fondos profundos (nunca una superficie clara, R13) y el
+       color de relleno ya alcanza como texto sobre ellos, igual que el resto de los semánticos. */
+    --rg-1: #4fd4a0;  --rg-1-bg: #12332a;  --rg-1-txt: #4fd4a0;
+    --rg-2: #8fe07a;  --rg-2-bg: #1a3018;  --rg-2-txt: #8fe07a;
+    --rg-3: #f0c04a;  --rg-3-bg: #362c14;  --rg-3-txt: #f0c04a;
+    --rg-4: #f7a94a;  --rg-4-bg: #3a2a13;  --rg-4-txt: #f7a94a;
+    --rg-5: #ff8a86;  --rg-5-bg: #3a1a1c;  --rg-5-txt: #ff8a86;
     --sem-morado:      #c9a0e8;  --sem-morado-bg:    #2b1f3a;
     --sem-morado-badge-bg: #33254a;
 
@@ -1131,7 +1148,16 @@
   /* Ver contraseña */
   .pw-wrap { position: relative; }
   .pw-wrap input { padding-right: 2.6rem; }
-  .pw-eye { position: absolute; top: 50%; right: .5rem; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: var(--text); opacity: .55; padding: .2rem; line-height: 0; display: flex; }
+  /* Auditoría de login (2026-08-26): medía 24x24 (el ícono son 18px + .2rem de padding), por
+     debajo del mínimo de toque de 44px que ya se aplicó al resto de la app (I2). Se agranda por
+     TAMAÑO real del botón, no con un ::after absoluto: ese atajo ya rompió producción una vez
+     (ver la nota de .portal-x, I2/I6) porque un host que puede quedar `position:static` en otra
+     regla hace que el pseudo-elemento se ancle al ancestro POSICIONADO en vez de al botón. Acá
+     `.pw-eye` tiene una sola regla en todo el archivo y siempre es `position:absolute`, pero de
+     todos modos: tamaño real, no pseudo-elemento, es la forma que no puede repetir ese bug. */
+  .pw-eye { position: absolute; top: 50%; right: 0; transform: translateY(-50%); width: 44px; height: 44px;
+    border: none; background: none; cursor: pointer; color: var(--text); opacity: .55; line-height: 0;
+    display: flex; align-items: center; justify-content: center; }
   .pw-eye.on { opacity: 1; }
 
   /* Combobox del setup (empresa / departamento) */
@@ -2839,6 +2865,12 @@
   .cic-test { display:inline-block; font-size:.66rem; font-weight:800; padding:.05rem .4rem;
     border-radius:999px; color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .cic-test-off { color:var(--text-muted); background:var(--chip-bg); }
+  /* E2b: check-in / carga / check-out del turno, dentro de la tarjeta del ciclo. */
+  .cic-turno { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
+  .cic-turno-chip { font-size:.66rem; font-weight:800; padding:.15rem .5rem; border-radius:999px;
+    white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .cic-turno-on  { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
+  .cic-turno-off { color:var(--text-muted);   background:var(--chip-bg); }
 
   @media (max-width:700px){
     .cic-tramos { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -3539,14 +3571,14 @@
 
     <div id="nomPaso2" style="display:none">
       <label class="nom-lbl" for="nomBuscar" data-i18n="nom_buscate">Búscate en la lista</label>
-      <input type="text" id="nomBuscar" class="restr-input" placeholder="Escribe tu nombre para filtrar" oninput="nominaFiltrar()" autocomplete="off">
+      <input type="text" id="nomBuscar" class="restr-input" placeholder="Escribe tu nombre para filtrar" data-i18n-attr="placeholder:f_buscar_ph" oninput="nominaFiltrar()" autocomplete="off">
       <div class="nom-lista" id="nomPersonas"></div>
     </div>
 
     <div id="nomPaso3" style="display:none">
       <div class="nom-elegido" id="nomElegido"></div>
       <label class="nom-lbl" for="nomCedula" data-i18n="nom_cedula_lbl">Confirma tu número de cédula</label>
-      <input type="tel" id="nomCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" autocomplete="off" onkeydown="if(event.key==='Enter')nominaConfirmar()">
+      <input type="tel" id="nomCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" data-i18n-attr="placeholder:f_ced_ph" autocomplete="off" onkeydown="if(event.key==='Enter')nominaConfirmar()">
       <div class="nom-err" id="nomErr"></div>
       <button class="save-btn" id="nomBtnConfirmar" onclick="nominaConfirmar()" data-i18n="nom_cedula_btn">Confirmar y entrar</button>
     </div>
@@ -3578,7 +3610,7 @@
     </div>
 
     <label class="nom-lbl" for="recCedula" data-i18n="f_cedula">Número de cédula</label>
-    <input type="tel" id="recCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" autocomplete="off" onkeydown="if(event.key==='Enter')recuperarConfirmar()">
+    <input type="tel" id="recCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" data-i18n-attr="placeholder:f_ced_ph" autocomplete="off" onkeydown="if(event.key==='Enter')recuperarConfirmar()">
 
     <div class="nom-err" id="recErr"></div>
     <button class="save-btn" id="recBtn" onclick="recuperarConfirmar()" data-i18n="rec_btn">Recuperar mis datos</button>
@@ -3684,7 +3716,7 @@
     </div>
     <div class="field" id="fEmail">
       <label for="inEmail" data-i18n="f_email">Email</label>
-      <input id="inEmail" type="email" autocomplete="email" inputmode="email" placeholder="Ej: nombre@correo.com" maxlength="80">
+      <input id="inEmail" type="email" autocomplete="email" inputmode="email" placeholder="Ej: nombre@correo.com" data-i18n-attr="placeholder:f_email_ph" maxlength="80">
       <div class="err" data-i18n="f_email_err">Ingresa un email válido.</div>
     </div>
     <div class="sup-notice" id="supNotice" style="display:none" data-i18n-html="f_sup_aviso">Como supervisor, ingresa la <strong>contraseña de tu empresa</strong> (te la da tu administrador). Queda guardada en este dispositivo para entrar directo a las estadísticas.</div>
@@ -3781,9 +3813,14 @@
            apilados en ese orden (no en columnas separadas). -->
       <div id="portalSup" class="portal-pane" style="display:none">
         <p class="portal-hint" id="portalSupHint"></p>
-        <div class="field"><label for="pEmpresa" data-i18n="pg_usuario">Usuario</label><input id="pEmpresa" type="text" autocomplete="off" placeholder="Tu usuario" data-i18n-attr="placeholder:pg_usuario_ph"></div>
+        <!-- Auditoría de login (2026-08-26): tenían autocomplete="off". Con "off" el gestor de
+             contraseñas del navegador/SO nunca ofrece guardarla ni completarla — la única forma de
+             "recordar" quedaba en el localStorage propio de la app (texto plano). "username" /
+             "current-password" no le quita esa función a la app: sólo suma la opción, mejor
+             resguardada, del gestor nativo. -->
+        <div class="field"><label for="pEmpresa" data-i18n="pg_usuario">Usuario</label><input id="pEmpresa" type="text" autocomplete="username" placeholder="Tu usuario" data-i18n-attr="placeholder:pg_usuario_ph"></div>
         <div class="field"><label for="pPass" data-i18n="pg_pass">Contraseña</label>
-          <div class="pw-wrap"><input id="pPass" type="password" autocomplete="off" placeholder="Tu contraseña" data-i18n-attr="placeholder:pg_pass_ph">
+          <div class="pw-wrap"><input id="pPass" type="password" autocomplete="current-password" placeholder="Tu contraseña" data-i18n-attr="placeholder:pg_pass_ph">
             <button type="button" class="pw-eye" onclick="togglePw('pPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
         </div>
         <div class="portal-err" id="portalErr"></div>
@@ -4041,7 +4078,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '3.97';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.04';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4177,6 +4214,29 @@ const I18N = {
       f_depto_err:'Por favor ingresa tu departamento.',
       f_cargo:'Cargo', f_cargo_ph:'Ej: Piloto',
       f_sexo:'Sexo', f_seleccionar:'— Seleccionar —',
+      /* I7: estos textos estaban escritos a mano en saveProfile() y en los placeholders. Son los
+         que aparecen cuando algo sale mal, o sea cuando más importa entender: en inglés salían
+         igual en español. El texto en español es idéntico al que había, letra por letra. */
+      f_buscar_ph:'Escribe tu nombre para filtrar',
+      f_ced_ph:'Sólo números',
+      f_email_ph:'Ej: nombre@correo.com',
+      f_ced_falta:'Por favor ingresa tu número de cédula.',
+      f_ced_invalida:'Ingresa un número de cédula válido (solo números).',
+      f_emp_no_lista:'Elige tu empresa de la lista. Si no aparece, avísale a tu administrador.',
+      f_emp_cargando:'Todavía estamos cargando la lista de empresas. Espera un momento y toca Guardar de nuevo.',
+      f_edad_invalida:'Ingresa una edad válida (18 a 99).',
+      f_tel_invalido:'Ingresa un teléfono válido (7 a 15 dígitos).',
+      f_sup_pass_falta:'Ingresa la contraseña de supervisor.',
+      f_med_pass_falta:'Ingresa la contraseña de servicio médico.',
+      f_pass_mal:'Contraseña o empresa incorrecta. Revisa con tu administrador.',
+      f_verificando:'Verificando contraseña…',
+      f_guardar_cont:'Guardar y continuar',
+      f_listo_reportar:'¡Listo! Ya puedes reportar',
+      f_datos_act:'Datos actualizados',
+      f_setup_bienvenido:'Bienvenido 👋',
+      f_setup_editar:'Editar mis datos',
+      f_setup_lead:'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.',
+      f_setup_lead_edit:'Actualiza tus datos. Se aplicarán a tus próximos reportes.',
       f_masculino:'Masculino', f_femenino:'Femenino', f_prefiero_no:'Prefiero no indicar',
       f_edad:'Edad', f_telefono:'Teléfono', f_email:'Email',
       f_email_err:'Ingresa un email válido.',
@@ -5497,6 +5557,26 @@ const I18N = {
       f_depto_err:'Please enter your department.',
       f_cargo:'Job title', f_cargo_ph:'e.g. Pilot',
       f_sexo:'Sex', f_seleccionar:'— Select —',
+      f_buscar_ph:'Type your name to filter',
+      f_ced_ph:'Numbers only',
+      f_email_ph:'e.g. name@email.com',
+      f_ced_falta:'Please enter your ID number.',
+      f_ced_invalida:'Enter a valid ID number (numbers only).',
+      f_emp_no_lista:'Choose your company from the list. If it is not there, let your administrator know.',
+      f_emp_cargando:'We are still loading the list of companies. Wait a moment and tap Save again.',
+      f_edad_invalida:'Enter a valid age (18 to 99).',
+      f_tel_invalido:'Enter a valid phone number (7 to 15 digits).',
+      f_sup_pass_falta:'Enter the supervisor password.',
+      f_med_pass_falta:'Enter the medical service password.',
+      f_pass_mal:'Wrong password or company. Check with your administrator.',
+      f_verificando:'Checking password…',
+      f_guardar_cont:'Save and continue',
+      f_listo_reportar:'All set! You can report now',
+      f_datos_act:'Details updated',
+      f_setup_bienvenido:'Welcome 👋',
+      f_setup_editar:'Edit my details',
+      f_setup_lead:'Before you start, fill in your details. They stay on this device and are used to identify you to EVA in every report.',
+      f_setup_lead_edit:'Update your details. They will apply to your next reports.',
       f_masculino:'Male', f_femenino:'Female', f_prefiero_no:'Prefer not to say',
       f_edad:'Age', f_telefono:'Phone', f_email:'Email',
       f_email_err:'Enter a valid email address.',
@@ -8166,7 +8246,7 @@ function renderSections(){
     // El PVT no notifica por WhatsApp: una sección que sólo tiene PVT no lleva el distintivo.
     const notifica = sec.items.some(it => !it.pvtFlow);
     s.innerHTML = `<div class="sec-head"><div class="sec-title"><span class="dot"></span>${sec.title}` +
-      (notifica ? `<span class="wa-flag-sec" title="Registra el evento y avisa por WhatsApp">${waFlagHtml()}</span>` : '') +
+      (notifica ? `<span class="wa-flag-sec" title="${t('op_sub')}">${waFlagHtml()}</span>` : '') +
       `</div><div class="sec-sub">${sec.sub}</div></div>`;
     const cont = document.createElement('div');
     cont.className = sec.layout === 'grid' ? 'grid2' : 'stack';
@@ -8451,57 +8531,62 @@ let cansancioState = null;
    mueve. Estas etiquetas sólo las lee resultCardHTML() para la pantalla: al CH viaja el PUNTAJE,
    nunca la categoría — por eso traducirlas no parte el histórico. */
 const RANGES_DEPRESION = [
-  {max:18,  label:'rg_indeterminada', color:'var(--sem-verde)'},
-  {max:36,  label:'rg_posible',       color:'#5fb84a'},
-  {max:42,  label:'rg_probable',      color:'#e8c400'},
-  {max:54,  label:'rg_muy_probable',  color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
+  {max:18,  label:'rg_indeterminada', color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:36,  label:'rg_posible',       color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:42,  label:'rg_probable',      color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:54,  label:'rg_muy_probable',  color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_GASTRO = [
-  {max:5,   label:'rg_indeterminada', color:'var(--sem-verde)'},
-  {max:9,   label:'rg_posible',       color:'#5fb84a'},
-  {max:11,  label:'rg_probable',      color:'#e8c400'},
-  {max:13,  label:'rg_muy_probable',  color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
+  {max:5,   label:'rg_indeterminada', color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:9,   label:'rg_posible',       color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:11,  label:'rg_probable',      color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:13,  label:'rg_muy_probable',  color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_KSS = [
-  {max:4,   label:'rg_kss_alerta',    color:'var(--sem-verde)'},
-  {max:7,   label:'rg_kss_leve',      color:'#e8c400'},
-  {max:1e9, label:'rg_kss_grave',     color:'var(--sem-rojo)'}
+  {max:4,   label:'rg_kss_alerta',    color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:7,   label:'rg_kss_leve',      color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:1e9, label:'rg_kss_grave',     color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_ANSIEDAD = [
-  {max:10,  label:'rg_indeterminada', sub:'rg_anx_no',      color:'var(--sem-verde)'},
-  {max:19,  label:'rg_posible',       sub:'rg_anx_leve',    color:'#5fb84a'},
-  {max:26,  label:'rg_probable',      sub:'rg_anx_mod',     color:'#e8c400'},
-  {max:36,  label:'rg_muy_probable',  sub:'rg_anx_mod_gr',  color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      sub:'rg_anx_severa',  color:'var(--sem-rojo)'}
+  {max:10,  label:'rg_indeterminada', sub:'rg_anx_no',      color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:19,  label:'rg_posible',       sub:'rg_anx_leve',    color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:26,  label:'rg_probable',      sub:'rg_anx_mod',     color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:36,  label:'rg_muy_probable',  sub:'rg_anx_mod_gr',  color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      sub:'rg_anx_severa',  color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_ESTRES = [
-  {max:12,  label:'rg_indeterminada', color:'var(--sem-verde)'},
-  {max:24,  label:'rg_posible',       sub:'rg_str_sin',   color:'#5fb84a'},
-  {max:36,  label:'rg_probable',      sub:'rg_str_leve',  color:'#e8c400'},
-  {max:60,  label:'rg_muy_probable',  sub:'rg_str_medio', color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      sub:'rg_str_alto',  color:'var(--sem-rojo)'}
+  {max:12,  label:'rg_indeterminada', color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:24,  label:'rg_posible',       sub:'rg_str_sin',   color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:36,  label:'rg_probable',      sub:'rg_str_leve',  color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:60,  label:'rg_muy_probable',  sub:'rg_str_medio', color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      sub:'rg_str_alto',  color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_PERELLI = [
-  {max:3.4, label:'rg_indeterminada', color:'var(--sem-verde)'},
-  {max:6,   label:'rg_posible',       color:'#5fb84a'},
-  {max:7.3, label:'rg_probable',      color:'#e8c400'},
-  {max:8.7, label:'rg_muy_probable',  color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
+  {max:3.4, label:'rg_indeterminada', color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:6,   label:'rg_posible',       color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:7.3, label:'rg_probable',      color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:8.7, label:'rg_muy_probable',  color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 const RANGES_CANSANCIO = [
-  {max:7,   label:'rg_indeterminada', color:'var(--sem-verde)'},
-  {max:13,  label:'rg_posible',       color:'#5fb84a'},
-  {max:19,  label:'rg_probable',      color:'#e8c400'},
-  {max:36,  label:'rg_muy_probable',  color:'#f0930f'},
-  {max:1e9, label:'rg_altisima',      color:'var(--sem-rojo)'}
+  {max:7,   label:'rg_indeterminada', color:'var(--rg-1)', bg:'var(--rg-1-bg)', txt:'var(--rg-1-txt)'},
+  {max:13,  label:'rg_posible',       color:'var(--rg-2)', bg:'var(--rg-2-bg)', txt:'var(--rg-2-txt)'},
+  {max:19,  label:'rg_probable',      color:'var(--rg-3)', bg:'var(--rg-3-bg)', txt:'var(--rg-3-txt)'},
+  {max:36,  label:'rg_muy_probable',  color:'var(--rg-4)', bg:'var(--rg-4-bg)', txt:'var(--rg-4-txt)'},
+  {max:1e9, label:'rg_altisima',      color:'var(--rg-5)', bg:'var(--rg-5-bg)', txt:'var(--rg-5-txt)'}
 ];
 function getCategory(ranges, score){
   return ranges.find(r => score < r.max) || ranges[ranges.length-1];
 }
 function resultCardHTML(cat){
-  return `<div class="test-result-block"><div class="result-badge" style="background:${cat.color}20;border:2px solid ${cat.color}"><span class="result-cat" style="color:${cat.color}">${esc(t(cat.label))}</span>${cat.sub ? `<span class="result-sub" style="color:${cat.color}">${esc(t(cat.sub))}</span>` : ''}</div></div>`;
+  /* ⚠️ Antes acá decía `background:${cat.color}20`: el alfa en hex, pegado al final. Eso sólo
+     funciona si el color es un hex, y las tablas de rangos mezclaban hex con `var()` — así que
+     `var(--sem-verde)20` quedaba en nada y los escalones primero y último se dibujaban SIN fondo,
+     nada más el borde. CSS inválido se descarta callado. Ahora cada paso trae su fondo ya
+     compuesto (`bg`) y su color de texto (`txt`), los tres desde tokens. */
+  return `<div class="test-result-block"><div class="result-badge" style="background:${cat.bg};border:2px solid ${cat.color}"><span class="result-cat" style="color:${cat.txt}">${esc(t(cat.label))}</span>${cat.sub ? `<span class="result-sub" style="color:${cat.txt}">${esc(t(cat.sub))}</span>` : ''}</div></div>`;
 }
 function resultBtnHTML(fn){
   const pilot = !!(getProfile()||{}).esPiloto;
@@ -9999,6 +10084,29 @@ function nominaConfirmar(){
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
 }
 
+/* La columna `Sexo` de la Nómina la tipea cada empresa a mano y no tiene validación: puede venir
+   "M", "masculino", "MASCULINO" o "Male". El <select> sólo admite sus tres opciones exactas, y
+   asignarle otra cosa lo deja VACÍO sin avisar — con Sexo requerido, eso deja el botón Guardar en
+   gris justo en la pantalla que existe para no tipear nada.
+   Regla: si ya coincide con una opción, se devuelve intacto; si es una forma inequívoca, se
+   traduce; si no, se devuelve vacío (lo que pasaba antes). Nunca adivina: un campo mal prellenado
+   es peor que uno vacío, porque la persona puede no mirarlo. */
+function sexoOpcion(v){
+  const crudo = String(v == null ? '' : v).trim();
+  if (!crudo) return '';
+  const sel = document.getElementById('inSexo');
+  if (sel){
+    for (const op of sel.options) if (op.value === crudo) return crudo;   // ya es una opción válida
+  }
+  const s = crudo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/^(m|masc|masculino|male|man|hombre|h|varon)$/.test(s)) return 'Masculino';
+  if (/^(f|fem|femenino|female|woman|mujer|femenina)$/.test(s)) return 'Femenino';
+  /* "otro"/"other" NO se mapean a propósito: no significan lo mismo que "prefiero no indicar", y
+     traducir lo que la persona declaró es peor que dejarle el campo vacío y que elija ella. Acá
+     sólo entran las formas que ya quieren decir "sin dato". */
+  if (/^(x|prefiero no indicar|prefer not to say|n\/?a|nc|ns\/nc|sin dato|-)$/.test(s)) return 'Prefiero no indicar';
+  return '';                                                             // no se adivina
+}
 function openSetup(isEdit){
   editing = !!isEdit;
   // El enlace "Ya me había registrado" sólo tiene sentido para un alta nueva: quien ya tiene
@@ -10036,14 +10144,12 @@ function openSetup(isEdit){
   document.getElementById('inEmp').value      = p.empresa;
   document.getElementById('inDep').value      = p.departamento|| '';
   document.getElementById('inCargo').value    = p.cargo       || '';
-  document.getElementById('inSexo').value     = p.sexo        || '';
+  document.getElementById('inSexo').value     = sexoOpcion(p.sexo);
   document.getElementById('inEdad').value     = p.edad        || '';
   document.getElementById('inTelefono').value = p.telefono    || '';
   document.getElementById('inEmail').value    = p.email       || '';
-  document.getElementById('setupTitle').textContent = isEdit ? 'Editar mis datos' : 'Bienvenido 👋';
-  document.getElementById('setupLead').textContent = isEdit
-    ? 'Actualiza tus datos. Se aplicarán a tus próximos reportes.'
-    : 'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.';
+  document.getElementById('setupTitle').textContent = isEdit ? t('f_setup_editar') : t('f_setup_bienvenido');
+  document.getElementById('setupLead').textContent = isEdit ? t('f_setup_lead_edit') : t('f_setup_lead');
   document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
   ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fEmail','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   // El botón "Guardar" se habilita/gris según el formulario. Un solo listener en la hoja cubre
@@ -10115,7 +10221,7 @@ function saveProfile(){
   document.getElementById('fName').classList.toggle('invalid', !nombre); if(!nombre) ok=false;
   const cedOk = setupCedulaValida(cedula);
   document.getElementById('fCed').classList.toggle('invalid', !cedOk); if(!cedOk){ ok=false;
-    const e = document.getElementById('fCed').querySelector('.err'); if(e) e.textContent = cedula ? 'Ingresa un número de cédula válido (solo números).' : 'Por favor ingresa tu número de cédula.'; }
+    const e = document.getElementById('fCed').querySelector('.err'); if(e) e.textContent = cedula ? t('f_ced_invalida') : t('f_ced_falta'); }
   document.getElementById('fPiloto').classList.toggle('invalid', esPiloto && !id_piloto); if(esPiloto && !id_piloto) ok=false;
   document.getElementById('fEmp').classList.toggle('invalid', !empresa); if(!empresa) ok=false;
   // Empresa: debe ser una de la lista oficial (Accesos). Evita variantes mal escritas ("Aer. silva",
@@ -10128,7 +10234,7 @@ function saveProfile(){
     else {
       document.getElementById('fEmp').classList.add('invalid');
       const errEmp = document.getElementById('fEmp').querySelector('.err');
-      if (errEmp) errEmp.textContent = 'Elige tu empresa de la lista. Si no aparece, avísale a tu administrador.';
+      if (errEmp) errEmp.textContent = t('f_emp_no_lista');
       ok = false;
     }
   } else if (empresa && SHEETS_DASHBOARD_URL && !SETUP_LISTS_FAILED){
@@ -10141,7 +10247,7 @@ function saveProfile(){
        validar acá), pero "todavía no llegó" no es lo mismo que "no va a llegar". */
     document.getElementById('fEmp').classList.add('invalid');
     const errEmp = document.getElementById('fEmp').querySelector('.err');
-    if (errEmp) errEmp.textContent = 'Todavía estamos cargando la lista de empresas. Espera un momento y toca Guardar de nuevo.';
+    if (errEmp) errEmp.textContent = t('f_emp_cargando');
     ok = false;
   }
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
@@ -10149,22 +10255,22 @@ function saveProfile(){
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
   const edadOk = setupEdadValida(edad);
   document.getElementById('fEdad').classList.toggle('invalid', !edadOk); if(!edadOk){ ok=false;
-    const e = document.getElementById('fEdad').querySelector('.err'); if(e) e.textContent = edad ? 'Ingresa una edad válida (18 a 99).' : 'Campo requerido'; }
+    const e = document.getElementById('fEdad').querySelector('.err'); if(e) e.textContent = edad ? t('f_edad_invalida') : t('f_requerido'); }
   const telOk = setupTelValido(telefono);
   document.getElementById('fTelefono').classList.toggle('invalid', !telOk); if(!telOk){ ok=false;
-    const e = document.getElementById('fTelefono').querySelector('.err'); if(e) e.textContent = telefono ? 'Ingresa un teléfono válido (7 a 15 dígitos).' : 'Campo requerido'; }
+    const e = document.getElementById('fTelefono').querySelector('.err'); if(e) e.textContent = telefono ? t('f_tel_invalido') : t('f_requerido'); }
   const emailOk = setupEmailValido(email);   // email obligatorio y con formato válido
   document.getElementById('fEmail').classList.toggle('invalid', !emailOk); if(!emailOk) ok=false;
   const fSupPass = document.getElementById('fSupPass');
   fSupPass.classList.toggle('invalid', esSupervisor && !supPass); if (esSupervisor && !supPass) ok=false;
-  if (esSupervisor) fSupPass.querySelector('.err').textContent = 'Ingresa la contraseña de supervisor.';
+  if (esSupervisor) fSupPass.querySelector('.err').textContent = t('f_sup_pass_falta');
   const fMedPass = document.getElementById('fMedPass');
   fMedPass.classList.toggle('invalid', esServicioMedico && !medPass); if (esServicioMedico && !medPass) ok=false;
-  if (esServicioMedico) fMedPass.querySelector('.err').textContent = 'Ingresa la contraseña de servicio médico.';
+  if (esServicioMedico) fMedPass.querySelector('.err').textContent = t('f_med_pass_falta');
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
 
   const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, esServicioMedico, empresa, departamento, cargo, sexo, edad, telefono, email };
-  const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? 'Datos actualizados' : '¡Listo! Ya puedes reportar');
+  const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? t('f_datos_act') : t('f_listo_reportar'));
     // B4: recién ahora vienen consentimiento y tamaño. Al EDITAR datos no corresponde: esa
     // persona ya hizo el recorrido y sólo vino a corregir un teléfono.
     if (!editing) avanzarAlta(); };
@@ -10173,21 +10279,21 @@ function saveProfile(){
   // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
   if ((esSupervisor && supPass) || (esServicioMedico && medPass)){
     const btn = document.querySelector('#setup .save-btn');
-    if (btn){ btn.disabled = true; btn.textContent = 'Verificando contraseña…'; }
+    if (btn){ btn.disabled = true; btn.textContent = t('f_verificando'); }
     Promise.all([
       (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass) : Promise.resolve(null),
       (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass) : Promise.resolve(null)
     ]).then(([resSup, resMed]) => {
-      if (btn){ btn.disabled = false; btn.textContent = 'Guardar y continuar'; }
+      if (btn){ btn.disabled = false; btn.textContent = t('f_guardar_cont'); }
       let bad = false;
       if (resSup === 'bad'){
         fSupPass.classList.add('invalid');
-        fSupPass.querySelector('.err').textContent = 'Contraseña o empresa incorrecta. Revisa con tu administrador.';
+        fSupPass.querySelector('.err').textContent = t('f_pass_mal');
         bad = true;
       }
       if (resMed === 'bad'){
         fMedPass.classList.add('invalid');
-        fMedPass.querySelector('.err').textContent = 'Contraseña o empresa incorrecta. Revisa con tu administrador.';
+        fMedPass.querySelector('.err').textContent = t('f_pass_mal');
         bad = true;
       }
       if (bad){ document.querySelector('.sheet .field.invalid').scrollIntoView({behavior:'smooth', block:'center'}); return; }
@@ -10253,7 +10359,23 @@ function loadSetupLists(){
   SETUP_LISTS_LOADED = true;
   fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
-    .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; SETUP_LISTS_FAILED = false; } })
+    /* ⚠️ `SETUP_LISTS_FAILED` tiene que quedar en `true` en TODO caso que deje la lista vacía, no
+       sólo cuando falla la red. saveProfile() usa esa bandera para distinguir "no hay lista porque
+       no hay conexión" (no bloquear a nadie) de "la lista todavía no llegó" (esperá y reintentá), y
+       si se queda en `false` con la lista vacía la persona ve "espera un momento" PARA SIEMPRE.
+       Dos respuestas exitosas caían ahí: `{ok:true, empresas:[]}` — hoja `Accesos` sin filas, o sea
+       un cliente nuevo — y `{ok:false, ...}`, que no entra al `if` ni al `.catch`. Sin lista no hay
+       contra qué validar, así que valen lo mismo que no tener conexión. */
+    .then(d => {
+      if (d && d.ok){
+        SETUP_LISTS.empresas = d.empresas || [];
+        SETUP_LISTS.departamentos = d.departamentos || [];
+        SETUP_LISTS_FAILED = !SETUP_LISTS.empresas.length;      // llegó, pero vacía = no hay con qué validar
+      } else {
+        SETUP_LISTS_LOADED = false;                             // respuesta sin ok: que pueda reintentar
+        SETUP_LISTS_FAILED = true;
+      }
+    })
     .catch(() => { SETUP_LISTS_LOADED = false; SETUP_LISTS_FAILED = true; });
 }
 function comboBuild(which){
@@ -11001,7 +11123,8 @@ function portalLoginSupervisor(btn){
   // pedida: qué pestaña se eligió (Supervisor/Servicio médico). Sólo importa cuando la empresa
   // no tiene contraseña médica separada — ahí una sola clave sirve para las dos, y sin este dato
   // el servidor no tiene forma de saber cuál de las dos se quiso abrir (ver combinada en el .gs).
-  const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, pedida:(PORTAL_VISTA==='supervisor'||PORTAL_VISTA==='medico') ? PORTAL_VISTA : '' };  // empresa = compat con endpoint viejo
+  const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId(),
+    pedida:(PORTAL_VISTA==='supervisor'||PORTAL_VISTA==='medico') ? PORTAL_VISTA : '' };  // empresa = compat con endpoint viejo
   btnSpin(btn, true, 'Entrando…');
   const carga = cargaIniciar();
   dashRequest(params)
@@ -11146,7 +11269,11 @@ function onDashData(d, scopeLabel, params, vista){
            _niveles:null, _cfg:null, _reportes:null, _reportesPedidos:false,
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
-           params:params, updated:Date.now(), rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]) };
+           params:params, updated:Date.now(),
+           // E2a: sólo supervisor/HSEQ traen esto (el resto sigue con `registros`/`pvt` crudos).
+           aptitud: Array.isArray(d.aptitud) ? d.aptitud : null,
+           turnos: d.turnos || [],   // E2b: check-in/carga/check-out, hoy y ayer
+           rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]) };
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
   // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
@@ -11159,6 +11286,7 @@ function onDashData(d, scopeLabel, params, vista){
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
     DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
+    DASH.turnos = [];   // E2b: la demo no simula turnos (no es el foco de la demostración); las tarjetas quedan "pendiente"
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -11275,7 +11403,11 @@ function dashRefresh(manual){
     const pvt = d.pvt || null;
     // El ciclo operativo entra en la firma: si no, un evento nuevo (alguien que acaba de llegar al
     // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
-    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[]);
+    /* `d.aptitud` entra en la firma: para supervisor/HSEQ, `registros` es sólo identidad (una fila
+       por persona, sin fecha) y `pvt` siempre viene vacío — sin esto, un test nuevo no cambiaría
+       NADA de lo que se compara acá, y dashRefresh() diría "sin cambios" aunque haya uno recién
+       llegado. El auto-refresh se quedaría mostrando una foto vieja hasta recargar la página. */
+    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]);
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
     if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return; }   // sin cambios → no re-renderiza (no salta el scroll)
     const nuevosRegs = Math.max(0, d.registros.length - (DASH.registros || []).length);
@@ -11283,6 +11415,8 @@ function dashRefresh(manual){
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
     DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.operacional = d.operacional || []; DASH.rawSig = sig;
+    DASH.aptitud = Array.isArray(d.aptitud) ? d.aptitud : null;   // E2a: se refresca junto con lo demás
+    DASH.turnos = d.turnos || [];   // E2b: idem
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
@@ -12215,7 +12349,15 @@ function aptTextoFecha(p){
 }
 // Resuelve el estado operativo de una persona: cálculo automático sobre los datos recientes, y
 // encima la determinación del servicio médico (que manda mientras esté vigente y al día).
-function aptPersona(nombre, regs, pvtRegs, ctx){
+//
+// E2a (2026-08-26): se partió en dos. `aptAutoDeRegs()` es la parte que SÓLO mira valores crudos
+// (nivel por indicador, `auto`, `empeoro`, `persist`, antigüedad del dato) — la parte que ahora
+// TAMBIÉN sabe calcular el servidor, byte a byte igual (ver aptAutoServer() en el .gs; se
+// comparó con 7 casos sintéticos antes de tocar esto). `aptResolverFinal()` es la parte que
+// aplica la determinación médica / restricción / telemedicina y resuelve el `estado` — ESA sigue
+// siendo 100% del cliente, para las cuatro vistas, sin excepción: tocar la autoridad clínica no
+// era necesario para sacar los valores crudos de la red, así que no se tocó.
+function aptAutoDeRegs(nombre, regs, pvtRegs, ctx){
   /* `ctx` = { metrics, ref, emp }. Sin él se usa DASH, que es lo que hacían todos los llamados
      anteriores. Existe para que la pantalla de INICIO (G1) pueda calcular el semáforo de la
      persona sin tener un panel abierto, con este mismo motor y no con una copia. */
@@ -12247,6 +12389,7 @@ function aptPersona(nombre, regs, pvtRegs, ctx){
   // ¿El test MÁS RECIENTE es el poco confiable? Es el caso que importa: significa que la lectura
   // de "cómo está ahora" no sirve y hay que repetirla.
   const ultimoPocoConfiable = !!(rs.length && rs[0].confiable === false);
+  const ultimaFechaConfiable = rsOk.length ? rsOk[0].fecha : '';   // sólo lo usa aptResolverFinal (desactualizada)
 
   const metricas = _met.map(m => {
     const vals = rsOk.map(r => r[m]).filter(v => v != null);
@@ -12277,46 +12420,70 @@ function aptPersona(nombre, regs, pvtRegs, ctx){
     if (vals.length > 1 && vals[0] > vals[1] && vals[0] > _ref[x.m] * mrg.rojo) empeoro = true;
   });
 
+  // Patrón sostenido vs. pico aislado. NO cambia el estado: es información de PRIORIDAD para la
+  // cola del servicio médico. Un patrón persistente es lo que amerita una mirada ocupacional.
+  const persist = aptPersistencia(rsOk, mrg, cfg('persistencia'), { metrics:_met, ref:_ref });
+
+  return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
+           metricas:metricas, pvt:nivelPvt, auto:auto, empeoro:empeoro, persist:persist,
+           nivel:nivel, mrg:mrg, pocoConfiable:nPocoConfiables, ultimoPocoConfiable:ultimoPocoConfiable,
+           dias:dias, viejo:viejo, ultimaFecha:ultimaFecha, ultimaFechaConfiable:ultimaFechaConfiable,
+           regs:rs, pvtRegs:pv };
+}
+// La parte que NO mira valores crudos: determinación médica, restricción, telemedicina y la
+// resolución final de `estado`. Es la MISMA función para las cuatro vistas — de eso depende que
+// "lo que ve el supervisor" y "el espejo del médico" no puedan desincronizarse nunca, tanto si
+// `A` vino de calcular acá (médico/empleado) como si vino ya armado del servidor (supervisor/HSEQ).
+function aptResolverFinal(nombre, A){
   const vigentes  = gestAnotacionesDe(nombre);        // determinaciones que no vencieron
   const historial = gestAnotacionesTodasDe(nombre);   // incluye vencidas → "ya fue revisado antes"
   const anot = vigentes[0] || null;
   // Test posterior a la determinación → el médico la firmó sin ver ese dato: queda desactualizada.
   // ⚠️ Se mide contra el último test CONFIABLE, no contra el último a secas: si no, alguien con una
   // determinación médica encima podría invalidarla llenando un test de cualquier manera.
-  const ultimaFechaOk = rsOk.length ? rsOk[0].fecha : '';
-  const desactualizada = !!(anot && ultimaFechaOk && aptFechaMs(ultimaFechaOk) > aptDiaMs(anot.creada));
+  const desactualizada = !!(anot && A.ultimaFechaConfiable && aptFechaMs(A.ultimaFechaConfiable) > aptDiaMs(anot.creada));
 
   let estado;
   if (anot && !desactualizada){
     estado = anot.nivel === 'ok' ? 'aptomed' : (anot.nivel === 'medio' ? 'condiciones' : 'noapto');
-  } else if (anot && desactualizada && (anot.nivel !== 'ok' || auto === 'alto')){
+  } else if (anot && desactualizada && (anot.nivel !== 'ok' || A.auto === 'alto')){
     estado = 'pendiente';        // vuelve a la cola del médico, ahora con el dato nuevo
-  } else if (auto === 'sin')     estado = 'sindato';
-  else if (auto === 'alto')      estado = 'pendiente';   // la app marca; "no apto" lo firma el médico
-  else if (auto === 'medio')     estado = 'seguimiento';
-  else                           estado = 'ok';
+  } else if (A.auto === 'sin')     estado = 'sindato';
+  else if (A.auto === 'alto')      estado = 'pendiente';   // la app marca; "no apto" lo firma el médico
+  else if (A.auto === 'medio')     estado = 'seguimiento';
+  else                             estado = 'ok';
 
   // ⚠️ La restricción de tarea del supervisor va en un campo APARTE y NO modifica `estado`.
   // Son dos autoridades distintas que conviven (ver el bloque de GEST_TIPO_RESTRICCION).
   const restr = restVigentesDe(nombre)[0] || null;
   const restrVencida = restVencidasDe(nombre)[0] || null;
-  // Patrón sostenido vs. pico aislado. NO cambia el estado: es información de PRIORIDAD para la
-  // cola del servicio médico. Un patrón persistente es lo que amerita una mirada ocupacional.
-  const persist = aptPersistencia(rsOk, mrg, cfg('persistencia'), { metrics:_met, ref:_ref });
   // Telemedicina: sugerida/aceptada/rechazada vigente + si alguna vez se le realizó una.
   const telem = telemVigenteDe(nombre);
   const telemRealizada = telemRealizadaDe(nombre);
 
-  return { nombre:nombre, dep:((rs[0] && rs[0].departamento) || ''), n:rs.length,
-           metricas:metricas, pvt:nivelPvt, estado:estado,
+  return { nombre:nombre, dep:A.dep, n:A.n,
+           metricas:A.metricas, pvt:A.pvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
-           revisado:(historial.length > 0), empeoro:empeoro,
-           nivel:nivel, mrg:mrg,
-           restriccion:restr, restrVencida:restrVencida, persist:persist,
-           pocoConfiable:nPocoConfiables, ultimoPocoConfiable:ultimoPocoConfiable,
+           revisado:(historial.length > 0), empeoro:A.empeoro,
+           nivel:A.nivel, mrg:A.mrg,
+           restriccion:restr, restrVencida:restrVencida, persist:A.persist,
+           pocoConfiable:A.pocoConfiable, ultimoPocoConfiable:A.ultimoPocoConfiable,
            telem:telem, telemRealizada:telemRealizada,
-           regs:rs, pvtRegs:pv,
-           dias:dias, viejo:viejo, ultimaFecha:ultimaFecha };
+           regs:A.regs, pvtRegs:A.pvtRegs,
+           dias:A.dias, viejo:A.viejo, ultimaFecha:A.ultimaFecha };
+}
+function aptPersona(nombre, regs, pvtRegs, ctx){
+  /* Supervisor/HSEQ (E2a): el servidor ya mandó la clasificación en `DASH.aptitud` — para esas
+     dos vistas `regs`/`pvtRegs` ya no traen valores, así que ni hay nada que calcular acá. Se
+     busca por nombre en vez de tocar los 6 lugares del archivo que llaman a aptPersona(): ya se
+     verificó que ninguno de ellos corre en vista supervisor/HSEQ, así que sólo hace falta un
+     único punto de desvío para que todos queden cubiertos sin buscarlos uno por uno. */
+  if (typeof DASH !== 'undefined' && DASH && Array.isArray(DASH.aptitud)){
+    for (let i = 0; i < DASH.aptitud.length; i++){
+      if (DASH.aptitud[i].nombre === nombre) return aptResolverFinal(nombre, DASH.aptitud[i]);
+    }
+  }
+  return aptResolverFinal(nombre, aptAutoDeRegs(nombre, regs, pvtRegs, ctx));
 }
 // Prioridad en la lista: primero lo NUEVO y lo que se movió mal, no lo que ya se sabe y está
 // gestionado. Antes se ordenaba sólo por gravedad, así que un caso rojo conocido de hace meses
@@ -13395,6 +13562,44 @@ function cicloDemo(){
 /* La lista de personas. Clave del pedido: quien NO tocó nada IGUAL aparece, en gris e inactivo —
    así se ve cómo funciona antes de que nadie use los botones, y se nota quién no arrancó. Sale de
    quienes tienen ciclo + quienes aparecen en los registros de tests del alcance. */
+/* Espejo de turnosHoy() (la del EMPLEADO, que lee localStorage para "mí mismo"). Ésta lee
+   DASH.turnos —lo que mandó el servidor en E2b— para CUALQUIER persona del equipo, con la MISMA
+   regla de traspaso nocturno: el registro de HOY manda; el de AYER sólo cuenta si cayó dentro de
+   la ventana de 14 h y hoy todavía no hay uno de ese tipo. Devuelve null si la persona no tiene
+   ningún Turno registrado (no vino de la nómina con eso, o directamente no usó la función). */
+function cicloTurnoDe(persona){
+  const rows = (DASH.turnos || []).filter(r => dashNorm(r.persona) === dashNorm(persona));
+  if (!rows.length) return null;
+  const hoy = todayStr();
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+  const ayerStr = ayer.getFullYear() + '-' + String(ayer.getMonth()+1).padStart(2,'0') + '-' + String(ayer.getDate()).padStart(2,'0');
+  const porTipo = {};
+  rows.forEach(r => { if (r.fecha === hoy) porTipo[r.tipo] = r; });
+  const corte = Date.now() - TURNO_VENTANA_MS;
+  rows.forEach(r => {
+    if (porTipo[r.tipo] || r.fecha !== ayerStr) return;
+    const cuando = Date.parse(r.fecha + 'T' + (r.hora || '00:00'));
+    if (isFinite(cuando) && cuando >= corte) porTipo[r.tipo] = r;
+  });
+  return porTipo;
+}
+// Franja de tres chips (check-in / carga / check-out) para la tarjeta del ciclo. E2b: hasta acá
+// `Turnos` se escribía y nadie la leía (hallazgo de I8). Mismo criterio que ya rige esta pestaña
+// para Operacional (ver la nota junto a leerTurnos() del lado del servidor): valores TAL CUAL, sin
+// convertir a semáforo — es autoreporte operativo del turno, no uno de los siete tests clínicos
+// que si se recortaron en E2a. Reusa turnoT()/TURNO_TIPOS: mismas etiquetas que ve el empleado.
+function cicloTurnoHtml(persona){
+  const t3 = cicloTurnoDe(persona);
+  if (!t3) return '';
+  const chips = TURNO_TIPOS.map(tp => {
+    const r = t3[tp.k];
+    if (!r) return '<span class="cic-turno-chip cic-turno-off">' + esc(turnoT(tp)) + '</span>';
+    const v = (tp.k === 'carga') ? r.carga : r.kss;
+    return '<span class="cic-turno-chip cic-turno-on" title="' + esc(turnoSub(tp)) + '">' + esc(turnoT(tp)) +
+      (v != null ? ' ' + esc(String(v)) : '') + (r.hora ? ' · ' + esc(r.hora) : '') + '</span>';
+  }).join('');
+  return '<div class="cic-turno">' + chips + '</div>';
+}
 function cicloPersonas(ciclos){
   const vistos = {}, out = [];
   Object.keys(ciclos).forEach(k => { vistos[k] = 1; out.push({ key:k, persona:ciclos[k].persona,
@@ -13467,6 +13672,7 @@ function renderCicloOperativo(){
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + ' · ' + reloj + '</div>' +
+      cicloTurnoHtml(pe.persona) +
       cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
   }).join('');
   return ayuda + cfgHtml + resumen + '<div class="cic-lista">' + cards + '</div>';
@@ -14646,6 +14852,7 @@ function dashGenerarInforme(){
   if (out) out.innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
   stopDashAutoRefresh();
   const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass,
+    dispositivoId: dispositivoId(),
     resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) };
   fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
@@ -15252,7 +15459,7 @@ let _gestSyncT = null;
 // escribirse en el sheet real — datos de ejemplo mezclándose con Gestiones real, exactamente lo que
 // el comentario de arriba decía que NO debía pasar.
 function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL && !(DASH && DASH.demoMode); }
-function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || '') }, extra||{}); }
+function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || ''), dispositivoId: dispositivoId() }, extra||{}); }
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
 function gestPost(body){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
 // Candado de envíos en vuelo — mismo motivo que `_empEnVuelo` (ver el comentario de K_EMP_COLA):
