@@ -2910,6 +2910,10 @@
   .cic-test { display:inline-block; font-size:.66rem; font-weight:800; padding:.05rem .4rem;
     border-radius:999px; color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .cic-test-off { color:var(--text-muted); background:var(--chip-bg); }
+  /* K1a: el chip de nivel del test. El color va en línea (sale de APT_NIVELES, que ya resuelve
+     los dos temas con tokens); acá sólo la forma, para que no dependa del color de la clase. */
+  .cic-test-niv { font-weight: 700; border-radius: 999px; padding: .1rem .45rem; }
+
   /* E2b: check-in / carga / check-out del turno, dentro de la tarjeta del ciclo. */
   /* J3: el bloque del final de Data Operacional — "lo que te toca ahora" + la línea de tiempo
      del propio ciclo. La línea reusa las mismas clases .cic-* de la tarjeta del supervisor. */
@@ -4197,7 +4201,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.20';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.21';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -13609,6 +13613,24 @@ function cicloEventoLabel(k){
   const e = cicloEventos().find(x => x.k === k);
   return e ? t(e.lbl) : k;
 }
+/* K1a · El chip de semáforo de un test, para supervisor y Dirección/HSEQ.
+   Reusa APT_NIVELES (el mismo diccionario de los semáforos de la tarjeta de aptitud): misma
+   etiqueta traducida y mismos tokens, así no puede quedar diciendo una cosa distinta de la que
+   ve la persona en su propia app.
+   ⚠️ `bg` de fondo y `-txt` de tinta: los --sem-* son colores de RELLENO y como texto no llegan
+   al mínimo de contraste en tema claro (lo dejó anotado I6). */
+const CIC_NIVEL_TINTA = {
+  ok:    'var(--sem-verde-txt)',
+  medio: 'var(--sem-ambar-txt)',
+  alto:  'var(--sem-rojo-txt)',
+  sin:   'var(--sem-gris-txt)'
+};
+function cicloNivelChip(testLbl, nivel){
+  const k = (nivel && APT_NIVELES[nivel]) ? nivel : 'sin';
+  const n = APT_NIVELES[k];
+  return '<span class="cic-test cic-test-niv" style="background:' + n.bg + ';color:' + CIC_NIVEL_TINTA[k] + '">' +
+    esc(testLbl) + ' · ' + esc(aptNivelLbl(k)) + '</span>';
+}
 function cicloTestDe(k){
   const e = cicloEventos().find(x => x.k === k);
   return e && e.test ? e.test : null;
@@ -13877,9 +13899,13 @@ function cicloTramosHtml(st, plan){
     const testLbl = cicloTestDe(tr.desde);
     if (testLbl){
       const e = st.eventos && st.eventos[tr.desde];
-      extra = (e && e.resultado != null)
-        ? '<span class="cic-test">' + esc(testLbl) + ' ' + esc(String(e.resultado)) + '</span>'
-        : '<span class="cic-test cic-test-off">' + esc(testLbl) + ' —</span>';
+      /* K1a: el servidor manda `nivel` a supervisor/HSEQ y `resultado` al médico. Acá sólo se
+         pinta lo que llegó — quién ve qué ya se decidió allá, que es donde tiene que decidirse. */
+      extra = (e && e.nivel != null)
+        ? cicloNivelChip(testLbl, e.nivel)
+        : ((e && e.resultado != null)
+            ? '<span class="cic-test">' + esc(testLbl) + ' ' + esc(String(e.resultado)) + '</span>'
+            : '<span class="cic-test cic-test-off">' + esc(testLbl) + ' —</span>');
     }
     const hora = (tra && tra.ini) ? cicloHora(tra.ini) : '--:--';
     return '<div class="cic-tramo cic-tr-' + clase + '">' +
@@ -14015,9 +14041,15 @@ function cicloTurnoHtml(persona){
   const chips = TURNO_TIPOS.map(tp => {
     const r = t3[tp.k];
     if (!r) return '<span class="cic-turno-chip cic-turno-off">' + esc(turnoT(tp)) + '</span>';
+    /* K1a: para check-in y check-out el servidor manda `kssNivel` a supervisor/HSEQ en lugar del
+       puntaje. `carga` no se recorta: es la percepción de carga de trabajo (1 a 5), información
+       operativa sobre el turno y no una medida clínica de la persona — es justo lo que el
+       supervisor necesita para redistribuir tareas. Ver el comentario en el .gs. */
     const v = (tp.k === 'carga') ? r.carga : r.kss;
+    const nivChip = (tp.k !== 'carga' && r.kssNivel != null)
+      ? ' · ' + esc(aptNivelLbl(r.kssNivel)) : '';
     return '<span class="cic-turno-chip cic-turno-on" title="' + esc(turnoSub(tp)) + '">' + esc(turnoT(tp)) +
-      (v != null ? ' ' + esc(String(v)) : '') + (r.hora ? ' · ' + esc(r.hora) : '') + '</span>';
+      (nivChip || (v != null ? ' ' + esc(String(v)) : '')) + (r.hora ? ' · ' + esc(r.hora) : '') + '</span>';
   }).join('');
   return '<div class="cic-turno">' + chips + '</div>';
 }
