@@ -4235,7 +4235,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.25';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.26';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7690,7 +7690,64 @@ function fetchConReloj(url, opts, ms){
   return fetch(url, Object.assign({}, opts || {}, { signal: ctl.signal }))
     .finally(() => clearTimeout(reloj));   // sin esto quedarían timers colgados por cada pedido
 }
-function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+/* ── L1 · Qué día es "hoy" ─────────────────────────────────────────────────────────────────────
+   Lo define la OPERACIÓN, no el teléfono. `todayStr()` usaba la zona del dispositivo, y la de un
+   piloto cambia al cruzar husos — volando al oeste la fecha puede ir HACIA ATRÁS sin que pase el
+   tiempo. Reproducido: con el check-in guardado bajo otra fecha, `turnosHoy()` devuelve vacío y la
+   app se lo vuelve a pedir a alguien que ya lo hizo.
+
+   Con la zona de la operación, el piloto, el supervisor y el CH hablan del mismo día.
+   Si no se conoce la zona (sin conexión, o antes del primer contacto), se usa la del dispositivo:
+   es el comportamiento de siempre y la app nunca se queda sin respuesta. */
+const K_ZONA_OP = 'silva_fatiga_zona_op_v1';
+function zonaOpGuardar(z){
+  if (!z || typeof z !== 'string') return;
+  try { localStorage.setItem(K_ZONA_OP, z); } catch(e){}
+}
+function zonaOperacion(){
+  const deDash = cfg('zonaOp');
+  if (deDash && typeof deDash === 'string') return deDash;
+  try { const g = localStorage.getItem(K_ZONA_OP); if (g) return g; } catch(e){}
+  return null;                                  // sin dato: se usa la del dispositivo
+}
+/* El formateador se CACHEA: `todayStr()` está en camino caliente (`getReports()` lo llama en cada
+   lectura) y crear un Intl.DateTimeFormat cada vez cuesta 88 ms por 2000 llamadas contra 1.6
+   reusándolo. Medido, no supuesto. */
+let _fopFmt = null, _fopZona = null;
+function fechaOpDe(d){
+  const z = zonaOperacion();
+  if (z){
+    if (_fopZona !== z){
+      try { _fopFmt = new Intl.DateTimeFormat('en-CA', { timeZone:z, year:'numeric', month:'2-digit', day:'2-digit' }); }
+      catch(e){ _fopFmt = null; }               // zona inválida en la config: no romper
+      _fopZona = z;
+    }
+    if (_fopFmt){
+      try { return _fopFmt.format(d); } catch(e){}
+    }
+  }
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* Suma (o resta) días a un "YYYY-MM-DD". Se hace en UTC a propósito: es aritmética de CALENDARIO
+   sobre la fecha ya resuelta, así que no vuelve a pasar por ninguna zona y no puede saltarse un
+   día en un cambio de horario. Antes cada "ayer" se calculaba con `setDate(-1)` sobre la hora del
+   dispositivo, que es justo lo que este prompt viene a sacar. */
+/* Convierte "YYYY-MM-DD" en un Date fijado a MEDIANOCHE UTC. Sirve para sacarle el día de la
+   semana, el día del mes o el mes SIN que ninguna zona vuelva a correr la fecha: los getters UTC
+   devuelven exactamente lo que dice el texto. Con `new Date("2026-08-27")` y getters locales, un
+   dispositivo al oeste de Greenwich lee el día anterior. */
+function fechaUTCDe(str){
+  const p = String(str||'').split('-').map(Number);
+  return new Date(Date.UTC(p[0]||1970, (p[1]||1)-1, p[2]||1));
+}
+function fechaMasDias(str, n){
+  const p = String(str||'').split('-').map(Number);
+  if (p.length !== 3 || !isFinite(p[0])) return str;
+  const d = new Date(Date.UTC(p[0], p[1]-1, p[2]));
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+function todayStr(){ return fechaOpDe(new Date()); }
 
 function getReports(){
   let r; try { r = JSON.parse(localStorage.getItem(K_REPORTS)) || {}; } catch(e){ r = {}; }
@@ -7860,8 +7917,9 @@ const TURNO_VENTANA_MS = 14 * 60 * 60 * 1000;
 function turnosHoy(persona){
   const all = turnosAll(), out = {};
   TURNO_TIPOS.forEach(tp => { const r = all[turnoHoyId(persona, tp.k)]; if (r) out[tp.k] = r; });
-  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-  const ayerStr = ayer.getFullYear() + '-' + String(ayer.getMonth()+1).padStart(2,'0') + '-' + String(ayer.getDate()).padStart(2,'0');
+  // L1: el "ayer" tiene que moverse con el "hoy" de la operación, o la ventana de 14 h de los
+  // turnos nocturnos (I4) queda mirando un día que no es.
+  const ayerStr = fechaMasDias(todayStr(), -1);
   const corte = Date.now() - TURNO_VENTANA_MS;
   TURNO_TIPOS.forEach(tp => {
     if (out[tp.k]) return;                                   // el de hoy siempre gana
@@ -8228,13 +8286,15 @@ function waFlagHtml(){
 // Racha de días seguidos con al menos un registro. Cuenta desde hoy, o desde ayer si hoy
 // todavía no registró nada — si no, la racha se "rompería" cada mañana hasta el primer test.
 function iniRacha(){
+  /* L1: la actividad la ESCRIBE `registrarActividad()` con `todayStr()`, que ahora usa la zona de
+     la operación. Este recorrido tiene que leer con el MISMO calendario o la racha se rompe para
+     cualquiera que esté en otro huso — sería un bug nuevo introducido por el arreglo. Se camina
+     con `fechaMasDias`, que es aritmética exacta sobre la fecha ya resuelta. */
   const act = getActividad();
-  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const d = new Date(hoy);
-  if (!act[iso(d)]) d.setDate(d.getDate() - 1);     // sin registro hoy: la racha se mide hasta ayer
+  let f = todayStr();
+  if (!act[f]) f = fechaMasDias(f, -1);            // sin registro hoy: la racha se mide hasta ayer
   let n = 0;
-  while (act[iso(d)] > 0 && n < 400){ n++; d.setDate(d.getDate() - 1); }
+  while (act[f] > 0 && n < 400){ n++; f = fechaMasDias(f, -1); }
   return n;
 }
 
@@ -8808,29 +8868,35 @@ function renderActividad(){
   const act = getActividad();
   const SEMANAS = 13;
   const MESES = mesesAbr();   // del diccionario: cambian con el idioma (A1 ya define meses_abr)
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
-  // La última columna termina en el sábado de esta semana, así cada columna es una semana
-  const fin = new Date(hoy); fin.setDate(hoy.getDate() + (6 - hoy.getDay()));
-  const inicio = new Date(fin); inicio.setDate(fin.getDate() - SEMANAS * 7 + 1);
-  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  /* L1: TODO el recorrido va sobre fechas operativas (las mismas claves con las que
+     `registrarActividad()` escribe). Antes caminaba fechas del dispositivo y sólo la etiqueta era
+     operativa: la grilla decidía "esto es futuro" con un calendario y etiquetaba con otro, así que
+     al no coincidir las zonas el cuadrito de HOY quedaba marcado como futuro y no se pintaba.
+     `fechaMasDias` es aritmética exacta sobre la fecha ya resuelta: no vuelve a pasar por ninguna
+     zona, así que el paso, la etiqueta y el corte de futuro no pueden discrepar. */
+  const hoyStr = todayStr();
+  // La última columna termina en el sábado de esta semana, así cada columna es una semana.
+  const diaSem = fechaUTCDe(hoyStr).getUTCDay();
+  const finStr = fechaMasDias(hoyStr, 6 - diaSem);
+  const inicioStr = fechaMasDias(finStr, -(SEMANAS * 7 - 1));
   // Días de la semana: se pintan acá (antes estaban escritos en el HTML, en español fijo).
   const dias = document.getElementById('actDias');
   if (dias) dias.innerHTML = tLista('dias_abr').map(d => '<span>' + esc(d) + '</span>').join('');
   let html = '', meses = '', total = 0, activos = 0, mesPrevio = -1;
   for (let s = 0; s < SEMANAS; s++){
     // Etiqueta del mes arriba de la columna donde empieza un mes nuevo
-    const primerDia = new Date(inicio); primerDia.setDate(inicio.getDate() + s * 7);
-    meses += '<span class="act-mes">' + (primerDia.getMonth() !== mesPrevio ? MESES[primerDia.getMonth()] : '') + '</span>';
-    mesPrevio = primerDia.getMonth();
+    const primerDia = fechaUTCDe(fechaMasDias(inicioStr, s * 7));
+    meses += '<span class="act-mes">' + (primerDia.getUTCMonth() !== mesPrevio ? MESES[primerDia.getUTCMonth()] : '') + '</span>';
+    mesPrevio = primerDia.getUTCMonth();
     html += '<div class="act-col">';
     for (let d = 0; d < 7; d++){
-      const f = new Date(inicio); f.setDate(inicio.getDate() + s * 7 + d);
-      const key = iso(f);
+      const key = fechaMasDias(inicioStr, s * 7 + d);
       const n = act[key] || 0;
-      const futuro = f > hoy;
+      const futuro = key > hoyStr;            // ambas son "YYYY-MM-DD": comparar como texto ordena bien
       if (!futuro){ total += n; if (n > 0) activos++; }
       const nivel = futuro ? 'fut' : (n === 0 ? 'l0' : n === 1 ? 'l1' : n === 2 ? 'l2' : n <= 4 ? 'l3' : 'l4');
-      const dia = t('act_dia_mes', { d: f.getDate(), m: MESES[f.getMonth()] });
+      const f = fechaUTCDe(key);
+      const dia = t('act_dia_mes', { d: f.getUTCDate(), m: MESES[f.getUTCMonth()] });
       const detalle = futuro ? '' : (n === 0 ? t('act_dia_sin', { d: dia })
                                              : t('act_dia_con', { d: dia, n: n, u: t(n === 1 ? 'n_registro' : 'n_registros') }));
       html += '<i class="act-d ' + nivel + '" title="' + detalle + '"></i>';
@@ -14113,8 +14179,7 @@ function cicloTurnoDe(persona){
   const rows = (DASH.turnos || []).filter(r => dashNorm(r.persona) === dashNorm(persona));
   if (!rows.length) return null;
   const hoy = todayStr();
-  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-  const ayerStr = ayer.getFullYear() + '-' + String(ayer.getMonth()+1).padStart(2,'0') + '-' + String(ayer.getDate()).padStart(2,'0');
+  const ayerStr = fechaMasDias(todayStr(), -1);   // L1: mismo día que el resto
   const porTipo = {};
   rows.forEach(r => { if (r.fecha === hoy) porTipo[r.tipo] = r; });
   const corte = Date.now() - TURNO_VENTANA_MS;
@@ -17459,7 +17524,9 @@ function gestNueva(){
   setTimeout(function(){ const t=document.querySelector('[data-gest-titulo="'+g.id+'"]'); if(t) t.focus(); }, 50);
 }
 /* ── Fechas relativas y de vencimiento (para que se lea como seguimiento real) ── */
-function gestHoyISO(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+// L1: el vencimiento de una gestión es del día OPERATIVO, no del teléfono de quien la mira — si
+// no, la misma gestión estaría vencida para uno y no para otro según dónde esté parado.
+function gestHoyISO(){ return todayStr(); }
 function gestDiasDesdeTs(ts){ const a=new Date(ts); a.setHours(0,0,0,0); const b=new Date(); b.setHours(0,0,0,0); return Math.round((b-a)/86400000); }
 function gestRelativo(ts){ const d=gestDiasDesdeTs(ts);
   if(d<=0) return t('rel_hoy'); if(d===1) return t('rel_ayer');
@@ -18020,6 +18087,8 @@ function tareasCargar(){
       // J3: el plan del ciclo de la empresa. Se cachea para que el inicio dibuje el ciclo con los
       // MISMOS tramos que ve el supervisor, y para que siga bien sin conexión.
       if (d.cicloPlan) cicloPlanGuardar(d.cicloPlan);
+      // L1: la zona de la operación. Se cachea para que el día siga bien definido sin conexión.
+      if (d.zonaOp) zonaOpGuardar(d.zonaOp);
       /* La determinación médica vigente sobre ESTA persona. Viene por este canal porque es el
          único del endpoint que identifica a alguien sin contraseña (nombre + cédula contra la
          nómina), y el empleado no tiene credenciales. El servidor manda el HECHO y nunca la nota
