@@ -50,6 +50,14 @@
     this._datos.push(fila.slice());
     return this;
   };
+  /* Sheets siempre tiene filas de sobra debajo de los datos, y el endpoint las usa: aplica
+     `setNumberFormat("@")` sobre `getMaxRows()` justamente para que el formato ya esté puesto
+     cuando MÁS ADELANTE se escriba una fila nueva (R15). Si acá devolviera sólo las filas con
+     datos, una prueba de formato daría verde sin cubrir el caso que importa. */
+  HojaFalsa.prototype.getMaxRows = function () { return Math.max(this._datos.length + 100, 1000); };
+  HojaFalsa.prototype.getMaxColumns = function () { return Math.max(this.getLastColumn() + 10, 26); };
+  HojaFalsa.prototype.setFrozenRows = function () { return this; };
+  HojaFalsa.prototype.getFrozenRows = function () { return 1; };
   HojaFalsa.prototype.insertSheet = function () { return this; };
   HojaFalsa.prototype.deleteRow = function (n) { this._datos.splice(n - 1, 1); return this; };
   HojaFalsa.prototype.clear = function () { this._datos = []; return this; };
