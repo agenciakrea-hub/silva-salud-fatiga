@@ -235,6 +235,13 @@
        con --orange-txt/--orange-legible, mismo arreglo: en oscuro vale igual que el naranja
        crudo (#ff9900 ya da 7.65:1 sobre --card oscuro y sobre navy, de sobra). */
     --entrada-naranja-ink: #995b00;
+    /* Chip de los controles sueltos sobre las pantallas de entrada (hoy: el botón de idioma del
+       splash). INVARIANTES entre temas, por el mismo motivo que --entrada-naranja: el splash es
+       siempre el mundo navy con los círculos naranjas, no cambia con el tema de la app. Un token
+       theme-aware acá oscurecería el chip en modo oscuro y volvería a perderse contra el fondo,
+       que es justo el bug que esto arregla (medido: 1.94:1 sobre el naranja). */
+    --entrada-chip:     #ffffff;
+    --entrada-chip-ink: #0a1f40;
 
     /* Radio más grande que --radius, sólo para las tarjetas/círculos de estas pantallas
        (mockup de referencia: ui.ruman). No es color, no hace falta en el bloque oscuro —
@@ -371,6 +378,9 @@
        que --entrada-naranja porque el crudo ya cumple contraste sobre superficies oscuras. */
     --entrada-naranja:     #ff9900;
     --entrada-naranja-ink: #ff9900;
+    /* Mismo valor que en :root, a propósito: ver el comentario junto a su declaración. */
+    --entrada-chip:     #ffffff;
+    --entrada-chip-ink: #0a1f40;
   }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden; }
@@ -1393,6 +1403,14 @@
     box-shadow: 0 14px 34px rgba(5,20,50,0.30);
     animation: fadeUp .45s ease .02s both; }
   .hh-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; padding: 0 .15rem; }
+  /* J1: los dos botones son UN par, no dos elementos sueltos. Antes eran hijos directos de
+     `.hh-top`, que es `space-between` con tres hijos — así el de tareas caía en el medio, lejos
+     del de editar. El saludo se estira para empujarlos juntos a la derecha en los dos layouts
+     (en escritorio `.hh-top` es `flex-start`, ver más abajo). */
+  .hh-hola { flex: 1 1 auto; min-width: 0; }
+  .hh-acciones { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+  /* J1: cerrar sesión es destructivo — se ve distinto del resto de Ajustes, sin gritar. */
+  .mas-item--salir .tt { color: var(--sem-rojo-txt); }
   .hh-hola { font-size: 1.62rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
   /* I2: medía 42x42, a 2 px del mínimo de 44. */
   .hh-edit { width: 44px; height: 44px; border-radius: 13px; background: var(--chip-bg); border: 1px solid var(--sup-borde);
@@ -1744,15 +1762,23 @@
   /* Cerrado por defecto: arranca sin abrir, se despliega al tocar el título y se cierra solo al
      tocar afuera o al scrollear (ver tcToggle/tcClose). Antes el slider quedaba siempre visible
      en Ajustes, ocupando espacio y ruido aunque nadie lo tocara nunca. */
-  .texto-ctrl { display: block; cursor: default; padding: 0; }
-  .texto-ctrl .tc-head { display: flex; align-items: center; gap: 0.85rem; width: 100%;
+  /* J6: el mecanismo de desplegar deja de estar atado a `.texto-ctrl` — ahora lo comparten los
+     tres bloques de Ajustes (Idioma, Tamaño del texto, Apariencia) vía `.mas-desplegable`. Antes
+     Idioma y Apariencia medían 213 px cada uno contra 76 del de texto: eran los dos bloques más
+     altos de la pantalla y estaban siempre abiertos. */
+  .texto-ctrl, .mas-desplegable { display: block; cursor: default; padding: 0; }
+  .mas-desplegable .tc-head { display: flex; align-items: center; gap: 0.85rem; width: 100%;
     border: none; background: none; padding: 0.95rem 1.1rem; font-family: inherit; text-align: left;
     cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .texto-ctrl .tc-head .chev { transition: transform .2s ease; flex-shrink: 0; }
-  .texto-ctrl.open .tc-head .chev { transform: rotate(90deg); }
-  .tc-slider-wrap { max-height: 0; overflow: hidden; transition: max-height .22s ease, opacity .18s ease;
-    opacity: 0; }
-  .texto-ctrl.open .tc-slider-wrap { max-height: 90px; opacity: 1; }
+  .mas-desplegable .tc-head .chev { transition: transform .2s ease; flex-shrink: 0; }
+  .mas-desplegable.open .tc-head .chev { transform: rotate(90deg); }
+  .tc-slider-wrap, .tc-body { max-height: 0; overflow: hidden;
+    transition: max-height .22s ease, opacity .18s ease; opacity: 0; }
+  .mas-desplegable.open .tc-slider-wrap { max-height: 90px; opacity: 1; }
+  /* Idioma (2 botones + nota) y Apariencia (3 botones + nota de dos líneas): contenido FIJO, no
+     depende de los datos de la persona como el bloque del inicio. Medido en el caso más largo
+     (Apariencia en inglés, 375 px): entra con margen. */
+  .mas-desplegable.open .tc-body { max-height: 260px; opacity: 1; }
   .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin: 0 1.1rem 0.95rem; }
   .tc-slider .tc-a { font-weight: 800; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
   .tc-slider .tc-a.chico { font-size: 0.95rem; }
@@ -1773,7 +1799,10 @@
 
   /* ── Selector de apariencia (claro/oscuro/automático) ── */
   .tema-ctrl { display: block; }
-  .tema-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin: .85rem 1.1rem 0; }
+  .tema-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin: .25rem 1.1rem 0; }
+  /* Idioma tiene DOS opciones, no tres: sin esto la grilla de 3 columnas le deja un hueco. */
+  #idiomaBody .tema-opts { grid-template-columns: 1fr 1fr; }
+  .tc-body .tema-nota { margin-bottom: .95rem; }
   .tema-opt { min-height: 44px; padding: .5rem .4rem; border-radius: var(--radius-sm);
     border: 1.5px solid var(--sup-borde); background: var(--card); color: var(--text-soft);
     font-size: .82rem; font-weight: 700; cursor: pointer; font-family: inherit; }
@@ -1883,7 +1912,12 @@
   }
   html.sin-animaciones .anim-target, html.sin-animaciones .anim-target *,
   html.sin-animaciones .home-head, html.sin-animaciones .view,
-  html.sin-animaciones .sheet, html.sin-animaciones .overlay, html.sin-animaciones .section {
+  html.sin-animaciones .sheet, html.sin-animaciones .overlay, html.sin-animaciones .section,
+  /* J5: los bloques del inicio se animan desde opacity:0 — si no se los fuerza acá, con la
+     pestaña en segundo plano quedarían invisibles PARA SIEMPRE. `.view` no alcanza: esa regla
+     aplica al contenedor, no a sus descendientes. */
+  html.sin-animaciones #inicio .ini-firmada, html.sin-animaciones #inicio .ini-estado,
+  html.sin-animaciones #inicio .ini-ahora, html.sin-animaciones #inicio .ini-tiras {
     opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important;
   }
   html.sin-animaciones .ent-logo-entra, html.sin-animaciones .ent-texto-entra {
@@ -1981,8 +2015,14 @@
     display:flex; flex-direction:column; overflow:hidden; }
   .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
   /* I2: medía 41x29. */
+  /* J7: era `rgba(255,255,255,.14)` con texto blanco. Un velo blanco al 14% sobre el círculo
+     naranja da casi el mismo naranja, y encima con texto blanco: medido, **1.94:1** (el mínimo es
+     4.5). Sobre el navy daba 8.26 — o sea que el botón era legible o no según dónde cayera el
+     círculo, que se mueve con el tamaño de pantalla y además tiene animación de deriva.
+     Ahora es un chip OPACO: deja de depender de lo que haya detrás. */
   .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
-    background:rgba(255,255,255,.14); color:#fff; border:none; border-radius:999px; padding:.4rem .9rem;
+    background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
+    padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
   .splash-cuerpo { position:relative; z-index:2; flex:1; display:flex; flex-direction:column;
@@ -2134,7 +2174,12 @@
     .splash-link { color: var(--text-soft); }
     .splash-link--admin { color: var(--text-muted); }
     .splash-empresa { background: var(--chip-bg); color: var(--text-soft); }
-    .splash-lang { background: var(--chip-bg); color: var(--text-soft); }
+    /* ⚠️ El botón de idioma TAMBIÉN se retiñe acá, y hay que dejarlo. En móvil J7 lo volvió un chip
+       blanco opaco porque allá cae sobre el navy y los círculos naranjas; en escritorio cae en la
+       mitad DERECHA (medido: centro en x≈1328, la mitad del panel en 683), que es el panel claro
+       `var(--card)` — blanco puro en tema claro. Un chip blanco ahí sería invisible: justo el bug
+       inverso al que J7 arregla. `--chip-bg`/`--text-soft` son theme-aware y resuelven los dos. */
+    .splash-lang { background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
 
     /* ═══ B2 · Carrusel ═══
        El panel izquierdo queda QUIETO y sólo desliza el derecho: en escritorio el movimiento
@@ -2866,6 +2911,20 @@
     border-radius:999px; color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .cic-test-off { color:var(--text-muted); background:var(--chip-bg); }
   /* E2b: check-in / carga / check-out del turno, dentro de la tarjeta del ciclo. */
+  /* J3: el bloque del final de Data Operacional — "lo que te toca ahora" + la línea de tiempo
+     del propio ciclo. La línea reusa las mismas clases .cic-* de la tarjeta del supervisor. */
+  .cic-mio { margin-top: .9rem; display: flex; flex-direction: column; gap: .7rem; }
+  .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: 14px;
+    padding: .85rem .9rem; }
+  .cic-mio-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; }
+  .cic-mio-k { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-muted); }
+  .cic-mio-top .cic-chip { margin-left: auto; }
+  /* En la tarjeta del supervisor los tramos van en 4 columnas; acá, en el ancho de un teléfono y
+     dentro de una sección que ya tiene su propio padding, entran mejor en 2. */
+  .cic-mio-linea .cic-tramos { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  @media (min-width: 700px){ .cic-mio-linea .cic-tramos { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+
   .cic-turno { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
   .cic-turno-chip { font-size:.66rem; font-weight:800; padding:.15rem .5rem; border-radius:999px;
     white-space:nowrap; font-variant-numeric:tabular-nums; }
@@ -3116,6 +3175,17 @@
   .inicio { padding: 0 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: .7rem; }
   .inicio:empty { display: none; }
 
+  /* J5 · Animaciones de entrada de los bloques del inicio. Antes `.section` entraba con `fadeUp`
+     y estos tres aparecían de golpe.
+     ⚠️ La clase `.ini-entra` la pone el JS SÓLO en la primera pintada: `renderInicio()` rehace el
+     HTML en cada `mark()`, y sin esa condición la animación se repetiría en cada toque (los nodos
+     se recrean; lo verifiqué). Escalonado para que entren en el orden en que se leen y desemboquen
+     en las secciones, que ya entran a .1s. */
+  #inicio.ini-entra .ini-firmada { animation: fadeUp .4s ease .03s both; }
+  #inicio.ini-entra .ini-estado  { animation: fadeUp .4s ease .05s both; }
+  #inicio.ini-entra .ini-ahora   { animation: fadeUp .4s ease .06s both; }
+  #inicio.ini-entra .ini-tiras   { animation: fadeUp .4s ease .07s both; }
+
   /* ── Tu estado hoy ── */
   /* La determinación FIRMADA por el médico. Se distingue del semáforo automático a propósito:
      borde sólido y marcado, no el relleno suave del de abajo — una la firmó una persona y la
@@ -3124,12 +3194,32 @@
     padding:.85rem 1rem; margin-bottom:.7rem; }
   .ini-firmada-t { font-size:1.12rem; font-weight:800; color:var(--inic-c); line-height:1.2; margin-top:.1rem; }
   .ini-firmada-x { font-size:.8rem; color:var(--text-soft); margin-top:.2rem; }
-  .ini-estado { border-radius: 16px; padding: .95rem 1.05rem; border: 1px solid var(--sup-borde);
-    background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm); }
+  .ini-estado { border-radius: 16px; padding: 0; border: 1px solid var(--sup-borde);
+    background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm);
+    overflow: hidden; }
+  /* J2: cabecera SIEMPRE visible (etiqueta + título + flecha) — de un vistazo alcanza, sin tocar
+     nada. Es un <button>, no un <div onclick>: teclado y lector de pantalla lo agarran gratis. */
+  .ini-est-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+    width: 100%; text-align: left; background: none; border: none; cursor: pointer;
+    padding: .95rem 1.05rem; font: inherit; color: inherit; }
+  .ini-est-headtx { display: flex; flex-direction: column; min-width: 0; }
+  .ini-est-head .chev { flex-shrink: 0; opacity: .65; transition: transform .2s ease; }
+  .ini-estado.open .ini-est-head .chev { transform: rotate(90deg); }
   .ini-est-k { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
     color: var(--text-muted); }
   .ini-est-t { font-size: 1.18rem; font-weight: 800; color: var(--inic-txt); margin-top: .15rem; line-height: 1.25; }
-  .ini-est-x { font-size: .85rem; color: var(--text-soft); line-height: 1.45; margin-top: .3rem; }
+  /* Cuerpo colapsable: sólo lo explicativo (frase, cuadritos, nota de calidad del dato). Mismo
+     mecanismo que .tc-slider-wrap (max-height con transición): contenido acotado — como mucho 7
+     cuadritos y una nota de dos textos fijos cortos, nunca libre — así que 240px alcanza sin
+     adivinar de más ni cortar contenido real. */
+  /* ⚠️ La altura de apertura la pone el JS desde `scrollHeight`, NO un número fijo acá. Tenía
+     `max-height: 240px` "porque el contenido está acotado" y era falso: con las 7 métricas y la
+     nota de dato viejo, a 375 px, el contenido mide ~984 px y todo lo que pasaba de 240 quedaba
+     cortado en silencio (el contenedor es overflow:hidden, así que ni siquiera aparecía scroll). */
+  .ini-est-body { max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height .22s ease, opacity .18s ease; padding: 0 1.05rem; }
+  .ini-estado.open .ini-est-body { opacity: 1; padding: 0 1.05rem .95rem; }
+  .ini-est-x { font-size: .85rem; color: var(--text-soft); line-height: 1.45; }
   .ini-est-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .6rem; }
   .ini-chip { display: inline-flex; align-items: center; gap: .28rem; font-size: .7rem; font-weight: 700;
     padding: .22rem .5rem; border-radius: 999px; background: var(--chip-bg); color: var(--text-soft); }
@@ -3156,6 +3246,18 @@
   .ini-ahora.ini-listo .ic { background: var(--card); }
 
   /* ── Tiras de contexto ── */
+  /* J4: "días seguidos", entre el texto de ayuda y la grilla de actividad. Mismo lenguaje visual
+     que la tira de la que salió (ícono + valor + rótulo), en el ancho completo de la tarjeta. */
+  .act-racha { margin: .1rem 0 .85rem; }
+  .act-racha-in { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem;
+    border-radius: 13px; background: var(--chip-bg); border: 1px solid var(--sup-borde); }
+  .act-racha-in .ic { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; }
+  .act-racha-in .ic svg { width: 16px; height: 16px; }
+  .act-racha-tx { min-width: 0; }
+  .act-racha-v { font-size: .88rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .act-racha-k { font-size: .7rem; color: var(--text-muted); font-weight: 600; line-height: 1.3; margin-top: .1rem; }
+
   .ini-tiras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; }
   .ini-tira { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem; border-radius: 13px;
     background: var(--card); border: 1px solid var(--sup-borde); font-family: inherit; text-align: left;
@@ -3192,6 +3294,7 @@
     <header class="home-head">
       <div class="hh-top">
         <div class="hh-hola"><span data-i18n="hola">¡Hola,</span> <span id="hhNombre">—</span>!</div>
+        <div class="hh-acciones">
         <button class="hh-edit hh-tareas" onclick="tareasAbrir()" aria-label="Tareas" data-i18n-attr="aria-label:tar_titulo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
           <span class="hh-badge" id="tareasBadge" style="display:none">0</span>
@@ -3199,6 +3302,7 @@
         <button class="hh-edit" onclick="openSetup(true)" aria-label="Editar mis datos" data-i18n-attr="aria-label:editar_datos">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>
+        </div>
       </div>
       <div class="hh-card">
         <div class="hh-rango" id="hhRango">—</div>
@@ -3231,6 +3335,8 @@
       </div>
       <div class="act-card">
         <p class="act-ayuda" data-i18n-html="act_ayuda"><strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más oscuro</strong>, más hiciste ese día.</p>
+        <!-- J4: "días seguidos" — el mismo dato que la grilla, contado como número. Lo llena rachaPintar(). -->
+        <div class="act-racha" id="actRacha" hidden></div>
         <div class="act-wrap">
           <div class="act-dias" id="actDias"></div>
           <div class="act-scroll">
@@ -3258,16 +3364,19 @@
 
     <header class="mas-head"><h2 data-i18n="ajustes">Ajustes</h2><p data-i18n="ajustes_sub">Dispositivos, datos y accesos</p></header>
 
-    <div class="rbtn mas-item tema-ctrl">
-      <div class="tc-head" style="cursor:default">
+    <div class="rbtn mas-item tema-ctrl mas-desplegable" id="idiomaCtrl">
+      <button type="button" class="tc-head" onclick="masToggle('idiomaCtrl')" aria-expanded="false" aria-controls="idiomaBody">
         <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
         <div class="tx"><span class="tt" data-i18n="idioma">Idioma</span><span class="ds" id="idiomaLbl">Español</span></div>
+        <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </button>
+      <div class="tc-body" id="idiomaBody">
+        <div class="tema-opts">
+          <button type="button" class="tema-opt idioma-opt active" data-lang="es" onclick="fijarIdioma('es')">Español</button>
+          <button type="button" class="tema-opt idioma-opt" data-lang="en" onclick="fijarIdioma('en')">English</button>
+        </div>
+        <div class="tema-nota" data-i18n="idioma_nota">Cambia el idioma de toda la aplicación. Se guarda en este dispositivo.</div>
       </div>
-      <div class="tema-opts">
-        <button type="button" class="tema-opt idioma-opt active" data-lang="es" onclick="fijarIdioma('es')">Español</button>
-        <button type="button" class="tema-opt idioma-opt" data-lang="en" onclick="fijarIdioma('en')">English</button>
-      </div>
-      <div class="tema-nota" data-i18n="idioma_nota">Cambia el idioma de toda la aplicación. Se guarda en este dispositivo.</div>
     </div>
 
     <button type="button" class="rbtn mas-item" onclick="openSetup(true)">
@@ -3276,7 +3385,7 @@
       <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
-    <div class="rbtn mas-item texto-ctrl" id="textoCtrl">
+    <div class="rbtn mas-item texto-ctrl mas-desplegable" id="textoCtrl">
       <button type="button" class="tc-head" onclick="tcToggle()" aria-expanded="false" aria-controls="tcSliderWrap">
         <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l5.5-14 5.5 14"/><line x1="5" y1="14" x2="12" y2="14"/><path d="M16 19l3-8 3 8"/><line x1="17" y1="16" x2="21" y2="16"/></svg></div>
         <div class="tx"><span class="tt" data-i18n="tamano_texto">Tamaño del texto</span><span class="ds" id="txtTamanoLbl">Normal</span></div>
@@ -3292,17 +3401,20 @@
       </div>
     </div>
 
-    <div class="rbtn mas-item tema-ctrl">
-      <div class="tc-head" style="cursor:default">
+    <div class="rbtn mas-item tema-ctrl mas-desplegable" id="temaCtrl">
+      <button type="button" class="tc-head" onclick="masToggle('temaCtrl')" aria-expanded="false" aria-controls="temaBody">
         <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></div>
         <div class="tx"><span class="tt" data-i18n="apariencia">Apariencia</span><span class="ds" id="temaLbl">Claro</span></div>
+        <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </button>
+      <div class="tc-body" id="temaBody">
+        <div class="tema-opts">
+          <button type="button" class="tema-opt active" data-modo="claro" onclick="fijarTema('claro')" data-i18n="tema_claro">Claro</button>
+          <button type="button" class="tema-opt" data-modo="oscuro" onclick="fijarTema('oscuro')" data-i18n="tema_oscuro">Oscuro</button>
+          <button type="button" class="tema-opt" data-modo="auto" onclick="fijarTema('auto')" data-i18n="tema_auto">Automático</button>
+        </div>
+        <div class="tema-nota" id="temaNota" data-i18n="tema_nota">En automático, se pone oscuro por la noche — para no encandilar durante un turno nocturno.</div>
       </div>
-      <div class="tema-opts">
-        <button type="button" class="tema-opt active" data-modo="claro" onclick="fijarTema('claro')" data-i18n="tema_claro">Claro</button>
-        <button type="button" class="tema-opt" data-modo="oscuro" onclick="fijarTema('oscuro')" data-i18n="tema_oscuro">Oscuro</button>
-        <button type="button" class="tema-opt" data-modo="auto" onclick="fijarTema('auto')" data-i18n="tema_auto">Automático</button>
-      </div>
-      <div class="tema-nota" id="temaNota" data-i18n="tema_nota">En automático, se pone oscuro por la noche — para no encandilar durante un turno nocturno.</div>
     </div>
 
     <div class="mas-sep" data-i18n="mas_sep_sueno">Sueño &amp; Descanso</div>
@@ -3363,6 +3475,13 @@
       <button type="button" class="save-btn adm-doc-btn" onclick="admAbrirDoc()" data-i18n="adm_abrir_doc">Abrir documentación</button>
       <button type="button" class="cancel-btn" onclick="admSalir()" data-i18n="adm_salir">Cerrar sesión de administrador</button>
     </div>
+
+    <div class="mas-sep" data-i18n="mas_sep_sesion">Sesión</div>
+    <button type="button" class="rbtn mas-item mas-item--salir" onclick="cerrarSesionPedir()">
+      <div class="ic" style="background:var(--sem-rojo-bg);color:var(--sem-rojo-txt)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+      <div class="tx"><span class="tt" data-i18n="salir_t">Cerrar sesión</span><span class="ds" data-i18n="salir_d">Borra tus datos de este dispositivo</span></div>
+      <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+    </button>
 
     <div class="mas-foot">
       <div class="fbrand">AEROAMBULANCIA SILVA</div>
@@ -4078,7 +4197,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.04';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.19';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4325,7 +4444,17 @@ const I18N = {
       mas_portal:'Portal de Fatiga',
       mas_sms:'Gestión de Seguridad Operacional (SMS). Reporta tu estado y EVA registrará tus indicadores automáticamente.',
       tema_nota:'En automático, se pone oscuro por la noche — para no encandilar durante un turno nocturno.',
+      tema_nota_h:'En automático, se pone oscuro de {d} a {h} — para no encandilar durante un turno nocturno.',
       mas_sep_sueno:'Sueño & Descanso', mas_sep_admin:'Administración',
+      // ── J1 · Cerrar sesión ──
+      mas_sep_sesion:'Sesión',
+      salir_t:'Cerrar sesión',
+      salir_d:'Borra tus datos de este dispositivo',
+      salir_confirmar:'Vas a cerrar sesión en este dispositivo.\n\nSe borran tus datos, tus reportes guardados acá y tu consentimiento. La app vuelve a la pantalla de inicio y te va a pedir darte de alta otra vez.\n\nLo que ya se envió queda guardado en el sistema: esto no borra tu historial.',
+      salir_confirmar_cred:'También se borra la contraseña de acceso al panel que está guardada en este dispositivo.',
+      salir_confirmar_q:'¿Cerrar sesión?',
+      salir_pendientes:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema.\n\nSi cierras sesión ahora, se pierden.\n\nToca Aceptar para intentar enviarlos primero.',
+      salir_pendientes_2:'Si aun así cierras sesión, esos {n} registro(s) se pierden y no se pueden recuperar.\n\n¿Cerrar sesión igual?',
       ah_sinc:'Sincronizar desde iPhone', ah_check:'Apple Health · Checklist',
       ah_pasos:'Sigue estos pasos desde tu iPhone para vincular tu Apple Watch:',
       ah_1:'Abre este portal <strong>únicamente desde tu iPhone</strong>.',
@@ -4529,6 +4658,7 @@ const I18N = {
       cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
       cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
+      cic_mi_ciclo:'Tu ciclo de hoy',
       rep_grupo_agregado:'Empresa (grupo agregado)',
       // ── F1 · Aptitud: panel de equipo, ficha y leyenda ──
       apt_eq_cap:'del equipo <b>en condiciones</b>',
@@ -5699,7 +5829,16 @@ const I18N = {
       mas_portal:'Fatigue Portal',
       mas_sms:'Safety Management System (SMS). Report how you are doing and EVA will log your indicators automatically.',
       tema_nota:'On automatic, it turns dark at night — so it does not dazzle you during a night shift.',
+      tema_nota_h:'On automatic, it turns dark from {d} to {h} — so it does not dazzle you during a night shift.',
       mas_sep_sueno:'Sleep & Rest', mas_sep_admin:'Administration',
+      mas_sep_sesion:'Session',
+      salir_t:'Sign out',
+      salir_d:'Erases your data from this device',
+      salir_confirmar:'You are about to sign out on this device.\n\nYour details, the reports stored here and your consent will be erased. The app will go back to the start screen and will ask you to register again.\n\nAnything already sent stays in the system: this does not erase your history.',
+      salir_confirmar_cred:'The panel password saved on this device will also be erased.',
+      salir_confirmar_q:'Sign out?',
+      salir_pendientes:'Heads up: {n} record(s) have not been sent to the system yet.\n\nIf you sign out now, they will be lost.\n\nTap OK to try sending them first.',
+      salir_pendientes_2:'If you sign out anyway, those {n} record(s) are lost and cannot be recovered.\n\nSign out anyway?',
       ah_sinc:'Sync from iPhone', ah_check:'Apple Health · Checklist',
       ah_pasos:'Follow these steps on your iPhone to link your Apple Watch:',
       ah_1:'Open this portal <strong>from your iPhone only</strong>.',
@@ -5939,6 +6078,7 @@ const I18N = {
       cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
       cic_e_comp:'Complete', cic_e_sin:'Not started',
       cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
+      cic_mi_ciclo:'Your cycle today',
       rep_grupo_agregado:'Company (aggregated group)',
       // ── F1 · Fitness: team panel, record and legend ──
       apt_eq_cap:'of the team <b>fit to work</b>',
@@ -7010,6 +7150,11 @@ function aplicarIdioma(){
   document.documentElement.setAttribute('lang', idiomaActual());
   i18nBarrer();
   idiomaPintarControl();
+  /* El bloque de Apariencia también tiene texto que sale de t(): su subtítulo ("Claro"/"Oscuro")
+     y su nota. Sin esto se quedaban en el idioma anterior — se veía "Oscuro" con la app en
+     inglés. Desde J6 ese subtítulo es lo ÚNICO visible cuando el bloque está colapsado, así que
+     tiene que estar en el idioma correcto. */
+  try { temaPintarControl(); } catch(e){}
   try { if (typeof renderSections === 'function' && document.getElementById('sections')) renderSections(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof renderDash === 'function') renderDash(); } catch(e){}
   /* El alta (B3) pinta su título y su bajada desde JS, no con `data-i18n`, porque cambian según
@@ -7762,8 +7907,35 @@ function waUrl(item){
    La hora es la del DISPOSITIVO, del momento exacto del botón: es la que la persona ve y la que
    el supervisor necesita para medir adelanto/atraso. `test`/`resultado` viajan pegados al evento
    para que el gráfico muestre el resultado sin tener que cruzar con la hoja del test. */
+
+/* ══════════ REGISTRO LOCAL DEL CICLO (J3) ══════════
+   Los cuatro eventos operacionales, con su marca ISO completa, para poder dibujarle a la persona
+   su propio ciclo — sin conexión y sin depender de que el servidor se los devuelva
+   (`accionEmpleado` no manda `operacional`).
+
+   ⚠️ NO se reusa `getReports()` para esto, a propósito: esa función hace RESET DIARIO (borra lo
+   que no sea de hoy), que es correcto para marcar "¿ya lo hice hoy?" en las tarjetas pero
+   destruiría un turno nocturno — a la medianoche perdería el "saliendo de casa" de las 22:00 y el
+   ciclo quedaría empezado por la mitad. Acá se guarda cronológicamente y se poda por la VENTANA
+   del ciclo, igual que hacen `cicloArmar()` (supervisor) y `turnosHoy()` (turnos). */
+const K_CICLO_MIO = 'silva_fatiga_ciclo_mio_v1';
+function cicloMioAll(){ try { return JSON.parse(localStorage.getItem(K_CICLO_MIO)) || []; } catch(e){ return []; } }
+function cicloMioGuardar(evento, test, resultado){
+  if (!evento) return;
+  const lista = cicloMioAll();
+  lista.push({ evento: evento, iso: new Date().toISOString(),
+               test: test || '', resultado: (resultado != null ? Number(resultado) : null) });
+  /* Poda: se conservan DOS ventanas de ciclo. Una sola dejaría afuera el ciclo de ayer justo
+     cuando arranca el de hoy, y con dos alcanza para cualquier caso real sin que la lista crezca
+     para siempre. */
+  const corte = Date.now() - (cicloTotalMin(cicloPlan()) * 60000 * 2);
+  const podada = lista.filter(e => { const t = Date.parse(e.iso); return isFinite(t) && t >= corte; });
+  try { localStorage.setItem(K_CICLO_MIO, JSON.stringify(podada)); } catch(e){}
+}
+
 function enviarOperacional(campo, test, resultado){
   if (!campo) return;
+  cicloMioGuardar(campo, test, resultado);   // J3: el ciclo de la persona, en su propio dispositivo
   const p = getProfile() || {};
   if (SHEETS_OPERACIONAL_URL){
     enviarConCola(SHEETS_OPERACIONAL_URL + '?' + new URLSearchParams({
@@ -8115,6 +8287,31 @@ function iniIcono(paths, bg, color){
     paths + '</svg></div>';
 }
 
+// J2: "Tu estado hoy" desplegable. Por DISPOSITIVO (no por persona) y arranca CERRADO.
+const K_INI_ESTADO_ABIERTO = 'silva_fatiga_ini_estado_abierto_v1';
+function iniEstadoAbierto(){ try { return localStorage.getItem(K_INI_ESTADO_ABIERTO) === '1'; } catch(e){ return false; } }
+function iniEstadoToggle(){
+  const box = document.getElementById('iniEstado'); if (!box) return;
+  const abrir = !box.classList.contains('open');
+  box.classList.toggle('open', abrir);
+  const head = box.querySelector('.ini-est-head'); if (head) head.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  try { localStorage.setItem(K_INI_ESTADO_ABIERTO, abrir ? '1' : '0'); } catch(e){}
+  iniEstadoAltura();
+}
+/* La altura de apertura sale del contenido REAL, no de una cota fija: con las 7 métricas y la nota
+   de dato viejo el bloque pasa de 900 px, y cualquier número que eligiera a mano iba a cortar
+   algún caso. Hay que llamarla después de cada renderInicio(): esa función rehace el HTML y con él
+   se pierde el estilo en línea, así que quedaría abierto pero con altura 0. */
+function iniEstadoAltura(){
+  const box = document.getElementById('iniEstado'); if (!box) return;
+  const body = document.getElementById('iniEstBody'); if (!body) return;
+  body.style.maxHeight = box.classList.contains('open') ? (body.scrollHeight + 'px') : '';
+}
+/* Al cambiar el ancho (rotar el teléfono, que es un gesto normal para leer) el contenido
+   reflowea y la cota en píxeles queda vieja. Medido: con las 7 métricas abiertas, pasando de
+   320 a 240 px el contenido crece de 280 a 408 y se perdían 128 px por debajo del corte, sin
+   scroll ni aviso. Un solo listener; `iniEstadoAltura` no hace nada si está cerrado. */
+window.addEventListener('resize', iniEstadoAltura);
 function renderInicio(){
   const cont = document.getElementById('inicio');
   if (!cont) return;
@@ -8164,39 +8361,36 @@ function renderInicio(){
       (hasta ? '<div class="ini-firmada-x">' + esc(t('an_vigente_hasta', { f: hasta })) + '</div>' : '') +
     '</div>';
   }
-  let html = firmada + '<div class="ini-estado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
-    '<div class="ini-est-k">' + esc(t('ini_estado_k')) + '</div>' +
-    '<div class="ini-est-t">' + esc(titulo) + '</div>' +
-    '<div class="ini-est-x">' + esc(texto) + '</div>' +
-    (chips ? '<div class="ini-est-chips">' + chips + '</div>' : '') +
-    (nota ? '<div class="ini-est-nota">' + esc(nota) + '</div>' : '') +
+  // J2: desplegable, cerrado por defecto (por dispositivo). Sólo colapsa lo explicativo — la
+  // etiqueta y el título quedan siempre a la vista, para que de un vistazo alcance.
+  const estAbierto = iniEstadoAbierto();
+  let html = firmada + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
+    '<button type="button" class="ini-est-head" onclick="iniEstadoToggle()" aria-expanded="' + (estAbierto?'true':'false') + '" aria-controls="iniEstBody">' +
+      '<span class="ini-est-headtx"><span class="ini-est-k">' + esc(t('ini_estado_k')) + '</span>' +
+      '<span class="ini-est-t">' + esc(titulo) + '</span></span>' +
+      chevSVG +
+    '</button>' +
+    '<div class="ini-est-body" id="iniEstBody">' +
+      '<div class="ini-est-x">' + esc(texto) + '</div>' +
+      (chips ? '<div class="ini-est-chips">' + chips + '</div>' : '') +
+      (nota ? '<div class="ini-est-nota">' + esc(nota) + '</div>' : '') +
+    '</div>' +
   '</div>';
 
-  // ── Lo que te toca ahora ───────────────────────────────────────────────────────────────
-  const sig = iniSiguiente();
-  if (sig){
-    html += '<button type="button" class="ini-ahora" data-ini-item="' + esc(sig.item.id) + '">' +
-      '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + sig.item.icon + '</svg></div>' +
-      '<div class="ini-ahora-tx">' +
-        '<div class="ini-ahora-k">' + esc(t(sig.k)) + '</div>' +
-        '<div class="ini-ahora-t">' + esc(sig.item.label) + '</div>' +
-        '<div class="ini-ahora-d">' + esc(sig.item.desc) + '</div>' +
-      '</div><span class="chev">' + chevSVG + '</span></button>';
-  } else {
-    html += '<div class="ini-ahora ini-listo">' +
-      '<div class="ic">' + checkSVG + '</div>' +
-      '<div class="ini-ahora-tx"><div class="ini-ahora-t">' + esc(t('ini_al_dia_t')) + '</div>' +
-      '<div class="ini-ahora-d">' + esc(t('ini_al_dia_d')) + '</div></div></div>';
+  /* J3: "Lo que te toca ahora" se movió al final de Data Operacional (ver cicloMiBloque). Acá
+     sigue apareciendo SÓLO para quien no tiene ciclo operativo: para esa persona el "siguiente"
+     no es un evento del ciclo sino el indicador con el dato más viejo, y abajo no tendría dónde
+     colgarse. Para pilotos/tripulación, este bloque lo dibuja renderSections(). */
+  if (!iniTieneCiclo()){
+    html += iniAhoraHtml();
   }
 
   // ── Tiras de contexto: constancia · tareas · tendencia ─────────────────────────────────
+  /* J4: la racha ("días seguidos") se movió a "Tu actividad", entre el texto de ayuda y la
+     grilla. No es sólo acomodar: `iniRacha()` cuenta sobre `getActividad()`, la MISMA fuente que
+     pinta los cuadritos — son el mismo dato contado de dos formas, y van juntos. Lo dibuja
+     `renderActividad()`. */
   const tiras = [];
-  const racha = iniRacha();
-  if (racha > 0){
-    tiras.push('<div class="ini-tira">' + iniIcono(INI_SVG_RACHA, 'var(--orange-bg)', 'var(--orange)') +
-      '<div class="ini-tira-tx"><div class="ini-tira-v">' + esc(t('ini_racha_v', { n: racha })) + '</div>' +
-      '<div class="ini-tira-k">' + esc(t('ini_racha_k')) + '</div></div></div>');
-  }
   const nTareas = iniTareasPend();
   if (nTareas > 0){
     tiras.push('<button type="button" class="ini-tira" onclick="tareasAbrir()">' +
@@ -8219,16 +8413,100 @@ function renderInicio(){
 
   cont.innerHTML = html;
 
-  // El botón grande dispara EXACTAMENTE lo mismo que la tarjeta de abajo: se busca el item por
-  // id y se reusa su manejador, en vez de duplicar la lógica de abrir test / marcar / WhatsApp.
-  const btn = cont.querySelector('[data-ini-item]');
-  if (btn) btn.addEventListener('click', function(){
-    const id = btn.getAttribute('data-ini-item');
-    const tarjeta = document.querySelector('#sections .item[data-id="' + id + '"] a');
-    if (tarjeta) tarjeta.click();
+  iniAhoraCablear();
+  iniEstadoAltura();      // el HTML se rehizo: hay que volver a medir si quedó abierto
+  cicloMiRefrescar();     // el bloque de Data Operacional vive en #sections: se actualiza aparte
+  iniEntradaUnaVez(cont);
+}
+/* La animación de entrada del inicio corre UNA sola vez por sesión de pantalla. `renderInicio()`
+   rehace el HTML cada vez que alguien completa un evento (lo llama `mark()`), y los nodos se
+   recrean — sin esto, los tres bloques volverían a aparecer con su animación en cada toque, que
+   se ve peor que no animarlos. */
+let _iniYaEntro = false;
+function iniEntradaUnaVez(cont){
+  if (!cont) return;
+  if (_iniYaEntro){ cont.classList.remove('ini-entra'); return; }
+  _iniYaEntro = true;
+  cont.classList.add('ini-entra');
+}
+/* Repinta SÓLO el bloque del final de Data Operacional (J3). Se llama desde `renderInicio()`
+   porque ese bloque salió de `#inicio` y quedó fuera de su alcance: los OCHO llamadores de
+   renderInicio (marcar un evento, aceptar el consentimiento, cargar tareas, deshacer…) esperan
+   que después la pantalla esté al día, y engancharlo acá los cubre a todos en vez de tener que
+   acordarse de cada uno.
+   ⚠️ No llama a `renderSections()`: eso rehace todas las tarjetas y pierde el estado de la
+   pantalla. Sólo reemplaza este bloque. */
+function cicloMiRefrescar(){
+  const viejo = document.querySelector('#sections .cic-mio');
+  if (!viejo) return;                       // no hay ciclo operativo (no es piloto): nada que hacer
+  const tmp = document.createElement('div');
+  tmp.innerHTML = cicloMiBloque();
+  const nuevo = tmp.firstElementChild;
+  if (!nuevo) return;
+  viejo.replaceWith(nuevo);
+  iniAhoraCablear();                        // el botón es nuevo: hay que volver a cablearlo
+}
+/* El botón grande dispara EXACTAMENTE lo mismo que la tarjeta de abajo: se busca el item por id y
+   se reusa su manejador, en vez de duplicar la lógica de abrir test / marcar / WhatsApp.
+   ⚠️ Busca en TODO el documento y no sólo en `#inicio`: desde J3 este botón puede estar en el
+   inicio (quien no tiene ciclo) o al final de Data Operacional (quien sí). Y se saltea el que
+   esté DENTRO de la propia tarjeta que va a disparar, que no existe hoy pero sería un bucle. */
+function iniAhoraCablear(){
+  document.querySelectorAll('[data-ini-item]').forEach(btn => {
+    if (btn.dataset.cableado === '1') return;      // renderSections puede correr más de una vez
+    btn.dataset.cableado = '1';
+    btn.addEventListener('click', function(){
+      const id = btn.getAttribute('data-ini-item');
+      const tarjeta = document.querySelector('#sections .item[data-id="' + id + '"] a');
+      if (tarjeta) tarjeta.click();
+    });
   });
 }
 
+/* "Lo que te toca ahora": el mismo bloque que antes vivía suelto en renderInicio(). Ahora es una
+   función porque lo usan DOS lugares: el inicio (para quien no tiene ciclo operativo) y el final
+   de Data Operacional (para quien sí). */
+function iniAhoraHtml(){
+  const sig = iniSiguiente();
+  if (sig){
+    return '<button type="button" class="ini-ahora" data-ini-item="' + esc(sig.item.id) + '">' +
+      '<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + sig.item.icon + '</svg></div>' +
+      '<div class="ini-ahora-tx">' +
+        '<div class="ini-ahora-k">' + esc(t(sig.k)) + '</div>' +
+        '<div class="ini-ahora-t">' + esc(sig.item.label) + '</div>' +
+        '<div class="ini-ahora-d">' + esc(sig.item.desc) + '</div>' +
+      '</div><span class="chev">' + chevSVG + '</span></button>';
+  }
+  return '<div class="ini-ahora ini-listo">' +
+    '<div class="ic">' + checkSVG + '</div>' +
+    '<div class="ini-ahora-tx"><div class="ini-ahora-t">' + esc(t('ini_al_dia_t')) + '</div>' +
+    '<div class="ini-ahora-d">' + esc(t('ini_al_dia_d')) + '</div></div></div>';
+}
+// ¿Esta persona tiene ciclo operativo? Es la misma condición con la que renderSections decide si
+// dibuja la sección "Data Operacional", en un solo lugar para que no puedan separarse.
+function iniTieneCiclo(){ const p = getProfile(); return !!(p && p.esPiloto); }
+
+/* El bloque del final de Data Operacional (J3): "lo que te toca ahora" + la línea de tiempo del
+   propio ciclo. La línea reusa cicloEstado/cicloBarra/cicloTramosHtml — LAS MISMAS que dibujan la
+   tarjeta del supervisor, no una copia — con la única diferencia de que los eventos salen de
+   cicloMio() (registro local) en vez del payload del servidor. */
+function cicloMiBloque(){
+  let html = '<div class="cic-mio">' + iniAhoraHtml();
+  const c = cicloMio();
+  if (c){
+    const plan = cicloPlan();
+    const st = cicloEstado(c, Date.now(), plan);
+    if (st.estado !== 'inactivo'){
+      const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
+                     completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
+      html += '<div class="cic-mio-linea">' +
+        '<div class="cic-mio-top"><span class="cic-mio-k">' + esc(t('cic_mi_ciclo')) + '</span>' +
+          '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
+        cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
+    }
+  }
+  return html + '</div>';
+}
 function renderSections(){
   const root = document.getElementById('sections');
   const _p = getProfile();
@@ -8252,9 +8530,16 @@ function renderSections(){
     cont.className = sec.layout === 'grid' ? 'grid2' : 'stack';
     sec.items.forEach((it, i) => cont.appendChild(buildItem(it, sec.layout, i)));
     s.appendChild(cont);
+    // J3: al final de Data Operacional, "lo que te toca ahora" + la línea de tiempo del ciclo.
+    if (sec.id === 'operacional'){
+      const extra = document.createElement('div');
+      extra.innerHTML = cicloMiBloque();
+      while (extra.firstChild) s.appendChild(extra.firstChild);
+    }
     root.appendChild(s);
   });
   refreshStates();
+  iniAhoraCablear();          // J3: el bloque que ahora vive dentro de Data Operacional
   /* Va DESPUÉS de las secciones a propósito: el botón grande del inicio delega el clic en la
      tarjeta de abajo, así que esas tarjetas tienen que existir cuando el inicio se pinta. */
   renderInicio();
@@ -8443,9 +8728,25 @@ function registrarActividad(n){
   lsSet(K_ACTIVIDAD, JSON.stringify(a));
   renderActividad();
 }
+/* "Días seguidos", arriba de la grilla de actividad (J4). Sale de `iniRacha()`, que cuenta sobre
+   `getActividad()` — la misma fuente que la grilla, así que el número y el mapa no pueden
+   contradecirse. Si la racha es 0 no se dibuja nada, igual que cuando vivía en las tiras del
+   inicio: la tira sencillamente no se agregaba. */
+function rachaPintar(){
+  const cont = document.getElementById('actRacha');
+  if (!cont) return;
+  const n = iniRacha();
+  if (n <= 0){ cont.innerHTML = ''; cont.hidden = true; return; }
+  cont.hidden = false;
+  cont.innerHTML = '<div class="act-racha-in">' +
+    iniIcono(INI_SVG_RACHA, 'var(--orange-bg)', 'var(--orange)') +
+    '<div class="act-racha-tx"><div class="act-racha-v">' + esc(t('ini_racha_v', { n: n })) + '</div>' +
+    '<div class="act-racha-k">' + esc(t('ini_racha_k')) + '</div></div></div>';
+}
 function renderActividad(){
   const cont = document.getElementById('actGrid');
   if (!cont) return;
+  rachaPintar();          // J4: el contador de días seguidos, arriba de la grilla
   const act = getActividad();
   const SEMANAS = 13;
   const MESES = mesesAbr();   // del diccionario: cambian con el idioma (A1 ya define meses_abr)
@@ -9688,33 +9989,46 @@ function fijarTamanoTexto(n){
    El listener de scroll va con { passive:true } (no llama preventDefault, así el navegador no
    tiene que esperar para decidir si sigue scrolleando) y AMBOS se quitan al cerrar: dejarlos
    colgados hace que cada scroll de la app siga ejecutando código para nada. */
-function tcToggle(){
-  const box = document.getElementById('textoCtrl'); if (!box) return;
-  const abrir = !box.classList.contains('open');
-  if (abrir) tcAbrir(); else tcCerrar();
+/* J6 · Los desplegables de Ajustes (Idioma, Tamaño del texto, Apariencia) comparten UN solo
+   mecanismo. Antes esto estaba cableado a `#textoCtrl` por id en cuatro lugares; al sumar dos
+   bloques más, duplicarlo habría sido tres copias del mismo cierre-al-tocar-afuera.
+   `_masAbierto` guarda cuál está abierto: sólo puede haber uno, y abrir el segundo cierra el
+   primero — si no, los tres abiertos a la vez devuelven la pantalla al problema que J6 arregla. */
+let _masAbierto = null;
+function masToggle(id){
+  const box = document.getElementById(id); if (!box) return;
+  if (box.classList.contains('open')) masCerrar(); else masAbrir(id);
 }
-function tcAbrir(){
-  const box = document.getElementById('textoCtrl'); if (!box) return;
+function masAbrir(id){
+  const box = document.getElementById(id); if (!box) return;
+  if (_masAbierto && _masAbierto !== id) masCerrar();
   box.classList.add('open');
+  _masAbierto = id;
   const head = box.querySelector('.tc-head'); if (head) head.setAttribute('aria-expanded', 'true');
   // En el mismo tick del click, el evento todavía está burbujeando: sin el timeout, el propio
   // toque que abre el panel llegaría al listener de "tocar afuera" y lo cerraría de inmediato.
   setTimeout(() => {
-    document.addEventListener('click', tcClickAfuera, true);
-    window.addEventListener('scroll', tcCerrar, { passive: true, capture: true });
+    document.addEventListener('click', masClickAfuera, true);
+    window.addEventListener('scroll', masCerrar, { passive: true, capture: true });
   }, 0);
 }
-function tcCerrar(){
-  const box = document.getElementById('textoCtrl'); if (!box) return;
-  box.classList.remove('open');
-  const head = box.querySelector('.tc-head'); if (head) head.setAttribute('aria-expanded', 'false');
-  document.removeEventListener('click', tcClickAfuera, true);
-  window.removeEventListener('scroll', tcCerrar, { passive: true, capture: true });
+function masCerrar(){
+  const box = _masAbierto ? document.getElementById(_masAbierto) : null;
+  if (box){
+    box.classList.remove('open');
+    const head = box.querySelector('.tc-head'); if (head) head.setAttribute('aria-expanded', 'false');
+  }
+  _masAbierto = null;
+  document.removeEventListener('click', masClickAfuera, true);
+  window.removeEventListener('scroll', masCerrar, { passive: true, capture: true });
 }
-function tcClickAfuera(e){
-  const box = document.getElementById('textoCtrl');
-  if (box && !box.contains(e.target)) tcCerrar();
+function masClickAfuera(e){
+  const box = _masAbierto ? document.getElementById(_masAbierto) : null;
+  if (box && !box.contains(e.target)) masCerrar();
 }
+// Se conserva el nombre viejo: es lo que llama el onclick del bloque de Tamaño del texto en el
+// HTML, y no hay motivo para tocar ese marcado sólo por haber renombrado la función.
+function tcToggle(){ masToggle('textoCtrl'); }
 
 /* ── Modo oscuro (P9) ──
    Tres modos que la persona puede elegir en Ajustes: claro, oscuro, o automático por horario.
@@ -9764,7 +10078,9 @@ function temaPintarControl(){
   document.querySelectorAll('.tema-opt').forEach(b => b.classList.toggle('active', b.dataset.modo === (g || 'claro')));
   const nota = document.getElementById('temaNota');
   const p2 = n => String(n).padStart(2, '0');
-  if (nota) nota.textContent = 'En automático, se pone oscuro de ' + p2(TEMA_AUTO_DESDE) + ':00 a ' + p2(TEMA_AUTO_HASTA) + ':00 — para no encandilar durante un turno nocturno.';
+  // R14: sale del diccionario, con las horas como variables. Antes esta línea escribía el texto
+  // en español a mano y pisaba el `data-i18n` del HTML, así que en inglés se leía en español.
+  if (nota) nota.textContent = t('tema_nota_h', { d: p2(TEMA_AUTO_DESDE) + ':00', h: p2(TEMA_AUTO_HASTA) + ':00' });
 }
 
 /* ── Botón "atrás" del celular: navega dentro de la app en vez de cerrarla ──
@@ -10772,6 +11088,66 @@ function admSalir(){
   document.getElementById('admPass').value = '';
   showToast(t('ts_admin_cerrada'));
 }
+
+/* ══════════ CERRAR SESIÓN (J1) ══════════
+   Ver la nota larga del prompt J1. Lo que hay que tener presente al tocar esto:
+
+   1. `offPendientes()` cuenta TODO lo que todavía no llegó al CH (las cinco colas). Si hay algo,
+      se avisa el número exacto ANTES de borrar y hay que confirmar dos veces. Perder un test que
+      la persona ya hizo es peor que cualquier otra cosa que pueda pasar acá.
+   2. `K_DISPOSITIVO_ID` NO se borra: es con lo que el servidor cuenta los intentos fallidos de
+      contraseña. Borrarlo convertiría "cerrar sesión" en el botón de resetear el freno de fuerza
+      bruta.
+   3. El idioma, el tema y el tamaño del texto TAMPOCO: son del dispositivo, no de la persona.
+      Quien reciba el teléfono no tiene por qué perder su configuración de accesibilidad. */
+/* ⚠️ La lista se arma DENTRO de una función, no como `const` de nivel de módulo. Varias de estas
+   claves (K_GESTIONES, K_BITACORA, K_CASOS_ODOO, K_REPORTES_VISTOS, K_MEDICO_NOMBRE,
+   K_SUPERVISOR_NOMBRE) se declaran MÁS ABAJO en el archivo: leerlas desde arriba las agarra en su
+   zona muerta temporal, eso lanza, y como pasa en el nivel superior deja el script entero
+   abortado — la app no arranca y en la consola no aparece nada útil. Es el mismo tropiezo que ya
+   está documentado en la nota de GEST_TIPO_NOTA_CLINICA. Acá corre recién cuando alguien toca el
+   botón, con todo ya declarado. */
+function sesionClavesBorrar(){
+  return [
+    // identidad y consentimiento
+    K_PROFILE, K_CONSENT, K_REG_SIG, K_ALTA_PROGRESO, K_EMPRESA_PERFIL, K_SECTOR,
+    // lo que la persona registró en este dispositivo
+    K_REPORTS, K_TURNOS, K_MIS_DATOS, K_ACTIVIDAD, K_CONFIABILIDAD, K_PVT_NOINFO,
+    // accesos guardados (lo más sensible: contraseñas en texto plano)
+    K_DASH_CREDS, K_DASH_CREDS_MED, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
+    // datos de TERCEROS que quedan en el dispositivo de quien tiene panel
+    K_GESTIONES, K_BITACORA, K_CASOS_ODOO, K_REPORTES_VISTOS,
+    // colas: se borran DESPUÉS de avisar cuántos registros se pierden (ver cerrarSesionPedir)
+    K_PENDING, K_EMP_COLA
+  ];
+}
+function cerrarSesionPedir(){
+  const pend = (function(){ try { return offPendientes(); } catch(e){ return 0; } })();
+  const hayCred = !!(dashGetCreds() || dashGetCredsMed());
+  // Se enumera lo que se borra. El detalle de las credenciales sólo aparece si de verdad hay
+  // alguna guardada: para un empleado común nombrarlas sería ruido.
+  let msg = t('salir_confirmar');
+  if (hayCred) msg += '\n\n' + t('salir_confirmar_cred');
+  msg += '\n\n' + t('salir_confirmar_q');      // la pregunta, siempre lo último que se lee
+  if (pend > 0){
+    // Todavía hay registros sin llegar al CH. Se ofrece sincronizar primero; salir igual exige
+    // una segunda confirmación que dice el número exacto.
+    if (!confirm(t('salir_pendientes', { n: pend }))) return;
+    try { flushPending(); empFlush(); gestPush(); } catch(e){}
+    if (!confirm(t('salir_pendientes_2', { n: pend }))) return;
+  }
+  if (!confirm(msg)) return;
+  cerrarSesion();
+}
+function cerrarSesion(){
+  sesionClavesBorrar().forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
+  try { sessionStorage.removeItem(K_ADM_OK); } catch(e){}
+  // Se recarga en vez de repintar: es la única forma de garantizar que no quede en memoria nada
+  // de la persona anterior (DASH, GEST, las caches de gestiones/niveles, el estado de la vista).
+  // Repintar a mano dejaría que se escape algo, y acá lo que se escapa son datos de salud.
+  location.reload();
+}
+
 function admToggle(){
   const box = document.getElementById('admBox'), panel = document.getElementById('admPanel');
   const chev = document.getElementById('admChev');
@@ -13234,8 +13610,26 @@ function cicloTestDe(k){
 }
 
 // El plan vigente para el alcance actual. Sale de la config de la empresa; el default, de la forma.
+/* De dónde sale el plan del ciclo de la empresa, en UN solo lugar:
+    · con panel abierto (supervisor/médico) → `DASH._cfg`, que trae la config fresca del servidor;
+    · sin panel (el empleado, en su inicio) → el último plan que le llegó por `tareas_mias`.
+   ⚠️ Sin este segundo camino, `cfg()` caía al default y el empleado veía el plan del SECTOR en vez
+   del de su empresa: con una jornada configurada en 8 h, el supervisor la veía excedida y la
+   persona se veía en hora. La configuración "la cambia un supervisor y la ven todos" (ver la nota
+   de CICLO_FORMAS) — compartir el motor no alcanza si no se comparte también la config. */
+const K_CICLO_PLAN = 'silva_fatiga_ciclo_plan_v1';
+function cicloPlanGuardar(plan){
+  if (!plan || typeof plan !== 'object') return;
+  try { localStorage.setItem(K_CICLO_PLAN, JSON.stringify(plan)); } catch(e){}
+}
+function cicloPlanEmpresa(){
+  const deDash = cfg('cicloPlan');
+  if (deDash && typeof deDash === 'object') return deDash;
+  try { const g = JSON.parse(localStorage.getItem(K_CICLO_PLAN)); if (g && typeof g === 'object') return g; } catch(e){}
+  return null;
+}
 function cicloPlan(){
-  const c = cfg('cicloPlan');
+  const c = cicloPlanEmpresa();
   const p = Object.assign({}, cicloForma().plan);
   if (c && typeof c === 'object'){
     // Sólo se aceptan los tramos que la forma vigente declara: una config vieja con un tramo que
@@ -13297,21 +13691,43 @@ function cicloArmar(){
   const porPersona = {};
   rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
   const out = {};
-  const evInicial = cicloEventoInicial();
   Object.keys(porPersona).forEach(k => {
-    const evs = porPersona[k].slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
-    let actual = null;
-    evs.forEach(o => {
-      const t = new Date(o.iso).getTime();
-      if (o.evento === evInicial || !actual || (t - actual.t0) > ventana){
-        actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
-      }
-      const prev = actual.ev[o.evento];
-      if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;
-    });
-    if (actual) out[k] = actual;
+    const c = cicloAgruparEventos(porPersona[k], ventana);
+    if (c) out[k] = c;
   });
   return out;
+}
+
+/* La agrupación cronológica de UNA persona, en su propia función porque la usan DOS pantallas: el
+   ciclo del supervisor (cicloArmar, acá arriba) y el ciclo propio del empleado (cicloMio, en el
+   inicio). Misma razón por la que `aptPersona` es compartida entre supervisor y médico: si fueran
+   dos copias, el día que se corrija un borde se corrige en una sola y las dos pantallas empiezan a
+   contar historias distintas del mismo turno.
+   Devuelve el ciclo ABIERTO más reciente (el que le interesa a las dos), o null si no hay eventos.
+   `ventana` acota cuánto puede durar un ciclo: pasado eso, un evento nuevo abre uno nuevo en vez
+   de colgarse del anterior. */
+function cicloAgruparEventos(eventos, ventana){
+  const evInicial = cicloEventoInicial();
+  const evs = (eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  let actual = null;
+  evs.forEach(o => {
+    const t = new Date(o.iso).getTime();
+    if (o.evento === evInicial || !actual || (t - actual.t0) > ventana){
+      actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
+    }
+    const prev = actual.ev[o.evento];
+    if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;
+  });
+  return actual;
+}
+
+/* El ciclo de LA PROPIA PERSONA, para su pantalla de inicio. Mismo motor que el del supervisor
+   (cicloAgruparEventos → cicloEstado → cicloBarra), con la única diferencia de dónde salen los
+   eventos: acá del registro local (K_CICLO_MIO), allá del payload del servidor. */
+function cicloMio(){
+  const eventos = cicloMioAll();
+  if (!eventos.length) return null;
+  return cicloAgruparEventos(eventos, cicloTotalMin(cicloPlan()) * 60000);
 }
 
 /* El estado de un ciclo, tramo por tramo. `real` es lo que efectivamente duró (o lo que lleva
@@ -17423,6 +17839,9 @@ function tareasCargar(){
       if (!d || !d.ok) return;
       TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
       TAREAS.pendientes = Number(d.pendientes) || 0;
+      // J3: el plan del ciclo de la empresa. Se cachea para que el inicio dibuje el ciclo con los
+      // MISMOS tramos que ve el supervisor, y para que siga bien sin conexión.
+      if (d.cicloPlan) cicloPlanGuardar(d.cicloPlan);
       /* La determinación médica vigente sobre ESTA persona. Viene por este canal porque es el
          único del endpoint que identifica a alguien sin contraseña (nombre + cédula contra la
          nómina), y el empleado no tiene credenciales. El servidor manda el HECHO y nunca la nota
