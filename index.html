@@ -211,6 +211,27 @@
     --dato-1: #f47a1f;  --dato-2: #2d6cdf;  --dato-3: #1aa672;  --dato-4: #7c5cc4;
     --dato-5: #e0322f;  --dato-6: #e8a400;  --dato-7: #0fb5b0;  --dato-8: #9c6b3f;
 
+    /* ── Rampa de severidad de los tests (K4, 2026-08-27) ──────────────────────────────────
+       Los pasos intermedios verde→rojo de TEST_COLORES, GRID_COLORS y los `colors` de cada test.
+       Estaban escritos a mano en cinco lugares distintos.
+
+       `--sev-fill-*` es RELLENO: el fondo de los puntitos (`.dot`) y de las celdas de la grilla
+       de Perelli. Nunca lleva texto encima — la etiqueta va al lado, en texto normal.
+       ⚠️ Mismo valor en los DOS temas, a propósito. Son puntitos decorativos que refuerzan una
+       etiqueta ya escrita, y funcionan sobre los dos fondos. Se tokenizan para que la decisión
+       quede explícita y en un solo lugar, no para cambiar cómo se ven. */
+    --sev-fill-1: #5fb84a;   /* verde claro */
+    --sev-fill-2: #a3c925;   /* lima */
+    --sev-fill-3: #e8c400;   /* amarillo */
+    --sev-fill-4: #f0930f;   /* naranja */
+    --sev-fill-5: #f2640f;   /* naranja fuerte */
+    /* `--sev-txt-*` es TINTA, y por eso SÍ cambia entre temas. Se usa en el encabezado de la
+       grilla de Perelli. Antes ese encabezado usaba los colores de relleno y el amarillo daba
+       **1.70:1** en tema claro: ilegible. Misma lección que dejó anotada I6 con los `--sem-*`.
+       Medidos sobre --card antes de elegirlos: 5.38 a 11.43 en los dos temas. */
+    --sev-txt-1: #166534;  --sev-txt-2: #4a6b00;  --sev-txt-3: #8a6400;
+    --sev-txt-4: #9a4a00;  --sev-txt-5: #a32320;
+
     /* Fondo pálido del color de marca (chips de ícono). El resto de los chips reutiliza los
        --sem-*-bg, que ya son temáticos; al naranja le faltaba el suyo. */
     --orange-bg:   #fff1e6;
@@ -363,6 +384,14 @@
        al lado de las otras (era el problema de mezclar hex fijos con var(--sem-*)). */
     --dato-1: #ff9d4d;  --dato-2: #7fb0ff;  --dato-3: #4fd4a0;  --dato-4: #b49aec;
     --dato-5: #ff8a86;  --dato-6: #f0c04a;  --dato-7: #3ddbd6;  --dato-8: #c69a72;
+
+    /* Rampa de severidad (K4). Los RELLENOS valen igual que en claro a propósito — ver el
+       comentario junto a su declaración. Medidos sobre el fondo oscuro dan 5.15 a 9.62. */
+    --sev-fill-1: #5fb84a;  --sev-fill-2: #a3c925;  --sev-fill-3: #e8c400;
+    --sev-fill-4: #f0930f;  --sev-fill-5: #f2640f;
+    /* Las TINTAS sí cambian: sobre fondo oscuro hacen falta las versiones claras. 7.2 a 11.43. */
+    --sev-txt-1: #4fd4a0;  --sev-txt-2: #b8d94a;  --sev-txt-3: #f5d488;
+    --sev-txt-4: #f5a94a;  --sev-txt-5: #ff8a86;
     --orange-bg:   #3a2413;
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
     --orange-txt:  #b8500a;
@@ -2918,6 +2947,11 @@
   /* J3: el bloque del final de Data Operacional — "lo que te toca ahora" + la línea de tiempo
      del propio ciclo. La línea reusa las mismas clases .cic-* de la tarjeta del supervisor. */
   .cic-mio { margin-top: .9rem; display: flex; flex-direction: column; gap: .7rem; }
+  /* Apagado: se ve que está, pero se lee como "esto va a pasar", no como "esto está pasando".
+     Se atenúa el bloque entero en vez de recolorear cada pieza — así no hay ningún color nuevo
+     que mantener en los dos temas (R13). */
+  .cic-mio-off { opacity: .62; }
+  .cic-mio-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .5rem; }
   .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: 14px;
     padding: .85rem .9rem; }
   .cic-mio-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; }
@@ -4201,7 +4235,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.25';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4663,6 +4697,7 @@ const I18N = {
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
       cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
       cic_mi_ciclo:'Tu ciclo de hoy',
+      cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando acá.',
       rep_grupo_agregado:'Empresa (grupo agregado)',
       // ── F1 · Aptitud: panel de equipo, ficha y leyenda ──
       apt_eq_cap:'del equipo <b>en condiciones</b>',
@@ -6087,6 +6122,7 @@ const I18N = {
       cic_e_comp:'Complete', cic_e_sin:'Not started',
       cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
       cic_mi_ciclo:'Your cycle today',
+      cic_mi_vacio:'You have not logged anything today. As you tap the buttons above, each stage fills in here.',
       rep_grupo_agregado:'Company (aggregated group)',
       // ── F1 · Fitness: team panel, record and legend ──
       apt_eq_cap:'of the team <b>fit to work</b>',
@@ -8509,19 +8545,24 @@ function iniTieneCiclo(){ const p = getProfile(); return !!(p && p.esPiloto); }
    cicloMio() (registro local) en vez del payload del servidor. */
 function cicloMiBloque(){
   let html = '<div class="cic-mio">' + iniAhoraHtml();
+  const plan = cicloPlan();
   const c = cicloMio();
-  if (c){
-    const plan = cicloPlan();
-    const st = cicloEstado(c, Date.now(), plan);
-    if (st.estado !== 'inactivo'){
-      const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
-                     completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
-      html += '<div class="cic-mio-linea">' +
-        '<div class="cic-mio-top"><span class="cic-mio-k">' + esc(t('cic_mi_ciclo')) + '</span>' +
-          '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
-        cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
-    }
-  }
+  /* La línea de tiempo se dibuja SIEMPRE. Antes aparecía recién después del primer evento, así
+     que quien todavía no la había usado no sabía que existía — el bloque más útil de la pantalla
+     estaba invisible justo para quien más lo necesitaba descubrir. Sin ciclo arrancado se muestra
+     apagada, con los tramos en "futuro" y sus duraciones previstas: se lee como "esto es lo que va
+     a pasar hoy". */
+  const st = c ? cicloEstado(c, Date.now(), plan) : cicloEstadoVacio(plan);
+  const apagado = (st.estado === 'inactivo');
+  const stDib = apagado ? cicloEstadoVacio(plan) : st;
+  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
+                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
+  html += '<div class="cic-mio-linea' + (apagado ? ' cic-mio-off' : '') + '">' +
+    '<div class="cic-mio-top"><span class="cic-mio-k">' + esc(t('cic_mi_ciclo')) + '</span>' +
+      '<span class="cic-chip cic-chip-' + stDib.estado + '">' + ETIQ[stDib.estado] + '</span></div>' +
+    cicloBarra(stDib, plan) + cicloTramosHtml(stDib, plan) +
+    (apagado ? '<div class="cic-mio-nota">' + esc(t('cic_mi_vacio')) + '</div>' : '') +
+  '</div>';
   return html + '</div>';
 }
 function renderSections(){
@@ -8834,7 +8875,9 @@ const TEST_DEPRESION = [
   'Conciencia de cómo te estás sintiendo'
 ];
 const TEST_ESCALA  = ['Nunca','Pocas veces al año o menos','Una vez al mes o menos','Unas pocas veces al mes','Una vez a la semana','Unas pocas veces a la semana','Todos los días'];
-const TEST_COLORES = ['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)'];
+/* K4: los intermedios pasan a token (R13). Se usa SIEMPRE como fondo de un puntito, nunca como
+   texto — para texto está la rampa --sev-txt-*. */
+const TEST_COLORES = ['var(--sem-verde)','var(--sev-fill-1)','var(--sev-fill-2)','var(--sev-fill-3)','var(--sev-fill-4)','var(--sev-fill-5)','var(--sem-rojo)'];
 
 let testItem = null, testIdx = 0, testRespuestas = [];
 let perelliState = null;
@@ -9326,11 +9369,14 @@ function perelliAdvanceMulti(){
   perelliAdvance(selected.join(', '));
 }
 function renderPerelliGrid(step){
-  const GRID_COLORS = ['var(--sem-verde)','#5fb84a','#e8c400','#f0930f','var(--sem-rojo)'];
+  /* K4: relleno de las celdas (sin texto encima). El ENCABEZADO usa la rampa de tinta, que es
+     otra: con estos colores el amarillo daba 1.70:1 en tema claro. */
+  const GRID_COLORS = ['var(--sem-verde)','var(--sev-fill-1)','var(--sev-fill-3)','var(--sev-fill-4)','var(--sem-rojo)'];
+  const GRID_TINTAS = ['var(--sev-txt-1)','var(--sev-txt-2)','var(--sev-txt-3)','var(--sev-txt-4)','var(--sev-txt-5)'];
   /* Sólo pantalla. La gemela que VIAJA es GRID_LABELS, en perelliAdvanceGrid(), y esa se
      queda en español siempre. Si algún día se agrega un valor hay que tocar las dos. */
   const GRID_HDRS   = [t('pf_g_nada'), t('pf_g_leve'), t('pf_g_moderado'), t('pf_g_alto'), t('pf_g_severo')];
-  const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_COLORS[i]}">${h}</div>`).join('')}</div>`;
+  const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_TINTAS[i]}">${h}</div>`).join('')}</div>`;
   const rows = step.items.map((item, ri) =>
     `<div class="rtable-row"><div class="rtable-lbl">${item}</div>${GRID_COLORS.map((color,v)=>
       `<button type="button" class="rtable-cell" id="pgb_${ri}_${v+1}" style="--cell-color:${color}" onclick="perelliRate(${ri},${v+1})"></button>`
@@ -9465,7 +9511,7 @@ const ESTRES_SINTOMAS = [
   'Sudoración o palpitaciones'
 ];
 const _EO = ['0 = Nunca','1 = Raramente','2 = Una vez al mes o menos','3 = Unas pocas veces al mes','4 = Una vez a la semana','5 = Unas pocas veces a la semana','6 = Todos los días'];
-const _EC = ['var(--sem-verde)','#5fb84a','#a3c925','#e8c400','#f0930f','#f2640f','var(--sem-rojo)'];
+const _EC = ['var(--sem-verde)','var(--sev-fill-1)','var(--sev-fill-2)','var(--sev-fill-3)','var(--sev-fill-4)','var(--sev-fill-5)','var(--sem-rojo)'];
 const ESTRES_STEPS = ESTRES_SINTOMAS.map(s => ({ type:'single', question:s, options:_EO, colors:_EC }));
 
 const ANSIEDAD_SINTOMAS = [
@@ -9478,7 +9524,7 @@ const ANSIEDAD_SINTOMAS = [
   'Rostro sonrojado','Sudoración (no debido al calor)'
 ];
 const _AO = ['0 = No ha estado presente','1 = Levemente, no me ha molestado','2 = Moderadamente, pero lo pude superar','3 = Severamente, difícil lo soporté'];
-const _AC = ['var(--sem-verde)','#e8c400','#f0930f','var(--sem-rojo)'];
+const _AC = ['var(--sem-verde)','var(--sev-fill-3)','var(--sev-fill-4)','var(--sem-rojo)'];
 const ANSIEDAD_STEPS = ANSIEDAD_SINTOMAS.map(s => ({ type:'single', question:s, options:_AO, colors:_AC }));
 
 const GASTRO_SINTOMAS = [
@@ -9496,7 +9542,7 @@ const GASTRO_SINTOMAS = [
   'Antecedentes de cirugía de vesícula y/o hipotiroidismo de Hashimoto'
 ];
 const _GO = ['0 = Muy en desacuerdo','1 = En desacuerdo','2 = De acuerdo'];
-const _GC = ['var(--sem-verde)','#e8c400','var(--sem-rojo)'];
+const _GC = ['var(--sem-verde)','var(--sev-fill-3)','var(--sem-rojo)'];
 const GASTRO_STEPS = GASTRO_SINTOMAS.map(s => ({ type:'single', question:s, options:_GO, colors:_GC }));
 
 const CANSANCIO_SINTOMAS = [
@@ -13795,6 +13841,19 @@ function cicloMio(){
 
 /* El estado de un ciclo, tramo por tramo. `real` es lo que efectivamente duró (o lo que lleva
    corriendo si es el tramo en curso); `previsto` es lo configurado. */
+/* El ciclo TODAVÍA NO EMPEZADO, con sus tramos materializados en "futuro".
+   `cicloEstado()` devuelve `tramos: []` en ese caso, y por eso no se dibujaba nada — la persona
+   que aún no registró su primer evento no tenía forma de enterarse de que la línea de tiempo
+   existe. Acá no se calcula nada (por definición no hay nada que calcular) y lo dibujan las
+   MISMAS `cicloBarra()` y `cicloTramosHtml()` que la tarjeta del supervisor.
+   ⚠️ A propósito NO se cambia `cicloEstado()`: devolver los tramos desde ahí también cambiaría la
+   tarjeta del supervisor, que hoy para alguien que no inició muestra sólo "Todavía no inició su
+   ciclo". Eso es otra pantalla y otra decisión. */
+function cicloEstadoVacio(plan){
+  return { estado:'inactivo', eventos:{}, inicio:null, activo:-1,
+    tramos: cicloTramos().map(tr => Object.assign({}, tr,
+      { estado:'futuro', previsto:plan[tr.k], real:null, ini:null, fin:null })) };
+}
 function cicloEstado(c, ahora, plan){
   if (!c) return { estado:'inactivo', tramos:[], eventos:{}, inicio:null, activo:-1 };
   const ev = c.ev;
