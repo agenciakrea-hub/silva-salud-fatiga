@@ -297,7 +297,7 @@ PRUEBAS.caso('⚠️ ningún color escrito a mano en las pantallas (R13)', () =>
      Con los clips el fondo era blanco fijo y por eso dos de ellos tenían el título ilegible sobre
      el navy del splash. */
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
-  const bloque = (fuente.match(/\.spl-p[\s\S]*?\/\* Sin movimiento: todo queda/) || [''])[0];
+  const bloque = (fuente.match(/\.spl-p \{[\s\S]*?SIN MOVIMIENTO, TODO TIENE QUE QUEDAR VISIBLE/) || [''])[0];
   PRUEBAS.alMenos(bloque.length, 200, 'tiene que encontrar el bloque de las pantallas');
   const aMano = (bloque.match(/#[0-9a-fA-F]{3,6}\b/g) || []);
   PRUEBAS.igual(aMano, [], 'todo tiene que salir de tokens, o el modo oscuro se rompe');
@@ -355,7 +355,7 @@ PRUEBAS.caso('sin animaciones se queda quieta, pero se ve', () => {
   ov.classList.add('show');
   const tenia = document.documentElement.classList.contains('sin-animaciones');
   document.documentElement.classList.add('sin-animaciones');
-  const invisibles = [...document.querySelectorAll('#splashAnimTrack .spl-check i, #splashAnimTrack .spl-pvt em, #splashAnimTrack .spl-cola i, #splashAnimTrack .spl-barras i')]
+  const invisibles = [...document.querySelectorAll('#splashAnimTrack .spl-mon span, #splashAnimTrack .spl-cola i, #splashAnimTrack .spl-barras i, #splashAnimTrack .spl-l-punto')]
     .filter(e => parseFloat(getComputedStyle(e).opacity) < 0.2)
     .map(e => (e.parentElement.className || '').split(' ')[1] || e.tagName);
   if (!tenia) document.documentElement.classList.remove('sin-animaciones');
@@ -391,4 +391,114 @@ PRUEBAS.caso('entra en su lugar de la escalera', () => {
     'la tira no puede entrar sin retraso: sería lo único del splash que aparece de golpe');
   PRUEBAS.cierto(/\.splash-brand \.splash-anim-slide \{[^}]*justify-content: ?flex-start/.test(fuente),
     'y en escritorio arranca donde arrancan el logo y el título, no centrada');
+});
+
+PRUEBAS.grupo('N10 · los tres bugs que reportó el usuario');
+
+PRUEBAS.caso('⚠️ nada del arranque depende del ORDEN de una asignación', () => {
+  /* Este archivo ya mordió TRES veces en el mismo lugar, y las tres las reportó el usuario o las
+     encontré midiendo, nunca leyendo:
+       1) `let _splAnim` → "Cannot access before initialization" y se cortaba medio script.
+       2) `var SPLASH_ANIM_ACTIVA = true` declarado DESPUÉS del arranque → al cargar valía
+          `undefined` y la tira no arrancaba; recién andaba si se salía a otra pantalla y se volvía.
+          El usuario lo describió exactamente así.
+       3) `var _splAnim = null` declarado después del arranque → la tira arrancaba, guardaba su
+          estado, y esa línea lo PISABA con null: quedaba una cadena viva que ningún freno
+          alcanzaba (batería gastada abajo de la app) y la tira se moría.
+     La regla: lo que use el camino de arranque va como FUNCIÓN DECLARADA (se iza entera); si tiene
+     que ser variable, se declara SIN asignar, porque `var x;` no pisa un valor existente. */
+  PRUEBAS.igual(typeof splashAnimActiva, 'function',
+    'el interruptor tiene que ser función: una variable asignada más abajo vale undefined al arrancar');
+
+  /* La declaracion se busca a PRINCIPIO DE RENGLON. La primera version usaba \bvar _splAnim\s*=
+     y fallaba sola: el comentario que explica este mismo bug, escrito arriba de esa linea en el
+     index, contiene el texto 'var _splAnim = null' y la regex lo matcheaba. */
+  const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('');
+  PRUEBAS.cierto(/^var _splAnim;\s*$/m.test(fuente),
+    'el estado se declara SIN valor: con `= null` la linea pisa lo que el arranque ya habia puesto');
+  PRUEBAS.falso(/^var _splAnim\s*=/m.test(fuente), 'y no puede volver a llevar asignacion');
+});
+
+PRUEBAS.caso('⚠️ la tira sobrevive a arrancar con el movimiento apagado', () => {
+  /* El síntoma reportado: "cuando cargo la página no se mueven, pero si entro a un botón y vuelvo,
+     ahí sí". Al abrir una PWA desde el ícono la página suele cargar en segundo plano, la app pone
+     `.sin-animaciones`, y la tira se quedaba quieta PARA SIEMPRE aunque después el movimiento
+     estuviera permitido. Ahora queda marcada como parada y un observador la re-arma. */
+  const fuente = splashAnimArrancar.toString();
+  PRUEBAS.cierto(/const quieto = \(\) =>/.test(fuente),
+    '`quieto` tiene que ser función: calculado una sola vez, congelaba la tira para siempre');
+  PRUEBAS.cierto(/est\.parado = true/.test(fuente), 'sin movimiento se marca parada, no se abandona');
+  PRUEBAS.cierto(/MutationObserver/.test(fuente), 'y algo la vuelve a poner en marcha sola');
+  PRUEBAS.cierto(/_splAnim !== est/.test(fuente),
+    'y cada paso comprueba que la cadena sea LA vigente, para que ninguna huérfana siga corriendo');
+});
+
+PRUEBAS.caso('⚠️ el alto usa dvh y no vh (el pie no se puede cortar en el teléfono)', () => {
+  /* El usuario reportó que en el celular no le aparecía "Administrador", el ÚLTIMO enlace del pie.
+     No era color —medido: 5.74 de contraste, pasa— sino el alto: `min-height:100dvh` estaba escrito
+     ANTES de `min-height:100vh`, así que ganaba el `vh`, que en un teléfono ignora la barra del
+     navegador y estira el contenido por debajo de lo visible. Gana la última que el navegador
+     entienda, así que el respaldo va primero. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  const malas = (fuente.match(/min-height: ?100dvh; ?min-height: ?100vh/g) || []);
+  PRUEBAS.igual(malas, [], 'el orden invertido hace que mande vh y el pie quede fuera de pantalla');
+  PRUEBAS.alMenos((fuente.match(/min-height: ?100vh; ?min-height: ?100dvh/g) || []).length, 2,
+    'y tiene que estar bien en el splash y en el carrusel');
+});
+
+PRUEBAS.grupo('N10 · "Ver una demostración" deja elegir');
+
+PRUEBAS.caso('⚠️ la demo no dispara el pedido sola', () => {
+  /* Reportado: "le doy y me abre sí o sí dirección, no me deja seleccionar". Pasaba porque
+     `splashVerDemo` llamaba a `portalVerDemo` en la misma línea que abría el portal: la persona
+     nunca llegaba a tocar una pestaña. */
+  const fuente = splashVerDemo.toString();
+  PRUEBAS.falso(/portalVerDemo/.test(fuente),
+    'abrir la demo no puede pedir los datos: primero hay que poder elegir qué vista mirar');
+  PRUEBAS.cierto(/portalDemoModo\(true\)/.test(fuente), 'tiene que entrar en modo sólo demostración');
+});
+
+PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => {
+  /* "Ver demostración sólo debería dejar ver con datos simulados". Desde ahí no se entra a datos
+     reales: no hay usuario ni contraseña, ni el acceso de administrador. */
+  splashVerDemo();
+  const vis = id => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== 'none'; };
+  const r = { creds: vis('portalCreds'), admin: vis('adminSep'), tabEmp: vis('ptabEmp'),
+              sup: vis('ptabSup'), med: vis('ptabMed'), dir: vis('ptabHseq') };
+  /* Antes esto miraba el largo de `dashBody` y daba falso positivo: quedaba contenido de una
+     prueba anterior que si habia cargado la demo. Lo que importa es otra cosa: que siga a la vista
+     la pantalla de eleccion y no el panel. */
+  const gate = document.getElementById('portalGate');
+  const panel = document.getElementById('portalDash');
+  const pidio = !(gate && getComputedStyle(gate).display !== 'none')
+             || !!(panel && getComputedStyle(panel).display !== 'none');
+  closePortal();
+
+  PRUEBAS.falso(r.creds, 'sin usuario ni contraseña');
+  PRUEBAS.falso(r.admin, 'sin acceso de administrador');
+  PRUEBAS.falso(r.tabEmp, '"Mis estadísticas" no aplica: necesita un perfil cargado en el dispositivo');
+  PRUEBAS.cierto(r.sup && r.med && r.dir, 'pero SÍ se puede elegir entre las tres vistas');
+  PRUEBAS.falso(pidio, 'y no se pide nada hasta que la persona elija');
+});
+
+PRUEBAS.caso('cada pestaña cambia la vista que se va a demostrar', () => {
+  splashVerDemo();
+  const vistas = [];
+  ['sup', 'med', 'hseq'].forEach(m => { portalMode(m); vistas.push(PORTAL_VISTA); });
+  const etiqueta = (document.getElementById('portalDemoBtn') || {}).textContent || '';
+  closePortal();
+  PRUEBAS.igual(vistas, ['supervisor', 'medico', 'hseq'], 'la pestaña elegida manda');
+  PRUEBAS.cierto(/dirección|HSEQ/i.test(etiqueta),
+    'y el botón dice para qué vista es, así nadie toca a ciegas: "' + etiqueta + '"');
+});
+
+PRUEBAS.caso('al cerrar, el portal vuelve a la normalidad', () => {
+  /* Si el modo demo quedara pegado, alguien que después quiere entrar de verdad no encontraría
+     dónde poner su contraseña. */
+  splashVerDemo();
+  closePortal();
+  PRUEBAS.falso(PORTAL_SOLO_DEMO, 'el modo se apaga al cerrar');
+  portalMode('sup');
+  PRUEBAS.cierto(getComputedStyle(document.getElementById('portalCreds')).display !== 'none',
+    'y las credenciales vuelven a estar disponibles');
 });

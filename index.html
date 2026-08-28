@@ -2193,7 +2193,7 @@
 
   /* ── Splash (B1, 2026-08-25) ── */
   #splashOv.overlay { background:var(--navy); backdrop-filter:none; align-items:stretch; padding:0; }
-  .splash-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
+  .splash-wrap { position:relative; min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
     display:flex; flex-direction:column; overflow:hidden; }
   .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
   /* I2: medía 41x29. */
@@ -2290,6 +2290,40 @@
   @keyframes splPunto { 0%,42% { opacity:0; transform:scale(.5) } 52%,76% { opacity:1; transform:scale(1) } 86%,100% { opacity:0 } }
   @keyframes splOnda  { 0%,74% { opacity:0; transform:scale(1) } 80% { opacity:.7 } 92%,100% { opacity:0; transform:scale(2.1) } }
 
+  /* Chip de estado, abajo a la derecha del panel: el "Reportando…" / "Analizando…" de los clips. */
+  .spl-chip { align-self: flex-start; font-size: .62rem; font-weight: 700; letter-spacing: .03em;
+    color: var(--orange-legible); background: var(--orange-bg); border: 1px solid var(--orange);
+    border-radius: 999px; padding: .12rem .5rem; }
+
+  /* 2 · Prevención e impacto. La línea se dibuja sola y el punto la recorre. */
+  .spl-linea { position: relative; }
+  .spl-linea svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .spl-linea polyline { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+    vector-effect: non-scaling-stroke; }
+  .spl-l-fondo { stroke: var(--chip-bg); }
+  .spl-l-viva  { stroke: var(--orange); stroke-dasharray: 400; stroke-dashoffset: 400;
+    animation: splTraza 2.6s var(--ease-app, ease) infinite both; }
+  @keyframes splTraza { 0% { stroke-dashoffset: 400; } 55%, 100% { stroke-dashoffset: 0; } }
+  .spl-l-punto { position: absolute; right: -3px; top: 4%; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg);
+    opacity: 0; animation: splPuntoFin 2.6s var(--ease-app, ease) infinite both; }
+  @keyframes splPuntoFin { 0%, 52% { opacity: 0; transform: scale(.4); } 62%, 100% { opacity: 1; transform: scale(1); } }
+
+  /* 3 · Enfoque científico. Las cuatro variables con su estado, como en el clip. */
+  .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .22rem; }
+  .spl-mon span { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    opacity: 0; animation: splFila 2.8s var(--ease-app, ease) infinite both; }
+  .spl-mon span:nth-child(2){ animation-delay: .16s } .spl-mon span:nth-child(3){ animation-delay: .32s }
+  .spl-mon span:nth-child(4){ animation-delay: .48s }
+  @keyframes splFila { 0%,6% { opacity:0; transform: translateX(-5px); } 22%,82% { opacity:1; transform:none; } 96%,100% { opacity:0; } }
+  .spl-mon i { font-style: normal; font-size: .58rem; font-weight: 800; letter-spacing: .05em;
+    color: var(--text-muted); }
+  .spl-mon u { text-decoration: none; font-size: .58rem; font-weight: 800; border-radius: 999px;
+    padding: .08rem .42rem; }
+  .spl-mon u.ok  { color: var(--sem-verde-txt);  background: var(--sem-verde-bg); }
+  .spl-mon u.alt { color: var(--sem-ambar-txt);  background: var(--sem-ambar-bg); }
+  .spl-mon u.cri { color: var(--sem-rojo-alt);   background: var(--sem-rojo-bg); }
+
   /* 4 · Cada quien ve lo suyo. Dos fichas: la del supervisor muestra menos que la del médico. */
   .spl-ojos { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; align-content: center; }
   .spl-ojo { display: flex; flex-direction: column; justify-content: center; gap: .3rem;
@@ -2315,24 +2349,37 @@
     73%,100%{ opacity:.55; transform: translateX(0); background: var(--chip-bg); }
   }
 
-  /* Sin movimiento: todo queda en su estado final visible. Nunca en opacidad 0, que dejaría
-     paneles en blanco — la regla de oro que el proyecto ya tenía escrita para las entradas. */
+  /* ⚠️ SIN MOVIMIENTO, TODO TIENE QUE QUEDAR VISIBLE. Varias piezas arrancan en `opacity: 0` y la
+     animación las trae; si se apaga el movimiento y no se las devuelve a 1, el panel queda EN
+     BLANCO. Me pasó justo con los dos paneles nuevos: la lista de variables y el trazo de la línea
+     salían de esta lista y quedaban invisibles.
+     Por eso la regla se escribe al revés de lo intuitivo: se apaga la animación y se FUERZA el
+     estado final de todo lo que anima opacidad. El único que queda oculto a propósito es la onda
+     del punto, que es puro efecto y sin movimiento no significa nada.
+     Está cubierto por una prueba, porque es de las cosas que sólo se ven cuando ya es tarde. */
   @media (prefers-reduced-motion: reduce) {
-    .spl-barras i, .spl-check i, .spl-pvt em, .spl-pvt u, .spl-cola i { animation: none; }
-    .spl-check i, .spl-pvt em { opacity: 1; }
-    .spl-pvt u { opacity: 0; }
+    .spl-barras i, .spl-cola i, .spl-mon span, .spl-l-viva, .spl-l-punto { animation: none; }
+    .spl-mon span, .spl-l-punto { opacity: 1; transform: none; }
+    .spl-l-viva { stroke-dashoffset: 0; }
   }
-  html.sin-animaciones .spl-barras i, html.sin-animaciones .spl-check i,
-  html.sin-animaciones .spl-pvt em, html.sin-animaciones .spl-pvt u,
-  html.sin-animaciones .spl-cola i { animation: none; }
-  html.sin-animaciones .spl-check i, html.sin-animaciones .spl-pvt em { opacity: 1; }
-  html.sin-animaciones .spl-pvt u { opacity: 0; }
+  html.sin-animaciones .spl-barras i, html.sin-animaciones .spl-cola i,
+  html.sin-animaciones .spl-mon span, html.sin-animaciones .spl-l-viva,
+  html.sin-animaciones .spl-l-punto { animation: none; }
+  html.sin-animaciones .spl-mon span, html.sin-animaciones .spl-l-punto { opacity: 1; transform: none; }
+  html.sin-animaciones .spl-l-viva { stroke-dashoffset: 0; }
 
   /* En pantallas bajas la tira se achica: el texto se mantiene y el gráfico cede espacio. */
+  /* ⚠️ En pantallas bajas la tira mide ~100 px y los textos de los paneles son largos (salen de
+     los clips originales). Medido a 375x667 SIN esto: el hueco del gráfico quedaba en 0 px y el
+     panel se veía roto. Acá el texto cede: la bajada se corta en dos renglones, el chip de estado
+     desaparece —es lo más prescindible— y el gráfico conserva un mínimo para seguir leyéndose. */
   @media (max-height:760px){
-    .spl-p { padding: .65rem .75rem; }
-    .spl-p-tx b { font-size: .88rem; }
-    .spl-p-tx span { font-size: .7rem; }
+    .spl-p { padding: .55rem .7rem; gap: .35rem; }
+    .spl-p-tx b { font-size: .82rem; }
+    .spl-p-tx span { font-size: .66rem; line-height: 1.28;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .spl-chip { display: none; }
+    .spl-p-gr { min-height: 34px; }
   }
 
   @media (max-height:760px){ .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; } }
@@ -2363,7 +2410,7 @@
      sola con la regla global de html.sin-animaciones (arriba, "*{transition:none!important}"),
      que ya cubre prefers-reduced-motion porque esa clase se agrega en boot si el SO lo pide. */
   #carruselOv.overlay { background:var(--card); backdrop-filter:none; align-items:stretch; padding:0; }
-  .car-wrap { position:relative; min-height:100dvh; min-height:100vh; width:100%;
+  .car-wrap { position:relative; min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
     display:flex; flex-direction:column; overflow:hidden; }
   /* I2: medía 34x34. El círculo se sigue dibujando de 34 (más grande le pelearía protagonismo
      al contenido del carrusel); lo que crece a 44 es sólo el área sensible. */
@@ -3919,15 +3966,26 @@
             </div></div>
 
             <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p2_t">Reportas en segundos</b><span data-i18n="spl_p2_d">Tests breves, antes y después del turno.</span></div>
-              <div class="spl-p-gr spl-check" aria-hidden="true">
-                <span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span>
+              <div class="spl-p-tx"><b data-i18n="spl_p2_t">Prevención e Impacto</b><span data-i18n="spl_p2_d">Minimiza incidentes, agiliza la planificación de equipos y asegura el cumplimiento normativo.</span></div>
+              <div class="spl-p-gr spl-linea" aria-hidden="true">
+                <svg viewBox="0 0 300 100" preserveAspectRatio="none">
+                  <polyline class="spl-l-fondo" points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
+                  <polyline class="spl-l-viva"  points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
+                </svg>
+                <em class="spl-l-punto"></em>
               </div>
+              <span class="spl-chip" data-i18n="spl_p2_chip">Reportando…</span>
             </div></div>
 
             <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p3_t">Medición objetiva</b><span data-i18n="spl_p3_d">El test de reacción no depende de lo que respondas.</span></div>
-              <div class="spl-p-gr spl-pvt" aria-hidden="true"><em></em><u></u></div>
+              <div class="spl-p-tx"><b data-i18n="spl_p3_t">Enfoque científico y analítico</b><span data-i18n="spl_p3_d">Monitoreo constante de variables y síntomas clave para detectar alertas tempranas de fatiga.</span></div>
+              <div class="spl-p-gr spl-mon" aria-hidden="true">
+                <span><i>ESTRÉS</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i>GASTRO</i><u class="alt" data-i18n="spl_p3_e">Elevado</u></span>
+                <span><i>FATIGA</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i>SOMNOLENCIA</i><u class="cri" data-i18n="spl_p3_c">Crítico</u></span>
+              </div>
+              <span class="spl-chip" data-i18n="spl_p3_chip">Analizando…</span>
             </div></div>
 
             <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
@@ -3953,7 +4011,7 @@
       </div>
     </div>
     <div class="splash-pie">
-      <button type="button" class="splash-link" onclick="splashVerDemo(this)" data-i18n="splash_demo">Ver una demostración</button>
+      <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
       <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
       <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
     </div>
@@ -4343,6 +4401,7 @@
              "recordar" quedaba en el localStorage propio de la app (texto plano). "username" /
              "current-password" no le quita esa función a la app: sólo suma la opción, mejor
              resguardada, del gestor nativo. -->
+        <div id="portalCreds">
         <div class="field"><label for="pEmpresa" data-i18n="pg_usuario">Usuario</label><input id="pEmpresa" type="text" autocomplete="username" placeholder="Tu usuario" data-i18n-attr="placeholder:pg_usuario_ph"></div>
         <div class="field"><label for="pPass" data-i18n="pg_pass">Contraseña</label>
           <div class="pw-wrap"><input id="pPass" type="password" autocomplete="current-password" placeholder="Tu contraseña" data-i18n-attr="placeholder:pg_pass_ph">
@@ -4350,6 +4409,7 @@
         </div>
         <div class="portal-err" id="portalErr"></div>
         <button class="save-btn" onclick="portalLoginSupervisor(this)" data-i18n="entrar">Entrar</button>
+        </div><!-- /portalCreds -->
 
         <div class="portal-demo">
           <div class="pd-sep"><span>o</span></div>
@@ -4603,7 +4663,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.43';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.45';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4675,10 +4735,16 @@ const I18N = {
       splash_h1:'Tu bienestar y seguridad, en un solo lugar',
       /* Las cinco pantallas de la tira del splash. Texto corto a propósito: se leen de reojo
          mientras la persona decide si entra, no se estudian. */
-      spl_p1_t:'La fatiga se mide',      spl_p1_d:'Como cualquier otro riesgo del puesto.',
-      spl_p2_t:'Reportas en segundos',   spl_p2_d:'Tests breves, antes y después del turno.',
-      spl_p3_t:'Medición objetiva',      spl_p3_d:'El test de reacción no depende de lo que respondas.',
-      spl_p4_t:'Cada quien ve lo suyo',  spl_p4_d:'Tu supervisor, la condición del día. El médico, los resultados.',
+      spl_p1_t:'Analítica Operativa',
+      spl_p1_d:'Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.',
+      spl_p2_t:'Prevención e Impacto',
+      spl_p2_d:'Minimiza incidentes, agiliza la planificación de equipos y asegura el cumplimiento normativo.',
+      spl_p2_chip:'Reportando…',
+      spl_p3_t:'Enfoque científico y analítico',
+      spl_p3_d:'Monitoreo constante de variables y síntomas clave para detectar alertas tempranas de fatiga.',
+      spl_p3_chip:'Analizando…',
+      spl_p3_n:'Normal', spl_p3_e:'Elevado', spl_p3_c:'Crítico',
+      spl_p4_t:'Cada quien ve lo suyo',  spl_p4_d:'Tu supervisor, la condición del día. El servicio médico, los resultados.',
       spl_p5_t:'Funciona sin señal',     spl_p5_d:'Se guarda y se envía solo cuando vuelve la conexión.',
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
@@ -6039,10 +6105,16 @@ const I18N = {
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
       splash_h1:'Your wellbeing and safety, in one place',
-      spl_p1_t:'Fatigue is measured',    spl_p1_d:'Like any other hazard of the job.',
-      spl_p2_t:'Report in seconds',      spl_p2_d:'Short tests, before and after your shift.',
-      spl_p3_t:'Objective measurement',  spl_p3_d:'The reaction test does not depend on your answers.',
-      spl_p4_t:'Everyone sees their own',spl_p4_d:'Your supervisor, the daily status. The doctor, the results.',
+      spl_p1_t:'Operational Analytics',
+      spl_p1_d:'An integrated system to prevent accidents, optimise shifts and keep the workplace safe.',
+      spl_p2_t:'Prevention and Impact',
+      spl_p2_d:'Fewer incidents, faster crew planning and assured regulatory compliance.',
+      spl_p2_chip:'Reporting…',
+      spl_p3_t:'Scientific and analytical',
+      spl_p3_d:'Constant monitoring of key variables and symptoms to catch early fatigue warnings.',
+      spl_p3_chip:'Analysing…',
+      spl_p3_n:'Normal', spl_p3_e:'Raised', spl_p3_c:'Critical',
+      spl_p4_t:'Everyone sees their own',spl_p4_d:'Your supervisor, the daily status. Occupational health, the results.',
       spl_p5_t:'Works with no signal',   spl_p5_d:'It is saved and sent on its own when you are back online.',
       splash_sub:'Preventing, detecting and acting on operational fatigue.',
       splash_ingresar:'Get started',
@@ -11412,6 +11484,7 @@ function closePortal(){
   // silencio. Se limpia acá y no en simSalir() para cubrir TODAS las formas de cerrar (la ✕,
   // el botón atrás del teléfono, y el propio simSalir).
   if (SIMUL){ SIMUL = null; simPintarBarra(); }
+  portalDemoModo(false);              // salir del modo "sólo demo", si venía de ahí
   marcarStatsActivo(false); syncScrollLock();
   /* B5, 2026-08-25 — BUG REAL encontrado probando "Los otros tres caminos". El splash (B1) abre
      este mismo portal SIN que la persona tenga un perfil de empleado: alguien que sólo quiere ver
@@ -11481,6 +11554,17 @@ function dashUpdateBackBtn(){
 // Vista que se abrirá al entrar con credenciales de empresa: 'supervisor' (sólo aptitud, sin
 // datos médicos) o 'medico' (todo). El formulario es el mismo; cambia lo que se muestra después.
 let PORTAL_VISTA = 'medico';
+/* "Ver una demostración" del splash abre el portal en modo SÓLO DEMO: se puede elegir qué vista
+   mirar, pero no se puede entrar con credenciales desde ahí.
+   ⚠️ Antes disparaba el pedido de demo apenas se abría el portal, así que la persona nunca llegaba
+   a elegir nada: caía en la vista que estuviera por defecto. Lo reportó el usuario ("le doy y me
+   abre sí o sí dirección, no me deja seleccionar"). */
+let PORTAL_SOLO_DEMO = false;
+function portalDemoModo(on){
+  PORTAL_SOLO_DEMO = !!on;
+  const gate = document.getElementById('portalGate');
+  if (gate) gate.classList.toggle('portal-demo-modo', PORTAL_SOLO_DEMO);
+}
 function portalMode(m){
   const esLogin = (m === 'sup' || m === 'med' || m === 'hseq');
   document.getElementById('ptabEmp').classList.toggle('active', m==='emp');
@@ -11489,6 +11573,15 @@ function portalMode(m){
   const tHseq = document.getElementById('ptabHseq'); if (tHseq) tHseq.classList.toggle('active', m==='hseq');
   document.getElementById('portalEmp').style.display = m==='emp' ? '' : 'none';
   document.getElementById('portalSup').style.display = esLogin ? '' : 'none';
+  /* En modo sólo demo se esconden las credenciales y el acceso de administrador: desde acá no se
+     entra a datos reales, sólo se mira el ejemplo. La pestaña "Mis estadísticas" tampoco aplica
+     (necesita un perfil cargado en este dispositivo). */
+  const creds = document.getElementById('portalCreds');
+  if (creds) creds.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+  const tabEmp = document.getElementById('ptabEmp');
+  if (tabEmp) tabEmp.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+  const admSep = document.getElementById('adminSep');
+  if (admSep) admSep.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
   // El acceso de administrador va SIEMPRE al pie, sin importar la pestaña elegida; sólo se
   // repliega el formulario de contraseña al cambiar de pestaña, para no dejarlo abierto a mitad.
   const box = document.getElementById('adminBox'); if (box) box.style.display = 'none';
@@ -18464,29 +18557,61 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    leerlo antes tira "Cannot access '_splAnim' before initialization" y eso **corta la ejecución
    de todo el script de acá para abajo**. Lo probé y pasó: la tira no arrancaba y encima se perdía
    medio archivo. `var` se iza inicializado en `undefined`, que es justo lo que hace falta. */
-var _splAnim = null;
-/* Interruptor de la tira. Queda escrito para poder apagarla en un solo lugar sin desarmar nada:
-   ya hizo falta una vez, cuando los clips en video no convencieron. */
-var SPLASH_ANIM_ACTIVA = true;
+/* ⚠️ SIN `= null`, Y ESO ES EL ARREGLO, NO UN DESCUIDO.
+   El arranque llama a `splashMostrar()` unas líneas MÁS ARRIBA que esta. Con `var _splAnim = null`
+   pasaba esto: la tira arrancaba bien y guardaba su estado acá; después la ejecución llegaba a
+   esta línea y lo PISABA con null. La cadena seguía viva (el objeto quedaba capturado en su
+   closure) pero ya nadie podía frenarla: un temporizador huérfano gastando batería abajo de la
+   app, y la tira quedando quieta apenas la guarda de identidad la mataba.
+   `var _splAnim;` sin valor sólo declara: si ya hay algo, no lo toca.
+   Es la TERCERA vez que el orden de este archivo muerde en el mismo lugar (antes con `let`, que
+   cortaba medio script, y con `var SPLASH_ANIM_ACTIVA = true`, que quedaba en undefined al
+   arrancar). Regla para esta zona: **lo que use el camino de arranque va como función declarada;
+   si tiene que ser variable, se declara sin asignar.** */
+var _splAnim;
+/* ⚠️ ES UNA FUNCIÓN Y NO UNA VARIABLE, Y ESO NO ES CAPRICHO.
+   Antes era `var SPLASH_ANIM_ACTIVA = true` acá abajo, y el arranque llama a `splashMostrar()`
+   VEINTIDÓS LÍNEAS ANTES. `var` iza la declaración pero NO la asignación: al arrancar valía
+   `undefined`, la tira no arrancaba nunca, y recién andaba si se salía a otra pantalla y se volvía
+   (ahí `splashMostrar()` corre de nuevo, ya con el valor puesto). El usuario lo reportó exactamente
+   así: "cuando cargo la página no se mueven, pero si entro a un botón y vuelvo, ahí sí".
+   Es el mismo problema de orden que ya había roto esto con `let` (que tiraba un error y cortaba
+   medio script). La lección para este archivo: **lo que use el camino de arranque tiene que ser una
+   función declarada**, que se iza entera, y nunca un `var`/`let`/`const`. */
+function splashAnimActiva(){ return true; }
 function splashAnimArrancar(){
-  if (!SPLASH_ANIM_ACTIVA) return;
+  if (!splashAnimActiva()) return;
   const cont = document.getElementById('splashAnim');
   if (!cont || _splAnim) return;
   const track  = document.getElementById('splashAnimTrack');
   const slides = [...track.querySelectorAll('.splash-anim-slide')];
   if (!slides.length) return;
 
-  const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  /* ⚠️ FUNCIÓN, no una constante calculada una vez. Al arrancar, la app pone `.sin-animaciones`
+     si la pestaña está oculta, y la saca cuando vuelve a estar visible. Si esto se resolvía una
+     sola vez, bastaba con que la página cargara en segundo plano —cosa habitual al abrir una PWA
+     desde el ícono— para que la tira quedara congelada PARA SIEMPRE, aunque el movimiento ya
+     estuviera permitido. Se consulta en cada paso y se re-arma sola. */
+  const quieto = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
               || document.documentElement.classList.contains('sin-animaciones');
 
-  const est = { i:0, timer:0, vivo:true };
+  const est = { i:0, timer:0, vivo:true, parado:false };
   _splAnim = est;
 
   const ir = i => { est.i = i; track.style.transform = 'translateX(' + (-i * 100) + '%)'; };
 
+  /* ⚠️ Se compara por IDENTIDAD contra `_splAnim`, no sólo por `est.vivo`. Apareció una cadena
+     huérfana: la tira seguía rotando con `_splAnim` ya en null, o sea un temporizador que ningún
+     freno alcanzaba —gastando batería abajo de la app y sin forma de pararlo—. Con esta guarda,
+     cualquier cadena que no sea la vigente se muere sola en el siguiente paso, sin importar cómo
+     haya quedado huérfana. */
   function paso(i){
-    if (!est.vivo) return;
+    if (!est.vivo || _splAnim !== est) return;
     ir(i);
+    /* Sin movimiento no se avanza, pero tampoco se abandona: queda marcado como parado y el
+       observador de abajo lo vuelve a poner en marcha en cuanto el movimiento esté permitido. */
+    if (quieto()){ est.parado = true; return; }
+    est.parado = false;
     const v = slides[i].querySelector('video');
     /* La siguiente se precarga recién ahora: al abrir el splash sólo baja la primera. Con 1,16 MB
        en juego, cargarlas todas de entrada sería pagar en el arranque algo que quizá nadie mire. */
@@ -18525,7 +18650,14 @@ function splashAnimArrancar(){
   };
   document.addEventListener('visibilitychange', est.visib);
 
-  if (quieto){ ir(0); return; }                // se queda en la primera, sin rotar
+  /* Se re-arma cuando `.sin-animaciones` se saca del <html>. Sin esto, una carga en segundo plano
+     dejaba la tira quieta hasta que la persona saliera a otra pantalla y volviera — que es
+     exactamente el síntoma que se reportó. */
+  est.obs = new MutationObserver(() => {
+    if (est.vivo && est.parado && !quieto()) paso(est.i);
+  });
+  est.obs.observe(document.documentElement, { attributes:true, attributeFilter:['class'] });
+
   paso(0);
 }
 function splashAnimFrenar(){
@@ -18533,6 +18665,7 @@ function splashAnimFrenar(){
   _splAnim.vivo = false;
   clearTimeout(_splAnim.timer);
   if (_splAnim.visib) document.removeEventListener('visibilitychange', _splAnim.visib);
+  if (_splAnim.obs) _splAnim.obs.disconnect();
   const t = document.getElementById('splashAnimTrack');
   if (t) t.querySelectorAll('video').forEach(v => { v.onended = null; try { v.pause(); } catch(e){} });
   _splAnim = null;
@@ -18552,7 +18685,10 @@ function splashMostrar(){
   }
   document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
   document.getElementById('splashOv').classList.add('show');
-  splashAnimArrancar();       // N8
+  /* Frenar antes de arrancar: garantiza UNA sola cadena viva por más veces que se muestre el
+     splash. Antes, dos arranques sin freno en el medio podían dejar dos corriendo a la vez. */
+  splashAnimFrenar();
+  splashAnimArrancar();
 }
 function splashCambiarIdioma(){
   fijarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
@@ -18564,6 +18700,7 @@ function splashIngresar(){
 // Abre el portal de estadísticas por fuera del recorrido normal (sin bottomNav, sin perfil
 // todavía). Común a "Ver demostración", "Soy supervisor" y "Administrador".
 function splashAbrirPortal(){
+  portalDemoModo(false);      // por si venía de una demo anterior
   splashAnimFrenar();         // N8: va acá, donde el splash se oculta de verdad, y no en cada botón
   document.getElementById('splashOv').classList.remove('show');
   document.getElementById('portalOverlay').classList.add('show');
@@ -18572,9 +18709,12 @@ function splashAbrirPortal(){
   const err = document.getElementById('portalErr'); if (err) err.textContent = '';
   syncScrollLock(); navPush();
 }
-function splashVerDemo(btn){
+function splashVerDemo(){
+  /* Abre el portal para MIRAR el ejemplo y nada más: sin credenciales, eligiendo la vista.
+     No se dispara el pedido acá — eso era lo que impedía elegir. */
   splashAbrirPortal();
-  portalVerDemo(btn);
+  portalDemoModo(true);
+  portalMode('sup');   // la vista más natural para alguien de afuera; se puede cambiar de pestaña
 }
 /* ⚠️ NO usa openPortalGate(): esa función oculta las pestañas de Supervisor/Servicio médico
    salvo que el PERFIL DE EMPLEADO ya tenga esPiloto/esSupervisor marcado — correcto para quien
