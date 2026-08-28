@@ -4262,7 +4262,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.29';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.31';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4494,8 +4494,8 @@ const I18N = {
       op_sub:'Registra el evento y avisa por WhatsApp',
       op_salir_casa:'Saliendo de casa',      op_salir_casa_d:'Inicio de traslado',
       op_lleg_casa:'Llegando a casa',        op_lleg_casa_d:'Fin de la jornada',
-      op_lleg_sitio_d:'Test KSS + notificación',
-      op_salir_sitio_d:'Test Perelli + notificación',
+      op_lleg_sitio_d:'Test KSS · luego a WhatsApp',
+      op_salir_sitio_d:'Test Perelli · luego a WhatsApp',
       // ── Meses (arreglo, ver mesesAbr) ──
       meses_abr:'Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic',
       dias_abr:'Dom Lun Mar Mié Jue Vie Sáb',
@@ -5885,8 +5885,8 @@ const I18N = {
       op_sub:'Logs the event and notifies via WhatsApp',
       op_salir_casa:'Leaving home',          op_salir_casa_d:'Commute starts',
       op_lleg_casa:'Arriving home',          op_lleg_casa_d:'End of the working day',
-      op_lleg_sitio_d:'KSS test + notification',
-      op_salir_sitio_d:'Perelli test + notification',
+      op_lleg_sitio_d:'KSS test · then to WhatsApp',
+      op_salir_sitio_d:'Perelli test · then to WhatsApp',
       meses_abr:'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
       dias_abr:'Sun Mon Tue Wed Thu Fri Sat',
       // ── Home, navigation and settings ──
@@ -8032,6 +8032,26 @@ function buildMessage(item){
   const base = `Hola EVA, me encuentro notificando desde el portal de fatiga Silva Salud. Soy ${p.nombre} de ${p.empresa}, ${p.cedula}, ${p.departamento}, y ${p.cargo}. `;
   return base + item.msg;
 }
+/* ── M6 · Cerrar un test: avisar por WhatsApp y marcar la tarjeta ──────────────────────────────
+   DECISIÓN DEL USUARIO (2026-08-27): el aviso por WhatsApp va SIEMPRE, también para los pilotos.
+
+   Antes había una rama `if (esPiloto)` que se lo saltaba, de junio (`3e2683c`, "modo piloto sin
+   WhatsApp"). El problema no era la rama en sí: era que **la app decía otra cosa**. El encabezado
+   de Data Operacional promete "avisa por WhatsApp" y las 8 tarjetas de Sensaciones dicen "luego a
+   WhatsApp" — y para un piloto las dos cosas eran falsas.
+
+   Esto estaba COPIADO en las 7 funciones que cierran un test, con diferencias entre copias. Ahora
+   es una sola: si la decisión se revisa (el usuario dijo "de momento"), se cambia acá y listo.
+
+   ⚠️ `window.open` tiene que seguir saliendo del gesto de la persona (el botón "Finalizar") o el
+   navegador lo bloquea como popup. Por eso esto se llama EN LÍNEA desde el manejador del botón,
+   nunca detrás de un `setTimeout` ni de un `await`. */
+function testCerrarYAvisar(item, msg){
+  const itemFinal = Object.assign({}, item, { msg: msg });
+  document.getElementById('testOverlay').classList.remove('show');
+  window.open(waUrl(itemFinal), '_blank');
+  mark(item.id);          // mark() ya avisa "Reporte registrado · hh:mm": no repetir el toast
+}
 function waUrl(item){
   return `https://api.whatsapp.com/send/?phone=${EVA_PHONE}&text=${encodeURIComponent(buildMessage(item))}&type=phone_number&app_absent=0`;
 }
@@ -9299,15 +9319,8 @@ function finalizarTest(){
     testRespuestas.forEach((r, i) => params.set('s'+i, r + ' = ' + TEST_ESCALA[r]));
     enviarConCola(SHEETS_DEPRESION_URL + '?' + params);
   }
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(testItem.id);   // mark() ya avisa "Reporte registrado · hh:mm": no repetir el toast
-  } else {
-    const itemFinal = { ...testItem, msg: `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}` };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(testItem.id);
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(testItem, `Completé el *Test de Depresión* desde la web (escala 0 = nunca … 6 = todos los días). Estas son mis respuestas:\n\n${resumen}`);
 }
 
 // ── Fatiga · Perelli SP ───────────────────────────────────────────────────────
@@ -9544,17 +9557,9 @@ function finalizarPerelli(){
      igual que el envío a la hoja del test, que ya se hacía así. */
   enviarOperacional(perelliState.item.operacionalCampo, 'perelli',
     scorePerelli(nivelFatiga, funciones, calidadSuenio, capacidad));
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(perelliState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    perelliState = null;
-  } else {
-    const itemFinal = { ...perelliState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(perelliState.item.id);
-    perelliState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(perelliState.item, msg);
+  perelliState = null;
 }
 
 // ── Somnolencia · Escala KSS ─────────────────────────────────────────────────
@@ -9738,17 +9743,9 @@ function finalizarKss(){
     : `Completé el *Test de Somnolencia (Escala KSS)* desde el portal web.\n\n${details}`;
   // Mismo caso que en Perelli: el evento del ciclo se registra siempre, no sólo sin piloto.
   enviarOperacional(kssState.item.operacionalCampo, 'kss', parseInt(nivelAlerta));
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(kssState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    kssState = null;
-  } else {
-    const itemFinal = { ...kssState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(kssState.item.id);
-    kssState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(kssState.item, msg);
+  kssState = null;
 }
 
 // ── Test de Estrés ──────────────────────────────────────────────
@@ -9800,17 +9797,9 @@ function finalizarEstres(){
   }
   const details = ESTRES_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Estrés* desde el portal web.\n\n${details}`;
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(estresState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    estresState = null;
-  } else {
-    const itemFinal = { ...estresState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(estresState.item.id);
-    estresState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(estresState.item, msg);
+  estresState = null;
 }
 
 // ── Test de Ansiedad (BAI) ──────────────────────────────────────
@@ -9857,17 +9846,9 @@ function finalizarAnsiedad(){
   }
   const details = ANSIEDAD_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Ansiedad (BAI)* desde el portal web.\n\n${details}`;
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(ansiedadState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    ansiedadState = null;
-  } else {
-    const itemFinal = { ...ansiedadState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(ansiedadState.item.id);
-    ansiedadState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(ansiedadState.item, msg);
+  ansiedadState = null;
 }
 
 // ── Test Gastrointestinal ────────────────────────────────────────
@@ -9916,17 +9897,9 @@ function finalizarGastro(){
   }
   const details = GASTRO_SINTOMAS.map((s,i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test Gastrointestinal* desde el portal web.\n\n${details}`;
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(gastroState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    gastroState = null;
-  } else {
-    const itemFinal = { ...gastroState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(gastroState.item.id);
-    gastroState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(gastroState.item, msg);
+  gastroState = null;
 }
 
 // ── Test de Cansancio (Agotamiento Emocional · MBI-EE) ─────────────
@@ -9975,17 +9948,9 @@ function finalizarCansancio(){
   }
   const details = CANSANCIO_SINTOMAS.map((s, i) => `*${s}:* ${ratings[i]}`).join('\n\n');
   const msg = `Completé el *Test de Cansancio / Agotamiento Emocional* desde el portal web.\n\n${details}`;
-  if ((getProfile()||{}).esPiloto) {
-    document.getElementById('testOverlay').classList.remove('show');
-    mark(cansancioState.item.id);   // mark() ya avisa "Reporte registrado · hh:mm"
-    cansancioState = null;
-  } else {
-    const itemFinal = { ...cansancioState.item, msg };
-    document.getElementById('testOverlay').classList.remove('show');
-    window.open(waUrl(itemFinal), '_blank');
-    mark(cansancioState.item.id);
-    cansancioState = null;
-  }
+  // M6: el WhatsApp va para todos, pilotos incluidos. Ver `testCerrarYAvisar`.
+  testCerrarYAvisar(cansancioState.item, msg);
+  cansancioState = null;
 }
 
 function refreshStates(){
