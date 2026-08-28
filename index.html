@@ -2984,7 +2984,15 @@
   .cic-mio-top .cic-chip { margin-left: auto; }
   /* En la tarjeta del supervisor los tramos van en 4 columnas; acá, en el ancho de un teléfono y
      dentro de una sección que ya tiene su propio padding, entran mejor en 2. */
-  .cic-mio-linea .cic-tramos { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  /* ⚠️ ESTA REGLA VA CON MEDIA QUERY, y en J3 no la tenía. Sin el `min-width`, por especificidad
+     (0,2,0 contra 0,1,0) pisaba la regla de UNA columna que la app ya tiene a ≤480 px — la misma
+     que usa la tarjeta del supervisor y que funciona bien. Resultado medido a 390 px: dos columnas
+     de 160 px y el nombre del evento con 48 px para un texto de 122, o sea "Saliendo de ca…".
+     Debajo de 481 px se cae a propósito a la regla general, que reacomoda cada tramo con el
+     nombre a la izquierda y el valor a la derecha. */
+  @media (min-width: 481px){
+    .cic-mio-linea .cic-tramos { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
   @media (min-width: 700px){ .cic-mio-linea .cic-tramos { grid-template-columns: repeat(4, minmax(0,1fr)); } }
 
   .cic-turno { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
@@ -4282,7 +4290,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.33';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.34';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
