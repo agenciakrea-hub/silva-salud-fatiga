@@ -198,3 +198,39 @@ PRUEBAS.caso('el texto de ayuda del mapa vale en los dos temas', () => {
   PRUEBAS.cierto(/más fuerte|stronger/i.test(ayuda),
     'tiene que describir la intensidad, que es lo único cierto en los dos temas');
 });
+
+PRUEBAS.caso('⚠️ el contador de notificaciones se lee en los DOS temas', () => {
+  /* Lo encontró el auditor de contraste al repasar M5, y es de los que más duelen: el globito usaba
+     `--sem-rojo` de fondo, y en oscuro ese token vale #ff8a86 — un rojo CLARO, pensado para TEXTO
+     sobre fondo oscuro. Usado como relleno con el número blanco encima daba 2.27:1, cuando con
+     10.56 px y peso 900 hace falta 4.5. El contador que se agregó justamente para ver las tareas
+     sin entrar, en tema oscuro no se leía.
+     La lección es la de siempre acá: un token de TINTA no sirve como RELLENO. Por eso ahora es un
+     par invariante (--badge-fill / --badge-ink), igual que --sev-fill-* y --entrada-chip. */
+  const lum = c => { const m = (c.match(/[\d.]+/g) || [0,0,0]).map(Number);
+    const f = x => { x = x/255; return x <= .03928 ? x/12.92 : Math.pow((x + .055)/1.055, 2.4); };
+    return .2126*f(m[0]) + .7152*f(m[1]) + .0722*f(m[2]); };
+  const ct = (a, b) => { const A = lum(a), B = lum(b);
+    return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
+
+  const tema0 = document.documentElement.getAttribute('data-tema');
+  const flojos = [];
+  ['claro', 'oscuro'].forEach(tema => {
+    document.documentElement.setAttribute('data-tema', tema);
+    const b = document.getElementById('tareasBadge');
+    if (!b) return;
+    const cs = getComputedStyle(b);
+    const c = ct(cs.color, cs.backgroundColor);
+    if (c < 4.5) flojos.push(tema + ': ' + c.toFixed(2) + ':1');
+  });
+  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  PRUEBAS.igual(flojos, [],
+    'el número tiene que leerse sobre su propio relleno en los dos temas (10.56 px y peso 900 son texto chico: mínimo 4.5)');
+});
+
+PRUEBAS.caso('el globito no tiene colores escritos a mano', () => {
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  const regla = (fuente.match(/\.hh-badge\s*\{[^}]*\}/) || [''])[0];
+  PRUEBAS.falso(/#[0-9a-fA-F]{3,6}/.test(regla),
+    'un color fijo vale igual en los dos temas, y eso fue exactamente el bug (R13): ' + regla.slice(0, 120));
+});
