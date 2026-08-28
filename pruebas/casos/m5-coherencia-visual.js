@@ -387,8 +387,14 @@ PRUEBAS.caso('entra en su lugar de la escalera', () => {
   /* El splash entra escalonado (logo 0 → título .08 → bajada .16 → botón .24) y la tira era lo
      único que aparecía de golpe. Se le dio .04, entre el logo y el título. */
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
-  PRUEBAS.cierto(/\.splash-anim \{ animation-delay: ?\.04s/.test(fuente),
-    'la tira no puede entrar sin retraso: sería lo único del splash que aparece de golpe');
+  /* La tira pasó a estar ABAJO DE TODO, debajo del acceso de administrador, así que ahora tiene
+     que entrar la ÚLTIMA — después del botón (.24). La regla de fondo no cambió: nada entra antes
+     que lo que tiene encima. Por eso la prueba compara contra el escalón del botón en vez de fijar
+     un número, que fue lo que la hizo fallar cuando el bloque se movió. */
+  const dTira = parseFloat((fuente.match(/\.splash-anim \{ animation-delay: ?([\d.]+)s/) || [0,0])[1]);
+  const dBoton = parseFloat((fuente.match(/\.ent-texto-entra--4 \{ animation-delay: ?([\d.]+)s/) || [0,0])[1]);
+  PRUEBAS.alMenos(dTira, dBoton,
+    'la tira está abajo de todo: tiene que entrar después del botón (' + dTira + 's vs ' + dBoton + 's)');
   PRUEBAS.cierto(/\.splash-brand \.splash-anim-slide \{[^}]*justify-content: ?flex-start/.test(fuente),
     'y en escritorio arranca donde arrancan el logo y el título, no centrada');
 });
@@ -591,4 +597,27 @@ PRUEBAS.caso('el acceso con credenciales ofrece las tres vistas', () => {
   closePortal();
   PRUEBAS.cierto(r.sup && r.med && r.dir, 'supervisor, servicio médico y dirección');
   PRUEBAS.cierto(r.creds, 'y acá SÍ se puede entrar con credenciales, a diferencia de la demo');
+});
+
+PRUEBAS.caso('⚠️ los controles del panel se pueden tocar con guantes', () => {
+  /* Medidos en el panel abierto: las pestañas daban 35 px de alto, los filtros 33 y el botón de
+     refrescar 34x34 — veintiún objetivos por debajo del mínimo de 44. Y la regla de pantallas
+     chicas los bajaba a 30, justo donde más importa. Un toque de 35 px falla y se corrige tocando
+     de nuevo: esa es exactamente la sensación de "apretado" que se reportó.
+     Se comprueba sobre el CSS porque el panel necesita datos para dibujarse. */
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  const flojos = [];
+  [['.dtab', 'las pestañas'], ['.pchip', 'los filtros']].forEach(([sel, que]) => {
+    /* Se recorta con indexOf y no con `new RegExp`: armar la expresión desde una cadena obliga a
+       escapar barras, y al escribir este archivo una de esas barras se perdió y dejó la cadena sin
+       cerrar — se rompió el archivo ENTERO y la suite no cargó ni un caso. Sin escapes no pasa. */
+    const desde = css.indexOf(sel + ' {');
+    const regla = desde < 0 ? '' : css.slice(desde, css.indexOf('}', desde) + 1);
+    if (!/min-height: ?44px/.test(regla)) flojos.push(que + ': ' + regla.slice(0, 70));
+  });
+  if (!/\.dash-refresh \{ width: ?44px; height: ?44px/.test(css)) flojos.push('el botón de refrescar');
+  PRUEBAS.igual(flojos, [], 'todo control del panel necesita 44 px de área, aunque el dibujo sea menor');
+
+  PRUEBAS.falso(/\.portal-back, \.dash-refresh[^{]*\{ width: ?30px/.test(css),
+    'y la regla de pantallas chicas no puede volver a bajarlos: ahí es donde más importa');
 });

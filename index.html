@@ -883,7 +883,7 @@
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange); border-radius: 999px;
     padding: .34rem .7rem; font-family: inherit; font-weight: 700; font-size: .74rem; cursor: pointer; white-space: nowrap; }
   .dash-demo.on { background: var(--orange); color: #fff; }
-  .dash-refresh { width: 34px; height: 34px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
+  .dash-refresh { width: 44px; height: 44px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
     border-radius: 10px; color: #fff; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
   .dash-refresh svg { width: 16px; height: 16px; }
   .dash-refresh.spin svg { animation: dashspin .7s linear infinite; }
@@ -891,7 +891,12 @@
   .dash-top .portal-x { position: static; flex-shrink: 0; background: rgba(255,255,255,.1); color: #fff; }
   .dash-tabs { display: flex; gap: .35rem; padding: .65rem 1.2rem; border-bottom: 1px solid var(--linea); overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
   .dash-tabs::-webkit-scrollbar { display: none; }
-  .dtab { padding: .52rem .95rem; border: none; background: var(--chip-bg); border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .86rem; color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  /* ⚠️ `min-height: 44px` en los controles del panel. Medidos: las pestañas daban 35 px de alto,
+     los filtros 33 y el botón de refrescar 34x34 — veintiún objetivos por debajo del mínimo. Esto
+     es una PWA que se usa en el teléfono, en un hangar y a veces con guantes: 35 px es un toque que
+     falla y se corrige tocando de nuevo, que es justo la sensación de "apretado".
+     Se agranda el ALTO DEL ÁREA, no la tipografía ni el dibujo. */
+  .dtab { min-height: 44px; display: inline-flex; align-items: center; padding: .52rem .95rem; border: none; background: var(--chip-bg); border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .86rem; color: var(--text-muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .dtab.active { background: var(--navy); color: #fff; }
   /* Pista de "hay más pestañas": degradado + chevron a los lados, sólo cuando se puede deslizar.
      Así se entiende que la fila de Resumen/Comparar/Individual… se desliza para ver más. */
@@ -1217,7 +1222,7 @@
   /* Chips de período */
   .period-chips { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .3rem; margin-bottom: .7rem; scrollbar-width: none; }
   .period-chips::-webkit-scrollbar { display: none; }
-  .pchip { padding: .44rem .8rem; border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-soft); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .pchip { min-height: 44px; display: inline-flex; align-items: center; padding: .44rem .8rem; border: 1.5px solid var(--sup-borde); background: var(--card); border-radius: 999px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-soft); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .pchip.active { background: var(--orange-txt); border-color: var(--orange-txt); color: #fff; }
 
   /* Login admin */
@@ -1856,7 +1861,9 @@
     .dash-scope-wrap { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; }
     .dash-scope { font-size: 1rem; }
     .dash-updated { font-size: .68rem; margin-top: 0; }
-    .portal-back, .dash-refresh, .dash-top .portal-x { width: 30px; height: 30px; font-size: 1rem; }
+    /* Antes esto los bajaba a 30 px justo en la pantalla donde MÁS importa el tamaño del toque.
+       Se mantiene el área en 44 y se achica sólo el dibujo de adentro. */
+    .portal-back, .dash-refresh, .dash-top .portal-x { width: 44px; height: 44px; font-size: 1rem; }
     .dash-refresh svg { width: 14px; height: 14px; }
     /* El menú/filtros TAMBIÉN se despliega en escritorio (antes quedaba fijo abierto): expandido
        se comía ~180 px de alto entre pestañas, rango y selectores, y encima dejaba al Glosario en
@@ -2181,19 +2188,26 @@
     .ent-texto-entra--2 { animation-delay: .08s; }
     .ent-texto-entra--3 { animation-delay: .16s; }
     .ent-texto-entra--4 { animation-delay: .24s; }
-    /* N8 · La tira va entre el logo (0) y el título (.08), así que entra a .04 — si no, sería lo
-       único del splash que aparece de golpe, y se nota aunque nadie sepa decir qué está mal.
-       Es el mismo arreglo que en M5 con el banner de instalar, que entraba antes que su encabezado.
-       Va con el nombre del elemento en vez de un `--1b` genérico: es UNA posición, no un escalón
-       reutilizable. */
-    .splash-anim { animation-delay: .04s; }
+    /* N8 · La tira está abajo de todo, así que entra ÚLTIMA: después del botón (.24). La regla es
+       la misma de siempre —nada entra antes que lo que tiene encima— y por eso el retraso se movió
+       cuando se movió el bloque. Va con el nombre del elemento y no con un escalón genérico: es UNA
+       posición concreta, no un peldaño reutilizable. */
+    .splash-anim { animation-delay: .3s; }
   }
   @keyframes entLogoEntra { from { opacity:0; transform:scale(.86); } to { opacity:1; transform:scale(1); } }
   @keyframes entTextoEntra { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
   /* ── Splash (B1, 2026-08-25) ── */
   #splashOv.overlay { background:var(--navy); backdrop-filter:none; align-items:stretch; padding:0; }
-  .splash-wrap { position:relative; min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
+  /* ⚠️ `justify-content: space-evenly` y `.splash-cuerpo` sin `flex:1`: antes el cuerpo se comía
+     TODO el espacio sobrante, así que quedaba un hueco muerto de 107 px entre el botón y los
+     enlaces, y sólo 9 px entre los enlaces y la tira. Medido a 390x844. Repartiendo el aire, los
+     tres bloques quedan a distancias parecidas, que es lo que se lee como "acomodado". */
+  /* La banda superior queda RESERVADA para el logo y el botón de idioma, que están anclados a las
+     dos esquinas. Sin esto, al centrar el bloque del medio el título se subía encima del logo
+     (medido: se solapaban). */
+  .splash-wrap { position:relative; justify-content:space-evenly;
+    padding-top:calc(env(safe-area-inset-top,0px) + 104px); min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
     display:flex; flex-direction:column; overflow:hidden; }
   .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
   /* I2: medía 41x29. */
@@ -2207,9 +2221,21 @@
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
-  .splash-cuerpo { position:relative; z-index:2; flex:1; display:flex; flex-direction:column;
+  /* ⚠️ `position:static` con `z-index` a secas, y no `position:relative`. El logo se ancla con
+     `position:absolute` a la esquina superior izquierda, y su contenedor es el ancestro POSICIONADO
+     más cercano: mientras esto era `relative`, el logo se anclaba al CUERPO, así que al repartir el
+     aire el cuerpo bajó y se llevó el logo encima del título (medido: se solapaban título y bajada).
+     El `z-index` sigue funcionando igual porque esto es un ítem flex, y ahí no hace falta estar
+     posicionado — que era lo único que aportaba el `relative`: quedar por encima de los círculos. */
+  .splash-cuerpo { position:static; z-index:2; flex:0 1 auto; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; padding:0 28px; gap:6px; }
-  .splash-logo { width:96px; height:auto; margin-bottom:18px; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  /* El logo va anclado ARRIBA A LA IZQUIERDA, en espejo con el botón de idioma que ya estaba
+     arriba a la derecha: las dos esquinas superiores ocupadas y el bloque central (titular, bajada,
+     botón) queda libre para centrarse de verdad. Antes el logo estaba dentro del flujo y empujaba
+     todo hacia abajo, lo que descentraba el conjunto.
+     Mismas coordenadas que `.splash-lang`, incluido el `safe-area-inset` del notch. */
+  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); left:16px; z-index:5;
+    width:58px; height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
   /* ── N8 · Tira de presentación del splash ──────────────────────────────────────────────────
      El alto va con `clamp` y no con un número: el cuerpo del splash está centrado, así que todo
      lo que crece acá empuja para arriba Y para abajo. Medido a 390x844: con 22vh el bloque queda
@@ -2219,8 +2245,19 @@
   /* El alto sale de medir, no de elegir: con 22vh los gráficos de las pantallas 2 y 3 quedaban en
      55 px dentro de un panel de 186 y se veían apretados. Con 26vh el gráfico pasa a ~90 y el
      bloque sigue entrando sin empujar el pie (verificado a 390x844, 375x667 y 1366x768). */
-  .splash-anim { position:relative; z-index:2; width:100%; height:clamp(130px, 26vh, 240px);
-    overflow:hidden; margin-bottom:16px; }
+  /* La tira pasó a estar ABAJO DE TODO, debajo incluso del acceso de administrador: así el bloque
+     central (logo, titular, bajada, botón) queda como una sola pieza centrada y la tira funciona
+     como cierre, en vez de partir la pantalla al medio. */
+  /* ⚠️ El aire lateral va como MARGEN, nunca como padding. `overflow:hidden` recorta en la caja
+     de PADDING, así que un padding horizontal abre una ventana más ancha que la pantalla y dejan de
+     verse una: medido en escritorio, la pantalla medía 574 y la ventana 683, o sea 109 px por los
+     que asomaban las dos vecinas. Con margen, la ventana y la pantalla miden lo mismo. */
+  /* ⚠️ El ancho va explícito. Con `width:auto` el bloque es un ítem flex con `overflow:hidden`, y
+     su tamaño mínimo automático lo calcula el CONTENIDO: la tira de cinco pantallas lo estiraba a
+     520 px dentro de una pantalla de 390 (medido). Se veía "bien" sólo porque el contenedor recorta.
+     `min()` deja el aire lateral en teléfono y le pone techo en pantallas anchas. */
+  .splash-anim { position:relative; z-index:2; height:clamp(130px, 24vh, 220px);
+    overflow:hidden; width:min(100% - 40px, 520px); margin:0 auto 20px; align-self:center; }
   .splash-anim-track { display:flex; height:100%; transition:transform .55s cubic-bezier(.4,0,.2,1); }
   .splash-anim-slide { flex:0 0 100%; height:100%; display:flex; align-items:center; justify-content:center; }
   .splash-anim-v { max-width:100%; max-height:100%; width:auto; height:100%; object-fit:contain; display:block; }
@@ -2284,6 +2321,11 @@
   @keyframes splCrece { from { transform: scaleY(.04); } to { transform: scaleY(1); } }
 
   /* 2 · Prevención e Impacto. La línea se dibuja sola y el punto aterriza al final. */
+  /* ⚠️ SIN padding. Los porcentajes de un elemento absoluto se miden contra la caja de PADDING del
+     contenedor, así que agregar padding acá desplaza el punto en vez de acomodarlo: probado, lo
+     empujó más afuera y encima lo desincronizó de la línea.
+     Que el punto asome unos píxeles del área del gráfico está BIEN: cae dentro del acolchado de la
+     tarjeta, que es lo que de verdad se ve. Lo que importa es que no se salga de la tarjeta. */
   .spl-linea { position: relative; }
   .spl-linea svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .spl-linea polyline { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
@@ -2292,10 +2334,18 @@
   .spl-l-viva  { stroke: var(--orange); }
   .spl-activa .spl-l-viva { stroke-dasharray: 420; animation: splTraza 1.1s cubic-bezier(.4,0,.2,1) .1s both; }
   @keyframes splTraza { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
-  .spl-l-punto { position: absolute; right: -3px; top: 2%; width: 10px; height: 10px; border-radius: 50%;
+  /* ⚠️ El punto se coloca sobre el FINAL REAL de la línea, no "cerca del borde". La polilínea
+     termina en (300,10) de un viewBox de 300x100 y el SVG estira sin conservar proporción, así que
+     ese punto cae exactamente en x=100%, y=10% de la caja — a cualquier tamaño.
+     Antes estaba en `right:-3px; top:2%`: quedaba 2 px descoordinado de la línea y, sobre todo, se
+     salía de la caja. En escritorio, donde el gráfico mide 581 px de ancho, se notaba. */
+  .spl-l-punto { position: absolute; left: 100%; top: 10%; width: 10px; height: 10px;
+    margin: 0; transform: translate(-50%, -50%); border-radius: 50%;
     background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
   .spl-activa .spl-l-punto { animation: splPuntoFin .5s cubic-bezier(.22,1.2,.36,1) 1.1s both; }
-  @keyframes splPuntoFin { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+  @keyframes splPuntoFin {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
   /* 3 · Enfoque científico. Las cuatro variables entran de a una, como si se fueran midiendo. */
   .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .3rem; }
@@ -2383,7 +2433,8 @@
      mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
      por debajo de lo legible. */
   .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
-  @media (max-width:340px){ .splash-logo{ width:76px; } .splash-sub{ margin-bottom:18px; } }
+  @media (max-width:340px){ .splash-logo{ width:48px; } .splash-sub{ margin-bottom:18px; }
+    .splash-wrap{ padding-top:calc(env(safe-area-inset-top,0px) + 88px); } }
 
   /* ── Carrusel de presentación (B2, 2026-08-25) ──
      .car-track se desliza con transform (JS calcula % según CAR_IDX). La transición se apaga
@@ -2442,7 +2493,7 @@
   @media (min-width: 600px) and (max-width: 899px) {
     .splash-circ-band { height: min(42vh, 420px); }
     .splash-cuerpo { padding: 0 48px; gap: 10px; }
-    .splash-logo { width: 116px; margin-bottom: 24px; }
+    .splash-logo { width: 92px; }   /* sigue anclado arriba a la izquierda; sólo cambia el tamaño */
     .splash-h1 { font-size: clamp(1.8rem, 3.4vw, 2.15rem); max-width: 20ch; }
     .splash-sub { font-size: 1.04rem; max-width: 46ch; margin-bottom: 32px; }
     .splash-cta { max-width: 360px; }
@@ -2496,7 +2547,10 @@
       position: relative; z-index: 2;
       display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       text-align: left; gap: .4rem; padding: 3rem clamp(2rem, 4.5vw, 4.5rem); }
-    .splash-brand .splash-logo { width: 124px; margin-bottom: 30px; }
+    /* En escritorio el logo VUELVE AL FLUJO: la columna izquierda es el panel de presentación y
+       ahí el logo encabeza el bloque, alineado con el titular. El anclaje a la esquina es para
+       teléfono, donde no hay columna que encabezar. */
+    .splash-brand .splash-logo { position: static; width: 124px; margin-bottom: 30px; }
     /* N8 · En escritorio esta columna va alineada a la IZQUIERDA (logo y titular arrancan en el
        mismo borde). La tira se centra por defecto, que es lo correcto en teléfono —donde todo está
        centrado— pero acá dejaba el video flotando en el medio, desalineado con todo lo demás.
@@ -2512,7 +2566,12 @@
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
       padding: 3.2rem clamp(2rem, 4vw, 4rem) 0; }
     .splash-pie { grid-column: 2; grid-row: 2; align-self: start;
-      padding: 1.6rem clamp(2rem, 4vw, 4rem) 3.2rem; gap: .15rem; }
+      padding: 1.6rem clamp(2rem, 4vw, 4rem) 1.4rem; gap: .15rem; }
+    /* La tira cierra la columna derecha, debajo del acceso de administrador: el mismo orden que en
+       teléfono, así las dos versiones se leen igual. */
+    .splash-anim { grid-column: 2; grid-row: 3; align-self: start;
+      margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem; max-width: none; height: clamp(120px, 20vh, 190px); }
+    .splash-wrap { grid-template-rows: auto auto auto; }
     .splash-acciones > *, .splash-pie > * { width: min(340px, 100%); }
     .splash-cta { max-width: 340px; }
     /* Sobre superficie clara los blancos translúcidos del panel derecho no se ven: se retiñen
@@ -3926,65 +3985,6 @@
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
-        <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
-             Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
-             se acumularon: en un teléfono un cuadrado entra a 186x186 y el texto de adentro queda
-             diminuto; dos de los tres traían el título como tinta oscura sobre transparente, o sea
-             navy sobre navy; y pesaban 1,7 MB. Hechas acá usan el ANCHO COMPLETO, el texto es texto
-             de verdad —pasa por t() y se traduce (R14), escala con el tamaño de letra elegido— y
-             los colores salen de los tokens (R13), así que el modo oscuro sale gratis.
-             Decorativa: `aria-hidden` porque no dice nada que no esté escrito abajo.
-
-             PARA AGREGAR O CAMBIAR UNA PANTALLA: se suma un `.splash-anim-slide` acá y listo. El
-             secuenciador lee las que haya: con <video> adentro espera al evento `ended`; si no,
-             espera lo que diga `data-espera`. No hay que tocar el JS. -->
-        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
-          <div class="splash-anim-track" id="splashAnimTrack">
-            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p1_t">La fatiga se mide</b><span data-i18n="spl_p1_d">Como cualquier otro riesgo del puesto.</span></div>
-              <div class="spl-p-gr spl-barras" aria-hidden="true">
-                <i style="--h:34%"></i><i style="--h:52%"></i><i style="--h:41%"></i><i style="--h:68%"></i>
-                <i style="--h:57%"></i><i class="on" style="--h:92%"></i><i style="--h:63%"></i><i style="--h:45%"></i>
-              </div>
-            </div></div>
-
-            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p2_t">Prevención e Impacto</b><span data-i18n="spl_p2_d">Minimiza incidentes, agiliza la planificación de equipos y asegura el cumplimiento normativo.</span></div>
-              <div class="spl-p-gr spl-linea" aria-hidden="true">
-                <svg viewBox="0 0 300 100" preserveAspectRatio="none">
-                  <polyline class="spl-l-fondo" points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
-                  <polyline class="spl-l-viva"  points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
-                </svg>
-                <em class="spl-l-punto"></em>
-              </div>
-              <span class="spl-chip" data-i18n="spl_p2_chip">Reportando…</span>
-            </div></div>
-
-            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p3_t">Enfoque científico y analítico</b><span data-i18n="spl_p3_d">Monitoreo constante de variables y síntomas clave para detectar alertas tempranas de fatiga.</span></div>
-              <div class="spl-p-gr spl-mon" aria-hidden="true">
-                <span><i>ESTRÉS</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
-                <span><i>GASTRO</i><u class="alt" data-i18n="spl_p3_e">Elevado</u></span>
-                <span><i>FATIGA</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
-                <span><i>SOMNOLENCIA</i><u class="cri" data-i18n="spl_p3_c">Crítico</u></span>
-              </div>
-              <span class="spl-chip" data-i18n="spl_p3_chip">Analizando…</span>
-            </div></div>
-
-            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p4_t">Cada quien ve lo suyo</b><span data-i18n="spl_p4_d">Tu supervisor, la condición del día. El médico, los resultados.</span></div>
-              <div class="spl-p-gr spl-ojos" aria-hidden="true">
-                <span class="spl-ojo"><i></i><i></i></span>
-                <span class="spl-ojo spl-ojo--med"><i></i><i></i><i></i></span>
-              </div>
-            </div></div>
-
-            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_p5_t">Funciona sin señal</b><span data-i18n="spl_p5_d">Se guarda y se envía solo cuando vuelve la conexión.</span></div>
-              <div class="spl-p-gr spl-cola" aria-hidden="true"><i></i><i></i><i></i></div>
-            </div></div>
-          </div>
-        </div>
         <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
         <p class="splash-sub ent-texto-entra ent-texto-entra--3" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
       </div>
@@ -3998,6 +3998,65 @@
       <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
       <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
     </div>
+    <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
+         Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
+         se acumularon: en un teléfono un cuadrado entra a 186x186 y el texto de adentro queda
+         diminuto; dos de los tres traían el título como tinta oscura sobre transparente, o sea
+         navy sobre navy; y pesaban 1,7 MB. Hechas acá usan el ANCHO COMPLETO, el texto es texto
+         de verdad —pasa por t() y se traduce (R14), escala con el tamaño de letra elegido— y
+         los colores salen de los tokens (R13), así que el modo oscuro sale gratis.
+         Decorativa: `aria-hidden` porque no dice nada que no esté escrito abajo.
+
+         PARA AGREGAR O CAMBIAR UNA PANTALLA: se suma un `.splash-anim-slide` acá y listo. El
+         secuenciador lee las que haya: con <video> adentro espera al evento `ended`; si no,
+         espera lo que diga `data-espera`. No hay que tocar el JS. -->
+    <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
+      <div class="splash-anim-track" id="splashAnimTrack">
+        <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+            <div class="spl-p-tx"><b data-i18n="spl_p1_t">Analítica Operativa</b><span data-i18n="spl_p1_d">Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.</span></div>
+            <div class="spl-p-gr spl-barras" aria-hidden="true">
+              <i style="--h:34%"></i><i style="--h:52%"></i><i style="--h:41%"></i><i style="--h:68%"></i>
+              <i style="--h:57%"></i><i class="on" style="--h:92%"></i><i style="--h:63%"></i><i style="--h:45%"></i>
+            </div>
+          </div></div>
+
+          <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p2_t">Prevención e Impacto</b><span data-i18n="spl_p2_d">Minimiza incidentes, agiliza la planificación de equipos y asegura el cumplimiento normativo.</span></div>
+              <div class="spl-p-gr spl-linea" aria-hidden="true">
+                <svg viewBox="0 0 300 100" preserveAspectRatio="none">
+                <polyline class="spl-l-fondo" points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
+                <polyline class="spl-l-viva"  points="0,64 43,70 86,52 129,74 171,46 214,54 257,26 300,10"/>
+              </svg>
+              <em class="spl-l-punto"></em>
+            </div>
+            <span class="spl-chip" data-i18n="spl_p2_chip">Reportando…</span>
+          </div></div>
+
+          <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p3_t">Enfoque científico y analítico</b><span data-i18n="spl_p3_d">Monitoreo constante de variables y síntomas clave para detectar alertas tempranas de fatiga.</span></div>
+              <div class="spl-p-gr spl-mon" aria-hidden="true">
+                <span><i>ESTRÉS</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i>GASTRO</i><u class="alt" data-i18n="spl_p3_e">Elevado</u></span>
+                <span><i>FATIGA</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i>SOMNOLENCIA</i><u class="cri" data-i18n="spl_p3_c">Crítico</u></span>
+              </div>
+              <span class="spl-chip" data-i18n="spl_p3_chip">Analizando…</span>
+            </div></div>
+
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+                <div class="spl-p-tx"><b data-i18n="spl_p4_t">Cada quien ve lo suyo</b><span data-i18n="spl_p4_d">Tu supervisor, la condición del día. El médico, los resultados.</span></div>
+                <div class="spl-p-gr spl-ojos" aria-hidden="true">
+                  <span class="spl-ojo"><i></i><i></i></span>
+                  <span class="spl-ojo spl-ojo--med"><i></i><i></i><i></i></span>
+                </div>
+              </div></div>
+
+              <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+                  <div class="spl-p-tx"><b data-i18n="spl_p5_t">Funciona sin señal</b><span data-i18n="spl_p5_d">Se guarda y se envía solo cuando vuelve la conexión.</span></div>
+                  <div class="spl-p-gr spl-cola" aria-hidden="true"><i></i><i></i><i></i></div>
+                </div></div>
+              </div>
+            </div>
   </div>
 </div>
 
@@ -4646,7 +4705,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.48';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.51';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
