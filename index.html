@@ -1144,6 +1144,18 @@
   .dsk-block { background: var(--card); border: 1px solid var(--sup-borde); border-radius: var(--radius);
     padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm); }
   .dsk-chart { background: var(--sup-suave); border-radius: 10px; height: 150px; margin-top: .8rem; }
+  /* El hueco del gráfico con forma de gráfico: barras de alto distinto en vez de un rectángulo
+     plano. Un rectángulo dice "algo viene"; unas barras dicen "acá viene un gráfico", que es la
+     diferencia entre esperar a ciegas y esperar sabiendo qué. */
+  .dsk-barras { display: flex; align-items: flex-end; gap: .4rem; margin-top: .8rem; }
+  .dsk-barras > i { flex: 1; display: block; background: var(--sup-suave); border-radius: 7px 7px 3px 3px; }
+  /* El barrido recorre el bloque ENTERO, no cada pieza: se lee como una sola superficie esperando. */
+  .dsk-block { position: relative; overflow: hidden; }
+  .dsk-block::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(110deg, transparent 0%, transparent 40%, var(--sobre-card) 50%, transparent 60%, transparent 100%);
+    animation: skBrillo 1.3s linear infinite; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .dsk-block::after { animation: none; opacity: 0; } }
+  html.sin-animaciones .dsk-block::after { animation: none; opacity: 0; }
 
   /* ── ERROR ACCIONABLE ──
      Nunca "Error". Qué pasó, qué hacer, y el botón para hacerlo. Va DENTRO del panel: mandar a
@@ -1397,15 +1409,73 @@
   @media (prefers-reduced-motion: reduce) { .sk::after { animation: none; opacity: 0; } }
   html.sin-animaciones .sk::after { animation: none; opacity: 0; }
   .sk-linea { height: 12px; margin: .45rem 0; }
-  .sk-tarjeta { height: 74px; margin: .55rem 0; border-radius: 15px; }
-  .sk-bloque { height: 128px; margin: .7rem 0; border-radius: 15px; }
+  .sk-tarjeta { height: 74px; margin: .55rem 0; border-radius: var(--radius-sm); }
+  .sk-bloque { height: 128px; margin: .7rem 0; border-radius: var(--radius-sm); }
+
+  /* ── Esqueletos con la FORMA de lo que va a llegar ──────────────────────────────────────────
+     Los de arriba son rectángulos genéricos. Estos imitan la caja real —misma tarjeta, mismo
+     borde, mismo radio, mismos huecos— así el contenido no salta cuando llega: aparece donde ya
+     estaba dibujado. Es la diferencia entre "algo está cargando" y "esto es lo que viene y acá va".
+     El brillo barre la CAJA ENTERA, no cada pieza por separado: se lee como una sola superficie
+     esperando, que es como lo hacen las apps que se sienten caras. */
+  .skc { position: relative; overflow: hidden; background: var(--card);
+    border: 1.5px solid var(--sup-borde); border-radius: var(--radius); padding: .8rem .9rem;
+    margin-bottom: .55rem; }
+  .skc::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(110deg, transparent 0%, transparent 40%, var(--sobre-card) 50%, transparent 60%, transparent 100%);
+    animation: skBrillo 1.3s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .skc::after { animation: none; opacity: 0; } }
+  html.sin-animaciones .skc::after { animation: none; opacity: 0; }
+  /* Las piezas de adentro NO llevan `.sk`: si brillaran ellas y la caja, se verían dos barridos
+     encimados a distinta velocidad. Acá son sólo bloques quietos y el brillo lo pone la caja. */
+  .skc i { display: block; background: var(--chip-bg); border-radius: 5px; }
+  .skc .skc-fila { display: flex; align-items: center; gap: .7rem; }
+  .skc .skc-circulo { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; }
+  .skc .skc-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .42rem; }
+  .skc .skc-t1 { height: 11px; width: 58%; }
+  .skc .skc-t2 { height: 9px;  width: 84%; }
+  .skc .skc-t3 { height: 9px;  width: 40%; }
+  .skc .skc-ancha { height: 9px; width: 100%; margin-top: .55rem; }
+  .skc .skc-boton { height: 30px; width: 84px; border-radius: 999px; margin-top: .7rem; }
+  /* Gráfico: barras de alto distinto, para que se lea "acá viene un gráfico" y no "acá viene texto". */
+  .skc .skc-barras { display: flex; align-items: flex-end; gap: .38rem; height: 96px; margin-top: .6rem; }
+  .skc .skc-barras i { flex: 1; border-radius: 5px 5px 2px 2px; }
   /* Mientras una zona carga, se atenúa apenas: se ve que está pero que todavía no se puede usar. */
   [aria-busy="true"] { opacity: .72; }
 
-  /* Spinner de carga dentro de botones */
-  .btn-spin { display: inline-block; width: 1em; height: 1em; margin-right: .5em; vertical-align: -.12em;
-    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: btnspin .6s linear infinite; }
-  @keyframes btnspin { to { transform: rotate(360deg); } }
+  /* ── Cargador de cuadraditos ────────────────────────────────────────────────────────────────
+     Reemplaza al aro que giraba. Seis bloques que parpadean en cascada.
+     ⚠️ El color sale de `currentColor`, NO de un color escrito a mano ni de un token nuevo (R13):
+     así hereda el del contexto y funciona igual dentro de un botón naranja, sobre una tarjeta
+     clara o sobre el navy, sin una sola regla por tema.
+     El tamaño se controla con `--cg`, así el mismo componente sirve chico dentro de un botón y
+     grande en el medio de un panel. */
+  .cargador { display: inline-grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--cg) * .09);
+    width: var(--cg); height: calc(var(--cg) * .68); --cg: 44px; vertical-align: -.15em; }
+  .cargador i { display: block; width: 100%; height: 100%; background: currentColor;
+    border-radius: calc(var(--cg) * .05); opacity: .3;
+    animation: cgParpadeo .6s alternate infinite linear; }
+  .cargador i:nth-child(2){ animation-delay: 200ms; }
+  .cargador i:nth-child(3){ animation-delay: 300ms; }
+  .cargador i:nth-child(4){ animation-delay: 400ms; }
+  .cargador i:nth-child(5){ animation-delay: 500ms; }
+  .cargador i:nth-child(6){ animation-delay: 600ms; }
+  @keyframes cgParpadeo {
+    0%   { opacity: .3; transform: scale(.5) rotate(5deg); }
+    50%  { opacity: 1;  transform: scale(1); }
+  }
+  /* Sin movimiento sigue comunicando "esto está trabajando": queda la grilla quieta y visible.
+     Mismo criterio que el resto de la app — se apaga el movimiento, no el elemento. */
+  @media (prefers-reduced-motion: reduce) { .cargador i { animation: none; opacity: .55; } }
+  html.sin-animaciones .cargador i { animation: none; opacity: .55; }
+  /* Dentro de un botón: chico y en línea con el texto. */
+  .cargador--btn { --cg: 20px; margin-right: .5em; }
+  /* En el medio de un panel: centrado, con su leyenda debajo. */
+  .cargando-caja { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .7rem; padding: 2.2rem 1rem; color: var(--text-muted); }
+  .cargando-caja .cargador { --cg: 52px; }
+  .cargando-caja span { font-size: .84rem; font-weight: 600; }
+
   .btn-loading { opacity: .85; cursor: default; }
 
   /* Portal: botón "Ver demostración" (fuera del login) */
@@ -2140,6 +2210,110 @@
      overlay es `overflow-y: visible`, eso no deja scroll: los tres enlaces del pie quedaban
      directamente fuera de alcance. Un adorno no puede tapar "Soy supervisor o servicio médico".
      Por eso: se achica en pantallas bajas y desaparece cuando ya no hay lugar. */
+  /* ── N8 · Las cinco pantallas de la tira, hechas en CSS ─────────────────────────────────────
+     Antes eran videos de 848x848. Al ser cuadrados, en un teléfono entraban a 186x186 y el texto
+     de adentro quedaba diminuto; encima dos de los tres traían el título como tinta oscura sobre
+     transparente, o sea navy sobre navy.
+     Hechas acá se arregla todo eso de una: usan el ANCHO COMPLETO (334 px contra 186), el texto es
+     texto de verdad —así que pasa por t() y se traduce (R14), escala con el tamaño de letra que la
+     persona eligió, y lo lee un lector de pantalla si hiciera falta—, y los colores salen de los
+     tokens de siempre (R13), o sea que el modo oscuro funciona sin una regla extra.
+     Pesan 0 bytes de red contra 1,7 MB. */
+  .spl-p { display: flex; flex-direction: column; justify-content: space-between; gap: .5rem;
+    width: 100%; height: 100%; background: var(--card); border: 1px solid var(--sup-borde);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: .8rem .9rem; text-align: left; }
+  .spl-p-tx { display: flex; flex-direction: column; gap: .16rem; min-width: 0; }
+  .spl-p-tx b { font-size: .95rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .spl-p-tx span { font-size: .74rem; color: var(--text-soft); line-height: 1.35; }
+  .spl-p-gr { flex: 1; min-height: 0; }
+
+  /* 1 · Se mide. Barras que crecen; la marcada es la que se sale del rango. */
+  .spl-barras { display: flex; align-items: flex-end; gap: .3rem; }
+  .spl-barras i { flex: 1; height: var(--h); background: var(--chip-bg); border-radius: 4px 4px 2px 2px;
+    transform-origin: bottom; animation: splCrece .5s var(--ease-app, ease) both; }
+  .spl-barras i.on { background: var(--orange); }
+  .spl-barras i:nth-child(2){ animation-delay:.05s } .spl-barras i:nth-child(3){ animation-delay:.1s }
+  .spl-barras i:nth-child(4){ animation-delay:.15s } .spl-barras i:nth-child(5){ animation-delay:.2s }
+  .spl-barras i:nth-child(6){ animation-delay:.25s } .spl-barras i:nth-child(7){ animation-delay:.3s }
+  .spl-barras i:nth-child(8){ animation-delay:.35s }
+  @keyframes splCrece { from { transform: scaleY(.05); } to { transform: scaleY(1); } }
+
+  /* 2 · Reportas en segundos. Cuatro casillas que se van tildando. */
+  .spl-check { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; align-content: center; }
+  .spl-check span { position: relative; height: 100%; min-height: 26px; border-radius: 7px;
+    background: var(--chip-bg); }
+  .spl-check i { position: absolute; inset: 0; border-radius: 7px; background: var(--sem-verde-bg);
+    box-shadow: inset 0 0 0 1.5px var(--sem-verde); opacity: 0;
+    animation: splTilde 2.4s var(--ease-app, ease) infinite both; }
+  /* El tilde. Sin él eran cuatro rectángulos verdes que no decían nada; con él se lee
+     "test completado". Es un borde en L rotado: no hace falta ni un SVG ni una fuente de íconos. */
+  /* ⚠️ En píxeles y no en porcentaje: la casilla es mucho más ancha que alta (71x26), así que un
+     tilde en % salía deformado —medido: 15.6 de ancho por 10.9 de alto, o sea una "L" acostada en
+     vez de un tilde—. Con medidas fijas conserva su forma sea cual sea la caja. */
+  .spl-check i::after { content: ''; position: absolute; top: 50%; left: 50%; width: 6px; height: 11px;
+    margin: -7px 0 0 -3px; border: solid var(--sem-verde); border-width: 0 2px 2px 0;
+    transform: rotate(45deg); }
+  .spl-check span:nth-child(2) i { animation-delay: .28s }
+  .spl-check span:nth-child(3) i { animation-delay: .56s }
+  .spl-check span:nth-child(4) i { animation-delay: .84s }
+  @keyframes splTilde { 0%,4% { opacity:0; transform:scale(.8) } 18%,72% { opacity:1; transform:scale(1) } 88%,100% { opacity:0 } }
+
+  /* 3 · Medición objetiva. El círculo del test de reacción: espera, aparece, se toca. */
+  .spl-pvt { position: relative; border-radius: 10px; background: var(--navy); overflow: hidden; }
+  .spl-pvt em { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+    border-radius: 50%; background: var(--orange); opacity: 0;
+    animation: splPunto 2.8s var(--ease-app, ease) infinite both; }
+  .spl-pvt u { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+    border-radius: 50%; box-shadow: 0 0 0 2px var(--orange); opacity: 0;
+    animation: splOnda 2.8s var(--ease-app, ease) infinite both; }
+  @keyframes splPunto { 0%,42% { opacity:0; transform:scale(.5) } 52%,76% { opacity:1; transform:scale(1) } 86%,100% { opacity:0 } }
+  @keyframes splOnda  { 0%,74% { opacity:0; transform:scale(1) } 80% { opacity:.7 } 92%,100% { opacity:0; transform:scale(2.1) } }
+
+  /* 4 · Cada quien ve lo suyo. Dos fichas: la del supervisor muestra menos que la del médico. */
+  .spl-ojos { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; align-content: center; }
+  .spl-ojo { display: flex; flex-direction: column; justify-content: center; gap: .3rem;
+    height: 100%; min-height: 34px; padding: .45rem; border-radius: var(--radius-xs);
+    background: var(--sup-suave); box-shadow: inset 0 0 0 1px var(--sup-borde); }
+  .spl-ojo i { display: block; height: 6px; border-radius: 3px; background: var(--chip-bg); }
+  .spl-ojo i:first-child { width: 62%; background: var(--text-muted); opacity: .55; }
+  .spl-ojo--med { background: var(--orange-bg); box-shadow: inset 0 0 0 1px var(--orange); }
+  .spl-ojo--med i { background: var(--orange); opacity: .45; }
+  .spl-ojo--med i:first-child { opacity: .8; }
+
+  /* 5 · Sin señal. Tres registros esperando; se van yendo de a uno cuando vuelve la conexión. */
+  .spl-cola { display: flex; flex-direction: column; justify-content: center; gap: .35rem; }
+  .spl-cola i { display: block; height: 9px; border-radius: 5px; background: var(--chip-bg);
+    animation: splEnvia 3s var(--ease-app, ease) infinite both; }
+  .spl-cola i:nth-child(1){ width: 86% } .spl-cola i:nth-child(2){ width: 64%; animation-delay:.35s }
+  .spl-cola i:nth-child(3){ width: 74%; animation-delay:.7s }
+  @keyframes splEnvia {
+    0%,18%  { opacity:.55; transform: translateX(0); background: var(--chip-bg); }
+    34%     { opacity:1;   background: var(--sem-verde); }
+    56%     { opacity:1;   transform: translateX(0); }
+    72%     { opacity:0;   transform: translateX(38px); }
+    73%,100%{ opacity:.55; transform: translateX(0); background: var(--chip-bg); }
+  }
+
+  /* Sin movimiento: todo queda en su estado final visible. Nunca en opacidad 0, que dejaría
+     paneles en blanco — la regla de oro que el proyecto ya tenía escrita para las entradas. */
+  @media (prefers-reduced-motion: reduce) {
+    .spl-barras i, .spl-check i, .spl-pvt em, .spl-pvt u, .spl-cola i { animation: none; }
+    .spl-check i, .spl-pvt em { opacity: 1; }
+    .spl-pvt u { opacity: 0; }
+  }
+  html.sin-animaciones .spl-barras i, html.sin-animaciones .spl-check i,
+  html.sin-animaciones .spl-pvt em, html.sin-animaciones .spl-pvt u,
+  html.sin-animaciones .spl-cola i { animation: none; }
+  html.sin-animaciones .spl-check i, html.sin-animaciones .spl-pvt em { opacity: 1; }
+  html.sin-animaciones .spl-pvt u { opacity: 0; }
+
+  /* En pantallas bajas la tira se achica: el texto se mantiene y el gráfico cede espacio. */
+  @media (max-height:760px){
+    .spl-p { padding: .65rem .75rem; }
+    .spl-p-tx b { font-size: .88rem; }
+    .spl-p-tx span { font-size: .7rem; }
+  }
+
   @media (max-height:760px){ .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; } }
   @media (max-height:640px){ .splash-anim { display:none; } }
 
@@ -3701,34 +3875,52 @@
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
-        <!-- ⛔ N8 · APAGADA A PROPÓSITO (2026-08-28). Los clips se van a retocar y volver a pasar.
-             ══ PARA VOLVER A ENCENDERLA, DOS COSAS ══
-             1) Poner los archivos en `media/` con los nombres que ya están en los `src` de acá
-                abajo (inicio-anim-1/2/3.mp4). Se borraron: no tenía sentido que producción cargara
-                1,7 MB de videos que no se muestran.
-             2) Sacar el `hidden` de esta línea y poner `SPLASH_ANIM_ACTIVA = true` en el JS.
-             El `hidden` es lo que manda de verdad: apaga la tira ANTES de que corra nada, así no
-             parpadea. El flag del JS es el cinturón: aunque alguien saque el `hidden`, no arranca.
-             Formato: MP4 con fondo OPACO, nunca WebM con alfa — Safari/iOS no reproduce WebM con
-             canal alfa y esta app se usa en iPhone (ver el detalle en ESTADO.md). -->
-        <!-- N8 · Tira de presentación. Decorativa: `aria-hidden` porque no dice nada que no esté
-             ya escrito abajo, y a un lector de pantalla sólo le sumaría ruido.
-             Para AGREGAR una pantalla nueva: se suma un `.splash-anim-slide` acá y listo — el
-             secuenciador lee las que haya. Con <video> adentro espera a que termine; vacía, espera
-             lo que diga `data-espera` (4 s por defecto). No hay que tocar el JS. -->
-        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true" hidden>
+        <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
+             Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
+             se acumularon: en un teléfono un cuadrado entra a 186x186 y el texto de adentro queda
+             diminuto; dos de los tres traían el título como tinta oscura sobre transparente, o sea
+             navy sobre navy; y pesaban 1,7 MB. Hechas acá usan el ANCHO COMPLETO, el texto es texto
+             de verdad —pasa por t() y se traduce (R14), escala con el tamaño de letra elegido— y
+             los colores salen de los tokens (R13), así que el modo oscuro sale gratis.
+             Decorativa: `aria-hidden` porque no dice nada que no esté escrito abajo.
+
+             PARA AGREGAR O CAMBIAR UNA PANTALLA: se suma un `.splash-anim-slide` acá y listo. El
+             secuenciador lee las que haya: con <video> adentro espera al evento `ended`; si no,
+             espera lo que diga `data-espera`. No hay que tocar el JS. -->
+        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
           <div class="splash-anim-track" id="splashAnimTrack">
-            <div class="splash-anim-slide">
-              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-1.mp4"></video><!-- al reactivar: preload="auto" en ESTA sola, las otras dos se piden en cascada -->
-            </div>
-            <div class="splash-anim-slide">
-              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-2.mp4"></video>
-            </div>
-            <!-- Era el hueco de 4 s reservado para ésta. Al llegar, sólo hubo que meterle el
-                 <video> adentro y sacarle el `data-espera`: el secuenciador no se tocó. -->
-            <div class="splash-anim-slide">
-              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-3.mp4"></video>
-            </div>
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p1_t">La fatiga se mide</b><span data-i18n="spl_p1_d">Como cualquier otro riesgo del puesto.</span></div>
+              <div class="spl-p-gr spl-barras" aria-hidden="true">
+                <i style="--h:34%"></i><i style="--h:52%"></i><i style="--h:41%"></i><i style="--h:68%"></i>
+                <i style="--h:57%"></i><i class="on" style="--h:92%"></i><i style="--h:63%"></i><i style="--h:45%"></i>
+              </div>
+            </div></div>
+
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p2_t">Reportas en segundos</b><span data-i18n="spl_p2_d">Tests breves, antes y después del turno.</span></div>
+              <div class="spl-p-gr spl-check" aria-hidden="true">
+                <span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span>
+              </div>
+            </div></div>
+
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p3_t">Medición objetiva</b><span data-i18n="spl_p3_d">El test de reacción no depende de lo que respondas.</span></div>
+              <div class="spl-p-gr spl-pvt" aria-hidden="true"><em></em><u></u></div>
+            </div></div>
+
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p4_t">Cada quien ve lo suyo</b><span data-i18n="spl_p4_d">Tu supervisor, la condición del día. El médico, los resultados.</span></div>
+              <div class="spl-p-gr spl-ojos" aria-hidden="true">
+                <span class="spl-ojo"><i></i><i></i></span>
+                <span class="spl-ojo spl-ojo--med"><i></i><i></i><i></i></span>
+              </div>
+            </div></div>
+
+            <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_p5_t">Funciona sin señal</b><span data-i18n="spl_p5_d">Se guarda y se envía solo cuando vuelve la conexión.</span></div>
+              <div class="spl-p-gr spl-cola" aria-hidden="true"><i></i><i></i><i></i></div>
+            </div></div>
           </div>
         </div>
         <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
@@ -3755,7 +3947,7 @@
   <div class="sheet">
     <h2 data-i18n="tar_titulo">Tus tareas</h2>
     <p class="lead" data-i18n="tar_lead">Lo que tu supervisor o el servicio médico te pidieron.</p>
-    <div id="tareasLista"><div class="nom-cargando" data-i18n="cargando">Cargando…</div></div>
+    <div id="tareasLista"></div>
     <div class="nom-pie">
       <button type="button" class="nom-link" onclick="tareasRefrescar()" data-i18n="tar_actualizar">Actualizar</button>
       <button type="button" class="nom-link" onclick="tareasCerrar()" data-i18n="cerrar">Cerrar</button>
@@ -3865,7 +4057,7 @@
 
     <div id="nomPaso1">
       <label class="nom-lbl" data-i18n="nom_elige_empresa">Elige tu empresa</label>
-      <div class="nom-lista" id="nomEmpresas"><div class="nom-cargando" data-i18n="nom_buscando_emp">Buscando empresas…</div></div>
+      <div class="nom-lista" id="nomEmpresas"></div>
     </div>
 
     <!-- Paso del código de empresa (B3). Sólo aparece si el servidor dijo que esa empresa tiene
@@ -4390,7 +4582,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.40';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.42';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4460,6 +4652,13 @@ const I18N = {
       tema_claro:'Claro', tema_oscuro:'Oscuro', tema_auto:'Automático',
       cambiar_datos:'Cambiar mis datos', cambiar_datos_d:'Nombre, empresa, email, teléfono…',
       splash_h1:'Tu bienestar y seguridad, en un solo lugar',
+      /* Las cinco pantallas de la tira del splash. Texto corto a propósito: se leen de reojo
+         mientras la persona decide si entra, no se estudian. */
+      spl_p1_t:'La fatiga se mide',      spl_p1_d:'Como cualquier otro riesgo del puesto.',
+      spl_p2_t:'Reportas en segundos',   spl_p2_d:'Tests breves, antes y después del turno.',
+      spl_p3_t:'Medición objetiva',      spl_p3_d:'El test de reacción no depende de lo que respondas.',
+      spl_p4_t:'Cada quien ve lo suyo',  spl_p4_d:'Tu supervisor, la condición del día. El médico, los resultados.',
+      spl_p5_t:'Funciona sin señal',     spl_p5_d:'Se guarda y se envía solo cuando vuelve la conexión.',
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
       splash_demo:'Ver una demostración',
@@ -5819,6 +6018,11 @@ const I18N = {
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
       splash_h1:'Your wellbeing and safety, in one place',
+      spl_p1_t:'Fatigue is measured',    spl_p1_d:'Like any other hazard of the job.',
+      spl_p2_t:'Report in seconds',      spl_p2_d:'Short tests, before and after your shift.',
+      spl_p3_t:'Objective measurement',  spl_p3_d:'The reaction test does not depend on your answers.',
+      spl_p4_t:'Everyone sees their own',spl_p4_d:'Your supervisor, the daily status. The doctor, the results.',
+      spl_p5_t:'Works with no signal',   spl_p5_d:'It is saved and sent on its own when you are back online.',
       splash_sub:'Preventing, detecting and acting on operational fatigue.',
       splash_ingresar:'Get started',
       splash_demo:'See a demo',
@@ -10455,7 +10659,7 @@ function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false; NOM.perfil = null;
   nominaPaso('empresa');
-  nominaEl('nomEmpresas').innerHTML = '<div class="nom-cargando">' + esc(t('nom_buscando_emp')) + '</div>';
+  nominaEl('nomEmpresas').innerHTML = cargandoHtml(t('nom_buscando_emp'));
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
   fetchConReloj(SHEETS_DASHBOARD_URL + '?action=nomina_empresas&_=' + Date.now(), { cache:'no-store' })
@@ -11321,11 +11525,40 @@ function dashRequest(params){
 /* ── M1 · Esqueleto y bloqueo mientras se espera al servidor ───────────────────────────────────
    `cargando` es lo que se dibuja en el hueco de lo que todavía no llegó. `n` es cuántas piezas:
    lo que importa es que ocupe aproximadamente el lugar de lo que viene, no que sea exacto. */
+/* Formas que imitan la caja real de cada cosa. La clave: el esqueleto tiene que ocupar
+   aproximadamente lo que va a ocupar el contenido, para que al llegar no salte nada.
+   `linea`/`tarjeta`/`bloque` son los rectángulos genéricos de antes y se mantienen porque hay
+   llamadas viejas que los usan. */
+const SK_FORMAS = {
+  // Una fila de persona: redondel del avatar y dos renglones. Sirve para nómina y para tareas.
+  persona: '<div class="skc-fila"><i class="skc-circulo"></i><span class="skc-tx">' +
+           '<i class="skc-t1"></i><i class="skc-t2"></i></span></div>',
+  // Una tarjeta de texto: título, dos renglones y un botón.
+  tarjeta_tx: '<i class="skc-t1"></i><i class="skc-ancha"></i><i class="skc-t2" style="margin-top:.42rem"></i>' +
+              '<i class="skc-boton"></i>',
+  // Un bloque del panel: encabezado y tres renglones.
+  bloque_tx: '<i class="skc-t1"></i><i class="skc-ancha"></i><i class="skc-ancha"></i><i class="skc-t3" style="margin-top:.55rem"></i>',
+  // Un gráfico: barras de alto distinto, para que se lea que ahí viene un gráfico.
+  grafico: '<i class="skc-t1"></i><div class="skc-barras">' +
+           [62, 88, 45, 96, 70, 52, 80].map(h => '<i style="height:' + h + '%"></i>').join('') + '</div>'
+};
 function skeletonHtml(tipo, n){
-  const clase = tipo === 'tarjeta' ? 'sk sk-tarjeta' : (tipo === 'bloque' ? 'sk sk-bloque' : 'sk sk-linea');
+  const forma = SK_FORMAS[tipo];
   let h = '';
-  for (let i = 0; i < (n || 3); i++) h += '<div class="' + clase + '"></div>';
+  if (forma){
+    for (let i = 0; i < (n || 3); i++) h += '<div class="skc">' + forma + '</div>';
+  } else {
+    const clase = tipo === 'tarjeta' ? 'sk sk-tarjeta' : (tipo === 'bloque' ? 'sk sk-bloque' : 'sk sk-linea');
+    for (let i = 0; i < (n || 3); i++) h += '<div class="' + clase + '"></div>';
+  }
   return '<div class="sk-wrap" aria-hidden="true">' + h + '</div>';
+}
+/* El cargador de cuadraditos con su leyenda, para el medio de un panel que todavía no tiene forma.
+   Donde SÍ se sabe qué forma va a tener lo que llega, es mejor un esqueleto: dice más. */
+function cargandoHtml(texto){
+  return '<div class="cargando-caja" role="status" aria-live="polite">' +
+    '<span class="cargador" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' +
+    '<span>' + esc(texto || t('cargando')) + '</span></div>';
 }
 /* Bloquea de verdad una zona mientras carga.
    ⚠️ `inert` y no `pointer-events:none`: `inert` la saca del alcance del mouse, del TECLADO y del
@@ -11334,6 +11567,18 @@ function skeletonHtml(tipo, n){
    cargaba). `aria-busy` es lo que anuncia "esto está cargando" a quien no mira la pantalla.
    ⚠️ Esto SIEMPRE tiene que levantarse, también cuando el pedido falla: un bloqueo pegado por un
    error de red deja la pantalla muerta y sin explicación, que es peor que no bloquear. */
+/* Bloquea una zona mientras corre un pedido y la libera SIEMPRE, también si falla.
+   ⚠️ Existe porque `cargaBloquear` estaba escrito desde M1 pero se usaba en UN solo lugar de 34
+   llamadas de red: por eso se podía seguir tocando botones, abriendo cosas y saliendo mientras la
+   pantalla cargaba. Envolver el pedido acá es lo que garantiza que el `finally` no se olvide —
+   que era el otro riesgo: un bloqueo que queda pegado por un error de red deja la pantalla muerta
+   y sin explicación, peor que no bloquear. */
+function conCarga(el, promesa){
+  if (!el || !promesa || !promesa.then) return promesa;
+  cargaBloquear(el, true);
+  const soltar = () => cargaBloquear(el, false);
+  return promesa.then(v => { soltar(); return v; }, e => { soltar(); throw e; });
+}
 function cargaBloquear(el, on){
   if (!el) return;
   if (on){ el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
@@ -11344,7 +11589,7 @@ function btnSpin(btn, on, labelOn){
   if (on){
     if (btn.dataset.orig == null) btn.dataset.orig = btn.innerHTML;
     btn.disabled = true; btn.classList.add('btn-loading');
-    btn.innerHTML = '<span class="btn-spin" aria-hidden="true"></span>' + esc(labelOn || t('cargando'));
+    btn.innerHTML = '<span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(labelOn || t('cargando'));
   } else {
     btn.disabled = false; btn.classList.remove('btn-loading');
     if (btn.dataset.orig != null){ btn.innerHTML = btn.dataset.orig; delete btn.dataset.orig; }
@@ -14864,10 +15109,15 @@ function dashVacio(k, icono, accion){
 /* ── CARGANDO: el esqueleto, con la forma real del panel ── */
 function dashEsqueleto(){
   const kpis = '<div class="kpi-grid">' + '<div class="kpi dsk-kpi dsk"></div>'.repeat(4) + '</div>';
+  /* Alturas fijas y no al azar: `Math.random()` haría que el esqueleto cambie en cada pintada y
+     que la pantalla "tiemble" mientras espera. */
+  const ALTOS = [58, 84, 42, 96, 68, 50, 78];
   const bloque = h => '<div class="dsk-block">' +
     '<div class="dsk-bar dsk" style="width:38%"></div>' +
     '<div class="dsk-bar dsk" style="width:62%;height:9px;margin-top:.5rem"></div>' +
-    '<div class="dsk-chart dsk" style="height:' + h + 'px"></div></div>';
+    '<div class="dsk-barras" style="height:' + h + 'px">' +
+      ALTOS.map(a => '<i style="height:' + a + '%"></i>').join('') +
+    '</div></div>';
   return '<div class="dsk-block">' +
       '<div class="dsk-bar dsk" style="width:45%"></div>' +
       '<div class="dsk-bar dsk" style="width:70%;height:9px;margin-top:.5rem"></div>' +
@@ -18194,9 +18444,9 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    de todo el script de acá para abajo**. Lo probé y pasó: la tira no arrancaba y encima se perdía
    medio archivo. `var` se iza inicializado en `undefined`, que es justo lo que hace falta. */
 var _splAnim = null;
-/* ⛔ APAGADA (2026-08-28): los clips se van a retocar. Ver el comentario del bloque en el HTML.
-   Encender = poner los archivos en media/, sacar el `hidden` del div y poner esto en true. */
-var SPLASH_ANIM_ACTIVA = false;
+/* Interruptor de la tira. Queda escrito para poder apagarla en un solo lugar sin desarmar nada:
+   ya hizo falta una vez, cuando los clips en video no convencieron. */
+var SPLASH_ANIM_ACTIVA = true;
 function splashAnimArrancar(){
   if (!SPLASH_ANIM_ACTIVA) return;
   const cont = document.getElementById('splashAnim');
@@ -18357,14 +18607,18 @@ function nominaListCerrar(){
 }
 function nominaListCargar(){
   const body = document.getElementById('nomListBody');
-  if (!NOMLIST.datos.length && body) body.innerHTML = '<div class="nom-cargando">' + esc(t('cargando')) + '</div>';
+  if (!NOMLIST.datos.length && body) body.innerHTML = skeletonHtml('persona', 5);
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){
     if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
     return;
   }
   NOMLIST.cargando = true;
-  dashRequest({ action:'nomina_listar', usuario:cred.usuario,
+  /* La hoja entera queda fuera de alcance mientras llega: sin esto se podía escribir en el
+     buscador y cambiar el filtro de departamento sobre una lista que todavía no existía, y al
+     llegar los datos el filtro se pisaba solo. */
+  const hojaNom = document.querySelector('#nominaListOv .sheet') || document.getElementById('nominaListOv');
+  conCarga(hojaNom, dashRequest({ action:'nomina_listar', usuario:cred.usuario,
       empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass })
     .then(d => {
       NOMLIST.cargando = false;
@@ -18375,7 +18629,7 @@ function nominaListCargar(){
       nominaListPintarDeptos();
       nominaListFiltrar();
     })
-    .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; });
+    .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; }));
 }
 function nominaListPintarDeptos(){
   const sel = document.getElementById('nomListDepto'); if (!sel) return;
@@ -18521,9 +18775,12 @@ function tareasAbrir(){
 function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('show'); syncScrollLock(); }
 function tareasRefrescar(){
   const cont = document.getElementById('tareasLista');
-  // M1: esqueleto con la forma de lo que va a llegar, en vez del texto "Cargando…".
-  if (cont && !TAREAS.lista.length) cont.innerHTML = skeletonHtml('tarjeta', 3);
-  tareasCargar().then(tareasPintar);
+  /* Esqueleto con la FORMA de lo que va a llegar (filas de persona), no el texto "Cargando…". */
+  if (cont && !TAREAS.lista.length) cont.innerHTML = skeletonHtml('persona', 3);
+  /* Y la hoja entera queda fuera de alcance mientras tanto: sin esto se podía tocar "Actualizar"
+     tres veces seguidas, o cerrar y reabrir, y quedaban pedidos pisándose. */
+  const hoja = document.querySelector('#tareasOv .sheet');
+  return conCarga(hoja, tareasCargar().then(tareasPintar)).catch(() => {});
 }
 function tareasPintar(){
   const cont = document.getElementById('tareasLista');

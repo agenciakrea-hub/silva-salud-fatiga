@@ -91,6 +91,107 @@ PRUEBAS.caso('mientras carga muestra el esqueleto, no un texto', () => {
   window.fetch = () => new Promise(() => {});     // la red nunca contesta
   try { tareasRefrescar(); } finally { window.fetch = oFetch; TAREAS.cargando = false; }
   const cont = document.getElementById('tareasLista');
-  PRUEBAS.alMenos(cont.querySelectorAll('.sk').length, 1,
+  /* Se busca `.sk-wrap`, que es el envoltorio que ponen TODAS las formas de esqueleto, y no `.sk`:
+     esa era la clase de los rectángulos genéricos, y tareas pasó a usar la forma `persona` (que
+     dibuja `.skc`). Atar la prueba a la clase de UNA forma la hacía fallar por un cambio que en
+     pantalla es una mejora. */
+  PRUEBAS.alMenos(cont.querySelectorAll('.sk-wrap').length, 1,
     'con la red colgada tiene que verse el esqueleto, no una pantalla en blanco ni un "no hay nada" falso');
+  PRUEBAS.alMenos(cont.querySelectorAll('.skc, .sk').length, 1, 'y con piezas adentro, no vacío');
+});
+
+PRUEBAS.grupo('N9 · cargador y bloqueo generalizado');
+
+PRUEBAS.caso('el cargador hereda el color, no lo trae escrito', () => {
+  /* R13, y además es lo que lo hace servir en todos lados con una sola regla: dentro de un botón
+     naranja, sobre una tarjeta clara o sobre el navy del splash. Un color fijo habría necesitado
+     una variante por contexto y por tema. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  const regla = (fuente.match(/\.cargador i \{[^}]*\}/) || [''])[0];
+  PRUEBAS.cierto(/background:\s*currentColor/.test(regla),
+    'los cuadraditos toman el color del contexto: ' + regla.slice(0, 90));
+  PRUEBAS.falso(/#[0-9a-fA-F]{3,6}/.test(regla), 'y no traen ningún color escrito a mano');
+});
+
+PRUEBAS.caso('el cargador se queda quieto sin animaciones, pero sigue estando', () => {
+  const d = document.createElement('div');
+  d.innerHTML = cargandoHtml('probando');
+  document.body.appendChild(d);
+  const tenia = document.documentElement.classList.contains('sin-animaciones');
+  document.documentElement.classList.add('sin-animaciones');
+  const pieza = d.querySelector('.cargador i');
+  const anim = getComputedStyle(pieza).animationName;
+  const op = parseFloat(getComputedStyle(pieza).opacity);
+  const alto = d.querySelector('.cargador').getBoundingClientRect().height;
+  if (!tenia) document.documentElement.classList.remove('sin-animaciones');
+  d.remove();
+  PRUEBAS.igual(anim, 'none', 'sin movimiento');
+  PRUEBAS.alMenos(op, 0.4, 'pero visible: un cargador en opacidad .3 fija parece apagado');
+  PRUEBAS.alMenos(alto, 10, 'y ocupando su lugar');
+});
+
+PRUEBAS.caso('los esqueletos tienen la forma de lo que va a llegar', () => {
+  /* La diferencia entre "algo está cargando" y "esto es lo que viene y acá va". Si el esqueleto
+     no ocupa aproximadamente el lugar del contenido, al llegar salta todo. */
+  const d = document.createElement('div');
+  d.innerHTML = skeletonHtml('persona', 3);
+  document.body.appendChild(d);
+  const cajas = d.querySelectorAll('.skc');
+  const circulo = d.querySelector('.skc-circulo');
+  const alto = cajas[0] ? cajas[0].getBoundingClientRect().height : 0;
+  d.remove();
+  PRUEBAS.igual(cajas.length, 3, 'una caja por fila pedida');
+  PRUEBAS.cierto(!!circulo, 'la forma "persona" tiene su redondel de avatar');
+  PRUEBAS.alMenos(alto, 50, 'y la caja ocupa alto real');
+});
+
+PRUEBAS.caso('el hueco del gráfico se ve como un gráfico', () => {
+  /* Un rectángulo plano dice "algo viene"; unas barras dicen "acá viene un gráfico". */
+  const d = document.createElement('div');
+  d.innerHTML = dashEsqueleto();
+  document.body.appendChild(d);
+  const barras = d.querySelectorAll('.dsk-barras > i');
+  const distintas = new Set([...barras].map(b => b.getAttribute('style')));
+  d.remove();
+  PRUEBAS.alMenos(barras.length, 4, 'tiene que haber barras');
+  PRUEBAS.alMenos(distintas.size, 3, 'de alto distinto, o se lee como una tabla y no como un gráfico');
+});
+
+PRUEBAS.caso('⚠️ el esqueleto no cambia entre pintadas', () => {
+  /* Si las alturas salieran de Math.random(), la pantalla temblaría en cada repintado mientras
+     espera — y el panel repinta varias veces. Tienen que ser fijas. */
+  PRUEBAS.igual(dashEsqueleto(), dashEsqueleto(),
+    'dos pintadas seguidas tienen que dar exactamente lo mismo');
+});
+
+PRUEBAS.caso('⚠️ conCarga suelta el bloqueo también cuando el pedido falla', async () => {
+  /* Es la regla que permite bloquear sin miedo: un bloqueo pegado por un error de red deja la
+     pantalla muerta y sin explicación, peor que no bloquear.
+     ⚠️ La primera versión de esta prueba guardaba el resultado en una variable desde un `.then`
+     suelto y fallaba por carrera de microtareas — no por el código. Con `await` el orden queda
+     explícito y la prueba deja de depender de en qué tick corre cada callback. */
+  const el = document.createElement('div');
+  el.innerHTML = '<button>x</button>';
+  document.body.appendChild(el);
+
+  const p1 = conCarga(el, Promise.resolve('bien'));
+  PRUEBAS.cierto(el.hasAttribute('inert'), 'mientras corre, la zona queda fuera de alcance');
+  await p1;
+  PRUEBAS.falso(el.hasAttribute('inert'), 'al terminar bien se libera');
+
+  let tiro = false;
+  try { await conCarga(el, Promise.reject(new Error('sin red'))); } catch(e){ tiro = true; }
+  PRUEBAS.cierto(tiro, 'el error tiene que seguir propagándose: conCarga no se lo puede comer');
+  PRUEBAS.falso(el.hasAttribute('inert'), 'y al fallar TAMBIÉN se libera, o la pantalla queda muerta');
+  PRUEBAS.igual(el.getAttribute('aria-busy'), null, 'sin dejar el aria-busy pegado');
+  el.remove();
+});
+
+PRUEBAS.caso('las pantallas que traen listas quedan bloqueadas mientras cargan', () => {
+  /* El reclamo era poder "tocar botones o hacer otras cosas mientras carga". `cargaBloquear`
+     existía desde M1 pero se usaba en UN solo lugar de 34 llamadas de red. */
+  PRUEBAS.cierto(/conCarga\(/.test(tareasRefrescar.toString()),
+    'la hoja de tareas: se podía tocar "Actualizar" tres veces y encimar pedidos');
+  PRUEBAS.cierto(/conCarga\(/.test(nominaListCargar.toString()),
+    'la nómina: se podía escribir en el buscador y filtrar sobre una lista que no existía todavía');
 });

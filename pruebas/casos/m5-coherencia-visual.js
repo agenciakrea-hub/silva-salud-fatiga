@@ -235,96 +235,138 @@ PRUEBAS.caso('el globito no tiene colores escritos a mano', () => {
     'un color fijo vale igual en los dos temas, y eso fue exactamente el bug (R13): ' + regla.slice(0, 120));
 });
 
-PRUEBAS.grupo('N8 · tira de presentación del splash (APAGADA)');
+PRUEBAS.grupo('N8 · tira de presentación del splash');
 
-/* La tira está apagada a pedido: los clips se van a retocar. Se dejó toda la maquinaria puesta, así
-   que estas pruebas cuidan dos cosas distintas:
-   · que siga APAGADA de verdad (es lo que está en producción ahora), y
-   · que lo que va a hacer falta cuando vuelva no se pudra mientras tanto. */
+/* Las cinco pantallas dejaron de ser videos y pasaron a estar hechas en CSS. Estas pruebas cuidan
+   las tres razones por las que se hizo el cambio, más lo que ya se había aprendido con los videos. */
 
-PRUEBAS.caso('⚠️ la tira está apagada y no gasta nada', () => {
-  /* Lo que importa hoy: que quien abre la app no la vea y que no se baje un solo byte de video.
-     El `hidden` del HTML es el que manda —apaga antes de que corra el JS, así no parpadea— y el
-     flag es el cinturón: aunque alguien saque el `hidden`, el secuenciador no arranca. */
-  PRUEBAS.falso(SPLASH_ANIM_ACTIVA, 'el flag tiene que estar en false');
+PRUEBAS.caso('⚠️ la tira no pide un solo byte a la red', () => {
+  /* Era la razón más cara de los videos: 1,7 MB en la PRIMERA pantalla que ve alguien que todavía
+     no sabe si le interesa la app. Hechas en CSS pesan 0. Si alguna vez alguien mete un <video> o
+     una <img> acá adentro, esta prueba lo frena. */
   const cont = document.getElementById('splashAnim');
-  PRUEBAS.cierto(cont.hasAttribute('hidden'), 'y el bloque oculto desde el HTML');
-
-  const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
-  ov.classList.add('show');
-  const alto = cont.getBoundingClientRect().height;
-  if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.igual(Math.round(alto), 0, 'no puede ocupar lugar ni con el splash abierto');
-
-  splashAnimFrenar();
-  splashAnimArrancar();
-  PRUEBAS.igual(_splAnim, null, 'llamar a arrancar no tiene que hacer nada mientras esté apagada');
+  PRUEBAS.igual(cont.querySelectorAll('video, img, iframe, object').length, 0,
+    'nada que dispare un pedido de red: el splash es lo primero que se ve y tiene que ser instantáneo');
 });
 
 PRUEBAS.caso('⚠️ el arranque no rompe el script (TDZ)', () => {
   /* Esta prueba existe por un error que cometí: declaré el estado con `let`, y el arranque llama a
      `splashMostrar()` desde el nivel superior ANTES de llegar a esa línea. Un `let` leído en zona
-     muerta tira "Cannot access before initialization", y eso **corta la ejecución de todo el script
-     de ahí para abajo** — no rompe una función, rompe media app.
-     Se comprueba mirando algo declarado DESPUÉS: si sigue existiendo, no se cortó. Vale igual con
-     la tira apagada, porque el código sigue estando. */
+     muerta tira "Cannot access before initialization", y eso corta la ejecución de TODO el script
+     de ahí para abajo — no rompe una función, rompe media app.
+     Se comprueba mirando algo declarado DESPUÉS: si sigue existiendo, no se cortó. */
   PRUEBAS.igual(typeof splashAnimArrancar, 'function', 'la tira tiene que existir');
   PRUEBAS.igual(typeof splashAnimFrenar, 'function', 'y su freno también');
   PRUEBAS.igual(typeof carruselPintar, 'function',
     'esta se declara DESPUÉS: si falta, el script se cortó en el medio y media app no existe');
 });
 
-PRUEBAS.caso('no se pide ningún video estando apagada', () => {
-  /* Producción no tiene que cargar nada de esto. Los `src` quedaron escritos a propósito (son la
-     plantilla para cuando vuelvan los clips), así que lo que hay que garantizar es que ninguno
-     tenga `preload` distinto de `none` — con `auto` el navegador se lo baja igual, aunque el
-     bloque esté oculto. */
-  const vids = [...document.querySelectorAll('#splashAnimTrack video')];
-  const golosos = vids
-    .map(v => v.getAttribute('preload') !== 'none' ? (v.getAttribute('src') + ' pide ' + v.getAttribute('preload')) : null)
+PRUEBAS.caso('son cinco pantallas y todas tienen texto y gráfico', () => {
+  const slides = [...document.querySelectorAll('#splashAnimTrack .splash-anim-slide')];
+  PRUEBAS.igual(slides.length, 5, 'las cinco del recorrido');
+  const flojas = slides
+    .map((sl, i) => {
+      const b = sl.querySelector('.spl-p-tx b'), gr = sl.querySelector('.spl-p-gr');
+      if (!b || !(b.textContent || '').trim()) return 'la ' + (i + 1) + ' no tiene título';
+      if (!gr) return 'la ' + (i + 1) + ' no tiene gráfico';
+      if (!sl.dataset.espera) return 'la ' + (i + 1) + ' no dice cuánto durar';
+      return null;
+    })
     .filter(Boolean);
-  PRUEBAS.igual(golosos, [],
-    'con la tira apagada ninguno puede precargar: sería bajar megas que nadie va a ver');
+  PRUEBAS.igual(flojas, [], 'cada pantalla necesita título, gráfico y duración');
 });
 
-PRUEBAS.caso('⚠️ cuando vuelvan, en MP4 y no en WebM con alfa', () => {
-  /* Safari/iOS NO reproduce WebM con canal alfa, y esta app ofrece sincronizar con Apple Health:
-     hay iPhones sí o sí, y con WebM la tira quedaba en blanco en todos ellos.
-     Además, medido sobre los WebM originales: el título de dos de los tres clips venía como tinta
-     oscura sobre transparente — navy sobre navy, ilegible. Queda fijado acá para que el reemplazo
-     no vuelva al formato que ya falló. */
-  const vids = [...document.querySelectorAll('#splashAnimTrack video')];
-  PRUEBAS.alMenos(vids.length, 1, 'la plantilla de slides tiene que seguir en pie');
-  const webm = vids.map(v => v.getAttribute('src')).filter(s => /\.webm$/i.test(s || ''));
-  PRUEBAS.igual(webm, [], 'ninguno puede ser WebM: en iPhone no se vería nada');
+PRUEBAS.caso('⚠️ el texto de las pantallas se traduce (R14)', () => {
+  /* La ventaja grande de haberlas hecho en CSS en vez de video: el texto es texto. Con los clips
+     el título estaba quemado en el pixel, así que en inglés —o en otro sector— habría seguido en
+     español. Acá pasa por t() como todo lo demás. */
+  const sinClave = [...document.querySelectorAll('#splashAnimTrack .spl-p-tx b, #splashAnimTrack .spl-p-tx span')]
+    .filter(e => !e.getAttribute('data-i18n'))
+    .map(e => '"' + (e.textContent || '').trim().slice(0, 24) + '"');
+  PRUEBAS.igual(sinClave, [], 'todo texto visible necesita su clave de traducción');
+
+  const idioma0 = idiomaActual();
+  fijarIdioma('en');
+  const enIngles = t('spl_p1_t');
+  fijarIdioma(idioma0);
+  PRUEBAS.falso(enIngles === 'La fatiga se mide', 'y la traducción tiene que existir de verdad');
+});
+
+PRUEBAS.caso('⚠️ ningún color escrito a mano en las pantallas (R13)', () => {
+  /* La otra ventaja sobre el video: el modo oscuro sale gratis porque todo sale de los tokens.
+     Con los clips el fondo era blanco fijo y por eso dos de ellos tenían el título ilegible sobre
+     el navy del splash. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  const bloque = (fuente.match(/\.spl-p[\s\S]*?\/\* Sin movimiento: todo queda/) || [''])[0];
+  PRUEBAS.alMenos(bloque.length, 200, 'tiene que encontrar el bloque de las pantallas');
+  const aMano = (bloque.match(/#[0-9a-fA-F]{3,6}\b/g) || []);
+  PRUEBAS.igual(aMano, [], 'todo tiene que salir de tokens, o el modo oscuro se rompe');
+});
+
+PRUEBAS.caso('en los dos temas el título de la pantalla se lee', () => {
+  /* Es exactamente lo que fallaba en los videos: el título quedaba navy sobre navy. Acá el panel
+     trae su propia superficie y el texto usa la tinta de esa superficie. */
+  const lum = c => { const m = (c.match(/[\d.]+/g) || [0,0,0]).map(Number);
+    const f = x => { x = x/255; return x <= .03928 ? x/12.92 : Math.pow((x + .055)/1.055, 2.4); };
+    return .2126*f(m[0]) + .7152*f(m[1]) + .0722*f(m[2]); };
+  const ct = (a, b) => { const A = lum(a), B = lum(b); return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
+
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const tema0 = document.documentElement.getAttribute('data-tema');
+  const flojos = [];
+  ['claro', 'oscuro'].forEach(tema => {
+    document.documentElement.setAttribute('data-tema', tema);
+    document.querySelectorAll('#splashAnimTrack .spl-p').forEach((p, i) => {
+      const b = p.querySelector('.spl-p-tx b');
+      const c = ct(getComputedStyle(b).color, getComputedStyle(p).backgroundColor);
+      if (c < 4.5) flojos.push(tema + ' · pantalla ' + (i + 1) + ': ' + c.toFixed(2));
+    });
+  });
+  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.igual(flojos, [], 'el título sobre su propia tarjeta, en los dos temas');
 });
 
 PRUEBAS.caso('la secuencia se lee del DOM, no está escrita en el código', () => {
-  /* Es lo que hizo que sumar la tercera fuera meter un <video> y nada más. Si las duraciones
-     estuvieran en el JS se desincronizarían al reexportar un clip medio segundo más largo — que es
-     exactamente lo que va a pasar ahora que se están retocando. */
+  /* Es lo que hace que agregar o reordenar una pantalla sea tocar el HTML y nada más. */
   const fuente = splashAnimArrancar.toString();
   PRUEBAS.cierto(/querySelectorAll\('\.splash-anim-slide'\)/.test(fuente), 'las pantallas se leen del DOM');
+  PRUEBAS.cierto(/dataset\.espera/.test(fuente), 'y cada una dura lo que dice su data-espera');
   PRUEBAS.cierto(/onended/.test(fuente),
-    'se espera a que el video TERMINE, no a una cantidad de segundos escrita a mano');
-  PRUEBAS.cierto(/dataset\.espera/.test(fuente), 'y una pantalla vacía espera lo que diga su data-espera');
+    'la rama de video se deja igual: si mañana vuelve un clip, espera a que TERMINE y no a un número');
 });
 
 PRUEBAS.caso('el freno sigue puesto donde el splash se oculta', () => {
   /* Va en los DOS lugares que ocultan el splash, no en cada botón: así queda cubierto cualquier
-     camino que se agregue después. Se cuida ahora para que no se pierda mientras está apagada. */
+     camino que se agregue después. */
   PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(splashAbrirPortal.toString()),
     'salir por el portal / demo / admin tiene que frenarla');
   PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(carruselMostrar.toString()),
     'y entrar al carrusel también');
 });
 
+PRUEBAS.caso('sin animaciones se queda quieta, pero se ve', () => {
+  /* Regla de oro del proyecto: el estado en reposo es VISIBLE. Si al apagar el movimiento algo
+     quedara en opacidad 0, la pantalla se vería vacía en vez de quieta. */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const tenia = document.documentElement.classList.contains('sin-animaciones');
+  document.documentElement.classList.add('sin-animaciones');
+  const invisibles = [...document.querySelectorAll('#splashAnimTrack .spl-check i, #splashAnimTrack .spl-pvt em, #splashAnimTrack .spl-cola i, #splashAnimTrack .spl-barras i')]
+    .filter(e => parseFloat(getComputedStyle(e).opacity) < 0.2)
+    .map(e => (e.parentElement.className || '').split(' ')[1] || e.tagName);
+  if (!tenia) document.documentElement.classList.remove('sin-animaciones');
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.igual([...new Set(invisibles)], [], 'sin movimiento las piezas siguen visibles, no en cero');
+});
+
 PRUEBAS.caso('⚠️ la regla que evita tapar el pie sigue en el CSS', () => {
   /* Regresión que encontré midiendo en un 320x568: sin la tira el splash entra JUSTO (568 de 568)
      y con ella se pasaba 97 px. Como el overlay es `overflow-y: visible`, eso no genera scroll: los
-     tres enlaces del pie quedaban fuera de alcance, "Soy supervisor o servicio médico" incluido.
-     La tira está apagada, pero la regla tiene que seguir puesta para cuando vuelva. */
+     tres enlaces del pie quedaban fuera de alcance. */
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
   PRUEBAS.cierto(/@media \(max-height: ?640px\)[^}]*\{[^}]*\.splash-anim \{[^}]*display: ?none/.test(fuente),
     'por debajo de cierto alto la tira desaparece: no hay lugar y el pie importa más');
@@ -332,7 +374,6 @@ PRUEBAS.caso('⚠️ la regla que evita tapar el pie sigue en el CSS', () => {
 });
 
 PRUEBAS.caso('el splash entra entero, sin nada cortado abajo', () => {
-  /* Vale con la tira apagada y tendrá que seguir valiendo cuando vuelva. */
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
@@ -342,10 +383,9 @@ PRUEBAS.caso('el splash entra entero, sin nada cortado abajo', () => {
   PRUEBAS.comoMucho(sobra, 0, 'nada del splash puede quedar fuera de la pantalla');
 });
 
-PRUEBAS.caso('cuando vuelva, entra en su lugar de la escalera', () => {
+PRUEBAS.caso('entra en su lugar de la escalera', () => {
   /* El splash entra escalonado (logo 0 → título .08 → bajada .16 → botón .24) y la tira era lo
-     único que aparecía de golpe. Se le dio .04, entre el logo y el título — mismo arreglo que en M5
-     con el banner de instalar. Se comprueba sobre el CSS porque el elemento está oculto. */
+     único que aparecía de golpe. Se le dio .04, entre el logo y el título. */
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
   PRUEBAS.cierto(/\.splash-anim \{ animation-delay: ?\.04s/.test(fuente),
     'la tira no puede entrar sin retraso: sería lo único del splash que aparece de golpe');
