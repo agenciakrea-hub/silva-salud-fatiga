@@ -4262,7 +4262,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.31';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.32';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10794,6 +10794,14 @@ let SETUP_LISTS_FAILED = false;
 function loadSetupLists(){
   if (SETUP_LISTS_LOADED || !SHEETS_DASHBOARD_URL) return;   // sin endpoint no hay listas (queda como texto libre)
   SETUP_LISTS_LOADED = true;
+  /* M2: el desplegable se llena YA con lo último que se supo, en vez de quedarse vacío 2 a 4
+     segundos (medido). ⚠️ `SETUP_LISTS_FAILED` se deja en `true` a propósito hasta que conteste
+     el servidor: con la lista cacheada y la bandera en `false`, alguien de una empresa dada de
+     alta HOY sería rechazado durante esos segundos porque todavía no está en la caché. Mejor una
+     validación permisiva por unos segundos que un rechazo falso. */
+  /* No hace falta repintar nada: el desplegable del alta se arma al vuelo con `comboBuild()`,
+     que lee `SETUP_LISTS` en el momento en que la persona lo abre. Con llenar el arreglo alcanza. */
+  if (listasCacheAplicar()) SETUP_LISTS_FAILED = true;
   fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
     /* ⚠️ `SETUP_LISTS_FAILED` tiene que quedar en `true` en TODO caso que deje la lista vacía, no
@@ -18179,9 +18187,46 @@ function tareasPintarBadge(){
   b.textContent = String(TAREAS.pendientes);
   b.style.display = TAREAS.pendientes > 0 ? '' : 'none';
 }
+/* ── M2 · Lo último que se supo de las tareas, guardado en el dispositivo ──────────────────────
+   `tareas_mias` tarda entre 4 y 5 segundos (medido contra producción). Sin esto, el contador de
+   notificaciones y la determinación médica aparecen recién a los 5 s — que es lo que el usuario
+   describe como "tarda años". Ahora se pinta al instante con lo último conocido y la respuesta
+   del servidor sólo actualiza cuando llega.
+   Es el MISMO patrón que `empresa_perfil` ya usa en esta app: se reusa el criterio, no se inventa
+   otro. Y de paso resuelve el pedido de que el número se vea sin tener que entrar. */
+const K_TAREAS_CACHE = 'silva_fatiga_tareas_cache_v1';
+function tareasCacheGuardar(){
+  try {
+    localStorage.setItem(K_TAREAS_CACHE, JSON.stringify({
+      lista: TAREAS.lista || [], pendientes: TAREAS.pendientes || 0,
+      determinacion: TAREAS.determinacion || null,
+      persona: (getProfile()||{}).nombre || ''
+    }));
+  } catch(e){}
+}
+/* ⚠️ Se guarda de QUIÉN es lo cacheado y se descarta si el perfil cambió. Sin eso, alguien que
+   cierra sesión y entra con otro nombre vería por unos segundos las tareas de la persona
+   anterior — y en esta app eso son datos de salud de otro. */
+function tareasCacheLeer(){
+  try {
+    const c = JSON.parse(localStorage.getItem(K_TAREAS_CACHE));
+    if (!c || typeof c !== 'object') return null;
+    if (c.persona !== ((getProfile()||{}).nombre || '')) return null;
+    return c;
+  } catch(e){ return null; }
+}
 function tareasCargar(){
   if (!tareasPuedeConsultar() || TAREAS.cargando) return Promise.resolve();
   const p = getProfile();
+  /* Pintar YA con lo último que se supo, antes de salir a la red. Si no había nada guardado no
+     pasa nada: se comporta como antes. */
+  const cache = tareasCacheLeer();
+  if (cache && !TAREAS.lista.length){
+    TAREAS.lista = cache.lista || [];
+    TAREAS.pendientes = cache.pendientes || 0;
+    TAREAS.determinacion = cache.determinacion || null;
+    try { tareasPintarBadge(); } catch(e){}
+  }
   TAREAS.cargando = true;
   const url = SHEETS_DASHBOARD_URL + '?action=tareas_mias'
     + '&empresa=' + encodeURIComponent(p.empresa)
@@ -18206,6 +18251,7 @@ function tareasCargar(){
          clínica. Si el endpoint todavía no se actualizó, llega undefined y queda en null: la app
          se comporta igual que antes. */
       TAREAS.determinacion = (d.determinacion && d.determinacion.nivel) ? d.determinacion : null;
+      tareasCacheGuardar();      // M2: para que el próximo arranque no espere 5 segundos
       tareasPintarBadge();
       try { renderInicio(); } catch(e){}
     })
@@ -18265,7 +18311,11 @@ function tareaFechaLinda(iso){
    ANTES en el archivo— tiraba "Cannot access 'TAREAS' before initialization" y dejaba la app
    entera sin cargar. Acá abajo las declaraciones ya corrieron. */
 function tareasArranque(){
-  try { tareasCargar().then(function(){ try { renderInicio(); } catch(e){} }); } catch(e){}
+  /* M2: NO se repinta acá. `tareasCargar()` ya llama a `renderInicio()` cuando termina, y este
+     `.then()` lo hacía de nuevo: medido, dos repintados completos del inicio con 1 ms de
+     diferencia (6024 ms y 6025 ms). Es parte de lo que se ve como "la página se carga varias
+     veces". La responsabilidad de repintar queda de un solo lado. */
+  try { tareasCargar(); } catch(e){}
   /* G1: la copia local de los propios resultados. Va acá y no en el render porque es una llamada
      de red: el inicio se pinta ya con lo que haya en el dispositivo, y se repinta solo cuando
      llega la respuesta. Sin conexión no pasa nada — para eso está la copia local. */
@@ -18410,12 +18460,34 @@ function recuperarAbrir(){
   document.getElementById('recErr').textContent = '';
   document.getElementById('recPasoCod').style.display = 'none';
   recuperarPintarDatalist();
-  if (!SETUP_LISTS.empresas.length && SHEETS_DASHBOARD_URL){
+  /* M2: la lista se pinta YA con lo último que se supo y se refresca por detrás. Medido:
+     `action=listas` tarda 2,5–4,3 s para traer 375 bytes que casi nunca cambian. */
+  if (listasCacheAplicar()) recuperarPintarDatalist();
+  if (SHEETS_DASHBOARD_URL){
     fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
       .then(r => r.json())
-      .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || []; recuperarPintarDatalist(); } })
+      .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || [];
+        listasCacheGuardar(); recuperarPintarDatalist(); } })
       .catch(() => {});
   }
+}
+/* Las listas de empresas y departamentos cambian muy de vez en cuando, y son lo primero que
+   alguien necesita para poder darse de alta o recuperar su cuenta. Guardarlas evita que la
+   pantalla se quede vacía varios segundos cada vez. */
+const K_LISTAS_CACHE = 'silva_fatiga_listas_cache_v1';
+function listasCacheGuardar(){
+  try { localStorage.setItem(K_LISTAS_CACHE, JSON.stringify({
+    empresas: SETUP_LISTS.empresas || [], departamentos: SETUP_LISTS.departamentos || [] })); } catch(e){}
+}
+function listasCacheAplicar(){
+  if (SETUP_LISTS.empresas.length) return false;      // ya hay algo más fresco en memoria
+  try {
+    const c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE));
+    if (!c || !Array.isArray(c.empresas) || !c.empresas.length) return false;
+    SETUP_LISTS.empresas = c.empresas;
+    SETUP_LISTS.departamentos = c.departamentos || [];
+    return true;
+  } catch(e){ return false; }
 }
 function recuperarPintarDatalist(){
   const dl = document.getElementById('recEmpresaList');
