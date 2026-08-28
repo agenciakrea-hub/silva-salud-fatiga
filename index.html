@@ -3701,15 +3701,25 @@
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
+        <!-- ⛔ N8 · APAGADA A PROPÓSITO (2026-08-28). Los clips se van a retocar y volver a pasar.
+             ══ PARA VOLVER A ENCENDERLA, DOS COSAS ══
+             1) Poner los archivos en `media/` con los nombres que ya están en los `src` de acá
+                abajo (inicio-anim-1/2/3.mp4). Se borraron: no tenía sentido que producción cargara
+                1,7 MB de videos que no se muestran.
+             2) Sacar el `hidden` de esta línea y poner `SPLASH_ANIM_ACTIVA = true` en el JS.
+             El `hidden` es lo que manda de verdad: apaga la tira ANTES de que corra nada, así no
+             parpadea. El flag del JS es el cinturón: aunque alguien saque el `hidden`, no arranca.
+             Formato: MP4 con fondo OPACO, nunca WebM con alfa — Safari/iOS no reproduce WebM con
+             canal alfa y esta app se usa en iPhone (ver el detalle en ESTADO.md). -->
         <!-- N8 · Tira de presentación. Decorativa: `aria-hidden` porque no dice nada que no esté
              ya escrito abajo, y a un lector de pantalla sólo le sumaría ruido.
              Para AGREGAR una pantalla nueva: se suma un `.splash-anim-slide` acá y listo — el
              secuenciador lee las que haya. Con <video> adentro espera a que termine; vacía, espera
              lo que diga `data-espera` (4 s por defecto). No hay que tocar el JS. -->
-        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
+        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true" hidden>
           <div class="splash-anim-track" id="splashAnimTrack">
             <div class="splash-anim-slide">
-              <video class="splash-anim-v" muted playsinline preload="auto" src="media/inicio-anim-1.mp4"></video>
+              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-1.mp4"></video><!-- al reactivar: preload="auto" en ESTA sola, las otras dos se piden en cascada -->
             </div>
             <div class="splash-anim-slide">
               <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-2.mp4"></video>
@@ -4380,7 +4390,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.39';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.40';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -18184,7 +18194,11 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    de todo el script de acá para abajo**. Lo probé y pasó: la tira no arrancaba y encima se perdía
    medio archivo. `var` se iza inicializado en `undefined`, que es justo lo que hace falta. */
 var _splAnim = null;
+/* ⛔ APAGADA (2026-08-28): los clips se van a retocar. Ver el comentario del bloque en el HTML.
+   Encender = poner los archivos en media/, sacar el `hidden` del div y poner esto en true. */
+var SPLASH_ANIM_ACTIVA = false;
 function splashAnimArrancar(){
+  if (!SPLASH_ANIM_ACTIVA) return;
   const cont = document.getElementById('splashAnim');
   if (!cont || _splAnim) return;
   const track  = document.getElementById('splashAnimTrack');

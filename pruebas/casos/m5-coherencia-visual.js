@@ -235,152 +235,120 @@ PRUEBAS.caso('el globito no tiene colores escritos a mano', () => {
     'un color fijo vale igual en los dos temas, y eso fue exactamente el bug (R13): ' + regla.slice(0, 120));
 });
 
-PRUEBAS.grupo('N8 · tira de presentación del splash');
+PRUEBAS.grupo('N8 · tira de presentación del splash (APAGADA)');
+
+/* La tira está apagada a pedido: los clips se van a retocar. Se dejó toda la maquinaria puesta, así
+   que estas pruebas cuidan dos cosas distintas:
+   · que siga APAGADA de verdad (es lo que está en producción ahora), y
+   · que lo que va a hacer falta cuando vuelva no se pudra mientras tanto. */
+
+PRUEBAS.caso('⚠️ la tira está apagada y no gasta nada', () => {
+  /* Lo que importa hoy: que quien abre la app no la vea y que no se baje un solo byte de video.
+     El `hidden` del HTML es el que manda —apaga antes de que corra el JS, así no parpadea— y el
+     flag es el cinturón: aunque alguien saque el `hidden`, el secuenciador no arranca. */
+  PRUEBAS.falso(SPLASH_ANIM_ACTIVA, 'el flag tiene que estar en false');
+  const cont = document.getElementById('splashAnim');
+  PRUEBAS.cierto(cont.hasAttribute('hidden'), 'y el bloque oculto desde el HTML');
+
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const alto = cont.getBoundingClientRect().height;
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.igual(Math.round(alto), 0, 'no puede ocupar lugar ni con el splash abierto');
+
+  splashAnimFrenar();
+  splashAnimArrancar();
+  PRUEBAS.igual(_splAnim, null, 'llamar a arrancar no tiene que hacer nada mientras esté apagada');
+});
 
 PRUEBAS.caso('⚠️ el arranque no rompe el script (TDZ)', () => {
-  /* Esta prueba existe por un error que cometí escribiéndola: declaré el estado con `let`, y el
-     arranque llama a `splashMostrar()` desde el nivel superior ANTES de llegar a esa línea. Un
-     `let` leído en zona muerta tira "Cannot access before initialization", y eso **corta la
-     ejecución de todo el script de ahí para abajo** — no rompe una función, rompe media app.
-     Se comprueba mirando algo declarado DESPUÉS de la tira: si sigue existiendo, no se cortó. */
+  /* Esta prueba existe por un error que cometí: declaré el estado con `let`, y el arranque llama a
+     `splashMostrar()` desde el nivel superior ANTES de llegar a esa línea. Un `let` leído en zona
+     muerta tira "Cannot access before initialization", y eso **corta la ejecución de todo el script
+     de ahí para abajo** — no rompe una función, rompe media app.
+     Se comprueba mirando algo declarado DESPUÉS: si sigue existiendo, no se cortó. Vale igual con
+     la tira apagada, porque el código sigue estando. */
   PRUEBAS.igual(typeof splashAnimArrancar, 'function', 'la tira tiene que existir');
   PRUEBAS.igual(typeof splashAnimFrenar, 'function', 'y su freno también');
   PRUEBAS.igual(typeof carruselPintar, 'function',
     'esta se declara DESPUÉS: si falta, el script se cortó en el medio y media app no existe');
 });
 
-PRUEBAS.caso('la secuencia se lee del DOM, no está escrita en el código', () => {
-  /* Es lo que hace que agregar la tercera pantalla sea meter un <video> en la slide vacía y nada
-     más. Si las duraciones estuvieran escritas en el JS, se desincronizarían el día que se
-     reexporte un clip medio segundo más largo. */
-  const fuente = splashAnimArrancar.toString();
-  PRUEBAS.cierto(/querySelectorAll\('\.splash-anim-slide'\)/.test(fuente),
-    'las pantallas se leen del DOM');
-  PRUEBAS.cierto(/onended/.test(fuente),
-    'se espera a que el video TERMINE, no a una cantidad de segundos escrita a mano');
-  PRUEBAS.cierto(/dataset\.espera/.test(fuente),
-    'y la pantalla vacía espera lo que diga su data-espera');
-});
-
-PRUEBAS.caso('las tres pantallas tienen su animación', () => {
-  /* La tercera llegó y ocupó el hueco que estaba reservado. Se comprueba que ya no quede ninguna
-     slide vacía: una slide sin video y sin `data-espera` frenaría la rotación para siempre. */
-  const slides = [...document.querySelectorAll('#splashAnimTrack .splash-anim-slide')];
-  PRUEBAS.igual(slides.length, 3, 'las tres del recorrido');
-  const huerfanas = slides
-    .map((sl, i) => (!sl.querySelector('video') && !sl.dataset.espera) ? ('la ' + (i + 1)) : null)
-    .filter(Boolean);
-  PRUEBAS.igual(huerfanas, [],
-    'una slide sin video y sin data-espera deja la tira clavada ahí para siempre');
-});
-
-PRUEBAS.caso('⚠️ los clips van en MP4, no en WebM con alfa', () => {
-  /* Safari/iOS NO reproduce WebM con canal alfa, y esta app ofrece sincronizar con Apple Health:
-     hay iPhones sí o sí. Con los WebM la tira quedaba en blanco en todos ellos.
-     Además, medido: en los WebM el título de dos de los tres clips venía como tinta oscura sobre
-     transparente, o sea navy sobre navy — ilegible. En MP4 el fondo es opaco y se leen los tres.
-     Y pesan menos: 1,69 MB contra 1,93. */
+PRUEBAS.caso('no se pide ningún video estando apagada', () => {
+  /* Producción no tiene que cargar nada de esto. Los `src` quedaron escritos a propósito (son la
+     plantilla para cuando vuelvan los clips), así que lo que hay que garantizar es que ninguno
+     tenga `preload` distinto de `none` — con `auto` el navegador se lo baja igual, aunque el
+     bloque esté oculto. */
   const vids = [...document.querySelectorAll('#splashAnimTrack video')];
-  PRUEBAS.alMenos(vids.length, 3, 'tienen que estar los tres');
+  const golosos = vids
+    .map(v => v.getAttribute('preload') !== 'none' ? (v.getAttribute('src') + ' pide ' + v.getAttribute('preload')) : null)
+    .filter(Boolean);
+  PRUEBAS.igual(golosos, [],
+    'con la tira apagada ninguno puede precargar: sería bajar megas que nadie va a ver');
+});
+
+PRUEBAS.caso('⚠️ cuando vuelvan, en MP4 y no en WebM con alfa', () => {
+  /* Safari/iOS NO reproduce WebM con canal alfa, y esta app ofrece sincronizar con Apple Health:
+     hay iPhones sí o sí, y con WebM la tira quedaba en blanco en todos ellos.
+     Además, medido sobre los WebM originales: el título de dos de los tres clips venía como tinta
+     oscura sobre transparente — navy sobre navy, ilegible. Queda fijado acá para que el reemplazo
+     no vuelva al formato que ya falló. */
+  const vids = [...document.querySelectorAll('#splashAnimTrack video')];
+  PRUEBAS.alMenos(vids.length, 1, 'la plantilla de slides tiene que seguir en pie');
   const webm = vids.map(v => v.getAttribute('src')).filter(s => /\.webm$/i.test(s || ''));
   PRUEBAS.igual(webm, [], 'ninguno puede ser WebM: en iPhone no se vería nada');
 });
 
-PRUEBAS.caso('sólo baja el primer video al abrir', () => {
-  /* Son 1,16 MB entre los dos. El splash es lo primero que ve alguien que todavía no sabe si le
-     interesa la app: bajarle las dos de una es cobrarle por adelantado algo que quizá no mire. */
-  const vids = document.querySelectorAll('#splashAnimTrack video');
-  PRUEBAS.igual(vids[0].getAttribute('preload'), 'auto', 'la primera sí, que es la que se ve ya');
-  PRUEBAS.igual(vids[1].getAttribute('preload'), 'none',
-    'la segunda se pide recién cuando arranca la primera');
+PRUEBAS.caso('la secuencia se lee del DOM, no está escrita en el código', () => {
+  /* Es lo que hizo que sumar la tercera fuera meter un <video> y nada más. Si las duraciones
+     estuvieran en el JS se desincronizarían al reexportar un clip medio segundo más largo — que es
+     exactamente lo que va a pasar ahora que se están retocando. */
+  const fuente = splashAnimArrancar.toString();
+  PRUEBAS.cierto(/querySelectorAll\('\.splash-anim-slide'\)/.test(fuente), 'las pantallas se leen del DOM');
+  PRUEBAS.cierto(/onended/.test(fuente),
+    'se espera a que el video TERMINE, no a una cantidad de segundos escrita a mano');
+  PRUEBAS.cierto(/dataset\.espera/.test(fuente), 'y una pantalla vacía espera lo que diga su data-espera');
 });
 
-PRUEBAS.caso('los videos no quedan corriendo abajo de la app', () => {
-  /* Si el splash se oculta y los videos siguen, se gasta batería y CPU justo en el arranque, que
-     es donde venimos peleando cada segundo. El freno va en los DOS lugares que ocultan el splash,
-     no en cada botón: así queda cubierto cualquier camino que se agregue después. */
+PRUEBAS.caso('el freno sigue puesto donde el splash se oculta', () => {
+  /* Va en los DOS lugares que ocultan el splash, no en cada botón: así queda cubierto cualquier
+     camino que se agregue después. Se cuida ahora para que no se pierda mientras está apagada. */
   PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(splashAbrirPortal.toString()),
     'salir por el portal / demo / admin tiene que frenarla');
   PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(carruselMostrar.toString()),
     'y entrar al carrusel también');
 });
 
-PRUEBAS.caso('sin animaciones se queda quieta, pero ocupa su lugar', () => {
-  /* Mismo criterio que el resto de la app: se apaga el movimiento, no el bloque. Si desapareciera,
-     la pantalla se reacomodaría distinto según la preferencia de cada persona. */
-  const cont = document.getElementById('splashAnim');
-  /* Hay que ABRIR el splash para medirlo: con el overlay cerrado todo mide 0 y la comprobación da
-     un falso rojo. Me pasó al escribir esta prueba. */
-  const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
-  ov.classList.add('show');
-  const tenia = document.documentElement.classList.contains('sin-animaciones');
-  document.documentElement.classList.add('sin-animaciones');
-  const alto = cont.getBoundingClientRect().height;
-  const trans = getComputedStyle(document.getElementById('splashAnimTrack')).transitionDuration;
-  if (!tenia) document.documentElement.classList.remove('sin-animaciones');
-  if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.alMenos(alto, 100, 'el bloque sigue ocupando su lugar');
-  PRUEBAS.igual(trans, '0s', 'pero sin deslizamiento');
+PRUEBAS.caso('⚠️ la regla que evita tapar el pie sigue en el CSS', () => {
+  /* Regresión que encontré midiendo en un 320x568: sin la tira el splash entra JUSTO (568 de 568)
+     y con ella se pasaba 97 px. Como el overlay es `overflow-y: visible`, eso no genera scroll: los
+     tres enlaces del pie quedaban fuera de alcance, "Soy supervisor o servicio médico" incluido.
+     La tira está apagada, pero la regla tiene que seguir puesta para cuando vuelva. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/@media \(max-height: ?640px\)[^}]*\{[^}]*\.splash-anim \{[^}]*display: ?none/.test(fuente),
+    'por debajo de cierto alto la tira desaparece: no hay lugar y el pie importa más');
+  PRUEBAS.cierto(/max-height: ?760px/.test(fuente), 'y se achica antes de desaparecer');
 });
 
-PRUEBAS.caso('la tira entra en su lugar de la escalera', () => {
-  /* El splash tiene una entrada escalonada: logo 0 → título .08 → bajada .16 → botón .24. La tira
-     va entre el logo y el título, así que le toca .04. Si entrara sin retraso sería lo único que
-     aparece de golpe; si entrara después del título, aparecería algo de más arriba más tarde.
-     Es la misma comprobación que en el inicio, donde el banner de instalar entraba fuera de orden. */
-  const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
-  ov.classList.add('show');
-  const tenia = document.documentElement.classList.contains('sin-animaciones');
-  document.documentElement.classList.remove('sin-animaciones');
-
-  const orden = ['.splash-logo', '.splash-anim', '.splash-h1', '.splash-sub', '.splash-cta']
-    .map(sel => { const e = document.querySelector(sel); if (!e) return null;
-      return { sel, y: e.getBoundingClientRect().top,
-               d: parseFloat(getComputedStyle(e).animationDelay) || 0 }; })
-    .filter(Boolean);
-
-  if (tenia) document.documentElement.classList.add('sin-animaciones');
-  if (!yaAbierto) ov.classList.remove('show');
-
-  orden.sort((a, b) => a.y - b.y);
-  const fuera = [];
-  for (let i = 1; i < orden.length; i++) {
-    if (orden[i].d < orden[i - 1].d) fuera.push(orden[i].sel + ' (' + orden[i].d + 's) entra antes que ' + orden[i - 1].sel + ' (' + orden[i - 1].d + 's), y va debajo');
-  }
-  PRUEBAS.igual(fuera, [], 'la entrada del splash tiene que seguir el orden en que se lee');
-  const tira = orden.find(o => o.sel === '.splash-anim');
-  PRUEBAS.cierto(tira && tira.d > 0, 'la tira no puede entrar de golpe: es lo único que no tendría retraso');
-});
-
-PRUEBAS.caso('⚠️ la tira no puede empujar el pie fuera de la pantalla', () => {
-  /* Regresión mía, encontrada midiendo en un 320x568 —un teléfono chico de verdad—: sin la tira el
-     contenido del splash entra JUSTO (568 de 568), y con ella se pasaba 97 px. Y como el overlay
-     es `overflow-y: visible`, eso no genera scroll: los tres enlaces del pie quedaban directamente
-     fuera de alcance, "Soy supervisor o servicio médico" incluido.
-     La lección: lo que se agota en el splash es el espacio VERTICAL, así que la tira tiene que
-     ceder por ALTO de pantalla. Lo tenía por ancho, que no servía de nada. */
-  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
-  PRUEBAS.cierto(/@media\s*\(max-height:\s*640px\)[^}]*\{[^}]*\.splash-anim\s*\{[^}]*display:\s*none/.test(fuente.replace(/\s+/g, ' ')),
-    'por debajo de cierto alto la tira tiene que desaparecer: no hay lugar y el pie es más importante');
-  PRUEBAS.cierto(/max-height:\s*760px/.test(fuente),
-    'y achicarse antes de desaparecer, para no pasar de golpe de 210 px a nada');
-
+PRUEBAS.caso('el splash entra entero, sin nada cortado abajo', () => {
+  /* Vale con la tira apagada y tendrá que seguir valiendo cuando vuelva. */
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
   const wr = document.querySelector('.splash-wrap');
   const sobra = wr.scrollHeight - wr.clientHeight;
   if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.comoMucho(sobra, 0, 'a este tamaño el splash tiene que entrar entero, sin nada cortado abajo');
+  PRUEBAS.comoMucho(sobra, 0, 'nada del splash puede quedar fuera de la pantalla');
 });
 
-PRUEBAS.caso('en escritorio la tira se alinea con el logo, no al centro', () => {
-  /* La columna izquierda del splash de escritorio va alineada a la izquierda (logo y titular
-     arrancan en el mismo borde). La tira se centra por defecto —correcto en teléfono, donde todo
-     está centrado— y en escritorio dejaba el video flotando a 195 px de ese borde. */
-  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
-  PRUEBAS.cierto(/\.splash-brand\s+\.splash-anim-slide\s*\{[^}]*justify-content:\s*flex-start/.test(fuente),
-    'en la columna de escritorio el video arranca donde arrancan el logo y el título');
+PRUEBAS.caso('cuando vuelva, entra en su lugar de la escalera', () => {
+  /* El splash entra escalonado (logo 0 → título .08 → bajada .16 → botón .24) y la tira era lo
+     único que aparecía de golpe. Se le dio .04, entre el logo y el título — mismo arreglo que en M5
+     con el banner de instalar. Se comprueba sobre el CSS porque el elemento está oculto. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/\.splash-anim \{ animation-delay: ?\.04s/.test(fuente),
+    'la tira no puede entrar sin retraso: sería lo único del splash que aparece de golpe');
+  PRUEBAS.cierto(/\.splash-brand \.splash-anim-slide \{[^}]*justify-content: ?flex-start/.test(fuente),
+    'y en escritorio arranca donde arrancan el logo y el título, no centrada');
 });
