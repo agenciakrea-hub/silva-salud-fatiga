@@ -1350,6 +1350,26 @@
   .alerts-collapse .dc-body { border-color: #f3c9c4; }
   .alerts-collapse .dc-count { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
 
+  /* ── M1 · Esqueletos de carga ──────────────────────────────────────────────────────────────
+     Un spinner dice "esperá"; un esqueleto dice "esto es lo que va a aparecer y dónde". Con
+     esperas de 2 a 5 segundos (el piso de Apps Script es ~1,3 s) esa diferencia es la que hace
+     que la pantalla se sienta viva en vez de colgada.
+     El brillo usa los mismos tokens de superficie que el resto, así funciona en los dos temas
+     sin agregar ningún color a mano (R13). */
+  .sk { background: var(--chip-bg); border-radius: 10px; position: relative; overflow: hidden; }
+  .sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--sobre-card), transparent);
+    animation: skBrillo 1.4s infinite; }
+  @keyframes skBrillo { 100% { transform: translateX(100%); } }
+  /* Sin movimiento sigue comunicando: queda un bloque quieto en el lugar de lo que va a llegar. */
+  @media (prefers-reduced-motion: reduce) { .sk::after { animation: none; opacity: 0; } }
+  html.sin-animaciones .sk::after { animation: none; opacity: 0; }
+  .sk-linea { height: 12px; margin: .45rem 0; }
+  .sk-tarjeta { height: 74px; margin: .55rem 0; border-radius: 15px; }
+  .sk-bloque { height: 128px; margin: .7rem 0; border-radius: 15px; }
+  /* Mientras una zona carga, se atenúa apenas: se ve que está pero que todavía no se puede usar. */
+  [aria-busy="true"] { opacity: .72; }
+
   /* Spinner de carga dentro de botones */
   .btn-spin { display: inline-block; width: 1em; height: 1em; margin-right: .5em; vertical-align: -.12em;
     border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: btnspin .6s linear infinite; }
@@ -4262,7 +4282,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.32';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.33';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11189,6 +11209,27 @@ function dashRequest(params){
 }
 
 // Muestra/oculta un spinner dentro del botón mientras carga (y lo deshabilita para no doble-clickear).
+/* ── M1 · Esqueleto y bloqueo mientras se espera al servidor ───────────────────────────────────
+   `cargando` es lo que se dibuja en el hueco de lo que todavía no llegó. `n` es cuántas piezas:
+   lo que importa es que ocupe aproximadamente el lugar de lo que viene, no que sea exacto. */
+function skeletonHtml(tipo, n){
+  const clase = tipo === 'tarjeta' ? 'sk sk-tarjeta' : (tipo === 'bloque' ? 'sk sk-bloque' : 'sk sk-linea');
+  let h = '';
+  for (let i = 0; i < (n || 3); i++) h += '<div class="' + clase + '"></div>';
+  return '<div class="sk-wrap" aria-hidden="true">' + h + '</div>';
+}
+/* Bloquea de verdad una zona mientras carga.
+   ⚠️ `inert` y no `pointer-events:none`: `inert` la saca del alcance del mouse, del TECLADO y del
+   lector de pantalla a la vez. Con `pointer-events` alguien puede seguir tabulando hasta un botón
+   que no ve y activarlo — que es justo lo que pasaba (se podían tocar otras cosas mientras
+   cargaba). `aria-busy` es lo que anuncia "esto está cargando" a quien no mira la pantalla.
+   ⚠️ Esto SIEMPRE tiene que levantarse, también cuando el pedido falla: un bloqueo pegado por un
+   error de red deja la pantalla muerta y sin explicación, que es peor que no bloquear. */
+function cargaBloquear(el, on){
+  if (!el) return;
+  if (on){ el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
+  else { el.removeAttribute('aria-busy'); el.removeAttribute('inert'); }
+}
 function btnSpin(btn, on, labelOn){
   if (!btn) return;
   if (on){
@@ -11633,11 +11674,18 @@ function portalLoginSupervisor(btn){
   const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId(),
     pedida:(PORTAL_VISTA==='supervisor'||PORTAL_VISTA==='medico') ? PORTAL_VISTA : '' };  // empresa = compat con endpoint viejo
   btnSpin(btn, true, 'Entrando…');
+  /* M1: mientras esto tarda (medido: 2,5 a 5 s) el formulario queda fuera de alcance y el panel
+     muestra su esqueleto, en vez de aparecer de golpe a los 5 segundos. */
+  const gate = document.getElementById('portalGate');
+  cargaBloquear(gate, true);
+  const cuerpo = document.getElementById('dashBody');
+  if (cuerpo) cuerpo.innerHTML = skeletonHtml('bloque', 2) + skeletonHtml('tarjeta', 4);
   const carga = cargaIniciar();
   dashRequest(params)
     .then(d => {
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba
       btnSpin(btn, false);
+      cargaBloquear(gate, false);
       if (!d || !d.ok){ errEl.textContent = tError(d && d.error); return; }
       const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || usuario);
       /* ⚠️ SEGURIDAD. El fallback a PORTAL_VISTA existe sólo por compatibilidad con el endpoint
@@ -11669,7 +11717,9 @@ function portalLoginSupervisor(btn){
       onDashData(d, label, params, d.vista || PORTAL_VISTA);   // el servidor decide la vista según la contraseña
       offerRemember(usuario, pass);
     })
-    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); errEl.textContent = t('sin_conexion') + '.'; });
+    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false);
+      cargaBloquear(gate, false);            // ⚠️ también al fallar, o la pantalla queda muerta
+      errEl.textContent = t('sin_conexion') + '.'; });
 }
 // Demostración con datos simulados (Empresa Demo), SIN login — botón del portal supervisor.
 function portalVerDemo(btn){
@@ -18260,13 +18310,19 @@ function tareasCargar(){
 function tareasAbrir(){
   document.getElementById('tareasOv').classList.add('show');
   syncScrollLock(); navPush();
-  tareasPintar();
+  /* ⚠️ Sólo se pinta ya si HAY algo que pintar. Antes se llamaba a `tareasPintar()` siempre, y
+     con la lista vacía eso escribe "no tienes tareas" — la app afirmaba que no había nada ANTES
+     de haber ido a preguntar. Con un pedido de 4 a 5 segundos, eso es lo primero que alguien lee,
+     y es falso. Ahora: si hay datos (normalmente los de la caché de M2) se ven al instante; si no,
+     se muestra el esqueleto hasta que llegue la respuesta. */
+  if (TAREAS.lista.length) tareasPintar();
   tareasRefrescar();
 }
 function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('show'); syncScrollLock(); }
 function tareasRefrescar(){
   const cont = document.getElementById('tareasLista');
-  if (cont && !TAREAS.lista.length) cont.innerHTML = '<div class="nom-cargando">' + esc(t('cargando')) + '</div>';
+  // M1: esqueleto con la forma de lo que va a llegar, en vez del texto "Cargando…".
+  if (cont && !TAREAS.lista.length) cont.innerHTML = skeletonHtml('tarjeta', 3);
   tareasCargar().then(tareasPintar);
 }
 function tareasPintar(){
