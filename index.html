@@ -4235,7 +4235,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.26';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.27';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -13205,18 +13205,33 @@ function aptToggleSoloAnot(){
    en cada tecla. Sin devolverle el foco y la posición del cursor después, sólo se podría escribir
    una letra por vez: el campo perdería el foco y la siguiente tecla no llegaría a ningún lado.
    Por eso se guarda la posición del cursor antes de renderizar y se restaura después. */
+/* L3 · Escribir en el buscador repinta SÓLO la lista de tarjetas y su contador.
+   Antes llamaba a `renderDash()`, que rehace el panel entero. Medido con 300 personas: 61 ms por
+   tecla, de los cuales apenas 2.4 son de cálculo — el resto es construir 19.373 nodos de DOM que
+   no cambiaron. Ahora se recalcula el filtrado (barato) y se reemplaza un solo contenedor.
+
+   Y desaparece un parche: como el `<input>` se destruía en cada tecla, había que guardar la
+   posición del cursor y devolverle el foco, o "sólo se podría escribir una letra por vez". Al no
+   tocar el input, el navegador conserva foco y cursor solo.
+
+   Si el contenedor no está (otra pestaña abierta, o el panel todavía no se pintó), cae al render
+   completo: es el camino lento pero correcto, nunca una pantalla desactualizada. */
 function aptBuscar(q){
   if (!DASH) return;
   DASH._aptQ = q;
-  DASH._skipAnim = true;
-  const el = document.getElementById('aptBuscar');
-  const pos = el ? el.selectionStart : null;
-  renderDash();
-  const nuevo = document.getElementById('aptBuscar');
-  if (nuevo){
-    nuevo.focus();
-    if (pos != null){ try { nuevo.setSelectionRange(pos, pos); } catch(e){} }
-  }
+  const cont = document.getElementById('aptTarjetas');
+  if (!cont){ DASH._skipAnim = true; renderDash(); return; }
+  const gente = aptGente(dashFiltered());
+  const visibles = aptVisibles(gente, DASH._aptFiltro);
+  const hayFiltroExtra = !!DASH._aptFiltro || !!DASH._aptSoloAnot || !!q;
+  cont.innerHTML = aptTarjetasHtml(visibles, hayFiltroExtra);
+  const cuenta = document.getElementById('aptCuenta');
+  if (cuenta) cuenta.textContent = hayFiltroExtra ? ('(' + visibles.length + ')') : '';
+  /* El botón de limpiar aparece y desaparece según haya texto. Se toca a mano para no volver a
+     rehacer el buscador entero, que es justamente lo que destruiría el input. */
+  const wrap = cont.closest('.dash-block');
+  const x = wrap ? wrap.querySelector('.apt-buscar-x') : null;
+  if (x) x.style.display = q ? '' : 'none';
 }
 /* Panel COMPACTO de estado general del equipo. Va debajo de los contadores porque en escritorio
    esa columna queda con mucho espacio libre (la lista de personas es larguísima al lado).
@@ -14344,6 +14359,20 @@ function cicloTickStart(){
   _cicloTimer = setInterval(cicloTick, 1000);
 }
 function cicloTickStop(){ if (_cicloTimer){ clearInterval(_cicloTimer); _cicloTimer = null; } }
+/* L3 · Con la app en segundo plano o el teléfono bloqueado, el reloj se apaga.
+   El tick en sí cuesta 0.02 ms y no molesta a nadie; lo que cuesta es lo que dispara:
+   `dashRefresh()` cada 60 s mientras la sección esté en el DOM. Un supervisor que deja el panel
+   abierto un turno completo son unos 480 pedidos al endpoint sin que nadie esté mirando.
+   Y eso choca con algo que el propio código ya tenía decidido: el refresco general de la app es
+   diario A PROPÓSITO, por la cuota del endpoint.
+   Al volver se refresca en el acto: si no, lo primero que vería al desbloquear sería la pantalla
+   vieja, que es peor que no haber apagado nada. */
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden){ cicloTickStop(); return; }
+  if (!DASH || !document.getElementById('dsec-ciclo')) return;
+  _cicloUltimoPull = 0;            // fuerza el pedido en el primer tick, sin esperar el minuto
+  cicloTickStart();
+});
 function cicloTick(){
   const sec = document.getElementById('dsec-ciclo');
   if (!sec || !DASH){ cicloTickStop(); return; }
@@ -14452,6 +14481,26 @@ function renderReportesSupervisor(){
   return ayuda + bloqueIdent + bloqueAnon;
 }
 
+/* ── L3 · Quiénes se ven y cómo se dibujan ────────────────────────────────────────────────────
+   Extraído de `renderAptitud` para que la BÚSQUEDA pueda repintar sólo la lista en vez de todo el
+   panel. Las dos rutas pasan por acá, así que no pueden mostrar cosas distintas. */
+function aptVisibles(gente, filtro){
+  let v = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente.slice();
+  if (DASH._aptSoloAnot) v = v.filter(p => !!p.anot);
+  const q = DASH._aptQ || '';
+  /* K2: se busca sobre nombre Y departamento JUNTOS, no en uno u otro por separado, así
+     "ana operaciones" encuentra a Ana si está en Operaciones. */
+  if (q) v = v.filter(p => buscarCoincide((p.nombre || '') + ' ' + (p.dep || ''), q));
+  if (DASH._aptOrden === 'inv') v = v.slice().reverse();
+  return v;
+}
+function aptTarjetasHtml(visibles, hayFiltroExtra){
+  if (!visibles.length) return dashVacio('filtros', 'filtro');
+  /* Arrow explícita, NO `visibles.map(aptTarjeta)`: map pasa (elemento, índice, array) y el
+     índice caería en el parámetro de opciones. */
+  const arr = visibles.map(p => aptTarjeta(p, { acciones: restPuede() }));
+  return hayFiltroExtra ? arr.join('') : dashVerMas(arr, 6);
+}
 function renderAptitud(rows){
   // Las anotaciones del servicio médico se sincronizan por el mismo canal que las gestiones
   // (sin pasar por la pestaña Gestiones, que el supervisor no tiene). Se trae una sola vez por sesión.
@@ -14493,8 +14542,7 @@ function renderAptitud(rows){
   // arriba) y quedarse sólo con quienes tienen una indicación firmada por el servicio médico.
   const invertido = DASH._aptOrden === 'inv';
   const soloAnot = !!DASH._aptSoloAnot;
-  let visibles = filtro ? gente.filter(p => aptEnGrupo(p, filtro)) : gente.slice();
-  if (soloAnot) visibles = visibles.filter(p => !!p.anot);
+  let visibles = aptVisibles(gente, filtro);
   // Búsqueda por nombre. Con 18+ personas, encontrar a alguien en el desplegable de arriba obliga
   // a leerlo entero; acá se escribe y la lista se acota sola. Compara con dashNorm (sin tildes ni
   // mayúsculas): buscar "nicolas" tiene que encontrar a "Nicolás".
@@ -14502,8 +14550,6 @@ function renderAptitud(rows){
      "ana operaciones" encuentra a Ana si está en Operaciones — antes no lo hacía ninguno de los
      dos, porque los tokens quedaban repartidos entre los dos campos. */
   const q = DASH._aptQ || '';
-  if (q) visibles = visibles.filter(p => buscarCoincide((p.nombre || '') + ' ' + (p.dep || ''), q));
-  if (invertido) visibles = visibles.slice().reverse();
   const hayFiltroExtra = !!filtro || soloAnot || !!q;
 
   // El buscador se dibuja SIEMPRE con el mismo id y se le repone el valor + el foco después de
@@ -14513,7 +14559,11 @@ function renderAptitud(rows){
     '<svg class="apt-buscar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
     '<input type="search" id="aptBuscar" class="apt-buscar" placeholder="Buscar por nombre o departamento…" ' +
       'value="' + esc(DASH._aptQ || '') + '" oninput="aptBuscar(this.value)" aria-label="Buscar persona">' +
-    ((DASH._aptQ || '') ? '<button type="button" class="apt-buscar-x" onclick="aptBuscar(\'\')" aria-label="Limpiar búsqueda">×</button>' : '') +
+    /* L3: SIEMPRE en el DOM, sólo oculto. Antes se agregaba al HTML únicamente si había texto,
+       pero ahora la búsqueda no vuelve a dibujar el buscador — así que si no estuviera desde el
+       principio, no aparecería nunca. */
+    '<button type="button" class="apt-buscar-x" onclick="aptBuscar(\'\')" aria-label="Limpiar búsqueda"' +
+      ((DASH._aptQ || '') ? '' : ' style="display:none"') + '>×</button>' +
   '</div>';
 
   const controles = '<div class="apt-ctrls">' +
@@ -14538,9 +14588,7 @@ function renderAptitud(rows){
   // (R6: primero lo accionable, el resto a un toque). Si hay un filtro o una búsqueda activa se
   // muestra COMPLETA: quien acaba de acotar la lista ya eligió qué quiere ver — volver a
   // esconderle la mitad sería trabajar en su contra.
-  const tarjetasArr = visibles.map(p => aptTarjeta(p, { acciones: restPuede() }));
-  const tarjetas = !visibles.length ? dashVacio('filtros', 'filtro')
-    : (hayFiltroExtra ? tarjetasArr.join('') : dashVerMas(tarjetasArr, 6));
+  const tarjetas = aptTarjetasHtml(visibles, hayFiltroExtra);
 
   const leyenda = '<div class="apt-leyenda">' +
     '<span class="apt-lg"><i class="apt-dot apt-ok"></i>' + esc(t('apt_lg_bien')) + '</span>' +
@@ -14557,9 +14605,12 @@ function renderAptitud(rows){
       '<div class="apt-col">' + resumen + renderAptitudEquipo(gente) + '</div>' +
       '<div class="apt-col">' +
         '<div class="dash-block"><div class="db-title">' + esc(t('apt_estado_persona')) + 
-          (hayFiltroExtra ? ' <span class="apt-t-n">(' + visibles.length + ')</span>' : '') + '</div>' +
+          '<span class="apt-t-n" id="aptCuenta">' + (hayFiltroExtra ? '(' + visibles.length + ')' : '') + '</span></div>' +
         '<div class="db-sub">' + esc(t(invertido ? 'apt_orden_inv' : 'apt_orden_norm')) + '</div>' +
-        buscador + controles + chip + leyenda + tarjetas + nota + '</div>' +
+        buscador + controles + chip + leyenda +
+        /* L3: las tarjetas van en su PROPIO contenedor. La búsqueda repinta sólo esto y el
+           contador de al lado del título; el resto del panel no se toca. */
+        '<div id="aptTarjetas">' + tarjetas + '</div>' + nota + '</div>' +
       '</div>' +
     '</div>';
 }
