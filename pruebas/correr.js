@@ -94,6 +94,11 @@
         }, perfil || {}));
         paintProfile();
         renderSections();
+        /* ⚠️ La app de atrás ahora arranca OCULTA si no hay perfil completo (N11: si no, se veía
+           asomar por detrás de los overlays en cada transición). El arnés simula a alguien YA
+           registrado, así que tiene que revelarla — sin esto todo se mide en 0 y media suite da
+           rojo por una razón que no existe en la app real. */
+        try { appRevelar(true); } catch(e){}
       },
       /* Contraste WCAG. Está acá y no en cada caso porque ya lo escribí a mano cuatro veces en
          esta sesión y una de esas veces con un detector que miraba mal el fondo. */

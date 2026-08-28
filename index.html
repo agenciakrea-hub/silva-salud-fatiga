@@ -2216,8 +2216,11 @@
      entre 59 y 591 px, sin tocar el botón de idioma arriba ni el pie abajo.
      Los videos son cuadrados (848x848) y van con `contain`: nunca se recortan, y la caja ancha
      que sobra a los costados es transparente, así que no se ve. */
-  .splash-anim { position:relative; z-index:2; width:100%; height:clamp(120px, 22vh, 210px);
-    overflow:hidden; margin-bottom:14px; }
+  /* El alto sale de medir, no de elegir: con 22vh los gráficos de las pantallas 2 y 3 quedaban en
+     55 px dentro de un panel de 186 y se veían apretados. Con 26vh el gráfico pasa a ~90 y el
+     bloque sigue entrando sin empujar el pie (verificado a 390x844, 375x667 y 1366x768). */
+  .splash-anim { position:relative; z-index:2; width:100%; height:clamp(130px, 26vh, 240px);
+    overflow:hidden; margin-bottom:16px; }
   .splash-anim-track { display:flex; height:100%; transition:transform .55s cubic-bezier(.4,0,.2,1); }
   .splash-anim-slide { flex:0 0 100%; height:100%; display:flex; align-items:center; justify-content:center; }
   .splash-anim-v { max-width:100%; max-height:100%; width:auto; height:100%; object-fit:contain; display:block; }
@@ -2235,154 +2238,131 @@
      Antes eran videos de 848x848. Al ser cuadrados, en un teléfono entraban a 186x186 y el texto
      de adentro quedaba diminuto; encima dos de los tres traían el título como tinta oscura sobre
      transparente, o sea navy sobre navy.
-     Hechas acá se arregla todo eso de una: usan el ANCHO COMPLETO (334 px contra 186), el texto es
-     texto de verdad —así que pasa por t() y se traduce (R14), escala con el tamaño de letra que la
-     persona eligió, y lo lee un lector de pantalla si hiciera falta—, y los colores salen de los
-     tokens de siempre (R13), o sea que el modo oscuro funciona sin una regla extra.
-     Pesan 0 bytes de red contra 1,7 MB. */
-  .spl-p { display: flex; flex-direction: column; justify-content: space-between; gap: .5rem;
+     Hechas acá se arregla todo eso de una: usan el ANCHO COMPLETO, el texto es texto de verdad
+     —así que pasa por t() y se traduce (R14), escala con el tamaño de letra que la persona eligió,
+     y lo lee un lector de pantalla si hiciera falta—, y los colores salen de los tokens de siempre
+     (R13), o sea que el modo oscuro funciona sin una regla extra. Pesan 0 bytes contra 1,7 MB.
+
+     ⚠️ DOS DECISIONES QUE NO SON DE ESTILO Y CONVIENE NO DESHACER:
+
+     1) Todas las animaciones cuelgan de `.spl-activa`, que el JS pone RECIÉN cuando la pantalla
+        terminó de deslizarse. Antes corrían en bucle todas a la vez, así que al llegar una ya venía
+        por la mitad: se veía floja y desincronizada. Como la clase se saca y se vuelve a poner,
+        reinician en cada pasada.
+
+     2) EL ESTADO EN REPOSO ES VISIBLE. Ninguna pieza lleva `opacity: 0` de base: lo que oculta es
+        el `from` del keyframe, que sólo rige mientras la animación está puesta. Así, si la clase
+        nunca llega —JS caído, temporizador que no dispara, movimiento reducido— la pantalla se ve
+        completa igual. La versión anterior tenía el `opacity: 0` en la regla base y dejó dos
+        paneles EN BLANCO cuando las reglas de "sin movimiento" quedaron desactualizadas. Escrito
+        así, ese error ya no se puede cometer. */
+  .spl-p { display: flex; flex-direction: column; justify-content: space-between; gap: .6rem;
     width: 100%; height: 100%; background: var(--card); border: 1px solid var(--sup-borde);
-    border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: .8rem .9rem; text-align: left; }
-  .spl-p-tx { display: flex; flex-direction: column; gap: .16rem; min-width: 0; }
-  .spl-p-tx b { font-size: .95rem; font-weight: 800; color: var(--text); line-height: 1.2; }
-  .spl-p-tx span { font-size: .74rem; color: var(--text-soft); line-height: 1.35; }
+    border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1rem 1.1rem; text-align: left; }
+  .spl-p-tx { display: flex; flex-direction: column; gap: .22rem; min-width: 0; }
+  .spl-p-tx b { font-size: 1rem; font-weight: 800; color: var(--text); line-height: 1.22; }
+  .spl-p-tx span { font-size: .76rem; color: var(--text-soft); line-height: 1.4; }
   .spl-p-gr { flex: 1; min-height: 0; }
 
-  /* 1 · Se mide. Barras que crecen; la marcada es la que se sale del rango. */
-  .spl-barras { display: flex; align-items: flex-end; gap: .3rem; }
-  .spl-barras i { flex: 1; height: var(--h); background: var(--chip-bg); border-radius: 4px 4px 2px 2px;
-    transform-origin: bottom; animation: splCrece .5s var(--ease-app, ease) both; }
-  .spl-barras i.on { background: var(--orange); }
-  .spl-barras i:nth-child(2){ animation-delay:.05s } .spl-barras i:nth-child(3){ animation-delay:.1s }
-  .spl-barras i:nth-child(4){ animation-delay:.15s } .spl-barras i:nth-child(5){ animation-delay:.2s }
-  .spl-barras i:nth-child(6){ animation-delay:.25s } .spl-barras i:nth-child(7){ animation-delay:.3s }
-  .spl-barras i:nth-child(8){ animation-delay:.35s }
-  @keyframes splCrece { from { transform: scaleY(.05); } to { transform: scaleY(1); } }
-
-  /* 2 · Reportas en segundos. Cuatro casillas que se van tildando. */
-  .spl-check { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; align-content: center; }
-  .spl-check span { position: relative; height: 100%; min-height: 26px; border-radius: 7px;
-    background: var(--chip-bg); }
-  .spl-check i { position: absolute; inset: 0; border-radius: 7px; background: var(--sem-verde-bg);
-    box-shadow: inset 0 0 0 1.5px var(--sem-verde); opacity: 0;
-    animation: splTilde 2.4s var(--ease-app, ease) infinite both; }
-  /* El tilde. Sin él eran cuatro rectángulos verdes que no decían nada; con él se lee
-     "test completado". Es un borde en L rotado: no hace falta ni un SVG ni una fuente de íconos. */
-  /* ⚠️ En píxeles y no en porcentaje: la casilla es mucho más ancha que alta (71x26), así que un
-     tilde en % salía deformado —medido: 15.6 de ancho por 10.9 de alto, o sea una "L" acostada en
-     vez de un tilde—. Con medidas fijas conserva su forma sea cual sea la caja. */
-  .spl-check i::after { content: ''; position: absolute; top: 50%; left: 50%; width: 6px; height: 11px;
-    margin: -7px 0 0 -3px; border: solid var(--sem-verde); border-width: 0 2px 2px 0;
-    transform: rotate(45deg); }
-  .spl-check span:nth-child(2) i { animation-delay: .28s }
-  .spl-check span:nth-child(3) i { animation-delay: .56s }
-  .spl-check span:nth-child(4) i { animation-delay: .84s }
-  @keyframes splTilde { 0%,4% { opacity:0; transform:scale(.8) } 18%,72% { opacity:1; transform:scale(1) } 88%,100% { opacity:0 } }
-
-  /* 3 · Medición objetiva. El círculo del test de reacción: espera, aparece, se toca. */
-  .spl-pvt { position: relative; border-radius: 10px; background: var(--navy); overflow: hidden; }
-  .spl-pvt em { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px;
-    border-radius: 50%; background: var(--orange); opacity: 0;
-    animation: splPunto 2.8s var(--ease-app, ease) infinite both; }
-  .spl-pvt u { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px;
-    border-radius: 50%; box-shadow: 0 0 0 2px var(--orange); opacity: 0;
-    animation: splOnda 2.8s var(--ease-app, ease) infinite both; }
-  @keyframes splPunto { 0%,42% { opacity:0; transform:scale(.5) } 52%,76% { opacity:1; transform:scale(1) } 86%,100% { opacity:0 } }
-  @keyframes splOnda  { 0%,74% { opacity:0; transform:scale(1) } 80% { opacity:.7 } 92%,100% { opacity:0; transform:scale(2.1) } }
-
-  /* Chip de estado, abajo a la derecha del panel: el "Reportando…" / "Analizando…" de los clips. */
-  .spl-chip { align-self: flex-start; font-size: .62rem; font-weight: 700; letter-spacing: .03em;
+  /* Chip de estado: el "Reportando…" / "Analizando…" de los clips. */
+  .spl-chip { align-self: flex-start; font-size: .64rem; font-weight: 700; letter-spacing: .03em;
     color: var(--orange-legible); background: var(--orange-bg); border: 1px solid var(--orange);
-    border-radius: 999px; padding: .12rem .5rem; }
+    border-radius: 999px; padding: .16rem .55rem; }
+  .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) .35s both; }
+  @keyframes splChip { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  /* 2 · Prevención e impacto. La línea se dibuja sola y el punto la recorre. */
+  /* 1 · Analítica Operativa. Las barras crecen escalonadas; la marcada se pasa del rango. */
+  .spl-barras { display: flex; align-items: flex-end; gap: .34rem; }
+  .spl-barras i { flex: 1; height: var(--h); background: var(--chip-bg); border-radius: 5px 5px 2px 2px;
+    transform-origin: bottom; }
+  .spl-barras i.on { background: var(--orange); }
+  .spl-activa .spl-barras i { animation: splCrece .62s cubic-bezier(.22,1.2,.36,1) both; }
+  .spl-activa .spl-barras i:nth-child(2){ animation-delay:.06s } .spl-activa .spl-barras i:nth-child(3){ animation-delay:.12s }
+  .spl-activa .spl-barras i:nth-child(4){ animation-delay:.18s } .spl-activa .spl-barras i:nth-child(5){ animation-delay:.24s }
+  .spl-activa .spl-barras i:nth-child(6){ animation-delay:.30s } .spl-activa .spl-barras i:nth-child(7){ animation-delay:.36s }
+  .spl-activa .spl-barras i:nth-child(8){ animation-delay:.42s }
+  @keyframes splCrece { from { transform: scaleY(.04); } to { transform: scaleY(1); } }
+
+  /* 2 · Prevención e Impacto. La línea se dibuja sola y el punto aterriza al final. */
   .spl-linea { position: relative; }
   .spl-linea svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .spl-linea polyline { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
     vector-effect: non-scaling-stroke; }
   .spl-l-fondo { stroke: var(--chip-bg); }
-  .spl-l-viva  { stroke: var(--orange); stroke-dasharray: 400; stroke-dashoffset: 400;
-    animation: splTraza 2.6s var(--ease-app, ease) infinite both; }
-  @keyframes splTraza { 0% { stroke-dashoffset: 400; } 55%, 100% { stroke-dashoffset: 0; } }
-  .spl-l-punto { position: absolute; right: -3px; top: 4%; width: 9px; height: 9px; border-radius: 50%;
-    background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg);
-    opacity: 0; animation: splPuntoFin 2.6s var(--ease-app, ease) infinite both; }
-  @keyframes splPuntoFin { 0%, 52% { opacity: 0; transform: scale(.4); } 62%, 100% { opacity: 1; transform: scale(1); } }
+  .spl-l-viva  { stroke: var(--orange); }
+  .spl-activa .spl-l-viva { stroke-dasharray: 420; animation: splTraza 1.1s cubic-bezier(.4,0,.2,1) .1s both; }
+  @keyframes splTraza { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
+  .spl-l-punto { position: absolute; right: -3px; top: 2%; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
+  .spl-activa .spl-l-punto { animation: splPuntoFin .5s cubic-bezier(.22,1.2,.36,1) 1.1s both; }
+  @keyframes splPuntoFin { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
 
-  /* 3 · Enfoque científico. Las cuatro variables con su estado, como en el clip. */
-  .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .22rem; }
-  .spl-mon span { display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-    opacity: 0; animation: splFila 2.8s var(--ease-app, ease) infinite both; }
-  .spl-mon span:nth-child(2){ animation-delay: .16s } .spl-mon span:nth-child(3){ animation-delay: .32s }
-  .spl-mon span:nth-child(4){ animation-delay: .48s }
-  @keyframes splFila { 0%,6% { opacity:0; transform: translateX(-5px); } 22%,82% { opacity:1; transform:none; } 96%,100% { opacity:0; } }
-  .spl-mon i { font-style: normal; font-size: .58rem; font-weight: 800; letter-spacing: .05em;
+  /* 3 · Enfoque científico. Las cuatro variables entran de a una, como si se fueran midiendo. */
+  .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .3rem; }
+  .spl-mon span { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .spl-activa .spl-mon span { animation: splFila .45s cubic-bezier(.22,1.1,.36,1) both; }
+  .spl-activa .spl-mon span:nth-child(2){ animation-delay: .13s } .spl-activa .spl-mon span:nth-child(3){ animation-delay: .26s }
+  .spl-activa .spl-mon span:nth-child(4){ animation-delay: .39s }
+  @keyframes splFila { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+  .spl-mon i { font-style: normal; font-size: .6rem; font-weight: 800; letter-spacing: .05em;
     color: var(--text-muted); }
-  .spl-mon u { text-decoration: none; font-size: .58rem; font-weight: 800; border-radius: 999px;
-    padding: .08rem .42rem; }
+  .spl-mon u { text-decoration: none; font-size: .6rem; font-weight: 800; border-radius: 999px;
+    padding: .1rem .45rem; }
   .spl-mon u.ok  { color: var(--sem-verde-txt);  background: var(--sem-verde-bg); }
   .spl-mon u.alt { color: var(--sem-ambar-txt);  background: var(--sem-ambar-bg); }
-  .spl-mon u.cri { color: var(--sem-rojo-alt);   background: var(--sem-rojo-bg); }
+  /* ⚠️ `--sev-txt-5` y no `--sem-rojo-alt`: medido, el segundo daba 4.26 sobre el fondo de la
+     píldora en tema claro, por debajo del 4.5 que pide un texto de 0.6rem. `--sev-txt-5` existe
+     justamente para tinta sobre superficie clara y da 6.54, y cambia solo en tema oscuro. */
+  .spl-mon u.cri { color: var(--sev-txt-5);      background: var(--sem-rojo-bg); }
 
   /* 4 · Cada quien ve lo suyo. Dos fichas: la del supervisor muestra menos que la del médico. */
-  .spl-ojos { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; align-content: center; }
-  .spl-ojo { display: flex; flex-direction: column; justify-content: center; gap: .3rem;
-    height: 100%; min-height: 34px; padding: .45rem; border-radius: var(--radius-xs);
+  .spl-ojos { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; align-content: center; }
+  .spl-ojo { display: flex; flex-direction: column; justify-content: center; gap: .32rem;
+    height: 100%; min-height: 38px; padding: .5rem; border-radius: var(--radius-xs);
     background: var(--sup-suave); box-shadow: inset 0 0 0 1px var(--sup-borde); }
+  .spl-activa .spl-ojo { animation: splFicha .5s cubic-bezier(.22,1.1,.36,1) both; }
+  .spl-activa .spl-ojo:nth-child(2){ animation-delay: .16s }
+  @keyframes splFicha { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
   .spl-ojo i { display: block; height: 6px; border-radius: 3px; background: var(--chip-bg); }
   .spl-ojo i:first-child { width: 62%; background: var(--text-muted); opacity: .55; }
   .spl-ojo--med { background: var(--orange-bg); box-shadow: inset 0 0 0 1px var(--orange); }
   .spl-ojo--med i { background: var(--orange); opacity: .45; }
   .spl-ojo--med i:first-child { opacity: .8; }
 
-  /* 5 · Sin señal. Tres registros esperando; se van yendo de a uno cuando vuelve la conexión. */
-  .spl-cola { display: flex; flex-direction: column; justify-content: center; gap: .35rem; }
-  .spl-cola i { display: block; height: 9px; border-radius: 5px; background: var(--chip-bg);
-    animation: splEnvia 3s var(--ease-app, ease) infinite both; }
-  .spl-cola i:nth-child(1){ width: 86% } .spl-cola i:nth-child(2){ width: 64%; animation-delay:.35s }
-  .spl-cola i:nth-child(3){ width: 74%; animation-delay:.7s }
+  /* 5 · Sin señal. Tres registros en cola; se van yendo de a uno cuando vuelve la conexión. */
+  .spl-cola { display: flex; flex-direction: column; justify-content: center; gap: .4rem; }
+  .spl-cola i { display: block; height: 10px; border-radius: 5px; background: var(--chip-bg); }
+  .spl-cola i:nth-child(1){ width: 86% } .spl-cola i:nth-child(2){ width: 64% } .spl-cola i:nth-child(3){ width: 74% }
+  .spl-activa .spl-cola i { animation: splEnvia 1.6s cubic-bezier(.4,0,.2,1) both; }
+  .spl-activa .spl-cola i:nth-child(2){ animation-delay:.22s } .spl-activa .spl-cola i:nth-child(3){ animation-delay:.44s }
   @keyframes splEnvia {
-    0%,18%  { opacity:.55; transform: translateX(0); background: var(--chip-bg); }
-    34%     { opacity:1;   background: var(--sem-verde); }
-    56%     { opacity:1;   transform: translateX(0); }
-    72%     { opacity:0;   transform: translateX(38px); }
-    73%,100%{ opacity:.55; transform: translateX(0); background: var(--chip-bg); }
+    0%   { background: var(--chip-bg);   opacity: .6; transform: translateX(0); }
+    36%  { background: var(--sem-verde); opacity: 1;  transform: translateX(0); }
+    68%  { background: var(--sem-verde); opacity: 1;  transform: translateX(0); }
+    100% { background: var(--sem-verde); opacity: .25; transform: translateX(42px); }
   }
 
-  /* ⚠️ SIN MOVIMIENTO, TODO TIENE QUE QUEDAR VISIBLE. Varias piezas arrancan en `opacity: 0` y la
-     animación las trae; si se apaga el movimiento y no se las devuelve a 1, el panel queda EN
-     BLANCO. Me pasó justo con los dos paneles nuevos: la lista de variables y el trazo de la línea
-     salían de esta lista y quedaban invisibles.
-     Por eso la regla se escribe al revés de lo intuitivo: se apaga la animación y se FUERZA el
-     estado final de todo lo que anima opacidad. El único que queda oculto a propósito es la onda
-     del punto, que es puro efecto y sin movimiento no significa nada.
-     Está cubierto por una prueba, porque es de las cosas que sólo se ven cuando ya es tarde. */
-  @media (prefers-reduced-motion: reduce) {
-    .spl-barras i, .spl-cola i, .spl-mon span, .spl-l-viva, .spl-l-punto { animation: none; }
-    .spl-mon span, .spl-l-punto { opacity: 1; transform: none; }
-    .spl-l-viva { stroke-dashoffset: 0; }
-  }
-  html.sin-animaciones .spl-barras i, html.sin-animaciones .spl-cola i,
-  html.sin-animaciones .spl-mon span, html.sin-animaciones .spl-l-viva,
-  html.sin-animaciones .spl-l-punto { animation: none; }
-  html.sin-animaciones .spl-mon span, html.sin-animaciones .spl-l-punto { opacity: 1; transform: none; }
-  html.sin-animaciones .spl-l-viva { stroke-dashoffset: 0; }
+  /* Sin movimiento se apagan las animaciones y listo: como el estado en reposo YA es el visible
+     (ver la decisión 2 de arriba), no hace falta forzar nada pieza por pieza — que era justo lo que
+     se desactualizaba y dejaba paneles en blanco. */
+  @media (prefers-reduced-motion: reduce) { .spl-activa * { animation: none !important; } }
+  html.sin-animaciones .spl-activa * { animation: none !important; }
 
   /* En pantallas bajas la tira se achica: el texto se mantiene y el gráfico cede espacio. */
-  /* ⚠️ En pantallas bajas la tira mide ~100 px y los textos de los paneles son largos (salen de
-     los clips originales). Medido a 375x667 SIN esto: el hueco del gráfico quedaba en 0 px y el
-     panel se veía roto. Acá el texto cede: la bajada se corta en dos renglones, el chip de estado
-     desaparece —es lo más prescindible— y el gráfico conserva un mínimo para seguir leyéndose. */
+  /* ⚠️ En pantallas bajas la tira mide ~100 px y no se puede agrandar: medido a 375x667 quedan
+     apenas 22 px de aire antes de empujar el pie fuera de pantalla, y ese pie tiene el acceso de
+     supervisor y el de administrador.
+     Así que el espacio se saca de otro lado: se oculta la BAJADA y el chip, y quedan el título
+     —que es el mensaje— y el gráfico, que pasa de 34 a ~60 px y deja de verse aplastado.
+     Este es el caso que ve un teléfono real: con la barra del navegador, la altura útil de un
+     equipo de 844 cae por debajo de 760 y entra por acá. */
   @media (max-height:760px){
-    .spl-p { padding: .55rem .7rem; gap: .35rem; }
-    .spl-p-tx b { font-size: .82rem; }
-    .spl-p-tx span { font-size: .66rem; line-height: 1.28;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .spl-chip { display: none; }
-    .spl-p-gr { min-height: 34px; }
+    .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; }
+    .spl-p { padding: .6rem .75rem; gap: .3rem; }
+    .spl-p-tx b { font-size: .84rem; }
+    .spl-p-tx span, .spl-chip { display: none; }
+    .spl-p-gr { min-height: 44px; }
   }
-
-  @media (max-height:760px){ .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; } }
   @media (max-height:640px){ .splash-anim { display:none; } }
 
   .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
@@ -2414,9 +2394,12 @@
     display:flex; flex-direction:column; overflow:hidden; }
   /* I2: medía 34x34. El círculo se sigue dibujando de 34 (más grande le pelearía protagonismo
      al contenido del carrusel); lo que crece a 44 es sólo el área sensible. */
+  /* El botón se ve de 34 px, pero el área que responde al toque llega a 44: se agranda con el
+     ::after, sin agrandar el dibujo. Es el mínimo para usarse con guantes. */
   .car-cerrar::after { content:''; position:absolute; inset:-5px; border-radius:50%; }
   .car-cerrar { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
-    background:var(--chip-bg); color:var(--text-soft); border:none; border-radius:999px; width:34px; height:34px;
+    background:var(--chip-bg); color:var(--text-soft); border:none; border-radius:999px;
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center;
     font-size:1rem; line-height:1; cursor:pointer; }
   .car-viewport { flex:1; overflow:hidden; position:relative; touch-action:pan-y; }
   .car-track { display:flex; height:100%; width:500%; will-change:transform;
@@ -4663,7 +4646,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.45';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.48';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4749,7 +4732,7 @@ const I18N = {
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
       splash_demo:'Ver una demostración',
-      splash_portal:'Soy supervisor o servicio médico',
+      splash_portal:'Soy supervisor, servicio médico o dirección',
       splash_admin:'Administrador',
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
@@ -6119,7 +6102,7 @@ const I18N = {
       splash_sub:'Preventing, detecting and acting on operational fatigue.',
       splash_ingresar:'Get started',
       splash_demo:'See a demo',
-      splash_portal:'I am a supervisor or medical staff',
+      splash_portal:'I am a supervisor, medical staff or management',
       splash_admin:'Administrator',
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──
@@ -11578,8 +11561,13 @@ function portalMode(m){
      (necesita un perfil cargado en este dispositivo). */
   const creds = document.getElementById('portalCreds');
   if (creds) creds.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+  /* ⚠️ "Mis estadísticas" muestra los registros DE ESTA PERSONA: sin un perfil completo en el
+     dispositivo no tiene nada que mostrar y el botón lleva a un error. Se ocultaba sólo en modo
+     demo, así que por el camino de "Soy supervisor…" —donde tampoco hay perfil— quedaba visible y
+     roto. La condición correcta no es "estoy en demo" sino "hay perfil". */
   const tabEmp = document.getElementById('ptabEmp');
-  if (tabEmp) tabEmp.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+  const hayPerfil = perfilCompleto(getProfile());
+  if (tabEmp) tabEmp.style.display = hayPerfil ? '' : 'none';
   const admSep = document.getElementById('adminSep');
   if (admSep) admSep.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
   // El acceso de administrador va SIEMPRE al pie, sin importar la pestaña elegida; sólo se
@@ -18453,8 +18441,10 @@ renderSections();
 renderActividad();
 if (_prof) paintProfile();
 document.getElementById('webSilvaLink').href = WEB_SILVA;   // web de Aeroambulancias Silva (en "Más")
-document.getElementById('bottomNav').style.display = 'flex'; // barra inferior Inicio/Estadísticas/Más
 mostrarVista('inicio');
+/* La vista se prepara igual (para que el estado quede armado), pero la app queda oculta hasta que
+   el alta termine: ver appRevelar(). */
+appRevelar(perfilCompleto(getProfile()));
 sectorRefrescar();   // A3: si su empresa cambió de sector en el CH, la terminología se actualiza sola
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
 empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento
@@ -18518,7 +18508,8 @@ function avanzarAlta(){
     syncScrollLock();
     return;
   }
-  // Nada pendiente: la app queda a la vista.
+  // Nada pendiente: recién ACÁ la app queda a la vista.
+  appRevelar(true);
 }
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
@@ -18541,6 +18532,21 @@ if (_complete){
   splashMostrar();
 }
 consentSync();   // si quedó una aceptación sin enviar (se firmó antes de existir el perfil), va ahora
+
+/* ⚠️ La app de atrás sólo se muestra cuando hay a quién mostrársela.
+   `#app` y la barra inferior se revelaban SIEMPRE al arrancar, tuviera o no perfil la persona. Los
+   overlays son translúcidos (86 % + desenfoque) y encima se cruzan con una transición de 220 ms:
+   durante ese cruce los dos quedan a media opacidad y se veía el Inicio con sus botones asomando
+   por atrás. El usuario lo reportó como "cualquier botón que toco deja ver el panel de inicio unos
+   microsegundos". Y era además el agujero del "empleado fantasma" que ya preocupaba en closePortal:
+   la app quedaba tocable detrás del splash de alguien sin perfil.
+   Es función declarada, no variable: vive en el camino de arranque (ver la regla de N10). */
+function appRevelar(ver){
+  const app = document.getElementById('app');
+  const nav = document.getElementById('bottomNav');
+  if (app) app.style.display = ver ? '' : 'none';
+  if (nav) nav.style.display = ver ? 'flex' : 'none';
+}
 
 /* ════════════════ N8 · Tira de presentación del splash (2026-08-28) ══════════════════════════
    Pasa una pantalla, cuando termina pasa a la siguiente, y en la vacía espera y vuelve a empezar.
@@ -18598,7 +18604,21 @@ function splashAnimArrancar(){
   const est = { i:0, timer:0, vivo:true, parado:false };
   _splAnim = est;
 
-  const ir = i => { est.i = i; track.style.transform = 'translateX(' + (-i * 100) + '%)'; };
+  /* ⚠️ La animación de cada pantalla arranca RECIÉN cuando termina de deslizarse, no antes.
+     Estaban todas corriendo en bucle a la vez, así que al llegar una pantalla su animación ya venía
+     por la mitad: se veía floja y desincronizada. Ahora la clase `spl-activa` es la que dispara, y
+     como se saca y se vuelve a poner, la animación REINICIA en cada pasada. */
+  const DESLIZ_MS = 560;   // un pelo más que la transición de .55s del track
+  const ir = i => {
+    est.i = i;
+    track.style.transform = 'translateX(' + (-i * 100) + '%)';
+    slides.forEach(sl => sl.classList.remove('spl-activa'));
+    clearTimeout(est.timerAnim);
+    est.timerAnim = setTimeout(() => {
+      if (!est.vivo || _splAnim !== est) return;
+      slides[est.i] && slides[est.i].classList.add('spl-activa');
+    }, DESLIZ_MS);
+  };
 
   /* ⚠️ Se compara por IDENTIDAD contra `_splAnim`, no sólo por `est.vivo`. Apareció una cadena
      huérfana: la tira seguía rotando con `_splAnim` ya en null, o sea un temporizador que ningún
@@ -18664,6 +18684,7 @@ function splashAnimFrenar(){
   if (!_splAnim) return;
   _splAnim.vivo = false;
   clearTimeout(_splAnim.timer);
+  clearTimeout(_splAnim.timerAnim);
   if (_splAnim.visib) document.removeEventListener('visibilitychange', _splAnim.visib);
   if (_splAnim.obs) _splAnim.obs.disconnect();
   const t = document.getElementById('splashAnimTrack');
@@ -18725,8 +18746,11 @@ function splashVerDemo(){
    igual, eso lo decide el servidor. */
 function splashPortal(){
   splashAbrirPortal();
-  document.getElementById('ptabSup').style.display = '';
-  document.getElementById('ptabMed').style.display = '';
+  /* Las tres vistas con credencial quedan disponibles. Faltaba Dirección / HSEQ: el enlace del
+     splash la nombra pero la pestaña no aparecía, así que no había forma de llegar. */
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = '';
+  });
   portalMode('sup');
 }
 function splashAdmin(){

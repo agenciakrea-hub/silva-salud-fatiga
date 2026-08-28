@@ -297,7 +297,7 @@ PRUEBAS.caso('⚠️ ningún color escrito a mano en las pantallas (R13)', () =>
      Con los clips el fondo era blanco fijo y por eso dos de ellos tenían el título ilegible sobre
      el navy del splash. */
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
-  const bloque = (fuente.match(/\.spl-p \{[\s\S]*?SIN MOVIMIENTO, TODO TIENE QUE QUEDAR VISIBLE/) || [''])[0];
+  const bloque = (fuente.match(/\.spl-p \{[\s\S]*?html\.sin-animaciones \.spl-activa/) || [''])[0];
   PRUEBAS.alMenos(bloque.length, 200, 'tiene que encontrar el bloque de las pantallas');
   const aMano = (bloque.match(/#[0-9a-fA-F]{3,6}\b/g) || []);
   PRUEBAS.igual(aMano, [], 'todo tiene que salir de tokens, o el modo oscuro se rompe');
@@ -501,4 +501,94 @@ PRUEBAS.caso('al cerrar, el portal vuelve a la normalidad', () => {
   portalMode('sup');
   PRUEBAS.cierto(getComputedStyle(document.getElementById('portalCreds')).display !== 'none',
     'y las credenciales vuelven a estar disponibles');
+});
+
+PRUEBAS.grupo('N11 · orden de declaración y app de atrás');
+
+PRUEBAS.caso('⚠️ el script llega entero hasta el final', () => {
+  /* Es la red de seguridad de toda esta familia de bugs. Un `let`/`const` leído en zona muerta
+     lanza y CORTA la ejecución del resto del archivo: no se rompe una función, se rompen todas las
+     que venían después. Se comprueba con lo último que se declara. */
+  PRUEBAS.igual(typeof appRevelar, 'function', 'una función declarada al final tiene que existir');
+  PRUEBAS.igual(typeof splashAnimActiva, 'function', 'y las del arranque también');
+  PRUEBAS.igual(typeof carruselPintar, 'function', 'y las del medio');
+});
+
+PRUEBAS.caso('⚠️ las dos lecturas riesgosas siguen protegidas', () => {
+  /* Salieron de barrer el archivo entero buscando variables de nivel superior que se usen antes de
+     su asignación, siguiendo las llamadas desde el arranque hasta tres niveles. De 226 variables
+     quedaron dos alcanzables, y las dos ya estaban cubiertas. Esta prueba es para que sigan así.
+     `typeof` NO sirve para esto: con `let`/`const` en zona muerta, `typeof` también lanza. La única
+     protección es el try/catch. */
+  PRUEBAS.cierto(/try \{ return TAREAS\.determinacion/.test(renderInicio.toString()),
+    'renderInicio corre en el arranque y TAREAS es un const declarado mucho más abajo: va envuelto');
+  PRUEBAS.cierto(/try \{[\s\S]*nominaListPintarDeptos\(\)/.test(aplicarIdioma.toString()),
+    'aplicarIdioma alcanza NOMLIST; sólo pasa con el panel abierto, pero va protegido igual');
+});
+
+PRUEBAS.caso('⚠️ la app de atrás no se ve mientras no haya perfil', () => {
+  /* Reportado: "cualquier botón que toco deja ver el panel de inicio unos microsegundos". Los
+     overlays son translúcidos (86 % y desenfoque) y se cruzan con una transición de 220 ms: durante
+     ese cruce los dos quedan a media opacidad. Si la app está pintada atrás, asoma.
+     Era además el agujero del "empleado fantasma": la app quedaba TOCABLE detrás del splash de
+     alguien que nunca completó su alta. */
+  const fuente = appRevelar.toString();
+  PRUEBAS.cierto(/getElementById\('app'\)/.test(fuente) && /bottomNav/.test(fuente),
+    'tiene que ocultar la app y la barra inferior juntas');
+
+  const app = document.getElementById('app');
+  const antes = app.style.display;
+  appRevelar(false);
+  PRUEBAS.igual(getComputedStyle(app).display, 'none', 'sin perfil, nada que asome por atrás');
+  appRevelar(true);
+  PRUEBAS.falso(getComputedStyle(app).display === 'none', 'y con el alta hecha vuelve a estar');
+  app.style.display = antes;
+});
+
+PRUEBAS.caso('la animación de cada pantalla arranca al terminar de deslizar', () => {
+  /* Reportado: "están medio flojas". Corrían todas en bucle a la vez, así que al llegar una
+     pantalla su animación ya venía por la mitad. */
+  const fuente = splashAnimArrancar.toString();
+  PRUEBAS.cierto(/spl-activa/.test(fuente), 'la clase que dispara se pone desde el JS');
+  PRUEBAS.cierto(/DESLIZ_MS/.test(fuente), 'y recién después de que termine el deslizamiento');
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  PRUEBAS.cierto(/\.spl-activa \.spl-barras i \{[^}]*animation:/.test(css),
+    'y en el CSS las animaciones cuelgan de esa clase, no del elemento suelto');
+});
+
+PRUEBAS.caso('⚠️ ninguna pantalla puede quedar en blanco', () => {
+  /* La versión anterior ponía `opacity: 0` en la regla base y dejaba que la animación lo trajera.
+     Cuando las reglas de "sin movimiento" quedaron desactualizadas, dos paneles enteros quedaron
+     invisibles. Ahora el estado en reposo ES el visible y lo que oculta es el `from` del keyframe,
+     que sólo rige mientras la animación está puesta. */
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  const bloque = (css.match(/\.spl-p \{[\s\S]*?html\.sin-animaciones \.spl-activa/) || [''])[0];
+  const baseOculta = (bloque.match(/^\s*\.spl-(mon span|ojo|chip|cola i|l-punto)[^{]*\{[^}]*opacity: ?0;/gm) || []);
+  PRUEBAS.igual(baseOculta, [],
+    'ninguna pieza puede arrancar invisible: si la clase nunca llega, la pantalla queda vacía');
+
+  const tira = document.getElementById('splashAnimTrack');
+  const apagadas = [...tira.querySelectorAll('.spl-mon span, .spl-ojo, .spl-chip, .spl-cola i, .spl-l-punto')]
+    .filter(e => !e.closest('.spl-activa'))
+    .filter(e => parseFloat(getComputedStyle(e).opacity) < 0.2).length;
+  PRUEBAS.igual(apagadas, 0, 'y medido: fuera de la pantalla activa tampoco hay nada invisible');
+});
+
+PRUEBAS.caso('"Mis estadísticas" sólo aparece si hay perfil', () => {
+  /* Muestra los registros DE ESTA PERSONA: sin perfil no tiene nada que mostrar y lleva a un error.
+     Se ocultaba sólo en modo demo, así que por el camino de "Soy supervisor…" —donde tampoco hay
+     perfil— quedaba visible y roto. La condición correcta no es "estoy en demo" sino "hay perfil". */
+  PRUEBAS.cierto(/perfilCompleto\(getProfile\(\)\)/.test(portalMode.toString()),
+    'la pestaña depende de tener perfil, no del modo');
+});
+
+PRUEBAS.caso('el acceso con credenciales ofrece las tres vistas', () => {
+  /* El enlace del splash nombra dirección, pero la pestaña de Dirección / HSEQ no se mostraba:
+     no había forma de llegar. */
+  splashPortal();
+  const vis = id => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== 'none'; };
+  const r = { sup: vis('ptabSup'), med: vis('ptabMed'), dir: vis('ptabHseq'), creds: vis('portalCreds') };
+  closePortal();
+  PRUEBAS.cierto(r.sup && r.med && r.dir, 'supervisor, servicio médico y dirección');
+  PRUEBAS.cierto(r.creds, 'y acá SÍ se puede entrar con credenciales, a diferencia de la demo');
 });
