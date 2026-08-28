@@ -2090,6 +2090,12 @@
     .ent-texto-entra--2 { animation-delay: .08s; }
     .ent-texto-entra--3 { animation-delay: .16s; }
     .ent-texto-entra--4 { animation-delay: .24s; }
+    /* N8 · La tira va entre el logo (0) y el título (.08), así que entra a .04 — si no, sería lo
+       único del splash que aparece de golpe, y se nota aunque nadie sepa decir qué está mal.
+       Es el mismo arreglo que en M5 con el banner de instalar, que entraba antes que su encabezado.
+       Va con el nombre del elemento en vez de un `--1b` genérico: es UNA posición, no un escalón
+       reutilizable. */
+    .splash-anim { animation-delay: .04s; }
   }
   @keyframes entLogoEntra { from { opacity:0; transform:scale(.86); } to { opacity:1; transform:scale(1); } }
   @keyframes entTextoEntra { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -2113,6 +2119,30 @@
   .splash-cuerpo { position:relative; z-index:2; flex:1; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; padding:0 28px; gap:6px; }
   .splash-logo { width:96px; height:auto; margin-bottom:18px; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  /* ── N8 · Tira de presentación del splash ──────────────────────────────────────────────────
+     El alto va con `clamp` y no con un número: el cuerpo del splash está centrado, así que todo
+     lo que crece acá empuja para arriba Y para abajo. Medido a 390x844: con 22vh el bloque queda
+     entre 59 y 591 px, sin tocar el botón de idioma arriba ni el pie abajo.
+     Los videos son cuadrados (848x848) y van con `contain`: nunca se recortan, y la caja ancha
+     que sobra a los costados es transparente, así que no se ve. */
+  .splash-anim { position:relative; z-index:2; width:100%; height:clamp(120px, 22vh, 210px);
+    overflow:hidden; margin-bottom:14px; }
+  .splash-anim-track { display:flex; height:100%; transition:transform .55s cubic-bezier(.4,0,.2,1); }
+  .splash-anim-slide { flex:0 0 100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .splash-anim-v { max-width:100%; max-height:100%; width:auto; height:100%; object-fit:contain; display:block; }
+  /* Sin movimiento: se queda quieta en la primera y no rota. El bloque sigue ocupando su lugar,
+     así que la pantalla no se reacomoda según la preferencia de cada uno. */
+  @media (prefers-reduced-motion: reduce) { .splash-anim-track { transition:none; } }
+  html.sin-animaciones .splash-anim-track { transition:none; }
+  /* ⚠️ ACÁ MANDA EL ALTO DE LA PANTALLA, NO EL ANCHO. Lo tenía por ancho y estaba mal: lo que se
+     agota en el splash es el espacio VERTICAL. Medido en un 320x568, que es un teléfono chico real:
+     sin la tira el contenido entra justo (568 de 568) y con ella se pasaba 97 px — y como el
+     overlay es `overflow-y: visible`, eso no deja scroll: los tres enlaces del pie quedaban
+     directamente fuera de alcance. Un adorno no puede tapar "Soy supervisor o servicio médico".
+     Por eso: se achica en pantallas bajas y desaparece cuando ya no hay lugar. */
+  @media (max-height:760px){ .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; } }
+  @media (max-height:640px){ .splash-anim { display:none; } }
+
   .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
     max-width:22ch; text-wrap:balance; margin-bottom:4px; }
   .splash-sub { color:rgba(255,255,255,.72); font-size:.94rem; line-height:1.5; max-width:36ch; margin-bottom:26px; }
@@ -2242,6 +2272,12 @@
       display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       text-align: left; gap: .4rem; padding: 3rem clamp(2rem, 4.5vw, 4.5rem); }
     .splash-brand .splash-logo { width: 124px; margin-bottom: 30px; }
+    /* N8 · En escritorio esta columna va alineada a la IZQUIERDA (logo y titular arrancan en el
+       mismo borde). La tira se centra por defecto, que es lo correcto en teléfono —donde todo está
+       centrado— pero acá dejaba el video flotando en el medio, desalineado con todo lo demás.
+       Medido a 1366: la tira mide 560 de ancho y el video 169, así que quedaba a 195 px del borde
+       donde arrancan el logo y el título. */
+    .splash-brand .splash-anim-slide { justify-content: flex-start; }
     .splash-brand .splash-h1 { font-size: clamp(1.95rem, 2.5vw, 2.6rem); max-width: 17ch; margin-bottom: 8px; }
     .splash-brand .splash-sub { font-size: 1.04rem; max-width: 36ch; margin-bottom: 0; }
     /* El panel accionable. El contenido va acotado y centrado dentro de la columna: a 1920 la
@@ -3665,6 +3701,26 @@
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
+        <!-- N8 · Tira de presentación. Decorativa: `aria-hidden` porque no dice nada que no esté
+             ya escrito abajo, y a un lector de pantalla sólo le sumaría ruido.
+             Para AGREGAR una pantalla nueva: se suma un `.splash-anim-slide` acá y listo — el
+             secuenciador lee las que haya. Con <video> adentro espera a que termine; vacía, espera
+             lo que diga `data-espera` (4 s por defecto). No hay que tocar el JS. -->
+        <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
+          <div class="splash-anim-track" id="splashAnimTrack">
+            <div class="splash-anim-slide">
+              <video class="splash-anim-v" muted playsinline preload="auto" src="media/inicio-anim-1.mp4"></video>
+            </div>
+            <div class="splash-anim-slide">
+              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-2.mp4"></video>
+            </div>
+            <!-- Era el hueco de 4 s reservado para ésta. Al llegar, sólo hubo que meterle el
+                 <video> adentro y sacarle el `data-espera`: el secuenciador no se tocó. -->
+            <div class="splash-anim-slide">
+              <video class="splash-anim-v" muted playsinline preload="none" src="media/inicio-anim-3.mp4"></video>
+            </div>
+          </div>
+        </div>
         <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
         <p class="splash-sub ent-texto-entra ent-texto-entra--3" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
       </div>
@@ -4324,7 +4380,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.37';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.39';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -18112,6 +18168,91 @@ if (_complete){
 }
 consentSync();   // si quedó una aceptación sin enviar (se firmó antes de existir el perfil), va ahora
 
+/* ════════════════ N8 · Tira de presentación del splash (2026-08-28) ══════════════════════════
+   Pasa una pantalla, cuando termina pasa a la siguiente, y en la vacía espera y vuelve a empezar.
+
+   ⚠️ ES DATA-DRIVEN A PROPÓSITO. Lee las slides que haya en el DOM: si tiene <video> adentro
+   espera al evento `ended` (no a un número de segundos escrito acá, que se desincroniza el día que
+   se reexporta el clip medio segundo más largo); si está vacía, espera lo que diga `data-espera`.
+   Agregar la tercera pantalla es meter el <video> en la slide vacía — nada de este archivo cambia.
+
+   ⚠️ SE FRENA AL SALIR DEL SPLASH. Si no, los videos siguen corriendo abajo de la app: gasta
+   batería y CPU en el arranque, que es justo donde ya venimos peleando los segundos. */
+/* ⚠️ `var` y NO `let`. El arranque llama a `splashMostrar()` desde el nivel superior, ANTES de
+   llegar a esta línea. Las funciones se izan ya utilizables, pero un `let` queda en zona muerta:
+   leerlo antes tira "Cannot access '_splAnim' before initialization" y eso **corta la ejecución
+   de todo el script de acá para abajo**. Lo probé y pasó: la tira no arrancaba y encima se perdía
+   medio archivo. `var` se iza inicializado en `undefined`, que es justo lo que hace falta. */
+var _splAnim = null;
+function splashAnimArrancar(){
+  const cont = document.getElementById('splashAnim');
+  if (!cont || _splAnim) return;
+  const track  = document.getElementById('splashAnimTrack');
+  const slides = [...track.querySelectorAll('.splash-anim-slide')];
+  if (!slides.length) return;
+
+  const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+              || document.documentElement.classList.contains('sin-animaciones');
+
+  const est = { i:0, timer:0, vivo:true };
+  _splAnim = est;
+
+  const ir = i => { est.i = i; track.style.transform = 'translateX(' + (-i * 100) + '%)'; };
+
+  function paso(i){
+    if (!est.vivo) return;
+    ir(i);
+    const v = slides[i].querySelector('video');
+    /* La siguiente se precarga recién ahora: al abrir el splash sólo baja la primera. Con 1,16 MB
+       en juego, cargarlas todas de entrada sería pagar en el arranque algo que quizá nadie mire. */
+    const sig = slides[(i + 1) % slides.length].querySelector('video');
+    if (sig && sig.preload === 'none'){ sig.preload = 'auto'; try { sig.load(); } catch(e){} }
+
+    if (!v){                                   // la vacía: sólo esperar
+      est.timer = setTimeout(() => paso((i + 1) % slides.length),
+                             parseInt(slides[i].dataset.espera, 10) || 4000);
+      return;
+    }
+    try { v.currentTime = 0; } catch(e){}
+    v.onended = () => { if (est.vivo) paso((i + 1) % slides.length); };
+    const pr = v.play();
+    /* Si el navegador rechaza el autoplay (pasa, aun estando en muted), no se puede quedar
+       clavada para siempre: se avanza por tiempo con la duración real del clip. */
+    if (pr && pr.catch) pr.catch(() => {
+      if (!est.vivo) return;
+      const ms = (v.duration && isFinite(v.duration) ? v.duration : 4) * 1000;
+      est.timer = setTimeout(() => paso((i + 1) % slides.length), ms);
+    });
+  }
+
+  /* ⚠️ Si la pestaña se va al fondo, el navegador PAUSA el video: `ended` no llega nunca y la
+     tira queda congelada al volver. Lo vi en vivo — el segundo clip se clavó en 4.27 de 5.3.
+     Así que al ocultarse se frena (y de paso no gasta batería en segundo plano), y al volver se
+     rehace el paso actual. Repetir medio segundo de un clip no lo nota nadie; una tira muerta sí. */
+  est.visib = () => {
+    if (!est.vivo) return;
+    if (document.hidden){
+      clearTimeout(est.timer);
+      slides.forEach(sl => { const v = sl.querySelector('video'); if (v) try { v.pause(); } catch(e){} });
+    } else {
+      paso(est.i);
+    }
+  };
+  document.addEventListener('visibilitychange', est.visib);
+
+  if (quieto){ ir(0); return; }                // se queda en la primera, sin rotar
+  paso(0);
+}
+function splashAnimFrenar(){
+  if (!_splAnim) return;
+  _splAnim.vivo = false;
+  clearTimeout(_splAnim.timer);
+  if (_splAnim.visib) document.removeEventListener('visibilitychange', _splAnim.visib);
+  const t = document.getElementById('splashAnimTrack');
+  if (t) t.querySelectorAll('video').forEach(v => { v.onended = null; try { v.pause(); } catch(e){} });
+  _splAnim = null;
+}
+
 /* ════════════════ SPLASH (B1, 2026-08-25) ════════════════════════════════════════════════════ */
 function splashMostrar(){
   const g = empresaPerfilGuardado();
@@ -18126,6 +18267,7 @@ function splashMostrar(){
   }
   document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
   document.getElementById('splashOv').classList.add('show');
+  splashAnimArrancar();       // N8
 }
 function splashCambiarIdioma(){
   fijarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
@@ -18137,6 +18279,7 @@ function splashIngresar(){
 // Abre el portal de estadísticas por fuera del recorrido normal (sin bottomNav, sin perfil
 // todavía). Común a "Ver demostración", "Soy supervisor" y "Administrador".
 function splashAbrirPortal(){
+  splashAnimFrenar();         // N8: va acá, donde el splash se oculta de verdad, y no en cada botón
   document.getElementById('splashOv').classList.remove('show');
   document.getElementById('portalOverlay').classList.add('show');
   document.getElementById('portalGate').style.display = '';
@@ -18682,6 +18825,7 @@ function carruselMostrar(){
       dots.appendChild(b);
     }
   }
+  splashAnimFrenar();         // N8: ídem — cualquier camino que oculte el splash frena los videos
   document.getElementById('splashOv').classList.remove('show');
   document.getElementById('carruselOv').classList.add('show');
   carruselPintar();
