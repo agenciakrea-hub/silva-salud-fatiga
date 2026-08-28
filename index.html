@@ -96,6 +96,10 @@
     --green-soft:  #e6f7f0;
     --radius:      18px;
     --radius-sm:   13px;
+    /* Tercer escalon de la escala. Ya se usaba en 15 lugares escrito a mano; el radio de un
+       icono es proporcional a su tamano (42-44 px -> 13, 30 px -> 9, misma relacion ~0.3),
+       asi que son escalones de una escala, no valores sueltos. */
+    --radius-xs:    9px;
     --shadow-sm:   0 1px 3px rgba(5,20,50,0.10);
     --shadow-md:   0 8px 24px rgba(5,20,50,0.18);
 
@@ -238,6 +242,18 @@
     /* Fondo pálido del color de marca (chips de ícono). El resto de los chips reutiliza los
        --sem-*-bg, que ya son temáticos; al naranja le faltaba el suyo. */
     --orange-bg:   #fff1e6;
+
+    /* ── Intensidad del mapa de actividad ──────────────────────────────────────────────────────
+       Los últimos 4 colores escritos a mano que quedaban de la limpieza de agosto (R13), y no
+       eran inofensivos: al ser fijos, en oscuro la escala quedaba DADA VUELTA. Medido contra la
+       tarjeta oscura: l1 daba 13.02 de contraste y l4 daba 4.57, o sea que el día en que la
+       persona MÁS registró era el que menos se veía, y uno con casi nada era el que más brillaba.
+       El texto de ayuda decía "mientras más oscuro, más hiciste ese día", que sobre fondo oscuro
+       se lee al revés; ahora dice "más fuerte el color", que es cierto en los dos temas.
+       En claro los valores son EXACTAMENTE los de antes (1.26 · 1.66 · 2.28 · 3.59, creciente).
+       En oscuro la rampa se rehizo creciente: 1.80 · 3.20 · 4.82 · 7.18, arrancando apenas arriba
+       de la celda vacía (1.24) y terminando en --orange-2, que ya es el naranja de marca. */
+    --act-l1: #ffe0c2;  --act-l2: #fbbd7e;  --act-l3: #f7941d;  --act-l4: #d9660a;
 
     /* Texto sobre una superficie que es CLARA EN LOS DOS TEMAS (el circulo del boton de
        estadisticas, las celdas del mapa de calor). No puede seguir a --text: en oscuro --text es
@@ -397,6 +413,8 @@
     --sev-txt-1: #4fd4a0;  --sev-txt-2: #b8d94a;  --sev-txt-3: #f5d488;
     --sev-txt-4: #f5a94a;  --sev-txt-5: #ff8a86;
     --orange-bg:   #3a2413;
+    /* La rampa del mapa de actividad, creciente sobre fondo oscuro (ver el comentario en :root). */
+    --act-l1: #6b3d16;  --act-l2: #a35c10;  --act-l3: #c97812;  --act-l4: #f7941d;
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
@@ -483,7 +501,7 @@
     background: var(--card); border: 1.5px solid transparent; border-radius: var(--radius); text-decoration: none;
     color: var(--text); box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s; text-align: left; }
   .rbtn:active { transform: scale(0.985); }
-  .rbtn .ic { width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rbtn .ic { width: 44px; height: 44px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .rbtn .ic svg { width: 22px; height: 22px; }
   .rbtn .tx { flex: 1; min-width: 0; }
   .rbtn .tt { display: block; font-size: 1.02rem; font-weight: 700; color: var(--text); }
@@ -550,8 +568,10 @@
   .install { display: none; align-items: center; gap: 0.85rem; width: 100%; padding: 0.9rem 1rem; margin-bottom: 1.5rem;
     background: var(--orange-txt); border: none; border-radius: var(--radius);
     color: #fff; cursor: pointer; box-shadow: var(--shadow-md); font-family: inherit; text-align: left;
-    animation: fadeUp .4s ease both; }
-  .install .ic { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* M5: entra DESPUES del saludo (.02s). Estaba en 0, o sea en el primer escalon de la
+       escalera 0 -> .05 -> .07 -> .1, y aparecia antes que el bloque que tiene ARRIBA. */
+    animation: fadeUp .4s ease .04s both; }
+  .install .ic { width: 42px; height: 42px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .install .ic svg { width: 22px; height: 22px; }
   .install .tx { flex: 1; }
   .install .tt { display: block; font-weight: 800; font-size: 1.02rem; }
@@ -801,7 +821,7 @@
   .stats-entry .chev { color: var(--text-muted); }
 
   .portal-tabs { display: flex; gap: .4rem; background: var(--chip-bg); padding: .28rem; border-radius: 12px; margin: 1.2rem 0 1rem; }
-  .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: 9px; font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer; }
+  .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer; }
   .ptab.active { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
   .portal-err { color: var(--sem-rojo-alt); font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
@@ -1286,7 +1306,7 @@
   .inf-obj-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .6rem; }
   .inf-obj-row label { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
   .inf-obj-row label span { font-weight: 500; color: var(--text-muted); }
-  .inf-obj-row input[type=date] { padding: .5rem .6rem; border: 1.5px solid var(--sup-borde); border-radius: 9px; font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); }
+  .inf-obj-row input[type=date] { padding: .5rem .6rem; border: 1.5px solid var(--sup-borde); border-radius: var(--radius-xs); font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); }
 
   /* Barra recordar credenciales.
      ⚠️ bottom:5rem, no 1rem — reportado por el usuario: en la vista de servicio médico, el botón
@@ -1301,13 +1321,13 @@
   .dash-remember.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
   .dash-remember span { font-size: .84rem; font-weight: 600; }
   .dr-btns { display: flex; gap: .5rem; }
-  .dr-btns button { flex: 1; padding: .55rem; border: none; border-radius: 9px; font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
+  .dr-btns button { flex: 1; padding: .55rem; border: none; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
   .dr-yes { background: var(--orange); color: #fff; }
   .dr-no { background: rgba(255,255,255,.14); color: #fff; }
 
   /* Barra de contexto (breadcrumb) */
   .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
-  .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange); border-radius: 9px; padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
+  .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
   .ctx-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
   .ctx-chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--sem-azul-bg); color: var(--text); border-radius: 999px; padding: .3rem .65rem; font-size: .82rem; font-weight: 700; }
   .ctx-chip.ctx-period { background: var(--sem-azul-bg); color: var(--sem-azul); }
@@ -1579,10 +1599,10 @@
   .act-grid { display: flex; gap: 4px; padding-bottom: 2px; }
   .act-col { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-width: 0; max-width: 30px; }
   .act-d { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 3px; background: var(--linea); display: block; }
-  .act-d.l1 { background: #ffe0c2; }
-  .act-d.l2 { background: #fbbd7e; }
-  .act-d.l3 { background: #f7941d; }
-  .act-d.l4 { background: #d9660a; }
+  .act-d.l1 { background: var(--act-l1); }
+  .act-d.l2 { background: var(--act-l2); }
+  .act-d.l3 { background: var(--act-l3); }
+  .act-d.l4 { background: var(--act-l4); }
   .act-d.fut { background: var(--sup-suave); }
   .act-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap;
     margin-top: 0.7rem; font-size: 0.76rem; font-weight: 600; color: var(--text-muted); }
@@ -2385,7 +2405,7 @@
 
   .gest-body { padding: 0 .7rem .8rem; border-top: 1px solid var(--linea); }
   .gest-fl { display: block; font-size: .68rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
-  .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid var(--sup-borde); border-radius: 9px;
+  .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid var(--sup-borde); border-radius: var(--radius-xs);
     font-family: inherit; font-size: .88rem; background: var(--sup-campo); color: var(--text); }
   .gest-in:focus { border-color: var(--orange); background: var(--card); }
   select.gest-in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem; }
@@ -2439,7 +2459,7 @@
   /* Estado: control segmentado (un toque para mover el caso por su ciclo) */
   .gest-seg-estado { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; background: var(--chip-bg);
     padding: .3rem; border-radius: 12px; margin: .9rem 0 .3rem; }
-  .gse-btn { border: none; background: transparent; border-radius: 9px; padding: .52rem .3rem; font-family: inherit;
+  .gse-btn { border: none; background: transparent; border-radius: var(--radius-xs); padding: .52rem .3rem; font-family: inherit;
     font-weight: 800; font-size: .8rem; color: var(--text-muted); cursor: pointer; transition: background .15s, color .15s; }
   .gse-btn.active { background: var(--gseb); color: var(--gse); box-shadow: var(--shadow-sm); }
   /* Prioridad: pastillas */
@@ -2466,7 +2486,7 @@
   .gest-seg-head { font-size: .74rem; font-weight: 800; color: var(--text); margin: .8rem 0 .35rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-seg-add { display: flex; gap: .4rem; }
   .gest-seg-add .gest-in { flex: 1; }
-  .gest-seg-btn { border: none; background: var(--navy); color: #fff; border-radius: 9px; padding: .5rem .75rem;
+  .gest-seg-btn { border: none; background: var(--navy); color: #fff; border-radius: var(--radius-xs); padding: .5rem .75rem;
     font-family: inherit; font-weight: 800; font-size: .8rem; cursor: pointer; flex-shrink: 0; }
   .gest-seg-empty { font-size: .76rem; color: var(--text-muted); margin-top: .45rem; line-height: 1.4; }
   .gest-timeline { margin-top: .6rem; border-left: 2px solid var(--sup-borde); padding-left: .1rem; }
@@ -2485,7 +2505,7 @@
   .gest-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: .55rem;
     padding-top: .55rem; border-top: 1px solid var(--linea); }
   .gest-created { font-size: .7rem; color: var(--text-muted); font-weight: 600; }
-  .gest-del { border: 1px solid var(--sem-rojo); background: var(--card); color: var(--sem-rojo-alt); border-radius: 9px; padding: .45rem .8rem;
+  .gest-del { border: 1px solid var(--sem-rojo); background: var(--card); color: var(--sem-rojo-alt); border-radius: var(--radius-xs); padding: .45rem .8rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
   .gest-empty { text-align: center; color: var(--text-soft); font-size: .9rem; line-height: 1.6; padding: 2.4rem 1rem; }
   /* ── Vista de APTITUD (supervisor): semáforos, sin valores ── */
@@ -2867,14 +2887,14 @@
   .cic-cfg-g { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:.5rem; }
   .cic-cfg-f { display:flex; align-items:center; gap:.4rem; font-size:.74rem; font-weight:700;
     color:var(--text-soft); background:var(--card); border:1px solid var(--sup-borde);
-    border-radius:9px; padding:.35rem .5rem; }
+    border-radius:var(--radius-xs); padding:.35rem .5rem; }
   .cic-cfg-f span { flex:1; min-width:0; }
   .cic-cfg-f input { width:64px; flex:none; font-family:inherit; font-size:.85rem; font-weight:800;
     color:var(--text); background:var(--sup-campo); border:1px solid var(--sup-borde);
     border-radius:7px; padding:.25rem .3rem; text-align:right; }
   .cic-cfg-acc { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.7rem; }
   .cic-cfg-ok { flex:1; min-width:180px; background:linear-gradient(135deg,var(--orange-txt),var(--orange-txt-2));
-    color:#fff; border:none; border-radius:9px; padding:.5rem .8rem; font-family:inherit;
+    color:#fff; border:none; border-radius:var(--radius-xs); padding:.5rem .8rem; font-family:inherit;
     font-size:.78rem; font-weight:800; cursor:pointer; }
   .cic-cfg-no { background:none; border:none; color:var(--text-muted); font-family:inherit;
     font-size:.78rem; font-weight:700; cursor:pointer; padding:.5rem .6rem; }
@@ -2941,7 +2961,13 @@
     width:8px; height:8px; border-radius:50%; background:var(--ch-ref); }
 
   /* Detalle por tramo: cuánto duró contra cuánto debía durar. */
-  .cic-tramos { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.45rem; }
+  /* M5: cuántas columnas entran lo decide la grilla, no un punto de quiebre elegido a mano.
+     El 185 px sale de MEDIR: el texto más largo de un tramo ("Saliendo del aeropuerto · --:--")
+     mide 157 px y el tramo tiene ~19 de padding. Con `repeat(4,…)` fijo, a 700–900 px los tramos
+     quedaban en 154–173 px y ese texto se cortaba.
+     Además esto sobrevive a que cambien las etiquetas: con un sector que no dice "aeropuerto"
+     (R14) o con otra traducción, los números elegidos a mano vuelven a quedar mal solos. */
+  .cic-tramos { display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:.45rem; }
   .cic-tramo { background:var(--card); border-radius:10px; padding:.5rem .6rem; min-width:0;
     border-left:3px solid var(--ch-neutro); }
   .cic-tr-top { display:block; min-width:0; }
@@ -2976,7 +3002,7 @@
      que mantener en los dos temas (R13). */
   .cic-mio-off { opacity: .62; }
   .cic-mio-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .5rem; }
-  .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: 14px;
+  .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: var(--radius);   /* M5: era 14px a mano */
     padding: .85rem .9rem; }
   .cic-mio-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; }
   .cic-mio-k { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
@@ -2984,16 +3010,10 @@
   .cic-mio-top .cic-chip { margin-left: auto; }
   /* En la tarjeta del supervisor los tramos van en 4 columnas; acá, en el ancho de un teléfono y
      dentro de una sección que ya tiene su propio padding, entran mejor en 2. */
-  /* ⚠️ ESTA REGLA VA CON MEDIA QUERY, y en J3 no la tenía. Sin el `min-width`, por especificidad
-     (0,2,0 contra 0,1,0) pisaba la regla de UNA columna que la app ya tiene a ≤480 px — la misma
-     que usa la tarjeta del supervisor y que funciona bien. Resultado medido a 390 px: dos columnas
-     de 160 px y el nombre del evento con 48 px para un texto de 122, o sea "Saliendo de ca…".
-     Debajo de 481 px se cae a propósito a la regla general, que reacomoda cada tramo con el
-     nombre a la izquierda y el valor a la derecha. */
-  @media (min-width: 481px){
-    .cic-mio-linea .cic-tramos { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  }
-  @media (min-width: 700px){ .cic-mio-linea .cic-tramos { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+  /* M5: el bloque del empleado YA NO tiene su propia regla de columnas. En J3 le puse una fija
+     (2 columnas, sin media query) que además tapaba la del teléfono; en M4 la acoté; y acá deja de
+     existir: con `auto-fit` la regla general sirve para los dos, y no quedan dos lugares donde
+     definir lo mismo — que era lo que permitía que discreparan. */
 
   .cic-turno { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
   .cic-turno-chip { font-size:.66rem; font-weight:800; padding:.15rem .5rem; border-radius:999px;
@@ -3001,13 +3021,15 @@
   .cic-turno-on  { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .cic-turno-off { color:var(--text-muted);   background:var(--chip-bg); }
 
-  @media (max-width:700px){
-    .cic-tramos { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  }
   @media (max-width:480px){
-    .cic-tramos { grid-template-columns:1fr; gap:.3rem; }
+    /* Acá NO se decide cuántas columnas (eso lo resuelve `auto-fit` arriba): lo que cambia es
+       cómo se ordena el INTERIOR de cada tramo — nombre a la izquierda, valor a la derecha. */
+    .cic-tramos { gap:.3rem; }
     .cic-tramo { display:grid; grid-template-columns:1fr auto; column-gap:.6rem; align-items:baseline; }
     .cic-tr-top { grid-area:1/1; }
+    /* En una sola columna la elipsis no alinea nada y sí quita información: a 320 px el nombre
+       recibía 140 px para un texto de 153 y quedaba "Llegando al aeropuert…". Acá envuelve. */
+    .cic-tr-desde { white-space:normal; overflow:visible; text-overflow:clip; }
     .cic-tr-val { grid-area:1/2; text-align:right; margin-top:0; }
     .cic-tr-det { grid-area:2/1/3/2; }
     .cic-tr-extra { grid-area:2/2/3/3; justify-self:end; align-self:center; margin-top:0; }
@@ -3063,7 +3085,7 @@
   .apt-boxes { display: flex; flex-wrap: wrap; gap: .4rem; }
   /* Cada cuadrito: color del semáforo + nombre del indicador. Nunca un valor. */
   .apt-box { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .55rem .3rem .4rem;
-    border-radius: 9px; font-size: .72rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
+    border-radius: var(--radius-xs); font-size: .72rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
   /* L4: el nivel de cada cuadrito (bien/cerca del límite/por encima) se comunicaba SÓLO por el
      color de fondo. `title` no alcanza: no funciona al tacto y no siempre lo lee un lector de
      pantalla. Se le suma un símbolo — mismo criterio que las tarjetas de estado, que ya nunca
@@ -3098,7 +3120,7 @@
     padding-top: .7rem; border-top: 1px solid var(--linea); }
   /* Avisos dentro de la tarjeta: "llegó un test nuevo tras la indicación" / "dato no reciente" */
   .apt-aviso { font-size: .74rem; font-weight: 700; line-height: 1.4; color: var(--sem-ambar-txt);
-    background: var(--sem-ambar-bg); border-radius: 9px; padding: .45rem .6rem; margin-bottom: .6rem; }
+    background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .45rem .6rem; margin-bottom: .6rem; }
   .apt-aviso-gris { color: var(--text-muted); background: var(--sem-gris-bg); font-weight: 600; margin-bottom: 0; margin-top: .6rem; }
   /* Dato viejo: la tarjeta se atenúa para que se lea como "esto no es de hoy" sin ocultarla */
   .apt-card.apt-viejo { background: var(--sup-atenuado); border-style: dashed; }
@@ -3172,7 +3194,7 @@
   .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .8rem;
     font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
   .an-nota:focus { border-color: var(--orange); }
-  .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: 9px; padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
+  .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
   .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
   .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid var(--sup-borde); background: var(--card);
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
@@ -3287,7 +3309,7 @@
     padding:.85rem 1rem; margin-bottom:.7rem; }
   .ini-firmada-t { font-size:1.12rem; font-weight:800; color:var(--inic-c); line-height:1.2; margin-top:.1rem; }
   .ini-firmada-x { font-size:.8rem; color:var(--text-soft); margin-top:.2rem; }
-  .ini-estado { border-radius: 16px; padding: 0; border: 1px solid var(--sup-borde);
+  .ini-estado { border-radius: var(--radius); padding: 0; border: 1px solid var(--sup-borde);   /* M5: era 16px a mano */
     background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm);
     overflow: hidden; }
   /* J2: cabecera SIEMPRE visible (etiqueta + título + flecha) — de un vistazo alcanza, sin tocar
@@ -3324,7 +3346,7 @@
     border-radius: 16px; padding: .9rem 1rem; border: none; cursor: pointer; font-family: inherit;
     background: var(--orange-txt); color: #fff; box-shadow: 0 10px 24px rgba(184,80,10,.3); }
   .ini-ahora:active { transform: scale(.985); }
-  .ini-ahora .ic { width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex;
+  .ini-ahora .ic { width: 42px; height: 42px; border-radius: var(--radius-sm); flex-shrink: 0; display: flex;
     align-items: center; justify-content: center; background: rgba(255,255,255,.2); }
   .ini-ahora .ic svg { width: 22px; height: 22px; }
   .ini-ahora-tx { flex: 1 1 auto; min-width: 0; }
@@ -3344,7 +3366,7 @@
   .act-racha { margin: .1rem 0 .85rem; }
   .act-racha-in { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem;
     border-radius: 13px; background: var(--chip-bg); border: 1px solid var(--sup-borde); }
-  .act-racha-in .ic { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; display: flex;
+  .act-racha-in .ic { width: 30px; height: 30px; border-radius: var(--radius-xs); flex-shrink: 0; display: flex;
     align-items: center; justify-content: center; }
   .act-racha-in .ic svg { width: 16px; height: 16px; }
   .act-racha-tx { min-width: 0; }
@@ -3352,12 +3374,12 @@
   .act-racha-k { font-size: .7rem; color: var(--text-muted); font-weight: 600; line-height: 1.3; margin-top: .1rem; }
 
   .ini-tiras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .55rem; }
-  .ini-tira { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem; border-radius: 13px;
+  .ini-tira { display: flex; align-items: center; gap: .55rem; padding: .6rem .75rem; border-radius: var(--radius-sm);
     background: var(--card); border: 1px solid var(--sup-borde); font-family: inherit; text-align: left;
     width: 100%; cursor: default; }
   button.ini-tira { cursor: pointer; }
   button.ini-tira:active { transform: scale(.985); }
-  .ini-tira .ic { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; display: flex;
+  .ini-tira .ic { width: 30px; height: 30px; border-radius: var(--radius-xs); flex-shrink: 0; display: flex;
     align-items: center; justify-content: center; }
   .ini-tira .ic svg { width: 16px; height: 16px; }
   .ini-tira-tx { min-width: 0; }
@@ -3427,7 +3449,7 @@
         <div class="sec-sub" data-i18n="act_sub">Registros y tests que completaste</div>
       </div>
       <div class="act-card">
-        <p class="act-ayuda" data-i18n-html="act_ayuda"><strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más oscuro</strong>, más hiciste ese día.</p>
+        <p class="act-ayuda" data-i18n-html="act_ayuda"><strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más fuerte</strong> el color, más hiciste ese día.</p>
         <!-- J4: "días seguidos" — el mismo dato que la grilla, contado como número. Lo llena rachaPintar(). -->
         <div class="act-racha" id="actRacha" hidden></div>
         <div class="act-wrap">
@@ -4290,7 +4312,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.34';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.36';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -4531,7 +4553,7 @@ const I18N = {
       hola:'¡Hola,', editar_datos:'Editar mis datos', documento:'Documento', hecho:'Hecho',
       instalar_app:'Instalar la app', instalar_app_d:'Añadir Silva Salud Fatiga a tu inicio',
       act_titulo:'Tu actividad', act_sub:'Registros y tests que completaste',
-      act_ayuda:'<strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más oscuro</strong>, más hiciste ese día.',
+      act_ayuda:'<strong>Cada cuadrito es un día</strong> de los últimos 3 meses. Se pinta cuando reportas algo o completas un test: mientras <strong>más fuerte</strong> el color, más hiciste ese día.',
       act_nada:'Nada', act_mucho:'Mucho',
       nav_inicio:'Inicio', nav_stats:'Estadísticas', nav_mas:'Más',
       mas_portal:'Portal de Fatiga',
@@ -4863,7 +4885,7 @@ const I18N = {
       ini_poco_confiable:'Tu último test se respondió muy rápido, así que no cuenta para esto. Conviene repetirlo.',
       ini_k_ciclo:'Lo que te toca ahora', ini_k_sugerido:'Hace falta medir',
       ini_al_dia_t:'Estás al día', ini_al_dia_d:'No te queda nada pendiente por hoy.',
-      ini_racha_v:'{n} días seguidos', ini_racha_k:'registrando',
+      ini_racha_v:'{n} días seguidos', ini_racha_v_1:'1 día seguido', ini_racha_k:'registrando',
       ini_tareas_v:'{n} sin hacer', ini_tareas_k:'te pidieron algo',
       ini_tend_baja:'{m} bajó {p}%', ini_tend_sube:'{m} subió {p}%',
       ini_tend_k:'vs. la semana pasada',
@@ -5921,7 +5943,7 @@ const I18N = {
       hola:'Hello,', editar_datos:'Edit my details', documento:'ID', hecho:'Done',
       instalar_app:'Install the app', instalar_app_d:'Add Silva Salud Fatiga to your home screen',
       act_titulo:'Your activity', act_sub:'Reports and tests you completed',
-      act_ayuda:'<strong>Each square is one day</strong> of the last 3 months. It fills in when you report something or complete a test: the <strong>darker</strong> it is, the more you did that day.',
+      act_ayuda:'<strong>Each square is one day</strong> of the last 3 months. It fills in when you report something or complete a test: the <strong>stronger</strong> the color, the more you did that day.',
       act_nada:'None', act_mucho:'A lot',
       nav_inicio:'Home', nav_stats:'Statistics', nav_mas:'More',
       mas_portal:'Fatigue Portal',
@@ -6286,7 +6308,7 @@ const I18N = {
       ini_poco_confiable:'Your latest test was answered very fast, so it does not count here. It is worth repeating it.',
       ini_k_ciclo:'What you have to do now', ini_k_sugerido:'Worth measuring',
       ini_al_dia_t:'You are up to date', ini_al_dia_d:'Nothing left pending for today.',
-      ini_racha_v:'{n} days in a row', ini_racha_k:'recording',
+      ini_racha_v:'{n} days in a row', ini_racha_v_1:'1 day in a row', ini_racha_k:'recording',
       ini_tareas_v:'{n} not done', ini_tareas_k:'someone asked you for something',
       ini_tend_baja:'{m} down {p}%', ini_tend_sube:'{m} up {p}%',
       ini_tend_k:'vs. last week',
@@ -8933,7 +8955,8 @@ function rachaPintar(){
   cont.hidden = false;
   cont.innerHTML = '<div class="act-racha-in">' +
     iniIcono(INI_SVG_RACHA, 'var(--orange-bg)', 'var(--orange)') +
-    '<div class="act-racha-tx"><div class="act-racha-v">' + esc(t('ini_racha_v', { n: n })) + '</div>' +
+    /* M5: decía "1 días seguidos". La app ya resuelve el plural así en otros seis lugares. */
+    '<div class="act-racha-tx"><div class="act-racha-v">' + esc(t(n === 1 ? 'ini_racha_v_1' : 'ini_racha_v', { n: n })) + '</div>' +
     '<div class="act-racha-k">' + esc(t('ini_racha_k')) + '</div></div></div>';
 }
 function renderActividad(){

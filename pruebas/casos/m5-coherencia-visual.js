@@ -1,0 +1,200 @@
+/* ── M5 · Coherencia visual del inicio ──────────────────────────────────────────────────────────
+   (2026-08-27)
+
+   Todo lo que hay acá salió de MEDIR, no de mirar. Son propiedades que no rompen nada al
+   romperse: nadie ve un error, sólo una pantalla que se siente hecha por partes distintas. Por eso
+   quedan como prueba: es el tipo de cosa que se vuelve a desalinear sola con el próximo cambio. */
+
+PRUEBAS.grupo('M5 · un solo radio para las tarjetas');
+
+PRUEBAS.caso('las tarjetas del inicio comparten radio', () => {
+  /* Antes había CUATRO valores para piezas que están una debajo de la otra: 18 (tile, rbtn,
+     act-card), 16 (ini-estado), 14 (cic-mio-linea) y 12 en algunos íconos. Existiendo `--radius`,
+     cada número escrito a mano es una decisión que nadie tomó. */
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const radios = {};
+  document.querySelectorAll('#viewInicio .tile, #viewInicio .rbtn, #viewInicio .act-card, #viewInicio .ini-estado, #viewInicio .cic-mio-linea, #viewInicio .install')
+    .forEach(e => {
+      const r = getComputedStyle(e).borderRadius;
+      (radios[r] = radios[r] || []).push(String(e.className).split(' ')[0]);
+    });
+  PRUEBAS.igual(Object.keys(radios).length, 1,
+    'tarjetas del mismo rol con radios distintos hacen que la pantalla se vea hecha por partes: ' +
+    Object.keys(radios).map(r => r + ' (' + [...new Set(radios[r])].join(',') + ')').join(' · '));
+});
+
+PRUEBAS.caso('el radio de un ícono es proporcional a su tamaño', () => {
+  /* Acá me equivoqué al escribir la prueba antes que al escribir el CSS: había puesto que TODOS los
+     íconos cuadrados compartieran radio, y falló mostrando 13 px y 9 px. Mirado de cerca, los de
+     13 miden 42-44 px y los de 9 miden 30: 13/42 = 0.31 y 9/30 = 0.30. No era una inconsistencia,
+     era una escala — y una escala es justamente lo que uno quiere.
+     Lo que sí estaba mal es que el 9 no tenía nombre: aparecía escrito a mano en 15 reglas. Ahora
+     es `--radius-xs`. Lo que se comprueba entonces es lo correcto: que dos íconos DEL MISMO TAMAÑO
+     no tengan radios distintos, y que la proporción se mantenga entre escalones. */
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const porTam = {};
+  document.querySelectorAll('#viewInicio .ic').forEach(e => {
+    const r = getComputedStyle(e).borderRadius;
+    if (r.indexOf('%') >= 0) return;                 // los círculos son otro rol
+    const lado = Math.round(e.getBoundingClientRect().width);
+    (porTam[lado] = porTam[lado] || new Set()).add(r);
+  });
+  const mezclados = Object.keys(porTam)
+    .filter(lado => porTam[lado].size > 1)
+    .map(lado => lado + ' px con radios ' + [...porTam[lado]].join(' y '));
+  PRUEBAS.igual(mezclados, [], 'dos íconos del mismo tamaño con radios distintos sí es un descuido');
+
+  const props = Object.keys(porTam).map(lado => parseFloat([...porTam[lado]][0]) / Number(lado));
+  const dif = Math.max.apply(null, props) - Math.min.apply(null, props);
+  PRUEBAS.comoMucho(dif, 0.05,
+    'los escalones tienen que guardar la misma proporción, o el ícono chico se ve más cuadrado que el grande');
+});
+
+PRUEBAS.caso('el escalón chico de la escala tiene nombre', () => {
+  /* 9 px estaba escrito a mano en 15 reglas. Un número repetido sin nombre es un número que la
+     próxima persona cambia en 3 lugares de 15. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  PRUEBAS.cierto(/--radius-xs:\s*9px/.test(fuente), 'el token tiene que existir');
+  PRUEBAS.igual((fuente.match(/border-radius:\s*9px/g) || []).length, 0,
+    'y no tiene que quedar ninguno escrito a mano');
+});
+
+PRUEBAS.grupo('M5 · la entrada sigue el orden de la pantalla');
+
+PRUEBAS.caso('nada entra antes que lo que tiene arriba', () => {
+  /* Las animaciones ya eran coherentes (todas `fadeUp`, con una escalera 0 → .05 → .07 → .1), pero
+     `.install` estaba en el primer escalón y en pantalla va DEBAJO del saludo: el banner aparecía
+     antes que lo que está arriba de él. Se lee raro sin que se pueda señalar qué está mal. */
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const tenia = document.documentElement.classList.contains('sin-animaciones');
+  document.documentElement.classList.remove('sin-animaciones');
+  _iniYaEntro = false;
+  renderSections();
+  const orden = [];
+  document.querySelectorAll('#viewInicio *').forEach(e => {
+    const cs = getComputedStyle(e);
+    if (cs.animationName && cs.animationName !== 'none') {
+      orden.push({ el: String(e.className).split(' ')[0], d: parseFloat(cs.animationDelay), y: e.getBoundingClientRect().top });
+    }
+  });
+  if (tenia) document.documentElement.classList.add('sin-animaciones');
+  orden.sort((a, b) => a.y - b.y);
+  const fuera = [];
+  for (let i = 1; i < orden.length; i++) {
+    if (orden[i].d < orden[i - 1].d) fuera.push(orden[i].el + ' entra antes que ' + orden[i - 1].el + ', y va debajo');
+  }
+  PRUEBAS.igual(fuera, [], 'la entrada tiene que seguir el orden en que se lee la pantalla');
+});
+
+PRUEBAS.caso('todas usan la misma animación', () => {
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const tenia = document.documentElement.classList.contains('sin-animaciones');
+  document.documentElement.classList.remove('sin-animaciones');
+  _iniYaEntro = false;
+  renderSections();
+  const nombres = new Set();
+  document.querySelectorAll('#viewInicio *').forEach(e => {
+    const n = getComputedStyle(e).animationName;
+    if (n && n !== 'none') nombres.add(n);
+  });
+  if (tenia) document.documentElement.classList.add('sin-animaciones');
+  PRUEBAS.comoMucho(nombres.size, 1,
+    'dos animaciones de entrada distintas en la misma pantalla se notan aunque nadie sepa decir por qué: ' + [...nombres].join(', '));
+});
+
+PRUEBAS.grupo('M5 · simetría y áreas de toque');
+
+PRUEBAS.caso('las tarjetas de una misma fila miden lo mismo', () => {
+  /* La grilla del inicio es de dos columnas. Si dos tarjetas de la misma fila tienen alturas
+     distintas, la retícula se ve rota aunque cada tarjeta esté bien. */
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const filas = {};
+  document.querySelectorAll('#sections .item').forEach(e => {
+    const r = e.getBoundingClientRect();
+    const y = Math.round(r.top);
+    (filas[y] = filas[y] || []).push(Math.round(r.height));
+  });
+  const desparejas = Object.keys(filas)
+    .filter(y => new Set(filas[y]).size > 1)
+    .map(y => 'alturas ' + filas[y].join(' / '));
+  PRUEBAS.igual(desparejas, [], 'una fila con tarjetas de distinto alto rompe la retícula');
+});
+
+PRUEBAS.caso('ningún objetivo de toque queda por debajo de 44 px', () => {
+  /* Se usa con guantes, en un hangar, a veces de noche. Ya estaba bien; queda fijo para que un
+     cambio de padding no lo baje sin que nadie lo note. */
+  CTX.resetear({ cargo: 'Piloto', esPiloto: true });
+  const chicos = [];
+  document.querySelectorAll('#viewInicio button, #viewInicio a[href]').forEach(b => {
+    const r = b.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    if (r.height < 44 || r.width < 44) chicos.push((String(b.className).split(' ')[0] || b.tagName) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+  });
+  PRUEBAS.igual([...new Set(chicos)], [], 'con guantes, menos de 44 px es un toque que no entra');
+});
+
+PRUEBAS.grupo('M5 · lo que sólo se ve mirando');
+
+PRUEBAS.caso('⚠️ en oscuro el mapa de actividad no está dado vuelta', () => {
+  /* Esto no lo encontró ninguna medición: lo encontré MIRANDO la captura en tema oscuro, que era
+     la primera vez que se miraba. Las cuatro intensidades estaban escritas a mano (R13), o sea
+     iguales en los dos temas, y sobre fondo oscuro la escala quedaba invertida: l1 daba 13.02 de
+     contraste y l4 daba 4.57. El día en que la persona más registró era el que MENOS se veía.
+     Y el texto de ayuda, arriba de la grilla, dice "mientras más oscuro, más hiciste ese día". */
+  const lum = c => { const m = (c.match(/[\d.]+/g) || [0,0,0]).map(Number);
+    const f = x => { x = x/255; return x <= .03928 ? x/12.92 : Math.pow((x + .055)/1.055, 2.4); };
+    return .2126*f(m[0]) + .7152*f(m[1]) + .0722*f(m[2]); };
+  const ct = (a, b) => { const A = lum(a), B = lum(b);
+    return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
+
+  const tema0 = document.documentElement.getAttribute('data-tema');
+  const roto = [];
+  ['claro', 'oscuro'].forEach(tema => {
+    document.documentElement.setAttribute('data-tema', tema);
+    const card = document.querySelector('.act-card') || document.querySelector('#viewInicio .card');
+    if (!card) return;
+    const fondo = getComputedStyle(card).backgroundColor;
+    const d = document.createElement('div'); card.appendChild(d);
+    const esc = ['', 'l1', 'l2', 'l3', 'l4'].map(cl => {
+      d.className = 'act-d' + (cl ? ' ' + cl : '');
+      return ct(getComputedStyle(d).backgroundColor, fondo);
+    });
+    d.remove();
+    for (let i = 1; i < esc.length; i++) {
+      if (esc[i] <= esc[i - 1]) {
+        roto.push(tema + ': el escalón ' + i + ' (' + esc[i].toFixed(2) +
+          ') no resalta más que el anterior (' + esc[i - 1].toFixed(2) + ')');
+      }
+    }
+  });
+  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  PRUEBAS.igual(roto, [],
+    'más actividad tiene que verse MÁS, en los dos temas: si no, el gráfico dice lo contrario de lo que pasó');
+});
+
+PRUEBAS.caso('no quedan colores del mapa escritos a mano', () => {
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  const aMano = (fuente.match(/\.act-d\.l\d\s*\{[^}]*#[0-9a-fA-F]{3,6}/g) || []);
+  PRUEBAS.igual(aMano, [], 'un color fijo es el mismo en los dos temas, y eso fue exactamente el bug (R13)');
+});
+
+PRUEBAS.caso('no dice "1 días seguidos"', () => {
+  /* Estaba a la vista desde J4 y ninguna medición lo iba a encontrar: la cadena era correcta como
+     plantilla, sólo que sin caso singular. La app ya lo resuelve así en otros seis lugares. */
+  PRUEBAS.igual(t('ini_racha_v_1'), '1 día seguido', 'tiene que existir la forma singular en español');
+  const fuente = rachaPintar.toString();
+  PRUEBAS.cierto(/n === 1 \? 'ini_racha_v_1'/.test(fuente),
+    'y hay que usarla: si no, el singular queda escrito y nadie lo llama');
+});
+
+PRUEBAS.caso('el texto de ayuda del mapa vale en los dos temas', () => {
+  /* Consecuencia del arreglo anterior, y por poco se me pasa: la frase decía "mientras más oscuro,
+     más hiciste ese día". En claro es cierta; en oscuro, con la rampa ya corregida, más actividad
+     es más BRILLANTE, así que la frase pasó a decir exactamente lo contrario de lo que muestra el
+     gráfico. Un arreglo que deja mintiendo al texto de al lado no es un arreglo. */
+  const ayuda = t('act_ayuda') || '';
+  PRUEBAS.falso(/más oscuro|darker/i.test(ayuda),
+    'la explicación no puede hablar de claro/oscuro: eso cambia con el tema');
+  PRUEBAS.cierto(/más fuerte|stronger/i.test(ayuda),
+    'tiene que describir la intensidad, que es lo único cierto en los dos temas');
+});

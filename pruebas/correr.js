@@ -80,6 +80,13 @@
       resetear: function (perfil) {
         localStorage.clear();
         document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+        /* ⚠️ Al arrancar, la app dispara `tareasCargar()` contra el endpoint real y deja
+           `TAREAS.cargando = true` hasta que conteste — y eso tarda de 2,5 a 5 segundos. La suite
+           entera corre en menos de 1 s, o sea DENTRO de esa ventana: todo lo que dependa de ese
+           flag da distinto según lo rápida que esté la red. Ya hizo fallar la prueba de la caché de
+           M2, que aislada pasaba. Una prueba que depende de la red es peor que una que falla:
+           hace desconfiar de la suite entera. */
+        try { if (typeof TAREAS === 'object' && TAREAS) TAREAS.cargando = false; } catch (e) {}
         localStorage.setItem('silva_fatiga_consent_v1', JSON.stringify({ ok: 1 }));
         setProfile(Object.assign({
           nombre: 'Persona De Prueba', cedula: '00000000', empresa: 'Empresa De Prueba',

@@ -78,10 +78,31 @@ PRUEBAS.caso('los tiempos no se parten en dos renglones', () => {
   PRUEBAS.igual(partidos, [], 'un tiempo partido en dos renglones se lee mal y descuadra la fila');
 });
 
-PRUEBAS.caso('la tarjeta del supervisor no se tocó', () => {
-  /* El arreglo fue acotar MI regla, no cambiar la general. La del supervisor usaba y sigue usando
-     el mismo layout de siempre. */
-  const fuente = document.querySelector('style') ? [...document.querySelectorAll('style')].map(s => s.textContent).join('') : '';
-  PRUEBAS.cierto(/@media \(min-width: 481px\)[\s\S]{0,120}cic-mio-linea \.cic-tramos/.test(fuente),
-    'la regla de dos columnas del empleado tiene que estar acotada por media query, o vuelve a tapar la de una columna');
+PRUEBAS.caso('no queda ninguna regla del empleado tapando el layout general', () => {
+  /* Esta prueba decía otra cosa hasta M5. Verificaba que MI regla de dos columnas estuviera acotada
+     con `@media (min-width: 481px)` — o sea, verificaba mi parche.
+     En M5 el parche desapareció: `.cic-tramos` pasó a `repeat(auto-fit, minmax(185px, 1fr))`, que
+     acomoda las columnas segun el ancho disponible y no necesita ningún caso especial para el
+     empleado. Al desaparecer la regla, la prueba falló — correctamente, porque estaba escrita
+     contra la implementación y no contra lo que importa.
+     Lo que importa es esto: que no exista NINGUNA regla específica de `.cic-mio-linea` pisando las
+     columnas, que es lo que causó el bug original. Escrito así, sigue valiendo aunque el layout se
+     vuelva a cambiar. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
+  PRUEBAS.igual((fuente.match(/\.cic-mio-linea\s+\.cic-tramos\s*\{[^}]*grid-template-columns/g) || []).length, 0,
+    'una regla propia del empleado sobre las columnas vuelve a ganarle a la general por especificidad');
+});
+
+PRUEBAS.caso('las columnas se acomodan solas al ancho', () => {
+  /* El reemplazo tiene que servir en los DOS extremos: una sola columna en teléfono y varias en
+     pantalla ancha, sin números elegidos a dedo. Acá se comprueba que el ancho real de cada tramo
+     alcance para su contenido, que es la condición que el layout tiene que cumplir a cualquier
+     ancho. */
+  sembrarCiclo();
+  const tramos = [...document.querySelectorAll('.cic-mio-linea .cic-tramo')];
+  PRUEBAS.alMenos(tramos.length, 1, 'tiene que haber tramos dibujados');
+  const angostos = tramos
+    .filter(tr => tr.getBoundingClientRect().width < 100)
+    .map(tr => Math.round(tr.getBoundingClientRect().width) + ' px');
+  PRUEBAS.igual(angostos, [], 'una columna de menos de 100 px no alcanza para el nombre de ningún tramo');
 });
