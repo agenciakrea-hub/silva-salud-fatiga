@@ -158,6 +158,9 @@
        tiene que ser más oscuro para que se lea encima de --sem-*-bg. Se separó al medir el
        contraste y ver que usar el color del semáforo como texto bajaba de 4.5:1. */
     --sem-rojo-txt:  #a32320;
+    /* Glyph del semáforo de aptitud (L4): mismo valor en los dos temas, ver el comentario junto
+       a --apt-box i en el CSS. */
+    --sem-glyph: #1a1a1a;
     --sem-ambar-txt: #8a6400;
 
     /* Escala de 5 niveles de riesgo del puesto (P1): verde → oliva → ámbar → naranja → rojo.
@@ -348,6 +351,7 @@
     --sup-atenuado:#131c29;
     /* En oscuro el fondo de estado ya es oscuro, así que el texto va CLARO (al revés que en claro) */
     --sem-rojo-txt:  #ffb3af;
+    --sem-glyph: #1a1a1a;
     --sem-ambar-txt: #f5d488;
 
     --niv-1: #5fc99a;  --niv-1-bg: #123328;
@@ -3032,11 +3036,34 @@
   /* Cada cuadrito: color del semáforo + nombre del indicador. Nunca un valor. */
   .apt-box { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .55rem .3rem .4rem;
     border-radius: 9px; font-size: .72rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
-  .apt-box i { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+  /* L4: el nivel de cada cuadrito (bien/cerca del límite/por encima) se comunicaba SÓLO por el
+     color de fondo. `title` no alcanza: no funciona al tacto y no siempre lo lee un lector de
+     pantalla. Se le suma un símbolo — mismo criterio que las tarjetas de estado, que ya nunca
+     dependen sólo del color. */
+  .apt-box i { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .62rem; font-weight: 800; line-height: 1; color: var(--sem-glyph); }
+  .apt-box.apt-ok i::before { content: '✓'; }
+  .apt-box.apt-medio i::before { content: '!'; }
+  .apt-box.apt-alto i::before { content: '✕'; font-size: .52rem; }
+  .apt-box.apt-sin i::before { content: '–'; }
   .apt-ok i, .apt-dot.apt-ok { background: var(--sem-verde); }
   .apt-medio i, .apt-dot.apt-medio { background: var(--sem-ambar); }
   .apt-alto i, .apt-dot.apt-alto { background: var(--sem-rojo); }
-  .apt-sin i, .apt-dot.apt-sin { background: var(--text-muted); opacity: .55; }
+  .apt-dot.apt-sin { background: var(--text-muted); opacity: .55; }
+  /* ⚠️ L4: acá NO se puede usar `opacity` como en `.apt-dot.apt-sin` de arriba. `opacity` en `i`
+     atenuaría TAMBIÉN el glyph "–" (es un `::before`, hijo de `i`), y medido así el glyph quedaba
+     en 1.80:1 en claro y 2.76 en oscuro — por debajo del mínimo de 3:1. Con `color-mix` el fondo
+     queda igual de atenuado pero el glyph, al no ser hijo de un elemento con `opacity`, puede
+     pintarse opaco y mantener su propio contraste.
+     Con 55% en los dos temas medí el glyph contra el fondo compuesto (con canvas, no a mano —
+     `color-mix()` no se puede leer con una regex): 7.73:1 en claro, pero apenas **2.91:1 en
+     oscuro** — por debajo del mínimo. El motivo: `--text-muted` es un gris CLARO en tema oscuro,
+     así que mezclarlo poco deja el fondo en un gris medio demasiado parecido al glyph oscuro. Se
+     sube el porcentaje sólo en oscuro (aclara más el fondo, no lo oscurece) — igual que las otras
+     veces que un mismo valor no sirve en los dos temas: se resuelve por tema, no promediando. */
+  .apt-box.apt-sin i { background: color-mix(in srgb, var(--text-muted) 55%, transparent); }
+  html[data-tema="oscuro"] .apt-box.apt-sin i { background: color-mix(in srgb, var(--text-muted) 78%, transparent); }
   .apt-box.apt-alto { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
   .apt-box.apt-medio { background: var(--sem-ambar-bg); color: var(--sem-ambar-txt); }
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
@@ -3491,7 +3518,7 @@
     <!-- Acceso de administrador: colapsado y al final, con contraseña. No es una sección para el
          personal — es la herramienta para revisar la app y explicarle su lógica a la Dirección. -->
     <div class="mas-sep" data-i18n="mas_sep_admin">Administración</div>
-    <button type="button" class="rbtn mas-item" onclick="admToggle()">
+    <button type="button" class="rbtn mas-item" id="admBtn" onclick="admToggle()" aria-expanded="false" aria-controls="admBox">
       <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
       <div class="tx"><span class="tt" data-i18n="adm_ver">Ver como administrador</span><span class="ds" data-i18n="adm_ver_d">Simular roles y ver cómo funciona la app por dentro</span></div>
       <div class="st"><svg class="chev" id="admChev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
@@ -4231,11 +4258,11 @@
   </div>
 </div>
 
-<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg"></span></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg"></span></div>
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.27';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.29';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11279,17 +11306,19 @@ function cerrarSesion(){
 
 function admToggle(){
   const box = document.getElementById('admBox'), panel = document.getElementById('admPanel');
-  const chev = document.getElementById('admChev');
+  const chev = document.getElementById('admChev'), btn = document.getElementById('admBtn');
   if (admEsAdmin()){                       // ya validado en esta sesión → directo al panel
     const abierto = !panel.hidden;
     panel.hidden = abierto; box.hidden = true;
     if (!abierto) admPintarRoles();
     if (chev) chev.style.transform = abierto ? '' : 'rotate(90deg)';
+    if (btn) btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
     return;
   }
   const abierto = !box.hidden;
   box.hidden = abierto; panel.hidden = true;
   if (chev) chev.style.transform = abierto ? '' : 'rotate(90deg)';
+  if (btn) btn.setAttribute('aria-expanded', abierto ? 'false' : 'true');
 }
 function admEntrar(btn){
   const pass = document.getElementById('admPass').value.trim();
@@ -15536,7 +15565,7 @@ function informePreview(txt){
 }
 function dashInformeCard(inf){
   const exp = !!(DASH._infExp && DASH._infExp[inf.id]);
-  const head = '<button class="inf-head" onclick="dashToggleInforme(\'' + inf.id + '\')">' +
+  const head = '<button class="inf-head" onclick="dashToggleInforme(\'' + inf.id + '\')" aria-expanded="' + (exp ? 'true' : 'false') + '">' +
     '<div class="inf-headtx"><div class="inf-date">' + esc(inf.fecha || '') + '</div>' +
     (exp ? '' : '<div class="inf-prev">' + esc(informePreview(inf.texto)) + '</div>') + '</div>' +
     '<span class="inf-caret">' + esc(t(exp ? 'inf_ocultar' : 'inf_ver')) + '</span></button>';
@@ -16898,6 +16927,71 @@ document.addEventListener('keydown', function(e){
   el.click();
 });
 
+/* ── L4 · Foco en los overlays: se mueve adentro al abrir, se atrapa mientras está abierto, y
+   vuelve a donde estaba al cerrar. Los 15 `.overlay` de la app comparten el mismo punto de
+   apertura/cierre —la clase `.show`— así que ESTE es el único lugar que hace falta tocar; ninguna
+   de las 15 funciones que abren o cierran un overlay necesitó cambiar una línea.
+
+   ⚠️ Es una PILA, no "el overlay actual": `recuperarAbrir()` abre su overlay SIN cerrar `setup`
+   primero, así que puede haber dos (o más) abiertos a la vez. El atrapado tiene que seguir siempre
+   al de más arriba, y cerrar ese tiene que devolver el foco al de abajo, no saltar a la base. */
+const OV_FOCO = { pila: [] };                  // [{ el, disparador }], en orden de apertura
+
+function ovFocoSelector(){
+  return 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+    'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+}
+function ovFocoEnfocables(ov){
+  return [...ov.querySelectorAll(ovFocoSelector())]
+    .filter(el => el.offsetParent !== null || el === document.activeElement);  // visibles
+}
+function ovFocoAbrir(ov){
+  OV_FOCO.pila = OV_FOCO.pila.filter(x => x.el !== ov);   // por si alguien reabre sin haber cerrado
+  OV_FOCO.pila.push({ el: ov, disparador: document.activeElement });
+  const primero = ovFocoEnfocables(ov)[0];
+  if (primero) primero.focus();
+  else { ov.setAttribute('tabindex', '-1'); ov.focus(); }   // overlay sin nada enfocable adentro
+}
+function ovFocoCerrar(ov){
+  const i = OV_FOCO.pila.findIndex(x => x.el === ov);
+  if (i < 0) return;
+  const [entrada] = OV_FOCO.pila.splice(i, 1);
+  /* ⚠️ El foco vuelve al disparador DE ESTE overlay (`entrada.disparador`: lo que tenía el foco
+     justo antes de que ESTE se abriera) — NO al disparador del que quede debajo en la pila. La
+     primera versión los confundía: con `setup` abierto y `recuperarOv` encima, al cerrar
+     `recuperarOv` el foco volvía al body en vez de al botón "Ya me había registrado" dentro de
+     `setup`. Si el disparador de este overlay ya no es válido (se desmontó mientras tanto), se
+     cae al del que quede arriba de la pila; si no queda ninguno, no se fuerza nada. */
+  let volverA = entrada.disparador;
+  if (!volverA || !document.contains(volverA) || typeof volverA.focus !== 'function'){
+    const cima = OV_FOCO.pila[OV_FOCO.pila.length - 1];
+    volverA = cima ? cima.disparador : null;
+  }
+  if (volverA && document.contains(volverA) && typeof volverA.focus === 'function') volverA.focus();
+}
+document.querySelectorAll('.overlay').forEach(ov => {
+  new MutationObserver(muts => {
+    muts.forEach(m => {
+      if (m.attributeName !== 'class') return;
+      const abierto = ov.classList.contains('show');
+      const estabaEnLaPila = OV_FOCO.pila.some(x => x.el === ov);
+      if (abierto && !estabaEnLaPila) ovFocoAbrir(ov);
+      else if (!abierto && estabaEnLaPila) ovFocoCerrar(ov);
+    });
+  }).observe(ov, { attributes: true, attributeFilter: ['class'] });
+});
+// Tab/Shift+Tab no puede salir del overlay de MÁS ARRIBA mientras haya alguno abierto.
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Tab' || !OV_FOCO.pila.length) return;
+  const cima = OV_FOCO.pila[OV_FOCO.pila.length - 1].el;
+  const enf = ovFocoEnfocables(cima);
+  if (!enf.length) return;
+  const primero = enf[0], ultimo = enf[enf.length - 1];
+  if (e.shiftKey && document.activeElement === primero){ e.preventDefault(); ultimo.focus(); }
+  else if (!e.shiftKey && document.activeElement === ultimo){ e.preventDefault(); primero.focus(); }
+  else if (!cima.contains(document.activeElement)){ e.preventDefault(); primero.focus(); }
+});
+
 function haptic(ms){
   try { if (navigator.vibrate){ navigator.vibrate(ms || 14); return; } } catch(e){}
   try {
@@ -17604,6 +17698,7 @@ function gestToggleExp(id){
   if(!card){ renderGestiones(); return; }
   card.classList.toggle('exp', GEST.exp[id]);
   const c=card.querySelector('.gest-caret'); if(c) c.textContent=GEST.exp[id]?'▴':'▾';
+  const b=card.querySelector('.gest-ctitle'); if(b) b.setAttribute('aria-expanded', GEST.exp[id]?'true':'false');
   if (GEST.exp[id]) setTimeout(function(){ const ta=card.querySelector('.gest-ta'); if(ta) gestAutoGrow(ta); }, 40);
 }
 // "Guardar y cerrar": los cambios ya se guardan solos, así que sólo minimiza la tarjeta (con aviso).
@@ -17768,7 +17863,7 @@ function gestCard(g){
     (rb ? (' · <span class="gest-rev '+rb.cls+'">'+esc(rb.txt)+'</span>') : '') + '</span>';
   const head = '<div class="gest-chead">' +
     '<button class="gest-pin'+(g.pin?' on':'')+'" title="'+esc(t(g.pin?'gst_desfijar':'gst_fijar'))+'" onclick="gestTogglePin(\''+g.id+'\')">'+gestPinSvg(g.pin)+'</button>' +
-    '<button class="gest-ctitle" onclick="gestToggleExp(\''+g.id+'\')">' +
+    '<button class="gest-ctitle" onclick="gestToggleExp(\''+g.id+'\')" aria-expanded="'+(exp?'true':'false')+'">' +
       '<span class="gest-line1"><span class="gest-dot" style="background:'+est.c+'" title="'+est.t+'"></span>' +
         '<span class="gest-t">'+titulo+'</span>' +
         '<span class="gest-prio-dot" style="background:'+pr.c+'" title="'+esc(t('gst_prioridad'))+' '+esc(pr.t)+'"></span></span>' +
