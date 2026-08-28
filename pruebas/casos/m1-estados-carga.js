@@ -195,3 +195,59 @@ PRUEBAS.caso('las pantallas que traen listas quedan bloqueadas mientras cargan',
   PRUEBAS.cierto(/conCarga\(/.test(nominaListCargar.toString()),
     'la nómina: se podía escribir en el buscador y filtrar sobre una lista que no existía todavía');
 });
+
+PRUEBAS.grupo('N9 · campos del formulario');
+
+PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', () => {
+  /* Estaba dibujada dentro del data-URI con `stroke='%23aab'`: un gris fijo, el mismo en los dos
+     temas (R13). Medido, ese gris daba **2.21 sobre el campo claro** — por debajo del mínimo de 3
+     que pide un elemento no textual — y 6.84 sobre el oscuro. O sea que el bug estaba en el tema
+     por defecto, que es el que ve casi todo el mundo.
+     No se puede resolver con `mask` sobre el propio `<select>`: la máscara recorta el elemento
+     entero y se lleva puesto el texto de la opción. Por eso el token es la imagen completa, una
+     por tema. */
+  const lum = c => { const m = (c.match(/[\d.]+/g) || [0,0,0]).map(Number);
+    const f = x => { x = x/255; return x <= .03928 ? x/12.92 : Math.pow((x + .055)/1.055, 2.4); };
+    return .2126*f(m[0]) + .7152*f(m[1]) + .0722*f(m[2]); };
+  const hex = h => { h = h.replace('#',''); if (h.length === 3) h = h.split('').map(c => c+c).join('');
+    return 'rgb(' + parseInt(h.slice(0,2),16) + ',' + parseInt(h.slice(2,4),16) + ',' + parseInt(h.slice(4,6),16) + ')'; };
+  const ct = (a, b) => { const A = lum(a), B = lum(b); return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
+
+  const ov = document.getElementById('setup');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const sel = document.querySelector('.field select');
+  PRUEBAS.cierto(!!sel, 'tiene que haber al menos un desplegable para medir');
+
+  const tema0 = document.documentElement.getAttribute('data-tema');
+  const flojas = [], vistas = new Set();
+  ['claro', 'oscuro'].forEach(tema => {
+    document.documentElement.setAttribute('data-tema', tema);
+    const cs = getComputedStyle(sel);
+    const m = (cs.backgroundImage || '').match(/stroke='%23([0-9a-fA-F]{3,6})'/);
+    if (!m){ flojas.push(tema + ': no se encontró la flecha'); return; }
+    vistas.add(m[1]);
+    const c = ct(hex(m[1]), cs.backgroundColor);
+    if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
+  });
+  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  if (!yaAbierto) ov.classList.remove('show');
+
+  PRUEBAS.igual(flojas, [], 'la flecha tiene que verse sobre el campo en los dos temas');
+  PRUEBAS.igual(vistas.size, 2,
+    'y ser DISTINTA en cada tema: si es la misma, vuelve a estar escrita a mano y uno de los dos pierde');
+});
+
+PRUEBAS.caso('el campo enfocado se distingue de un vistazo', () => {
+  /* ⚠️ No se puede comprobar sobre `:focus` en este entorno: la ventana nunca tiene el foco
+     (`document.hasFocus()` da false), así que el selector no engancha aunque `activeElement` sea
+     el campo. Se me fue un rato averiguando eso. Se comprueba entonces sobre la regla.
+     Por qué importa: son doce campos en un teléfono, y saber en cuál estás parado tiene que
+     costar cero. */
+  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/\.field input:focus, \.field select:focus \{[^}]*box-shadow: 0 0 0 3px var\(--orange-bg\)/.test(fuente),
+    'el campo enfocado necesita un halo, no sólo un cambio de borde de 1.5 px');
+  PRUEBAS.cierto(/\.field:has\(input:focus\) label[^{]*\{[^}]*color: var\(--orange-legible\)/.test(fuente),
+    'y su etiqueta acompaña, para no tener que buscar dónde estás parado');
+  PRUEBAS.falso(/box-shadow: 0 0 0 3px #[0-9a-f]/i.test(fuente), 'sin colores escritos a mano (R13)');
+});

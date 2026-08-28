@@ -264,6 +264,9 @@
        justamente para poder ver las tareas sin entrar, en tema oscuro no se leía.
        Medido: blanco encima da 4.85, y la forma del globo da 3.38 contra la cabecera oscura y
        4.85 contra la clara (para un componente no textual el mínimo es 3). */
+    /* Flecha del desplegable. Es una imagen, así que el color va adentro del SVG y no puede salir
+       de otra variable: por eso el token es la imagen entera y no el color. */
+    --flecha-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23667' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     --badge-fill: #d63031;
     --badge-ink:  #ffffff;
 
@@ -427,6 +430,8 @@
     --orange-bg:   #3a2413;
     /* La rampa del mapa de actividad, creciente sobre fondo oscuro (ver el comentario en :root). */
     --act-l1: #6b3d16;  --act-l2: #a35c10;  --act-l3: #c97812;  --act-l4: #f7941d;
+    /* La misma flecha, en claro, para que se vea contra el campo oscuro. */
+    --flecha-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239fb0c8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
@@ -653,9 +658,25 @@
   .field { margin-top: 1.1rem; }
   .field label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-soft); margin-bottom: 0.35rem; }
   .field input, .field select { width: 100%; padding: 0.8rem 0.9rem; border: 1.5px solid var(--sup-borde); border-radius: 12px;
-    font-size: 0.95rem; font-family: inherit; color: var(--text); background: var(--sup-campo); transition: border-color .15s; }
-  .field input:focus, .field select:focus { border-color: var(--orange); background: var(--card); }
-  .field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.9rem center; padding-right: 2.2rem; }
+    font-size: 0.95rem; font-family: inherit; color: var(--text); background: var(--sup-campo);
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+  /* El campo reacciona al foco: además de cambiar el borde, crece un halo. Es la misma idea del
+     subrayado que se despliega, adaptada a nuestras cajas redondeadas — un subrayado suelto abajo
+     de un recuadro queda raro. Se ve de reojo cuál campo está activo, que es lo que importa
+     completando un formulario de doce campos en un teléfono. */
+  .field input:focus, .field select:focus { border-color: var(--orange); background: var(--card);
+    box-shadow: 0 0 0 3px var(--orange-bg); }
+  /* Y la etiqueta acompaña, para que el ojo no tenga que buscar dónde está parado. */
+  .field:has(input:focus) label, .field:has(select:focus) label { color: var(--orange-legible); }
+  @media (prefers-reduced-motion: reduce) { .field input, .field select { transition: none; } }
+  /* ⚠️ La flecha sale de un TOKEN, uno por tema. Estaba dibujada dentro del data-URI con
+     `stroke='%23aab'`: un gris fijo, igual en los dos temas (R13).
+     No se puede resolver con `mask` sobre el propio `<select>` —lo probé— porque la máscara
+     recorta el elemento ENTERO y se lleva puesto el texto de la opción, no sólo la flecha. Y un
+     `::after` no se puede dibujar sobre un select. Así que van dos data-URI, uno por tema: es
+     repetitivo pero es lo único que funciona sin tocar el marcado de los 16 campos. */
+  .field select { appearance: none; background-image: var(--flecha-select); background-repeat: no-repeat;
+    background-position: right 0.9rem center; padding-right: 2.2rem; }
   .field .err { color: var(--sem-rojo-alt); font-size: 0.72rem; margin-top: 0.3rem; display: none; }
   .field.invalid input, .field.invalid select { border-color: var(--sem-rojo-alt); }
   .field.invalid .err { display: block; }
@@ -4582,7 +4603,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.42';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.43';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
