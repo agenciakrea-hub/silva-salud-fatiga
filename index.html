@@ -4705,7 +4705,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.52';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.53';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9072,6 +9072,24 @@ function cicloMiRefrescar(){
   if (!nuevo) return;
   viejo.replaceWith(nuevo);
   iniAhoraCablear();                        // el botón es nuevo: hay que volver a cablearlo
+  cicloMiArrancarReloj(nuevo);
+}
+/* ⚠️ La aguja hay que UBICARLA a mano después de insertar el bloque, y el reloj hay que arrancarlo.
+   Faltaban las dos cosas: `cicloUbicarAgujas()` sólo se llamaba desde el panel, así que en el inicio
+   el `<i class="cic-now">` se quedaba con el `left:0` del CSS — quien llevaba seis horas de jornada
+   veía el palito al principio de la barra.
+   Se espera al siguiente cuadro porque la aguja se calcula midiendo el ancho REAL de cada segmento
+   (los tramos tienen `min-width` y el tiempo no es lineal a lo largo de la barra), y recién pintado
+   el nodo esos anchos son cero. */
+function cicloMiArrancarReloj(nodo){
+  const ubicar = () => { try { cicloUbicarAgujas(nodo || document); } catch(e){} };
+  /* Los dos, y no es redundancia: `requestAnimationFrame` da el momento justo (apenas el navegador
+     pintó), pero NO dispara con la pestaña en segundo plano — y una PWA que se abre desde el ícono
+     suele arrancar así. El `setTimeout` es el respaldo para ese caso. Ubicar dos veces no cuesta
+     nada: es leer un ancho y escribir un `left`. */
+  requestAnimationFrame(ubicar);
+  setTimeout(ubicar, 80);
+  try { cicloTickStart(); } catch(e){}
 }
 /* El botón grande dispara EXACTAMENTE lo mismo que la tarjeta de abajo: se busca el item por id y
    se reusa su manejador, en vez de duplicar la lógica de abrir test / marcar / WhatsApp.
@@ -9172,6 +9190,7 @@ function renderSections(){
   });
   refreshStates();
   iniAhoraCablear();          // J3: el bloque que ahora vive dentro de Data Operacional
+  cicloMiArrancarReloj();     // Y2: primer pintado — ubicar la aguja y poner el reloj en marcha
   /* Va DESPUÉS de las secciones a propósito: el botón grande del inicio delega el clic en la
      tarjeta de abajo, así que esas tarjetas tienen que existir cuando el inicio se pinta. */
   renderInicio();
@@ -14417,6 +14436,19 @@ function cicloHM(min){
   const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
   return h ? (h + ' h ' + String(r).padStart(2,'0') + ' min') : (r + ' min');
 }
+/* Duración VIVA, la que corre segundo a segundo. Se usa sólo en los contadores que se actualizan
+   con el reloj; el resto sigue en `cicloHM` porque no cambia y los segundos serían ruido.
+   ⚠️ Los segundos van SIEMPRE, también pasada la hora. La primera versión los ocultaba arriba de
+   una hora para ahorrar ancho, y estaba mal: con una jornada de doce horas el número no se movía
+   nunca, que es justo lo contrario de lo que se pidió ("que cuente segundo por segundo, para que
+   entiendan que pasa el tiempo"). El ancho se resolvió midiendo, no recortando el dato. */
+function cicloVivo(min){
+  const seg = Math.max(0, Math.round(min * 60));
+  const h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), sgs = seg % 60;
+  const ss = String(sgs).padStart(2, '0');
+  if (h) return h + ' h ' + String(m).padStart(2, '0') + ' min ' + ss + ' s';
+  return m + ' min ' + ss + ' s';
+}
 /* Duración COMPACTA para la barra: "12 h", "1 h 30", "45 min". `cicloHM` ("12 h 00 min") es la
    forma larga y sigue usándose en el detalle y los tooltips, donde hay lugar; acá cada carácter
    compite con el ancho del segmento. */
@@ -14930,11 +14962,19 @@ function renderCicloOperativo(){
    scroll y parpadea). Una vez por minuto rearma la sección: es cuando un tramo puede pasar de
    "en curso" a "excedido" y cambiar de color, no sólo de número. */
 let _cicloTimer = null, _cicloUltimoRender = 0, _cicloUltimoPull = 0;
+/* ⚠️ El reloj YA NO ES DEL PANEL: corre sobre todo el documento.
+   Antes `cicloTick` empezaba con `document.getElementById('dsec-ciclo')` y se apagaba solo si esa
+   sección no estaba en pantalla. Consecuencia: en el inicio del EMPLEADO los minutos quedaban
+   congelados —sólo cambiaban si algo repintaba la pantalla— y la aguja nunca se movía de su
+   `left:0`. Alguien que arrancó su jornada hacía seis horas veía el palito al principio de la
+   barra. Lo reportó el usuario y era un bug, no una decisión.
+   Lo que SÍ sigue siendo del panel es el pedido al servidor de cada minuto: el inicio no lo
+   necesita, porque sus eventos son locales. */
 function cicloTickStart(){
   if (_cicloTimer) return;
   // K1b: Dirección/HSEQ ve el ciclo agregado, sin tarjetas ni relojes. Nada que refrescar cada
   // segundo, y de paso no le corre un intervalo permanente al pedo.
-  if (DASH && DASH.vista === 'hseq') return;
+  if (DASH && DASH.vista === 'hseq' && !document.querySelector('.cic-mio')) return;
   _cicloUltimoPull = Date.now();
   _cicloTimer = setInterval(cicloTick, 1000);
 }
@@ -14954,24 +14994,31 @@ document.addEventListener('visibilitychange', function(){
   cicloTickStart();
 });
 function cicloTick(){
-  const sec = document.getElementById('dsec-ciclo');
-  if (!sec || !DASH){ cicloTickStop(); return; }
+  const sec = document.getElementById('dsec-ciclo');       // la sección del panel, si está
+  const mio = document.querySelector('.cic-mio');          // el bloque del inicio, si está
+  /* Si no hay ninguno de los dos, no hay nada vivo que actualizar: el reloj se apaga solo. Antes
+     esto dependía de que alguien llamara a `cicloTickStop()` desde el lugar correcto. */
+  if (!sec && !mio){ cicloTickStop(); return; }
   if (CICLO_CFG_ABIERTO) return;        // no pisar lo que la persona está escribiendo en el editor
   const ahora = Date.now();
   /* Los eventos NUEVOS sólo llegan volviendo a pedir datos. El auto-refresco general de la app es
      DIARIO a propósito (cuota del endpoint), y con eso una llegada al aeropuerto tardaría 24 h en
      verse. Mientras esta sección está en pantalla se pide cada minuto: es lo que hace que el estado
      cambie solo cuando la persona toca el botón. Al salir, el reloj se apaga y deja de pedir. */
-  if (!DASH.demoMode && (ahora - _cicloUltimoPull) > 60000){
+  if (sec && DASH && !DASH.demoMode && (ahora - _cicloUltimoPull) > 60000){
     _cicloUltimoPull = ahora;
     try { dashRefresh(false); } catch(e){}
   }
-  if (ahora - _cicloUltimoRender > 60000){ cicloRepintar(); return; }
-  sec.querySelectorAll('[data-cic-from]').forEach(el => {
+  /* El repintado de cada minuto es SÓLO del panel: es cuando un tramo pasa de "en curso" a
+     "excedido" y cambia de color. El inicio se repinta por su cuenta con `cicloMiRefrescar()`. */
+  if (sec && DASH && ahora - _cicloUltimoRender > 60000){ cicloRepintar(); return; }
+  /* Los números y la aguja se actualizan en TODO el documento: el panel y el inicio a la vez.
+     Cada segundo se tocan textos y una posición; no se rearma HTML, que perdería el scroll. */
+  document.querySelectorAll('[data-cic-from]').forEach(el => {
     const t0 = Number(el.getAttribute('data-cic-from'));
-    if (t0) el.textContent = cicloHM((ahora - t0)/60000);
+    if (t0) el.textContent = cicloVivo((ahora - t0)/60000);
   });
-  cicloUbicarAgujas(sec);
+  cicloUbicarAgujas();
 }
 
 /* E2 (2026-08-26): esta bandeja no aplicaba NINGÚN filtro del panel. El recorte por EMPRESA sí

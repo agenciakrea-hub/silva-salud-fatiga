@@ -117,17 +117,26 @@ PRUEBAS.caso('se apaga con la app en segundo plano', () => {
   DASH = null;
 });
 
-PRUEBAS.caso('se apaga solo si la sección deja de estar en pantalla', () => {
+PRUEBAS.caso('se apaga solo si no queda NADA vivo en pantalla', () => {
   /* Ya existía y conviene que siga: es lo que evita que el reloj quede corriendo para siempre
-     después de cambiar de pestaña. */
+     después de cambiar de pestaña.
+     ⚠️ La condición CAMBIÓ en Y2 y el cambio es a propósito. Antes alcanzaba con que desapareciera
+     la sección del panel; ahora el mismo reloj también mueve el bloque del inicio del empleado
+     (`.cic-mio`), que antes quedaba congelado. Así que para que se apague tienen que faltar LOS DOS.
+     Si esta prueba sólo saca la sección del panel, el reloj sigue vivo con razón. */
   panelCon(10);
   DASH.tab = 'ciclo'; DASH.tabs = ['ciclo']; buildDashTabs(); renderDash();
   const sec = document.getElementById('dsec-ciclo');
   const padre = sec.parentNode;
   padre.removeChild(sec);
+  const mio = document.querySelector('.cic-mio');
+  const padreMio = mio ? mio.parentNode : null;
+  if (mio) padreMio.removeChild(mio);
   cicloTickStart();
   cicloTick();
   const vivo = !!_cicloTimer;
-  padre.appendChild(sec); cicloTickStop(); DASH = null;
-  PRUEBAS.falso(vivo, 'sin la sección en pantalla no hay nada que actualizar: el reloj se apaga');
+  padre.appendChild(sec);
+  if (mio) padreMio.appendChild(mio);
+  cicloTickStop(); DASH = null;
+  PRUEBAS.falso(vivo, 'sin panel NI bloque de inicio no hay nada que actualizar: el reloj se apaga');
 });
