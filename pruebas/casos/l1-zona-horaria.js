@@ -18,6 +18,12 @@
 
 PRUEBAS.grupo('L1 · zona horaria de la operación');
 
+/* ⚠️ Este ayudante vive en el ÁMBITO GLOBAL de la app: los archivos de casos se evalúan dentro de
+   su ventana, así que una `function` de nivel superior acá PISA una función de la app que se llame
+   igual. Pasó de verdad: se agregó un `conZona(sel, promesa)` en la app para bloquear pantallas y
+   este ayudante lo dejó sin efecto — "bloquear" pasó a ser llamar a la función de zona horaria con
+   una promesa, y el error que salía era "fn is not a function", que no señalaba a ningún lado.
+   Al nombrar algo acá, buscarlo antes en index.html. */
 function conZona(z, fn) {
   const previa = localStorage.getItem('silva_fatiga_zona_op_v1');
   zonaOpGuardar(z);

@@ -43,7 +43,7 @@ PRUEBAS.caso('J3 · completar un evento actualiza "lo que te toca ahora"', () =>
     'cada evento completado tiene que pedir el SIGUIENTE paso; si se repite, la app pide dos veces lo mismo');
 });
 
-PRUEBAS.caso('J2 · el desplegable no corta contenido, ni con todas las métricas', () => {
+PRUEBAS.caso('J2 · el desplegable no corta contenido, ni con todas las métricas', async () => {
   /* Puse `max-height: 240px` afirmando que "el contenido está acotado y alcanza". Medido en el
      peor caso real: 984 px. Todo lo que pasaba de 240 quedaba cortado, sin scroll ni aviso. */
   CTX.resetear();
@@ -57,6 +57,14 @@ PRUEBAS.caso('J2 · el desplegable no corta contenido, ni con todas las métrica
   localStorage.setItem('silva_fatiga_ini_estado_abierto_v1', '1');
   renderInicio();
   const b = document.getElementById('iniEstBody');
+  /* ⚠️ HAY QUE ESPERAR. El `max-height` no se aplica en el mismo tick que `renderInicio()`: se
+     calcula desde `scrollHeight` un instante después, para que la apertura pueda animarse desde 0.
+     Medido: justo después del render el max-height es 0px y el alto visible 15; a los ~400 ms es
+     218 y coincide con el contenido.
+     Esta prueba pasaba POR SUERTE DE TIEMPOS y empezó a fallar cuando otros casos corrieron antes y
+     movieron el reloj. Una prueba que depende de la velocidad de la máquina es peor que una que
+     falla: hace desconfiar de toda la suite. */
+  await new Promise(r => setTimeout(r, 450));
   const visible = b.getBoundingClientRect().height, real = b.scrollHeight;
   window.misDatos = mdPrevio; window.misCtx = ctxPrevio;
 

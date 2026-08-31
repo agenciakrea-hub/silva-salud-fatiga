@@ -4705,7 +4705,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10889,7 +10889,7 @@ function nominaCargarPersonas(){
     + '&codigo=' + encodeURIComponent(NOM.codigo || '')
     + '&dispositivoId=' + encodeURIComponent(dispositivoId())
     + '&_=' + Date.now();
-  fetchConReloj(url, { cache:'no-store' })
+  conBloqueo('#nominaOv .sheet', fetchConReloj(url, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       if (enCodigo) btnSpin(btn, false);
@@ -10914,7 +10914,7 @@ function nominaCargarPersonas(){
       }
       nominaPaso('persona');
       nominaEl('nomPersonas').innerHTML = '<div class="nom-vacio">' + esc(t('nom_sin_conexion')) + '</div>';
-    });
+    }));
 }
 function nominaFiltrar(){
   const q = nominaEl('nomBuscar').value.trim();
@@ -10948,7 +10948,7 @@ function nominaConfirmar(){
   err.textContent = '';
   /* El código va también acá: el servidor lo vuelve a exigir en esta acción (cada acción se
      defiende sola), así que si no se mandara, una empresa con código no podría confirmar nunca. */
-  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  conBloqueo('#nominaOv .sheet', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'nomina_confirmar', empresa: NOM.empresa, persona: NOM.persona, cedula: ced,
       codigo: NOM.codigo || '', dispositivoId: dispositivoId() }) })
     .then(r => r.json())
@@ -10986,7 +10986,7 @@ function nominaConfirmar(){
       aplicarIdioma();      // el sector cambió: repinta con la terminología que le corresponde
       showToast(t('ts_datos_encontrados'));
     })
-    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
 /* La columna `Sexo` de la Nómina la tipea cada empresa a mano y no tiene validación: puede venir
@@ -11489,7 +11489,7 @@ function portalAutoLoginSupervisor(c, credKey){
   document.getElementById('dashScope').textContent = t('cargando');
   dashMostrarEsqueleto();
   const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:c.pass };
-  dashRequest(params).then(d => {
+  conBloqueo('#portalDash', dashRequest(params).then(d => {
     if (!d || !d.ok){                                    // contraseña cambiada / usuario borrado → volver al gate
       try { localStorage.removeItem(credKey); } catch(e){}
       openPortalGate();
@@ -11508,7 +11508,7 @@ function portalAutoLoginSupervisor(c, credKey){
       return;
     }
     openPortalGate(); document.getElementById('portalErr').textContent = 'Sin conexión. Reintenta.';
-  });
+  }));
 }
 // Cierra también, por las dudas, cualquier ventana anidada (Gestiones/PVT) que haya quedado
 // abierta: comparten el mismo z-index/posición fija que el panel de estadísticas, y si una queda
@@ -11740,6 +11740,19 @@ function conCarga(el, promesa){
   const soltar = () => cargaBloquear(el, false);
   return promesa.then(v => { soltar(); return v; }, e => { soltar(); throw e; });
 }
+/* Acción de red DISPARADA POR LA PERSONA: bloquea su zona hasta que termine, pase lo que pase.
+   ⚠️ Usar SIEMPRE esto en lugar de llamar a `dashRequest()` suelto desde un botón.
+   ⚠️ Se llamaba `conZona` y **ya existía otra función con ese nombre** (la de zona horaria de L1):
+   en un archivo de 19.500 líneas dos `function` de nivel superior con el mismo nombre no dan error,
+   simplemente gana la última — y la mía quedó pisada, así que "bloquear" era llamar a la de zona
+   horaria con una promesa. Antes de declarar acá, buscar el nombre.
+   POR QUÉ EXISTE: `cargaBloquear` estaba escrito desde M1 pero se usaba en 2 de 31 funciones de red.
+   No era descuido de una persona: era que había que ACORDARSE en cada sitio, y treinta veces alguien
+   no se acordó. Con esto, bloquear es una palabra en la misma línea del pedido, y hay una prueba que
+   recorre las funciones de red y falla si alguna que dispara la persona no la usa. */
+function conBloqueo(sel, promesa){
+  return conCarga(typeof sel === 'string' ? document.querySelector(sel) : sel, promesa);
+}
 function cargaBloquear(el, on){
   if (!el) return;
   if (on){ el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
@@ -11857,7 +11870,7 @@ function admEntrar(btn){
   // Se valida contra el MISMO endpoint que el acceso de administrador del portal (usuario '*').
   // Guardarlo en sessionStorage sólo evita re-escribirla mientras dura la pestaña: no otorga
   // ningún permiso por sí solo, cada pedido de datos al servidor sigue llevando su contraseña.
-  dashRequest({ action:'supervisor', usuario:'*', empresa:'*', pass:pass })
+  conBloqueo('#admBox', dashRequest({ action:'supervisor', usuario:'*', empresa:'*', pass:pass })
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ err.textContent = tError(d && d.error); return; }
@@ -11869,7 +11882,7 @@ function admEntrar(btn){
       admPintarRoles();
       showToast(t('ts_admin_activo'));
     })
-    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion') + '.'; });
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion') + '.'; }));
 }
 let ADM_PASS = '';
 const ADM_ROLES = [
@@ -12152,9 +12165,9 @@ function portalLoginEmpleado(btn){
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
   const carga = cargaIniciar();
   btnSpin(btn, true, t('cargando'));
-  dashRequest(params)
+  conBloqueo('#portalGate', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return; btnSpin(btn, false); onDashData(d, p.nombre || 'Mis registros', params); })
-    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); });
+    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); }));
 }
 // Personal que NO es supervisor ni servicio médico: no tiene otra vista para elegir, así que
 // entra derecho a sus estadísticas (sin mostrar el selector ni tener que tocar "Ver mis
@@ -12168,7 +12181,7 @@ function portalAutoLoginEmpleado(){
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
   const carga = cargaIniciar();
-  dashRequest(params)
+  conBloqueo('#portalDash', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return;
       if (!d || !d.ok) { dashMostrarError(tError(d && d.error), portalAutoLoginEmpleado); return; }
       onDashData(d, p.nombre || 'Mis registros', params); })
@@ -12176,7 +12189,7 @@ function portalAutoLoginEmpleado(){
        panel entero porque se cortó el wifi un segundo no explica nada y obliga a rehacer el
        camino: ahora el error se muestra DENTRO, con el botón para reintentar. */
     .catch(err => { if (!cargaVigente(carga)) return;
-      dashMostrarError((err && err.name === 'AbortError') ? t('err_d_tardo') : '', portalAutoLoginEmpleado); });
+      dashMostrarError((err && err.name === 'AbortError') ? t('err_d_tardo') : '', portalAutoLoginEmpleado); }));
 }
 function portalLoginSupervisor(btn){
   const usuario = document.getElementById('pEmpresa').value.trim();
@@ -12242,14 +12255,14 @@ function portalVerDemo(btn){
   const params = { action:'demo' };
   const carga = cargaIniciar();
   btnSpin(btn, true, 'Abriendo ejemplo…');
-  dashRequest(params)
+  conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba: no pisar la pantalla
       btnSpin(btn, false);
       if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) || 'No se pudo abrir la demostración.'; return; }
       onDashData(d, 'Empresa Demo', params, PORTAL_VISTA);   // la demo respeta la pestaña elegida
     })
-    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); if (errEl) errEl.textContent = t('sin_conexion') + '.'; });
+    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
 }
 function togglePw(id, btn){ const el = document.getElementById(id); if (!el) return; const show = el.type==='password'; el.type = show?'text':'password'; if (btn) btn.classList.toggle('on', show); }
 function offerRemember(usuario, pass){
@@ -12268,14 +12281,14 @@ function portalLoginAdmin(btn){
   const params = { action:'supervisor', usuario:'*', empresa:'*', pass };
   const carga = cargaIniciar();
   btnSpin(btn, true, 'Entrando…');
-  dashRequest(params)
+  conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ errEl.textContent = tError(d && d.error); return; }
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba
       onDashData(d, 'Todas las empresas', params, 'medico');   // admin = acceso total
     })
-    .catch(() => { btnSpin(btn, false); errEl.textContent = t('sin_conexion') + '.'; });
+    .catch(() => { btnSpin(btn, false); errEl.textContent = t('sin_conexion') + '.'; }));
 }
 
 /* F1: las etiquetas de las pestañas pasan por el diccionario. Se resuelven al PINTAR y no en una
@@ -14703,7 +14716,7 @@ function cicloCfgGuardar(btn){
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ if (err) err.textContent = 'Vuelve a entrar con tu usuario para poder guardar.'; return; }
   btnSpin(btn, true, 'Guardando…');
-  dashRequest({ action:'ciclo_config_guardar', usuario:cred.usuario, empresa:(DASH.f.emp || cred.empresa || cred.usuario),
+  conBloqueo('#portalDash', dashRequest({ action:'ciclo_config_guardar', usuario:cred.usuario, empresa:(DASH.f.emp || cred.empresa || cred.usuario),
                 pass:cred.pass, plan:JSON.stringify(plan) })
     .then(d => {
       btnSpin(btn, false);
@@ -14712,7 +14725,7 @@ function cicloCfgGuardar(btn){
       CICLO_CFG_ABIERTO = false; cicloRepintar();
       showToast(t('ts_ciclo_guardado'));
     })
-    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; });
+    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; }));
 }
 function cicloRepintar(){
   const sec = document.getElementById('dsec-ciclo');
@@ -16136,7 +16149,7 @@ function dashGenerarInforme(){
   const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass,
     dispositivoId: dispositivoId(),
     resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) };
-  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
+  conBloqueo('#portalDash', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
       startDashAutoRefresh();
@@ -16151,7 +16164,7 @@ function dashGenerarInforme(){
       renderDash();
       showToast(t('ts_informe_ok'));   // aparece MINIMIZADO en el historial
     })
-    .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintenta.</div>'; });
+    .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintenta.</div>'; }));
 }
 // Markdown-lite: **negrita**, *itálica*, ## títulos, viñetas
 function dashMdLite(t){
@@ -19082,7 +19095,7 @@ function tareasArranque(){
 function tareaMarcarHecha(id, btn){
   const p = getProfile(); if (!p) return;
   btnSpin(btn, true, t('guardando'));
-  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  conBloqueo('#tareasOv .sheet', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'tarea_estado', id:id, estado:'hecha',
       empresa:p.empresa, persona:p.nombre, cedula:p.cedula }) })
     .then(r => r.json())
@@ -19096,7 +19109,7 @@ function tareaMarcarHecha(id, btn){
       haptic(12);
       showToast(t('tar_listo'));
     })
-    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); });
+    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion')); }));
 }
 
 
@@ -19184,7 +19197,7 @@ function tareaCrear(btn){
   // sobre la misma fila en vez de crear dos pedidos iguales (R15).
   const id = 'tar_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   btnSpin(btn, true, t('guardando'));
-  dashRequest({ action:'tarea_guardar', usuario:cred.usuario,
+  conBloqueo('#tareasOv .sheet', dashRequest({ action:'tarea_guardar', usuario:cred.usuario,
       empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass,
       tarea: JSON.stringify({ id:id, persona:per, titulo:titulo, detalle:detalle, vence:vence }) })
     .then(d => {
@@ -19194,7 +19207,7 @@ function tareaCrear(btn){
       tareasFichaCargar();
       showToast(t('tar_creada'));
     })
-    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion'); });
+    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion'); }));
 }
 
 
@@ -19274,7 +19287,7 @@ function recuperarConfirmar(){
   if (!cedula){ err.textContent = t('f_cedula_err'); return; }
   const btn = document.getElementById('recBtn');
   btnSpin(btn, true, t('guardando'));
-  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  conBloqueo('#recuperarOv .sheet', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'recuperar_perfil', empresa:empresa, cedula:cedula, codigo:codigo,
       dispositivoId: dispositivoId() }) })
     .then(r => r.json())
@@ -19316,7 +19329,7 @@ function recuperarConfirmar(){
       showToast(t('rec_listo'));
       avanzarAlta();   // no debería quedar nada pendiente: entra directo a la app
     })
-    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); });
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
 /* ════════════════ CARRUSEL DE PRESENTACIÓN (B2, 2026-08-25) ════════════════════════════════

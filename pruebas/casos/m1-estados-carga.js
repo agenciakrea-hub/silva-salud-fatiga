@@ -198,7 +198,7 @@ PRUEBAS.caso('las pantallas que traen listas quedan bloqueadas mientras cargan',
 
 PRUEBAS.grupo('N9 · campos del formulario');
 
-PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', () => {
+PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', async () => {
   /* Estaba dibujada dentro del data-URI con `stroke='%23aab'`: un gris fijo, el mismo en los dos
      temas (R13). Medido, ese gris daba **2.21 sobre el campo claro** — por debajo del mínimo de 3
      que pide un elemento no textual — y 6.84 sobre el oscuro. O sea que el bug estaba en el tema
@@ -221,15 +221,21 @@ PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', () => {
 
   const tema0 = document.documentElement.getAttribute('data-tema');
   const flojas = [], vistas = new Set();
-  ['claro', 'oscuro'].forEach(tema => {
+  /* ⚠️ Cambiar `data-tema` no actualiza `background-image` en el mismo tick: la imagen sale de una
+     variable y el navegador la vuelve a resolver recién en el próximo recálculo. Sin forzarlo, los
+     dos temas devuelven el MISMO valor y la prueba acusa un bug que no existe — me pasó.
+     `void sel.offsetHeight` fuerza el recálculo; la espera le da tiempo a que se aplique. */
+  for (const tema of ['claro', 'oscuro']) {
     document.documentElement.setAttribute('data-tema', tema);
+    void sel.offsetHeight;
+    await new Promise(r => setTimeout(r, 120));
     const cs = getComputedStyle(sel);
     const m = (cs.backgroundImage || '').match(/stroke='%23([0-9a-fA-F]{3,6})'/);
     if (!m){ flojas.push(tema + ': no se encontró la flecha'); return; }
     vistas.add(m[1]);
     const c = ct(hex(m[1]), cs.backgroundColor);
     if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
-  });
+  }
   if (tema0) document.documentElement.setAttribute('data-tema', tema0);
   if (!yaAbierto) ov.classList.remove('show');
 
@@ -250,4 +256,132 @@ PRUEBAS.caso('el campo enfocado se distingue de un vistazo', () => {
   PRUEBAS.cierto(/\.field:has\(input:focus\) label[^{]*\{[^}]*color: var\(--orange-legible\)/.test(fuente),
     'y su etiqueta acompaña, para no tener que buscar dónde estás parado');
   PRUEBAS.falso(/box-shadow: 0 0 0 3px #[0-9a-f]/i.test(fuente), 'sin colores escritos a mano (R13)');
+});
+
+PRUEBAS.grupo('Q1 · mientras carga, no se puede tocar nada');
+
+/* EL RECLAMO, TEXTUAL: "doy a entrar a... y puedo tocar salir, o moverme de supervisor cargando a
+   médico y le doy a entrar también".
+   Se lo devolví "arreglado" DOS VECES antes de entender por qué se escapaba: `cargaBloquear` existía
+   desde M1, pero había que ACORDARSE de llamarlo en cada sitio de red. Medido: se usaba en 2 de 31
+   funciones. No era descuido de una persona; era un diseño que dependía de la memoria.
+   Por eso el arreglo no fue agregar llamadas sueltas sino `conBloqueo()`, que bloquea en la misma línea
+   del pedido — y estas pruebas, que fallan si aparece un sitio nuevo sin bloqueo. */
+
+/* ⚠️ CÓMO SE COMPRUEBA QUE ALGO ESTÁ BLOQUEADO, porque me equivoqué dos veces antes de acertar:
+   · `elementFromPoint()` NO sirve: es una consulta geométrica y devuelve el elemento igual, esté
+     `inert` o no.
+   · `elemento.click()` TAMPOCO: un click programático atraviesa `inert`. Sólo lo frena el input real.
+   · Lo que SÍ funciona es el FOCO: `inert` saca a todos los descendientes del alcance del teclado.
+     Es además lo que más importa, porque es el agujero que `pointer-events:none` deja abierto. */
+function q1Alcanza(el){
+  if (!el) return null;
+  document.body.focus();
+  el.focus();
+  return document.activeElement === el;
+}
+
+PRUEBAS.caso('⚠️ con el login cargando, nada de la pantalla recibe el foco', () => {
+  /* ⚠️ Hay que ABRIR el portal antes de medir: un elemento dentro de un overlay cerrado no es
+     enfocable, así que sin esto la comprobación de control daría rojo por el motivo equivocado.
+     ⚠️ Y se abre A MANO, no con `splashPortal()`: esa función cambia media app (esconde el splash,
+     reordena pestañas, toca el bloqueo de scroll y apila historial) y ese estado se filtra a los
+     casos que corren después. Me pasó: rompió CUATRO pruebas ajenas que no tenían nada que ver.
+     Un caso toca lo mínimo y devuelve todo como estaba. */
+  const ov = document.getElementById('portalOverlay');
+  const yaAbierto = ov.classList.contains('show');
+  const gateAntes = document.getElementById('portalGate').style.display;
+  const supAntes = document.getElementById('portalSup').style.display;
+  ov.classList.add('show');
+  document.getElementById('portalGate').style.display = '';
+  document.getElementById('portalSup').style.display = '';
+  const gate = document.getElementById('portalGate');
+  const campo = document.getElementById('pEmpresa');
+  const cerrar = document.querySelector('#portalGate .portal-x');
+  const pestana = document.getElementById('ptabMed');
+  PRUEBAS.cierto(!!(gate && campo && cerrar && pestana), 'tienen que existir los controles a probar');
+
+  cargaBloquear(gate, true);
+  const bloqueado = { campo: q1Alcanza(campo), cerrar: q1Alcanza(cerrar), pestana: q1Alcanza(pestana) };
+  cargaBloquear(gate, false);
+  const suelto = { campo: q1Alcanza(campo), cerrar: q1Alcanza(cerrar), pestana: q1Alcanza(pestana) };
+
+  const siguenVivos = Object.keys(bloqueado).filter(k => bloqueado[k]);
+  PRUEBAS.igual(siguenVivos, [],
+    'con el pedido en vuelo no se puede llegar a cerrar, ni cambiar de pestaña, ni reenviar');
+
+  /* El control que hace que la prueba valga: si sin bloqueo TAMPOCO se llega, la comprobación de
+     arriba pasaría por el motivo equivocado y no estaría probando nada. */
+  const muertos = Object.keys(suelto).filter(k => !suelto[k]);
+  if (!yaAbierto) ov.classList.remove('show');
+  document.getElementById('portalGate').style.display = gateAntes;
+  document.getElementById('portalSup').style.display = supAntes;
+  document.body.focus();
+  PRUEBAS.igual(muertos, [],
+    'sin bloqueo los mismos controles SÍ reciben foco: si no, la comprobación de arriba no prueba nada');
+});
+
+PRUEBAS.caso('⚠️ el bloqueo se suelta también cuando el pedido falla', async () => {
+  /* Un bloqueo pegado por un error de red deja la pantalla muerta y sin explicación: peor que no
+     bloquear. Es la razón por la que existe `conCarga` en vez de dos llamadas sueltas. */
+  const el = document.createElement('div');
+  el.innerHTML = '<button>x</button>';
+  document.body.appendChild(el);
+
+  await conBloqueo(el, Promise.resolve('bien'));
+  PRUEBAS.falso(el.hasAttribute('inert'), 'al terminar bien se libera');
+
+  let tiro = false;
+  try { await conBloqueo(el, Promise.reject(new Error('sin red'))); } catch(e){ tiro = true; }
+  PRUEBAS.cierto(tiro, 'el error tiene que seguir propagándose: conBloqueo no se lo puede comer');
+  PRUEBAS.falso(el.hasAttribute('inert'), 'y al fallar TAMBIÉN se libera');
+  PRUEBAS.igual(el.getAttribute('aria-busy'), null, 'sin dejar el aria-busy pegado');
+  el.remove();
+});
+
+PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bloquear', () => {
+  /* ESTE es el caso que evita que vuelva a pasar. Recorre el código fuente buscando las funciones
+     que llaman al servidor y comprueba que las que arranca la persona bloqueen su zona.
+     La lista de EXCEPCIONES es explícita a propósito: son las que corren solas en segundo plano y
+     que bloquear sería un error (la cola de envíos tiene que poder vaciarse mientras la persona
+     usa la app). Si alguien agrega una función de red nueva, o no está acá o tiene que bloquear. */
+  const FONDO = [
+    'fetchConReloj', 'dashRequest',          // la cañería misma
+    'enviarConCola', 'empFlush', 'gestPost', 'gestPush', 'misSincronizar', 'consentSync',
+    'flushPending',                          // colas que se vacían solas: bloquear sería el bug
+    'dashRefresh', 'tareasCargar', 'tareasFichaCargar', 'empresaPerfilCargar',
+    'loadSetupLists', 'nominaAbrir', 'recuperarAbrir', 'dashLoadInformes',
+    'validarSupervisorCreds', 'simEntrar', 'sectorRefrescar', 'cicloTick'
+  ];
+
+  const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
+  const lineas = fuente.split('\n');
+
+  // rangos de las funciones declaradas en columna 0
+  const rangos = [];
+  for (let i = 0; i < lineas.length; i++) {
+    const m = /^function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(lineas[i]);
+    if (!m) continue;
+    let prof = 0, j = i;
+    while (j < lineas.length) {
+      prof += (lineas[j].split('{').length - 1) - (lineas[j].split('}').length - 1);
+      j++;
+      if (prof <= 0 && j > i) break;
+    }
+    rangos.push({ nombre: m[1], desde: i, hasta: j });
+    i = j - 1;
+  }
+
+  const sinBloqueo = [];
+  rangos.forEach(r => {
+    const cuerpo = lineas.slice(r.desde, r.hasta).join('\n');
+    if (!/\b(dashRequest|fetchConReloj)\s*\(/.test(cuerpo)) return;
+    if (FONDO.indexOf(r.nombre) >= 0) return;
+    if (/\b(conBloqueo|conCarga|cargaBloquear)\s*\(/.test(cuerpo)) return;
+    sinBloqueo.push(r.nombre);
+  });
+
+  PRUEBAS.igual(sinBloqueo, [],
+    'estas funciones piden al servidor por una acción de la persona y no bloquean su pantalla: ' +
+    'o se envuelven con conBloqueo(), o se agregan a la lista de las que corren en segundo plano');
 });
