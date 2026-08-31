@@ -621,3 +621,111 @@ PRUEBAS.caso('⚠️ los controles del panel se pueden tocar con guantes', () =>
   PRUEBAS.falso(/\.portal-back, \.dash-refresh[^{]*\{ width: ?30px/.test(css),
     'y la regla de pantallas chicas no puede volver a bajarlos: ahí es donde más importa');
 });
+
+PRUEBAS.grupo('P1 · los paneles del splash no se encima nada');
+
+/* LO QUE SE REPORTÓ, con captura: en "Enfoque científico y analítico" la bajada quedaba encimada
+   con las cuatro filas y el chip "Analizando…" pisaba SOMNOLENCIA.
+   LA CAUSA: la tarjeta tiene alto FIJO y tres piezas adentro (texto, gráfico, chip). Si el texto
+   crecía más de lo previsto, no cedía nada y el contenido se salía de la tarjeta.
+   Reproducido a 320x800 con el tamaño de letra en "muy grande" —que la app deja elegir—: la
+   pantalla 2 se pasaba 30 px y la 3, sesenta y nueve. */
+
+async function p1ConTexto(nivel, fn){
+  const antes = (typeof nivelTextoActual === 'function') ? nivelTextoActual() : 1;
+  fijarTamanoTexto(nivel);
+  await new Promise(r => setTimeout(r, 260));
+  try { return fn(); } finally { fijarTamanoTexto(antes); }
+}
+
+PRUEBAS.caso('⚠️ ningún panel se sale de su tarjeta, con cualquier tamaño de letra', async () => {
+  /* Las cuatro medidas que la app ofrece, no sólo la normal. El caso que falla es SIEMPRE el
+     extremo: el que nadie prueba y algún piloto sí usa. */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+
+  const malos = [];
+  for (const n of [0, 1, 2, 3]) {
+    await p1ConTexto(n, () => {
+      document.querySelectorAll('#splashAnimTrack .spl-p').forEach((p, i) => {
+        const sobra = p.scrollHeight - p.clientHeight;
+        if (sobra > 1) malos.push('letra ' + n + ' · pantalla ' + (i + 1) + ': se pasa ' + sobra + ' px');
+      });
+    });
+  }
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.igual(malos, [], 'un panel que se pasa de su tarjeta se ve encimado, que es lo que se reportó');
+});
+
+PRUEBAS.caso('⚠️ el título nunca desaparece: es lo último que cede', async () => {
+  /* El orden de quién cede es una decisión, no una casualidad: primero el gráfico (es ilustración),
+     después la bajada, y el título nunca — es el mensaje. Si algún día el título se recorta a cero,
+     el panel deja de decir nada y nadie lo nota, porque la tarjeta se sigue viendo "bien". */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const mudos = [];
+  await p1ConTexto(3, () => {
+    document.querySelectorAll('#splashAnimTrack .spl-p-tx b').forEach((b, i) => {
+      if (b.getBoundingClientRect().height < 10) mudos.push('pantalla ' + (i + 1));
+    });
+  });
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.igual(mudos, [], 'con la letra al máximo el título tiene que seguir a la vista');
+});
+
+PRUEBAS.caso('⚠️ el gráfico es el primero en ceder, y puede llegar a cero', () => {
+  /* Le había puesto un piso de 26 px "para que el gráfico no desaparezca" y el resultado fue el
+     contrario: ese piso le quitaba justo la capacidad de encogerse que evitaba el desborde, y
+     pasaron a salirse CUATRO pantallas en vez de dos. Queda escrito para no repetirlo. */
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/\.spl-p-gr \{ flex: 1 1 0; min-height: 0; \}/.test(css),
+    'el gráfico tiene que poder encogerse hasta cero: es lo que evita que el texto se encime');
+  PRUEBAS.cierto(/\.spl-p \{[^}]*overflow: hidden/.test(css),
+    'y la tarjeta recorta como última red: mejor recortado que encimado');
+});
+
+PRUEBAS.caso('el tipo de la tira tiene tope, para que la tarjeta no reviente', () => {
+  /* La app deja elegir el tamaño de letra y todo lo demás lo respeta. Acá no, y es a propósito: el
+     alto de la tarjeta es fijo, la tira es ilustración de portada, y el texto que sí importa —el
+     titular y la bajada del splash— sigue escalando entero. */
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/\.spl-p-tx b \{ font-size: min\(1rem, ?17px\)/.test(css), 'el título tiene tope');
+  PRUEBAS.cierto(/\.spl-p-tx span \{ font-size: min\(\.76rem, ?13px\)/.test(css), 'y la bajada también');
+});
+
+PRUEBAS.caso('⚠️ el punto de la línea cae sobre el final de la línea', async () => {
+  /* Estaba en `right:-3px; top:2%`, o sea "cerca del borde" y no sobre el trazo: quedaba
+     descoordinado y se salía de la caja. Ahora se ancla al último vértice de la polilínea.
+     ⚠️ Son dos números que tienen que decir lo mismo y nada los ata: si se cambian los puntos de la
+     polilínea hay que mover el `top` del punto al mismo porcentaje. Por eso esto se comprueba. */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  await new Promise(r => setTimeout(r, 200));
+
+  const gr = document.querySelector('.spl-linea');
+  const pt = document.querySelector('.spl-l-punto');
+  const poly = document.querySelector('.spl-l-viva');
+  const svg = document.querySelector('.spl-linea svg');
+  PRUEBAS.cierto(!!(gr && pt && poly && svg), 'tiene que existir el gráfico de línea con su punto');
+
+  const gb = gr.getBoundingClientRect(), pb = pt.getBoundingClientRect();
+  const pts = poly.getAttribute('points').trim().split(/\s+/);
+  const ult = pts[pts.length - 1].split(',').map(Number);
+  const vb = svg.viewBox.baseVal;
+  const finX = gb.left + (ult[0] / vb.width) * gb.width;
+  const finY = gb.top + (ult[1] / vb.height) * gb.height;
+  const dx = Math.abs(finX - (pb.left + pb.width / 2));
+  const dy = Math.abs(finY - (pb.top + pb.height / 2));
+
+  const card = pt.closest('.spl-p');
+  const cb = card.getBoundingClientRect();
+  const dentro = pb.left >= cb.left && pb.right <= cb.right && pb.top >= cb.top && pb.bottom <= cb.bottom;
+  if (!yaAbierto) ov.classList.remove('show');
+
+  PRUEBAS.comoMucho(dx, 2, 'el punto tiene que caer sobre el final de la línea en horizontal');
+  PRUEBAS.comoMucho(dy, 2, 'y en vertical (' + dy.toFixed(1) + ' px de desfase)');
+  PRUEBAS.cierto(dentro, 'y no puede salirse de la tarjeta');
+});
