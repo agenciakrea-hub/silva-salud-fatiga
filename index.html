@@ -2708,8 +2708,16 @@
   /* ── ESCRITORIO (>=900): dos paneles ── */
   @media (min-width: 900px) {
     /* ═══ B1 · Splash ═══ */
+    /* ⚠️ SE RESETEA EL `padding-top` DE 104 px, y esto lo encontró la verificación a 900x700 que
+       pide el propio plan, no algo que rompiera mover la tira. Ese relleno reserva lugar para el
+       logo y el botón de idioma anclados arriba en CELULAR — acá el logo entra al flujo de
+       `.splash-brand` y el botón de idioma es chico (44px, position:absolute), así que los 104 px
+       eran puro espacio muerto. La mayoría de las veces sobra sin que se note; a 900x700 —el punto
+       exacto donde se pasa a esta columna doble— empujaba la grilla 8 px más allá del alto
+       disponible y `.splash-wrap` la recortaba (`overflow:hidden`). Medido: con esto en 0, el
+       recorte desaparece y no se movió nada más. */
     .splash-wrap { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto;
-      align-content: center; row-gap: 0;
+      align-content: center; row-gap: 0; padding-top: 0;
       /* la mitad derecha, de borde a borde y sin depender del alto del contenido */
       background: linear-gradient(to right, transparent 0 50%, var(--card) 50% 100%); }
     /* Los círculos dejan de ser una franja superior: son el fondo del panel de presentación.
@@ -2730,12 +2738,6 @@
        ahí el logo encabeza el bloque, alineado con el titular. El anclaje a la esquina es para
        teléfono, donde no hay columna que encabezar. */
     .splash-brand .splash-logo { position: static; width: 124px; margin-bottom: 30px; }
-    /* N8 · En escritorio esta columna va alineada a la IZQUIERDA (logo y titular arrancan en el
-       mismo borde). La tira se centra por defecto, que es lo correcto en teléfono —donde todo está
-       centrado— pero acá dejaba el video flotando en el medio, desalineado con todo lo demás.
-       Medido a 1366: la tira mide 560 de ancho y el video 169, así que quedaba a 195 px del borde
-       donde arrancan el logo y el título. */
-    .splash-brand .splash-anim-slide { justify-content: flex-start; }
     .splash-brand .splash-h1 { font-size: clamp(1.95rem, 2.5vw, 2.6rem); max-width: 17ch; margin-bottom: 8px; }
     .splash-brand .splash-sub { font-size: 1.04rem; max-width: 36ch; margin-bottom: 0; }
     /* El panel accionable. El contenido va acotado y centrado dentro de la columna: a 1920 la
@@ -2746,10 +2748,23 @@
       padding: 3.2rem clamp(2rem, 4vw, 4rem) 0; }
     .splash-pie { grid-column: 2; grid-row: 2; align-self: start;
       padding: 1.6rem clamp(2rem, 4vw, 4rem) 1.4rem; gap: .15rem; }
-    /* La tira cierra la columna derecha, debajo del acceso de administrador: el mismo orden que en
-       teléfono, así las dos versiones se leen igual. */
-    .splash-anim { grid-column: 2; grid-row: 3; align-self: start;
-      margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem; max-width: none; height: clamp(120px, 20vh, 190px); }
+    /* ⚠️ VA DEL LADO AZUL (columna 1), no del lado de la tarjeta clara. Estaba en la columna 2,
+       debajo de Administrador, y ahí sobraban 207 px de navy vacío abajo de `.splash-brand`
+       (medido a 1366x768) porque esa columna sólo ocupa las filas 1 y 2 — la fila 3 quedaba sin
+       nada en el lado izquierdo.
+       ⚠️ Y EL ACOMODO SALE GRATIS, sin nada que calcular a mano: las filas de una grilla CSS
+       miden lo mismo en las dos columnas. La fila 3 ya arrancaba exactamente donde `.splash-brand`
+       terminaba (los dos en y=561, medido) porque esa es la fila que sigue a su tramo. Bastó con
+       cambiar la columna: la tira quedó pegada al pie del bloque de texto, sin mover un número.
+       El margen izquierdo es el mismo `clamp` que el padding de `.splash-brand`, para que arranque
+       en el mismo borde que el logo y el título — el selector `.splash-brand .splash-anim-slide`
+       que hacía esto antes NO SERVÍA: la tira nunca fue descendiente de `.splash-brand` en el
+       marcado (son hermanos dentro de la grilla), así que esa regla no alcanzaba a nada. Quedaba
+       centrada por el `justify-content:center` de base, pensado para el celular. */
+    .splash-anim { grid-column: 1; grid-row: 3; align-self: start;
+      margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem 0; padding-left: clamp(2rem, 4.5vw, 4.5rem);
+      max-width: none; height: clamp(120px, 20vh, 190px); }
+    #splashAnimTrack .splash-anim-slide { justify-content: flex-start; }
     .splash-wrap { grid-template-rows: auto auto auto; }
     .splash-acciones > *, .splash-pie > * { width: min(340px, 100%); }
     .splash-cta { max-width: 340px; }
@@ -4896,7 +4911,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.57';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

@@ -395,8 +395,28 @@ PRUEBAS.caso('entra en su lugar de la escalera', () => {
   const dBoton = parseFloat((fuente.match(/\.ent-texto-entra--4 \{ animation-delay: ?([\d.]+)s/) || [0,0])[1]);
   PRUEBAS.alMenos(dTira, dBoton,
     'la tira está abajo de todo: tiene que entrar después del botón (' + dTira + 's vs ' + dBoton + 's)');
-  PRUEBAS.cierto(/\.splash-brand \.splash-anim-slide \{[^}]*justify-content: ?flex-start/.test(fuente),
-    'y en escritorio arranca donde arrancan el logo y el título, no centrada');
+
+  /* ⚠️ ANTES ESTO COMPROBABA EL SELECTOR `.splash-brand .splash-anim-slide`, y ESE SELECTOR NUNCA
+     TOCÓ NADA: la tira no es descendiente de `.splash-brand` en el marcado —son hermanos dentro de
+     la grilla, no padre e hijo—, así que la regla quedaba viva en el CSS sin alcanzar ningún
+     elemento real. La prueba pasaba igual porque comprobaba que el TEXTO existiera en la hoja de
+     estilos, no que se aplicara. Es el mismo error de fondo que ya está anotado en el LEEME:
+     comprobar la implementación en vez del comportamiento.
+     Se corrigió el selector (P4, cuando la tira pasó a la columna azul) y ahora se comprueba el
+     estilo CALCULADO sobre la tarjeta real, con el splash abierto. */
+  const ov2 = document.getElementById('splashOv');
+  const yaAbierto2 = ov2.classList.contains('show');
+  ov2.classList.add('show');
+  /* La regla vive dentro de `@media (min-width:900px)`: hay que medir a un ancho de escritorio,
+     no al tamaño fijo del iframe (390px), o la comprobación da falso siempre por el ancho y no por
+     el CSS. */
+  const alineado = PRUEBAS.enVentana(1366, 768, () => {
+    const slide = document.querySelector('#splashAnimTrack .splash-anim-slide');
+    return slide && getComputedStyle(slide).justifyContent === 'flex-start';
+  });
+  if (!yaAbierto2) ov2.classList.remove('show');
+  PRUEBAS.cierto(alineado,
+    'en escritorio la tira arranca donde arrancan el logo y el título, no centrada');
 });
 
 PRUEBAS.grupo('N10 · los tres bugs que reportó el usuario');
