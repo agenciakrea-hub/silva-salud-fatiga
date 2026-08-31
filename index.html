@@ -451,7 +451,25 @@
     --entrada-chip-ink: #0a1f40;
   }
 
-  html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+  /* ⚠️ W1 (2026-08-29), "el rebote feo del scroll": "al llegar al tope con fuerza, la animación
+     saca los botones de abajo de la vista". `.bottomNav` es `position:fixed; bottom:0` (más abajo
+     en este archivo), y el rebote elástico del DOCUMENTO —el "tirón" que el celular deja hacer
+     pasado el final del scroll— es justo lo que lo arrastra: durante ese instante el navegador
+     desprende visualmente el elemento fijo del viewport, y la barra de navegación parece flotar
+     fuera de la pantalla o se ve un hueco debajo.
+     `overscroll-behavior-y: none` apaga ese rebote en el documento entero (los dos extremos, no
+     sólo el de abajo: la propiedad no permite frenar uno solo).
+     ⚠️ EL TRADE-OFF QUE PIDE EL PLAN VERIFICAR: apagar el rebote de ARRIBA es lo mismo que apaga el
+     "deslizar para actualizar" nativo de Android Chrome, que se dispara con el MISMO gesto (seguir
+     tirando hacia abajo con el scroll ya en cero). Achiqué el radio antes de decidir: esta app no
+     tiene un pull-to-refresh propio (no hay `touchstart`/`touchmove` a mano en ningún lado — se
+     comprobó buscando), así que lo único que se pierde es el del navegador. Y es standalone
+     (`manifest.json: "display":"standalone"`, sin barra de navegador visible una vez instalada):
+     el patrón de la industria para una app con navegación inferior fija —Gmail, Instagram, la
+     mayoría de las PWA "tipo app"— es apagar ese gesto a propósito, porque es la MISMA causa de
+     este mismo bug. Anotado en PENDIENTES_USUARIO.md por si Franco prefiere lo contrario. */
+  html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden;
+    overscroll-behavior-y: none; }
 
   body {
     font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
@@ -466,6 +484,7 @@
     -webkit-font-smoothing: antialiased;
     padding: env(safe-area-inset-top) 0 0;
     overflow-x: hidden;   /* el deslizamiento lateral de las vistas no debe desbordar (achicaba la pantalla) */
+    overscroll-behavior-y: none;   /* repetido acá: el "scrolling element" real varía según navegador */
   }
 
   .wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 1.1rem 1.05rem 6rem; }
@@ -4911,7 +4930,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.59';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.60';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
