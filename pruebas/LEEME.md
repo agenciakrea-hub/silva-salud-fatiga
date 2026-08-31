@@ -27,6 +27,101 @@ el 8928).
 | "no encuentro Python en el PATH" | Instalar Python. El `.bat` prueba primero `py` y después `python`. |
 | El panel no abre | El servidor de la app no está en el 8928. El `.bat` lo levanta solo. |
 
+## ⚠️ El entorno miente: lo que NO se puede verificar acá
+
+Esto es lo que más tiempo hizo perder, y no se descubre leyendo: se descubre midiendo algo, sacando
+una conclusión equivocada y volviendo. Está acá para no volver a pagarlo.
+
+La sesión de Claude corre el navegador con la pestaña **oculta de forma permanente**. Eso arrastra
+tres consecuencias que hacen que cosas correctas *parezcan* rotas:
+
+| Lo que se observa | Por qué | Cómo verificarlo de verdad |
+|---|---|---|
+| Las animaciones no corren y todo queda en el primer fotograma | `document.hidden` es siempre `true`, así que la app pone `.sin-animaciones`. Con `fill: both`, el elemento se queda en el `from` del keyframe — y si ese `from` es `opacity: 0`, **se ve vacío** | Sacar la clase a mano (`classList.remove('sin-animaciones')`) y recién ahí medir |
+| `:focus` no engancha aunque `document.activeElement` sea el campo | `document.hasFocus()` da `false`: la ventana nunca tiene el foco | No se puede. Se comprueba **sobre la regla CSS**, no sobre el estado |
+| Un `<video>` se clava a mitad de la reproducción | El navegador pausa el video con la pestaña oculta, así que el evento `ended` no llega nunca | Medir `currentTime` antes y después; no esperar `ended` |
+
+**Y las capturas de pantalla del entorno se cuelgan** (es la R11 del proyecto). Por eso existe
+`capturar.js`. Pero esa herramienta tiene sus propios límites, y **ya me hizo reportar cinco defectos
+que no existían**:
+
+1. **No carga DM Sans** → usa una tipografía de respaldo más ancha, así que parte más texto que la
+   app real.
+2. **No trae imágenes externas** → el logo sale como imagen rota. En la app carga perfecto.
+3. **No copia `fill` ni `stroke` de SVG** → un gráfico de líneas sale como un triángulo negro.
+4. **No copia `text-decoration`** → las píldoras salieron subrayadas.
+5. **No clona pseudo-elementos** → un tilde hecho con `::after` no aparece.
+
+### La regla que resume todo esto
+
+> **Cuando la imagen y la medición no coinciden, manda la medición.**
+> **Salvo para SVG, imágenes y pseudo-elementos, donde manda la imagen** — porque ahí el rasterizador
+> no dibuja lo que la app sí dibuja.
+
+Y la de fondo, que costó dos vueltas aprender: **una herramienta de verificación que miente es peor
+que no tenerla**, porque el error se propaga como si fuera un hallazgo. Cuando una captura muestre un
+defecto, medirlo antes de reportarlo.
+
+---
+
+## Cómo correr la suite desde una sesión de Claude
+
+Tres servidores, y los tres tienen que estar arriba:
+
+| Puerto | Qué | Cómo |
+|---|---|---|
+| 8928 | La app | `python -m http.server 8928 --bind 127.0.0.1` desde `silva-salud-fatiga/` |
+| 8929 | El endpoint (`.gs`) | `python pruebas/servir-gs.py` — ruta `/endpoint` |
+| 8930 | Recibe las capturas | `python pruebas/servir-captura.py` |
+
+Después se abre `http://127.0.0.1:8928/pruebas/panel.html` y se toca "Correr las pruebas".
+
+⚠️ **Dos cosas que hacen fallar la corrida y no son culpa del código:**
+
+- **Recargar y medir en la misma llamada no funciona.** `location.reload()` corta la conexión de la
+  herramienta y devuelve *"Inspected target navigated or closed"*. Hay que recargar en una llamada y
+  medir en la siguiente.
+- **Hay que esperar a que el iframe cargue** antes de tocar el botón (unos 3 a 4 segundos). Si se
+  toca antes, los casos que necesitan el endpoint se saltean y el resultado engaña.
+
+### La prueba de la caché que dependía de la red
+
+Al arrancar, la app dispara `tareasCargar()` contra el endpoint real y deja `TAREAS.cargando = true`
+por 2,5 a 5 segundos. La suite entera corre en menos de 1 s, o sea **dentro de esa ventana**: la
+prueba de la caché de M2 pasaba o fallaba según lo rápida que estuviera la red, y **aislada pasaba
+siempre**, que es lo que la hacía difícil de ver. Por eso `CTX.resetear()` limpia ese flag.
+
+Mismo criterio: `CTX.resetear()` también llama a `appRevelar(true)`, porque desde N11 la app arranca
+oculta si no hay perfil completo. Sin eso, media suite mide todo en 0 y da rojo por algo que en la
+app real no pasa.
+
+---
+
+## Errores propios que se repitieron, para no repetirlos
+
+No son del código: son de cómo escribí las pruebas y los scripts.
+
+1. **Probar la implementación en vez del comportamiento.** Varias pruebas fijaban un número o una
+   regla CSS concreta (`animation-delay: .04s`, una media query puntual) y **fallaban cuando el
+   arreglo era una mejora**. La prueba tiene que decir *qué tiene que pasar*, no *cómo está escrito*.
+   Ejemplo bueno: en vez de fijar el retraso, comparar contra el escalón del botón — así sobrevive a
+   que el bloque se mueva.
+
+2. **El heredoc de bash se come las barras invertidas.** Escribiendo un caso con `new RegExp('\\'+…)`
+   quedó una cadena sin cerrar y **se rompió el archivo entero**: la suite no cargó ni un caso y el
+   panel dijo "0 comprobaciones" en vez de dar rojo. Para archivos con expresiones regulares, escribir
+   con Python o con la herramienta de escritura, nunca con heredoc.
+
+3. **Medir sobre elementos ocultos.** `getComputedStyle` de algo con `display:none` devuelve valores
+   por defecto. Antes de medir, abrir el overlay — y acordarse de cerrarlo después.
+
+4. **Confundir la caja de padding con la de contenido.** Dos veces: `overflow:hidden` recorta en la
+   caja de PADDING (un padding horizontal abre una ventana más ancha que la diapositiva y asoman las
+   vecinas), y los porcentajes de un elemento absoluto se miden contra la caja de padding del
+   contenedor (agregar padding *desplaza* al hijo en vez de acomodarlo).
+
+---
+
 ## Por qué corren en el navegador y no con una herramienta de verdad
 
 En esta máquina **no hay Node**, así que Jest, Vitest y Playwright quedan descartados. Python sí
