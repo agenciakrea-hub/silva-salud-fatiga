@@ -2216,7 +2216,11 @@
      4.5). Sobre el navy daba 8.26 — o sea que el botón era legible o no según dónde cayera el
      círculo, que se mueve con el tamaño de pantalla y además tiene animación de deriva.
      Ahora es un chip OPACO: deja de depender de lo que haya detrás. */
-  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; z-index:5;
+  /* ⚠️ A LA IZQUIERDA en teléfono y tablet, porque la esquina derecha es del logo (arriba). En
+     ESCRITORIO se queda a la derecha: ahí la pantalla se parte en dos y la mitad derecha es la
+     tarjeta clara, que es la superficie para la que están pensados sus colores. Moverlo a la
+     izquierda en escritorio lo pondría sobre el navy con tinta de tarjeta clara. */
+  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); left:16px; z-index:5;
     background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
@@ -2234,8 +2238,34 @@
      botón) queda libre para centrarse de verdad. Antes el logo estaba dentro del flujo y empujaba
      todo hacia abajo, lo que descentraba el conjunto.
      Mismas coordenadas que `.splash-lang`, incluido el `safe-area-inset` del notch. */
-  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); left:16px; z-index:5;
-    width:58px; height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  /* ⚠️ VA A LA DERECHA, Y NO ES UNA PREFERENCIA: es donde está el círculo naranja.
+     El círculo lo pinta `.ent-circulos--naranja-navy::after`, anclado arriba a la derecha. Con el
+     logo a la izquierda quedaba sobre el navy pelado y el naranja quedaba de adorno vacío; acá el
+     logo queda DENTRO del círculo y las dos cosas se leen como una sola.
+     ⚠️ EL TAMAÑO Y LA POSICIÓN ESTÁN MEDIDOS CONTRA EL CÍRCULO, no elegidos. El círculo se recorta
+     arriba (la banda tiene `overflow:hidden`), así que la parte naranja visible es MENOS que medio
+     círculo, y además deriva unos píxeles con la animación de ambiente. Un logo más grande o más
+     pegado al borde asoma sobre el navy por la esquina de abajo. Hay una prueba que lo comprueba
+     con las cuatro esquinas y contra la deriva, así que si se cambia el tamaño del círculo o el del
+     logo, salta.
+     Yo lo había achicado a 58 px por mi cuenta, sin que nadie lo pidiera. Vuelve a 92. */
+  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); right:24px; z-index:5;
+    width:min(92px, 24.5vw); height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  /* ⚠️ EL CÍRCULO CRECE UN POCO, Y SÓLO EN EL SPLASH DE TELÉFONO. No es un retoque estético: es
+     lo que hace que el logo entre.
+     El radio del círculo va con el ANCHO de pantalla (56% del ancho) y su recorte de arriba va con
+     el ALTO (la banda mide `min(46vh,360px)` y el círculo se sube un 20% de eso). En un teléfono
+     angosto y alto esas dos cosas se pelean: el círculo queda chico Y muy subido, así que del
+     naranja se ve poco. Medido a 320x800: el logo se salía 11 px por la esquina de abajo.
+     Se buscaron los números, no se eligieron: con el círculo al 56% la única forma de que entrara
+     era un logo de 66 px — más chico todavía que el que yo había achicado de más. Al 62% entra de
+     92 px en cualquier teléfono normal y de 78 en el más angosto, con 8 px de sobra en el peor caso
+     de los catorce tamaños probados, contando la deriva de la animación.
+     Va con el selector de la banda para no tocar los otros tres lugares donde se usa el mismo
+     componente de círculos, y sólo hasta 599: en tablet y escritorio el logo ya entraba holgado. */
+  @media (max-width: 599px) {
+    .splash-circ-band .ent-circulos--naranja-navy::after { width: 62%; }
+  }
   /* ── N8 · Tira de presentación del splash ──────────────────────────────────────────────────
      El alto va con `clamp` y no con un número: el cuerpo del splash está centrado, así que todo
      lo que crece acá empuja para arriba Y para abajo. Medido a 390x844: con 22vh el bloque queda
@@ -2323,24 +2353,23 @@
      es una columna flex y, sin esto, el título encoge igual que la bajada. Medido a 375x667 con
      letra grande: quedaba en 6 px de alto, o sea presente para el código y vacío para la persona. */
   .spl-p-tx b { flex: 0 0 auto;
-    font-size: min(1rem, 17px); font-weight: 800; color: var(--text); line-height: 1.22;
+    font-size: min(var(--spl-tit), var(--spl-tit-tope)); font-weight: 800; color: var(--text);
+    line-height: 1.22;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .spl-p-tx span { font-size: min(.76rem, 13px); color: var(--text-soft); line-height: 1.4;
+  .spl-p-tx span { font-size: min(var(--spl-baj), var(--spl-baj-tope)); color: var(--text-soft);
+    line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  /* ⚠️ SIN piso, y con BASE distinta de cero. Las dos mitades importan y cuestan una medición cada
-     una:
-     · El piso no va. Le había puesto `min-height: 26px` para que el gráfico no desapareciera y el
-       resultado fue el contrario: le quitaba justo la capacidad de encogerse que evitaba el
-       desborde, y pasaron a salirse CUATRO pantallas en vez de dos.
-     · La base tampoco puede ser 0. Con `flex: 1 1 0` el gráfico parecía ceder primero, pero sólo
-       mientras SOBRABA espacio: lo que devolvía era lo que había crecido. Cuando el espacio falta,
-       flexbox reparte el recorte en proporción a `shrink × base`, y una base de 0 da capacidad de
-       encogerse 0 — o sea que el recorte entero caía sobre el TEXTO, al revés de lo decidido.
-       Medido a 375x667 con letra grande: el título quedaba en 6 px de alto.
-     Con base 44 y `shrink` altísimo, el orden queda escrito de verdad: el gráfico absorbe
-     prácticamente todo el recorte y puede llegar a cero (`min-height: 0`), y el texto sólo empieza
-     a ceder cuando ya no queda gráfico. */
-  .spl-p-gr { flex: 1 999 44px; min-height: 0; }
+  /* ⚠️ SIN PISO. Le había puesto `min-height: 26px` para que el gráfico no desapareciera y
+     conseguí lo contrario: ese piso le quitaba justo la capacidad de encogerse que evitaba el
+     desborde, y pasaron a salirse CUATRO pantallas en vez de dos. El gráfico es lo primero que
+     tiene que ceder; si no queda lugar, que se vaya.
+     ⚠️ Y OJO CON DÓNDE SE PROTEGE EL TÍTULO: no es acá. Probé `flex: 1 999 44px` creyendo que el
+     gráfico necesitaba una base distinta de cero para "tener de dónde encoger" y absorber el
+     recorte antes que el texto. Medido a siete alturas contra `flex: 1 1 0`: **idéntico en las
+     siete**. El razonamiento estaba mal — con base 0 el ítem ya vale 0, o sea que no hay nada que
+     encoger y el resultado es el mismo. Lo que de verdad impide que el título se aplaste es el
+     `flex: 0 0 auto` que lleva el título mismo (arriba): sacándolo, cae de 23 px a entre 0 y 20. */
+  .spl-p-gr { flex: 1 1 0; min-height: 0; }
   .spl-chip { flex: 0 0 auto; }
 
   /* ⚠️ LA ESPERA DEL DESLIZAMIENTO ES UN `animation-delay`, NO UN TEMPORIZADOR DE JS.
@@ -2357,7 +2386,19 @@
      ⚠️ TODO retraso de acá abajo se cuenta DESDE `--spl-in`. Una animación nueva escrita con un
      retraso suelto arranca durante el deslizamiento y devuelve el defecto: hay una prueba que
      recorre las animaciones y falla si alguna empieza antes de que la pantalla haya llegado. */
-  #splashAnimTrack .splash-anim-slide { --spl-in: .56s; }   /* la transición del track es .55s */
+  /* ⚠️ EL TOPE DEL TIPO SE ESCRIBE UNA SOLA VEZ, Y ESTO NO ES ESTILO: ES PREVENCIÓN.
+     Antes el `min()` estaba en la regla base Y otra vez en la rama de pantalla baja. Cuando P1
+     arregló la base, la rama siguió con el error —y encima con el mismo error, escrito aparte—:
+     el título crecía sin techo y las cinco pantallas se salían de su tarjeta a 375x667.
+     Ahora el mecanismo (el `min()`) vive en una sola regla y las ramas sólo cambian NÚMEROS. Una
+     rama nueva no puede "olvidarse del tope", porque el tope no está en la rama. */
+  #splashAnimTrack .splash-anim-slide {
+    --spl-in: .56s;              /* la transición del track es .55s */
+    --spl-tit: 1rem;             /* el título escala con el ajuste de letra de la persona… */
+    --spl-tit-tope: 17px;        /* … hasta acá: la tarjeta tiene alto fijo y no da para más */
+    --spl-baj: .76rem;
+    --spl-baj-tope: 13px;
+  }
 
   /* Chip de estado: el "Reportando…" / "Analizando…" de los clips. */
   .spl-chip { align-self: flex-start; font-size: .64rem; font-weight: 700; letter-spacing: .03em;
@@ -2523,7 +2564,8 @@
   @media (max-height:760px){
     .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; }
     .spl-p { padding: .6rem .75rem; gap: .3rem; }
-    .spl-p-tx b { font-size: min(.84rem, 15px); }
+    /* Sólo números: el tope lo aplica la regla base con estas dos variables. */
+    #splashAnimTrack .splash-anim-slide { --spl-tit: .84rem; --spl-tit-tope: 15px; }
     .spl-p-tx span, .spl-chip { display: none; }
     /* ⚠️ Y con la letra grande, la tira NO VA. Es un ítem flex con `flex-shrink: 1`, así que cuando
        el contenido del splash no entra el contenedor la aplasta — medido a 375x667: en "Grande"
@@ -2550,8 +2592,16 @@
   .splash-cta { max-width:320px; }
   .splash-empresa { margin-top:18px; font-size:.78rem; font-weight:700; color:rgba(255,255,255,.8);
     background:rgba(255,255,255,.1); padding:.35rem .9rem; border-radius:999px; }
+  /* ⚠️ EL AIRE DE ACÁ SE MIDE, NO SE ELIGE, y el reclamo fue "los botones están muy arriba y
+     sueltos". Medído a 390x844: entre el botón Ingresar y el primer acceso había 54 px —los 32 que
+     reparte el `space-evenly` del contenedor más 22 de relleno propio— y entre acceso y acceso, 9.
+     Con cada acceso midiendo 44 px de alto por el área de toque y el texto ocupando 17, esos 9 px
+     se ven como 36: tres cosas flotando, no un grupo.
+     El relleno de arriba baja a 6 y el hueco entre accesos a 2. El ÁREA DE TOQUE NO SE TOCA: sigue
+     en 44 px (I2), que es lo que permite apretarlos parado y con una mano — lo que se junta es lo
+     que se ve, no lo que se puede tocar. */
   .splash-pie { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
-    gap:.55rem; padding:22px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+    gap:2px; padding:16px 24px calc(env(safe-area-inset-bottom,0px) + 4px); }
   /* I2: medían 27 px de alto. Son los tres caminos secundarios de la PRIMERA pantalla, y se
      tocan parados, con una sola mano. `inline-flex` + min-height para llegar a 44 sin cambiar
      cómo se ven. */
@@ -2562,7 +2612,7 @@
      mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
      por debajo de lo legible. */
   .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
-  @media (max-width:340px){ .splash-logo{ width:48px; } .splash-sub{ margin-bottom:18px; }
+  @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
     .splash-wrap{ padding-top:calc(env(safe-area-inset-top,0px) + 88px); } }
 
   /* ── Carrusel de presentación (B2, 2026-08-25) ──
@@ -2622,7 +2672,7 @@
   @media (min-width: 600px) and (max-width: 899px) {
     .splash-circ-band { height: min(42vh, 420px); }
     .splash-cuerpo { padding: 0 48px; gap: 10px; }
-    .splash-logo { width: 92px; }   /* sigue anclado arriba a la izquierda; sólo cambia el tamaño */
+    .splash-logo { width: 116px; }  /* sigue anclado en la esquina del círculo; sólo cambia el tamaño */
     .splash-h1 { font-size: clamp(1.8rem, 3.4vw, 2.15rem); max-width: 20ch; }
     .splash-sub { font-size: 1.04rem; max-width: 46ch; margin-bottom: 32px; }
     .splash-cta { max-width: 360px; }
@@ -2713,7 +2763,10 @@
        mitad DERECHA (medido: centro en x≈1328, la mitad del panel en 683), que es el panel claro
        `var(--card)` — blanco puro en tema claro. Un chip blanco ahí sería invisible: justo el bug
        inverso al que J7 arregla. `--chip-bg`/`--text-soft` son theme-aware y resuelven los dos. */
-    .splash-lang { background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
+    /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
+       arriba sino dentro de la columna izquierda, en el flujo. */
+    .splash-lang { left: auto; right: 16px;
+      background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
 
     /* ═══ B2 · Carrusel ═══
        El panel izquierdo queda QUIETO y sólo desliza el derecho: en escritorio el movimiento
@@ -4121,11 +4174,20 @@
         <button type="button" class="ent-btn ent-btn--solid splash-cta ent-texto-entra ent-texto-entra--4" onclick="splashIngresar()" data-i18n="splash_ingresar">Ingresar</button>
         <div class="splash-empresa" id="splashEmpresaMarca" style="display:none"></div>
       </div>
-    </div>
-    <div class="splash-pie">
-      <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
-      <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
-      <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
+      <!-- ⚠️ LOS TRES ACCESOS VAN ADENTRO DEL CUERPO, y el lugar en el árbol es el arreglo.
+           Estaban como bloque hermano, y el contenedor reparte el aire con `space-evenly`: cada vez
+           que se achicaba el pie para juntarlos, el reparto devolvía ese espacio a los huecos y
+           quedaban MÁS lejos. Medido: apretándolos por dentro, la distancia entre el botón Ingresar
+           y el primer acceso pasó de 54 a 72 px — lo contrario de lo pedido.
+           Acá adentro cuelgan del mismo bloque que el titular y el botón, así que se mueven con él y
+           la distancia la fija su propio relleno, no un reparto que no controlo.
+           En escritorio no cambia nada: `.splash-cuerpo` es `display:contents` a partir de 900, o
+           sea que el pie sigue siendo un ítem directo de la grilla y conserva su celda. -->
+      <div class="splash-pie">
+        <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
+        <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
+        <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
+      </div>
     </div>
     <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
          Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
@@ -4834,7 +4896,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.55';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.57';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

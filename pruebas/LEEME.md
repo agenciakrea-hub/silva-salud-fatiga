@@ -39,6 +39,7 @@ tres consecuencias que hacen que cosas correctas *parezcan* rotas:
 |---|---|---|
 | Las animaciones no corren y todo queda en el primer fotograma | `document.hidden` es siempre `true`, así que la app pone `.sin-animaciones`. Con `fill: both`, el elemento se queda en el `from` del keyframe — y si ese `from` es `opacity: 0`, **se ve vacío** | Sacar la clase a mano (`classList.remove('sin-animaciones')`) y **congelar** cada animación en el instante que interese (ver abajo). Esperar NO sirve: no avanzan solas |
 | `:focus` no engancha aunque `document.activeElement` sea el campo | `document.hasFocus()` da `false`: la ventana nunca tiene el foco | No se puede. Se comprueba **sobre la regla CSS**, no sobre el estado |
+| **Una prueba que espera con `setTimeout` tarda eternidades, o falla sola** | Con la pestaña oculta el navegador **estrangula los temporizadores**: primero a uno por segundo y, pasados unos minutos, a uno por MINUTO. Una suite con cincuenta esperas queda clavada; y una prueba que espera 1400 ms para ver si un intervalo de 1 s disparó pasa o falla **al azar** | No esperar. Forzar el recálculo (`void document.body.offsetWidth`) y medir; o disparar el tic a mano en vez de esperarlo. Si hace falta correr la suite entera, **recargar el panel justo antes**: el estrangulamiento fuerte se cuenta desde que la pestaña se ocultó, así que recién recargada corre rápido |
 | Un `<video>` se clava a mitad de la reproducción | El navegador pausa el video con la pestaña oculta, así que el evento `ended` no llega nunca | Medir `currentTime` antes y después; no esperar `ended` |
 
 ### Cómo medir una animación en una pestaña oculta
@@ -84,6 +85,29 @@ que no existían**:
 Y la de fondo, que costó dos vueltas aprender: **una herramienta de verificación que miente es peor
 que no tenerla**, porque el error se propaga como si fuera un hallazgo. Cuando una captura muestre un
 defecto, medirlo antes de reportarlo.
+
+---
+
+## Medir a otros tamaños de pantalla
+
+`PRUEBAS.enVentana(ancho, alto, fn)` le cambia el tamaño al iframe de la app y corre `fn` ahí
+adentro, devolviéndolo como estaba al terminar. Las media queries responden como en un teléfono de
+verdad: no es una simulación. `PRUEBAS.VENTANAS` trae los cinco tamaños de referencia.
+
+```js
+for (const v of PRUEBAS.VENTANAS) {
+  PRUEBAS.enVentana(v.w, v.h, () => { /* medir acá */ });
+}
+```
+
+⚠️ **Existe porque faltaba, y la falta salió cara.** La suite corría siempre a 390x844, así que
+cualquier defecto propio de otro tamaño era invisible. El arreglo de P1 tocó una regla base, se
+midió a dos anchos —los dos altos— y se dio por terminado; la rama de "pantalla baja" del CSS, que
+redeclara varias de esas propiedades, se quedó con los dos errores originales y se descubrió a mano
+días después. **Un arreglo que tapa un agujero y deja el de al lado abierto no es distracción: es
+que nada lo comprobaba.**
+
+Es sincrónico a propósito: ver arriba por qué acá no se puede esperar.
 
 ---
 

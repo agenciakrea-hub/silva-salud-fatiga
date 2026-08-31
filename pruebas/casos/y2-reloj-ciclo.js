@@ -18,9 +18,24 @@ function y2Sembrar(minDesdeInicio, minDesdeLlegada){
     { evento: 'llegada_aero', iso: hace(minDesdeLlegada), test: 'kss', resultado: 4 }
   ]));
   renderSections();
+  /* ⚠️ La aguja la coloca `cicloMiArrancarReloj` desde un `requestAnimationFrame`, con un
+     `setTimeout` de 80 ms de respaldo. Acá no sirve ninguno de los dos: con la pestaña oculta el rAF
+     NO DISPARA NUNCA y los temporizadores están estrangulados. Se la coloca a mano para poder
+     medirla; en un navegador de verdad esto ya pasó solo. */
+  if (typeof cicloUbicarAgujas === 'function') cicloUbicarAgujas();
 }
 
-PRUEBAS.caso('⚠️ el reloj corre en el inicio, no sólo en el panel', async () => {
+PRUEBAS.caso('⚠️ el reloj corre en el inicio, no sólo en el panel', () => {
+  /* ⚠️ ESTE CASO NO ESPERA TIEMPO REAL, y no es por rapidez.
+     La primera versión esperaba 1400 ms y comparaba el texto antes y después. Con la pestaña oculta
+     —que acá lo está siempre— el navegador estrangula los temporizadores: primero a uno por segundo
+     y después a uno por MINUTO. Así, la espera y el intervalo del reloj caen en el mismo tic
+     estrangulado y el orden entre los dos es azar: el caso pasaba o fallaba según hacía cuánto que
+     la pestaña estaba oculta. Un caso que falla por el entorno es peor que no tenerlo, porque manda
+     a buscar un bug que no existe — y me mandó.
+     Se parte en las dos cosas que de verdad importan, las dos sin esperar:
+       1) que quede un reloj ARMADO, porque si no nada va a actualizarse nunca;
+       2) que un tic CAMBIE el número, que es lo que se ve. El tic se dispara a mano. */
   y2Sembrar(137, 77);
   const vivos = [...document.querySelectorAll('#sections .cic-mio [data-cic-from]')];
   PRUEBAS.alMenos(vivos.length, 1, 'el bloque del inicio tiene que traer algún contador vivo');
@@ -28,10 +43,20 @@ PRUEBAS.caso('⚠️ el reloj corre en el inicio, no sólo en el panel', async (
     'al pintar el inicio el reloj tiene que quedar en marcha, sin depender de que haya panel abierto');
 
   const antes = vivos.map(e => e.textContent.trim());
-  await new Promise(r => setTimeout(r, 1400));
+  /* Se corre el arranque del ciclo un minuto y medio más atrás: para la app es exactamente lo mismo
+     que si hubiera pasado ese tiempo, pero pasa en el acto. */
+  const guard = JSON.parse(localStorage.getItem('silva_fatiga_ciclo_mio_v1'));
+  guard.forEach(e => { e.iso = new Date(new Date(e.iso).getTime() - 90000).toISOString(); });
+  localStorage.setItem('silva_fatiga_ciclo_mio_v1', JSON.stringify(guard));
+  /* ⚠️ `data-cic-from` guarda MILISEGUNDOS, no una fecha ISO. Escribirle un ISO lo rompe con
+     "Invalid time value" — probado. */
+  document.querySelectorAll('#sections .cic-mio [data-cic-from]').forEach(e => {
+    e.dataset.cicFrom = String(Number(e.dataset.cicFrom) - 90000);
+  });
+  cicloTick();
   const despues = vivos.map(e => e.textContent.trim());
   PRUEBAS.falso(JSON.stringify(antes) === JSON.stringify(despues),
-    'el número tiene que cambiar solo: era el reclamo textual, "no se actualiza en inicio"');
+    'un tic tiene que cambiar el número: era el reclamo textual, "no se actualiza en inicio"');
 });
 
 PRUEBAS.caso('⚠️ cuenta segundo a segundo, también pasada la hora', () => {
@@ -66,13 +91,14 @@ PRUEBAS.caso('⚠️ la aguja del inicio se ubica, no queda clavada en el origen
     'y tampoco puede salirse de la barra');
 });
 
-PRUEBAS.caso('la aguja avanza con el tiempo', async () => {
+PRUEBAS.caso('la aguja avanza con el tiempo', () => {
+  /* Tampoco espera tiempo real: se siembran dos ciclos con distinto tiempo transcurrido, que es lo
+     mismo que mirar el mismo ciclo en dos momentos. Ver el caso de arriba para por que esperar no
+     sirve aca. */
   y2Sembrar(137, 77);
-  await new Promise(r => setTimeout(r, 120));
-  const aguja = document.querySelector('#sections .cic-mio .cic-now');
-  const a = parseFloat(aguja.style.left || '0');
-  await new Promise(r => setTimeout(r, 1400));
-  const b = parseFloat(aguja.style.left || '0');
+  const a = parseFloat(document.querySelector('#sections .cic-mio .cic-now').style.left || '0');
+  y2Sembrar(197, 137);
+  const b = parseFloat(document.querySelector('#sections .cic-mio .cic-now').style.left || '0');
   PRUEBAS.alMenos(b, a, 'la aguja avanza, nunca retrocede');
   PRUEBAS.falso(a === b, 'y se mueve de verdad: si no, "no se mueve de etapa" sigue siendo cierto');
 });

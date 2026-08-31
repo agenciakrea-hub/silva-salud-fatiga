@@ -633,56 +633,70 @@ PRUEBAS.grupo('P1 · los paneles del splash no se encima nada');
    Reproducido a 320x800 con el tamaño de letra en "muy grande" —que la app deja elegir—: la
    pantalla 2 se pasaba 30 px y la 3, sesenta y nueve. */
 
-async function p1ConTexto(nivel, fn){
+/* ⚠️ Sin `setTimeout`: con la pestaña oculta el navegador los estrangula hasta uno por minuto y
+   la suite se clava. `fijarTamanoTexto` cambia el tipo de la raíz en el acto; leer una medida
+   fuerza el recálculo. Comprobado: mismos números que esperando 260 ms. */
+function p1ConTexto(nivel, fn){
   const antes = (typeof nivelTextoActual === 'function') ? nivelTextoActual() : 1;
   fijarTamanoTexto(nivel);
-  await new Promise(r => setTimeout(r, 260));
-  try { return fn(); } finally { fijarTamanoTexto(antes); }
+  void document.body.offsetWidth;
+  try { return fn(); } finally { fijarTamanoTexto(antes); void document.body.offsetWidth; }
 }
 
-PRUEBAS.caso('⚠️ ningún panel se sale de su tarjeta, con cualquier tamaño de letra', async () => {
-  /* Las cuatro medidas que la app ofrece, no sólo la normal. El caso que falla es SIEMPRE el
-     extremo: el que nadie prueba y algún piloto sí usa. */
+PRUEBAS.caso('⚠️ ningún panel del splash se sale de su tarjeta, a NINGÚN tamaño', async () => {
+  /* LO QUE SE REPORTÓ, con captura: en "Enfoque científico y analítico" la bajada quedaba encimada
+     con las cuatro filas y el chip "Analizando…" pisaba SOMNOLENCIA.
+     LA CAUSA: la tarjeta tiene alto FIJO y tres piezas adentro (texto, gráfico, chip). Si el texto
+     crecía más de lo previsto, no cedía nada y el contenido se salía de la tarjeta.
+
+     ⚠️ POR QUÉ ESTE CASO RECORRE TAMAÑOS, y es la lección cara del bloque.
+     La primera versión medía al único tamaño del iframe (390x844). El arreglo se dio por terminado
+     y quedó pusheado… pero el CSS tiene una rama para pantallas de menos de 760 px de alto que
+     REDECLARA varias de esas mismas propiedades, y esa rama se quedó con los DOS errores originales:
+     el título sin tope y un piso en el gráfico. A 375x667 con la letra al máximo se salían LAS CINCO
+     pantallas, hasta 43 px. Se descubrió mirando a mano, que es justo lo que no hay que depender de
+     que alguien se acuerde de hacer.
+     Un arreglo que tapa un agujero y deja el de al lado abierto no es distracción: es que nada lo
+     comprobaba. Esto lo comprueba. */
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
+  const nivelAntes = (typeof nivelTextoActual === 'function') ? nivelTextoActual() : 1;
   ov.classList.add('show');
 
-  const malos = [];
-  for (const n of [0, 1, 2, 3]) {
-    await p1ConTexto(n, () => {
-      document.querySelectorAll('#splashAnimTrack .spl-p').forEach((p, i) => {
-        const sobra = p.scrollHeight - p.clientHeight;
-        if (sobra > 1) malos.push('letra ' + n + ' · pantalla ' + (i + 1) + ': se pasa ' + sobra + ' px');
-      });
+  const desbordan = [], mudos = [], vistos = [];
+  for (const v of PRUEBAS.VENTANAS) {
+    PRUEBAS.enVentana(v.w, v.h, () => {
+      for (const n of [0, 1, 2, 3]) {
+        fijarTamanoTexto(n);
+        void document.body.offsetWidth;
+        const tira = document.getElementById('splashAnim');
+        /* Que la tira NO se muestre es una respuesta válida y a veces la correcta: con la letra al
+           máximo se saca entera, porque aplastada rompía el pie del splash (ver P2). */
+        if (!tira || getComputedStyle(tira).display === 'none') continue;
+        vistos.push(v.w + 'x' + v.h + ' letra ' + n);
+        document.querySelectorAll('#splashAnimTrack .spl-p').forEach((c, i) => {
+          const sobra = c.scrollHeight - c.clientHeight;
+          if (sobra > 1) desbordan.push(v.w + 'x' + v.h + ' letra ' + n + ' n' + (i + 1) + ': ' + sobra + 'px');
+        });
+        document.querySelectorAll('#splashAnimTrack .spl-p-tx b').forEach((b, i) => {
+          if (b.getBoundingClientRect().height < 10) mudos.push(v.w + 'x' + v.h + ' letra ' + n + ' n' + (i + 1));
+        });
+      }
     });
   }
-  if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.igual(malos, [], 'un panel que se pasa de su tarjeta se ve encimado, que es lo que se reportó');
-});
 
-PRUEBAS.caso('⚠️ el título nunca desaparece: es lo último que cede', async () => {
-  /* El orden de quién cede es una decisión, no una casualidad: primero el gráfico (es ilustración),
-     después la bajada, y el título nunca — es el mensaje. Si algún día el título se recorta a cero,
-     el panel deja de decir nada y nadie lo nota, porque la tarjeta se sigue viendo "bien".
-     ⚠️ CON LA LETRA AL MÁXIMO LA TIRA YA NO SE MUESTRA, y eso es correcto: se aplastaba a un resto
-     de tarjeta recortada y encima le comía 9 px al pie, donde está el acceso de supervisor (ver el
-     caso de P2). Así que acá la exigencia es "o la tira no está, o el título se lee": lo que no
-     puede pasar es que la tira ocupe lugar y el título no esté. */
-  const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
-  ov.classList.add('show');
-  const mudos = [];
-  await p1ConTexto(3, () => {
-    const tira = document.getElementById('splashAnim');
-    if (getComputedStyle(tira).display === 'none') return;   // no se muestra: nada que leer
-    document.querySelectorAll('#splashAnimTrack .spl-p-tx b').forEach((b, i) => {
-      if (b.getBoundingClientRect().height < 10) mudos.push('pantalla ' + (i + 1));
-    });
-  });
+  fijarTamanoTexto(nivelAntes);
+  void document.body.offsetWidth;
   if (!yaAbierto) ov.classList.remove('show');
+
+  PRUEBAS.alMenos(vistos.length, 8,
+    'control: si la tira casi nunca se muestra, este barrido no está mirando nada');
+  PRUEBAS.igual(desbordan, [],
+    'un panel que se pasa de su tarjeta se ve encimado, que es lo que se reportó — y hay que ' +
+    'comprobarlo a TODOS los tamaños, porque el CSS tiene ramas que redeclaran lo mismo');
   PRUEBAS.igual(mudos, [],
-    'si la tira se muestra, el título tiene que leerse: una tarjeta con el título aplastado a cero ' +
-    'ocupa lugar y no dice nada');
+    'y el título nunca cede: si se aplasta a cero, la tarjeta ocupa lugar y no dice nada. El orden ' +
+    'es gráfico, bajada, y el título último');
 });
 
 PRUEBAS.caso('⚠️ el gráfico es el primero en ceder, y puede llegar a cero', () => {
@@ -690,10 +704,10 @@ PRUEBAS.caso('⚠️ el gráfico es el primero en ceder, y puede llegar a cero',
      1) Le puse un piso de 26 px "para que el gráfico no desaparezca" y conseguí lo contrario: ese
         piso le quitaba justo la capacidad de encogerse que evitaba el desborde, y pasaron a salirse
         CUATRO pantallas en vez de dos.
-     2) Después lo dejé en `flex: 1 1 0`, que PARECE ceder primero pero sólo mientras SOBRA espacio:
-        lo que devuelve es lo que había crecido. Cuando el espacio falta, flexbox reparte el recorte
-        en proporción a `shrink × base`, y una base de 0 da capacidad de encogerse 0 — o sea que el
-        recorte entero caía sobre el TEXTO.
+     2) Después "arreglé" el reparto con `flex: 1 999 44px`, convencido de que el gráfico necesitaba
+        una base distinta de cero para absorber el recorte antes que el texto. Medido a siete
+        alturas contra `flex: 1 1 0`: idéntico en las siete. No hacía nada. Lo que de verdad
+        protege al título es su propio `flex-shrink: 0`, y por eso es lo que se comprueba acá.
      ⚠️ Y ESTE CASO TAMBÉN ESTABA MAL ESCRITO: comparába la regla CSS letra por letra, así que dio
      rojo cuando la regla MEJORÓ. Ahora mira lo que el navegador aplica de verdad. La comprobación
      de que el orden se cumple al apretar está en el grupo P2, midiendo. */
@@ -702,15 +716,15 @@ PRUEBAS.caso('⚠️ el gráfico es el primero en ceder, y puede llegar a cero',
   ov.classList.add('show');
   const gr = document.querySelector('#splashAnimTrack .spl-p-gr');
   const card = document.querySelector('#splashAnimTrack .spl-p');
+  const tit = document.querySelector('#splashAnimTrack .spl-p-tx b');
   const cg = getComputedStyle(gr), cc = getComputedStyle(card);
   if (!yaAbierto) ov.classList.remove('show');
 
   PRUEBAS.igual(cg.minHeight, '0px',
     'el gráfico tiene que poder encogerse hasta cero: es lo que evita que el texto se encime');
-  PRUEBAS.falso(parseFloat(cg.flexBasis) === 0,
-    'y con base 0 no tiene DE DÓNDE encoger, así que el recorte se lo come el texto');
-  PRUEBAS.alMenos(parseFloat(cg.flexShrink), 2,
-    'tiene que ceder mucho antes que el texto, no a la par');
+  PRUEBAS.igual(getComputedStyle(tit).flexShrink, '0',
+    'y el TÍTULO no puede encoger: ahí —y no en el gráfico— es donde se protege de verdad. Sin ' +
+    'esto cae de 23 px a entre 0 y 20, medido');
   PRUEBAS.igual(cc.overflow, 'hidden',
     'y la tarjeta recorta como última red: mejor recortado que encimado');
 });
@@ -744,7 +758,7 @@ PRUEBAS.caso('⚠️ el punto de la línea cae sobre el final de la línea', asy
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
-  await new Promise(r => setTimeout(r, 200));
+  void document.body.offsetWidth;   // forzar el recalculo, no esperar: los temporizadores estan estrangulados
 
   const gr = document.querySelector('.spl-linea');
   const pt = document.querySelector('.spl-l-punto');

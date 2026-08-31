@@ -101,6 +101,59 @@
     anotar(!!document.querySelector(sel), 'existe ' + sel, !!document.querySelector(sel), porque);
   };
 
+  /* ── Medir a OTRO tamaño de pantalla ───────────────────────────────────────────────────────
+     ⚠️ POR QUÉ EXISTE ESTO, que es el agujero más caro que tuvo la suite.
+     La app corre en un iframe de 390x844 FIJO, así que TODA la suite media siempre a ese tamaño.
+     Los defectos que sólo aparecen en otro tamaño eran invisibles acá y sólo salían si a alguien
+     se le ocurría ir a mirarlos a mano. Y pasó exactamente eso: el arreglo de P1 tocó una regla
+     base, midió a dos anchos —los dos con más de 760 px de alto— y dio el trabajo por terminado.
+     La rama de "pantalla baja" del CSS, que redeclara varias de esas mismas propiedades, siguió
+     con los DOS errores originales. Se descubrió a mano, midiendo a 375x667, y para entonces ya
+     estaba pusheado como resuelto.
+     Que un arreglo tape un agujero y deje el de al lado abierto no es distracción: es que nada lo
+     comprobaba. Con esto, un caso puede recorrer los tamaños de verdad.
+
+     Se le cambia el tamaño al PROPIO iframe, así que las media queries responden como en un
+     teléfono real — no es una simulación. Y se devuelve como estaba pase lo que pase.
+
+     ⚠️ SIN ESPERAS, Y NO ES UNA OPTIMIZACIÓN: es lo único que funciona acá.
+     La primera versión esperaba 120 ms después de redimensionar, "para que el navegador rehiciera
+     el layout". Con la pestaña oculta —que acá lo está siempre— el navegador ESTRANGULA los
+     temporizadores: primero a uno por segundo y, pasados unos minutos, a uno por MINUTO. La suite
+     quedó clavada media hora en un solo caso.
+     Leer una medida (`offsetWidth`) obliga al navegador a recalcular estilo y layout en el acto,
+     que es justo lo que se necesitaba. Comprobado midiendo las dos formas en tres tamaños por dos
+     tamaños de letra: los doce resultados, idénticos.
+     REGLA GENERAL PARA ESTA SUITE: nada de `setTimeout` para "esperar a que se acomode". Forzar el
+     recálculo y medir. */
+  PRUEBAS.enVentana = function (ancho, alto, fn) {
+    const marco = window.frameElement;
+    /* Sin iframe (alguien corriendo la suite a mano en la app) se mide al tamaño que haya, en vez
+       de fallar: es preferible una comprobación menos exigente que una falla que no es del código. */
+    if (!marco) return fn(innerWidth, innerHeight);
+    const antes = { w: marco.style.width, h: marco.style.height };
+    marco.style.width = ancho + 'px';
+    marco.style.height = alto + 'px';
+    void document.body.offsetWidth;
+    try { return fn(innerWidth, innerHeight); }
+    finally {
+      marco.style.width = antes.w;
+      marco.style.height = antes.h;
+      void document.body.offsetWidth;
+    }
+  };
+
+  /* Los tamaños de referencia del proyecto (R12) más los dos que hicieron falta para encontrar
+     defectos reales: 320 de ancho, que es el teléfono más angosto que sigue en uso, y 375x667, que
+     es el que entra en la rama de pantalla baja del CSS y ninguna prueba miraba. */
+  PRUEBAS.VENTANAS = [
+    { w: 320,  h: 800, q: 'teléfono angosto' },
+    { w: 375,  h: 667, q: 'teléfono bajo (rama de pantalla baja)' },
+    { w: 390,  h: 844, q: 'teléfono típico' },
+    { w: 768,  h: 1024, q: 'tableta' },
+    { w: 1366, h: 768, q: 'computadora' }
+  ];
+
   /* ── Correr todo ───────────────────────────────────────────────────────────────────────────
      Devuelve el reporte. Un caso que LANZA no rompe la corrida: se marca como fallado con el
      error como "obtuvo". Eso importa porque un `TypeError` en el caso 2 no debe ocultar que los
