@@ -4911,7 +4911,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8116,6 +8116,21 @@ function seccionesApp(){ return [
       ev.test ? { testFlow:(ev.test === 'KSS' ? 'kss' : 'perelli'), baseNotification:t(CICLO_ITEM_MSG[ev.k] || '') } : {}
     ))
   },
+  /* ⚠️ VA ANTES DE SENSACIONES (W2, 2026-08-29). Es la única medición del inicio que no depende de
+     lo que la persona responda: mide una reacción real, en milisegundos. Puesta primero, se hace
+     con la atención más fresca — Sensaciones es un cuestionario largo (ocho tarjetas) y dejar el
+     PVT para el final significaba tomarlo ya cansado de tocar botones, precisamente lo que se
+     quiere medir sin ese sesgo.
+     ⚠️ NO HAY UN RETRASO POR SECCIÓN QUE MOVER: las `.section` comparten un único
+     `animation-delay` fijo (`.4s ease .1s both`), no uno escalonado por posición — así que
+     reordenar acá no rompe ninguna cuenta de milisegundos. Y el recorrido con teclado sigue el
+     orden del DOM, que sigue el orden de este arreglo: no hay `tabindex` explícito que lo tuerza. */
+  {
+    id:'reaccion', title:t('pvt_seccion'), sub:t('pvt_seccion_sub'), layout:'stack',
+    items:[
+      {id:'sen_pvt', label:t('pvt_nombre'), desc:t('pvt_item_desc'), icon:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>', ic:'var(--orange-bg)', icc:'var(--orange)', pvtFlow:true}
+    ]
+  },
   /* ⚠️ `label` y `desc` se VEN (van por t()); `msg` VIAJA por WhatsApp a EVA y se queda SIEMPRE
      en español, en todos los idiomas. EVA lee ese texto para saber qué test iniciar: traducirlo
      dejaría de matchear y el reporte no se registraría. Misma separación que en los tests. */
@@ -8132,13 +8147,6 @@ function seccionesApp(){ return [
       {id:'sen_gastro',      label:t('sens_gastro'),    desc:t('sens_d_gastro'),   icon:I.pill,    ic:'var(--sem-verde-bg)', icc:'#2e7d32', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
     ]
   },
-  {
-    // Sección propia: va después de Sensaciones y antes del panel de actividad.
-    id:'reaccion', title:t('pvt_seccion'), sub:t('pvt_seccion_sub'), layout:'stack',
-    items:[
-      {id:'sen_pvt', label:t('pvt_nombre'), desc:t('pvt_item_desc'), icon:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>', ic:'var(--orange-bg)', icc:'var(--orange)', pvtFlow:true}
-    ]
-  }
 ]; }
 
 /* ════════════════ STORAGE ════════════════ */
