@@ -37,9 +37,32 @@ tres consecuencias que hacen que cosas correctas *parezcan* rotas:
 
 | Lo que se observa | Por qué | Cómo verificarlo de verdad |
 |---|---|---|
-| Las animaciones no corren y todo queda en el primer fotograma | `document.hidden` es siempre `true`, así que la app pone `.sin-animaciones`. Con `fill: both`, el elemento se queda en el `from` del keyframe — y si ese `from` es `opacity: 0`, **se ve vacío** | Sacar la clase a mano (`classList.remove('sin-animaciones')`) y recién ahí medir |
+| Las animaciones no corren y todo queda en el primer fotograma | `document.hidden` es siempre `true`, así que la app pone `.sin-animaciones`. Con `fill: both`, el elemento se queda en el `from` del keyframe — y si ese `from` es `opacity: 0`, **se ve vacío** | Sacar la clase a mano (`classList.remove('sin-animaciones')`) y **congelar** cada animación en el instante que interese (ver abajo). Esperar NO sirve: no avanzan solas |
 | `:focus` no engancha aunque `document.activeElement` sea el campo | `document.hasFocus()` da `false`: la ventana nunca tiene el foco | No se puede. Se comprueba **sobre la regla CSS**, no sobre el estado |
 | Un `<video>` se clava a mitad de la reproducción | El navegador pausa el video con la pestaña oculta, así que el evento `ended` no llega nunca | Medir `currentTime` antes y después; no esperar `ended` |
+
+### Cómo medir una animación en una pestaña oculta
+
+Acá las animaciones no avanzan solas, así que `await` de 300 ms y medir **no comprueba nada**: se
+mide siempre el mismo fotograma. Y `requestAnimationFrame` directamente **nunca dispara**, o sea que
+un `await` colgado de él cuelga la suite entera — peor que fallar.
+
+Lo que sí funciona es la API de animaciones: se **congela** cada una en el instante elegido y se lee
+el estilo calculado. Es determinista y no depende del reloj de la pestaña.
+
+```js
+document.documentElement.classList.remove('sin-animaciones');  // si no, no hay nada que medir
+el.classList.add('la-clase-que-dispara');
+void document.body.offsetWidth;                                // que el estilo esté recalculado
+el.getAnimations().forEach(a => { a.pause(); a.currentTime = 200; });
+getComputedStyle(el).opacity;   // cómo se ve a los 200 ms EXACTOS
+```
+
+`a.effect.getTiming()` da `delay` y `duration` reales — sirve para comprobar cuándo arranca y cuándo
+termina algo sin tener que verlo. Y **acordarse de restaurar**: la clase que se sacó, la que se puso
+y el overlay que se abrió.
+
+---
 
 **Y las capturas de pantalla del entorno se cuelgan** (es la R11 del proyecto). Por eso existe
 `capturar.js`. Pero esa herramienta tiene sus propios límites, y **ya me hizo reportar cinco defectos
@@ -101,7 +124,13 @@ app real no pasa.
 
 No son del código: son de cómo escribí las pruebas y los scripts.
 
-1. **Probar la implementación en vez del comportamiento.** Varias pruebas fijaban un número o una
+1. **Probar la implementación en vez del comportamiento.** ⚠️ **Volvió a pasar en P2, y de golpe:
+   cuatro casos en rojo y ninguno por un error del código.** Comparában una regla CSS letra por letra
+   (`.spl-p-gr { flex: 1 1 0; ... }`) o exigían que existiera una constante con cierto nombre en el
+   JS — así que fallaron cuando el arreglo **mejoró** esas reglas. La señal de alarma es esa: si una
+   prueba se pone roja porque el código mejoró, la prueba estaba mal escrita. La forma correcta es
+   `getComputedStyle` (lo que el navegador aplica de verdad) o medir el efecto.
+   Corolario del mismo error: Varias pruebas fijaban un número o una
    regla CSS concreta (`animation-delay: .04s`, una media query puntual) y **fallaban cuando el
    arreglo era una mejora**. La prueba tiene que decir *qué tiene que pasar*, no *cómo está escrito*.
    Ejemplo bueno: en vez de fijar el retraso, comparar contra el escalón del botón — así sobrevive a
