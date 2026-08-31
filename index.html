@@ -2319,22 +2319,51 @@
      pantalla 3 se pasaba 81 px. La tira es ILUSTRACIÓN de portada, no contenido que haya que leer
      a la medida de cada uno: el texto que sí importa (el titular y la bajada del splash) sigue
      escalando entero. Con `min()` a tamaño normal se comporta igual que antes. */
-  .spl-p-tx b { font-size: min(1rem, 17px); font-weight: 800; color: var(--text); line-height: 1.22;
+  /* `flex: 0 0 auto` para que el título no se aplaste DENTRO de su propio bloque: el bloque de texto
+     es una columna flex y, sin esto, el título encoge igual que la bajada. Medido a 375x667 con
+     letra grande: quedaba en 6 px de alto, o sea presente para el código y vacío para la persona. */
+  .spl-p-tx b { flex: 0 0 auto;
+    font-size: min(1rem, 17px); font-weight: 800; color: var(--text); line-height: 1.22;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .spl-p-tx span { font-size: min(.76rem, 13px); color: var(--text-soft); line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  /* ⚠️ SIN piso. Le había puesto `min-height: 26px` pensando en que el gráfico no desapareciera, y
-     el resultado fue el contrario del buscado: ese piso le quitaba justo la capacidad de encogerse
-     que evitaba el desborde, y pasaron a salirse CUATRO pantallas en vez de dos. El gráfico es lo
-     primero que tiene que ceder; si no queda lugar, que se vaya. */
-  .spl-p-gr { flex: 1 1 0; min-height: 0; }
+  /* ⚠️ SIN piso, y con BASE distinta de cero. Las dos mitades importan y cuestan una medición cada
+     una:
+     · El piso no va. Le había puesto `min-height: 26px` para que el gráfico no desapareciera y el
+       resultado fue el contrario: le quitaba justo la capacidad de encogerse que evitaba el
+       desborde, y pasaron a salirse CUATRO pantallas en vez de dos.
+     · La base tampoco puede ser 0. Con `flex: 1 1 0` el gráfico parecía ceder primero, pero sólo
+       mientras SOBRABA espacio: lo que devolvía era lo que había crecido. Cuando el espacio falta,
+       flexbox reparte el recorte en proporción a `shrink × base`, y una base de 0 da capacidad de
+       encogerse 0 — o sea que el recorte entero caía sobre el TEXTO, al revés de lo decidido.
+       Medido a 375x667 con letra grande: el título quedaba en 6 px de alto.
+     Con base 44 y `shrink` altísimo, el orden queda escrito de verdad: el gráfico absorbe
+     prácticamente todo el recorte y puede llegar a cero (`min-height: 0`), y el texto sólo empieza
+     a ceder cuando ya no queda gráfico. */
+  .spl-p-gr { flex: 1 999 44px; min-height: 0; }
   .spl-chip { flex: 0 0 auto; }
+
+  /* ⚠️ LA ESPERA DEL DESLIZAMIENTO ES UN `animation-delay`, NO UN TEMPORIZADOR DE JS.
+     Lo que se veía: al entrar, la pantalla aparecía COMPLETA y recién después arrancaba de cero.
+     Pasaba porque el estado en reposo es el visible (decisión 2 de arriba) y la clase que dispara
+     la animación llegaba 560 ms más tarde: durante todo el deslizamiento se veía el final.
+     Se pensó resolverlo con una segunda clase "preparada" que pusiera cada pieza en su estado
+     inicial, y se descartó por dos razones: obligaba a repetir el `from` de cada keyframe en otro
+     lado —dos verdades que tarde o temprano se desincronizan— y, peor, si ese segundo cambio de
+     clase se perdía la pantalla quedaba EN BLANCO, que es exactamente el error que la decisión 2
+     evita. Con el retraso en CSS no hay nada que se pueda perder: `fill: both` hace que durante la
+     espera se vea el `from` del propio keyframe, así que la única fuente de verdad sigue siendo el
+     keyframe, y si la clase nunca llega la pantalla se ve completa igual.
+     ⚠️ TODO retraso de acá abajo se cuenta DESDE `--spl-in`. Una animación nueva escrita con un
+     retraso suelto arranca durante el deslizamiento y devuelve el defecto: hay una prueba que
+     recorre las animaciones y falla si alguna empieza antes de que la pantalla haya llegado. */
+  #splashAnimTrack .splash-anim-slide { --spl-in: .56s; }   /* la transición del track es .55s */
 
   /* Chip de estado: el "Reportando…" / "Analizando…" de los clips. */
   .spl-chip { align-self: flex-start; font-size: .64rem; font-weight: 700; letter-spacing: .03em;
     color: var(--orange-legible); background: var(--orange-bg); border: 1px solid var(--orange);
     border-radius: 999px; padding: .16rem .55rem; }
-  .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) .35s both; }
+  .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) calc(var(--spl-in) + .35s) both; }
   @keyframes splChip { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
   /* 1 · Analítica Operativa. Las barras crecen escalonadas; la marcada se pasa del rango. */
@@ -2342,12 +2371,25 @@
   .spl-barras i { flex: 1; height: var(--h); background: var(--chip-bg); border-radius: 5px 5px 2px 2px;
     transform-origin: bottom; }
   .spl-barras i.on { background: var(--orange); }
-  .spl-activa .spl-barras i { animation: splCrece .62s cubic-bezier(.22,1.2,.36,1) both; }
-  .spl-activa .spl-barras i:nth-child(2){ animation-delay:.06s } .spl-activa .spl-barras i:nth-child(3){ animation-delay:.12s }
-  .spl-activa .spl-barras i:nth-child(4){ animation-delay:.18s } .spl-activa .spl-barras i:nth-child(5){ animation-delay:.24s }
-  .spl-activa .spl-barras i:nth-child(6){ animation-delay:.30s } .spl-activa .spl-barras i:nth-child(7){ animation-delay:.36s }
-  .spl-activa .spl-barras i:nth-child(8){ animation-delay:.42s }
+  .spl-activa .spl-barras i { animation: splCrece .62s cubic-bezier(.22,1.2,.36,1) var(--spl-in) both; }
+  .spl-activa .spl-barras i:nth-child(2){ animation-delay: calc(var(--spl-in) + .06s) }
+  .spl-activa .spl-barras i:nth-child(3){ animation-delay: calc(var(--spl-in) + .12s) }
+  .spl-activa .spl-barras i:nth-child(4){ animation-delay: calc(var(--spl-in) + .18s) }
+  .spl-activa .spl-barras i:nth-child(5){ animation-delay: calc(var(--spl-in) + .24s) }
+  .spl-activa .spl-barras i:nth-child(6){ animation-delay: calc(var(--spl-in) + .30s) }
+  .spl-activa .spl-barras i:nth-child(7){ animation-delay: calc(var(--spl-in) + .36s) }
+  .spl-activa .spl-barras i:nth-child(8){ animation-delay: calc(var(--spl-in) + .42s) }
   @keyframes splCrece { from { transform: scaleY(.04); } to { transform: scaleY(1); } }
+  /* La barra marcada es EL dato del panel, y antes se perdía entre las otras siete: crecía igual
+     que todas y sólo la distinguía el color. Ahora, cuando ya crecieron todas, se remarca una vez.
+     Va acá abajo y no antes: pisa el retraso del `nth-child(6)` por ORDEN, no por especificidad
+     —las dos reglas pesan lo mismo—, así que moverla de lugar la rompe en silencio. */
+  .spl-activa .spl-barras i.on {
+    animation: splCrece .62s cubic-bezier(.22,1.2,.36,1) calc(var(--spl-in) + .30s) both,
+               splRemarca 1s var(--ease-app, ease) calc(var(--spl-in) + .92s) both; }
+  @keyframes splRemarca {
+    0%, 100% { box-shadow: 0 0 0 0 var(--orange-bg); }
+    42%      { box-shadow: 0 0 0 5px var(--orange-bg); } }
 
   /* 2 · Prevención e Impacto. La línea se dibuja sola y el punto aterriza al final. */
   /* ⚠️ SIN padding. Los porcentajes de un elemento absoluto se miden contra la caja de PADDING del
@@ -2361,7 +2403,8 @@
     vector-effect: non-scaling-stroke; }
   .spl-l-fondo { stroke: var(--chip-bg); }
   .spl-l-viva  { stroke: var(--orange); }
-  .spl-activa .spl-l-viva { stroke-dasharray: 420; animation: splTraza 1.1s cubic-bezier(.4,0,.2,1) .1s both; }
+  .spl-activa .spl-l-viva { stroke-dasharray: 420;
+    animation: splTraza 1.1s cubic-bezier(.4,0,.2,1) calc(var(--spl-in) + .1s) both; }
   @keyframes splTraza { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
   /* ⚠️ El punto se coloca sobre el FINAL REAL de la línea, no "cerca del borde". La polilínea
      termina en (300,6) de un viewBox de 300x100 y el SVG estira sin conservar proporción, así que
@@ -2373,18 +2416,34 @@
   .spl-l-punto { position: absolute; left: 100%; top: 6%; width: 10px; height: 10px;
     margin: 0; transform: translate(-50%, -50%); border-radius: 50%;
     background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
-  .spl-activa .spl-l-punto { animation: splPuntoFin .5s cubic-bezier(.22,1.2,.36,1) 1.1s both; }
+  /* Dos animaciones sobre la misma pieza, y conviven porque tocan propiedades DISTINTAS: la primera
+     lo hace aterrizar (opacidad y escala), la segunda le da un latido al halo (sombra). Si las dos
+     tocaran `transform`, la última ganaría y la otra no se vería. */
+  .spl-activa .spl-l-punto {
+    animation: splPuntoFin .5s cubic-bezier(.22,1.2,.36,1) calc(var(--spl-in) + 1.1s) both,
+               splLatido .8s var(--ease-app, ease) calc(var(--spl-in) + 1.4s) both; }
   @keyframes splPuntoFin {
     from { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
     to   { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+  @keyframes splLatido {
+    0%, 100% { box-shadow: 0 0 0 3px var(--orange-bg); }
+    50%      { box-shadow: 0 0 0 8px var(--orange-bg); } }
 
   /* 3 · Enfoque científico. Las cuatro variables entran de a una, como si se fueran midiendo. */
   .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .3rem; }
   .spl-mon span { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-  .spl-activa .spl-mon span { animation: splFila .45s cubic-bezier(.22,1.1,.36,1) both; }
-  .spl-activa .spl-mon span:nth-child(2){ animation-delay: .13s } .spl-activa .spl-mon span:nth-child(3){ animation-delay: .26s }
-  .spl-activa .spl-mon span:nth-child(4){ animation-delay: .39s }
+  .spl-activa .spl-mon span { animation: splFila .45s cubic-bezier(.22,1.1,.36,1) var(--spl-in) both; }
+  .spl-activa .spl-mon span:nth-child(2){ animation-delay: calc(var(--spl-in) + .13s) }
+  .spl-activa .spl-mon span:nth-child(3){ animation-delay: calc(var(--spl-in) + .26s) }
+  .spl-activa .spl-mon span:nth-child(4){ animation-delay: calc(var(--spl-in) + .39s) }
   @keyframes splFila { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+  /* La píldora entra un pelo DESPUÉS que su fila: primero se lee la variable y después su estado,
+     que es el orden en que se mira de verdad. Antes entraban juntas y se leía como un bloque. */
+  .spl-activa .spl-mon u { animation: splPildora .38s cubic-bezier(.22,1.3,.36,1) calc(var(--spl-in) + .18s) both; }
+  .spl-activa .spl-mon span:nth-child(2) u { animation-delay: calc(var(--spl-in) + .31s) }
+  .spl-activa .spl-mon span:nth-child(3) u { animation-delay: calc(var(--spl-in) + .44s) }
+  .spl-activa .spl-mon span:nth-child(4) u { animation-delay: calc(var(--spl-in) + .57s) }
+  @keyframes splPildora { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
   .spl-mon i { font-style: normal; font-size: .6rem; font-weight: 800; letter-spacing: .05em;
     color: var(--text-muted); }
   .spl-mon u { text-decoration: none; font-size: .6rem; font-weight: 800; border-radius: 999px;
@@ -2401,10 +2460,20 @@
   .spl-ojo { display: flex; flex-direction: column; justify-content: center; gap: .32rem;
     height: 100%; min-height: 38px; padding: .5rem; border-radius: var(--radius-xs);
     background: var(--sup-suave); box-shadow: inset 0 0 0 1px var(--sup-borde); }
-  .spl-activa .spl-ojo { animation: splFicha .5s cubic-bezier(.22,1.1,.36,1) both; }
-  .spl-activa .spl-ojo:nth-child(2){ animation-delay: .16s }
+  .spl-activa .spl-ojo { animation: splFicha .5s cubic-bezier(.22,1.1,.36,1) var(--spl-in) both; }
+  .spl-activa .spl-ojo:nth-child(2){ animation-delay: calc(var(--spl-in) + .16s) }
   @keyframes splFicha { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
-  .spl-ojo i { display: block; height: 6px; border-radius: 3px; background: var(--chip-bg); }
+  .spl-ojo i { display: block; height: 6px; border-radius: 3px; background: var(--chip-bg);
+    transform-origin: left center; }
+  /* ⚠️ Que los renglones se DIBUJEN de izquierda a derecha no es adorno: el panel dice "cada quien
+     ve lo suyo", y la ficha del médico tiene tres renglones donde la del supervisor tiene dos. Al
+     entrar las dos fichas de golpe esa diferencia —que es el mensaje entero— no se leía. */
+  .spl-activa .spl-ojo i { animation: splRenglon .4s cubic-bezier(.4,0,.2,1) calc(var(--spl-in) + .24s) both; }
+  .spl-activa .spl-ojo i:nth-child(2){ animation-delay: calc(var(--spl-in) + .34s) }
+  .spl-activa .spl-ojo--med i:nth-child(1){ animation-delay: calc(var(--spl-in) + .40s) }
+  .spl-activa .spl-ojo--med i:nth-child(2){ animation-delay: calc(var(--spl-in) + .50s) }
+  .spl-activa .spl-ojo--med i:nth-child(3){ animation-delay: calc(var(--spl-in) + .60s) }
+  @keyframes splRenglon { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .spl-ojo i:first-child { width: 62%; background: var(--text-muted); opacity: .55; }
   .spl-ojo--med { background: var(--orange-bg); box-shadow: inset 0 0 0 1px var(--orange); }
   .spl-ojo--med i { background: var(--orange); opacity: .45; }
@@ -2414,18 +2483,24 @@
   .spl-cola { display: flex; flex-direction: column; justify-content: center; gap: .4rem; }
   .spl-cola i { display: block; height: 10px; border-radius: 5px; background: var(--chip-bg); }
   .spl-cola i:nth-child(1){ width: 86% } .spl-cola i:nth-child(2){ width: 64% } .spl-cola i:nth-child(3){ width: 74% }
-  .spl-activa .spl-cola i { animation: splEnvia 1.6s cubic-bezier(.4,0,.2,1) both; }
-  .spl-activa .spl-cola i:nth-child(2){ animation-delay:.22s } .spl-activa .spl-cola i:nth-child(3){ animation-delay:.44s }
+  .spl-activa .spl-cola i { animation: splEnvia 1.7s cubic-bezier(.4,0,.2,1) var(--spl-in) both; }
+  .spl-activa .spl-cola i:nth-child(2){ animation-delay: calc(var(--spl-in) + .22s) }
+  .spl-activa .spl-cola i:nth-child(3){ animation-delay: calc(var(--spl-in) + .44s) }
+  /* Los registros ENTRAN antes de irse. Antes aparecían ya puestos y sólo se iban, así que no se
+     entendía que primero se guardan: se veía media historia. */
   @keyframes splEnvia {
-    0%   { background: var(--chip-bg);   opacity: .6; transform: translateX(0); }
-    36%  { background: var(--sem-verde); opacity: 1;  transform: translateX(0); }
-    68%  { background: var(--sem-verde); opacity: 1;  transform: translateX(0); }
+    0%   { background: var(--chip-bg);   opacity: 0;   transform: translateX(-12px); }
+    12%  { background: var(--chip-bg);   opacity: .6;  transform: translateX(0); }
+    40%  { background: var(--sem-verde); opacity: 1;   transform: translateX(0); }
+    70%  { background: var(--sem-verde); opacity: 1;   transform: translateX(0); }
     100% { background: var(--sem-verde); opacity: .25; transform: translateX(42px); }
   }
 
   /* Sin movimiento se apagan las animaciones y listo: como el estado en reposo YA es el visible
      (ver la decisión 2 de arriba), no hace falta forzar nada pieza por pieza — que era justo lo que
-     se desactualizaba y dejaba paneles en blanco. */
+     se desactualizaba y dejaba paneles en blanco. Y como la espera del deslizamiento vive DENTRO
+     del `animation` que acá se apaga, apagar la animación apaga también la espera: no queda ninguna
+     pieza escondida detrás de un retraso que nunca se cumple. */
   @media (prefers-reduced-motion: reduce) { .spl-activa * { animation: none !important; } }
   html.sin-animaciones .spl-activa * { animation: none !important; }
 
@@ -2437,13 +2512,36 @@
      —que es el mensaje— y el gráfico, que pasa de 34 a ~60 px y deja de verse aplastado.
      Este es el caso que ve un teléfono real: con la barra del navegador, la altura útil de un
      equipo de 844 cae por debajo de 760 y entra por acá. */
+  /* ⚠️ ESTA RAMA REPETÍA LOS DOS ERRORES QUE P1 arregló arriba, y P1 no los vio porque midió a
+     320x800 y 390x844 — las dos por encima de 760, o sea fuera de acá—. Medido después a 375x667
+     con la letra al máximo: las CINCO pantallas se salían de su tarjeta, hasta 43 px.
+     Eran los dos de siempre:
+       · el título sin tope, así que crecía con el ajuste de letra sin techo;
+       · y un `min-height` en el gráfico, que es justo lo que le saca la capacidad de encogerse.
+     Acá la bajada y el chip ya están ocultos, así que el gráfico se queda con todo lo que sobra por
+     su `flex: 1 1 0`: no necesita piso, y ponérselo sólo servía para desbordar. */
   @media (max-height:760px){
     .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; }
     .spl-p { padding: .6rem .75rem; gap: .3rem; }
-    .spl-p-tx b { font-size: .84rem; }
+    .spl-p-tx b { font-size: min(.84rem, 15px); }
     .spl-p-tx span, .spl-chip { display: none; }
-    .spl-p-gr { min-height: 44px; }
+    /* ⚠️ Y con la letra grande, la tira NO VA. Es un ítem flex con `flex-shrink: 1`, así que cuando
+       el contenido del splash no entra el contenedor la aplasta — medido a 375x667: en "Grande"
+       quedaba en 37 px (un resto de tarjeta recortada, que se ve roto) y en "Muy grande" en 0, y
+       aun así el splash se pasaba 9 px con `overflow: hidden`, o sea que el PIE quedaba cortado.
+       Ese pie tiene el acceso de supervisor y el de administrador.
+       Que la tira ceda está bien: es ilustración y el pie es función. Lo que estaba mal era ceder a
+       medias. Se oculta entera y el espacio vuelve al contenido. `texto-grande` ya existe: la pone
+       `aplicarTamanoTexto()` en los dos niveles grandes. */
+    html.texto-grande .splash-anim { display: none; }
   }
+  /* ⚠️ Y CON LA LETRA AL MÁXIMO NO VA EN NINGÚN ALTO. Medido a 320x800 —una pantalla que no entra
+     en la regla de arriba—: la tira se aplastaba de 192 a 86 px y dos tarjetas se salían 12 px. No
+     es el alto de la PANTALLA lo que la aprieta, es el tamaño de la LETRA: el acolchado y el título
+     crecen con ella y a ese nivel ya no entra ni el título solo.
+     Se podría haber achicado todo en píxeles para forzar que entrara, y sería la decisión
+     equivocada: quien elige la letra más grande está pidiendo lugar para LEER. Lo decorativo sale. */
+  html.texto-maximo .splash-anim { display: none; }
   @media (max-height:640px){ .splash-anim { display:none; } }
 
   .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
@@ -4736,7 +4834,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10609,6 +10707,10 @@ function aplicarTamanoTexto(){
   const n = nivelTextoActual();
   document.documentElement.style.fontSize = TEXTO_NIVELES[n].v + '%';
   document.documentElement.classList.toggle('texto-grande', n >= 2);   // el layout se adapta
+  /* El nivel máximo aparte, porque hay cosas que a partir de ahí no entran de ninguna manera y lo
+     correcto es sacarlas, no encogerlas. Quien elige la letra más grande está pidiendo lugar para
+     LEER; lo decorativo estorba. Hoy lo usa la tira del splash. */
+  document.documentElement.classList.toggle('texto-maximo', n >= TEXTO_NIVELES.length - 1);
   const lbl = document.getElementById('txtTamanoLbl');
   if (lbl) lbl.textContent = tamLabel(n);
   ['sldTexto', 'sldTextoInicio'].forEach(id => { const s = document.getElementById(id); if (s) s.value = String(n); });
@@ -18757,17 +18859,24 @@ function splashAnimArrancar(){
   /* ⚠️ La animación de cada pantalla arranca RECIÉN cuando termina de deslizarse, no antes.
      Estaban todas corriendo en bucle a la vez, así que al llegar una pantalla su animación ya venía
      por la mitad: se veía floja y desincronizada. Ahora la clase `spl-activa` es la que dispara, y
-     como se saca y se vuelve a poner, la animación REINICIA en cada pasada. */
-  const DESLIZ_MS = 560;   // un pelo más que la transición de .55s del track
+     como se saca y se vuelve a poner, la animación REINICIA en cada pasada.
+
+     ⚠️ LA ESPERA DE LOS 560 ms YA NO ESTÁ ACÁ: vive en el CSS, como `--spl-in`, dentro del
+     `animation-delay` de cada pieza. Estaba en un `setTimeout` que ponía la clase tarde, y por eso
+     durante todo el deslizamiento se veía la pantalla YA COMPLETA y después arrancaba de cero —el
+     defecto que se reportó—. Con el retraso en CSS, la clase se pone de entrada y `fill: both` hace
+     que mientras tanto se vea el estado INICIAL del keyframe. Además desaparece un temporizador que
+     podía perderse y dejar una pantalla sin animar. No devolverlo acá. */
   const ir = i => {
     est.i = i;
-    track.style.transform = 'translateX(' + (-i * 100) + '%)';
     slides.forEach(sl => sl.classList.remove('spl-activa'));
-    clearTimeout(est.timerAnim);
-    est.timerAnim = setTimeout(() => {
-      if (!est.vivo || _splAnim !== est) return;
-      slides[est.i] && slides[est.i].classList.add('spl-activa');
-    }, DESLIZ_MS);
+    /* ⚠️ Sacar y volver a poner la clase en el MISMO fotograma no reinicia nada: el navegador junta
+       los dos cambios y no ve diferencia. Leer una medida lo obliga a recalcular en el medio, que es
+       lo que hace que la animación reinicie de verdad. Importa cuando `ir()` se llama con la misma
+       pantalla que ya estaba —pasa al volver el movimiento después de estar frenado—. */
+    void track.offsetWidth;
+    track.style.transform = 'translateX(' + (-i * 100) + '%)';
+    slides[i] && slides[i].classList.add('spl-activa');
   };
 
   /* ⚠️ Se compara por IDENTIDAD contra `_splAnim`, no sólo por `est.vivo`. Apareció una cadena
@@ -18834,11 +18943,14 @@ function splashAnimFrenar(){
   if (!_splAnim) return;
   _splAnim.vivo = false;
   clearTimeout(_splAnim.timer);
-  clearTimeout(_splAnim.timerAnim);
   if (_splAnim.visib) document.removeEventListener('visibilitychange', _splAnim.visib);
   if (_splAnim.obs) _splAnim.obs.disconnect();
   const t = document.getElementById('splashAnimTrack');
   if (t) t.querySelectorAll('video').forEach(v => { v.onended = null; try { v.pause(); } catch(e){} });
+  /* Se saca la clase para que no queden animaciones corriendo abajo de una pantalla que ya no se
+     ve. Al volver a abrir, `ir()` la repone y todo reinicia; y como el estado en reposo es el
+     visible, sacarla nunca deja un panel en blanco. */
+  if (t) t.querySelectorAll('.spl-activa').forEach(sl => sl.classList.remove('spl-activa'));
   _splAnim = null;
 }
 

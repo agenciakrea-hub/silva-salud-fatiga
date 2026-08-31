@@ -551,15 +551,17 @@ PRUEBAS.caso('⚠️ la app de atrás no se ve mientras no haya perfil', () => {
   app.style.display = antes;
 });
 
-PRUEBAS.caso('la animación de cada pantalla arranca al terminar de deslizar', () => {
+PRUEBAS.caso('las animaciones cuelgan de la clase, no del elemento suelto', () => {
   /* Reportado: "están medio flojas". Corrían todas en bucle a la vez, así que al llegar una
-     pantalla su animación ya venía por la mitad. */
-  const fuente = splashAnimArrancar.toString();
-  PRUEBAS.cierto(/spl-activa/.test(fuente), 'la clase que dispara se pone desde el JS');
-  PRUEBAS.cierto(/DESLIZ_MS/.test(fuente), 'y recién después de que termine el deslizamiento');
+     pantalla su animación ya venía por la mitad.
+     ⚠️ ESTE CASO SE ACHICÓ. Antes también exigía que el JS tuviera una constante llamada
+     `DESLIZ_MS`, y falló cuando la espera se mudó al CSS — o sea, falló por una MEJORA. Es el
+     síntoma clásico de una prueba atada a CÓMO está escrito algo en vez de a qué tiene que pasar.
+     Lo que importa —que ninguna animación arranque antes de que la pantalla llegue— se comprueba
+     midiendo, en el grupo P2, sobre las animaciones que de verdad hay puestas. */
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
   PRUEBAS.cierto(/\.spl-activa \.spl-barras i \{[^}]*animation:/.test(css),
-    'y en el CSS las animaciones cuelgan de esa clase, no del elemento suelto');
+    'las animaciones tienen que colgar de la clase que se pone y se saca: es lo que las reinicia');
 });
 
 PRUEBAS.caso('⚠️ ninguna pantalla puede quedar en blanco', () => {
@@ -661,38 +663,77 @@ PRUEBAS.caso('⚠️ ningún panel se sale de su tarjeta, con cualquier tamaño 
 PRUEBAS.caso('⚠️ el título nunca desaparece: es lo último que cede', async () => {
   /* El orden de quién cede es una decisión, no una casualidad: primero el gráfico (es ilustración),
      después la bajada, y el título nunca — es el mensaje. Si algún día el título se recorta a cero,
-     el panel deja de decir nada y nadie lo nota, porque la tarjeta se sigue viendo "bien". */
+     el panel deja de decir nada y nadie lo nota, porque la tarjeta se sigue viendo "bien".
+     ⚠️ CON LA LETRA AL MÁXIMO LA TIRA YA NO SE MUESTRA, y eso es correcto: se aplastaba a un resto
+     de tarjeta recortada y encima le comía 9 px al pie, donde está el acceso de supervisor (ver el
+     caso de P2). Así que acá la exigencia es "o la tira no está, o el título se lee": lo que no
+     puede pasar es que la tira ocupe lugar y el título no esté. */
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
   const mudos = [];
   await p1ConTexto(3, () => {
+    const tira = document.getElementById('splashAnim');
+    if (getComputedStyle(tira).display === 'none') return;   // no se muestra: nada que leer
     document.querySelectorAll('#splashAnimTrack .spl-p-tx b').forEach((b, i) => {
       if (b.getBoundingClientRect().height < 10) mudos.push('pantalla ' + (i + 1));
     });
   });
   if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.igual(mudos, [], 'con la letra al máximo el título tiene que seguir a la vista');
+  PRUEBAS.igual(mudos, [],
+    'si la tira se muestra, el título tiene que leerse: una tarjeta con el título aplastado a cero ' +
+    'ocupa lugar y no dice nada');
 });
 
 PRUEBAS.caso('⚠️ el gráfico es el primero en ceder, y puede llegar a cero', () => {
-  /* Le había puesto un piso de 26 px "para que el gráfico no desaparezca" y el resultado fue el
-     contrario: ese piso le quitaba justo la capacidad de encogerse que evitaba el desborde, y
-     pasaron a salirse CUATRO pantallas en vez de dos. Queda escrito para no repetirlo. */
-  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
-  PRUEBAS.cierto(/\.spl-p-gr \{ flex: 1 1 0; min-height: 0; \}/.test(css),
+  /* Dos errores propios viven acá, y los dos costaron una medición:
+     1) Le puse un piso de 26 px "para que el gráfico no desaparezca" y conseguí lo contrario: ese
+        piso le quitaba justo la capacidad de encogerse que evitaba el desborde, y pasaron a salirse
+        CUATRO pantallas en vez de dos.
+     2) Después lo dejé en `flex: 1 1 0`, que PARECE ceder primero pero sólo mientras SOBRA espacio:
+        lo que devuelve es lo que había crecido. Cuando el espacio falta, flexbox reparte el recorte
+        en proporción a `shrink × base`, y una base de 0 da capacidad de encogerse 0 — o sea que el
+        recorte entero caía sobre el TEXTO.
+     ⚠️ Y ESTE CASO TAMBÉN ESTABA MAL ESCRITO: comparába la regla CSS letra por letra, así que dio
+     rojo cuando la regla MEJORÓ. Ahora mira lo que el navegador aplica de verdad. La comprobación
+     de que el orden se cumple al apretar está en el grupo P2, midiendo. */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const gr = document.querySelector('#splashAnimTrack .spl-p-gr');
+  const card = document.querySelector('#splashAnimTrack .spl-p');
+  const cg = getComputedStyle(gr), cc = getComputedStyle(card);
+  if (!yaAbierto) ov.classList.remove('show');
+
+  PRUEBAS.igual(cg.minHeight, '0px',
     'el gráfico tiene que poder encogerse hasta cero: es lo que evita que el texto se encime');
-  PRUEBAS.cierto(/\.spl-p \{[^}]*overflow: hidden/.test(css),
+  PRUEBAS.falso(parseFloat(cg.flexBasis) === 0,
+    'y con base 0 no tiene DE DÓNDE encoger, así que el recorte se lo come el texto');
+  PRUEBAS.alMenos(parseFloat(cg.flexShrink), 2,
+    'tiene que ceder mucho antes que el texto, no a la par');
+  PRUEBAS.igual(cc.overflow, 'hidden',
     'y la tarjeta recorta como última red: mejor recortado que encimado');
 });
 
-PRUEBAS.caso('el tipo de la tira tiene tope, para que la tarjeta no reviente', () => {
+PRUEBAS.caso('el tipo de la tira tiene tope, para que la tarjeta no reviente', async () => {
   /* La app deja elegir el tamaño de letra y todo lo demás lo respeta. Acá no, y es a propósito: el
-     alto de la tarjeta es fijo, la tira es ilustración de portada, y el texto que sí importa —el
-     titular y la bajada del splash— sigue escalando entero. */
-  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
-  PRUEBAS.cierto(/\.spl-p-tx b \{ font-size: min\(1rem, ?17px\)/.test(css), 'el título tiene tope');
-  PRUEBAS.cierto(/\.spl-p-tx span \{ font-size: min\(\.76rem, ?13px\)/.test(css), 'y la bajada también');
+     alto de la tarjeta es fijo, la tira es ILUSTRACIÓN de portada, y el texto que sí importa —el
+     titular y la bajada del splash— sigue escalando entero.
+     ⚠️ Antes esto comparaba la regla CSS letra por letra y se rompió al agregarle una propiedad
+     delante. Ahora mide el tamaño que el navegador aplica, que es lo que de verdad importa. */
+  const ov = document.getElementById('splashOv');
+  const yaAbierto = ov.classList.contains('show');
+  ov.classList.add('show');
+  const medido = await p1ConTexto(2, () => {
+    const b = document.querySelector('#splashAnimTrack .spl-p-tx b');
+    const raiz = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return { tit: parseFloat(getComputedStyle(b).fontSize), raiz: raiz };
+  });
+  if (!yaAbierto) ov.classList.remove('show');
+  PRUEBAS.alMenos(medido.raiz, 17,
+    'control: en "Grande" la letra base tiene que haber crecido, o esta prueba no prueba nada');
+  PRUEBAS.comoMucho(medido.tit, 17,
+    'y aun así el título de la tira no puede pasar de 17 px: sin tope no entra en la tarjeta');
 });
 
 PRUEBAS.caso('⚠️ el punto de la línea cae sobre el final de la línea', async () => {
