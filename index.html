@@ -4952,7 +4952,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.61';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.62';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5382,6 +5382,13 @@ const I18N = {
       db_resumen_reaccion:'Resumen de reacción',
       db_ranking_reaccion:'Ranking por tiempo de reacción',
       db_evo_reaccion:'Cómo evolucionó la reacción',
+      /* Y1 · períodos del ciclo operativo. Español NEUTRO (R1): "puedes", nunca voseo. */
+      per_titulo:'Período', per_hoy:'En curso', per_7dias:'7 días', per_30dias:'30 días', per_90dias:'90 días',
+      per_sin_datos:'No hay registros en este período',
+      per_sin_datos_h:'Prueba con un período más amplio, o revisa los filtros de arriba.',
+      per_viendo:'Estás viendo {n} días',
+      per_ciclos_n:'{n} ciclos en el período',
+      per_ciclo_1:'1 ciclo en el período',
       db_informe_ia:'Informe IA',
       db_numeros:'Números en detalle, por indicador',
       db_sobre_ref:'Sobre la referencia',
@@ -6818,6 +6825,12 @@ const I18N = {
       db_resumen_reaccion:'Reaction summary',
       db_ranking_reaccion:'Ranking by reaction time',
       db_evo_reaccion:'How reaction time evolved',
+      per_titulo:'Period', per_hoy:'Current', per_7dias:'7 days', per_30dias:'30 days', per_90dias:'90 days',
+      per_sin_datos:'No records in this period',
+      per_sin_datos_h:'Try a wider period, or check the filters above.',
+      per_viendo:'You are viewing {n} days',
+      per_ciclos_n:'{n} cycles in this period',
+      per_ciclo_1:'1 cycle in this period',
       db_informe_ia:'AI report',
       db_numeros:'Numbers in detail, by indicator',
       db_sobre_ref:'Above the reference',
@@ -12778,6 +12791,10 @@ function dashRefresh(manual){
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
     DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.operacional = d.operacional || []; DASH.rawSig = sig;
+    /* Y1: el periodo que el servidor sirvio DE VERDAD, que no siempre es el pedido (a un supervisor
+       se le ignora y a cualquiera se le recorta a 365). Se guarda para poder decir en pantalla
+       cuanto se esta viendo, en vez de suponer que dieron lo que se pidio. */
+    DASH.operacionalPeriodo = d.operacionalPeriodo || null;
     DASH.aptitud = Array.isArray(d.aptitud) ? d.aptitud : null;   // E2a: se refresca junto con lo demás
     DASH.turnos = d.turnos || [];   // E2b: idem
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
@@ -14780,6 +14797,94 @@ function cicloAgruparEventos(eventos, ventana){
     if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;
   });
   return actual;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   Y1 · CICLOS HISTÓRICOS                                                            (2026-08-29)
+
+   `cicloAgruparEventos` devuelve UN ciclo: el abierto más reciente. Es lo correcto para "¿cómo va
+   hoy esta persona?", que es la pregunta del supervisor. Pero deja sin respuesta la del servicio
+   médico y la de Dirección, que es otra: "¿cómo vinieron las últimas semanas?".
+
+   Esta es el mismo motor —misma regla de apertura, misma ventana, mismo criterio de "gana el
+   evento más nuevo de cada tipo"— pero devolviendo TODOS los ciclos en vez de quedarse con el
+   último. Comparte el cuerpo a propósito: si fueran dos copias, el día que se corrija un borde se
+   corrige en una sola y las dos pantallas empiezan a contar historias distintas del mismo turno —
+   que es la razón por la que `cicloAgruparEventos` ya era compartida entre supervisor y empleado.
+
+   ⚠️ EL ORDEN DE SALIDA ES DEL MÁS NUEVO AL MÁS VIEJO, al revés de como entran los eventos. Es lo
+   que se quiere leer primero en una lista histórica, y evita que cada pantalla lo invierta por su
+   cuenta y una se olvide. */
+function cicloAgruparTodos(eventos, ventana){
+  const evInicial = cicloEventoInicial();
+  const evs = (eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  const ciclos = [];
+  let actual = null;
+  evs.forEach(o => {
+    const t = new Date(o.iso).getTime();
+    if (o.evento === evInicial || !actual || (t - actual.t0) > ventana){
+      actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
+      ciclos.push(actual);
+    }
+    const prev = actual.ev[o.evento];
+    if (!prev || t > new Date(prev.iso).getTime()) actual.ev[o.evento] = o;
+  });
+  return ciclos.reverse();
+}
+
+/* Los ciclos históricos de TODAS las personas que entran en los filtros vigentes, agrupados por
+   persona. Es `cicloArmar()` pero sin quedarse con el último ciclo de cada una.
+
+   ⚠️ ACÁ SÍ SE FILTRA POR FECHA, y es la diferencia de fondo con `cicloArmar()`. Esa función lo
+   evita a propósito —su comentario lo explica: el ciclo es "lo que está pasando hoy", y filtrarlo
+   por período dejaría la pestaña vacía apenas alguien eligiera "último mes"—. Acá la pregunta es
+   la contraria: el período ES lo que se está mirando. Son dos vistas distintas del mismo dato y
+   por eso son dos funciones, no un parámetro. */
+function cicloHistorico(desdeF, hastaF){
+  const plan = cicloPlan(), ventana = cicloTotalMin(plan) * 60000;
+  const rows = (DASH.operacional || []).filter(o => {
+    if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
+    if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
+    if (DASH.f.per && o.persona !== DASH.f.per) return false;
+    if (DASH.f.nivel && String(nivelRiesgoDe(o.persona, o.departamento, o.empresa, o.cargo)) !== String(DASH.f.nivel)) return false;
+    if (!o.iso || isNaN(new Date(o.iso).getTime())) return false;
+    /* Se compara la FECHA de la operación como texto, no el instante: es el mismo criterio que usa
+       el endpoint para recortar el rango (ver leerOperacional) y la misma lección de L1. Si una
+       punta comparara instantes y la otra fechas, el borde del período no coincidiría entre lo que
+       el servidor manda y lo que la pantalla muestra. */
+    const f = o.fecha || String(o.iso).slice(0,10);
+    if (desdeF && f < desdeF) return false;
+    if (hastaF && f > hastaF) return false;
+    return true;
+  });
+  const porPersona = {};
+  rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
+  const out = {};
+  Object.keys(porPersona).forEach(k => {
+    const c = cicloAgruparTodos(porPersona[k], ventana);
+    if (c.length) out[k] = c;
+  });
+  return out;
+}
+
+/* Los períodos que se ofrecen. `dias` es lo que se le pide al servidor; el rango explícito lo
+   arma el cliente para recortar sin volver a pedir. */
+function cicloPeriodos(){
+  return [
+    { id:'hoy',   dias:7,   etiqueta:t('per_hoy'),      soloHoy:true },
+    { id:'7',     dias:7,   etiqueta:t('per_7dias') },
+    { id:'30',    dias:30,  etiqueta:t('per_30dias') },
+    { id:'90',    dias:90,  etiqueta:t('per_90dias') }
+  ];
+}
+
+/* ⚠️ QUIÉN PUEDE VER HISTÓRICO LO DICE EL SERVIDOR, no esta función. `operacionalPeriodo` viene en
+   la respuesta con `puedeVerHistorico` ya resuelto según la vista, y acá sólo se lee. Si la
+   decisión se tomara en el cliente, un supervisor podría cambiarla desde las herramientas del
+   navegador — y sobre todo: el dato ya le habría llegado. El recorte real está en el endpoint
+   (mismo criterio que K1a y K1b); esto es sólo no ofrecer un control que no va a funcionar. */
+function cicloPuedeHistorico(){
+  return !!(DASH && DASH.operacionalPeriodo && DASH.operacionalPeriodo.puedeVerHistorico);
 }
 
 /* El ciclo de LA PROPIA PERSONA, para su pantalla de inicio. Mismo motor que el del supervisor
