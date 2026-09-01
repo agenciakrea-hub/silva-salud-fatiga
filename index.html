@@ -1892,7 +1892,8 @@
        Las tres van a banda completa (son la sección entera, no una columna de ella) y las tarjetas
        se reparten adentro. */
     .dash-sec > .cic-pers, .dash-sec > .cic-resumen, .dash-sec > .cic-lista,
-    .dash-sec > .cic-buscar-wrap, .dash-sec > .cic-mas, .dash-sec > .cic-grises { flex-basis: 100%; }
+    .dash-sec > .cic-buscar-wrap, .dash-sec > .cic-mas, .dash-sec > .cic-grises,
+    .dash-sec > .prm-bloque { flex-basis: 100%; }
     .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
     /* Los gráficos aprovechan más ancho dentro de su tarjeta */
     .radar-wrap .linechart { max-width: 760px; }
@@ -3492,6 +3493,27 @@
     transition:background .18s, color .18s; }
   .cic-per:hover { color:var(--text); }
   .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* ── Y3 · promedios de duración ────────────────────────────────────────────────────────────
+     Mismo lenguaje que las demás rejillas del panel: `auto-fit`, mínimo en `rem`, todo por token. */
+  .prm-bloque { background:var(--sup-bg); border:1px solid var(--sup-borde);
+    border-radius:var(--radius-xs); padding:.7rem .8rem; margin:.2rem 0 .9rem; }
+  .prm-tit { font-size:.86rem; font-weight:800; color:var(--text); margin-bottom:.5rem; }
+  .prm-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap:.5rem; }
+  .prm-cel { background:var(--card); border:1px solid var(--sup-borde);
+    border-radius:var(--radius-xs); padding:.45rem .55rem; }
+  /* Con pocos registros la celda se atenúa: el número sigue estando, pero se ve que pesa menos.
+     El aviso escrito de abajo dice por qué — el color solo nunca alcanza para explicar algo. */
+  .prm-flojo { opacity:.72; }
+  .prm-top { display:flex; align-items:baseline; justify-content:space-between; gap:.3rem; }
+  .prm-t { font-size:.72rem; font-weight:800; letter-spacing:.02em; color:var(--text-muted); }
+  .prm-v { font-size:1.05rem; font-weight:800; color:var(--text); line-height:1.25; }
+  .prm-n { font-size:.68rem; color:var(--text-muted); line-height:1.35; }
+  /* La diferencia contra lo previsto lleva flecha ADEMÁS de color. */
+  .prm-dif { font-size:.68rem; font-weight:800; white-space:nowrap; color:var(--text-muted); }
+  .prm-mas   { color:var(--sev-txt-5); }
+  .prm-menos { color:var(--sev-txt-1); }
+  .prm-fuera { font-size:.72rem; color:var(--text-muted); line-height:1.4; margin-top:.5rem; }
+
   /* ── T2 · panel de miniaturas de evolución ─────────────────────────────────────────────────
      `auto-fit` otra vez, y por la misma razón que en la lista del ciclo: la cantidad de columnas
      la decide el espacio y no un punto de corte a mano, y el mínimo va en `rem` para que siga al
@@ -5029,7 +5051,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.66';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.67';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5477,6 +5499,14 @@ const I18N = {
       evo_sobre_ref:'{p}% sobre la referencia', evo_bajo_ref:'{p}% bajo la referencia',
       evo_en_ref:'En la referencia', evo_estable:'igual',
       evo_nota_ref:'Cada línea es el promedio del mes comparado con la referencia de esa medición. La línea punteada es la referencia.',
+      /* Y3 · promedios de duración. Español NEUTRO (R1). */
+      prm_titulo:'Promedio de cada tramo', prm_de_n:'de {n} registros', prm_de_1:'de 1 registro',
+      prm_previsto:'previsto {d}',
+      prm_pocos:'Con menos de tres registros el promedio todavía dice poco.',
+      prm_fuera_1:'1 registro quedó afuera por durar demasiado: probablemente no se tocó el botón de cierre.',
+      prm_fuera_n:'{n} registros quedaron afuera por durar demasiado: probablemente no se tocó el botón de cierre.',
+      prm_persona:'Promedio de {q} en este período',
+      prm_ayuda:'Promedios de <b>tiempo</b>, no de resultados de tests. Salen de los tramos ya cerrados del período elegido: un tramo en curso todavía no duró lo que muestra, así que no cuenta.',
       db_informe_ia:'Informe IA',
       db_numeros:'Números en detalle, por indicador',
       db_sobre_ref:'Sobre la referencia',
@@ -6925,6 +6955,13 @@ const I18N = {
       lst_reportaron:'{a} of {n} reported today',
       lst_sin_reportar:'{n} have not reported', lst_sin_reportar_1:'1 has not reported',
       lst_ver_sin:'See who', lst_ocultar_sin:'Hide',
+      prm_titulo:'Average per segment', prm_de_n:'from {n} records', prm_de_1:'from 1 record',
+      prm_previsto:'planned {d}',
+      prm_pocos:'With fewer than three records the average still says little.',
+      prm_fuera_1:'1 record was left out for lasting too long: the closing button was probably not tapped.',
+      prm_fuera_n:'{n} records were left out for lasting too long: the closing button was probably not tapped.',
+      prm_persona:'Average for {q} in this period',
+      prm_ayuda:'Averages of <b>time</b>, not of test results. They come from segments already closed in the chosen period: a segment still running has not lasted what it shows, so it does not count.',
       evo_sobre_ref:'{p}% above reference', evo_bajo_ref:'{p}% below reference',
       evo_en_ref:'At reference', evo_estable:'steady',
       evo_nota_ref:'Each line is the monthly average compared to that measure\u2019s reference. The dashed line is the reference.',
@@ -14997,6 +15034,122 @@ function cicloHistorico(desdeF, hastaF){
   return out;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   Y3 · PROMEDIOS DE DURACIÓN                                                       (2026-08-29)
+
+   Lo pedido: "todo el organismo cumple en promedio tanto en traslado", y poder mirar a una persona
+   por período ("Fernando en marzo tardó en promedio 47 minutos").
+
+   ⚠️ POR QUÉ ESTO SE PUEDE HACER SIN REABRIR NINGUNA FUGA, que es la pregunta que hay que
+   contestar antes de escribir un solo número.
+   **Un promedio de puntajes ES un puntaje.** Si el agregado incluyera resultados de tests,
+   reabriría exactamente lo que E2a y K1a cerraron. Acá se promedian **DURACIONES**, que es dato
+   operativo y no clínico — el mismo criterio por el que hoy `carga` no se recorta y `resultado` sí:
+   cuánto tardó un traslado habla del ENTORNO y del turno, no del estado de salud de la persona.
+
+   ⚠️ Y LA PROTECCIÓN NO SE AGREGÓ ACÁ: YA ESTABA, y esto se apoya en ella a propósito.
+     · El **supervisor** y **Dirección** no reciben `resultado` — el endpoint lo reemplaza por
+       `nivel` (K1a). Así que un promedio de puntajes para ellos no es que esté "oculto": **no hay
+       con qué calcularlo**, ni desde la consola del navegador.
+     · A **Dirección** el nombre le llega anonimizado (K1b), así que agrupar por persona le
+       devuelve grupos sin identidad. Tampoco hay que impedírselo: no puede.
+   Poner un recorte nuevo en el cliente habría sido peor que inútil — habría dado la impresión de
+   que el cliente protege algo, cuando lo que protege es el servidor. Lo que sí hay acá son PRUEBAS
+   que fallan si esa protección se afloja. */
+
+/* Cuántas veces lo previsto tiene que durar un tramo para considerarlo un olvido y no un dato.
+   ⚠️ CASO BORDE DEL PLAN: "un valor absurdo (14 h de traslado porque se olvidó de tocar el botón)
+   lo distorsiona todo". Con un promedio simple, UN olvido entre diez traslados de una hora los
+   convierte en dos horas y media de promedio — y el número miente sin que nadie lo note.
+   No se descartan en silencio: se cuentan y se dicen. Un "3 registros quedaron afuera por ser
+   demasiado largos" no es ruido, es justamente lo que el supervisor querría saber. */
+var CICLO_ATIPICO_X = 3;
+
+/* Promedios por tramo a partir de una lista de ciclos ya armados.
+   Devuelve, por tramo: promedio, cuántas mediciones lo sostienen, cuántas se descartaron y el
+   previsto contra el que se compara. */
+function cicloPromedios(ciclosPorPersona, plan){
+  plan = plan || cicloPlan();
+  const ahora = Date.now();
+  const acum = {};
+  cicloTramos().forEach(tr => { acum[tr.k] = { k:tr.k, corto:tr.corto, previsto:plan[tr.k], vals:[], fuera:0 }; });
+
+  Object.keys(ciclosPorPersona || {}).forEach(kp => {
+    const lista = ciclosPorPersona[kp];
+    (Array.isArray(lista) ? lista : [lista]).forEach(c => {
+      if (!c) return;
+      const st = cicloEstado(c, ahora, plan);
+      st.tramos.forEach(tra => {
+        /* ⚠️ CASO BORDE DEL PLAN: "los tramos abiertos no cuentan". Un tramo en curso no duró lo
+           que muestra: duró lo que lleva. Meterlo en el promedio lo tira sistemáticamente hacia
+           abajo, y encima cambia solo con el reloj. */
+        if (tra.estado !== 'cerrado' || tra.real == null) return;
+        const a = acum[tra.k];
+        if (!a) return;
+        if (a.previsto && tra.real > a.previsto * CICLO_ATIPICO_X){ a.fuera++; return; }
+        a.vals.push(tra.real);
+      });
+    });
+  });
+
+  return cicloTramos().map(tr => {
+    const a = acum[tr.k];
+    const n = a.vals.length;
+    const prom = n ? Math.round(a.vals.reduce((x,y) => x+y, 0) / n) : null;
+    return { k:tr.k, corto:tr.corto, previsto:a.previsto, n:n, fuera:a.fuera, promedio:prom,
+             delta: (prom == null || !a.previsto) ? null : (prom - a.previsto) };
+  });
+}
+
+/* ⚠️ QUIÉN VE PROMEDIOS. El supervisor no: su pantalla es "qué está pasando ahora", y el promedio
+   es una lectura de gestión que no le corresponde. El servicio médico sí, general y por persona.
+   Dirección ve el general —es un agregado de la organización, que es exactamente su contrato— pero
+   NO el individual: con pocas personas por área, un promedio individual re-identifica aunque el
+   nombre no esté. (Y de hecho no podría: el nombre le llega anonimizado desde el endpoint.) */
+function cicloVePromedios(){
+  const v = DASH && DASH.vista;
+  return v === 'medico' || v === 'hseq' || (DASH && DASH.rol === 'admin');
+}
+function cicloVePromedioPersona(){
+  const v = DASH && DASH.vista;
+  return v === 'medico' || (DASH && DASH.rol === 'admin');
+}
+
+/* La tira de promedios. `titulo` la distingue cuando se muestra la de UNA persona. */
+function cicloPromediosHtml(ciclosPorPersona, plan, titulo){
+  if (!cicloVePromedios()) return '';
+  const filas = cicloPromedios(ciclosPorPersona, plan).filter(f => f.n > 0);
+  if (!filas.length) return '';
+
+  const celdas = filas.map(f => {
+    /* ⚠️ CASO BORDE DEL PLAN: "un promedio con dos mediciones no es un promedio — hay que mostrar
+       de cuántas sale". El `n` va SIEMPRE, no sólo cuando es bajo: si sólo apareciera con pocos
+       datos, su ausencia se leería como "acá hay muchos" sin que nadie lo haya dicho. */
+    const flojo = f.n < 3;
+    const dif = f.delta;
+    const cls = dif == null ? '' : (dif > 0 ? ' prm-mas' : (dif < 0 ? ' prm-menos' : ''));
+    const difTxt = dif == null || dif === 0 ? ''
+      : '<span class="prm-dif' + cls + '">' + (dif > 0 ? '\u2191' : '\u2193') + ' ' + cicloHM(Math.abs(dif)) + '</span>';
+    return '<div class="prm-cel' + (flojo ? ' prm-flojo' : '') + '">' +
+      '<div class="prm-top"><span class="prm-t">' + esc(t(f.corto)) + '</span>' + difTxt + '</div>' +
+      '<div class="prm-v">' + esc(cicloHM(f.promedio)) + '</div>' +
+      '<div class="prm-n">' + esc(t(f.n === 1 ? 'prm_de_1' : 'prm_de_n', { n: f.n })) +
+        (f.previsto ? ' \u00b7 ' + esc(t('prm_previsto', { d: cicloHM(f.previsto) })) : '') + '</div>' +
+    '</div>';
+  }).join('');
+
+  const fuera = filas.reduce((a, f) => a + f.fuera, 0);
+  const avisoFuera = fuera
+    ? '<div class="prm-fuera">' + esc(t(fuera === 1 ? 'prm_fuera_1' : 'prm_fuera_n', { n: fuera })) + '</div>'
+    : '';
+  const pocos = filas.some(f => f.n < 3)
+    ? '<div class="prm-fuera">' + esc(t('prm_pocos')) + '</div>' : '';
+
+  return '<div class="prm-bloque">' +
+    (titulo ? '<div class="prm-tit">' + esc(titulo) + '</div>' : '') +
+    '<div class="prm-grid">' + celdas + '</div>' + pocos + avisoFuera + '</div>';
+}
+
 /* Los períodos que se ofrecen. `dias` es lo que se le pide al servidor; el rango explícito lo
    arma el cliente para recortar sin volver a pedir. */
 function cicloPeriodos(){
@@ -15489,7 +15642,14 @@ function renderCicloOperativo(){
      nada individual; lo que no se arma son las tarjetas por persona. Tampoco se expone
      `_cicNames` ni la configuración del ciclo: cambiar los tramos de la operación es una acción
      de supervisión, no de dirección. */
-  if (DASH.vista === 'hseq') return cicloHseqAgregado(filas, plan, ayuda, resumen);
+  /* Y3 · Dirección ve el promedio GENERAL y no el de cada persona, y esa distinción es la que
+     importa: el general es un agregado de la organización —exactamente su contrato— mientras que
+     un promedio por persona re-identifica, porque con pocas personas por área el número dice
+     quién es aunque el nombre no esté. Por eso la tira general se le pasa acá y las tarjetas por
+     persona, que es donde vive el promedio individual, no se arman para esta vista. */
+  if (DASH.vista === 'hseq')
+    return cicloHseqAgregado(filas, plan, ayuda,
+      resumen + cicloPromediosHtml(sel.ciclos, plan, t('prm_titulo')));
   DASH._cicNames = filas.map(f => f.p.persona);
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
 
@@ -15561,7 +15721,14 @@ function renderCicloOperativo(){
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
       cicloTurnoHtml(pe.persona) +
-      cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
+      cicloBarra(st, plan) + cicloTramosHtml(st, plan) +
+      /* Y3 · el promedio DE ESTA PERSONA en el período. Sólo en histórico (en "En curso" hay un
+         solo ciclo y su promedio sería ese mismo ciclo, o sea ruido) y sólo para quien puede ver
+         promedios individuales: Dirección ve el del grupo pero no el de una persona. */
+      ((sel.historico && misCiclos && misCiclos.length > 1 && cicloVePromedioPersona())
+        ? cicloPromediosHtml({ x: misCiclos }, plan, t('prm_persona', { q: pe.persona }))
+        : '') +
+      '</div>';
   }).join('');
   /* Ningún resultado para lo buscado: mensaje propio, no el vacío genérico. "Nadie coincide con
      «xyz»" es una causa distinta de "esta empresa no tiene gente", y el genérico haría pensar lo
@@ -15607,7 +15774,13 @@ function renderCicloOperativo(){
      —medido: el texto y el foco sobrevivían— pero por rescate: cualquier repintado que se agregara
      después y se olvidara del rescate volvía a romperlo, y el síntoma sería que a la persona se le
      borra lo que está escribiendo sin ninguna causa visible. Mejor que no haya nada que rescatar. */
-  return ayuda + perHtml + cfgHtml + resumen + buscador +
+  /* Y3 · la tira de promedios del grupo. `cicloPromediosHtml` decide sola si corresponde mostrarla
+     según la vista, así que acá no hay que repetir esa condición — una regla escrita en dos lugares
+     es una regla que va a quedar distinta en uno de los dos. */
+  const promHtml = cicloPromediosHtml(sel.ciclos, plan, t('prm_titulo'));
+  const promAyuda = promHtml ? dashHelp(t('prm_ayuda')) : '';
+
+  return ayuda + perHtml + cfgHtml + resumen + promAyuda + promHtml + buscador +
     '<div id="cicCuerpo">' +
       '<div class="cic-lista" id="cicLista">' + cards + '</div>' + masBtn + grisesHtml +
     '</div>';
