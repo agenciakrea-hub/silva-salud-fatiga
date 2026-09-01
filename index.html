@@ -873,7 +873,13 @@
   .stats-entry .chev { color: var(--text-muted); }
 
   .portal-tabs { display: flex; gap: .4rem; background: var(--chip-bg); padding: .28rem; border-radius: 12px; margin: 1.2rem 0 1rem; }
-  .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer; }
+  /* ⚠️ A1 (2026-08-29): medían 34 px de alto. Se ven en TABLET, que se toca con el dedo igual que
+     un teléfono — no es una pantalla de mouse sólo porque sea ancha. Es el mismo criterio de I2
+     (los enlaces del splash) y del `.admin-toggle`: 44 px de alto mínimo.
+     `min-height` en vez de más `padding`: el padding también empujaría el texto y cambiaría cómo se
+     ven; así crece sólo el área que responde al dedo. */
+  .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
   .ptab.active { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
   .portal-err { color: var(--sem-rojo-alt); font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
@@ -1248,7 +1254,13 @@
   /* El acceso de administrador va abajo de todo, pegado al borde inferior del panel */
   #portalSup { display: flex; flex-direction: column; min-height: 100%; }
   .admin-sep { margin-top: auto; padding-top: 1.1rem; border-top: 1px dashed #d8dee8; text-align: center; }
-  .admin-toggle { background: none; border: none; font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
+  /* ⚠️ A1 (2026-08-29): medía 183×16. Es un BOTÓN, y se toca con el dedo parado, así que necesita
+     los 44 px de alto que ya se le dieron a los enlaces del splash en I2 — el mismo criterio, que
+     se había aplicado ahí y no acá. `inline-flex` + `min-height` llega a 44 sin cambiar cómo se ve:
+     el subrayado y el tipo quedan igual, sólo crece el área que responde al dedo.
+     Lo encontró el auditor barriendo las pantallas ABIERTAS; con el portal cerrado no se veía. */
+  .admin-toggle { background: none; border: none; font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--text-muted); cursor: pointer; text-decoration: underline;
+    display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 .5rem; }
   #adminBox { margin-top: .8rem; text-align: left; }
 
   /* Torta / dona */
@@ -1683,11 +1695,21 @@
      así que el gráfico quedaba invisible dentro del círculo ("apagado"). Este botón vive SIEMPRE
      sobre la barra navy, así que su círculo se mantiene claro en los dos temas y el ícono usa un
      azul fijo que contrasta con ese círculo. */
+  /* ⚠️ R13: acá había DOS colores escritos a mano (`#ffffff` y `#fff`). Los encontró el auditor de
+     A1 como "superficie clara en tema oscuro" — y el hallazgo era medio cierto: el disco es blanco
+     a propósito (es el botón destacado sobre la barra navy, el mismo patrón que el chip de idioma
+     del splash), pero estaba escrito a mano en vez de salir de un token.
+     `--entrada-chip` / `--entrada-chip-ink` existen para exactamente esto: un chip OPACO que se
+     destaca sobre el navy, con su tinta. Ya los usa el botón de idioma. Al pasar a token no cambia
+     un píxel hoy, y mañana el brillo del disco en tema oscuro se ajusta en un solo lugar para los
+     dos elementos, en vez de en dos reglas que nadie relaciona. */
   .bn-center .bn-fab { width: 56px; height: 56px; border-radius: 50%; margin-top: -24px; margin-bottom: 3px;
-    background: #ffffff; color: var(--sobre-claro); display: flex; align-items: center; justify-content: center;
+    background: var(--entrada-chip); color: var(--entrada-chip-ink); display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 18px rgba(0,0,0,0.35); border: 3px solid var(--navy-deep); transition: background .18s, color .18s, box-shadow .18s; }
   .bn-center .bn-fab svg { width: 26px; height: 26px; }
-  .bn-item.bn-center.active .bn-fab { background: var(--orange-txt); color: #fff;
+  /* Activo: disco naranja saturado con tinta blanca — el mismo caso que el contador de avisos, así
+     que usa su token (`--badge-ink`, blanco en los dos temas) en vez de un `#fff` suelto. */
+  .bn-item.bn-center.active .bn-fab { background: var(--orange-txt); color: var(--badge-ink);
     box-shadow: var(--shadow-md); }
 
   /* Indicador vs. su límite: nombre + valor arriba, barra, y en palabras cómo está.
@@ -4930,7 +4952,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.60';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.61';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
