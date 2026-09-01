@@ -1882,6 +1882,16 @@
     .dash-sec > .dash-block:has(.heat-scroll),
     .dash-sec > .dash-block:has(.stat-scroll),
     .dash-sec > .dash-block:has(table) { flex-basis: 100%; }
+    /* ⚠️ Y6 · LA DATA OPERACIONAL NO ESTABA EN NINGUNA DE ESTAS LISTAS, y por eso se encogía.
+       `.dash-sec` reparte a sus hijos con `flex: 1 1 23rem`, pero esa regla nombra a los bloques uno
+       por uno y el ciclo se sumó después (2026-08-22) sin entrar en la enumeración. Al no matchear
+       nada quedaba con el `flex: 0 1 auto` de fábrica, o sea del ancho de su contenido.
+       Medido: la lista se quedaba en **423 px fijos** —los mismos a 1024, 1366 y 1920— y dejaba
+       hasta **1.177 px de vacío** al costado. A 768 ocupaba los 680 completos, así que **un monitor
+       mostraba menos que una tablet**: cuanto más grande la pantalla, peor se veía.
+       Las tres van a banda completa (son la sección entera, no una columna de ella) y las tarjetas
+       se reparten adentro. */
+    .dash-sec > .cic-pers, .dash-sec > .cic-resumen, .dash-sec > .cic-lista { flex-basis: 100%; }
     .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
     /* Los gráficos aprovechan más ancho dentro de su tarjeta */
     .radar-wrap .linechart { max-width: 760px; }
@@ -3481,6 +3491,8 @@
     transition:background .18s, color .18s; }
   .cic-per:hover { color:var(--text); }
   .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* El conteo de ciclos del período: se distingue del resto de la línea sin gritar. */
+  .cic-cuenta { font-weight:800; color:var(--text-soft); }
   .cic-resumen { display:flex; flex-wrap:wrap; gap:.45rem; margin:.8rem 0 1rem; }
   .cic-kpi { font-size:.75rem; font-weight:700; color:var(--text-soft); background:var(--chip-bg);
     padding:.22rem .6rem; border-radius:999px; white-space:nowrap; }
@@ -3490,7 +3502,14 @@
   .cic-kpi-venc  b { color:var(--sem-rojo-txt); }
   .cic-kpi-comp  b { color:var(--sem-verde-txt); }
   .cic-kpi-desc  b { color:var(--sem-azul-int); }
-  .cic-lista { display:flex; flex-direction:column; gap:.9rem; }
+  /* ⚠️ `auto-fit` y no puntos de corte a mano: es lo que ya se hizo con los tramos del ciclo y con
+     las tarjetas del inicio, y la razón es la misma — el número de columnas lo decide el espacio
+     disponible, no una lista de anchos que hay que ir manteniendo. Con `minmax` en `rem` se adapta
+     además al tamaño de letra que la persona eligió: con letra grande entran menos columnas y nada
+     se aplasta, en vez de romperse en el ancho donde el corte a mano dejó de valer.
+     En teléfono da una sola columna sin necesidad de una media query. */
+  .cic-lista { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    gap:.9rem; align-items:start; }
   .cic-card { background:var(--sup-suave); border:1px solid var(--sup-linea); border-radius:var(--radius-sm);
     padding:.85rem .85rem .8rem; }
   .cic-est-excedido { border-color:var(--sem-rojo); }
@@ -4963,7 +4982,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.63';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.64';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15421,11 +15440,23 @@ function renderCicloOperativo(){
         cicloHM(tra.real) + '</b> · ' + esc(t('cic_ciclo_lbl')) + ' <b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b></span>';
     }
     const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
+
+    /* ⚠️ Y6 · CUÁNTOS CICLOS TIENE ESA PERSONA EN EL PERÍODO. Sin esto, mirando "30 días" se ve
+       UNA tarjeta por persona y se lee como si hubiera trabajado una sola vez en el mes — cuando lo
+       que se está mostrando es su ciclo más reciente y los otros veintipico quedan invisibles. Una
+       pantalla que muestra una parte sin decir que es una parte no se ve incompleta: se ve
+       equivocada, y nadie sale a buscar lo que no sabe que falta.
+       Va sólo en histórico: en "En curso" hay un ciclo por definición y el dato sería ruido. */
+    const misCiclos = (sel.historico && sel.ciclos[dashNorm(pe.persona)]) || null;
+    const cuantos = (misCiclos && misCiclos.length > 1)
+      ? ' · <span class="cic-cuenta">' + esc(t('per_ciclos_n', { n: misCiclos.length })) + '</span>'
+      : ((misCiclos && misCiclos.length === 1) ? ' · <span class="cic-cuenta">' + esc(t('per_ciclo_1')) + '</span>' : '');
+
     return '<div class="cic-card cic-est-' + st.estado + '">' +
       '<div class="cic-head" tabindex="0" role="button" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
-      '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + ' · ' + reloj + '</div>' +
+      '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
       cicloTurnoHtml(pe.persona) +
       cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
   }).join('');
