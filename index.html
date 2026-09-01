@@ -895,14 +895,16 @@
     border-radius: 10px; font-size: 1.15rem; color: #fff; cursor: pointer; flex-shrink: 0; }
   .dash-scope-wrap { flex: 1; min-width: 0; }
   .dash-scope-top { display: flex; align-items: center; gap: .45rem; min-width: 0; }
-  .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* T3: SIN text-overflow:ellipsis a propósito — con el desplazamiento (más abajo) el texto entero
+     tiene que poder pintarse para deslizarse; la elipsis y la animación se pisan entre sí. */
+  .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; }
   /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
      viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
      arriba de todo. Antes no había forma de saberlo salvo mirando qué pestañas aparecen abajo. */
   .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
     padding: .12rem .5rem; white-space: nowrap; }
-  .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; margin-top: 1px; }
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
     background: var(--card); padding: 2px; }
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange); border-radius: 999px;
@@ -1370,7 +1372,7 @@
   .inf-head:hover { background: var(--sem-azul-bg); }
   .inf-headtx { flex: 1; min-width: 0; }
   .inf-date { font-size: .82rem; font-weight: 800; color: var(--text); }
-  .inf-prev { font-size: .76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: .12rem; }
+  .inf-prev { font-size: .76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; margin-top: .12rem; }
   .inf-caret { font-size: .76rem; font-weight: 700; color: var(--orange-legible); flex-shrink: 0; }
   .inf-body { padding: .8rem; }
   .inf-share { margin-top: .7rem; width: 100%; padding: .65rem; border: 1.5px solid var(--orange); background: var(--orange-bg);
@@ -3902,6 +3904,15 @@
     50%, 62% { transform: translateX(var(--marquee-dist, 0px)); }
     96%, 100% { transform: translateX(0); }
   }
+  /* T3: el mismo mecanismo de arriba, generalizado para cualquier texto de una sola línea que no
+     tenga ya su propio par nombre/fecha con prioridad. `dashWireMarquees()` mide cada elemento con
+     un `.mq-in` adentro y sólo agrega `.marquee` cuando el texto de VERDAD no entra — el nombre de
+     la empresa arriba del panel, "toca ↻ para actualizar" y el título del informe ejecutivo
+     colapsado ya se acortan o se omiten cuando se puede (R14/DASH_DEMO); esto es lo que queda
+     cuando, aun así, no entran. Reusa la animación `anResMarquee` para que todo el panel se deslice
+     al mismo ritmo. */
+  .mq-in { display: inline-block; white-space: nowrap; }
+  .marquee .mq-in { animation: anResMarquee 5s ease-in-out infinite; }
   /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
   .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
@@ -5051,7 +5062,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.67';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.68';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11944,7 +11955,7 @@ function portalAutoLoginSupervisor(c, credKey){
   credKey = credKey || K_DASH_CREDS;
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = t('cargando');
+  dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
   const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:c.pass };
   conBloqueo('#portalDash', dashRequest(params).then(d => {
@@ -12367,7 +12378,7 @@ function simEntrar(vista){
   syncScrollLock(); navPush();
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = t('cargando');
+  dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
   dashRequest({ action:'demo' })
     .then(d => {
@@ -12634,7 +12645,7 @@ function portalLoginEmpleado(btn){
 function portalAutoLoginEmpleado(){
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
-  document.getElementById('dashScope').textContent = t('cargando');
+  dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
@@ -12849,7 +12860,7 @@ function onDashData(d, scopeLabel, params, vista){
     casosResumenPull().then(ok => { if (ok && DASH) renderDash(); });
   }
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
-  document.getElementById('dashScope').textContent = nombreVisible + ((DASH_DEMO || d.demo) ? (' · ' + t('dash_ejemplo')) : '');
+  dashSetMq('dashScope', nombreVisible + ((DASH_DEMO || d.demo) ? (' · ' + t('dash_ejemplo')) : ''));
   dashPintarVista(vista);
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
@@ -12982,7 +12993,11 @@ function updateDashUpdated(){
   const e = document.getElementById('dashUpdated');
   if (!e || !DASH) return;
   const d = new Date(DASH.updated), p = n => String(n).padStart(2,'0');
-  e.textContent = t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }) + (DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar')));
+  dashSetMq('dashUpdated', t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }) + (DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar'))));
+  /* T3: dashRefresh() puede llamar acá y volver SIN renderizar de nuevo (sig sin cambios) — el
+     rAF de renderDash no corre en ese camino, así que se mide acá directo. Es barato: un par de
+     querySelector. */
+  requestAnimationFrame(dashWireMarquees);
 }
 // ¿El timestamp es del mismo día calendario que ahora? Se usa para decidir si hace falta pedirle
 // datos nuevos al servidor: una vez por día, no cada vez que se minimiza o se reabre el panel.
@@ -13148,8 +13163,7 @@ function dashFilterChange(changed){
     DASH.f.dep = ''; DASH.f.per = '';        // cascada: al cambiar empresa, resetea depto/empleado
     // Admin: al elegir una empresa "entra" en ella y ve exactamente lo que ve esa empresa.
     if (DASH.rol === 'admin'){
-      const sc = document.getElementById('dashScope');
-      if (sc) sc.textContent = DASH.f.emp || t('dash_todas_empresas');
+      if (document.getElementById('dashScope')) dashSetMq('dashScope', DASH.f.emp || t('dash_todas_empresas'));
       dashApplyMarca(null);
     }
   }
@@ -13485,12 +13499,34 @@ function renderDash(){
   if (ord.indexOf('ciclo') >= 0){ cicloTickStart(); requestAnimationFrame(() => cicloUbicarAgujas()); }
   else cicloTickStop();
   requestAnimationFrame(dashWireAnResMarquee);
+  requestAnimationFrame(dashWireMarquees);
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
 // al lado), se desliza sola de un lado al otro para poder leerla entera en vez de cortarla con "…".
 function dashWireAnResMarquee(){
   document.querySelectorAll('.an-res-hasta').forEach(el => {
     const inner = el.querySelector('.an-res-hasta-in');
+    if (!inner) return;
+    const overflow = inner.scrollWidth - el.clientWidth;
+    if (overflow > 2){
+      el.style.setProperty('--marquee-dist', (-overflow - 4) + 'px');
+      el.classList.add('marquee');
+    } else {
+      el.classList.remove('marquee');
+      el.style.removeProperty('--marquee-dist');
+    }
+  });
+}
+// T3 · pone texto en un contenedor que `dashWireMarquees()` puede medir y hacer deslizar si no entra.
+function dashSetMq(id, texto){
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = '<span class="mq-in">' + esc(texto) + '</span>';
+}
+// T3 · generaliza dashWireAnResMarquee a los cortes detectados en el resto del panel: el nombre de
+// la empresa/alcance, "toca ↻ para actualizar" y el título del informe ejecutivo colapsado.
+function dashWireMarquees(){
+  document.querySelectorAll('#dashScope, #dashUpdated, .inf-prev').forEach(el => {
+    const inner = el.querySelector('.mq-in');
     if (!inner) return;
     const overflow = inner.scrollWidth - el.clientWidth;
     if (overflow > 2){
@@ -16252,8 +16288,7 @@ function dashMostrarError(msg, reintentar){
     '<div class="derr-d">' + esc(msg || (sinRed ? t('err_d_sin_red') : t('err_d_generico'))) + '</div>' +
     (_dashReintento ? '<button type="button" class="derr-btn" onclick="dashReintentar()">' + esc(t('err_reintentar')) + '</button>' : '') +
   '</div>';
-  const sc = document.getElementById('dashScope');
-  if (sc) sc.textContent = t('err_t_no_cargo');
+  if (document.getElementById('dashScope')) dashSetMq('dashScope', t('err_t_no_cargo'));
 }
 function dashReintentar(){
   const f = _dashReintento;
@@ -17056,7 +17091,7 @@ function dashInformeCard(inf){
   const exp = !!(DASH._infExp && DASH._infExp[inf.id]);
   const head = '<button class="inf-head" onclick="dashToggleInforme(\'' + inf.id + '\')" aria-expanded="' + (exp ? 'true' : 'false') + '">' +
     '<div class="inf-headtx"><div class="inf-date">' + esc(inf.fecha || '') + '</div>' +
-    (exp ? '' : '<div class="inf-prev">' + esc(informePreview(inf.texto)) + '</div>') + '</div>' +
+    (exp ? '' : '<div class="inf-prev"><span class="mq-in">' + esc(informePreview(inf.texto)) + '</span></div>') + '</div>' +
     '<span class="inf-caret">' + esc(t(exp ? 'inf_ocultar' : 'inf_ver')) + '</span></button>';
   const body = exp
     ? '<div class="inf-body"><div class="informe-box">' + dashMdLite(inf.texto) + '</div>' +
