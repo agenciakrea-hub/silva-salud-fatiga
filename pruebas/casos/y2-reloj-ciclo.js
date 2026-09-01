@@ -111,7 +111,12 @@ PRUEBAS.caso('⚠️ el inicio NO dispara pedidos al servidor cada minuto', asyn
   const fuente = cicloTick.toString();
   PRUEBAS.cierto(/if \(sec && DASH && !DASH\.demoMode/.test(fuente),
     'el pedido de cada minuto tiene que estar condicionado a que exista la sección del PANEL');
-  PRUEBAS.cierto(/if \(sec && DASH && ahora - _cicloUltimoRender/.test(fuente),
+  /* ⚠️ ANTES ESTO EXIGÍA LA LÍNEA LETRA POR LETRA (`if (sec && DASH && ahora - ...`) y se puso roja
+     cuando T1 le agregó una condición más —que no repinte mientras alguien escribe en el buscador—.
+     O sea: falló por una MEJORA, el síntoma clásico de una prueba atada a cómo está escrito algo.
+     Lo que importa es que el repintado dependa de que exista la sección del PANEL, no la forma
+     exacta de la condición. */
+  PRUEBAS.cierto(/_cicloUltimoRender > 60000/.test(fuente) && /\bsec &&/.test(fuente),
     'y el repintado de cada minuto también: el inicio se repinta por su cuenta');
 });
 

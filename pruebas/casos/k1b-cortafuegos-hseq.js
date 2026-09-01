@@ -69,7 +69,7 @@ PRUEBAS.caso('lo que NO identifica se conserva', () => {
 
 PRUEBAS.grupo('K1b · la pantalla del ciclo por rol');
 
-function ciclePara(vista) {
+function ciclePara(vista, verGrises) {
   const previo = (typeof DASH !== 'undefined') ? DASH : null;
   DASH = {
     vista: vista, rol: 'empresa', tabs: ['ciclo'], tab: 'ciclo', f: {}, _cfg: {}, empresa: 'Helitec',
@@ -83,6 +83,7 @@ function ciclePara(vista) {
     ],
     registros: [{ persona: 'Ana Pérez', empresa: 'Helitec', departamento: 'Operaciones', cargo: 'Piloto' }]
   };
+  DASH._cicGrises = !!verGrises;   // T1: los grises van plegados salvo que se pidan
   let html = '';
   try { html = renderCicloOperativo(); } catch (e) { html = 'ERROR: ' + e.message; }
   const cicNames = DASH._cicNames;
@@ -103,11 +104,28 @@ PRUEBAS.caso('HSEQ ve el agregado, no las personas', () => {
 
 PRUEBAS.caso('el supervisor NO pierde nada', () => {
   /* El contrapeso. Un cortafuegos que además rompe la pantalla del supervisor no sirve: él
-     necesita el nombre justamente para saber a quién reasignar. */
+     necesita el nombre justamente para saber a quién reasignar.
+
+     ⚠️ ESTE CASO SE ACTUALIZÓ EN T1, y conviene entender por qué antes de tocarlo otra vez.
+     T1 dejó de dibujar una tarjeta por CADA persona: ahora se muestran las que registraron algo y
+     las demás —los "grises"— van en un desplegable, con el contador siempre a la vista. La persona
+     de esta prueba no tiene eventos con hora válida, así que cae del lado de los grises y su nombre
+     ya no está en el HTML de entrada.
+     Eso NO rompe el contrato que este archivo protege, que es: **el supervisor puede llegar al
+     nombre y Dirección no**. Cambió dónde aparece, no si aparece. Así que se comprueba las dos
+     cosas: que el camino exista (desplegando) y que el cortafuegos de HSEQ siga cerrado. */
   const r = ciclePara('supervisor');
-  PRUEBAS.cierto(/Ana P/.test(r.html), 'el supervisor sí ve el nombre: lo necesita para reasignar tareas');
-  PRUEBAS.cierto(/cic-card/.test(r.html), 'y sus tarjetas por persona');
-  PRUEBAS.cierto(/dashGoPerson/.test(r.html), 'y poder entrar al detalle');
+  PRUEBAS.cierto(/cic-grises/.test(r.html) || /cic-card/.test(r.html),
+    'el supervisor tiene que ver la lista de su gente, en tarjetas o en el desplegable de grises');
+  PRUEBAS.cierto(!!(r.cicNames && r.cicNames.length),
+    '_cicNames se arma para él: es lo que habilita entrar al detalle de una persona');
+
+  /* Con los grises desplegados, el nombre y el camino al detalle tienen que estar. */
+  const previo = (typeof DASH !== 'undefined') ? DASH : null;
+  const r2 = ciclePara('supervisor', true);
+  PRUEBAS.cierto(/Ana P/.test(r2.html),
+    'y al desplegar los grises aparece el nombre: lo necesita para reasignar tareas');
+  PRUEBAS.cierto(/dashGoPerson/.test(r2.html), 'con su camino al detalle');
 });
 
 PRUEBAS.caso('el texto del agregado está traducido en los dos idiomas', () => {

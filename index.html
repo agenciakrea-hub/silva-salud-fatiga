@@ -1891,7 +1891,8 @@
        mostraba menos que una tablet**: cuanto más grande la pantalla, peor se veía.
        Las tres van a banda completa (son la sección entera, no una columna de ella) y las tarjetas
        se reparten adentro. */
-    .dash-sec > .cic-pers, .dash-sec > .cic-resumen, .dash-sec > .cic-lista { flex-basis: 100%; }
+    .dash-sec > .cic-pers, .dash-sec > .cic-resumen, .dash-sec > .cic-lista,
+    .dash-sec > .cic-buscar-wrap, .dash-sec > .cic-mas, .dash-sec > .cic-grises { flex-basis: 100%; }
     .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
     /* Los gráficos aprovechan más ancho dentro de su tarjeta */
     .radar-wrap .linechart { max-width: 760px; }
@@ -3491,6 +3492,29 @@
     transition:background .18s, color .18s; }
   .cic-per:hover { color:var(--text); }
   .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* ── T1 · listas largas ─────────────────────────────────────────────────────────────────────
+     Todo por token (R13) y 44 px de alto en lo que se toca (I2, y otra vez A1). */
+  .cic-buscar-wrap { margin: .2rem 0 .8rem; }
+  .cic-mas { display:block; width:100%; min-height:44px; margin:.2rem 0 .6rem;
+    background:var(--sup-bg); border:1px solid var(--sup-borde); border-radius:var(--radius-xs);
+    font-family:inherit; font-size:.86rem; font-weight:700; color:var(--text-soft); cursor:pointer;
+    transition:background .18s, color .18s; }
+  .cic-mas:hover { background:var(--chip-bg-h); color:var(--text); }
+  /* Los grises: el bloque existe para que el CONTADOR se vea, aunque la lista esté plegada. */
+  .cic-grises { margin-top:.5rem; border-top:1px solid var(--linea); padding-top:.7rem; }
+  .cic-grises-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem; }
+  .cic-grises-n { font-size:.9rem; font-weight:800; color:var(--text); }
+  .cic-grises-btn { min-height:44px; padding:0 .9rem; background:none; border:none;
+    font-family:inherit; font-size:.84rem; font-weight:700; color:var(--sem-azul);
+    text-decoration:underline; cursor:pointer; }
+  .cic-grises-lista { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap:.35rem; margin-top:.6rem; }
+  .cic-gris { min-height:44px; padding:.4rem .7rem; text-align:left;
+    background:var(--sup-suave); border:1px solid var(--sup-borde); border-radius:var(--radius-xs);
+    font-family:inherit; font-size:.85rem; font-weight:600; color:var(--text-soft); cursor:pointer; }
+  .cic-gris:hover { background:var(--chip-bg-h); color:var(--text); }
+  .cic-gris em { font-style:normal; font-weight:500; color:var(--text-muted); }
+
   /* El conteo de ciclos del período: se distingue del resto de la línea sin gritar. */
   .cic-cuenta { font-weight:800; color:var(--text-soft); }
   .cic-resumen { display:flex; flex-wrap:wrap; gap:.45rem; margin:.8rem 0 1rem; }
@@ -4982,7 +5006,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.64';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.65';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5419,6 +5443,13 @@ const I18N = {
       per_viendo:'Estás viendo {n} días',
       per_ciclos_n:'{n} ciclos en el período',
       per_ciclo_1:'1 ciclo en el período',
+      /* T1 · listas largas. Español NEUTRO (R1): "puedes", nunca voseo. */
+      bus_ph:'Buscar por nombre o departamento…', bus_lbl:'Buscar persona', bus_limpiar:'Limpiar búsqueda',
+      bus_sin:'Nadie coincide con «{q}»', bus_sin_h:'Prueba con otro nombre, o borra la búsqueda.',
+      lst_ver_todos:'Ver los {n}', lst_ver_menos:'Ver menos',
+      lst_reportaron:'{a} de {n} reportaron hoy',
+      lst_sin_reportar:'{n} sin reportar', lst_sin_reportar_1:'1 sin reportar',
+      lst_ver_sin:'Ver quiénes', lst_ocultar_sin:'Ocultar',
       db_informe_ia:'Informe IA',
       db_numeros:'Números en detalle, por indicador',
       db_sobre_ref:'Sobre la referencia',
@@ -6861,6 +6892,12 @@ const I18N = {
       per_viendo:'You are viewing {n} days',
       per_ciclos_n:'{n} cycles in this period',
       per_ciclo_1:'1 cycle in this period',
+      bus_ph:'Search by name or department…', bus_lbl:'Search person', bus_limpiar:'Clear search',
+      bus_sin:'Nobody matches "{q}"', bus_sin_h:'Try another name, or clear the search.',
+      lst_ver_todos:'View all {n}', lst_ver_menos:'View less',
+      lst_reportaron:'{a} of {n} reported today',
+      lst_sin_reportar:'{n} have not reported', lst_sin_reportar_1:'1 has not reported',
+      lst_ver_sin:'See who', lst_ocultar_sin:'Hide',
       db_informe_ia:'AI report',
       db_numeros:'Numbers in detail, by indicator',
       db_sobre_ref:'Above the reference',
@@ -15425,7 +15462,43 @@ function renderCicloOperativo(){
   if (DASH.vista === 'hseq') return cicloHseqAgregado(filas, plan, ayuda, resumen);
   DASH._cicNames = filas.map(f => f.p.persona);
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
-  const cards = filas.map((f, i) => {
+
+  /* ══ T1 · LISTAS LARGAS ═══════════════════════════════════════════════════════════════════════
+     ⚠️ EL CORTE VA DESPUÉS DE LOS KPIs, Y ESO NO ES UN DETALLE DE ORDEN. Los contadores de arriba
+     ("3 en curso, 1 pasado de tiempo…") se calculan sobre `filas` COMPLETO, unas líneas más arriba,
+     y son lo que el supervisor mira para decidir. Si el "mostrar 3" se aplicara antes del conteo,
+     los KPIs empezarían a mentir — y mentirían hacia abajo, que es la dirección peligrosa: diría
+     "1 pasado de tiempo" cuando hay nueve.
+     Acá abajo sólo se recorta lo que se DIBUJA. */
+  const CORTE = 3;
+  const q = DASH._cicQ || '';
+  /* `buscarCoincide` usa `buscarNorm`, que además de normalizar saca acentos, apóstrofos y guiones
+     y compara por tokens en cualquier orden ("pérez ana" encuentra a "Ana Pérez").
+     ⚠️ NO se toca `dashNorm`: esa arma los identificadores con los que se cruzan las personas
+     contra el CH. Aflojarla para que el buscador sea más permisivo cambiaría quién es quién. */
+  const visibles = q ? filas.filter(f => buscarCoincide(f.p.persona + ' ' + (f.p.departamento || ''), q)) : filas;
+
+  /* Los que TOCARON algún botón y los que no. Los segundos son los "grises". */
+  const activos = visibles.filter(f => f.st.estado !== 'inactivo');
+  const grises  = visibles.filter(f => f.st.estado === 'inactivo');
+
+  /* ⚠️ LOS GRISES SON EL DATO QUE EL SUPERVISOR NECESITA, aunque la lista se esconda por larga.
+     Se pliegan, pero el CONTADOR queda a la vista: "3 de 47 reportaron hoy" dice más que
+     cualquier lista de 47 nombres, y es justamente la pregunta que trae a alguien a esta pantalla. */
+  const verTodos = !!DASH._cicTodos, verGrises = !!DASH._cicGrises;
+  const activosMostrados = (verTodos || q) ? activos : activos.slice(0, CORTE);
+
+  const buscador = (filas.length > CORTE || q)
+    ? ('<div class="apt-buscar-wrap cic-buscar-wrap">' +
+        '<svg class="apt-buscar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+        '<input type="search" id="cicBuscar" class="apt-buscar" placeholder="' + esc(t('bus_ph')) + '" ' +
+          'value="' + esc(q) + '" oninput="cicloBuscar(this.value)" aria-label="' + esc(t('bus_lbl')) + '">' +
+        '<button type="button" class="apt-buscar-x" onclick="cicloBuscar(\'\')" aria-label="' + esc(t('bus_limpiar')) + '"' +
+          (q ? '' : ' style="display:none"') + '>\u00d7</button>' +
+      '</div>')
+    : '';
+
+  const cards = activosMostrados.map((f, i) => {
     const st = f.st, pe = f.p;
     let reloj;
     if (st.estado === 'inactivo') reloj = '<span class="cic-reloj cic-reloj-off">' + esc(t('cic_no_inicio')) + '</span>';
@@ -15460,8 +15533,104 @@ function renderCicloOperativo(){
       cicloTurnoHtml(pe.persona) +
       cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
   }).join('');
-  return ayuda + perHtml + cfgHtml + resumen + '<div class="cic-lista">' + cards + '</div>';
+  /* Ningún resultado para lo buscado: mensaje propio, no el vacío genérico. "Nadie coincide con
+     «xyz»" es una causa distinta de "esta empresa no tiene gente", y el genérico haría pensar lo
+     segundo. Misma decisión que en el período vacío de Y1. */
+  if (q && !visibles.length){
+    return ayuda + perHtml + cfgHtml + resumen + buscador +
+      '<div id="cicCuerpo">' +
+      dashVacioTexto(t('bus_sin', { q: q }), esc(t('bus_sin_h')), 'gente') + '</div>';
+  }
+
+  /* El botón de "ver todos" declara CUÁNTOS son, no dice sólo "ver más": el número es la
+     información. Se oculta si hay búsqueda, porque ahí ya se muestran todos los que coinciden. */
+  const masBtn = (!q && activos.length > CORTE)
+    ? ('<button type="button" class="cic-mas" onclick="cicloVerTodos()">' +
+        esc(verTodos ? t('lst_ver_menos') : t('lst_ver_todos', { n: activos.length })) + '</button>')
+    : '';
+
+  /* Los grises, plegados pero contados. El total del conteo es sobre TODAS las personas de la
+     lista (no sobre las que se dibujan), que es lo que hace que el número signifique algo. */
+  let grisesHtml = '';
+  if (grises.length){
+    const cabecera = '<div class="cic-grises-head">' +
+      '<span class="cic-grises-n">' +
+        esc(t('lst_reportaron', { a: activos.length, n: visibles.length })) + '</span>' +
+      '<button type="button" class="cic-grises-btn" aria-expanded="' + (verGrises ? 'true' : 'false') + '"' +
+        ' onclick="cicloVerGrises()">' +
+        esc(verGrises ? t('lst_ocultar_sin') : t('lst_ver_sin')) + '</button></div>';
+    const nombres = verGrises
+      ? ('<div class="cic-grises-lista">' + grises.map(f =>
+          '<button type="button" class="cic-gris" onclick="dashGoPerson(' +
+          JSON.stringify(f.p.persona).replace(/"/g, '&quot;') + ')">' +
+          esc(f.p.persona) + (f.p.departamento ? ' <em>' + esc(f.p.departamento) + '</em>' : '') +
+          '</button>').join('') + '</div>')
+      : '';
+    grisesHtml = '<div class="cic-grises">' + cabecera + nombres + '</div>';
+  }
+
+  /* ⚠️ TODO LO QUE DEPENDE DE LA BÚSQUEDA VA DENTRO DE `#cicCuerpo`, y el buscador queda AFUERA.
+     Es lo que permite reemplazar los resultados sin tocar el `<input>`: el navegador conserva foco,
+     cursor y texto solo, sin que haya que rescatarlos a mano. Es el mismo reparto que usa el
+     buscador de Aptitud con `#aptTarjetas`.
+     La primera versión repintaba la sección entera y le devolvía el foco al campo nuevo. Funcionaba
+     —medido: el texto y el foco sobrevivían— pero por rescate: cualquier repintado que se agregara
+     después y se olvidara del rescate volvía a romperlo, y el síntoma sería que a la persona se le
+     borra lo que está escribiendo sin ninguna causa visible. Mejor que no haya nada que rescatar. */
+  return ayuda + perHtml + cfgHtml + resumen + buscador +
+    '<div id="cicCuerpo">' +
+      '<div class="cic-lista" id="cicLista">' + cards + '</div>' + masBtn + grisesHtml +
+    '</div>';
 }
+
+/* Devuelve SÓLO el cuerpo (resultados + "ver todos" + grises), para reemplazarlo sin tocar el
+   buscador. Se apoya en el render completo y se queda con esa parte: así no hay dos generadores de
+   HTML que puedan quedar diciendo cosas distintas. */
+function cicloCuerpoHtml(){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderCicloOperativo();
+  const cuerpo = tmp.querySelector('#cicCuerpo');
+  return cuerpo ? cuerpo.innerHTML : tmp.innerHTML;
+}
+
+/* ⚠️ NO REHACE LA SECCIÓN ENTERA, y por eso el campo no pierde el foco. Es el mismo patrón que
+   `aptBuscar`: `renderCicloOperativo()` rehace todo el HTML —incluido el `<input>`— así que
+   llamarlo en cada tecla destruiría el campo y sólo se podría escribir una letra por vez.
+   Acá se repinta sólo lo que cambia y el navegador conserva foco y cursor solo.
+   Si el contenedor no está (otra pestaña, panel sin pintar), cae al render completo: camino lento
+   pero correcto, nunca una pantalla desactualizada. */
+function cicloBuscar(q){
+  if (!DASH) return;
+  DASH._cicQ = q;
+  DASH._cicTodos = false;          // una búsqueda nueva arranca desde el corte
+  const sec = document.getElementById('dsec-ciclo');
+  const cuerpo = sec && document.getElementById('cicCuerpo');
+  /* Sin el contenedor (otra pestaña abierta, o el panel todavía sin pintar) cae al render
+     completo: es el camino lento pero correcto, nunca una pantalla desactualizada. */
+  if (!cuerpo){ cicloRepintar(); return; }
+  cuerpo.innerHTML = cicloCuerpoHtml();
+  cicloUbicarAgujas(sec);
+  /* El botón de limpiar aparece y desaparece según haya texto. Se toca a mano justamente para no
+     rehacer el buscador entero, que es lo que destruiría el campo. */
+  const x = sec.querySelector('.cic-buscar-wrap .apt-buscar-x');
+  if (x) x.style.display = q ? '' : 'none';
+}
+
+function cicloVerTodos(){ if (!DASH) return; DASH._cicTodos = !DASH._cicTodos; cicloRepintarLista(); }
+function cicloVerGrises(){ if (!DASH) return; DASH._cicGrises = !DASH._cicGrises; cicloRepintarLista(); }
+
+/* Estos dos también repintan sólo el cuerpo cuando pueden: son botones que la persona toca con el
+   buscador quizá lleno, y rehacer la sección le borraría lo escrito. */
+function cicloRepintarLista(secDada){
+  const sec = secDada || document.getElementById('dsec-ciclo');
+  if (!sec) return;
+  const cuerpo = document.getElementById('cicCuerpo');
+  if (cuerpo){ cuerpo.innerHTML = cicloCuerpoHtml(); cicloUbicarAgujas(sec); return; }
+  sec.innerHTML = renderCicloOperativo();
+  cicloUbicarAgujas(sec);
+}
+
+
 
 /* Reloj en vivo. Cada segundo actualiza SOLO los números y la aguja (rearmar el HTML pierde el
    scroll y parpadea). Una vez por minuto rearma la sección: es cuando un tramo puede pasar de
@@ -15516,7 +15685,13 @@ function cicloTick(){
   }
   /* El repintado de cada minuto es SÓLO del panel: es cuando un tramo pasa de "en curso" a
      "excedido" y cambia de color. El inicio se repinta por su cuenta con `cicloMiRefrescar()`. */
-  if (sec && DASH && ahora - _cicloUltimoRender > 60000){ cicloRepintar(); return; }
+  /* ⚠️ EL RELOJ NO REPINTA MIENTRAS ALGUIEN ESTÁ ESCRIBIENDO EN EL BUSCADOR. Repinta la sección
+     entera cada 60 s, y eso rehace el `<input>`: a la persona se le borraría lo tipeado y perdería
+     el foco en medio de una palabra, sin ninguna causa visible. Un minuto es tiempo de sobra para
+     que pase mientras se busca a alguien.
+     No hace falta más: al soltar el foco vuelve a repintar solo en el tic siguiente. */
+  const buscando = document.activeElement && document.activeElement.id === 'cicBuscar';
+  if (sec && DASH && !buscando && ahora - _cicloUltimoRender > 60000){ cicloRepintar(); return; }
   /* Los números y la aguja se actualizan en TODO el documento: el panel y el inicio a la vez.
      Cada segundo se tocan textos y una posición; no se rearma HTML, que perdería el scroll. */
   document.querySelectorAll('[data-cic-from]').forEach(el => {
@@ -15689,12 +15864,15 @@ function renderAptitud(rows){
   // cursor a cada letra y sería imposible escribir.
   const buscador = '<div class="apt-buscar-wrap">' +
     '<svg class="apt-buscar-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
-    '<input type="search" id="aptBuscar" class="apt-buscar" placeholder="Buscar por nombre o departamento…" ' +
-      'value="' + esc(DASH._aptQ || '') + '" oninput="aptBuscar(this.value)" aria-label="Buscar persona">' +
+    /* R14: estos tres textos estaban escritos a mano en español y no pasaban por t() — el propio
+       plan de T1 pedía copiar este patrón "sin arrastrar su deuda". Se arregla acá en vez de
+       copiarla al buscador nuevo. */
+    '<input type="search" id="aptBuscar" class="apt-buscar" placeholder="' + esc(t('bus_ph')) + '" ' +
+      'value="' + esc(DASH._aptQ || '') + '" oninput="aptBuscar(this.value)" aria-label="' + esc(t('bus_lbl')) + '">' +
     /* L3: SIEMPRE en el DOM, sólo oculto. Antes se agregaba al HTML únicamente si había texto,
        pero ahora la búsqueda no vuelve a dibujar el buscador — así que si no estuviera desde el
        principio, no aparecería nunca. */
-    '<button type="button" class="apt-buscar-x" onclick="aptBuscar(\'\')" aria-label="Limpiar búsqueda"' +
+    '<button type="button" class="apt-buscar-x" onclick="aptBuscar(\'\')" aria-label="' + esc(t('bus_limpiar')) + '"' +
       ((DASH._aptQ || '') ? '' : ' style="display:none"') + '>×</button>' +
   '</div>';
 
