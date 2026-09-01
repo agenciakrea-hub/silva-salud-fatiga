@@ -3492,6 +3492,29 @@
     transition:background .18s, color .18s; }
   .cic-per:hover { color:var(--text); }
   .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* ── T2 · panel de miniaturas de evolución ─────────────────────────────────────────────────
+     `auto-fit` otra vez, y por la misma razón que en la lista del ciclo: la cantidad de columnas
+     la decide el espacio y no un punto de corte a mano, y el mínimo va en `rem` para que siga al
+     tamaño de letra elegido — con letra grande entran menos celdas y ninguna se aplasta. */
+  .evo-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap:.7rem; margin:.6rem 0 .4rem; }
+  .evo-cel { background:var(--sup-suave); border:1px solid var(--sup-borde);
+    border-radius:var(--radius-xs); padding:.55rem .65rem .5rem; }
+  .evo-cel-top { display:flex; align-items:baseline; justify-content:space-between; gap:.4rem; }
+  /* El TÍTULO es lo que identifica a la métrica: eso es lo que hace que el panel funcione en
+     blanco y negro y para cualquier daltonismo. El color de la línea sólo refuerza. */
+  .evo-cel-t { font-size:.82rem; font-weight:800; color:var(--text); }
+  .evo-spark { width:100%; height:62px; display:block; margin:.15rem 0 .2rem; }
+  .evo-cel-v { font-size:.76rem; font-weight:700; color:var(--text-soft); }
+  .evo-v-sobre { color:var(--sev-txt-5); }
+  .evo-v-bajo  { color:var(--sev-txt-1); }
+  /* La tendencia lleva flecha ADEMÁS de color: una flecha se ve sin distinguir verde de rojo. */
+  .evo-tend { font-size:.7rem; font-weight:800; white-space:nowrap; }
+  .evo-sube  { color:var(--sev-txt-5); }
+  .evo-baja  { color:var(--sev-txt-1); }
+  .evo-igual { color:var(--text-muted); }
+  .evo-nota { font-size:.76rem; color:var(--text-muted); line-height:1.45; margin-top:.2rem; }
+
   /* ── T1 · listas largas ─────────────────────────────────────────────────────────────────────
      Todo por token (R13) y 44 px de alto en lo que se toca (I2, y otra vez A1). */
   .cic-buscar-wrap { margin: .2rem 0 .8rem; }
@@ -5006,7 +5029,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.65';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.66';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5450,6 +5473,10 @@ const I18N = {
       lst_reportaron:'{a} de {n} reportaron hoy',
       lst_sin_reportar:'{n} sin reportar', lst_sin_reportar_1:'1 sin reportar',
       lst_ver_sin:'Ver quiénes', lst_ocultar_sin:'Ocultar',
+      /* T2 · evolución de todas las métricas. Español NEUTRO (R1). */
+      evo_sobre_ref:'{p}% sobre la referencia', evo_bajo_ref:'{p}% bajo la referencia',
+      evo_en_ref:'En la referencia', evo_estable:'igual',
+      evo_nota_ref:'Cada línea es el promedio del mes comparado con la referencia de esa medición. La línea punteada es la referencia.',
       db_informe_ia:'Informe IA',
       db_numeros:'Números en detalle, por indicador',
       db_sobre_ref:'Sobre la referencia',
@@ -6898,6 +6925,9 @@ const I18N = {
       lst_reportaron:'{a} of {n} reported today',
       lst_sin_reportar:'{n} have not reported', lst_sin_reportar_1:'1 has not reported',
       lst_ver_sin:'See who', lst_ocultar_sin:'Hide',
+      evo_sobre_ref:'{p}% above reference', evo_bajo_ref:'{p}% below reference',
+      evo_en_ref:'At reference', evo_estable:'steady',
+      evo_nota_ref:'Each line is the monthly average compared to that measure\u2019s reference. The dashed line is the reference.',
       db_informe_ia:'AI report',
       db_numeros:'Numbers in detail, by indicator',
       db_sobre_ref:'Above the reference',
@@ -17078,37 +17108,126 @@ function dashPie(items, opts){
 }
 
 /* ── Multi-línea normalizada (todas las métricas) ── */
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   T2 · LA EVOLUCIÓN DE TODAS LAS MÉTRICAS                                          (2026-08-29)
+
+   ⚠️ ESTO NO SE RETOCÓ: SE CAMBIÓ DE FORMA, y la razón es que la forma anterior no podía funcionar.
+   Eran SIETE líneas en un mismo par de ejes, distinguidas sólo por color, con una leyenda de siete
+   ítems al pie. Tres problemas, y ninguno se arregla con mejores colores:
+
+     1) Las siete van casi paralelas —todas son "promedio del mes ÷ su referencia", así que se
+        mueven juntas— y se tapan entre sí. Seguir una sola con la vista es imposible.
+     2) La identidad dependía ENTERAMENTE del color: hay que mirar la leyenda, memorizar un color,
+        volver al gráfico y buscarlo entre seis parecidos. En blanco y negro, o para alguien con
+        daltonismo, directamente no hay forma — y eso estaba pedido explícitamente.
+     3) Y la pregunta que la gente le hace a esta pantalla no es "¿qué trayectoria tuvo el KSS?"
+        sino "¿CUÁLES están por encima de su referencia y cuáles están empeorando?". Siete líneas
+        superpuestas no contestan eso ni con paciencia.
+
+   La forma correcta para siete series que comparten unidad es el PANEL DE MINIATURAS: cada métrica
+   en su propia celda, con su nombre escrito al lado. Lo que se gana:
+
+     · Cero solapamiento: ninguna línea tapa a otra.
+     · La identidad la lleva el TÍTULO, no el color. Funciona en blanco y negro y con cualquier
+       daltonismo, que era el caso borde pedido.
+     · Desaparece la leyenda: no hay que ir y volver entre dos lugares para leer una línea.
+     · Y aparece lo que antes estaba escondido: cada celda dice su último valor contra la
+       referencia y si viene subiendo o bajando, con FLECHA además de color — el color solo nunca
+       alcanza para decir algo importante.
+
+   Se pierde la comparación fina entre métricas (cuál está exactamente por encima de cuál). Es un
+   intercambio consciente: esa comparación ya la da el gráfico de barras del resumen, y era
+   justamente la que no se podía hacer con siete líneas encimadas. */
 function dashEvoMulti(rows){
   const monthsSet = {}; rows.forEach(r => { if (r.fecha) monthsSet[r.fecha.slice(0,7)] = 1; });
   const months = Object.keys(monthsSet).sort();
-  if (!months.length) return '<div class="lc-empty">Sin fechas suficientes.</div>';
-  const ocultas = chartOcultas('evo');
-  const series = DASH.metrics.map(m => ({ m:m, color:METRIC_COLORS[m]||'var(--ch-neutro)',
-    pts: months.map(k => { const v = rows.filter(r => r.fecha && r.fecha.slice(0,7)===k && r[m]!=null).map(r=>r[m]);
-      return (v.length && DASH.ref[m]) ? (v.reduce((a,b)=>a+b,0)/v.length)/DASH.ref[m] : null; }) }));
-  const visibles = series.filter(s => !ocultas[s.m]);
-  const W=340, H=190, padL=24, padR=10, padT=12, padB=30, iw=W-padL-padR, ih=H-padT-padB;
-  // Escala recalculada sólo con las series visibles: si se aísla/oculta la de mayor valor, las
-  // que quedan tienen que volver a llenar el gráfico, no quedar chiquitas contra la escala vieja.
-  let maxV = 1.2; (visibles.length ? visibles : series).forEach(s => s.pts.forEach(v => { if (v!=null && v>maxV) maxV = v; })); maxV *= 1.1;
-  const x = i => months.length>1 ? padL + i/(months.length-1)*iw : padL+iw/2;
-  const y = v => padT + (1 - v/maxV)*ih;
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
-  svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
-  svg += '<line x1="'+padL+'" y1="'+y(1).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(1).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
-  visibles.forEach(s => {
-    let d = '', started = false;
-    s.pts.forEach((v,i) => { if (v==null) return; d += (started?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; started = true; });
-    if (d) svg += '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>';
+  if (!months.length) return '<div class="lc-empty">' + esc(t('evo_sin_fechas')) + '</div>';
+
+  /* Cada punto es el promedio del mes dividido por la referencia de esa métrica: 1,00 = justo en
+     la referencia. Es lo que permite poner siete métricas de escalas distintas en la misma unidad
+     — y lo que hace que la línea de referencia sea la misma para todas. */
+  const series = DASH.metrics.map(m => {
+    const pts = months.map(k => {
+      const v = rows.filter(r => r.fecha && r.fecha.slice(0,7) === k && r[m] != null).map(r => r[m]);
+      return (v.length && DASH.ref[m]) ? (v.reduce((a,b)=>a+b,0)/v.length)/DASH.ref[m] : null;
+    });
+    const conDato = pts.filter(v => v != null);
+    const ultimo = conDato.length ? conDato[conDato.length-1] : null;
+    const previo = conDato.length > 1 ? conDato[conDato.length-2] : null;
+    return { m:m, pts:pts, ultimo:ultimo, previo:previo, n:conDato.length,
+             color: METRIC_COLORS[m] || 'var(--ch-neutro)' };
+  }).filter(s => s.n > 0);
+
+  if (!series.length) return '<div class="lc-empty">' + esc(t('evo_sin_fechas')) + '</div>';
+
+  const celdas = series.map(s => dashEvoMini(s, months)).join('');
+  /* El pie explica la unidad UNA vez, en vez de repetirla en cada celda. */
+  const nota = '<div class="evo-nota">' + esc(t('evo_nota_ref')) + '</div>';
+  return '<div class="evo-grid">' + celdas + '</div>' + nota;
+}
+
+/* Una miniatura: título, valor contra la referencia, tendencia y la línea del período. */
+function dashEvoMini(s, months){
+  const W=200, H=62, padL=4, padR=4, padT=8, padB=8;
+  const iw=W-padL-padR, ih=H-padT-padB;
+  const vals = s.pts.filter(v => v != null);
+  /* La escala incluye SIEMPRE el 1 (la referencia): si no, una métrica que está toda por debajo
+     dibujaría su línea de referencia fuera del cuadro y parecería que no tiene. */
+  let lo = Math.min(1, Math.min.apply(null, vals));
+  let hi = Math.max(1, Math.max.apply(null, vals));
+  if (hi - lo < 0.2){ const c=(hi+lo)/2; lo = c-0.1; hi = c+0.1; }   // serie plana: no achatarla contra el borde
+  const margen = (hi-lo)*0.15; lo -= margen; hi += margen;
+  const x = i => months.length>1 ? padL + i/(months.length-1)*iw : padL + iw/2;
+  const y = v => padT + (1 - (v-lo)/(hi-lo))*ih;
+
+  let d = '', area = '', started = false, primerX = null, ultimoX = null, ultimoY = null;
+  s.pts.forEach((v,i) => {
+    if (v == null) return;
+    const px = x(i), py = y(v);
+    d += (started ? 'L' : 'M') + px.toFixed(1) + ' ' + py.toFixed(1) + ' ';
+    if (!started){ primerX = px; started = true; }
+    ultimoX = px; ultimoY = py;
   });
-  if (!visibles.length) svg += '<text x="'+(W/2)+'" y="'+(H/2)+'" font-size="9" fill="var(--ch-label)" text-anchor="middle">'+esc(t('lg_todos_ocultos'))+'</text>';
-  const step = Math.ceil(months.length/6);
-  months.forEach((k,i) => { if (months.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="var(--ch-label)" text-anchor="middle">'+dashMesCorto(k)+'</text>'; });
-  svg += '</svg>';
-  const legend = '<div class="radar-legend">' + series.map(s =>
-    '<span class="rl-item rl-click' + (ocultas[s.m]?' rl-off':'') + '" onclick="chartToggle(\'evo\',\'' + s.m + '\')"><span class="rl-dot" style="background:' + s.color + '"></span>' + (METRIC_LABELS[s.m]||s.m) + '</span>'
-  ).join('') + '</div>';
-  return '<div class="radar-wrap">' + svg + legend + '</div>';
+  /* Relleno tenue bajo la línea: da cuerpo a una miniatura de 62 px de alto sin agregar tinta. */
+  if (started && primerX != null){
+    area = 'M' + primerX.toFixed(1) + ' ' + (padT+ih) + ' ' + d.slice(1) +
+           'L' + ultimoX.toFixed(1) + ' ' + (padT+ih) + ' Z';
+  }
+
+  const sobre = s.ultimo != null && s.ultimo > 1;
+  /* ⚠️ El estado NO se dice sólo con color: va el número y la palabra. El color refuerza, no
+     informa — es la misma regla por la que el semáforo de la app lleva siempre su etiqueta. */
+  const pct = s.ultimo != null ? Math.round((s.ultimo - 1) * 100) : null;
+  const valorTxt = pct == null ? '—'
+    : (pct === 0 ? t('evo_en_ref') : t(sobre ? 'evo_sobre_ref' : 'evo_bajo_ref', { p: Math.abs(pct) }));
+
+  /* La tendencia lleva FLECHA además de color: una flecha se ve en blanco y negro y no depende de
+     poder distinguir verde de rojo. */
+  let tend = '';
+  if (s.ultimo != null && s.previo != null){
+    const dif = s.ultimo - s.previo;
+    if (Math.abs(dif) >= 0.01){
+      const sube = dif > 0;
+      tend = '<span class="evo-tend ' + (sube ? 'evo-sube' : 'evo-baja') + '">' +
+        (sube ? '\u2191' : '\u2193') + ' ' + Math.abs(Math.round(dif*100)) + '%</span>';
+    } else {
+      tend = '<span class="evo-tend evo-igual">\u2192 ' + esc(t('evo_estable')) + '</span>';
+    }
+  }
+
+  const svg = '<svg class="evo-spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">' +
+    (area ? '<path d="'+area+'" fill="'+s.color+'" opacity="0.14"/>' : '') +
+    '<line x1="'+padL+'" y1="'+y(1).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(1).toFixed(1)+'" ' +
+      'stroke="var(--ch-ref)" stroke-dasharray="3 3" stroke-width="1"/>' +
+    (d ? '<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
+    (ultimoX != null ? '<circle cx="'+ultimoX.toFixed(1)+'" cy="'+ultimoY.toFixed(1)+'" r="3" fill="'+s.color+'" stroke="var(--sobre-card)" stroke-width="1.5"/>' : '') +
+  '</svg>';
+
+  return '<div class="evo-cel">' +
+    '<div class="evo-cel-top"><span class="evo-cel-t">' + esc(METRIC_LABELS[s.m] || s.m) + '</span>' + tend + '</div>' +
+    svg +
+    '<div class="evo-cel-v ' + (pct == null ? '' : (sobre ? 'evo-v-sobre' : 'evo-v-bajo')) + '">' + esc(valorTxt) + '</div>' +
+  '</div>';
 }
 
 /* ── Estadística descriptiva ── */
