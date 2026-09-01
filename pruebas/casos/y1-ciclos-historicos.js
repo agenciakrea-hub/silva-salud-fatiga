@@ -197,3 +197,87 @@ PRUEBAS.caso('⚠️ quién puede ver histórico lo decide el servidor, no la pa
     [...document.querySelectorAll('script')].map(s => s.textContent).join('')),
     'y el cliente lo lee de ahí en vez de decidirlo por su cuenta');
 });
+
+PRUEBAS.grupo('Y1b · el empleado recupera su propia historia');
+
+PRUEBAS.caso('⚠️ el endpoint le manda al empleado SUS eventos del ciclo', () => {
+  /* LA ASIMETRÍA QUE PARTÍA EL PROMPT EN DOS: al supervisor y a Dirección les llegaban siete días
+     de `Operacional`, pero a la persona NO le llegaban los suyos. Su línea de tiempo vivía sólo en
+     el teléfono, podada a ~48 h. Dos consecuencias, las dos silenciosas: no podía mirar días
+     anteriores, y al cambiar de teléfono PERDÍA SU HISTORIA — mientras el CH la tenía entera. */
+  const fuente = CTX.gs || '';
+  if (!fuente) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
+  const cuerpo = (fuente.match(/function accionEmpleado\(p\)[\s\S]*?\n\}/) || [''])[0];
+  PRUEBAS.cierto(/leerOperacional\(\s*30\s*\)/.test(cuerpo),
+    'la respuesta del empleado tiene que traer sus eventos operacionales');
+  PRUEBAS.cierto(/leerOperacional\(30\)\.filter\(esMio\)/.test(cuerpo.replace(/\s/g, '')
+      .replace('leerOperacional(30).filter(esMio)', 'leerOperacional(30).filter(esMio)')) ||
+    /\.filter\(esMio\)/.test(cuerpo),
+    '⚠️ y recortados por identidad con el MISMO esMio que ya recorta sus registros: esta acción no ' +
+    'pide contraseña, así que ese filtro es toda la protección que hay');
+});
+
+PRUEBAS.caso('⚠️ la poda local no se lleva puesto el histórico del servidor', () => {
+  /* Lo local se poda a ~48 h cada vez que se guarda un evento. Si el histórico del servidor se
+     guardara en la MISMA clave, la próxima poda se lo llevaría: la persona vería sus 30 días hasta
+     registrar el evento siguiente y ahí volvería a tener dos. Un histórico que desaparece solo es
+     peor que no tenerlo, porque nadie sabe si el dato existe. Por eso son dos claves. */
+  const hace = m => new Date(Date.now() - m * 60000).toISOString();
+  localStorage.setItem('silva_fatiga_ciclo_srv_v1', JSON.stringify([
+    { evento:'salida_casa',  iso: hace(60 * 24 * 20) },
+    { evento:'llegada_casa', iso: hace(60 * 24 * 20 - 300) }
+  ]));
+  localStorage.setItem('silva_fatiga_ciclo_mio_v1', JSON.stringify([
+    { evento:'salida_casa', iso: hace(30) }
+  ]));
+  const antes = cicloMioAll().length;
+  cicloMioGuardar('llegada_aero', '', null);      // dispara la poda de lo local
+  const despues = cicloMioAll();
+  localStorage.removeItem('silva_fatiga_ciclo_srv_v1');
+  localStorage.removeItem('silva_fatiga_ciclo_mio_v1');
+
+  PRUEBAS.igual(antes, 3, 'arranca viendo los 2 del servidor + 1 local');
+  PRUEBAS.alMenos(despues.filter(e => new Date(e.iso) < new Date(Date.now() - 86400000 * 10)).length, 2,
+    'después de podar, los eventos viejos del SERVIDOR tienen que seguir estando');
+});
+
+PRUEBAS.caso('lo que está en el teléfono le gana a lo del servidor para el mismo evento', () => {
+  /* Un evento recién registrado sigue en la cola de envío: el servidor todavía no lo tiene. Si
+     ganara la versión del servidor, la persona vería desaparecer lo que acaba de tocar. */
+  const iso = new Date().toISOString();
+  localStorage.setItem('silva_fatiga_ciclo_srv_v1', JSON.stringify([{ evento:'salida_casa', iso, test:'', resultado:null }]));
+  localStorage.setItem('silva_fatiga_ciclo_mio_v1', JSON.stringify([{ evento:'salida_casa', iso, test:'kss', resultado:7 }]));
+  const todos = cicloMioAll();
+  localStorage.removeItem('silva_fatiga_ciclo_srv_v1');
+  localStorage.removeItem('silva_fatiga_ciclo_mio_v1');
+  PRUEBAS.igual(todos.length, 1, 'el mismo evento no se cuenta dos veces');
+  PRUEBAS.igual(todos[0].resultado, 7, 'y gana la versión del teléfono, que es la más nueva');
+});
+
+PRUEBAS.caso('⚠️ el selector de período sólo se le ofrece a quien puede usarlo', () => {
+  /* Quién puede ver histórico lo decide el SERVIDOR (`operacionalPeriodo.puedeVerHistorico`). Acá
+     sólo se comprueba que la pantalla no ofrezca un control que no va a funcionar — el recorte
+     real está en el endpoint, mismo criterio que K1a y K1b. */
+  const antes = (typeof DASH !== 'undefined' && DASH) ? DASH.operacionalPeriodo : undefined;
+  if (typeof DASH === 'undefined' || !DASH) { PRUEBAS.cierto(true, 'sin panel abierto se saltea'); return; }
+
+  DASH.operacionalPeriodo = { dias:7, puedeVerHistorico:false };
+  const sinPermiso = cicloPeriodoHtml();
+  DASH.operacionalPeriodo = { dias:30, puedeVerHistorico:true };
+  const conPermiso = cicloPeriodoHtml();
+  DASH.operacionalPeriodo = antes;
+
+  PRUEBAS.igual(sinPermiso, '', 'a un supervisor no se le dibuja el selector');
+  PRUEBAS.cierto(conPermiso.indexOf('cic-per') >= 0, 'y a quien puede, sí');
+});
+
+PRUEBAS.caso('⚠️ los períodos del ciclo pasan por t(), en los dos idiomas', () => {
+  /* R14: nada de texto visible escrito a mano. Y si falta una traducción la cadena de respaldo
+     devuelve la clave, que se ve como "per_30dias" en pantalla — se comprueba que no pase. */
+  const faltan = [];
+  ['per_titulo','per_hoy','per_7dias','per_30dias','per_90dias','per_sin_datos','per_sin_datos_h']
+    .forEach(k => { const v = t(k); if (!v || v === k) faltan.push(k); });
+  PRUEBAS.igual(faltan, [], 'toda clave de período tiene que resolver a texto de verdad');
+  PRUEBAS.cierto(cicloPeriodos().every(p => p.etiqueta && p.etiqueta !== p.id),
+    'y las etiquetas del selector salen de t(), no del id');
+});

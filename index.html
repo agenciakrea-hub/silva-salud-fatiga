@@ -3470,6 +3470,17 @@
     font-size:.78rem; font-weight:700; cursor:pointer; padding:.5rem .6rem; }
   .cic-cfg-err { font-size:.73rem; font-weight:700; color:var(--sem-rojo-txt); margin-top:.4rem; }
 
+  /* Y1 · selector de período. Mismo lenguaje visual que las pestañas del portal: chips en una
+     fila, el activo con la superficie de tarjeta. Todo por token (R13) para que el modo oscuro
+     salga sin una regla extra, y 44 px de alto (I2, y otra vez A1) porque se tocan con el dedo. */
+  .cic-pers { display:flex; flex-wrap:wrap; gap:.35rem; margin:.2rem 0 .9rem;
+    background:var(--sup-bg); border:1px solid var(--sup-borde); border-radius:999px; padding:.25rem; }
+  .cic-per { flex:1 1 auto; min-width:74px; min-height:44px; display:inline-flex; align-items:center;
+    justify-content:center; border:none; background:transparent; border-radius:999px;
+    font-family:inherit; font-size:.82rem; font-weight:700; color:var(--text-muted); cursor:pointer;
+    transition:background .18s, color .18s; }
+  .cic-per:hover { color:var(--text); }
+  .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
   .cic-resumen { display:flex; flex-wrap:wrap; gap:.45rem; margin:.8rem 0 1rem; }
   .cic-kpi { font-size:.75rem; font-weight:700; color:var(--text-soft); background:var(--chip-bg);
     padding:.22rem .6rem; border-radius:999px; white-space:nowrap; }
@@ -4952,7 +4963,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.62';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.63';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8812,10 +8823,36 @@ function waUrl(item){
    ciclo quedaría empezado por la mitad. Acá se guarda cronológicamente y se poda por la VENTANA
    del ciclo, igual que hacen `cicloArmar()` (supervisor) y `turnosHoy()` (turnos). */
 const K_CICLO_MIO = 'silva_fatiga_ciclo_mio_v1';
-function cicloMioAll(){ try { return JSON.parse(localStorage.getItem(K_CICLO_MIO)) || []; } catch(e){ return []; } }
+/* ⚠️ Y1 · CLAVE SEPARADA PARA LO QUE MANDA EL SERVIDOR, y la separación es el punto.
+   Lo local se poda a dos ventanas de ciclo (~48 h) cada vez que se guarda un evento — está bien,
+   evita que la lista crezca para siempre en el teléfono. Pero si el histórico del servidor se
+   guardara en la MISMA clave, la próxima poda se lo llevaría puesto: la persona vería sus 30 días
+   hasta que registrara el evento siguiente, y ahí volvería a tener dos días. Un histórico que
+   desaparece solo es peor que no tenerlo, porque nadie sabe si el dato existe.
+   Con dos claves cada una hace lo suyo: lo local se poda, lo del servidor se reemplaza entero en
+   cada sincronización, y `cicloMioAll()` las une. */
+const K_CICLO_SRV = 'silva_fatiga_ciclo_srv_v1';
+function cicloMioLocal(){ try { return JSON.parse(localStorage.getItem(K_CICLO_MIO)) || []; } catch(e){ return []; } }
+function cicloMioServidor(){ try { return JSON.parse(localStorage.getItem(K_CICLO_SRV)) || []; } catch(e){ return []; } }
+
+/* Todo el ciclo de la persona: lo que el servidor ya sabe MÁS lo que todavía está en el teléfono.
+   ⚠️ El orden importa: primero el servidor, después lo local, así lo local PISA. Un evento que
+   acaba de registrarse y sigue en la cola de envío tiene que ganarle a la versión del servidor
+   (que todavía no lo tiene) — es el mismo criterio que ya usa `misSincronizar` con los registros,
+   sólo que al revés de lado, porque acá lo más nuevo está del lado del teléfono. */
+function cicloMioAll(){
+  const porClave = {};
+  cicloMioServidor().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
+  cicloMioLocal().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
+  return Object.keys(porClave).map(k => porClave[k])
+    .sort((a,b) => new Date(a.iso) - new Date(b.iso));
+}
 function cicloMioGuardar(evento, test, resultado){
   if (!evento) return;
-  const lista = cicloMioAll();
+  /* Lee lo LOCAL y no la unión: si tomara la unión, los eventos del servidor se copiarían a la
+     clave local y la poda de abajo los borraría en el mismo paso — justo lo que las dos claves
+     vienen a evitar. */
+  const lista = cicloMioLocal();
   lista.push({ evento: evento, iso: new Date().toISOString(),
                test: test || '', resultado: (resultado != null ? Number(resultado) : null) });
   /* Poda: se conservan DOS ventanas de ciclo. Una sola dejaría afuera el ciclo de ayer justo
@@ -9632,6 +9669,13 @@ function misSincronizar(){
                        metrics: (Array.isArray(d.metricas) && d.metricas.length) ? d.metricas : local.metrics,
                        actualizado: Date.now() };
       misDatosSave(merged);
+      /* Y1: los eventos del ciclo que el servidor tiene de esta persona. Es lo que le devuelve su
+         historia más allá de las ~48 h que guarda el teléfono, y lo que hace que ya no la pierda
+         al cambiar de equipo. Si el endpoint todavía no está publicado no viene el campo y no se
+         toca nada: la app sigue funcionando con lo local, como hasta ahora. */
+      if (Array.isArray(d.operacional)) {
+        try { localStorage.setItem(K_CICLO_SRV, JSON.stringify(d.operacional)); } catch(e){}
+      }
       try { renderInicio(); } catch(e){}
       return true;
     })
@@ -15256,6 +15300,53 @@ function cicloHseqAgregado(filas, plan, ayuda, resumen){
         '<div class="db-sub">' + esc(t('cic_hseq_niv_d')) + '</div>' + filasNivel + '</div>'
       : '');
 }
+/* ── Y1 · el período que se está mirando ─────────────────────────────────────────────────────
+   `var` sin asignar y no `let`: R16. Esta pantalla se pinta desde el arranque del panel y una
+   `let` leída en zona muerta corta la ejecución del script entero de ahí para abajo — ya mordió
+   tres veces en este archivo. Sin valor inicial tampoco pisa nada si algo la escribió antes. */
+var CICLO_PERIODO;
+
+function cicloPeriodoActual(){ return CICLO_PERIODO || 'hoy'; }
+
+/* Cambiar de período NO vuelve a pedirle nada al servidor: los eventos ya vinieron todos en la
+   carga (30 días al empleado, lo que corresponda a su vista al resto), así que esto es puro
+   recorte en el cliente y se siente instantáneo. Si algún día hiciera falta un rango más largo que
+   el traído, ACÁ va el pedido — y ahí sí hay que bloquear la zona mientras carga (Q1). */
+function cicloPeriodoSet(id){
+  CICLO_PERIODO = id;
+  cicloRepintar();
+}
+
+/* El control. Sólo se dibuja para quien puede ver histórico; el resto ni lo ve, porque un control
+   que no va a funcionar es peor que no tenerlo. Quién puede lo dice el SERVIDOR (ver
+   cicloPuedeHistorico): acá sólo se lee esa bandera. */
+function cicloPeriodoHtml(){
+  if (!cicloPuedeHistorico()) return '';
+  const act = cicloPeriodoActual();
+  const botones = cicloPeriodos().map(pe =>
+    '<button type="button" class="cic-per' + (pe.id === act ? ' on' : '') + '"' +
+    ' aria-pressed="' + (pe.id === act ? 'true' : 'false') + '"' +
+    ' onclick="cicloPeriodoSet(\'' + pe.id + '\')">' + esc(pe.etiqueta) + '</button>').join('');
+  return '<div class="cic-pers" role="group" aria-label="' + esc(t('per_titulo')) + '">' + botones + '</div>';
+}
+
+/* Los ciclos que toca mostrar según el período. "En curso" es la vista de siempre —un ciclo por
+   persona, el abierto— y cualquier otro período es la histórica. Son dos preguntas distintas, no
+   dos configuraciones de la misma: ver el comentario de `cicloHistorico`. */
+function cicloDelPeriodo(){
+  const id = cicloPeriodoActual();
+  if (id === 'hoy' || !cicloPuedeHistorico()) return { historico:false, ciclos:cicloArmar() };
+  const pe = cicloPeriodos().find(x => x.id === id);
+  const dias = (pe && pe.dias) || 7;
+  /* El rango se arma en fechas de la operación, igual que lo hace el endpoint: si una punta
+     comparara instantes y la otra fechas, el borde del período no coincidiría entre lo que el
+     servidor manda y lo que la pantalla muestra. */
+  const hoyF = (typeof hoyOperacion === 'function' ? hoyOperacion() : new Date().toISOString().slice(0,10));
+  const desde = new Date(new Date(hoyF + 'T12:00:00').getTime() - (dias - 1) * 86400000)
+                  .toISOString().slice(0, 10);
+  return { historico:true, dias:dias, desde:desde, hasta:hoyF, ciclos:cicloHistorico(desde, hoyF) };
+}
+
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
   const plan = cicloPlan();
@@ -15269,11 +15360,30 @@ function renderCicloOperativo(){
     primero: cicloEventoLabel(cicloEventoInicial()),
     jornadaEv: cicloEventoLabel(trJornada.desde)
   }));
-  const ciclos = cicloArmar();
+  const sel = cicloDelPeriodo();
+  const perHtml = cicloPeriodoHtml();
+  /* En histórico cada persona trae VARIOS ciclos; `cicloPersonas` espera uno. Se le pasa el más
+     reciente de cada una para la lista, y el resto queda disponible en `sel.ciclos` para el
+     detalle. Así la vista de siempre no cambia en nada y la histórica reusa el mismo render. */
+  const ciclos = sel.historico
+    ? Object.keys(sel.ciclos).reduce((acc,k) => { acc[k] = sel.ciclos[k][0]; return acc; }, {})
+    : sel.ciclos;
   const personas = cicloPersonas(ciclos);
   const cfgHtml = cicloCfgHtml(plan);
   if (!personas.length){
-    return ayuda + cfgHtml + dashVacio('personal', 'gente');
+    /* ⚠️ CASO BORDE DEL PLAN: "un rango sin datos tiene que decir 'no hay registros en este
+       período', no quedarse vacío". Y no es lo mismo que "esta empresa no tiene gente": si se
+       muestra el vacío genérico, alguien concluye que no hay personal cuando lo que pasa es que
+       eligió un período donde nadie registró. Dos causas distintas, dos mensajes distintos. */
+    if (sel.historico){
+      /* Se usa `dashVacioTexto`, el vacío que ya existe en el panel, y no una caja nueva: así este
+         estado se ve exactamente igual que los otros vacíos de la app y hereda su tipografía, su
+         ícono y sus colores por token. Un vacío inventado acá sería una isla que el día que cambie
+         el estilo de los demás queda vieja sin que nadie lo note. */
+      return ayuda + perHtml + cfgHtml +
+        dashVacioTexto(t('per_sin_datos'), esc(t('per_sin_datos_h')), 'gente');
+    }
+    return ayuda + perHtml + cfgHtml + dashVacio('personal', 'gente');
   }
   const ahora = Date.now();
   const filas = personas.map(p => ({ p:p, st:cicloEstado(p.ciclo, ahora, plan) }));
@@ -15319,7 +15429,7 @@ function renderCicloOperativo(){
       cicloTurnoHtml(pe.persona) +
       cicloBarra(st, plan) + cicloTramosHtml(st, plan) + '</div>';
   }).join('');
-  return ayuda + cfgHtml + resumen + '<div class="cic-lista">' + cards + '</div>';
+  return ayuda + perHtml + cfgHtml + resumen + '<div class="cic-lista">' + cards + '</div>';
 }
 
 /* Reloj en vivo. Cada segundo actualiza SOLO los números y la aguja (rearmar el HTML pierde el
