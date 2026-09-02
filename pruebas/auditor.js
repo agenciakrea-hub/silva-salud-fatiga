@@ -204,6 +204,18 @@
         const m = String(cs.backgroundColor).match(/[\d.]+/g).slice(0, 3).map(Number);
         const saturacion = (Math.max(...m) - Math.min(...m)) / 255;
         if (saturacion > 0.15) return;
+        /* ⚠️ DECORACIÓN, no superficie. Misma regla que ya usa el chequeo de cortes: una caja
+           `aria-hidden` sin texto no contiene nada que se pueda volver ilegible. Reportaba el
+           puntito de "tocá acá" de Aptitud (15×15, blanco al 75%), que es un adorno. */
+        if (el.getAttribute('aria-hidden') === 'true' && !el.textContent.trim()) return;
+        /* ⚠️ COLOR DE DATO, no de tema. Si el fondo lo escribe el código en el atributo `style`, no
+           es una superficie que el tema deba pintar: es una escala o una muestra —una celda de mapa
+           de calor, el cuadradito de una leyenda—. Reportaba celdas de `heatColor` con L=0.85/0.90,
+           y verificado a mano NO están rotas: `heatColor` fija el color de la celda Y el del número
+           juntos, y da 10–13,5:1 en LOS DOS temas.
+           Que estén escritos a mano sí es deuda de R13 y está anotado como tal — pero es otra cosa
+           que "una caja blanca sin tematizar", que es lo que este chequeo busca. */
+        if (el.style && el.style.background) return;
         const nom = nombre(el);
         if (AUDITOR.CLARAS_A_PROPOSITO.some(c => nom.indexOf(c) >= 0)) { revisadas.push(nom); return; }
         malas.push(nom + '  L=' + L.toFixed(2));
@@ -263,6 +275,14 @@
        banda, recortados a propósito para que se vean como un arco. No tienen hijos reales que
        delaten nada, así que se los reconoce por lo que son: una caja `aria-hidden` sin texto. */
     if (el.getAttribute('aria-hidden') === 'true' && !el.textContent.trim()) return true;
+    /* TEXTO QUE SE DESLIZA (M4 y T3): el contenido es más ancho que la caja A PROPÓSITO — de eso se
+       trata el mecanismo, y la animación lo pasea para que se pueda leer entero.
+       ⚠️ Sólo se perdona con la clase `marquee` PUESTA. Que se pase de ancho SIN ella es un corte de
+       verdad, y encima uno mudo: estos elementos no llevan `text-overflow: ellipsis` (compite con la
+       animación), así que el texto termina y nada avisa que había más. Distinguir los dos casos en
+       vez de callar los dos es lo que hizo que la auditoría de A2 encontrara que al rotar el teléfono
+       nadie volvía a medir. */
+    if (el.classList.contains('marquee')) return true;
     return false;
   }
 
@@ -285,6 +305,39 @@
 
   /* ── 4 · Solapamientos entre hermanos ───────────────────────────────────────────────────── */
 
+  /* ⚠️ SE COMPARA RENGLÓN CONTRA RENGLÓN, NO LA CAJA ENTERA. Un elemento en línea que envuelve
+     ocupa varios renglones, y `getBoundingClientRect()` devuelve UNA caja que los abarca a todos —
+     incluido el hueco de la primera línea, donde vive el hermano anterior. Con esa caja, un
+     `<b>` que envuelve "se pisa" con el `<b>` de al lado aunque en pantalla no se toquen.
+     Medido en A2: `<b>` de 601×41 (dos renglones) contra `<b>` de 159×20 en la primera línea; el
+     auditor cantaba 36 solapamientos y ninguno era real. `getClientRects()` da una caja POR
+     RENGLÓN, que es lo que de verdad ocupa tinta. Se comparan todas contra todas y se reporta la
+     peor: así un solapamiento de verdad —dos bloques del flujo pisándose— sigue saltando. */
+  /* Cuánto se pisan DOS BLOQUES PORQUE ALGUIEN LO PIDIÓ. Un margen negativo es una decisión escrita:
+     `.dash-help` lleva `margin-top: -.2rem` para meterse debajo del bloque de arriba, y eso daba un
+     solapamiento de 3,2 px que rozaba el umbral. Se descuenta lo que el margen negativo explica; lo
+     que sobre, si sobra, sigue siendo un hallazgo. Subir el umbral a ciegas habría tapado también
+     los solapamientos chicos de verdad. */
+  function margenDeliberado(arriba, abajo) {
+    const m = parseFloat(getComputedStyle(abajo).marginTop) || 0;
+    const n = parseFloat(getComputedStyle(arriba).marginBottom) || 0;
+    return Math.max(0, -Math.min(m, 0)) + Math.max(0, -Math.min(n, 0));
+  }
+
+  function peorSolape(x, y) {
+    const A = [...x.getClientRects()], B = [...y.getClientRects()];
+    let peor = null;
+    for (const a of A) for (const b of B) {
+      const ov = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      const oh = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      if (ov <= 3 || oh <= 3) continue;
+      const pedido = margenDeliberado(a.top <= b.top ? x : y, a.top <= b.top ? y : x);
+      if (ov - pedido <= 3) continue;
+      if (!peor || ov * oh > peor.ov * peor.oh) peor = { ov, oh };
+    }
+    return peor;
+  }
+
   /* Sólo entre HERMANOS y sólo si ninguno está posicionado a propósito: un elemento absoluto o
      fijo encima de otro casi siempre es intencional (un chip sobre una tarjeta, un overlay). Lo
      que casi nunca es intencional es que dos bloques del flujo normal se pisen. */
@@ -303,12 +356,10 @@
       const hijos = [...padre.children].filter(h => visible(h) && enFlujo(h));
       for (let i = 0; i < hijos.length; i++) {
         for (let j = i + 1; j < hijos.length; j++) {
-          const a = hijos[i].getBoundingClientRect(), b = hijos[j].getBoundingClientRect();
-          const ov = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-          const oh = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-          if (ov > 3 && oh > 3) {
+          const p = peorSolape(hijos[i], hijos[j]);
+          if (p) {
             malos.push(nombre(hijos[i]) + ' × ' + nombre(hijos[j]) +
-                       '  (' + Math.round(oh) + '×' + Math.round(ov) + 'px)');
+                       '  (' + Math.round(p.oh) + '×' + Math.round(p.ov) + 'px)');
           }
         }
       }

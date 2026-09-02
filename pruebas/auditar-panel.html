@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Auditar el panel · Silva Salud Fatiga</title>
+<!--
+  ══════════════════════════════════════════════════════════════════════════════════════════════
+  AUDITAR EL PANEL — barrido de cierre de tanda                                  (A2, 2026-09-02)
+
+  QUÉ ES: abre el panel de estadísticas en la demostración y lo mide en TODAS sus pantallas, a
+  seis anchos y en los dos temas, con `pruebas/auditor.js`.
+
+  ⚠️ POR QUÉ EXISTE, Y ES LA LECCIÓN DE A1.
+  En A1 la primera corrida dio limpio y era mentira: se había auditado el inicio con todo lo demás
+  CERRADO, y el propio auditor declaraba 113 textos que no podía medir — casi todos adentro de
+  overlays cerrados. Los dos defectos reales estaban ahí adentro.
+
+  El panel es peor todavía: no es un overlay que se abre, son ~20 pantallas distintas (tres vistas
+  con sus pestañas) que comparten el mismo contenedor y se pintan de a una. Auditar "el panel" sin
+  recorrerlas mide UNA y cree haber medido todas. Esto las recorre.
+
+  CÓMO SE USA: abrirlo en el navegador con el servidor de la app en el 8928, y tocar el botón.
+  El resultado sale por pantalla y queda en `window.RESULTADO` para inspeccionarlo.
+  ══════════════════════════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 1rem 1.2rem; }
+  iframe#app { position: fixed; left: -10000px; top: 0; width: 390px; height: 844px; border: 0; }
+  button { font: inherit; padding: .5rem 1rem; cursor: pointer; }
+  pre { background: #f4f4f4; padding: .8rem; overflow: auto; max-height: 70vh; font-size: 12px; }
+</style>
+
+<h1>Auditar el panel</h1>
+<p>Recorre las pantallas del panel a 6 anchos × 2 temas. Resultado también en <code>window.RESULTADO</code>.</p>
+<button id="ir">Auditar</button>
+<pre id="out">—</pre>
+
+<iframe id="app" title="la app, para auditarla"></iframe>
+
+<script>
+const ANCHOS = [[320,800],[375,812],[390,844],[768,1024],[1366,800],[1920,1080]];
+
+function log(s){ document.getElementById('out').textContent = s; }
+
+function cargarApp(){
+  return new Promise((res, rej) => {
+    const f = document.getElementById('app');
+    f.onload = () => res(f);
+    f.onerror = () => rej(new Error('no se pudo cargar la app en el iframe'));
+    f.src = '../index.html?auditoria=1';
+  });
+}
+
+async function cargarAuditor(win){
+  const src = await (await fetch('auditor.js')).text();
+  win.eval(src);
+}
+
+/* ⚠️ TODO lo que toque el estado de la app pasa por `win.eval`, y no es un capricho.
+   `DASH` está declarado como `let DASH = null;` en el script de la app. Un `let` de nivel superior
+   NO es una propiedad de `window`: vive en el ámbito del script. Desde afuera del iframe,
+   `win.DASH` da `undefined` SIEMPRE — aunque el panel esté cargado y a la vista. La primera versión
+   de este archivo sondeaba `win.DASH` y concluía "la demostración no cargó" con el panel abierto
+   adelante. `win.eval('DASH')` sí corre adentro del ámbito del script y lo ve.
+   (Las funciones sí se pueden llamar como `win.f()`: una `function` de nivel superior sí queda en
+   `window`. La diferencia entre las dos mitades es exactamente esa, y no se nota hasta que
+   muerde.) */
+const ev = (win, src) => win.eval(src);
+
+/* Abre la demostración y espera a que el panel tenga datos. No se puede esperar con un plazo fijo
+   "por las dudas": con la pestaña oculta los temporizadores están estrangulados (ver LEEME).
+   Se sondea el estado real en vez de confiar en un plazo. */
+async function abrirDemo(win){
+  win.splashVerDemo();
+  const btn = [...win.document.querySelectorAll('button')]
+    .find(b => /Ver demostración con datos simulados/.test(b.textContent));
+  if (!btn) throw new Error('no se encontró el botón de la demostración');
+  btn.click();
+  for (let i = 0; i < 100; i++){
+    if (ev(win, 'DASH && DASH.registros ? 1 : 0')) return;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  throw new Error('la demostración no cargó');
+}
+
+/* Todas las pantallas del panel: cada vista con sus pestañas reales, preguntándoselas a la app
+   (`dashTabsFor`) en vez de escribir la lista a mano — si mañana aparece una pestaña nueva, entra
+   sola en la auditoría. Ese fue el modo de fallar de A1: una lista escrita a mano no sabe lo que
+   no le contaron. */
+function pantallas(win){
+  const out = [];
+  ['supervisor','medico','hseq'].forEach(vista => {
+    ev(win, 'dashTabsFor(DASH.rol, false, ' + JSON.stringify(vista) + ')')
+      .forEach(tab => out.push({ vista, tab }));
+  });
+  return out;
+}
+
+function pintar(win, vista, tab){
+  ev(win,
+    'DASH.tabs = dashTabsFor(DASH.rol, false, ' + JSON.stringify(vista) + ');' +
+    'DASH.vista = ' + JSON.stringify(vista) + ';' +
+    'DASH.tab = ' + JSON.stringify(tab) + ';' +
+    'buildDashFilters(); renderDash();' +
+    /* ⚠️ `renderDash` deja las mediciones que dependen del layout en `requestAnimationFrame`, y
+       rAF NO CORRE con la pestaña oculta — que es como corre siempre este entorno (ver LEEME).
+       Sin esto, el auditor mide un panel al que todavía no se le aplicó el desplazamiento y
+       reporta como cortado algo que en el navegador de una persona ya se estaría deslizando.
+       Es la misma clase de trampa que las animaciones: no es que esté roto, es que este entorno
+       no llegó a ejecutarlo. */
+    'dashWireAnResMarquee(); dashWireMarquees();');
+}
+
+async function auditar(){
+  log('cargando la app…');
+  const f = await cargarApp();
+  const win = f.contentWindow;
+  await cargarAuditor(win);
+  log('abriendo la demostración…');
+  await abrirDemo(win);
+
+  const lista = pantallas(win);
+  const hallazgos = [];
+  const sinMedir = [];
+  let corridas = 0;
+
+  for (const p of lista){
+    for (const [w, h] of ANCHOS){
+      for (const tema of ['claro','oscuro']){
+        f.style.width = w + 'px'; f.style.height = h + 'px';
+        win.document.documentElement.setAttribute('data-tema', tema);
+        pintar(win, p.vista, p.tab);
+        void win.document.body.offsetWidth;
+        const r = win.AUDITOR.todo();
+        corridas++;
+        const donde = p.vista + '/' + p.tab + ' · ' + w + 'px · ' + tema;
+        ['contraste','superficiesClarasEnOscuro','cortes','solapamientos','areasDeToque'].forEach(k => {
+          (r[k] || []).forEach(x => hallazgos.push({ tipo: k, donde, que: x }));
+        });
+        /* `sinPoderMedir` es un NÚMERO, no una lista (así lo devuelve `AUDITOR.contraste`). Y es el
+           dato que en A1 destapó que la auditoría "limpia" cubría media app: un recuento alto de
+           textos que no se pudieron medir es un resultado, no un cero. Se guarda por pantalla. */
+        if (r.sinPoderMedir) sinMedir.push({ donde, n: r.sinPoderMedir });
+        log('auditando… ' + corridas + '/' + (lista.length * ANCHOS.length * 2) +
+            ' · hallazgos: ' + hallazgos.length);
+      }
+    }
+  }
+
+  /* Se agrupa por hallazgo ÚNICO: el mismo defecto aparece en muchas combinaciones y contarlo
+     tantas veces exagera el problema. Lo que importa es cuántas cosas distintas hay que arreglar,
+     y en qué anchos/temas aparece cada una. */
+  const unicos = {};
+  hallazgos.forEach(h => {
+    const k = h.tipo + ' :: ' + h.que;
+    (unicos[k] = unicos[k] || { tipo: h.tipo, que: h.que, dondes: [] }).dondes.push(h.donde);
+  });
+  const resumen = Object.values(unicos)
+    .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
+    .sort((a, b) => b.veces - a.veces);
+  const picoSinMedir = sinMedir.sort((a, b) => b.n - a.n)[0] || null;
+
+  window.RESULTADO = { corridas, pantallas: lista.length, hallazgos, sinMedir, resumen };
+  log('LISTO · ' + corridas + ' corridas sobre ' + lista.length + ' pantallas\n' +
+      'hallazgos únicos: ' + resumen.length + '  (brutos: ' + hallazgos.length + ')\n' +
+      'pico de textos que no se pudieron medir: ' +
+        (picoSinMedir ? picoSinMedir.n + ' en ' + picoSinMedir.donde : '0') + '\n\n' +
+      JSON.stringify(resumen.slice(0, 40), null, 1));
+}
+
+document.getElementById('ir').onclick = () => auditar().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+</script>
