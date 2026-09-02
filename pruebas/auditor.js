@@ -286,6 +286,49 @@
     return false;
   }
 
+  /* ── 3b · Carruseles: que se vea UNA diapositiva, no una y media ────────────────────────── */
+
+  /* ⚠️ ESTE CHEQUEO NACIÓ DE UN BUG QUE EL AUDITOR TENÍA APRENDIDO A IGNORAR (A2b, 2026-09-02).
+     `recortaAProposito` reconoce un carrusel y deja de mirarlo: el recorte ES el mecanismo. Correcto
+     para "se pasa 1.400 px de ancho" — y ciego para lo único que de verdad puede fallar en una tira
+     de diapositivas, que es que se vean DOS a la vez.
+     Y estuvo a la vista todo el tiempo: arriba, en el detector, hay un comentario que dice que las
+     diapositivas del splash medían "55 px menos que la caja" por el `padding`. Ese hueco de 55 px
+     ERA el defecto —la lámina de al lado asomando por la franja del relleno— y se leyó como un
+     problema del detector, así que se lo enseñó a tolerarlo. Medido a 1366x700: ventana de recorte
+     520 px, diapositiva 459, 61 px de lámina vecina pegados al borde izquierdo.
+     Regla: dentro de la ventana de recorte de un carrusel puede haber UNA sola diapositiva con
+     superficie visible. Se deja un margen de 4 px para los redondeos de subpíxel. */
+  AUDITOR.carruseles = function () {
+    const malos = [];
+    document.querySelectorAll('body *').forEach(el => {
+      if (!visible(el)) return;
+      const cs = getComputedStyle(el);
+      if (!(cs.overflow === 'hidden' || cs.overflowX === 'hidden')) return;
+      if (el.children.length !== 1) return;
+      const pista = el.children[0];
+      if (pista.children.length < 2) return;
+      const caja = el.getBoundingClientRect();
+      const anchoContenido = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      if (!(pista.scrollWidth > anchoContenido * 1.5)) return;   // no es una tira de diapositivas
+      const asoman = [...pista.children].filter(d => {
+        const r = d.getBoundingClientRect();
+        return Math.min(r.right, caja.right) - Math.max(r.left, caja.left) > 4;
+      });
+      if (asoman.length > 1) {
+        const anchos = asoman.map(d => {
+          const r = d.getBoundingClientRect();
+          return Math.round(Math.min(r.right, caja.right) - Math.max(r.left, caja.left));
+        });
+        malos.push(nombre(el) + '  se ven ' + asoman.length + ' diapositivas a la vez (' +
+                   anchos.join(' + ') + ' px de ' + Math.round(caja.width) + ')' +
+                   (parseFloat(cs.paddingLeft) > 2 || parseFloat(cs.paddingRight) > 2
+                     ? '  ← tiene padding, y `overflow` recorta en la caja de RELLENO' : ''));
+      }
+    });
+    return [...new Set(malos)];
+  };
+
   AUDITOR.cortes = function () {
     const malos = [];
     document.querySelectorAll('body *').forEach(el => {
@@ -413,6 +456,7 @@
       superficiesClarasEnOscuro: AUDITOR.superficiesClaras(),
       clarasRevisadasYAceptadas: AUDITOR.ultimasRevisadas || [],
       cortes: AUDITOR.cortes(),
+      carruseles: AUDITOR.carruseles(),
       solapamientos: AUDITOR.solapamientos(),
       areasDeToque: AUDITOR.areasDeToque()
     };

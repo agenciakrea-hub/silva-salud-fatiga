@@ -2735,6 +2735,9 @@
      así que sus hijos siguen siendo hijos directos de `.splash-cuerpo` (mismo orden, mismo
      gap), y el panel de presentación del carrusel directamente no se pinta. */
   .splash-brand, .splash-acciones { display: contents; }
+  /* `.splash-der` sólo existe como caja en escritorio (ver la regla de la grilla, más abajo). Acá
+     desaparece del layout para que el celular quede exactamente como estaba. */
+  .splash-der { display: contents; }
   .ent-brand { display: none; }
   /* ── TABLET VERTICAL (600–899): punto intermedio, no el celular estirado ──
      A 768 el titular medía los mismos 448 px que a 1920 y la tarjeta de alta, 410. Acá no hay
@@ -2814,12 +2817,18 @@
     .splash-brand .splash-sub { font-size: 1.04rem; max-width: 36ch; margin-bottom: 0; }
     /* El panel accionable. El contenido va acotado y centrado dentro de la columna: a 1920 la
        columna mide 960 px, pero un botón de 960 px no es un botón, es una barra. */
-    .splash-acciones { grid-column: 2; grid-row: 1; align-self: end;
+    /* La columna derecha ENTERA, ocupando las tres filas y centrando lo suyo. Antes las acciones
+       vivían en la fila 1 y el pie en la 2, y la fila 3 —la de la tira, que sólo existe del lado
+       izquierdo— quedaba muerta a la derecha: el bloque se iba para arriba y abajo sobraba un
+       hueco enorme. Medido a 1366x700 antes: 87 px arriba / 266 abajo. */
+    .splash-der { grid-column: 2; grid-row: 1 / span 3; align-self: stretch;
+      position: relative; z-index: 2;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .splash-acciones {
       position: relative; z-index: 2;
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
-      padding: 3.2rem clamp(2rem, 4vw, 4rem) 0; }
-    .splash-pie { grid-column: 2; grid-row: 2; align-self: start;
-      padding: 1.6rem clamp(2rem, 4vw, 4rem) 1.4rem; gap: .15rem; }
+      padding: 0 clamp(2rem, 4vw, 4rem); }
+    .splash-pie { padding: 1.6rem clamp(2rem, 4vw, 4rem) 0; gap: .15rem; }
     /* ⚠️ VA DEL LADO AZUL (columna 1), no del lado de la tarjeta clara. Estaba en la columna 2,
        debajo de Administrador, y ahí sobraban 207 px de navy vacío abajo de `.splash-brand`
        (medido a 1366x768) porque esa columna sólo ocupa las filas 1 y 2 — la fila 3 quedaba sin
@@ -2833,8 +2842,17 @@
        que hacía esto antes NO SERVÍA: la tira nunca fue descendiente de `.splash-brand` en el
        marcado (son hermanos dentro de la grilla), así que esa regla no alcanzaba a nada. Quedaba
        centrada por el `justify-content:center` de base, pensado para el celular. */
+    /* ⚠️ EL DESPLAZAMIENTO A LA DERECHA VA POR `margin`, NUNCA POR `padding`. `.splash-anim` es la
+       caja que RECORTA el carrusel (`overflow:hidden` en su regla base), y `overflow` recorta en la
+       caja de RELLENO, no en la de contenido: todo lo que se meta como `padding` queda DENTRO de la
+       ventana visible. Las diapositivas miden el 100% del contenido, así que con relleno a la
+       izquierda la tira se corre y por esa franja asoma la diapositiva ANTERIOR.
+       Medido a 1366x700 antes del arreglo: ventana de recorte 520 px, diapositiva 459, y 61 px por
+       los que se veía media tarjeta de la lámina de al lado pegada al borde izquierdo — la que
+       muestra "Normal / Elevado / Crítico". Con `margin` el corrimiento queda AFUERA del recorte y
+       la alineación con el logo y el título es la misma. */
     .splash-anim { grid-column: 1; grid-row: 3; align-self: start;
-      margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem 0; padding-left: clamp(2rem, 4.5vw, 4.5rem);
+      margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem clamp(2rem, 4.5vw, 4.5rem); padding-left: 0;
       max-width: none; height: clamp(120px, 20vh, 190px); }
     #splashAnimTrack .splash-anim-slide { justify-content: flex-start; }
     .splash-wrap { grid-template-rows: auto auto auto; }
@@ -4353,6 +4371,17 @@
         <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
         <p class="splash-sub ent-texto-entra ent-texto-entra--3" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
       </div>
+      <!-- ⚠️ ENVOLTORIO DE LA COLUMNA DERECHA (A2b). En celular es `display:contents`, o sea que no
+           existe para el layout: `.splash-acciones` y `.splash-pie` siguen siendo hijos directos de
+           `.splash-cuerpo` y el reparto con `space-evenly` queda igual que antes.
+           En escritorio SÍ es una caja, y es lo que arregla el vacío: sin él, las acciones vivían en
+           la fila 1 y el pie en la 2, mientras la fila 3 (la de la tira de presentación) existía
+           sólo del lado izquierdo. Esa fila quedaba muerta a la derecha y empujaba todo hacia
+           arriba — medido a 1366x700: 87 px de aire arriba contra 266 abajo. Con la caja, la
+           columna entera ocupa las tres filas y centra su contenido de una sola vez.
+           No se puede resolver sin este `<div>`: en una grilla CSS las filas son de toda la grilla,
+           no de una columna, así que no hay forma de que la fila 3 no exista para la derecha. -->
+      <div class="splash-der">
       <div class="splash-acciones">
         <button type="button" class="ent-btn ent-btn--solid splash-cta ent-texto-entra ent-texto-entra--4" onclick="splashIngresar()" data-i18n="splash_ingresar">Ingresar</button>
         <div class="splash-empresa" id="splashEmpresaMarca" style="display:none"></div>
@@ -4371,6 +4400,7 @@
         <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
         <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
       </div>
+      </div><!-- /.splash-der -->
     </div>
     <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
          Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
@@ -5079,7 +5109,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.69';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.70';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

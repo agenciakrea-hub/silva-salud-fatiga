@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Auditar las pantallas de entrada · Silva Salud Fatiga</title>
+<!--
+  ══════════════════════════════════════════════════════════════════════════════════════════════
+  AUDITAR LAS PANTALLAS DE ENTRADA                                              (A2b, 2026-09-02)
+
+  QUÉ ES: mide el splash, el carrusel y el portal a seis anchos y en los dos temas.
+
+  ⚠️ POR QUÉ EXISTE. El usuario mandó una captura de PRODUCCIÓN a 1366 px con la pantalla de entrada
+  rota: media tarjeta de otra lámina asomando pegada al borde izquierdo, y un vacío enorme abajo del
+  bloque de botones. A2 había auditado el PANEL —17 pantallas, 204 corridas— y dado por cubierto el
+  resto. La pantalla de entrada, que es lo PRIMERO que ve cualquiera, no se miró a ancho de
+  escritorio en esa auditoría.
+
+  La lección es la misma de A1 pero un escalón más arriba: no alcanza con auditar bien lo que
+  cambiaste, porque el usuario no entra por donde vos trabajaste — entra por la puerta.
+
+  ADEMÁS mide el DESBALANCE VERTICAL, que ningún chequeo anterior miraba: un bloque con 87 px de aire
+  arriba y 266 abajo no está "cortado" ni "solapado" ni tiene poco contraste. Está mal puesto, y se
+  ve horrible. Ninguna de las cinco medidas del auditor lo agarraba.
+
+  CÓMO SE USA: abrirlo con el servidor de la app en el 8928 y tocar el botón.
+  ══════════════════════════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 1rem 1.2rem; }
+  iframe#app { position: fixed; left: -10000px; top: 0; width: 390px; height: 844px; border: 0; }
+  button { font: inherit; padding: .5rem 1rem; cursor: pointer; }
+  pre { background: #f4f4f4; padding: .8rem; overflow: auto; max-height: 70vh; font-size: 12px; }
+</style>
+
+<h1>Auditar las pantallas de entrada</h1>
+<p>Splash, carrusel y portal · 6 anchos × 2 temas. Resultado en <code>window.RESULTADO</code>.</p>
+<button id="ir">Auditar</button>
+<pre id="out">—</pre>
+
+<iframe id="app" title="la app, para auditarla"></iframe>
+
+<script>
+const ANCHOS = [[320,800],[375,812],[390,844],[768,1024],[1366,768],[1920,1080]];
+
+/* Las pantallas se abren llamando a las funciones de la app. `null` = el splash tal como carga. */
+const PANTALLAS = [
+  { nombre: 'splash',        abrir: null },
+  { nombre: 'portal-gate',   abrir: 'splashPortal()' },
+  { nombre: 'portal-demo',   abrir: 'splashVerDemo()' },
+];
+
+const log = s => { document.getElementById('out').textContent = s; };
+const ev = (win, src) => win.eval(src);   // `let`/`const` de nivel superior no viven en `window`
+
+function cargarApp(){
+  return new Promise((res, rej) => {
+    const f = document.getElementById('app');
+    f.onload = () => res(f);
+    f.onerror = () => rej(new Error('no se pudo cargar la app'));
+    f.src = '../index.html?auditoria=' + Date.now();
+  });
+}
+
+/* Mueve toda tira de diapositivas a su segunda lámina. Se hace por `transform` y no llamando a la
+   función de la app: sirve para cualquier carrusel, incluidos los que no exponen una. */
+function avanzarCarrusel(doc){
+  doc.querySelectorAll('.splash-anim-track, .car-track, [class*="-track"]').forEach(t => {
+    if (t.children.length < 2) return;
+    t.style.transition = 'none';
+    t.style.transform = 'translateX(-100%)';
+  });
+}
+
+/* Aire arriba y abajo de un bloque dentro de su contenedor. Un bloque que dice "centrado" y tiene
+   tres veces más aire de un lado que del otro no está centrado: está mal puesto. */
+function balance(doc, selContenedor, selPrimero, selUltimo){
+  const c = doc.querySelector(selContenedor);
+  const a = doc.querySelector(selPrimero);
+  const z = doc.querySelector(selUltimo);
+  if (!c || !a || !z) return null;
+  const rc = c.getBoundingClientRect();
+  const arriba = Math.round(a.getBoundingClientRect().top - rc.top);
+  const abajo  = Math.round(rc.bottom - z.getBoundingClientRect().bottom);
+  return { arriba, abajo, peor: Math.max(arriba, abajo), mejor: Math.min(arriba, abajo) };
+}
+
+async function auditar(){
+  log('cargando la app…');
+  const f = await cargarApp();
+  const win = f.contentWindow, doc = win.document;
+  const src = await (await fetch('auditor.js')).text();
+  win.eval(src);
+
+  const hallazgos = [], desbalances = [];
+  let corridas = 0;
+
+  for (const p of PANTALLAS){
+    for (const [w, h] of ANCHOS){
+      for (const tema of ['claro','oscuro']){
+        f.style.width = w + 'px'; f.style.height = h + 'px';
+        doc.documentElement.setAttribute('data-tema', tema);
+        /* ⚠️ `sin-animaciones` SE DEJA PUESTA, y esto me lo enseñó equivocarme acá mismo.
+           La primera versión la QUITABA, razonando "así se ve el estado final". Es al revés: con la
+           pestaña oculta las animaciones no avanzan, así que sin esa clase los elementos animados se
+           quedan en su primer fotograma, que para `.ent-texto-entra` es `opacity: 0`. Y el auditor
+           saltea lo invisible. Resultado: 36 corridas, 4 hallazgos y la sensación de estar limpio,
+           midiendo un splash donde el carrusel entero era invisible para la herramienta.
+           La clase hace lo contrario de lo que parece: apaga las animaciones Y fuerza `opacity: 1`
+           en los elementos que ellas animan (está escrito en el CSS, en el bloque de
+           `html.sin-animaciones`). Es la forma de ver el estado FINAL en este entorno.
+           Se vuelve a poner por si alguna pantalla la sacó. */
+        doc.documentElement.classList.add('sin-animaciones');
+        if (p.abrir) { try { ev(win, p.abrir); } catch(e){} }
+        /* ⚠️ EL CARRUSEL SE ADELANTA UNA LÁMINA A PROPÓSITO. En la lámina 0 no hay vecina a la
+           izquierda, así que el defecto que motivó todo esto —la lámina de al lado asomando por la
+           franja del relleno— NO SE VE. Medir siempre en la 0 es medir el único estado donde el bug
+           no existe. Con la pestaña oculta la tira nunca avanza sola (no corren ni animaciones ni
+           temporizadores), así que si no se la mueve a mano se mide siempre ese estado. */
+        avanzarCarrusel(doc);
+        void doc.body.offsetWidth;
+
+        const r = win.AUDITOR.todo();
+        corridas++;
+        const donde = p.nombre + ' · ' + w + 'px · ' + tema;
+        ['contraste','carruseles','cortes','solapamientos','areasDeToque','superficiesClarasEnOscuro']
+          .forEach(k => (r[k] || []).forEach(x => hallazgos.push({ tipo: k, donde, que: x })));
+
+        if (p.nombre === 'splash' && w >= 900){
+          const b = balance(doc, '.splash-wrap', '.splash-acciones', '.splash-pie');
+          /* Se tolera hasta el doble: un bloque puede respirar distinto arriba que abajo sin que
+             se note. Tres veces, no — eso ya se lee como "quedó pegado arriba". */
+          if (b && b.peor > 40 && b.peor > b.mejor * 2){
+            desbalances.push(donde + ' · columna derecha: ' + b.arriba + ' px arriba contra ' +
+                             b.abajo + ' abajo');
+          }
+        }
+        log('auditando… ' + corridas + '/' + (PANTALLAS.length * ANCHOS.length * 2) +
+            ' · hallazgos: ' + hallazgos.length);
+      }
+    }
+  }
+
+  const unicos = {};
+  hallazgos.forEach(x => {
+    const k = x.tipo + ' :: ' + x.que;
+    (unicos[k] = unicos[k] || { tipo: x.tipo, que: x.que, dondes: [] }).dondes.push(x.donde);
+  });
+  const resumen = Object.values(unicos)
+    .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
+    .sort((a,b) => b.veces - a.veces);
+
+  window.RESULTADO = { corridas, hallazgos, resumen, desbalances };
+  const porTipo = {}; resumen.forEach(x => porTipo[x.tipo] = (porTipo[x.tipo]||0)+1);
+  log('LISTO · ' + corridas + ' corridas\n' +
+      'hallazgos únicos: ' + resumen.length + '  ' + JSON.stringify(porTipo) + '\n' +
+      'desbalances verticales: ' + desbalances.length + '\n\n' +
+      JSON.stringify(resumen.slice(0,25), null, 1) + '\n\n' +
+      JSON.stringify(desbalances, null, 1));
+}
+
+document.getElementById('ir').onclick = () => auditar().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+</script>
