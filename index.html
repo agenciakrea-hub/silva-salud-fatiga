@@ -4076,6 +4076,10 @@
     padding:.85rem 1rem; margin-bottom:.7rem; }
   .ini-firmada-t { font-size:1.12rem; font-weight:800; color:var(--inic-c); line-height:1.2; margin-top:.1rem; }
   .ini-firmada-x { font-size:.8rem; color:var(--text-soft); margin-top:.2rem; }
+  /* W3: aviso de "estamos trayendo tu historial". Mismo lenguaje que los demas avisos del inicio. */
+  .ini-recuperando { background: var(--sem-azul-bg); border: 1px solid var(--sem-azul);
+    border-radius: var(--radius); padding: .7rem .9rem; margin-bottom: .7rem;
+    font-size: .84rem; font-weight: 600; color: var(--sem-azul-int); line-height: 1.45; }
   .ini-estado { border-radius: var(--radius); padding: 0; border: 1px solid var(--sup-borde);   /* M5: era 16px a mano */
     background: var(--inic-bg); border-left: 5px solid var(--inic-c); box-shadow: var(--shadow-sm);
     overflow: hidden; }
@@ -5161,7 +5165,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.71';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.72';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6087,6 +6091,7 @@ const I18N = {
       sf_x_condiciones:'El servicio médico te dejó una indicación',
       sf_t_revisar:'Hay indicadores para revisar',
       sf_x_revisar:'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.',
+      mis_recuperando:'Estamos trayendo tu historial. Tus registros anteriores están guardados y van a aparecer en unos segundos.',
       sf_t_sindato:'Todavía sin registros', sf_x_sindato:'Cuando completes tu primer test vas a ver tu estado acá.',
       sf_t_ok:'Estás en condiciones', sf_x_ok:'Tus indicadores más recientes están dentro de lo esperado.',
       sf_no_hagas:'No hagas hoy: {q}', sf_tarea_indicada:'la tarea indicada',
@@ -7600,6 +7605,7 @@ const I18N = {
       sf_x_condiciones:'Medical staff left you an instruction',
       sf_t_revisar:'There are indicators to review',
       sf_x_revisar:'Some of your indicators suggest fatigue. Medical staff have not reviewed it yet — it is not a determination, only an alert from the automatic check.',
+      mis_recuperando:'We are fetching your history. Your previous records are saved and will appear in a few seconds.',
       sf_t_sindato:'No records yet', sf_x_sindato:'Once you complete your first test you will see your status here.',
       sf_t_ok:'You are fit to work', sf_x_ok:'Your most recent indicators are within the expected range.',
       sf_no_hagas:'Do not do today: {q}', sf_tarea_indicada:'the task indicated',
@@ -9529,7 +9535,14 @@ function renderInicio(){
   // J2: desplegable, cerrado por defecto (por dispositivo). Sólo colapsa lo explicativo — la
   // etiqueta y el título quedan siempre a la vista, para que de un vistazo alcance.
   const estAbierto = iniEstadoAbierto();
-  let html = firmada + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
+  /* W3: mientras se trae el historial del CH, DECIRLO. Sin esto, quien vuelve a identificarse ve
+     una pantalla vacia que se lee como "perdiste todo" — y justo despues de tocar un boton que
+     dice "Cerrar sesion". El aviso sale solo cuando de verdad hay una recuperacion en curso Y
+     todavia no llego nada, asi que en el uso normal no aparece nunca. */
+  const recuperando = (typeof _misRecuperando !== 'undefined' && _misRecuperando &&
+                       !misDatos().registros.length)
+    ? '<div class="ini-recuperando">' + esc(t('mis_recuperando')) + '</div>' : '';
+  let html = firmada + recuperando + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
     '<button type="button" class="ini-est-head" onclick="iniEstadoToggle()" aria-expanded="' + (estAbierto?'true':'false') + '" aria-controls="iniEstBody">' +
       '<span class="ini-est-headtx"><span class="ini-est-k">' + esc(t('ini_estado_k')) + '</span>' +
       '<span class="ini-est-t">' + esc(titulo) + '</span></span>' +
@@ -9873,6 +9886,32 @@ function misGuardarPvt(m){
 // techo en un teléfono que se usa todos los días durante años.
 function misPodar(arr){
   return arr.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 400);
+}
+
+/* ⚠️ W3 · RECUPERAR EL HISTORIAL AL VOLVER A IDENTIFICARSE.
+   Verificado midiendo, no leyendo: `misSincronizar()` se llamaba desde UN SOLO lugar,
+   `tareasArranque()`, que corre una vez al abrir la app. Ni `saveProfile()` ni
+   `recuperarConfirmar()` lo llamaban.
+   Consecuencia reproducida paso a paso: con 12 registros, cerrar sesion y volver a
+   identificarse con el MISMO nombre y empresa dejaba 12 -> 0 registros, y `misSincronizar`
+   no se ejecutaba ni una vez. La persona veia su pantalla de estadisticas VACIA.
+
+   El dato NO se pierde: esta en el CH y vuelve — pero recien al abrir la app la proxima vez.
+   Desde adentro de la app eso es indistinguible de haberlo perdido, y el boton que lo provoca
+   se llama "Cerrar sesion". Por eso esto es un defecto y no una molestia.
+
+   `_misRecuperando` deja constancia de que hay una recuperacion en curso, para que la pantalla
+   pueda decirlo en vez de mostrar un vacio que se lee como "no tenes nada". */
+var _misRecuperando = false;
+function misRecuperarHistorial(){
+  const p = getProfile();
+  if (!p || !p.nombre || !p.empresa) return;
+  if (!SHEETS_DASHBOARD_URL || (typeof simulando === 'function' && simulando())) return;
+  _misRecuperando = true;
+  try { renderInicio(); } catch(e){}
+  const fin = () => { _misRecuperando = false; try { renderInicio(); } catch(e){} };
+  let r; try { r = misSincronizar(); } catch(e){ fin(); return; }
+  if (r && typeof r.then === 'function') r.then(fin, fin); else fin();
 }
 
 let _misSincronizando = false;
@@ -11746,7 +11785,9 @@ function saveProfile(){
   const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? t('f_datos_act') : t('f_listo_reportar'));
     // B4: recién ahora vienen consentimiento y tamaño. Al EDITAR datos no corresponde: esa
     // persona ya hizo el recorrido y sólo vino a corregir un teléfono.
-    if (!editing) avanzarAlta(); };
+    // W3: al identificarse se va a buscar el historial al CH. Sin esto la persona entra y ve
+    // su pantalla vacia hasta el proximo arranque de la app.
+    if (!editing) { misRecuperarHistorial(); avanzarAlta(); } };
 
   // Las contraseñas (supervisor y/o servicio médico, pueden ser distintas) se verifican contra
   // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
@@ -20550,6 +20591,7 @@ function recuperarConfirmar(){
       recuperarCerrar(); nominaCerrar(); closeSetup();
       aplicarIdioma();
       showToast(t('rec_listo'));
+      misRecuperarHistorial();   // W3: idem, este es el camino de quien reinstala o cambia de equipo
       avanzarAlta();   // no debería quedar nada pendiente: entra directo a la app
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
