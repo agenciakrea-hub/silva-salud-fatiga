@@ -62,7 +62,11 @@ PRUEBAS.caso('el nombre del evento tiene lugar de verdad', () => {
   sembrarCiclo();
   const top = document.querySelector('.cic-mio-linea .cic-tr-top');
   const desde = document.querySelector('.cic-mio-linea .cic-tr-desde');
-  PRUEBAS.alMenos(top.getBoundingClientRect().width, desde.scrollWidth,
+  /* +1: `getBoundingClientRect().width` da un valor fraccionario (depende del hinting de fuente del
+     sistema operativo) y `scrollWidth` da un entero redondeado — en Windows coincidían, en Linux el
+     mismo texto midió 198.5 contra un `scrollWidth` de 199. No es que falte espacio de verdad: es el
+     medio píxel de diferencia entre cómo cada SO redondea la misma tipografía. */
+  PRUEBAS.alMenos(top.getBoundingClientRect().width + 1, desde.scrollWidth,
     'el espacio del nombre tiene que ser al menos lo que el nombre mide');
 });
 
