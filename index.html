@@ -2516,9 +2516,29 @@
     vector-effect: non-scaling-stroke; }
   .spl-l-fondo { stroke: var(--chip-bg); }
   .spl-l-viva  { stroke: var(--orange); }
-  .spl-activa .spl-l-viva { stroke-dasharray: 420;
+  /* ⚠️ EL LARGO DEL TRAZO LO MIDE EL JS (`splMedirTrazo`), NO UN NÚMERO ESCRITO A MANO.
+     Acá había un `420` fijo y estaba roto de una forma que se veía a simple vista: la línea se
+     pintaba naranja hasta cierto punto y el tramo final quedaba GRIS —el color de `.spl-l-fondo`,
+     que va debajo—. Franco lo mandó en una captura.
+     Por qué: la polilínea lleva `vector-effect: non-scaling-stroke`, y con eso el patrón de guiones
+     se calcula en PÍXELES DE PANTALLA, no en unidades del viewBox, así que su largo crece con el
+     tamaño. Medido: a 1366 el trazo mide 514 px y el guion pintaba 420 — 94 px sin pintar, el 18%
+     final. En un teléfono mide 341 y por eso ahí se veía bien: el número estaba calibrado para una
+     sola pantalla.
+
+     ⚠️ Y NO SE ARREGLA CON `pathLength`, aunque parezca lo obvio. Lo probé rasterizando el SVG y
+     contando píxeles a tres anchos (233 / 520 / 900), y `pathLength` + `non-scaling-stroke` daba
+     PEOR que el bug original: a 520 no pintaba ni uno de los cinco puntos muestreados. Los dos
+     mecanismos no componen — uno normaliza en unidades de usuario y el otro calcula en píxeles.
+     Sacar `non-scaling-stroke` sí funcionaba (5/5 a los tres anchos), pero cambia un defecto por
+     otro: el SVG se estira sin conservar proporción, así que el grosor pasaría a depender de la
+     dirección de cada tramo — medido a 1920: 3,9 px en un tramo horizontal contra 1,94 en uno
+     vertical, en la misma línea.
+     Por eso se mide. Es el mismo criterio que el desplazamiento de los textos: lo que depende del
+     tamaño se mide al pintar y se vuelve a medir al cambiar el ancho. */
+  .spl-activa .spl-l-viva { stroke-dasharray: var(--spl-traza, 1200);
     animation: splTraza 1.1s cubic-bezier(.4,0,.2,1) calc(var(--spl-in) + .1s) both; }
-  @keyframes splTraza { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
+  @keyframes splTraza { from { stroke-dashoffset: var(--spl-traza, 1200); } to { stroke-dashoffset: 0; } }
   /* ⚠️ El punto se coloca sobre el FINAL REAL de la línea, no "cerca del borde". La polilínea
      termina en (300,6) de un viewBox de 300x100 y el SVG estira sin conservar proporción, así que
      ese punto cae exactamente en x=100%, y=6% de la caja — a cualquier tamaño.
@@ -2633,11 +2653,19 @@
        · y un `min-height` en el gráfico, que es justo lo que le saca la capacidad de encogerse.
      Acá la bajada y el chip ya están ocultos, así que el gráfico se queda con todo lo que sobra por
      su `flex: 1 1 0`: no necesita piso, y ponérselo sólo servía para desbordar. */
-  @media (max-height:760px){
+  @media (max-height:760px) and (max-width:899px){
     .splash-anim { height:clamp(96px, 15vh, 132px); margin-bottom:10px; }
     .spl-p { padding: .6rem .75rem; gap: .3rem; }
     /* Sólo números: el tope lo aplica la regla base con estas dos variables. */
     #splashAnimTrack .splash-anim-slide { --spl-tit: .84rem; --spl-tit-tope: 15px; }
+    /* ⚠️ ESTO SÓLO VALE EN PANTALLA ANGOSTA, y faltaba decirlo. `max-height` sin `max-width` es una
+       trampa: un portátil de 1366x768 deja ~650 px de alto útil una vez descontado el navegador, así
+       que esta regla —escrita para teléfonos de pantalla corta— se disparaba en TODA computadora.
+       El resultado era el peor posible: justo donde más espacio hay, la bajada de la lámina y el
+       chip desaparecían. Franco lo vio y tenía razón.
+       En escritorio no hace falta esconder nada: la tarjeta pasa a repartir texto y gráfico EN FILA
+       (ver el bloque de >=900), que es aprovechar el ancho en vez de pelear por el alto — la misma
+       lección de Y6 en el panel. */
     .spl-p-tx span, .spl-chip { display: none; }
     /* ⚠️ Y con la letra grande, la tira NO VA. Es un ítem flex con `flex-shrink: 1`, así que cuando
        el contenido del splash no entra el contenedor la aplasta — medido a 375x667: en "Grande"
@@ -2656,7 +2684,10 @@
      Se podría haber achicado todo en píxeles para forzar que entrara, y sería la decisión
      equivocada: quien elige la letra más grande está pidiendo lugar para LEER. Lo decorativo sale. */
   html.texto-maximo .splash-anim { display: none; }
-  @media (max-height:640px){ .splash-anim { display:none; } }
+  /* Misma trampa que arriba: sin `max-width` esto le sacaba la tira entera a cualquier portátil de
+     pantalla no muy alta. En escritorio la tira vive en su propia fila de la grilla, así que no
+     compite por el alto con nada — y sacarla dejaba un hueco donde debía ir. */
+  @media (max-height:640px) and (max-width:899px){ .splash-anim { display:none; } }
 
   .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
     max-width:22ch; text-wrap:balance; margin-bottom:4px; }
@@ -2855,6 +2886,27 @@
       margin: 0 clamp(2rem, 4vw, 4rem) 2.4rem clamp(2rem, 4.5vw, 4.5rem); padding-left: 0;
       max-width: none; height: clamp(120px, 20vh, 190px); }
     #splashAnimTrack .splash-anim-slide { justify-content: flex-start; }
+    /* ⚠️ EN ESCRITORIO LA TARJETA VA EN FILA, no apilada. Es la causa de fondo del defecto que
+       Franco encontró: la tarjeta acá mide ~520 de ancho por ~130 de alto —ancha y baja—, y estando
+       apilada (título, bajada, gráfico) no había alto para todo, así que la solución que había era
+       ESCONDER la bajada. Esconder texto justo donde sobra espacio es exactamente al revés.
+       En fila, el texto y el gráfico se reparten el ancho y entra todo sin apretar nada. Es la misma
+       lección de Y6 en el panel: cuando falta lugar en una pantalla ancha, casi siempre es que el
+       layout está usando una sola dimensión. */
+    /* ⚠️ GRILLA Y NO `flex-direction: row`, y el motivo lo dio la medición.
+       Con la fila simple, el chip ("Reportando…", "Analizando…") entraba como TERCER ítem y se
+       llevaba una columna entera: medido, la tarjeta de 520 px quedaba texto 166 + gráfico 195 +
+       chip 86, y con 166 px la bajada se truncaba (68 px de texto real contra 51 visibles).
+       O sea que había arreglado el "no se ve el texto" dejando el texto a medias, que es el mismo
+       defecto con otra cara.
+       En grilla el chip va DEBAJO del texto, en su misma columna, y el gráfico ocupa la derecha
+       entero: el texto pasa a ~230 px y entra completo. */
+    .spl-p { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto;
+      align-items: center; gap: .35rem 1.1rem; }
+    .spl-p-tx  { grid-column: 1; grid-row: 1; }
+    .spl-p-gr  { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; min-width: 0; }
+    .spl-chip  { grid-column: 1; grid-row: 2; justify-self: start; }
+    /* Las láminas sin chip no dejan una fila vacía: sin nadie en la fila 2, mide 0. */
     .splash-wrap { grid-template-rows: auto auto auto; }
     .splash-acciones > *, .splash-pie > * { width: min(340px, 100%); }
     .splash-cta { max-width: 340px; }
@@ -4429,7 +4481,7 @@
               <div class="spl-p-gr spl-linea" aria-hidden="true">
                 <svg viewBox="0 0 300 100" preserveAspectRatio="none">
                 <polyline class="spl-l-fondo" points="0,88 43,94 86,62 129,78 171,48 214,58 257,22 300,6"/>
-                <polyline class="spl-l-viva"  points="0,88 43,94 86,62 129,78 171,48 214,58 257,22 300,6"/>
+                <polyline class="spl-l-viva" points="0,88 43,94 86,62 129,78 171,48 214,58 257,22 300,6"/>
               </svg>
               <em class="spl-l-punto"></em>
             </div>
@@ -5109,7 +5161,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.70';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.71';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -13605,6 +13657,33 @@ function dashRemedirMarquees(){
     _marqueePendiente = false;
     dashWireAnResMarquee();
     dashWireMarquees();
+    splMedirTrazo();
+  });
+}
+/* ⚠️ Mide el largo REAL del trazo de la tira de presentación, en píxeles de pantalla, y lo deja en
+   `--spl-traza` para que la animación dibuje la línea COMPLETA a cualquier tamaño.
+   Va en píxeles de pantalla y no en unidades del viewBox porque la polilínea usa
+   `vector-effect: non-scaling-stroke`, y con eso el patrón de guiones se calcula en pantalla.
+   El SVG estira sin conservar proporción (`preserveAspectRatio="none"`), así que cada eje tiene su
+   propia escala y hay que aplicarlas por separado: por eso no sirve `getTotalLength()`, que devuelve
+   el largo en unidades de usuario y no sabe nada de ese estirado. */
+function splMedirTrazo(){
+  document.querySelectorAll('.spl-l-viva').forEach(linea => {
+    const svg = linea.ownerSVGElement;
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    if (!r.width || !r.height) return;              // todavía sin pintar: se medirá al mostrarse
+    const vb = (svg.getAttribute('viewBox') || '0 0 300 100').split(/[\s,]+/).map(Number);
+    const sx = r.width / (vb[2] || 300), sy = r.height / (vb[3] || 100);
+    const p = (linea.getAttribute('points') || '').trim().split(/\s+/)
+      .map(par => par.split(',').map(Number)).filter(c => c.length === 2 && isFinite(c[0]));
+    let largo = 0;
+    for (let i = 1; i < p.length; i++){
+      largo += Math.hypot((p[i][0] - p[i-1][0]) * sx, (p[i][1] - p[i-1][1]) * sy);
+    }
+    /* +2 de margen: el remate redondeado (`stroke-linecap: round`) agrega medio grosor en cada
+       punta, y sin ese margen el último píxel podía quedar sin pintar. */
+    if (largo > 0) linea.style.setProperty('--spl-traza', Math.ceil(largo + 2) + 'px');
   });
 }
 window.addEventListener('resize', dashRemedirMarquees);
@@ -19827,6 +19906,9 @@ function splashAnimArrancar(){
        pantalla que ya estaba —pasa al volver el movimiento después de estar frenado—. */
     void track.offsetWidth;
     track.style.transform = 'translateX(' + (-i * 100) + '%)';
+    /* El largo del trazo se mide ANTES de poner la clase que dispara la animación: si se midiera
+       después, el primer fotograma usaría el valor de repuesto y se vería un salto. */
+    splMedirTrazo();
     slides[i] && slides[i].classList.add('spl-activa');
   };
 
