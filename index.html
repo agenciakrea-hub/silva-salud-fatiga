@@ -5180,7 +5180,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.76';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.77';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9972,7 +9972,11 @@ function misSincronizar(){
   const p = getProfile();
   if (!p || !p.nombre || !p.empresa) return Promise.resolve(false);
   _misSincronizando = true;
-  const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre, _:Date.now() });
+  /* Z0b: la cédula VIAJA. Hasta acá esto mandaba sólo empresa + nombre, y el servidor entregaba
+     los datos clínicos de esa persona con eso: bastaba saber un nombre. Ahora el servidor la exige,
+     así que sin esto la sincronización se caería en silencio. */
+  const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre,
+                                   cedula:p.cedula||'', dispositivoId:dispositivoId(), _:Date.now() });
   return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -12915,7 +12919,8 @@ function admCerrarDoc(){
 
 function portalLoginEmpleado(btn){
   const p = getProfile() || {};
-  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
+  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'',
+                   cedula:p.cedula||'', dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('cargando'));
   conBloqueo('#portalGate', dashRequest(params)
@@ -12932,7 +12937,8 @@ function portalAutoLoginEmpleado(){
   dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
   const p = getProfile() || {};
-  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
+  const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'',
+                   cedula:p.cedula||'', dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
   const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   conBloqueo('#portalDash', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return;
