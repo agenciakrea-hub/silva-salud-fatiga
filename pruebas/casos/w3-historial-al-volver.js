@@ -21,6 +21,15 @@ function w3Con(perfil, fn){
   const prevPerfil = getProfile();
   const prevDatos  = misDatos();
   const prevFetch  = window.fetchConReloj;
+  /* ⚠️ EL GUARDIÁN `_misSincronizando` SE AÍSLA, y sin esto estos casos fallaban al azar.
+     `misSincronizar()` arranca con `if (_misSincronizando) return Promise.resolve(false)` y sale
+     SIN pedir nada. Si cualquier caso anterior dejó ese interruptor arriba —le alcanza con haber
+     disparado una sincronización cuya promesa todavía no resolvió—, el caso de acá abajo cuenta
+     cero pedidos y acusa un bug de la app que no existe. Medido: con el guardián limpio da 1
+     pedido, con el guardián trabado da 0.
+     Se baja al ENTRAR (no sólo al salir): un caso no puede depender de la prolijidad del anterior. */
+  let prevSinc = false;
+  try { prevSinc = _misSincronizando; _misSincronizando = false; } catch(e){}
   try {
     if (perfil) setProfile(perfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
     return fn();
@@ -28,9 +37,30 @@ function w3Con(perfil, fn){
     window.fetchConReloj = prevFetch;
     if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
     misDatosSave(prevDatos);
-    try { _misRecuperando = false; } catch(e){}
+    try { _misRecuperando = false; _misSincronizando = prevSinc; } catch(e){}
   }
 }
+
+PRUEBAS.caso('⚠️ y estos casos se aíslan del guardián de sincronización', () => {
+  /* EL DISCRIMINADOR DEL AISLAMIENTO DE ARRIBA. Sin él, el `w3Con` que acabo de escribir es una
+     intención: nadie sabría si de verdad aísla. Acá se traba el guardián a propósito ANTES de
+     entrar y se exige que el caso siga midiendo lo que tiene que medir.
+     Esto no es teórico: W3 falló dos veces seguidas por exactamente esto, y me mandó a buscar un
+     bug en `misRecuperarHistorial` que no estaba ahí. */
+  try { _misSincronizando = true; } catch(e){ PRUEBAS.cierto(false, 'no se pudo tocar el guardián'); return; }
+  let pidio = 0;
+  w3Con({ nombre:'Persona De Prueba', empresa:'Empresa De Prueba' }, () => {
+    misDatosSave({ registros:[], pvt:[], ref:{}, metrics:[], actualizado:0 });
+    window.fetchConReloj = function(){ pidio++; return Promise.resolve({ json:() => Promise.resolve({ok:true, registros:[]}) }); };
+    misRecuperarHistorial();
+  });
+  PRUEBAS.alMenos(pidio, 1,
+    '⚠️ con el guardián trabado por otro caso, éstos TIENEN que seguir midiendo: si no, un caso ' +
+    'ajeno los pone en rojo y manda a buscar un bug que no existe');
+  let quedo = null; try { quedo = _misSincronizando; } catch(e){}
+  PRUEBAS.cierto(quedo === true, 'y al salir se devuelve como estaba, sin pisarle el estado a nadie');
+  try { _misSincronizando = false; } catch(e){}
+});
 
 PRUEBAS.caso('⚠️ volver a identificarse va a buscar el historial al servidor', () => {
   /* EL CASO DEL PROMPT. Se comprueba el efecto —que se pida al servidor y que los registros

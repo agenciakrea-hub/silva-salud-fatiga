@@ -351,7 +351,15 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
     'flushPending',                          // colas que se vacían solas: bloquear sería el bug
     'dashRefresh', 'tareasCargar', 'tareasFichaCargar', 'empresaPerfilCargar',
     'loadSetupLists', 'nominaAbrir', 'recuperarAbrir', 'dashLoadInformes',
-    'validarSupervisorCreds', 'simEntrar', 'sectorRefrescar', 'cicloTick'
+    'validarSupervisorCreds', 'simEntrar', 'sectorRefrescar', 'cicloTick',
+    /* S4: cambia la contraseña guardada por un token, sola, después de un auto-login que ya
+       funcionó. La persona no la pidió ni sabe que existe — congelarle el panel recién abierto por
+       una migración invisible sería justo lo contrario de lo que este caso protege. Y si falla no
+       pasa nada: queda como estaba y se reintenta la próxima vez.
+       ⚠️ `sesionAvisarCierre` NO está en esta lista y no tiene que estar: no bloquea porque la
+       pantalla se está yendo igual (`cerrarSesion` recarga), y no espera respuesta a propósito
+       para que cerrar sesión funcione también sin señal. */
+    'dashMigrarCredsAToken'
   ];
 
   const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
