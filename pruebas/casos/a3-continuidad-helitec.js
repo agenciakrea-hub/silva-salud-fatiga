@@ -107,14 +107,14 @@ async function a3ConRespuesta(respuesta, perfil){
   let preguntó = false;
   try {
     setProfile(perfil);
-    try { _misCedulaPedida = false; _misSincronizando = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; _misSincronizando = false; } catch(e){}
     window.prompt = function(){ preguntó = true; return null; };   // la pospone: no debe trabar nada
     window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(respuesta) });
     await misSincronizar();
   } finally {
     window.fetchConReloj = prevFetch; window.prompt = prevPrompt;
     if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
-    try { _misCedulaPedida = false; _misSincronizando = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; _misSincronizando = false; } catch(e){}
   }
   return preguntó;
 }
@@ -154,14 +154,14 @@ PRUEBAS.caso('⚠️ una cédula guardada NO se pierde si la persona pospone', (
   let despues = null;
   try {
     setProfile({ nombre:'Ana Suárez', empresa:'Helitec', cedula:'V-111' });
-    try { _misCedulaPedida = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; } catch(e){}
     window.prompt = function(){ return null; };
     misPedirCedula('cedula_mal');
     despues = (getProfile() || {}).cedula;
   } finally {
     window.prompt = prevPrompt;
     if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
-    try { _misCedulaPedida = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; } catch(e){}
   }
   PRUEBAS.igual(despues, 'V-111', 'cancelar no puede tocar lo que ya estaba guardado');
 });
@@ -172,7 +172,7 @@ PRUEBAS.caso('⚠️ una cédula inválida no se guarda, y no se pregunta dos ve
   let veces = 0, guardada = null;
   try {
     setProfile({ nombre:'Ana Suárez', empresa:'Helitec' });
-    try { _misCedulaPedida = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; } catch(e){}
     window.prompt = function(){ veces++; return 'no-es-una-cedula-@@'; };
     misPedirCedula('falta_cedula');
     misPedirCedula('falta_cedula');     // segundo intento en la misma sesión
@@ -180,11 +180,22 @@ PRUEBAS.caso('⚠️ una cédula inválida no se guarda, y no se pregunta dos ve
   } finally {
     window.prompt = prevPrompt;
     if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
-    try { _misCedulaPedida = false; } catch(e){}
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; } catch(e){}
   }
   PRUEBAS.falso(!!guardada, 'una cédula que no valida no se guarda en el perfil');
-  PRUEBAS.igual(veces, 1,
-    'y no se pregunta de nuevo en la misma sesión: un cartel que reaparece se aprende a cerrar sin leer');
+  /* ⚠️ SE REINTENTA UNA VEZ, PERO NO EN BUCLE (2026-09-03, auditoría). Antes el candado NO se
+     soltaba ante un error de tipeo: quien tocaba Aceptar sin escribir —el reflejo más común frente
+     a un diálogo del navegador— se quedaba sin sus estadísticas TODA la sesión, sin saber por qué.
+     Soltarlo siempre es el extremo opuesto: un `prompt()` que reaparece solo, que en un teléfono se
+     lee como app colgada. Dos intentos. */
+  PRUEBAS.igual(veces, 2, 'se le da otra oportunidad a quien se equivocó al tipear');
+  let tercera = 0;
+  try {
+    window.prompt = function(){ tercera++; return 'tampoco-vale-@@'; };
+    misPedirCedula('falta_cedula');
+  } catch(e){}
+  PRUEBAS.igual(tercera, 0,
+    '⚠️ pero no una tercera: un cartel que reaparece solo se lee como app colgada');
 });
 
 PRUEBAS.caso('los textos de la pregunta existen en los dos idiomas (R14, R1)', () => {

@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v292';
+const VERSION = 'v294';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -11,8 +11,19 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './logo.png',
-  './ic192v2.png',
-  './ic512v2.png'
+  /* ⚠️ ESTOS DOS NOMBRES ESTABAN MAL Y ROMPÍAN LA APP ENTERA SIN DECIR NADA (2026-09-03, auditoría).
+     Decían `ic192v2.png` / `ic512v2.png`; los archivos del repo son `icon-192.png` / `icon-512.png`
+     (manifest.json ya apuntaba bien). Medido contra producción: los dos daban 404.
+     `cache.addAll()` RECHAZA ENTERO si cualquier recurso no responde 200. El rechazo viaja por
+     `waitUntil` → el evento `install` falla → el worker queda `redundant` → `skipWaiting()` nunca
+     corre. Resultado: NINGÚN service worker controlando la página y el caché vacío. O sea que la
+     app no tenía caché offline — justo lo que necesita un piloto que abre la app en pista sin
+     señal, y lo que todo el diseño "offline primero" da por sentado.
+     Y era mudo por construcción: `register()` RESUELVE igual (la registración se crea; lo que falla
+     es el install), así que el `.catch` del index nunca se disparaba.
+     ⚠️ Si agregás un archivo acá, verificá que exista: un solo 404 apaga el offline completo. */
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 // Instala y activa de inmediato la nueva versión

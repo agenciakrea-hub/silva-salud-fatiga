@@ -121,34 +121,36 @@ PRUEBAS.caso('⚠️ MIGRACIÓN · sin credenciales, todo sigue exactamente como
   PRUEBAS.falso(t.migrada, 'y el cliente puede preguntarlo antes de pedirle una clave que no tiene');
 });
 
-PRUEBAS.caso('⚠️ MIGRACIÓN · con credenciales, la cédula sola YA NO alcanza', () => {
-  /* La otra mitad: en cuanto alguien tiene clave propia, el camino viejo se le cierra a ESA persona.
-     Si no se cerrara, migrar no serviría de nada — el agujero seguiría abierto al lado. */
-  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const base = z2Endpoint([]);
-  const api = z2Endpoint([ z2Fila(base, 'Helitec', 'V-111', 'ClaveDeAna', 'empleado') ]);
-  const sinClave = JSON.parse(api.accionEmpleado({ persona:'Ana Suárez', empresa:'Helitec',
-                                                   cedula:'V-111', dispositivoId:'d1' }).getContent());
-  PRUEBAS.falso(sinClave.ok, '⚠️ ya migrada: la cédula sola no entra');
-  PRUEBAS.igual(sinClave.motivo, 'necesita_clave', 'y se dice por qué, para que el cliente la pida');
-  PRUEBAS.falso(!!sinClave.registros, 'sin filtrar ningún dato');
+PRUEBAS.caso('⚠️ EL CANDADO DE Z2 SÓLO PUEDE ENCENDERSE CUANDO LA APP TENGA DÓNDE PEDIR LA CLAVE', () => {
+  /* ⚠️ ESTE CASO REEMPLAZA A DOS QUE COMPROBABAN LO CONTRARIO, y el cambio es deliberado.
+     Z2 hizo que `accionEmpleado` exigiera la clave propia a toda persona con fila en
+     `Credenciales`. La auditoría del 2026-09-03 encontró que **la app no tiene dónde escribirla**:
+     `action:'login'` aparece 0 veces en el cliente, `necesita_clave` 0 veces, y ninguna de las tres
+     llamadas a `action=empleado` manda `pass`. Z4 publicó la pantalla que CREA la credencial sin la
+     pantalla que la USA.
+     Consecuencia real: quien aceptaba "Elige tu contraseña" —que le promete "desde ahora entras con
+     tu cédula y esta contraseña"— quedaba sin ver sus estadísticas NUNCA MÁS, y encima cada arranque
+     sumaba un fallo en un freno que es por DISPOSITIVO, dejando trabado también a cualquier otro
+     empleado del mismo teléfono.
+     Así que el candado se apagó (`Z2_EXIGIR_CLAVE_PROPIA = false`) y este caso fija la invariante
+     que importa: **el servidor no puede exigir una credencial que el cliente no sabe mandar.**
+     El día que se conecte el login, este caso se pone en verde solo y hay que volver a escribir los
+     dos casos de migración que estaban acá. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido se saltea'); return; }
+  const encendido = /var\s+Z2_EXIGIR_CLAVE_PROPIA\s*=\s*true/.test(CTX.gs);
+  const fuenteCliente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+  const clienteSabeEntrar = /action\s*:\s*['"]login['"]/.test(fuenteCliente);
 
-  const conClave = JSON.parse(api.accionEmpleado({ persona:'Ana Suárez', empresa:'Helitec',
-                                                   cedula:'V-111', pass:'ClaveDeAna', dispositivoId:'d2' }).getContent());
-  PRUEBAS.cierto(conClave.ok, 'con su clave, entra y ve lo suyo');
-});
+  PRUEBAS.cierto(/Z2_EXIGIR_CLAVE_PROPIA/.test(CTX.gs),
+    'el interruptor tiene que existir: es lo que documenta que esto está a medio conectar');
+  PRUEBAS.falso(encendido && !clienteSabeEntrar,
+    '⚠️ el candado está ENCENDIDO y la app no tiene pantalla de login: quien ponga su contraseña ' +
+    'va a quedar sin poder ver sus datos. O se conecta el login, o se apaga el candado');
 
-PRUEBAS.caso('⚠️ MIGRACIÓN · conviven las dos formas dentro de la MISMA empresa', () => {
-  /* El caso que define si la migración es usable: durante las semanas de transición, en una misma
-     empresa hay gente con clave y gente sin ella. Si migrar a uno rompiera a los demás, habría que
-     migrar a todos en un solo día — y eso, en una operación real, no pasa. */
-  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const base = z2Endpoint([]);
-  const api = z2Endpoint([ z2Fila(base, 'Helitec', 'V-111', 'ClaveDeAna', 'empleado') ]);
-  const migrada = JSON.parse(api.accionEmpleado({ persona:'Ana Suárez', empresa:'Helitec', cedula:'V-111', dispositivoId:'a' }).getContent());
-  const sinMigrar = JSON.parse(api.accionEmpleado({ persona:'Otro Piloto', empresa:'Helitec', cedula:'V-999', dispositivoId:'b' }).getContent());
-  PRUEBAS.falso(migrada.ok, 'a la migrada se le pide su clave');
-  PRUEBAS.cierto(sinMigrar.ok, '⚠️ y su compañero sin migrar entra igual que siempre, el mismo día');
+  /* Y el control, para que este caso no quede verde por la razón equivocada el día que alguien
+     borre el interruptor entero: si el cliente ya sabe entrar, el candado TIENE que encenderse. */
+  PRUEBAS.falso(clienteSabeEntrar && !encendido,
+    'si la app ya sabe hacer login por persona, el candado tiene que volver a estar encendido');
 });
 
 PRUEBAS.caso('la comparación de hashes es en tiempo constante', () => {

@@ -39,9 +39,9 @@
 
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
 
-<link rel="apple-touch-icon" sizes="192x192" href="ic192v2.png">
-<link rel="icon" type="image/png" sizes="192x192" href="ic192v2.png">
-<link rel="icon" type="image/png" sizes="512x512" href="ic512v2.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="manifest" href="manifest.json">
 
 <meta name="theme-color" content="#0a1f40">
@@ -5240,7 +5240,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.81';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.83';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10069,9 +10069,14 @@ function misRecuperarHistorial(){
    a que la cédula fuera obligatoria en el alta, no una pantalla del producto. Cuando no quede nadie
    sin cédula, esto se borra entero. */
 var _misCedulaPedida;
+/* ⚠️ TOPE DE INTENTOS. Soltar el candado ante un error de tipeo es correcto —quien toca Aceptar sin
+   escribir no puede quedar sin sus datos toda la sesión— pero soltarlo SIEMPRE convierte esto en un
+   `prompt()` que reaparece solo, que en un teléfono se lee como app colgada. Dos intentos y para. */
+var _misCedulaIntentos;
 function misPedirCedula(motivo){
   if (_misCedulaPedida) return;
   _misCedulaPedida = true;
+  _misCedulaIntentos = (_misCedulaIntentos || 0) + 1;
   const p = getProfile();
   if (!p || !p.nombre) return;
   if (p.cedula && motivo === 'falta_cedula') return;   // la tiene y no la mandó: es un bug nuestro, no de ella
@@ -10079,12 +10084,19 @@ function misPedirCedula(motivo){
   if (dicho == null) return;                            // la puede posponer: no se la deja trabada
   const limpia = String(dicho).trim();
   if (!limpia || (typeof setupCedulaValida === 'function' && !setupCedulaValida(limpia))){
+    /* ⚠️ SE SUELTA EL CANDADO ANTES DE SALIR (2026-09-03, auditoría). Sin esto, quien tocaba
+       Aceptar sin escribir —el reflejo más común frente a un diálogo del navegador— veía pasar un
+       toast y no se le volvía a preguntar en toda la sesión: sus estadísticas seguían sin llegar y
+       nada le decía por qué. El candado existe para no repetir el cartel, no para castigar un
+       tropiezo. */
+    _misCedulaPedida = (_misCedulaIntentos >= 2);
     showToast(t('f_ced_invalida'));
     return;
   }
   p.cedula = limpia;
   setProfile(p);
   _misCedulaPedida = false;        // con la cédula puesta, el próximo intento tiene que poder correr
+  _misCedulaIntentos = 0;
   try { misSincronizar(); } catch(e){}
 }
 
@@ -11964,8 +11976,15 @@ function setupFormOk(){
   if (!setupEdadValida(_sv('inEdad'))) return false;
   if (!setupTelValido(_sv('inTelefono'))) return false;
   if (!setupEmailValido(_sv('inEmail'))) return false;
-  if (esSup && !_sv('inSupPass')) return false;
-  if (esMed && !_sv('inMedPass')) return false;
+  /* ⚠️ CON SESIÓN RECORDADA NO SE VUELVE A PEDIR LA CONTRASEÑA (2026-09-03, auditoría). S4 cambió
+     lo guardado de `{usuario, pass}` a `{usuario, token}`, y este formulario seguía exigiendo el
+     campo lleno mientras el prefill leía `_cr.pass`, que ya no existe. Efecto: todo supervisor o
+     médico ya migrado a token abría "Editar mis datos" para corregir un teléfono y el botón
+     Guardar quedaba EN GRIS, sin ningún mensaje — la pantalla se veía normal y estaba muerta. Y si
+     volvía a tipear la contraseña, se guardaba en texto plano otra vez, deshaciendo S4 entero.
+     Ahora: si ya hay sesión recordada, el campo es opcional. Si lo llena, vale lo que escriba. */
+  if (esSup && !_sv('inSupPass') && !dashTieneSesion(K_DASH_CREDS)) return false;
+  if (esMed && !_sv('inMedPass') && !dashTieneSesion(K_DASH_CREDS_MED)) return false;
   return true;
 }
 // Habilita/inhabilita (gris) el botón Guardar según el estado del formulario.
@@ -12074,8 +12093,14 @@ function saveProfile(){
         bad = true;
       }
       if (bad){ document.querySelector('.sheet .field.invalid').scrollIntoView({behavior:'smooth', block:'center'}); return; }
-      if (esSupervisor && supPass) dashSaveCredsValues(empresa, supPass); else { try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }
-      if (esServicioMedico && medPass) dashSaveCredsValuesMed(empresa, medPass); else { try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
+      /* ⚠️ Guardar el perfil SIN tocar la contraseña no puede borrar la sesión recordada: la
+         persona vino a corregir su teléfono, no a cerrar sesión. Y borrarla acá dejaba además la
+         sesión VIVA en el servidor sin que quede nadie con el token para anularla (no caduca).
+         Se limpia sólo si de verdad dejó de tener ese rol — eso está más abajo. */
+      if (esSupervisor && supPass) dashSaveCredsValues(empresa, supPass);
+      else if (esSupervisor && !dashTieneSesion(K_DASH_CREDS)) { try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }
+      if (esServicioMedico && medPass) dashSaveCredsValuesMed(empresa, medPass);
+      else if (esServicioMedico && !dashTieneSesion(K_DASH_CREDS_MED)) { try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
       if (!esSupervisor && !esServicioMedico && DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;
       if (resSup === 'unknown' || resMed === 'unknown') showToast('Guardado (no se pudo verificar alguna contraseña ahora)');
       finalizar();
@@ -12083,6 +12108,10 @@ function saveProfile(){
     return;
   }
 
+  /* ⚠️ SE AVISA AL SERVIDOR ANTES DE BORRAR. Borrar el token sin anularlo dejaba la sesión viva en
+     el CH para siempre —no caduca— y sin nadie que tenga el token para cerrarla. Es el mismo orden
+     que `cerrarSesion()` documenta como el único válido. */
+  if (!esSupervisor || !esServicioMedico){ try { sesionAvisarCierre(); } catch(e){} }
   if (!esSupervisor){ try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }             // dejó de ser supervisor → no auto-login
   if (!esServicioMedico){ try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
   if (!esSupervisor && !esServicioMedico && DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;   // se descarta la vista de empresa cargada
@@ -12259,7 +12288,16 @@ const INFORME_DEMO = {
   ].join('\n')
 };
 
-// Datos de ejemplo (subconjunto real de Calc_Data) para ver el panel sin el endpoint desplegado
+/* ⚠️ DATOS INVENTADOS, Y TIENEN QUE SEGUIR SIÉNDOLO. Hasta el 2026-09-03 este bloque traía —dice
+   textual el comentario que había acá— un "subconjunto real": 16 personas con nombre y apellido
+   REALES, cada una con sus puntajes de depresión, ansiedad, estrés, fatiga y gastrointestinal, más
+   seis empresas cliente nombradas. En un repositorio PÚBLICO, y servido en vivo: se leían abriendo
+   el archivo en GitHub, sin ejecutar nada.
+   Los números quedaron (sin un nombre al lado no identifican a nadie) y los nombres y empresas son
+   inventados. Si alguna vez hace falta refrescar estos datos de ejemplo, se inventan: NUNCA se
+   copian del CH. Lo dice la regla del repo, en .claude/rules/app-web.md: "No metas acá claves,
+   correos, nombres de pacientes ni nada del cliente."
+   ⚠️ Sacarlo de acá NO lo saca del historial de git — sigue estando en los commits viejos. */
 /* Niveles de riesgo de la empresa de DEMOSTRACIÓN. Réplica exacta de la estructura de la hoja
    "Niveles Riesgo" (Empresa | Departamento | Cargo | Persona | Nivel). Empresa vacía = vale para
    todas. La fila sin departamento/cargo/persona es el default de la empresa.
@@ -12278,29 +12316,34 @@ const DEMO_NIVELES = [
 ];
 const MOCK_NIVELES = DEMO_NIVELES;   // alias para el modo sin endpoint configurado
 const MOCK_DASH = [
-  {empresa:'Aerocentro', departamento:'Operaciones',    persona:'Maria Gonzalez',    fecha:'2022-08-31', kss:null, estres:14, ansiedad:4,  fatiga:1,  gastro:0,  depresion:9},
-  {empresa:'Aerocentro', departamento:'Operaciones',    persona:'Maria Gonzalez',    fecha:'2022-09-15', kss:null, estres:20, ansiedad:6,  fatiga:3,  gastro:2,  depresion:11},
-  {empresa:'Aerocentro', departamento:'Mantenimiento',  persona:'JULMAN RADA',       fecha:'2022-09-01', kss:null, estres:6,  ansiedad:0,  fatiga:5,  gastro:0,  depresion:2},
-  {empresa:'Aerocentro', departamento:'Mantenimiento',  persona:'Edgar Hernández',   fecha:'2022-09-01', kss:null, estres:22, ansiedad:25, fatiga:24, gastro:13, depresion:14},
-  {empresa:'Aerocentro', departamento:'Administrativo', persona:'Ivens Briceño',     fecha:'2022-10-05', kss:null, estres:36, ansiedad:31, fatiga:37, gastro:18, depresion:55},
-  {empresa:'Aeropostal', departamento:'Administrativo', persona:'Freddy Sandoval',   fecha:'2022-10-05', kss:null, estres:3,  ansiedad:7,  fatiga:3,  gastro:5,  depresion:0},
-  {empresa:'Aeropostal', departamento:'Operaciones',    persona:'Ricardo Alvarado',  fecha:'2022-10-05', kss:null, estres:18, ansiedad:7,  fatiga:11, gastro:5,  depresion:7},
-  {empresa:'Aeropostal', departamento:'Operaciones',    persona:'Rafael Alexis',     fecha:'2022-10-06', kss:null, estres:16, ansiedad:0,  fatiga:13, gastro:5,  depresion:5},
-  {empresa:'Consorcio HELITEC', departamento:'Administrativo', persona:'N. Anónimo',  fecha:'2022-10-09', kss:null, estres:36, ansiedad:33, fatiga:40, gastro:18, depresion:61},
-  {empresa:'Consorcio HELITEC', departamento:'Operaciones',    persona:'Gabriel marin',fecha:'2022-11-05', kss:null, estres:6,  ansiedad:0,  fatiga:6,  gastro:1,  depresion:0},
-  {empresa:'Consorcio HELITEC', departamento:'Operaciones',    persona:'Oscar Ortega', fecha:'2022-11-06', kss:null, estres:16, ansiedad:6,  fatiga:11, gastro:4,  depresion:12},
-  {empresa:'IAIM', departamento:'Operaciones', persona:'Yordelys Campos', fecha:'2022-11-18', kss:null, estres:17, ansiedad:27, fatiga:11, gastro:11, depresion:2},
-  {empresa:'IAIM', departamento:'Operaciones', persona:'Genesis Adrian',  fecha:'2022-11-18', kss:null, estres:23, ansiedad:21, fatiga:9,  gastro:9,  depresion:8},
-  {empresa:'IAIM', departamento:'Operaciones', persona:'Dannexy Salas',   fecha:'2022-11-18', kss:null, estres:40, ansiedad:23, fatiga:26, gastro:17, depresion:38},
-  {empresa:'IAIM', departamento:'Operaciones', persona:'Alejandro Perez', fecha:'2022-11-18', kss:null, estres:17, ansiedad:15, fatiga:12, gastro:5,  depresion:8},
-  {empresa:'IAIM - Bomberos Aero', departamento:'Operaciones', persona:'Angel Capote', fecha:'2022-11-18', kss:null, estres:6, ansiedad:2, fatiga:12, gastro:3, depresion:2},
-  {empresa:'Creative Diseños', departamento:'Otro', persona:'Ilse Carrillo', fecha:'2023-01-16', kss:null, estres:28, ansiedad:8, fatiga:6, gastro:4, depresion:12}
+  {empresa:'Empresa Ejemplo B', departamento:'Operaciones',    persona:'Ana Rivas',    fecha:'2022-08-31', kss:null, estres:14, ansiedad:4,  fatiga:1,  gastro:0,  depresion:9},
+  {empresa:'Empresa Ejemplo B', departamento:'Operaciones',    persona:'Ana Rivas',    fecha:'2022-09-15', kss:null, estres:20, ansiedad:6,  fatiga:3,  gastro:2,  depresion:11},
+  {empresa:'Empresa Ejemplo B', departamento:'Mantenimiento',  persona:'Luis Peña',       fecha:'2022-09-01', kss:null, estres:6,  ansiedad:0,  fatiga:5,  gastro:0,  depresion:2},
+  {empresa:'Empresa Ejemplo B', departamento:'Mantenimiento',  persona:'Carlos Mora',   fecha:'2022-09-01', kss:null, estres:22, ansiedad:25, fatiga:24, gastro:13, depresion:14},
+  {empresa:'Empresa Ejemplo B', departamento:'Administrativo', persona:'Pedro Salas',     fecha:'2022-10-05', kss:null, estres:36, ansiedad:31, fatiga:37, gastro:18, depresion:55},
+  {empresa:'Empresa Ejemplo C', departamento:'Administrativo', persona:'Jorge Lima',   fecha:'2022-10-05', kss:null, estres:3,  ansiedad:7,  fatiga:3,  gastro:5,  depresion:0},
+  {empresa:'Empresa Ejemplo C', departamento:'Operaciones',    persona:'Julio Ramos',  fecha:'2022-10-05', kss:null, estres:18, ansiedad:7,  fatiga:11, gastro:5,  depresion:7},
+  {empresa:'Empresa Ejemplo C', departamento:'Operaciones',    persona:'Hugo Castro',     fecha:'2022-10-06', kss:null, estres:16, ansiedad:0,  fatiga:13, gastro:5,  depresion:5},
+  {empresa:'Empresa Ejemplo A', departamento:'Administrativo', persona:'Persona Ejemplo',  fecha:'2022-10-09', kss:null, estres:36, ansiedad:33, fatiga:40, gastro:18, depresion:61},
+  {empresa:'Empresa Ejemplo A', departamento:'Operaciones',    persona:'Marco Vera',fecha:'2022-11-05', kss:null, estres:6,  ansiedad:0,  fatiga:6,  gastro:1,  depresion:0},
+  {empresa:'Empresa Ejemplo A', departamento:'Operaciones',    persona:'Diego Ruiz', fecha:'2022-11-06', kss:null, estres:16, ansiedad:6,  fatiga:11, gastro:4,  depresion:12},
+  {empresa:'Empresa Ejemplo D', departamento:'Operaciones', persona:'Sofia Duran', fecha:'2022-11-18', kss:null, estres:17, ansiedad:27, fatiga:11, gastro:11, depresion:2},
+  {empresa:'Empresa Ejemplo D', departamento:'Operaciones', persona:'Elena Prado',  fecha:'2022-11-18', kss:null, estres:23, ansiedad:21, fatiga:9,  gastro:9,  depresion:8},
+  {empresa:'Empresa Ejemplo D', departamento:'Operaciones', persona:'Laura Cabrera',   fecha:'2022-11-18', kss:null, estres:40, ansiedad:23, fatiga:26, gastro:17, depresion:38},
+  {empresa:'Empresa Ejemplo D', departamento:'Operaciones', persona:'Andres Rojas', fecha:'2022-11-18', kss:null, estres:17, ansiedad:15, fatiga:12, gastro:5,  depresion:8},
+  {empresa:'Empresa Ejemplo D', departamento:'Operaciones', persona:'Victor Nieto', fecha:'2022-11-18', kss:null, estres:6, ansiedad:2, fatiga:12, gastro:3, depresion:2},
+  {empresa:'Empresa Ejemplo E', departamento:'Otro', persona:'Nora Beltran', fecha:'2023-01-16', kss:null, estres:28, ansiedad:8, fatiga:6, gastro:4, depresion:12}
 ];
 
 let DASH = null;
 let DASH_TIMER = null;           // auto-refresh mientras el panel está abierto
 let DASH_PENDING_CREDS = null;   // credenciales a ofrecer recordar
 const K_DASH_CREDS = 'silva_dash_creds_v1';
+/* ¿Hay sesión recordada para esa clave? Se pregunta por el TOKEN, no por la contraseña: desde S4
+   la contraseña no se guarda, así que preguntar por ella daba siempre "no" y volvía a pedirla. */
+function dashTieneSesion(clave){
+  try { const c = JSON.parse(localStorage.getItem(clave)); return !!(c && c.token); } catch(e){ return false; }
+}
 function dashGetCreds(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS)); } catch(e){ return null; } }
 
 function openPortal(){
@@ -12714,6 +12757,17 @@ function sesionClavesBorrar(){
     K_REPORTS, K_TURNOS, K_MIS_DATOS, K_ACTIVIDAD, K_CONFIABILIDAD, K_PVT_NOINFO,
     // accesos guardados (lo más sensible: contraseñas en texto plano)
     K_DASH_CREDS, K_DASH_CREDS_MED, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
+    /* ⚠️ EL CICLO OPERATIVO FALTABA, y es dato de salud (2026-09-03, auditoría). `K_CICLO_MIO`
+       guarda cada evento con su `test` y su `resultado`; `K_CICLO_SRV`, el histórico que manda el
+       servidor. `cicloMioAll()` las une SIN ninguna guarda de dueño, así que en un teléfono
+       compartido el piloto siguiente veía la línea de tiempo del anterior —sus horarios y sus
+       resultados— dibujada como propia. La poda que había era por tiempo (~48 h), no por persona.
+       El contraste es lo que lo delata como olvido: `K_TAREAS_CACHE` sí se protege, y su comentario
+       dice exactamente por qué. */
+    K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_TAREAS_CACHE, K_ZONA_OP,
+    /* Y la marca de "ya se le ofreció contraseña": es un mapa por CÉDULA, así que se iba
+       acumulando la lista de todo el que usó el equipo. */
+    K_CLV_OFRECIDA,
     // datos de TERCEROS que quedan en el dispositivo de quien tiene panel
     K_GESTIONES, K_BITACORA, K_CASOS_ODOO, K_REPORTES_VISTOS,
     // colas: se borran DESPUÉS de avisar cuántos registros se pierden (ver cerrarSesionPedir)
