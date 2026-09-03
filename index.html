@@ -5240,7 +5240,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.80';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.81';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5396,6 +5396,8 @@ const I18N = {
       f_ced_ph:'Sólo números',
       f_email_ph:'Ej: nombre@correo.com',
       f_ced_falta:'Por favor ingresa tu número de cédula.',
+      ced_pedir:'Para traer tus estadísticas del sistema necesitamos tu número de cédula. Escríbelo una sola vez:',
+      ced_pedir_mal:'La cédula guardada no coincide con la registrada para tu nombre. Escríbela de nuevo:',
       f_ced_invalida:'Ingresa un número de cédula válido (solo números).',
       f_emp_no_lista:'Elige tu empresa de la lista. Si no aparece, avísale a tu administrador.',
       f_emp_cargando:'Todavía estamos cargando la lista de empresas. Espera un momento y toca Guardar de nuevo.',
@@ -6815,6 +6817,8 @@ const I18N = {
       f_ced_ph:'Numbers only',
       f_email_ph:'e.g. name@email.com',
       f_ced_falta:'Please enter your ID number.',
+      ced_pedir:'To bring your statistics from the system we need your ID number. Enter it once:',
+      ced_pedir_mal:'The stored ID does not match the one registered for your name. Please enter it again:',
       f_ced_invalida:'Enter a valid ID number (numbers only).',
       f_emp_no_lista:'Choose your company from the list. If it is not there, let your administrator know.',
       f_emp_cargando:'We are still loading the list of companies. Wait a moment and tap Save again.',
@@ -10057,6 +10061,33 @@ function misRecuperarHistorial(){
   if (r && typeof r.then === 'function') r.then(fin, fin); else fin();
 }
 
+/* Le pide la cédula a quien tiene un perfil viejo que no la trae. Se guarda en el perfil, así que
+   se pregunta UNA vez y todos los caminos (estadísticas, notificaciones, tareas) vuelven a andar.
+   ⚠️ No interrumpe sola: sólo aparece cuando el servidor ya dijo que la necesita, y con un tope de
+   una vez por sesión — un cartel que reaparece en cada sincronización se aprende a cerrar sin leer.
+   ⚠️ `prompt()` a propósito y no una pantalla nueva: esto es un puente para los perfiles anteriores
+   a que la cédula fuera obligatoria en el alta, no una pantalla del producto. Cuando no quede nadie
+   sin cédula, esto se borra entero. */
+var _misCedulaPedida;
+function misPedirCedula(motivo){
+  if (_misCedulaPedida) return;
+  _misCedulaPedida = true;
+  const p = getProfile();
+  if (!p || !p.nombre) return;
+  if (p.cedula && motivo === 'falta_cedula') return;   // la tiene y no la mandó: es un bug nuestro, no de ella
+  const dicho = prompt(t(motivo === 'cedula_mal' ? 'ced_pedir_mal' : 'ced_pedir'), p.cedula || '');
+  if (dicho == null) return;                            // la puede posponer: no se la deja trabada
+  const limpia = String(dicho).trim();
+  if (!limpia || (typeof setupCedulaValida === 'function' && !setupCedulaValida(limpia))){
+    showToast(t('f_ced_invalida'));
+    return;
+  }
+  p.cedula = limpia;
+  setProfile(p);
+  _misCedulaPedida = false;        // con la cédula puesta, el próximo intento tiene que poder correr
+  try { misSincronizar(); } catch(e){}
+}
+
 let _misSincronizando = false;
 function misSincronizar(){
   if (_misSincronizando || !SHEETS_DASHBOARD_URL) return Promise.resolve(false);
@@ -10073,6 +10104,17 @@ function misSincronizar(){
     .then(r => r.json())
     .then(d => {
       _misSincronizando = false;
+      /* ⚠️ A3 (2026-09-03): un fallo acá NO puede ser mudo. Verificado contra producción: el
+         servidor responde `falta_cedula` a toda app que no la mande, y esta línea la descartaba en
+         silencio — la persona veía su pantalla sin actualizarse y nada le decía por qué. Los datos
+         locales no se pierden (por eso el `return false` va antes de tocar nada), pero deja de
+         llegar lo que registró en otro dispositivo.
+         Sólo se avisa de lo que la persona PUEDE resolver: si le falta la cédula en su perfil, se
+         la pedimos. Un fallo de red no se anuncia: eso ya lo maneja el indicador de conexión y
+         avisarlo dos veces es ruido. */
+      if (d && !d.ok && (d.motivo === 'falta_cedula' || d.motivo === 'cedula_mal')) {
+        misPedirCedula(d.motivo);
+      }
       if (!d || !d.ok) return false;
       const local = misDatos();
       const srv = Array.isArray(d.registros) ? d.registros : [];
