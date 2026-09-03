@@ -4613,6 +4613,8 @@
     <div class="tc-valor" id="sldTextoInicioVal"></div>
 
     <button class="save-btn" onclick="confirmarTamanoTexto()" data-i18n="continuar">Continuar</button>
+    <!-- ⚠️ R1: tampoco tenia salida. Es un paso del alta, no un tramite obligatorio. -->
+    <button type="button" class="cancel-btn" onclick="altaAbandonar()" data-i18n="atras">Atrás</button>
   </div>
 </div>
 
@@ -4623,6 +4625,9 @@
     <!-- El contenido lo arma consentRender(): sólo los bloques nuevos o que cambiaron de versión -->
     <div id="consentBody"></div>
     <button class="save-btn" onclick="acceptConsent()" data-i18n="consent_aceptar">Aceptar y continuar</button>
+    <!-- ⚠️ R1: esta pantalla no tenia NINGUNA salida. No es "saltear el consentimiento" —quien no
+         acepta no entra— sino poder irse: hasta ahora la unica forma era recargar la pagina. -->
+    <button type="button" class="cancel-btn" onclick="altaAbandonar()" data-i18n="atras">Atrás</button>
   </div>
 </div>
 
@@ -5165,7 +5170,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11284,6 +11289,45 @@ function temaPintarControl(){
    cerramos lo que esté arriba de todo; si no hay nada abierto y estamos en Inicio,
    se deja salir de la app (comportamiento normal). */
 function navPush(){ try { history.pushState({ silva: 1 }, ''); } catch(e){} }
+
+/* ⚠️ R1 · SALIR DEL ALTA SIN DEJAR UN PERFIL A MEDIO GUARDAR.
+   Lo pedia el plan como caso borde y resulto ser real: `nominaConfirmar()` hace `setProfile(...)`
+   con los datos de la nomina ANTES de abrir el formulario de revision. Si la nomina trae el
+   registro completo, desde ese instante `perfilCompleto()` ya da true — o sea que la persona
+   cuenta como REGISTRADA sin haber confirmado nada, y sin haber pasado por `saveProfile()`, que es
+   el unico lugar que valida y que sincroniza con `Registrados Fatiga`.
+   Asi que abandonar el alta tiene que DESHACER eso, y no simplemente cerrar la pantalla.
+
+   ⚠️ Y no alcanza con borrar el perfil: quien ya estaba registrado y entro a EDITAR sus datos no
+   puede perder los suyos por tocar "atras". Por eso se guarda el perfil previo y se restaura tal
+   cual estaba — si no habia ninguno, se borra.
+   R16: se declara sin asignar. `undefined` significa "el alta no escribio nada todavia", que es
+   distinto de `null` ("no habia perfil"), y esa diferencia es la que decide si hay que borrar. */
+var _altaPerfilPrevio;
+function altaRecordarPerfil(){
+  if (_altaPerfilPrevio === undefined) _altaPerfilPrevio = getProfile() || null;
+}
+function altaOlvidarPerfil(){ _altaPerfilPrevio = undefined; }   // el alta termino bien
+
+/* Vuelve al splash desde cualquier punto de la cadena del alta, deshaciendo lo que el alta hubiera
+   escrito. Es la salida que faltaba: hasta R1, ni el formulario, ni el consentimiento, ni el tamano
+   de texto tenian forma de volver — habia que recargar la pagina. */
+function altaAbandonar(){
+  if (_altaPerfilPrevio !== undefined){
+    if (_altaPerfilPrevio) setProfile(_altaPerfilPrevio);
+    else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    _altaPerfilPrevio = undefined;
+  }
+  try { closeSetup(); } catch(e){}
+  try { nominaCerrar(); } catch(e){}
+  try { recuperarCerrar(); } catch(e){}
+  ['consent','textoOverlay','carruselOv'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.classList.remove('show');
+  });
+  try { syncScrollLock(); } catch(e){}
+  try { paintProfile(); renderSections(); } catch(e){}
+  try { splashMostrar(); } catch(e){}
+}
 function silvaAtras(){
   const visible = id => { const e = document.getElementById(id); return e && e.classList.contains('show'); };
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
@@ -11299,9 +11343,26 @@ function silvaAtras(){
     if (dashAtras()) return true;
     closePortal(); return true;
   }
+  /* ⚠️ R1 · LAS CUATRO PANTALLAS QUE ESTE MANEJADOR NO CUBRIA. El boton fisico del telefono
+     llegaba hasta acá y no encontraba ninguna de ellas, asi que "atras" no hacia nada — el mismo
+     callejon sin salida que el de la pantalla, con la diferencia de que acá ni siquiera hay un
+     boton que mirar. Van ANTES del `setup` porque se abren por encima de el. */
+  if (visible('textoOverlay')){ altaAbandonar(); return true; }
+  if (visible('consent')){ altaAbandonar(); return true; }
+  if (visible('nominaOv')){
+    // Dentro de la nomina, "atras" primero retrocede de paso (empresa → persona → cedula) y sólo
+    // sale del alta si ya estaba en el primero: es lo que espera cualquiera.
+    if (typeof nominaPuedeVolver === 'function' && nominaPuedeVolver()){ nominaVolver(); return true; }
+    altaAbandonar(); return true;
+  }
+  if (visible('carruselOv')){ carruselCerrar(); return true; }
   if (visible('setup')){
-    // Si el perfil está incompleto no lo dejamos salir (necesita cargar sus datos)
-    if (perfilCompleto(getProfile())) closeSetup();
+    /* ⚠️ Antes esto se TRAGABA el atras sin hacer nada cuando el perfil estaba incompleto: la
+       persona apretaba y no pasaba nada, para siempre. Ahora, si no puede cerrar (perfil a medias),
+       abandona el alta y vuelve al splash, deshaciendo lo que el alta hubiera escrito. */
+    if (perfilCompleto(getProfile()) && !editing) { altaAbandonar(); return true; }
+    if (perfilCompleto(getProfile())) { closeSetup(); return true; }
+    altaAbandonar();
     return true;
   }
   const mas = document.getElementById('viewMas');
@@ -11391,7 +11452,7 @@ function nominaPaso(paso){
   nominaEl('nomPasoCod').style.display = (paso==='codigo')  ? '' : 'none';
   nominaEl('nomPaso2').style.display   = (paso==='persona') ? '' : 'none';
   nominaEl('nomPaso3').style.display   = (paso==='cedula')  ? '' : 'none';
-  nominaEl('nomVolver').style.display  = (paso==='empresa') ? 'none' : '';
+  nominaEl('nomVolver').style.display  = nominaPuedeVolver() ? '' : 'none';   // R1: la misma condicion que usa el boton fisico
   nominaEl('nomTitulo').textContent = t('nom_t_' + paso);
   nominaEl('nomLead').textContent   = t('nom_l_' + paso);
 }
@@ -11449,6 +11510,11 @@ function nominaCerrar(){ nominaEl('nominaOv').classList.remove('show'); syncScro
 // "No estoy en la lista" y todos los caminos de error terminan acá: el formulario de siempre.
 // Se limpia el progreso: quien elige cargar a mano ya no va a volver a este recorrido.
 function nominaManual(){ altaProgresoLimpiar(); nominaCerrar(); openSetup(false); }
+/* ¿Queda un paso atras dentro de la nomina? Es la MISMA condicion que decide si se ve el boton
+   "‹ Volver" (ver `nominaPaso`): en el primer paso no hay a donde retroceder, y ahi "atras"
+   significa salir del alta. Se escribe como funcion para que el boton fisico del telefono y el de
+   la pantalla no puedan discrepar — que es justo el caso borde que pide R1. */
+function nominaPuedeVolver(){ return NOM.paso !== 'empresa'; }
 function nominaVolver(){
   if (NOM.paso === 'cedula'){ nominaPaso('persona'); return; }
   if (NOM.paso === 'persona' && NOM.pideCodigo){ nominaPasoCodigo(); return; }
@@ -11575,6 +11641,10 @@ function nominaConfirmar(){
          lugar que valida y que sincroniza con `Registrados Fatiga` (saveProfile): pasar por él
          evita duplicar esa lógica acá y deja que la persona corrija un dato mal cargado. */
       const prev = getProfile() || {};
+      /* R1: se recuerda el perfil que HABIA antes de que el alta escriba nada. Si la persona vuelve
+         atras desde el formulario de revision, `altaAbandonar()` lo restaura — sin esto quedaria
+         registrada con datos que nunca confirmo. */
+      altaRecordarPerfil();
       setProfile(Object.assign({}, prev, {
         nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
         cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
@@ -11662,7 +11732,15 @@ function openSetup(isEdit){
   document.getElementById('inEmail').value    = p.email       || '';
   document.getElementById('setupTitle').textContent = isEdit ? t('f_setup_editar') : t('f_setup_bienvenido');
   document.getElementById('setupLead').textContent = isEdit ? t('f_setup_lead_edit') : t('f_setup_lead');
-  document.getElementById('cancelBtn').style.display = isEdit ? 'block' : 'none';
+  /* ⚠️ R1: antes esto era `isEdit ? 'block' : 'none'`, o sea que en un ALTA NUEVA —el camino que
+     viene del splash— el boton no existia y no habia forma de volver: habia que recargar la pagina.
+     Era el reclamo textual ("en muchos lugares del splash debo reiniciar la pagina").
+     Ahora se muestra siempre; lo que cambia es a donde va: editando, cierra y deja todo como
+     estaba; en un alta nueva, vuelve al splash deshaciendo lo que el alta hubiera escrito. */
+  const cbtn = document.getElementById('cancelBtn');
+  cbtn.style.display = 'block';
+  cbtn.textContent = t(isEdit ? 'cancelar' : 'atras');
+  cbtn.setAttribute('onclick', isEdit ? 'closeSetup()' : 'altaAbandonar()');
   ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad','fTelefono','fEmail','fSupPass'].forEach(id => document.getElementById(id).classList.remove('invalid'));
   // El botón "Guardar" se habilita/gris según el formulario. Un solo listener en la hoja cubre
   // todos los campos (input y change); los combos (empresa/depto) llaman aparte porque set .value
@@ -11787,6 +11865,7 @@ function saveProfile(){
     // persona ya hizo el recorrido y sólo vino a corregir un teléfono.
     // W3: al identificarse se va a buscar el historial al CH. Sin esto la persona entra y ve
     // su pantalla vacia hasta el proximo arranque de la app.
+    altaOlvidarPerfil();   // R1: el alta se completo, ya no hay nada que deshacer
     if (!editing) { misRecuperarHistorial(); avanzarAlta(); } };
 
   // Las contraseñas (supervisor y/o servicio médico, pueden ser distintas) se verifican contra
