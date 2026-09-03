@@ -34,3 +34,26 @@ PRUEBAS.caso('alMenos() guarda el número real, no sólo si pasó', () => {
   PRUEBAS._actual = guardado;
   PRUEBAS.igual(c.obtuvo, 7.25, 'cuando algo queda apenas arriba del mínimo hay que poder verlo, no sólo saber que pasó');
 });
+
+PRUEBAS.caso('⚠️ un caso que nunca termina se reporta como falla, no cuelga la suite', async () => {
+  /* EL DISCRIMINADOR DEL TOPE. Sin esta comprobación, el tope que agregué en `correr()` es una
+     intención: nadie sabría si de verdad corta. Acá se le da una promesa que NO resuelve nunca —
+     exactamente la forma del cuelgue real (un `throw` adentro de un setTimeout deja al `await`
+     esperando un `resolve()` que ya no va a llegar) — y se exige que rechace.
+     El 2026-09-03 esto colgó la suite entera dos veces: el panel se quedaba en "corriendo…" y se
+     perdía el reporte de los 300 casos que YA habían pasado. */
+  let corto = false, mensaje = '';
+  try {
+    await PRUEBAS._conTope(new Promise(() => {}), 60);
+    corto = false;
+  } catch (e) { corto = true; mensaje = e.message; }
+  PRUEBAS.cierto(corto, 'una promesa que no resuelve nunca tiene que cortarse sola');
+  PRUEBAS.cierto(/colgado/.test(mensaje),
+    'y el mensaje tiene que decir por qué, para no mandar a buscar un bug de la app: "' + mensaje.slice(0, 70) + '"');
+
+  /* Y el control: el tope no puede matar a un caso que sí termina. */
+  let ok = false;
+  try { ok = await PRUEBAS._conTope(new Promise(r => setTimeout(() => r(true), 10)), 300); }
+  catch (e) { ok = false; }
+  PRUEBAS.cierto(ok, 'un caso normal, que termina a tiempo, no lo puede tocar el tope');
+});

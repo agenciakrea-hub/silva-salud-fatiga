@@ -94,6 +94,15 @@ PRUEBAS.caso('con dos overlays abiertos a la vez, cada cierre vuelve al disparad
   setup.classList.add('show');
   return new Promise(resolve => setTimeout(() => {
     const disparadorDeRec = ovFocoEnfocables(setup)[0];
+    /* ⚠️ GUARDA. Sin ella, si `setup` no trae ningún enfocable el `.focus()` de abajo lanza ADENTRO
+       de un setTimeout: no rechaza esta promesa, nadie llama a `resolve()` y la suite entera queda
+       colgada sin reportar nada. Pasó el 2026-09-03. Acá se corta con una falla legible. */
+    if (!disparadorDeRec){
+      PRUEBAS.cierto(false, 'el overlay "setup" tiene que traer algo enfocable para poder probar a ' +
+        'dónde vuelve el foco; si no hay nada, este caso no está midiendo el apilado');
+      document.body.removeAttribute('tabindex'); setup.classList.remove('show');
+      resolve(); return;
+    }
     disparadorDeRec.focus();
     rec.classList.add('show');
     setTimeout(() => {

@@ -82,11 +82,30 @@ PRUEBAS.caso('⚠️ la aguja del inicio se ubica, no queda clavada en el origen
   await new Promise(r => setTimeout(r, 120));
   const aguja = document.querySelector('#sections .cic-mio .cic-now');
   PRUEBAS.cierto(!!aguja, 'la barra del inicio tiene que traer su aguja');
+
+  /* ⚠️ GUARDA DE MEDIBILIDAD, y este caso la necesitaba de verdad: falló una vez con la aguja en
+     0,085 px y me mandó a buscar un bug que no existía. La aguja se ubica en PROPORCIÓN al ancho
+     de la barra, así que si la barra mide casi cero —porque un caso anterior dejó la ventana
+     angosta, o porque el bloque todavía no terminó de acomodarse— la aguja da un número minúsculo
+     que es indistinguible de "quedó clavada en el origen", que es justo el bug que se busca.
+     Se espera a que la barra tenga ancho de verdad, con tope, y si nunca lo tiene el caso lo DICE
+     en vez de acusar un bug ajeno. */
+  const barra = aguja.closest('.cic-barra');
+  for (let i = 0; i < 20 && (!barra || barra.offsetWidth < 20); i++){
+    await new Promise(r => setTimeout(r, 25));
+  }
+  if (!barra || barra.offsetWidth < 20){
+    PRUEBAS.cierto(false, 'la barra del ciclo quedó sin ancho medible (' +
+      (barra ? barra.offsetWidth : 'no hay barra') + 'px): así no se puede saber dónde cae la ' +
+      'aguja, porque se ubica en proporción al ancho. No es un bug de la aguja, es que no hay qué medir');
+    return;
+  }
+
   const izq = parseFloat(aguja.style.left || '0');
   PRUEBAS.alMenos(izq, 1,
-    'con más de dos horas de ciclo la aguja no puede estar en el origen (quedó en ' + izq + 'px)');
+    'con más de dos horas de ciclo la aguja no puede estar en el origen (quedó en ' + izq + 'px, ' +
+    'sobre una barra de ' + barra.offsetWidth + 'px)');
 
-  const barra = aguja.closest('.cic-barra');
   PRUEBAS.comoMucho(izq, barra.offsetWidth,
     'y tampoco puede salirse de la barra');
 });

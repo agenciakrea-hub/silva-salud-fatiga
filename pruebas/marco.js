@@ -158,11 +158,37 @@
      Devuelve el reporte. Un caso que LANZA no rompe la corrida: se marca como fallado con el
      error como "obtuvo". Eso importa porque un `TypeError` en el caso 2 no debe ocultar que los
      casos 3 a 40 estaban bien. */
+  /* ⚠️ TOPE POR CASO. Sin esto, un caso que nunca resuelve cuelga la SUITE ENTERA: el panel se
+     queda en "corriendo…" para siempre y no reporta ni los 300 casos que ya habían pasado. Me pasó
+     dos veces el 2026-09-03, las dos por lo mismo — un `throw` adentro de un `setTimeout` no
+     rechaza la promesa del caso, así que el `await` espera un `resolve()` que ya nunca va a llegar.
+     Un caso colgado ahora se reporta como falla y la corrida sigue. El caso puede seguir vivo en
+     segundo plano y ensuciar a los que vienen, y eso es feo — pero infinitamente menos feo que
+     perder el reporte completo. 10 s es holgado: el más lento de la suite (A2c, que rasteriza seis
+     tamaños) no pasa de 1,5 s. */
+  const TOPE_POR_CASO = 10000;
+  function conTope(promesa, tope){
+    const ms = tope || TOPE_POR_CASO;
+    let reloj;
+    return Promise.race([
+      Promise.resolve(promesa).finally(() => clearTimeout(reloj)),
+      new Promise((_, rechazar) => {
+        reloj = setTimeout(() => rechazar(new Error(
+          'el caso no terminó en ' + (ms/1000) + ' s y se dio por colgado. Casi siempre ' +
+          'es una promesa que nunca resuelve: un `throw` adentro de un setTimeout, o un `await` de ' +
+          'requestAnimationFrame (acá la pestaña está oculta y rAF NO dispara nunca — ver LEEME.md)'
+        )), ms);
+      })
+    ]);
+  }
+  /* Se expone para que el propio marco pueda probarse: ver el caso del tope en `humo-marco.js`. */
+  PRUEBAS._conTope = conTope;
+
   PRUEBAS.correr = async function () {
     for (const c of PRUEBAS._casos) {
       PRUEBAS._actual = { grupo: c.grupo, nombre: c.nombre, ok: true, comprobaciones: [], error: null };
       try {
-        await c.fn();
+        await conTope(c.fn());
       } catch (e) {
         PRUEBAS._actual.ok = false;
         PRUEBAS._actual.error = (e && e.message) ? e.message : String(e);

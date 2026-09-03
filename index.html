@@ -4077,6 +4077,15 @@
   .ini-firmada-t { font-size:1.12rem; font-weight:800; color:var(--inic-c); line-height:1.2; margin-top:.1rem; }
   .ini-firmada-x { font-size:.8rem; color:var(--text-soft); margin-top:.2rem; }
   /* W3: aviso de "estamos trayendo tu historial". Mismo lenguaje que los demas avisos del inicio. */
+  /* Z4: las reglas de la contraseña, con su estado. Verde/rojo por token, y ademas un simbolo:
+     el color solo no alcanza para quien no lo distingue. */
+  .clv-reglas { margin: .1rem 0 .8rem; display: flex; flex-direction: column; gap: .25rem; }
+  .clv-regla { font-size: .8rem; font-weight: 600; color: var(--text-muted); line-height: 1.4; }
+  /* ⚠️ `--sem-verde-txt` y NO `--sem-verde-int`: medido sobre la tarjeta blanca, `-int` da 4,35:1 —
+     por debajo del mínimo de 4,5. Lo detecté midiendo la pantalla recién hecha, no revisándola.
+     `-txt` es el verde calibrado para TEXTO y existe justamente para esto. */
+  .clv-regla.ok  { color: var(--sem-verde-txt); }
+  .clv-regla.mal { color: var(--sem-rojo-txt); }
   .ini-recuperando { background: var(--sem-azul-bg); border: 1px solid var(--sem-azul);
     border-radius: var(--radius); padding: .7rem .9rem; margin-bottom: .7rem;
     font-size: .84rem; font-weight: 600; color: var(--sem-azul-int); line-height: 1.45; }
@@ -4615,6 +4624,29 @@
     <button class="save-btn" onclick="confirmarTamanoTexto()" data-i18n="continuar">Continuar</button>
     <!-- ⚠️ R1: tampoco tenia salida. Es un paso del alta, no un tramite obligatorio. -->
     <button type="button" class="cancel-btn" onclick="altaAbandonar()" data-i18n="atras">Atrás</button>
+  </div>
+</div>
+
+<!-- ⚠️ Z4 · ELEGIR CONTRASEÑA. Último paso del alta, y OPCIONAL a propósito: la migración
+     completa (ADR 001, D3) se apoya en que nadie quede afuera un solo día. Quien la pospone entra
+     como siempre; quien la pone, queda cerrado con clave propia desde ese momento. -->
+<div class="overlay" id="claveOv">
+  <div class="sheet">
+    <h2 data-i18n="clv_titulo">Elige tu contraseña</h2>
+    <p class="portal-hint" data-i18n="clv_lead">Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.</p>
+    <div class="field"><label for="clvPass" data-i18n="clv_pass">Contraseña</label>
+      <div class="pw-wrap"><input id="clvPass" type="password" autocomplete="new-password" oninput="clvValidar()">
+        <button type="button" class="pw-eye" onclick="togglePw('clvPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div class="field"><label for="clvPass2" data-i18n="clv_pass2">Repítela</label>
+      <input id="clvPass2" type="password" autocomplete="new-password" oninput="clvValidar()"
+             onkeydown="if(event.key==='Enter')clvGuardar(document.getElementById('clvBtn'))">
+    </div>
+    <div class="clv-reglas" id="clvReglas"></div>
+    <div class="portal-err" id="clvErr"></div>
+    <button class="save-btn" id="clvBtn" onclick="clvGuardar(this)" data-i18n="clv_guardar">Crear mi contraseña</button>
+    <button type="button" class="cancel-btn" onclick="clvPosponer()" data-i18n="clv_luego">Más tarde</button>
   </div>
 </div>
 
@@ -5180,7 +5212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.77';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5496,6 +5528,15 @@ const I18N = {
       rec_no_encontrado:'No encontramos ese registro. Revisa la empresa y la cédula.',
       rec_listo:'Listo, recuperamos tus datos',
       ts_demo_no_guarda:'Estás en la demostración: no se guarda nada.',
+      clv_titulo:'Elige tu contraseña',
+      clv_lead:'Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.',
+      clv_pass:'Contraseña', clv_pass2:'Repítela',
+      clv_r_largo:'Al menos {n} caracteres', clv_r_numeros:'Que no sea sólo números',
+      clv_r_iguales:'Las dos veces iguales',
+      clv_guardar:'Crear mi contraseña', clv_luego:'Más tarde',
+      clv_listo:'Listo. Tu contraseña quedó guardada.',
+      clv_error:'No se pudo crear la contraseña. Inténtalo de nuevo.',
+      clv_sin_red:'Necesitas conexión para crear tu contraseña. Puedes hacerlo más tarde: tus datos ya quedaron guardados.',
       pg_propios_demo:'Vas a ver la pantalla de una persona de ejemplo, tal como la ve ella.',
       pg_ver_ejemplo:'Ver estadísticas de ejemplo',
       pg_demo_error:'No se pudo abrir la demostración.',
@@ -6931,6 +6972,15 @@ const I18N = {
       rec_no_encontrado:'We could not find that record. Check the company and the ID number.',
       rec_listo:'Done, your details are back',
       ts_demo_no_guarda:'This is the demo: nothing is saved.',
+      clv_titulo:'Choose your password',
+      clv_lead:'It will be yours alone. From now on you sign in with your ID number and this password, on any phone.',
+      clv_pass:'Password', clv_pass2:'Repeat it',
+      clv_r_largo:'At least {n} characters', clv_r_numeros:'Not only numbers',
+      clv_r_iguales:'Both entries match',
+      clv_guardar:'Create my password', clv_luego:'Later',
+      clv_listo:'Done. Your password has been saved.',
+      clv_error:'The password could not be created. Please try again.',
+      clv_sin_red:'You need a connection to create your password. You can do it later: your data is already saved.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
       pg_ver_ejemplo:'View sample statistics',
       pg_demo_error:'The demo could not be opened.',
@@ -20088,9 +20138,138 @@ function avanzarAlta(){
     syncScrollLock();
     return;
   }
+  /* 4 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
+     recorrido, y ponerlo antes del consentimiento o del tamaño de texto sería anteponer algo que se
+     puede posponer a algo que no.
+     ⚠️ `!_complete` por el mismo motivo que el tamaño de texto: `_complete` se calcula AL ARRANCAR,
+     antes de que este alta escriba nada. Sin él, a los pilotos de Helitec —ya registrados— les
+     aparecería una pantalla nueva al abrir la app sin haber pedido nada. */
+  if (!_complete && !clvYaOfrecida() && SHEETS_DASHBOARD_URL && !simulando()){
+    if (clvAbrir()) return;
+  }
   // Nada pendiente: recién ACÁ la app queda a la vista.
   appRevelar(true);
 }
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   Z4 · ELEGIR CONTRASEÑA — el último paso del alta
+   ══════════════════════════════════════════════════════════════════════════════════════════════
+   ⚠️ ES OPCIONAL A PROPÓSITO, y no es una concesión: la migración (ADR 001, D3) se apoya en que
+   nadie quede afuera un solo día. Quien la pospone sigue entrando como siempre; quien la pone,
+   desde ese momento entra sólo con ella. Obligarla acá dejaría trabado a cualquiera que no pueda
+   completarla en ese instante — y en esta app "ese instante" puede ser un hangar sin señal.
+
+   ⚠️ SIN SEÑAL NO SE ENCOLA. El plan dejaba abierto qué hacer sin conexión. La respuesta acá es
+   clara: NO se guarda la contraseña en el dispositivo para mandarla después. Encolarla significaría
+   dejarla escrita en texto plano en `localStorage`, que es exactamente el problema que este bloque
+   viene a resolver. Sin conexión, el paso se pospone y se vuelve a ofrecer.
+
+   ⚠️ LO QUE SE VALIDA ACÁ NO PROTEGE NADA: el servidor vuelve a validarlo todo (Z4). Esto es
+   cortesía —decirle a la persona qué falta antes de que toque el botón—, no una barrera. Este
+   archivo es público: cualquier regla escrita acá se puede saltear. */
+var CLV_LARGO_MINIMO = 8;   // el que exige el servidor; acá sólo para avisar antes
+
+function clvAbrir(){
+  const p = getProfile() || {};
+  if (!p.cedula || !p.empresa) return false;       // sin identidad no hay a quién ponerle clave
+  const ov = document.getElementById('claveOv'); if (!ov) return false;
+  document.getElementById('clvPass').value = '';
+  document.getElementById('clvPass2').value = '';
+  document.getElementById('clvErr').textContent = '';
+  clvValidar();
+  ov.classList.add('show');
+  syncScrollLock();
+  return true;
+}
+
+/* Marca si esta persona ya decidió (puso clave o la pospuso) para no volver a interrumpirla en cada
+   arranque. Se guarda por CÉDULA: si el teléfono lo usa otra persona, a ella sí hay que ofrecerle. */
+const K_CLV_OFRECIDA = 'silva_fatiga_clave_ofrecida_v1';
+function clvYaOfrecida(){
+  const p = getProfile() || {};
+  try { return (JSON.parse(localStorage.getItem(K_CLV_OFRECIDA)) || {})[dashNorm(p.cedula || '')] === true; }
+  catch(e){ return false; }
+}
+function clvMarcarOfrecida(){
+  const p = getProfile() || {};
+  try {
+    const o = JSON.parse(localStorage.getItem(K_CLV_OFRECIDA)) || {};
+    o[dashNorm(p.cedula || '')] = true;
+    lsSet(K_CLV_OFRECIDA, JSON.stringify(o));
+  } catch(e){}
+}
+
+function clvReglas(){
+  const a = document.getElementById('clvPass').value || '';
+  const b = document.getElementById('clvPass2').value || '';
+  return [
+    { ok: a.length >= CLV_LARGO_MINIMO, txt: t('clv_r_largo', { n: CLV_LARGO_MINIMO }) },
+    { ok: /[^0-9]/.test(a),             txt: t('clv_r_numeros') },
+    { ok: !!a && a === b,               txt: t('clv_r_iguales') }
+  ];
+}
+function clvValidar(){
+  const caja = document.getElementById('clvReglas'); if (!caja) return false;
+  const escribio = !!(document.getElementById('clvPass').value || '');
+  const reglas = clvReglas();
+  /* Las reglas llevan símbolo ADEMÁS de color: el color solo deja afuera a quien no lo distingue,
+     y acá lo que se comunica es "todavía te falta esto". */
+  caja.innerHTML = reglas.map(r =>
+    '<div class="clv-regla ' + (r.ok ? 'ok' : (escribio ? 'mal' : '')) + '">' +
+    (r.ok ? '✓' : '·') + ' ' + esc(r.txt) + '</div>').join('');
+  const todo = reglas.every(r => r.ok);
+  const btn = document.getElementById('clvBtn'); if (btn) btn.disabled = !todo;
+  return todo;
+}
+
+function clvGuardar(btn){
+  if (!clvValidar()) return;
+  const p = getProfile() || {};
+  const err = document.getElementById('clvErr'); err.textContent = '';
+  if (!offHayConexion()){
+    /* Ver la nota de arriba: no se encola. Se dice por qué y se ofrece más tarde. */
+    err.textContent = t('clv_sin_red');
+    return;
+  }
+  btnSpin(btn, true, t('guardando'));
+  const cuerpo = { action:'credencial_crear', empresa:p.empresa||'', cedula:p.cedula||'',
+                   usuario:p.nombre||'', pass:document.getElementById('clvPass').value,
+                   dispositivoId: dispositivoId() };
+  /* El código de empresa, si esta alta pasó por él. El servidor lo vuelve a exigir para CREAR una
+     credencial aunque ya se haya validado antes (S5): cada acción se defiende sola. */
+  const g = altaProgresoCargar();
+  if (g && g.codigo) cuerpo.codigo = g.codigo;
+  /* ⚠️ `conBloqueo` NO ES DECORATIVO ACÁ, y me lo encontró la prueba de Q1, no yo. Sin él, mientras
+     el pedido viaja la pantalla sigue viva: se puede tocar "Más tarde" y cerrarla, y la respuesta
+     llega a una pantalla que ya no está — o peor, se toca "Crear" dos veces y salen dos altas.
+     `btnSpin` sólo apaga el botón; el resto de la hoja, incluido el teclado, queda tocable. */
+  conBloqueo('#claveOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && d.ok){
+        clvMarcarOfrecida();
+        document.getElementById('claveOv').classList.remove('show');
+        syncScrollLock();
+        showToast(t('clv_listo'));
+        avanzarAlta();
+        return;
+      }
+      /* Se muestra el mensaje del SERVIDOR cuando lo hay: es el que sabe por qué —clave débil,
+         cédula que no está en la lista, código equivocado— y traducirlo acá sería duplicar reglas
+         en dos lugares, que es como terminan discrepando. */
+      err.textContent = (d && d.error) || t('clv_error');
+    })
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
+}
+
+function clvPosponer(){
+  clvMarcarOfrecida();
+  document.getElementById('claveOv').classList.remove('show');
+  syncScrollLock();
+  avanzarAlta();
+}
+
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
   document.getElementById('textoOverlay').classList.remove('show');
