@@ -4894,7 +4894,7 @@
 
       <div id="portalEmp" class="portal-pane">
         <p class="portal-hint" id="portalEmpHint" data-i18n="pg_propios">Vas a ver tus propios registros.</p>
-        <button class="save-btn" onclick="portalLoginEmpleado(this)" data-i18n="pg_ver_mis">Ver mis estadísticas</button>
+        <button class="save-btn" id="portalEmpBtn" onclick="portalLoginEmpleado(this)" data-i18n="pg_ver_mis">Ver mis estadísticas</button>
       </div>
 
       <!-- Un solo formulario para Supervisor y Servicio médico (mismas credenciales de empresa):
@@ -4918,7 +4918,7 @@
         <button class="save-btn" onclick="portalLoginSupervisor(this)" data-i18n="entrar">Entrar</button>
         </div><!-- /portalCreds -->
 
-        <div class="portal-demo">
+        <div class="portal-demo" id="portalDemoBloque">
           <div class="pd-sep"><span>o</span></div>
           <button type="button" class="portal-demo-btn" id="portalDemoBtn" onclick="portalVerDemo(this)" data-i18n="pg_demo">Ver demostración con datos simulados</button>
           <p class="portal-demo-hint" id="portalDemoHint" data-i18n="pg_demo_d">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
@@ -5180,7 +5180,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5495,6 +5495,11 @@ const I18N = {
       rec_falta_empresa:'Elige tu empresa.',
       rec_no_encontrado:'No encontramos ese registro. Revisa la empresa y la cédula.',
       rec_listo:'Listo, recuperamos tus datos',
+      ts_demo_no_guarda:'Estás en la demostración: no se guarda nada.',
+      pg_propios_demo:'Vas a ver la pantalla de una persona de ejemplo, tal como la ve ella.',
+      pg_ver_ejemplo:'Ver estadísticas de ejemplo',
+      pg_demo_error:'No se pudo abrir la demostración.',
+      pg_demo_sin_persona:'La demostración todavía no tiene registros de ninguna persona.',
       pg_demo_pass_lbl:'Clave de la demostración',
       pg_demo_pass_pide:'Esta demostración pide una clave. Escríbela para continuar.',
       pg_demo_pass_mal:'La clave no es correcta. Verifícala e inténtalo de nuevo.',
@@ -6925,6 +6930,11 @@ const I18N = {
       rec_falta_empresa:'Choose your company.',
       rec_no_encontrado:'We could not find that record. Check the company and the ID number.',
       rec_listo:'Done, your details are back',
+      ts_demo_no_guarda:'This is the demo: nothing is saved.',
+      pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
+      pg_ver_ejemplo:'View sample statistics',
+      pg_demo_error:'The demo could not be opened.',
+      pg_demo_sin_persona:'The demo does not have any records for a person yet.',
       pg_demo_pass_lbl:'Demo password',
       pg_demo_pass_pide:'This demo requires a password. Enter it to continue.',
       pg_demo_pass_mal:'That password is not correct. Please check it and try again.',
@@ -8636,9 +8646,29 @@ let SIMUL = null;   // { vista, rol } mientras se simula; null = sesión real
 function simulando(){ return !!SIMUL; }
 // Devuelve true y avisa si la escritura fue bloqueada. Se usa como: if (simulBloquea('...')) return;
 function simulBloquea(queIntentaba){
+  /* ⚠️ S1 · LA DEMOSTRACION TAMBIEN BLOQUEA, y esto lo encontre probando lo que acababa de abrir.
+     Al mostrar "Mis estadisticas" dentro de la demo (que antes estaba oculta), quedo alcanzable la
+     pantalla del empleado CON SUS BOTONES: toque "Registrar" y la cola de envios paso de 3 a 4.
+     Medido: `empPendientes()` de 0 a 1. Es un registro fantasma que se habria sincronizado al CH
+     de un cliente real, firmado por una persona de ejemplo.
+     Es lo mismo que ya preve U1 para los gestores: quien esta MIRANDO no puede escribir.
+     Va acá, en el guardian que los seis caminos de escritura ya consultan, y no en el boton que
+     encontre: si mañana la demo alcanza otra pantalla con otro boton, ya esta cubierto. */
+  if (demoBloqueaEscritura()){
+    try { showToast(t('ts_demo_no_guarda') + (queIntentaba ? ' (' + queIntentaba + ')' : '')); } catch(e){}
+    return true;
+  }
   if (!SIMUL) return false;
   try { showToast(t('ts_simulacion') + (queIntentaba ? ' (' + queIntentaba + ')' : '')); } catch(e){}
   return true;
+}
+/* ¿Se está mirando la demostración en este momento? Se exige que el panel esté ABIERTO, no sólo que
+   `DASH` sea de demo: una persona real que miró la demo, la cerró y volvió a su inicio tiene que
+   poder registrar lo suyo con normalidad. */
+function demoBloqueaEscritura(){
+  const ov = document.getElementById('portalOverlay');
+  return !!(typeof DASH !== 'undefined' && DASH && DASH.demoMode &&
+            ov && ov.classList.contains('show'));
 }
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
 function setProfile(p){ return lsSet(K_PROFILE, JSON.stringify(p)); }
@@ -12324,13 +12354,32 @@ function portalMode(m){
      (necesita un perfil cargado en este dispositivo). */
   const creds = document.getElementById('portalCreds');
   if (creds) creds.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+  /* ⚠️ S1 · CADA PORTAL CON LO SUYO. "Ver demostración" estaba TAMBIÉN en el portal de
+     credenciales, que es donde entra un supervisor real a ver datos reales: ahí no pinta nada, y
+     encima el bloque se lleva la atención justo abajo del botón "Entrar".
+     Ahora es el espejo exacto de `#portalCreds`: la demostración se ve sólo por su camino, y las
+     credenciales sólo por el suyo. */
+  const demoBloque = document.getElementById('portalDemoBloque');
+  if (demoBloque) demoBloque.style.display = PORTAL_SOLO_DEMO ? '' : 'none';
   /* ⚠️ "Mis estadísticas" muestra los registros DE ESTA PERSONA: sin un perfil completo en el
      dispositivo no tiene nada que mostrar y el botón lleva a un error. Se ocultaba sólo en modo
      demo, así que por el camino de "Soy supervisor…" —donde tampoco hay perfil— quedaba visible y
      roto. La condición correcta no es "estoy en demo" sino "hay perfil". */
   const tabEmp = document.getElementById('ptabEmp');
   const hayPerfil = perfilCompleto(getProfile());
-  if (tabEmp) tabEmp.style.display = hayPerfil ? '' : 'none';
+  /* ⚠️ S1 · EN LA DEMOSTRACIÓN "Mis estadísticas" SÍ VA. Estaba oculta porque sin perfil no hay
+     datos propios que mostrar — cierto para el portal de credenciales, y equivocado para la demo:
+     ahí justamente lo que hay que enseñar es cómo se ve la pantalla de una persona. Se muestra una
+     de ejemplo (ver `portalVerDemoEmpleado`). */
+  if (tabEmp) tabEmp.style.display = (hayPerfil || PORTAL_SOLO_DEMO) ? '' : 'none';
+  /* El texto y el botón cambian: en demo no son "tus" registros sino los de alguien de ejemplo. */
+  const empHint = document.getElementById('portalEmpHint');
+  if (empHint) empHint.textContent = t(PORTAL_SOLO_DEMO ? 'pg_propios_demo' : 'pg_propios');
+  const empBtn = document.getElementById('portalEmpBtn');
+  if (empBtn){
+    empBtn.textContent = t(PORTAL_SOLO_DEMO ? 'pg_ver_ejemplo' : 'pg_ver_mis');
+    empBtn.setAttribute('onclick', PORTAL_SOLO_DEMO ? 'portalVerDemoEmpleado(this)' : 'portalLoginEmpleado(this)');
+  }
   const admSep = document.getElementById('adminSep');
   if (admSep) admSep.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
   // El acceso de administrador va SIEMPRE al pie, sin importar la pestaña elegida; sólo se
@@ -12970,19 +13019,83 @@ function portalVerDemo(btn){
       /* Z1 · el servidor pide clave. Se muestra el campo y se le da el foco; no es un error de la
          persona, así que el mensaje lo explica en vez de sonar a fallo. */
       if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
-        const caja = document.getElementById('portalDemoPass');
-        const hint = document.getElementById('portalDemoHint');
-        if (caja) caja.style.display = '';
-        if (hint) hint.style.display = 'none';   // ya no es "sin usuario ni contraseña"
-        if (errEl) errEl.textContent = t(d.motivo === 'demo_pass_mal' ? 'pg_demo_pass_mal' : 'pg_demo_pass_pide');
-        if (passEl){ passEl.value = ''; try { passEl.focus(); } catch(e){} }
-        return;
+        portalDemoPedirClave(d.motivo); return;
       }
       if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) || 'No se pudo abrir la demostración.'; return; }
       onDashData(d, 'Empresa Demo', params, PORTAL_VISTA);   // la demo respeta la pestaña elegida
     })
     .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
 }
+/* ⚠️ S1 · LAS ESTADISTICAS PERSONALES DE EJEMPLO, DENTRO DE LA DEMOSTRACION.
+   Lo que se muestra es la pantalla de UNA persona, que es lo que alguien viene a ver cuando
+   pregunta "¿y qué ve el piloto?". Antes esa pestaña estaba oculta en demo porque sin perfil no
+   hay datos propios — cierto, pero la conclusión correcta no era esconderla sino inventarle una
+   persona de ejemplo.
+
+   ⚠️ CASO BORDE DEL PLAN: "la persona de ejemplo tiene que salir de `Empresa Demo`, NUNCA de una
+   empresa real". Por eso NO se llama a `action=empleado` con un nombre elegido acá: se pide la
+   MISMA demostración de siempre (`action=demo`), cuyo alcance ya lo fija el servidor por código
+   —filtra por `EMPRESA_DEMO` y no acepta parámetros de empresa—, y la persona se elige DE ESOS
+   datos. No hay ningún camino por el que esto pueda traer a alguien real, ni equivocándose.
+   De paso: pasa por la misma clave y el mismo freno que el otro botón de la demo (Z1), sin
+   duplicar nada. */
+function portalVerDemoEmpleado(btn){
+  const errEl = document.getElementById('portalErr'); if (errEl) errEl.textContent = '';
+  const passEl = document.getElementById('pDemoPass');
+  const params = { action:'demo', dispositivoId: dispositivoId() };
+  if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
+  const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
+  btnSpin(btn, true, t('cargando'));
+  conBloqueo('#portalGate', dashRequest(params)
+    .then(d => {
+      if (!cargaVigente(carga)) return;
+      btnSpin(btn, false);
+      if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
+        portalDemoPedirClave(d.motivo);   // Z1: la clave la pide el servidor, no este archivo
+        return;
+      }
+      if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) || t('pg_demo_error'); return; }
+      const uno = demoPersonaEjemplo(d);
+      if (!uno){ if (errEl) errEl.textContent = t('pg_demo_sin_persona'); return; }
+      /* Se recorta a esa persona y se entra como EMPLEADO: mismas pestañas y misma pantalla que
+         ve un piloto de verdad, que es el punto de mostrarlo. */
+      const propio = Object.assign({}, d, {
+        rol: 'empleado',
+        registros: d.registros.filter(r => r.persona === uno),
+        pvt: (d.pvt || []).filter(r => r.persona === uno),
+        comentarios: null
+      });
+      onDashData(propio, uno, params, 'empleado');
+    })
+    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false);
+      if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
+}
+
+/* Elige a quién mostrar: la persona con MÁS registros de la demostración. Es determinista (la
+   misma siempre, para que dos personas mirando la demo vean lo mismo) y evita caer en alguien con
+   un solo dato, que dejaría la pantalla casi vacía y daría la impresión equivocada. */
+function demoPersonaEjemplo(d){
+  const cuenta = {};
+  (d.registros || []).forEach(r => { if (r.persona) cuenta[r.persona] = (cuenta[r.persona] || 0) + 1; });
+  const nombres = Object.keys(cuenta);
+  if (!nombres.length) return null;
+  nombres.sort((a, b) => (cuenta[b] - cuenta[a]) || (a < b ? -1 : 1));   // desempate alfabético: estable
+  return nombres[0];
+}
+
+/* Z1: mostrar el campo de la clave. Estaba escrito adentro de `portalVerDemo`; se saca acá para
+   que los dos botones de la demostración pidan la clave exactamente igual. */
+function portalDemoPedirClave(motivo){
+  const caja = document.getElementById('portalDemoPass');
+  const hint = document.getElementById('portalDemoHint');
+  const errEl = document.getElementById('portalErr');
+  const passEl = document.getElementById('pDemoPass');
+  if (caja) caja.style.display = '';
+  if (hint) hint.style.display = 'none';
+  if (errEl) errEl.textContent = t(motivo === 'demo_pass_mal' ? 'pg_demo_pass_mal' : 'pg_demo_pass_pide');
+  if (passEl){ passEl.value = ''; try { passEl.focus(); } catch(e){} }
+}
+
 function togglePw(id, btn){ const el = document.getElementById(id); if (!el) return; const show = el.type==='password'; el.type = show?'text':'password'; if (btn) btn.classList.toggle('on', show); }
 function offerRemember(usuario, pass){
   const saved = dashGetCreds();

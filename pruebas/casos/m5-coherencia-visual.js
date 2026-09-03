@@ -502,7 +502,18 @@ PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => 
 
   PRUEBAS.falso(r.creds, 'sin usuario ni contraseña');
   PRUEBAS.falso(r.admin, 'sin acceso de administrador');
-  PRUEBAS.falso(r.tabEmp, '"Mis estadísticas" no aplica: necesita un perfil cargado en el dispositivo');
+  /* ⚠️ CAMBIO DE CONTRATO DELIBERADO (S1, 2026-09-02), no una regresión. Antes esta comprobación
+     exigía que "Mis estadísticas" NO se viera en la demostración, con el razonamiento de que sin
+     perfil no hay datos propios que mostrar. El razonamiento era correcto y la conclusión no: en la
+     demostración justamente hay que enseñar cómo se ve la pantalla de una persona —es la primera
+     pregunta que hace cualquiera que mira el producto—, así que ahora se muestra con una persona de
+     EJEMPLO sacada de `Empresa Demo`.
+     Lo que esta prueba sigue defendiendo, que es lo que de verdad importaba, está intacto y son las
+     dos líneas de arriba: desde la demostración no se entra a datos reales (sin credenciales y sin
+     acceso de administrador). El detalle de qué pestañas se ven vive ahora en
+     `s1-demo-y-portal.js`, junto a la decisión que lo explica. */
+  PRUEBAS.cierto(r.tabEmp,
+    '"Mis estadísticas" SÍ va en la demostración: muestra una persona de ejemplo de Empresa Demo');
   PRUEBAS.cierto(r.sup && r.med && r.dir, 'pero SÍ se puede elegir entre las tres vistas');
   PRUEBAS.falso(pidio, 'y no se pide nada hasta que la persona elija');
 });
