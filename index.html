@@ -5165,7 +5165,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.72';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.73';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12772,7 +12772,7 @@ function admCerrarDoc(){
 function portalLoginEmpleado(btn){
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
-  const carga = cargaIniciar();
+  const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('cargando'));
   conBloqueo('#portalGate', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return; btnSpin(btn, false); onDashData(d, p.nombre || 'Mis registros', params); })
@@ -12789,7 +12789,7 @@ function portalAutoLoginEmpleado(){
   dashMostrarEsqueleto();
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'' };
-  const carga = cargaIniciar();
+  const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   conBloqueo('#portalDash', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return;
       if (!d || !d.ok) { dashMostrarError(tError(d && d.error), portalAutoLoginEmpleado); return; }
@@ -12817,7 +12817,7 @@ function portalLoginSupervisor(btn){
   cargaBloquear(gate, true);
   const cuerpo = document.getElementById('dashBody');
   if (cuerpo) cuerpo.innerHTML = skeletonHtml('bloque', 2) + skeletonHtml('tarjeta', 4);
-  const carga = cargaIniciar();
+  const carga = cargaIniciar({ btn: btn, gate: gate });
   dashRequest(params)
     .then(d => {
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba
@@ -12862,7 +12862,7 @@ function portalLoginSupervisor(btn){
 function portalVerDemo(btn){
   const errEl = document.getElementById('portalErr'); if (errEl) errEl.textContent = '';
   const params = { action:'demo' };
-  const carga = cargaIniciar();
+  const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, 'Abriendo ejemplo…');
   conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
@@ -12888,7 +12888,7 @@ function portalLoginAdmin(btn){
   const errEl = document.getElementById('adminErr'); errEl.textContent = '';
   if (!pass){ errEl.textContent = 'Ingresa la contraseña.'; return; }
   const params = { action:'supervisor', usuario:'*', empresa:'*', pass };
-  const carga = cargaIniciar();
+  const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, 'Entrando…');
   conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
@@ -12944,9 +12944,37 @@ function dashTabsFor(rol, hasPvt, vista){
    Cada carga toma un número. Cerrar el panel, volver al selector o empezar otra carga invalidan el
    anterior. Cuando una respuesta llega, si su número ya no es el vigente, se descarta en silencio:
    es una respuesta que nadie está esperando. */
+/* ⚠️ S2 · QUIEN CANCELA UNA CARGA TIENE QUE DEVOLVER LA PANTALLA A UN ESTADO USABLE.
+   Bug reportado: "entro a la demo, salgo, y no puedo volver a entrar". Reproducido paso a paso:
+   se toca "Ver demostracion", y mientras carga se toca la ✕. `closePortal()` llama a
+   `cargaCancelar()`, con lo cual la respuesta que llega despues encuentra `cargaVigente()` en
+   false y hace `return`... ANTES de llegar al `btnSpin(btn, false)` que devuelve el boton a la
+   vida. El boton queda `disabled` PARA SIEMPRE.
+
+   Y era peor de lo que parece: el texto del boton vuelve solo a la normalidad (lo repinta el
+   cambio de idioma / `portalMode`), asi que se ve perfectamente normal y esta muerto. Sin
+   spinner, sin mensaje, sin nada. La persona toca y no pasa nada hasta que recarga la pagina.
+
+   ⚠️ NO SE ARREGLA poniendo `disabled = false` al abrir el portal: eso tapa el sintoma en un
+   boton y deja el mismo agujero en los otros cuatro caminos que usan este mecanismo. En
+   `portalLoginSupervisor` es todavia peor, porque ahi el `return` tambien saltea
+   `cargaBloquear(gate, false)` y el panel de acceso ENTERO queda inerte.
+
+   El arreglo va en el mecanismo: la carga registra QUE hay que restaurar, y cancelar lo restaura.
+   La respuesta tardia sigue descartandose en silencio —eso estaba bien y no se toca—; lo que
+   cambia es que limpiar la pantalla ya no depende de que esa respuesta llegue.
+
+   R16: `_cargaUI` se declara SIN asignar, para no pisar lo que el arranque pudiera haber dejado. */
 let _cargaN = 0;
-function cargaIniciar(){ return ++_cargaN; }
-function cargaCancelar(){ _cargaN++; }                 // invalida cualquier carga en vuelo
+var _cargaUI;
+function cargaIniciar(ui){ _cargaUI = ui || null; return ++_cargaN; }
+function cargaCancelar(){
+  _cargaN++;                                           // invalida cualquier carga en vuelo
+  const ui = _cargaUI; _cargaUI = null;
+  if (!ui) return;
+  try { btnSpin(ui.btn, false); } catch(e){}
+  try { cargaBloquear(ui.gate, false); } catch(e){}
+}
 function cargaVigente(n){ return n === _cargaN; }
 
 function onDashData(d, scopeLabel, params, vista){
