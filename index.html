@@ -1600,6 +1600,11 @@
   .op-pie { font-size: .78rem; line-height: 1.5; color: var(--text-soft); margin: .8rem 0 0;
     text-align: center; }
 
+  /* V1 · Qué instrumento es y para qué sirve. Arriba del todo, antes de la primera pregunta. */
+  .test-instr { margin: 0 0 .7rem; font-size: .78rem; line-height: 1.5; color: var(--text-soft);
+    text-align: center; }
+  .test-instr:empty { display: none; }
+
   /* X1 · El aviso de privacidad del test. Discreto pero legible: no es letra chica legal, es la
      información que decide si la persona contesta lo que siente o lo que conviene. */
   .test-priv { margin: .9rem 0 0; padding-top: .8rem; border-top: 1px solid var(--linea);
@@ -2739,6 +2744,49 @@
     border-radius: 999px; padding: .16rem .55rem; }
   .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) calc(var(--spl-in) + .35s) both; }
   @keyframes splChip { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* V1 · Tiempo real. Cuatro eventos que van entrando: el punto se enciende y la barra corre. La
+     idea que tiene que quedar es "esto está pasando ahora", no "esto es un reporte". */
+  .spl-rt { display: flex; flex-direction: column; justify-content: center; gap: .42rem; }
+  .spl-rt-fila { display: flex; align-items: center; gap: .5rem; }
+  .spl-rt-pt { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--chip-bg); }
+  .spl-rt-pt.on { background: var(--orange); }
+  .spl-rt-l { height: 7px; border-radius: 4px; background: var(--chip-bg); width: var(--w); }
+  .spl-activa .spl-rt-l { animation: splRtCorre .7s cubic-bezier(.22,1,.36,1) var(--spl-in) both; }
+  .spl-activa .spl-rt-fila:nth-child(2) .spl-rt-l { animation-delay: calc(var(--spl-in) + .1s) }
+  .spl-activa .spl-rt-fila:nth-child(3) .spl-rt-l { animation-delay: calc(var(--spl-in) + .2s) }
+  .spl-activa .spl-rt-fila:nth-child(4) .spl-rt-l { animation-delay: calc(var(--spl-in) + .3s) }
+  .spl-activa .spl-rt-pt.on { animation: splRtLate 1.4s ease-in-out var(--spl-in) infinite; }
+  @keyframes splRtCorre { from { width: 0 } to { width: var(--w) } }
+  @keyframes splRtLate { 0%,100% { transform: scale(1); opacity: 1 } 50% { transform: scale(1.35); opacity: .7 } }
+
+  /* V1 · Telemedicina. Un pulso y una línea de ECG: es la única lámina que habla de que hay
+     personas del otro lado, y el latido lo dice sin una palabra. */
+  .spl-tele { position: relative; display: flex; align-items: center; justify-content: center; }
+  .spl-tele svg { width: 100%; height: 100%; }
+  .spl-tele-ecg { fill: none; stroke: var(--orange); stroke-width: 2.4; stroke-linecap: round;
+    stroke-linejoin: round; }
+  .spl-activa .spl-tele-ecg { stroke-dasharray: 420; stroke-dashoffset: 420;
+    animation: splTeleTrazo 1.5s ease-out var(--spl-in) both; }
+  @keyframes splTeleTrazo { to { stroke-dashoffset: 0 } }
+  .spl-tele-pulso { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 54px; height: 54px; }
+  /* ⚠️ VISIBLES EN REPOSO, y no es un detalle estético. Los tenía en `opacity: 0` y la animación los
+     traía: con la pestaña oculta —o con `prefers-reduced-motion`— la lámina se veía VACÍA. Lo agarró
+     el caso de P2 que comprueba exactamente esto, y que existe porque ya pasó antes.
+     Ahora los tres anillos se ven quietos y la animación sólo los expande: si no corre, se ve un
+     objetivo de tres círculos, que es una imagen y no un hueco.
+     ⚠️ Y DURA MENOS QUE LA LÁMINA. El escalonado sumaba 4.160 ms contra los 3.200 que dura cada
+     pantalla, así que el tercer anillo se cortaba a la mitad. */
+  .spl-tele-pulso span { position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid var(--orange); opacity: .5; }
+  .spl-tele-pulso span:nth-child(2){ inset: 22%; opacity: .75; }
+  .spl-tele-pulso span:nth-child(3){ inset: 40%; opacity: 1; background: var(--orange); }
+  .spl-activa .spl-tele-pulso span { animation: splTelePulso 1.5s ease-out var(--spl-in) both; }
+  .spl-activa .spl-tele-pulso span:nth-child(2){ animation-delay: calc(var(--spl-in) + .12s) }
+  .spl-activa .spl-tele-pulso span:nth-child(3){ animation-delay: calc(var(--spl-in) + .24s) }
+  @keyframes splTelePulso { from { transform: scale(.55) } to { transform: scale(1) } }
 
   /* 1 · Analítica Operativa. Las barras crecen escalonadas; la marcada se pasa del rango. */
   .spl-barras { display: flex; align-items: flex-end; gap: .34rem; }
@@ -4878,7 +4926,11 @@
     <div class="splash-anim ent-texto-entra" id="splashAnim" aria-hidden="true">
       <div class="splash-anim-track" id="splashAnimTrack">
         <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-            <div class="spl-p-tx"><b data-i18n="spl_p1_t">Analítica Operativa</b><span data-i18n="spl_p1_d">Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.</span></div>
+            <!-- ⚠️ V1 · EL FACTOR HUMANO VA PRIMERO, y el cambio es de fondo: acá decía "Analítica
+                 Operativa", que describe la herramienta. Lo que hay que decir antes que nada es
+                 POR QUÉ existe la herramienta — dónde está el riesgo. Todo lo que sigue (el modelo,
+                 las escalas, el tiempo real) es cómo se vigila eso. -->
+            <div class="spl-p-tx"><b data-i18n="spl_p1_t">El factor humano</b><span data-i18n="spl_p1_d">La mayor parte de los incidentes empieza en una persona cansada, no en una máquina rota. Es lo que este programa vigila todos los días.</span></div>
             <div class="spl-p-gr spl-barras" aria-hidden="true">
               <i style="--h:34%"></i><i style="--h:52%"></i><i style="--h:41%"></i><i style="--h:68%"></i>
               <i style="--h:57%"></i><i class="on" style="--h:92%"></i><i style="--h:63%"></i><i style="--h:45%"></i>
@@ -4890,7 +4942,7 @@
                dice "estima", no "mide", y nombra el wearable como lo que mejora la precisión, no
                como un requisito — porque el modelo infiere el sueño del ciclo real. -->
           <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-              <div class="spl-p-tx"><b data-i18n="spl_safte_t">Modelo predictivo SAFTE</b><span data-i18n="spl_safte_d">Estima la efectividad hora por hora a partir del ciclo real de cada persona. Con wearable, la precisión sube.</span></div>
+              <div class="spl-p-tx"><b data-i18n="spl_safte_t">Modelo predictivo SAFTE</b><span data-i18n="spl_safte_d">Estima la efectividad cruzando tres cosas: lo que la persona siente, sus horas de sueño y su test de reacción, y un modelo biomatemático. El objetivo es mantenerla en su franja óptima. Con wearable, la precisión sube.</span></div>
               <div class="spl-p-gr spl-efect" aria-hidden="true">
                 <svg viewBox="0 0 300 100" preserveAspectRatio="none">
                   <defs><linearGradient id="splEfectG" x1="0" y1="0" x2="0" y2="1">
@@ -4903,6 +4955,37 @@
                 <em class="spl-ef-punto"></em>
               </div>
               <span class="spl-chip" data-i18n="spl_safte_chip">Proyectando…</span>
+            </div></div>
+
+          <!-- ⚠️ V1 · TIEMPO REAL, TERCERA. El plan la pedía "en segundo lugar", pero ese puesto ya
+               está tomado por SAFTE por pedido posterior de Franco y esa decisión no se revierte
+               sola. Queda inmediatamente después, que es el mismo lugar en el argumento: primero el
+               riesgo (el factor humano), después con qué se anticipa, y enseguida que eso pasa
+               MIENTRAS la operación ocurre, no en un informe al mes siguiente. -->
+          <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_rt_t">Operación en tiempo real</b><span data-i18n="spl_rt_d">Cada salida, llegada y descanso queda registrado en el momento. El supervisor ve el turno mientras pasa, no al mes siguiente.</span></div>
+              <div class="spl-p-gr spl-rt" aria-hidden="true">
+                <div class="spl-rt-fila"><i class="spl-rt-pt on"></i><span class="spl-rt-l" style="--w:74%"></span></div>
+                <div class="spl-rt-fila"><i class="spl-rt-pt on"></i><span class="spl-rt-l" style="--w:52%"></span></div>
+                <div class="spl-rt-fila"><i class="spl-rt-pt"></i><span class="spl-rt-l" style="--w:88%"></span></div>
+                <div class="spl-rt-fila"><i class="spl-rt-pt on"></i><span class="spl-rt-l" style="--w:37%"></span></div>
+              </div>
+              <span class="spl-chip" data-i18n="spl_rt_chip">En curso</span>
+            </div></div>
+
+          <!-- ⚠️ V1 · LA TELEMEDICINA. Es lo que separa este programa de un tablero: cuando un
+               indicador se sale, hay una consulta médica del otro lado, no sólo un número en rojo.
+               ⚠️ R2 · "puede sugerir" y "la persona decide", nunca "deriva" ni "indica": derivar es
+               un acto médico y esta lámina la lee alguien que todavía no habló con nadie. -->
+          <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
+              <div class="spl-p-tx"><b data-i18n="spl_tele_t">Con médicos detrás</b><span data-i18n="spl_tele_d">Cuando algo se sale de lo esperable, el servicio médico puede sugerir una consulta por telemedicina con Aeroambulancias Silva. La persona decide si la acepta.</span></div>
+              <div class="spl-p-gr spl-tele" aria-hidden="true">
+                <div class="spl-tele-pulso"><span></span><span></span><span></span></div>
+                <svg viewBox="0 0 300 60" preserveAspectRatio="none">
+                  <path class="spl-tele-ecg" d="M0,30 L60,30 L72,30 L80,12 L88,48 L96,30 L110,30 L300,30"/>
+                </svg>
+              </div>
+              <span class="spl-chip" data-i18n="spl_tele_chip">Consulta sugerida</span>
             </div></div>
 
           <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
@@ -5389,6 +5472,12 @@
          sin el aviso; acá está una vez, queda fijo mientras se contesta y no parpadea entre pasos.
          ⚠️ EL TEXTO DICE LA VERDAD EXACTA, verificada contra el endpoint el 2026-09-04, no lo que
          suena mejor. Ver `t('priv_corta')`. -->
+    <!-- ⚠️ V1 · QUÉ ES ESTO Y PARA QUÉ. Va acá, en el overlay comun a los siete flujos, por el mismo
+         motivo que el aviso de privacidad: puesto en cada `render*Step()` serian siete lugares.
+         ⚠️ R2 · "para acompañarte", NUNCA "para evaluarte" ni "para determinar si estás apto". La
+         persona lee esto justo antes de responder, y si cree que la están calificando, contesta lo
+         que conviene — el mismo problema que X1 vino a resolver por el lado de la privacidad. -->
+    <p class="test-instr" id="testInstr"></p>
     <p class="test-priv">
       <span data-i18n="priv_corta">Tu supervisor ve si algún indicador está alto, no tus respuestas. El servicio médico ve los resultados completos.</span>
       <button type="button" class="test-priv-mas" onclick="privAbrir()" data-i18n="priv_mas">Ver quién ve qué</button>
@@ -5808,7 +5897,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.26';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.30';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5889,10 +5978,16 @@ const I18N = {
          · Nombrar las escalas. KSS, Samn-Perelli y el test de reacción son nuestro diferencial real:
            los dos productos con los que nos comparan NO los tienen como función.
          · R1: español neutro. */
-      spl_p1_t:'Gestión de fatiga, de punta a punta',
-      spl_p1_d:'Medición diaria, alerta temprana y trazabilidad completa. Un programa, no un formulario.',
+      spl_rt_t:'Operación en tiempo real',
+      spl_rt_d:'Cada salida, llegada y descanso queda registrado en el momento. El supervisor ve el turno mientras pasa, no al mes siguiente.',
+      spl_rt_chip:'En curso',
+      spl_tele_t:'Con médicos detrás',
+      spl_tele_d:'Cuando algo se sale de lo esperable, el servicio médico puede sugerir una consulta por telemedicina con Aeroambulancias Silva. La persona decide si la acepta.',
+      spl_tele_chip:'Consulta sugerida',
+      spl_p1_t:'El factor humano',
+      spl_p1_d:'La mayor parte de los incidentes empieza en una persona cansada, no en una máquina rota. Es lo que este programa vigila todos los días.',
       spl_safte_t:'Modelo predictivo SAFTE',
-      spl_safte_d:'Estima la efectividad hora por hora a partir del ciclo real de cada persona. Con wearable, la precisión sube.',
+      spl_safte_d:'Estima la efectividad cruzando tres cosas: lo que la persona siente, sus horas de sueño y su test de reacción, y un modelo biomatemático. El objetivo es mantenerla en su franja óptima. Con wearable, la precisión sube.',
       spl_safte_chip:'Proyectando…',
       spl_justa_t:'Cultura justa',
       spl_justa_chip:'No punitivo',
@@ -5934,6 +6029,11 @@ const I18N = {
       nom_buscate:'Búscate en la lista',
       nom_volver:'‹ Volver',
       nom_no_estoy:'No estoy en la lista',
+      test_i_kss:'Escala KSS de somnolencia, un instrumento publicado y usado en aviación.',
+      test_i_perelli:'Escala Samn-Perelli de fatiga, la misma que usan las aerolíneas.',
+      test_i_bai:'Inventario de ansiedad de Beck (BAI), un instrumento clínico publicado.',
+      test_i_generico:'Un cuestionario breve sobre cómo te sientes hoy.',
+      test_i_para:'Sirve para acompañarte y mantenerte en tu franja óptima, no para calificarte.',
       op_op_titulo:'Tu opinión', op_op_sub:'Lo único que escribes con tus palabras',
       op_op_label:'Dejar una opinión', op_op_desc:'Anónima. Nadie sabe que la escribiste tú.',
       op_op_t:'Dejar una opinión',
@@ -7409,10 +7509,16 @@ const I18N = {
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
       splash_h1:'Your wellbeing and safety, in one place',
-      spl_p1_t:'End-to-end fatigue management',
-      spl_p1_d:'Daily measurement, early warning and full traceability. A programme, not a form.',
+      spl_rt_t:'Live operations',
+      spl_rt_d:'Every departure, arrival and rest period is logged as it happens. Your supervisor sees the shift while it runs, not next month.',
+      spl_rt_chip:'In progress',
+      spl_tele_t:'With doctors behind it',
+      spl_tele_d:'When something falls outside the expected range, occupational health can suggest a telemedicine consultation with Aeroambulancias Silva. The person decides whether to accept.',
+      spl_tele_chip:'Consultation suggested',
+      spl_p1_t:'The human factor',
+      spl_p1_d:'Most incidents start with a tired person, not a broken machine. That is what this programme watches, every day.',
       spl_safte_t:'SAFTE predictive model',
-      spl_safte_d:'Estimates hour-by-hour effectiveness from each person\'s real cycle. With a wearable, accuracy improves.',
+      spl_safte_d:'It estimates effectiveness by combining three things: what the person feels, their sleep hours and reaction test, and a biomathematical model. The aim is to keep them in their optimal range. With a wearable, accuracy goes up.',
       spl_safte_chip:'Projecting…',
       spl_justa_t:'Just culture',
       spl_justa_chip:'Non-punitive',
@@ -7454,6 +7560,11 @@ const I18N = {
       nom_buscate:'Find yourself in the list',
       nom_volver:'‹ Back',
       nom_no_estoy:'I am not on the list',
+      test_i_kss:'The KSS sleepiness scale, a published instrument used in aviation.',
+      test_i_perelli:'The Samn-Perelli fatigue scale, the same one airlines use.',
+      test_i_bai:'The Beck Anxiety Inventory (BAI), a published clinical instrument.',
+      test_i_generico:'A short questionnaire about how you feel today.',
+      test_i_para:'It is there to support you and keep you in your optimal range, not to grade you.',
       op_op_titulo:'Your feedback', op_op_sub:'The one thing you write in your own words',
       op_op_label:'Leave feedback', op_op_desc:'Anonymous. Nobody knows you wrote it.',
       op_op_t:'Leave feedback',
@@ -11315,8 +11426,29 @@ function confGuardar(testId, st){
   return res;
 }
 
+/* ⚠️ SÓLO SE NOMBRA EL INSTRUMENTO DONDE SE SABE CUÁL ES. KSS, Samn-Perelli y el BAI de Beck son
+   escalas publicadas y el splash ya las nombra; de las otras tres no verifiqué la procedencia, así
+   que dicen para qué sirven y nada más. Escribir "validado internacionalmente" al lado de algo que
+   no lo comprobé sería exactamente el defecto que X1 vino a evitar, del otro lado del producto. */
+const TEST_INSTRUMENTO = {
+  kss:       'test_i_kss',
+  perelli:   'test_i_perelli',
+  ansiedad:  'test_i_bai',
+  estres:    'test_i_generico',
+  gastro:    'test_i_generico',
+  cansancio: 'test_i_generico',
+  depresion: 'test_i_generico'
+};
+function testPintarInstrumento(flow){
+  const el = document.getElementById('testInstr');
+  if (!el) return;
+  const clave = TEST_INSTRUMENTO[flow] || 'test_i_generico';
+  el.textContent = t(clave) + ' ' + t('test_i_para');
+}
+
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
+  testPintarInstrumento(it.testFlow);
   // `inicioMs` arranca el cronómetro de confiabilidad; `tiempos` lo llena confPaso() en cada avance.
   const ahora = Date.now();
   if (it.testFlow === 'perelli'){
