@@ -1585,6 +1585,23 @@
     min-height: 44px; border-radius: var(--radius-sm); text-decoration: underline; }
   .portal-olvidar-btn:hover { color: var(--text); }
 
+  /* X1 · El aviso de privacidad del test. Discreto pero legible: no es letra chica legal, es la
+     información que decide si la persona contesta lo que siente o lo que conviene. */
+  .test-priv { margin: .9rem 0 0; padding-top: .8rem; border-top: 1px solid var(--linea);
+    font-size: .76rem; line-height: 1.5; color: var(--text-soft); text-align: center; }
+  .test-priv-mas { display: inline-flex; align-items: center; justify-content: center;
+    min-height: 44px; padding: .3rem .6rem; margin-left: .15rem; background: none; border: none;
+    font-family: inherit; font-size: .76rem; font-weight: 700; color: var(--sem-azul-int);
+    text-decoration: underline; cursor: pointer; }
+  .priv-intro { font-size: .88rem; line-height: 1.55; color: var(--text-soft); margin: .2rem 0 1.1rem; }
+  .priv-bloque { margin-bottom: 1.1rem; }
+  .priv-bloque h3 { font-size: .95rem; font-weight: 800; margin: 0 0 .4rem; color: var(--text); }
+  .priv-bloque ul { margin: 0; padding-left: 1.1rem; }
+  .priv-bloque li { font-size: .84rem; line-height: 1.55; color: var(--text-soft); margin-bottom: .3rem; }
+  .priv-pie { font-size: .8rem; line-height: 1.55; color: var(--text-soft);
+    background: var(--sem-azul-bg); border-radius: var(--radius-sm); padding: .7rem .8rem;
+    margin: 0 0 1.1rem; }
+
   .ctx-chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--sem-azul-bg); color: var(--text); border-radius: 999px; padding: .3rem .65rem; font-size: .82rem; font-weight: 700; }
   /* ⚠️ `--sem-azul-int` y NO `--sem-azul`: medido, el azul del semáforo como TINTA sobre su propio
      fondo pálido da 4.28:1 con texto de 13 px — por debajo del mínimo. Es el mismo hallazgo que ya
@@ -5347,6 +5364,67 @@
       <button class="back-btn" id="testBackBtn" disabled onclick="retrocederTest()" data-i18n="test_atras">← Atrás</button>
       <button class="cancel-btn" onclick="cerrarTest()" data-i18n="cancelar">Cancelar</button>
     </div>
+    <!-- ⚠️ X1 · QUIÉN VE ESTO, EN EL MOMENTO DE RESPONDERLO. Estaba dicho en una lámina del alta que
+         se ve UNA sola vez; después, contestando, no había nada. Y esa duda es lo que hace que
+         alguien conteste distinto a lo que siente — ahí el dato deja de servir para lo único que
+         sirve.
+         ⚠️ VA EN EL OVERLAY, NO EN CADA TEST. Son siete flujos distintos (perelli, kss, estrés,
+         ansiedad, gastro, cansancio y el genérico), cada uno con su propio `render*Step()` que
+         repinta la pregunta. Puesto adentro de cada uno serían siete lugares y el octavo nacería
+         sin el aviso; acá está una vez, queda fijo mientras se contesta y no parpadea entre pasos.
+         ⚠️ EL TEXTO DICE LA VERDAD EXACTA, verificada contra el endpoint el 2026-09-04, no lo que
+         suena mejor. Ver `t('priv_corta')`. -->
+    <p class="test-priv">
+      <span data-i18n="priv_corta">Tu supervisor ve si algún indicador está alto, no tus respuestas. El servicio médico ve los resultados completos.</span>
+      <button type="button" class="test-priv-mas" onclick="privAbrir()" data-i18n="priv_mas">Ver quién ve qué</button>
+    </p>
+  </div>
+</div>
+
+<!-- ⚠️ X1 · LA EXPLICACIÓN COMPLETA. Cada línea de acá se verificó contra `accionSupervisor` del
+     endpoint el 2026-09-04, no se redactó de memoria: el plan lo pide textual —"si el texto promete
+     más privacidad de la que hay, es peor que no decir nada"—. Lo que se comprobó:
+     · Supervisor: recibe `registros` recortados a persona/empresa/departamento/cargo (SIN un solo
+       puntaje), `aptitud` con el nivel por indicador, y `pvt: []`. Los comentarios NI SE MANDAN.
+     · Servicio médico: los registros crudos con valores, el PVT y los comentarios.
+     · Dirección/HSEQ: lo mismo que el supervisor, con los nombres cambiados por P1, P2, P3…
+     ⚠️ NO dice "tu supervisor no sabe qué te pasa". Sería falso: ve el nivel de cada indicador, y
+     entre ellos están ansiedad y depresión. Dice lo que ve de verdad. -->
+<div class="overlay" id="privOv">
+  <div class="sheet">
+    <button class="portal-x" onclick="privCerrar()" aria-label="Cerrar">✕</button>
+    <h2 data-i18n="priv_t">Quién ve qué</h2>
+    <p class="priv-intro" data-i18n="priv_intro">Tus respuestas no las ve todo el mundo igual. Esto es exactamente lo que recibe cada uno.</p>
+
+    <div class="priv-bloque">
+      <h3 data-i18n="priv_sup_t">Tu supervisor</h3>
+      <ul>
+        <li data-i18n="priv_sup_1">Si cada indicador está en verde, amarillo o rojo. Incluye ansiedad y ánimo.</li>
+        <li data-i18n="priv_sup_2">Tu nombre, departamento y cargo.</li>
+        <li data-i18n-html="priv_sup_3"><b>No recibe</b> los puntajes de tus tests ni tu test de reacción.</li>
+        <li data-i18n-html="priv_sup_4"><b>No recibe</b> lo que escribes en los comentarios: el servidor ni se los envía.</li>
+      </ul>
+    </div>
+
+    <div class="priv-bloque">
+      <h3 data-i18n="priv_med_t">El servicio médico</h3>
+      <ul>
+        <li data-i18n="priv_med_1">Los resultados completos, con los puntajes.</li>
+        <li data-i18n="priv_med_2">Tu test de reacción y lo que escribes en los comentarios.</li>
+        <li data-i18n="priv_med_3">Es el único que puede firmar una determinación de aptitud.</li>
+      </ul>
+    </div>
+
+    <div class="priv-bloque">
+      <h3 data-i18n="priv_hseq_t">Dirección y seguridad (HSEQ)</h3>
+      <ul>
+        <li data-i18n-html="priv_hseq_1">Lo mismo que el supervisor, pero <b>sin nombres</b>: cada persona aparece como P1, P2, P3…</li>
+        <li data-i18n="priv_hseq_2">Miran cómo está la organización, no quién es quién.</li>
+      </ul>
+    </div>
+
+    <p class="priv-pie" data-i18n="priv_pie">Esto no depende de una promesa: el recorte lo hace el servidor antes de enviar los datos, así que lo que no aparece en esta lista no le llega a esa persona aunque quiera buscarlo.</p>
+    <button class="save-btn" onclick="privCerrar()" data-i18n="entendido">Entendido</button>
   </div>
 </div>
 
@@ -5682,7 +5760,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.25';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5808,6 +5886,23 @@ const I18N = {
       nom_buscate:'Búscate en la lista',
       nom_volver:'‹ Volver',
       nom_no_estoy:'No estoy en la lista',
+      priv_corta:'Tu supervisor ve si algún indicador está alto, no tus respuestas. El servicio médico ve los resultados completos.',
+      priv_mas:'Ver quién ve qué',
+      priv_t:'Quién ve qué',
+      priv_intro:'Tus respuestas no las ve todo el mundo igual. Esto es exactamente lo que recibe cada uno.',
+      priv_sup_t:'Tu supervisor',
+      priv_sup_1:'Si cada indicador está en verde, amarillo o rojo. Incluye ansiedad y ánimo.',
+      priv_sup_2:'Tu nombre, departamento y cargo.',
+      priv_sup_3:'<b>No recibe</b> los puntajes de tus tests ni tu test de reacción.',
+      priv_sup_4:'<b>No recibe</b> lo que escribes en los comentarios: el servidor ni se los envía.',
+      priv_med_t:'El servicio médico',
+      priv_med_1:'Los resultados completos, con los puntajes.',
+      priv_med_2:'Tu test de reacción y lo que escribes en los comentarios.',
+      priv_med_3:'Es el único que puede firmar una determinación de aptitud.',
+      priv_hseq_t:'Dirección y seguridad (HSEQ)',
+      priv_hseq_1:'Lo mismo que el supervisor, pero <b>sin nombres</b>: cada persona aparece como P1, P2, P3…',
+      priv_hseq_2:'Miran cómo está la organización, no quién es quién.',
+      priv_pie:'Esto no depende de una promesa: el recorte lo hace el servidor antes de enviar los datos, así que lo que no aparece en esta lista no le llega a esa persona aunque quiera buscarlo.',
       nom_soy_gestor:'Vengo a ver el panel de mi empresa',
       car_saltar:'Saltar',
       nom_cedula_lbl:'Confirma tu número de cédula',
@@ -7296,6 +7391,23 @@ const I18N = {
       nom_buscate:'Find yourself in the list',
       nom_volver:'‹ Back',
       nom_no_estoy:'I am not on the list',
+      priv_corta:'Your supervisor sees whether an indicator is high, not your answers. Occupational health sees the full results.',
+      priv_mas:'See who sees what',
+      priv_t:'Who sees what',
+      priv_intro:'Not everyone sees your answers the same way. This is exactly what each one receives.',
+      priv_sup_t:'Your supervisor',
+      priv_sup_1:'Whether each indicator is green, amber or red. That includes anxiety and mood.',
+      priv_sup_2:'Your name, department and role.',
+      priv_sup_3:'<b>Does not receive</b> your test scores or your reaction test.',
+      priv_sup_4:'<b>Does not receive</b> what you write in the comments: the server does not even send them.',
+      priv_med_t:'Occupational health',
+      priv_med_1:'The full results, with the scores.',
+      priv_med_2:'Your reaction test and what you write in the comments.',
+      priv_med_3:'The only one who can sign a fitness determination.',
+      priv_hseq_t:'Management and safety (HSEQ)',
+      priv_hseq_1:'The same as your supervisor, but <b>without names</b>: each person appears as P1, P2, P3…',
+      priv_hseq_2:'They look at how the organisation is doing, not at who is who.',
+      priv_pie:'This is not a promise: the server trims the data before sending it, so whatever is not on this list never reaches that person, even if they go looking for it.',
       nom_soy_gestor:'I am here for my company dashboard',
       car_saltar:'Skip',
       nom_cedula_lbl:'Confirm your ID number',
@@ -11139,6 +11251,12 @@ function abrirTest(it){
     renderTestPaso();
   }
 }
+/* X1 · La explicación completa. Se abre ENCIMA del test sin cerrarlo: quien la consulta a mitad de
+   una pregunta vuelve exactamente a donde estaba, con sus respuestas intactas. El `inert` de los
+   overlays (Q4c) hace que el test de atrás no se pueda tabular mientras esto está abierto. */
+function privAbrir(){ document.getElementById('privOv').classList.add('show'); syncScrollLock(); navPush(); }
+function privCerrar(){ document.getElementById('privOv').classList.remove('show'); syncScrollLock(); }
+
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
   testItem = null; perelliState = null; kssState = null; estresState = null; ansiedadState = null; gastroState = null; cansancioState = null;
@@ -12177,6 +12295,7 @@ function silvaAtras(){
      aparece cuando el panel del empleado recibe `necesita_clave`). Sin esto, "atrás" cerraba el
      portal por debajo y la pantalla de contraseña quedaba flotando sobre la nada — el mismo
      callejón sin salida que R1 corrigió para las cuatro del alta. */
+  if (visible('privOv')){ privCerrar(); return true; }                 // X1: va arriba del test
   if (visible('loginOv')){ lgnCerrar(); return true; }
   if (visible('claveOv')){ clvPosponer(); return true; }
   if (visible('portalOverlay')){

@@ -22,8 +22,19 @@ PRUEBAS.caso('⚠️ "Administrador" muestra SÓLO lo de administrador', () => {
     PRUEBAS.falso(vis('portalCreds'),
       '⚠️ ni el login de empresa — un supervisor podría entrar por acá y la reforma quedaría a medias');
     PRUEBAS.cierto(vis('pAdminPass'), 'y sí el campo de administrador, que es a lo que se vino');
-  } finally { document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
-              if (tenia) ov.classList.add('show'); }
+  } finally {
+    /* ⚠️ HAY QUE REPONER LO QUE `splashAdmin()` ESCONDE. Cerrar los overlays no alcanza: deja las
+       pestañas de credencial y el login de empresa en `display:none`, y los casos que corren
+       después y usan el portal los encuentran ocultos. Me rompió dos casos ajenos —uno del bloqueo
+       de carga y uno de la demo— que no tienen nada que ver con esto. En la app real no pasa porque
+       los caminos legítimos reponen solos; acá hay que hacerlo a mano. */
+    portalReponerLoDeEmpresa();
+    ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+      const b = document.getElementById(id); if (b) b.style.display = '';
+    });
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    if (tenia) ov.classList.add('show');
+  }
 });
 
 PRUEBAS.caso('⚠️ y los caminos legítimos las REPONEN', () => {
@@ -41,7 +52,13 @@ PRUEBAS.caso('⚠️ y los caminos legítimos las REPONEN', () => {
       '⚠️ las tres vuelven por el camino del alta');
     PRUEBAS.cierto(vis('portalCreds'), 'y el login de empresa también');
     PRUEBAS.falso(vis('pAdminPass'), 'y el de administrador se guarda (discriminador)');
-  } finally { document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); }
+  } finally {
+    portalReponerLoDeEmpresa();
+    ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+      const b = document.getElementById(id); if (b) b.style.display = '';
+    });
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+  }
 });
 
 PRUEBAS.caso('⚠️ con la sesión vencida, el gate conserva el USUARIO', () => {
@@ -86,6 +103,15 @@ PRUEBAS.caso('⚠️ el prefill del gate no exige perfil de empleado', () => {
     PRUEBAS.igual(document.getElementById('pPass').value, '',
       'y la contraseña NO: eso sí autorizaría (S4 dejó de guardarla a propósito)');
   } finally {
+    /* ⚠️ Y SE REPONEN LAS PESTAÑAS. `openPortalGate()` oculta `ptabMed` cuando el perfil no es de
+       servicio médico —correcto en la app—, pero acá lo corrimos SIN perfil a propósito, así que
+       queda escondida para los casos que vengan después. Rompió dos casos ajenos, uno del bloqueo
+       de carga y otro de la demo, que no tienen nada que ver con esto: los dos abren el portal a
+       mano y encontraban la pestaña en `display:none` sin ninguna razón visible.
+       Restaurar `localStorage` no alcanza: el daño quedó en el DOM. */
+    ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+      const b = document.getElementById(id); if (b) b.style.display = '';
+    });
     document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
     if (prev.p) localStorage.setItem(K_PROFILE, prev.p); else localStorage.removeItem(K_PROFILE);
     if (prev.c) localStorage.setItem(K_DASH_CREDS, prev.c); else localStorage.removeItem(K_DASH_CREDS);
