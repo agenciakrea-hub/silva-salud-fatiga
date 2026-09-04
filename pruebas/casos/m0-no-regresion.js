@@ -39,16 +39,20 @@ PRUEBAS.caso('las tarjetas SIN test siguen llevando directo a WhatsApp', () => {
     '"Llegando al aeropuerto" SÍ tiene test: abre el test primero, no WhatsApp');
 });
 
-PRUEBAS.caso('la pantalla de inicio sigue teniendo sus 13 tarjetas', () => {
-  /* Comparado contra 4.04: 13 tarjetas, mismos ids. Si un cambio de layout hace desaparecer una,
-     desaparece un camino entero de registro sin ningún error en consola. */
+PRUEBAS.caso('no desapareció ninguna tarjeta del inicio', () => {
+  /* ⚠️ SE COMPRUEBAN LOS IDS, NO EL NÚMERO. Esto decía "tienen que seguir siendo 13" y sonó cuando
+     X2 agregó la de dejar una opinión — una tarjeta NUEVA, que es lo que se quería. Peor todavía:
+     contando, si alguien saca una y agrega otra el caso pasa en verde y el camino perdido no lo ve
+     nadie, que es justo lo que este caso vino a evitar.
+     La lista de abajo es la de 4.04. Agregar tarjetas está bien; que falte una de éstas, no. */
   CTX.resetear({ cargo: 'Piloto', esPiloto: true });
   const ids = [...document.querySelectorAll('#sections .item')].map(x => x.dataset.id);
-  PRUEBAS.igual(ids.length, 13, 'eran 13 en 4.04 y tienen que seguir siendo 13');
-  ['op_salir_casa', 'op_lleg_aero', 'op_salir_aero', 'op_lleg_casa',
-    'sen_cansancio', 'sen_estres', 'sen_ansiedad', 'sen_malestar'].forEach(id => {
-    PRUEBAS.cierto(ids.indexOf(id) >= 0, 'la tarjeta ' + id + ' tiene que seguir estando');
-  });
+  PRUEBAS.alMenos(ids.length, 13, 'guarda de medibilidad: si no se pintó nada, lo de abajo no prueba nada');
+  const dan404 = ['op_salir_casa', 'op_lleg_aero', 'op_salir_aero', 'op_lleg_casa',
+    'sen_cansancio', 'sen_estres', 'sen_ansiedad', 'sen_malestar', 'sen_somnoliencia',
+    'sen_fatiga', 'sen_depresion', 'sen_gastro'].filter(id => ids.indexOf(id) < 0);
+  PRUEBAS.igual(dan404, [],
+    '⚠️ desapareció un camino entero de registro, sin ningún error en consola — falta: ' + dan404.join(', '));
 });
 
 PRUEBAS.grupo('M0 · lo que se escribe en el CH');

@@ -492,6 +492,13 @@ PRUEBAS.caso('⚠️ la demo no dispara el pedido sola', () => {
 PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => {
   /* "Ver demostración sólo debería dejar ver con datos simulados". Desde ahí no se entra a datos
      reales: no hay usuario ni contraseña, ni el acceso de administrador. */
+  /* ⚠️ GUARDA. `openPortalGate()` esconde `ptabMed` con un `style.display` inline cuando el perfil
+     no es de servicio médico, y ese inline sobrevive al caso que lo puso. Este caso comprueba que
+     en la demo SÍ se puedan elegir las tres vistas: con la pestaña ya escondida por otro motivo,
+     daba rojo sin que la demo tuviera nada malo. Se parte de un estado conocido. */
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = '';
+  });
   splashVerDemo();
   const vis = id => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== 'none'; };
   const r = { creds: vis('portalCreds'), admin: vis('adminSep'), tabEmp: vis('ptabEmp'),

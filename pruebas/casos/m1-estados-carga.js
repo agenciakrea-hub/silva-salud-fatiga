@@ -300,6 +300,16 @@ PRUEBAS.caso('⚠️ con el login cargando, nada de la pantalla recibe el foco',
   const cerrar = document.querySelector('#portalGate .portal-x');
   const pestana = document.getElementById('ptabMed');
   PRUEBAS.cierto(!!(gate && campo && cerrar && pestana), 'tienen que existir los controles a probar');
+  /* ⚠️ GUARDA DE MEDIBILIDAD. `openPortalGate()` esconde `ptabMed` con un `style.display` inline
+     cuando el perfil no es de servicio médico —correcto en la app—, y ese inline SOBREVIVE a que el
+     caso anterior cierre el overlay. Este caso mide "¿este control recibe foco?", así que con la
+     pestaña escondida no estaba midiendo el bloqueo de carga: estaba midiendo que un elemento
+     oculto no se enfoca, que es cierto siempre.
+     Se destapan acá, no en el caso que las escondió: cualquier caso futuro que llame a
+     `openPortalGate()` sin perfil médico volvería a dejarlas así. */
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = '';
+  });
 
   cargaBloquear(gate, true);
   const bloqueado = { campo: q1Alcanza(campo), cerrar: q1Alcanza(cerrar), pestana: q1Alcanza(pestana) };
