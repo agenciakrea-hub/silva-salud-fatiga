@@ -57,7 +57,23 @@
     if (typeof a !== typeof b) return false;
     if (a === null || b === null) return a === b;
     if (typeof a !== 'object') return false;
+    /* ⚠️ LO QUE NO ES UN OBJETO PLANO SE COMPARA POR IDENTIDAD, Y ESTO DEJABA CINCO CASOS EN VACÍO.
+       Un elemento del DOM tiene TODAS sus propiedades en el prototipo, así que `Object.keys(el)` es
+       `[]` y `orden(el)` da `{}`. O sea que dos elementos CUALESQUIERA serializaban los dos a "{}"
+       y `mismo()` devolvía true. Las cinco comprobaciones del atrapado de foco de L4 son de la
+       forma `PRUEBAS.igual(document.activeElement, otroElemento)`: pasaban siempre, aunque se
+       sacara el manejador de Tab del overlay entero. Lo mismo con Map, Set, Date y funciones.
+       Sólo se comparan por valor los objetos planos y los arrays; para el resto, `===`. */
+    if (!esPlano(a) || !esPlano(b)) return false;
     try { return JSON.stringify(orden(a)) === JSON.stringify(orden(b)); } catch (e) { return false; }
+  }
+  /* Objeto plano = literal o `Object.create(null)`. Un nodo del DOM, un Map, un Set, una Date o una
+     instancia de una clase NO lo son, y compararlos por sus claves propias es comparar nada. */
+  function esPlano(v) {
+    if (Array.isArray(v)) return true;
+    if (!v || typeof v !== 'object') return false;
+    const proto = Object.getPrototypeOf(v);
+    return proto === Object.prototype || proto === null;
   }
   /* Ordena las claves para que {a:1,b:2} y {b:2,a:1} se consideren iguales: en un objeto el orden
      de las claves no es información, y sin esto un caso fallaría por algo que no es un error. */

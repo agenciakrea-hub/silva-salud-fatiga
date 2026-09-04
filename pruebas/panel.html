@@ -133,8 +133,14 @@ async function correr() {
 
 function pintar(rep) {
   let h = '';
+  /* Una corrida a la que le faltaron archivos NO puede titularse "Todo verde": es el titular el
+     que la gente mira, no el renglón de abajo. Ver `rep.incompleta` en correr.js. */
+  const titular = rep.incompleta
+    ? '⚠️ Corrida INCOMPLETA · faltaron ' + rep.salteados.length + ' archivos de casos'
+    : (rep.ok ? '✅ Todo verde' : '❌ Hay ' + rep.fallaron + ' caso' + (rep.fallaron === 1 ? '' : 's') + ' fallando');
   h += '<div class="resumen ' + (rep.ok ? 'ok' : 'mal') + '">' +
-       '<h2>' + (rep.ok ? '✅ Todo verde' : '❌ Hay ' + rep.fallaron + ' caso' + (rep.fallaron === 1 ? '' : 's') + ' fallando') + '</h2>' +
+       '<h2>' + titular + '</h2>' +
+       (rep.incompleta ? '<p><b>' + rep.motivoIncompleta + '</b></p>' : '') +
        '<div class="cifras">' + rep.pasaron + ' de ' + rep.total + ' casos · ' +
        (rep.comprobaciones || 0) + ' comprobaciones · app ' + esc(rep.version || '?') + '</div></div>';
 

@@ -359,7 +359,9 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        ⚠️ `sesionAvisarCierre` NO está en esta lista y no tiene que estar: no bloquea porque la
        pantalla se está yendo igual (`cerrarSesion` recarga), y no espera respuesta a propósito
        para que cerrar sesión funcione también sin señal. */
-    'dashMigrarCredsAToken'
+    'dashMigrarCredsAToken',
+    /* Aparecieron al incluir `async function` en el barrido: corren solas, no las dispara nadie. */
+    'sincronizarRegistro'
   ];
 
   const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
@@ -368,7 +370,12 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
   // rangos de las funciones declaradas en columna 0
   const rangos = [];
   for (let i = 0; i < lineas.length; i++) {
-    const m = /^function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(lineas[i]);
+    /* ⚠️ `async` INCLUIDO. El patrón exigía que la línea empezara con `function`, así que este
+       trinquete no veía NINGUNA función declarada `async function` — hoy hay dos y una pide a la
+       red. O sea que alcanzaba con escribir `async` adelante para que una acción sin bloqueo
+       pasara desapercibida: el mismo defecto que este caso agarró el 2026-09-03, reintroducible
+       con una palabra. */
+    const m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(lineas[i]);
     if (!m) continue;
     let prof = 0, j = i;
     while (j < lineas.length) {
@@ -389,6 +396,12 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
     sinBloqueo.push(r.nombre);
   });
 
+  /* ⚠️ GUARDA: el barrido tiene que haber encontrado algo. Si la regex deja de enganchar —o si el
+     conteo de llaves se desincroniza y el recorrido salta hasta el final del archivo—, `sinBloqueo`
+     queda vacío y el caso da VERDE sin haber mirado una sola función. */
+  PRUEBAS.alMenos(rangos.length, 700,
+    'el barrido tiene que encontrar las funciones del archivo; si encontró ' + rangos.length +
+    ', la detección se rompió y este caso no está midiendo nada');
   PRUEBAS.igual(sinBloqueo, [],
     'estas funciones piden al servidor por una acción de la persona y no bloquean su pantalla: ' +
     'o se envuelven con conBloqueo(), o se agregan a la lista de las que corren en segundo plano');

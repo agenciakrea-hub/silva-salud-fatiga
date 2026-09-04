@@ -57,3 +57,28 @@ PRUEBAS.caso('⚠️ un caso que nunca termina se reporta como falla, no cuelga 
   catch (e) { ok = false; }
   PRUEBAS.cierto(ok, 'un caso normal, que termina a tiempo, no lo puede tocar el tope');
 });
+
+PRUEBAS.caso('⚠️ igual() NO puede dar por iguales dos elementos del DOM distintos', () => {
+  /* EL DISCRIMINADOR DE UN DEFECTO QUE VACIABA CINCO CASOS. `mismo()` caía al comparador profundo
+     con cualquier par de objetos, y un elemento del DOM tiene todas sus propiedades en el
+     prototipo: `Object.keys(el)` es `[]`, así que dos elementos cualesquiera serializaban a "{}" y
+     daban iguales. Las cinco comprobaciones del atrapado de foco de L4 —todas de la forma
+     `PRUEBAS.igual(document.activeElement, otroElemento)`— pasaban aunque se sacara el manejador
+     de Tab del overlay entero.
+     Se comprueba con el resultado del reporte, no llamando a la comparación interna: lo que
+     importa es que un caso escrito así se ponga en ROJO. */
+  const a = document.createElement('div'), b = document.createElement('div');
+  const antes = PRUEBAS._actual.comprobaciones.length;
+  PRUEBAS.igual(a, b, '(comprobación interna: dos divs distintos)');
+  const anotada = PRUEBAS._actual.comprobaciones[antes];
+  PRUEBAS._actual.comprobaciones.splice(antes, 1);          // se saca: era para inspeccionarla
+  PRUEBAS._actual.ok = PRUEBAS._actual.comprobaciones.every(c => c.ok);
+  PRUEBAS.falso(anotada.ok,
+    '⚠️ dos elementos distintos NO son iguales; si esto pasa, todo assert de foco es decorativo');
+
+  /* Y los controles, para que el arreglo no rompa lo que sí tenía que funcionar. */
+  PRUEBAS.igual({ a:1, b:[2,3] }, { b:[2,3], a:1 }, 'los objetos planos se siguen comparando por valor');
+  PRUEBAS.igual([1,2,3], [1,2,3], 'y los arrays');
+  const uno = document.createElement('span');
+  PRUEBAS.igual(uno, uno, 'y el MISMO elemento sigue siendo igual a sí mismo');
+});

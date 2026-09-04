@@ -125,8 +125,9 @@
     /* 4 · Los casos. La lista es un archivo y no un listado de directorio porque por HTTP no se
        puede listar una carpeta. Agregar un caso = crear el archivo y sumarlo ahí. */
     const lista = JSON.parse(await bajar('casos.json'));
+    const salteados = [];
     for (const archivo of lista.casos) {
-      if (lista.soloConGs && lista.soloConGs.indexOf(archivo) >= 0 && !fuenteGs) continue;
+      if (lista.soloConGs && lista.soloConGs.indexOf(archivo) >= 0 && !fuenteGs) { salteados.push(archivo); continue; }
       await cargarScript('casos/' + archivo);
     }
 
@@ -135,6 +136,21 @@
     rep.duracionMs = Date.now() - t0;
     rep.avisos = aviso;
     rep.version = (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '?';
+    /* ⚠️ UNA CORRIDA INCOMPLETA NO ES UNA CORRIDA VERDE. Sin el emulador del endpoint levantado se
+       saltean 17 archivos —unos 130 casos, más de un tercio del total—, y hasta acá el reporte
+       seguía diciendo `ok:true` y el panel titulaba "Todo verde": alguien podía romper el login o
+       las sesiones enteras y ver un verde impecable.
+       Peor: el caso que debía sonar la alarma (`humo-servidor.js`, que comprueba `CTX.hayGs`) está
+       él mismo en la lista de los que no se cargan sin `.gs` — una alarma que se apaga sola cuando
+       se cumple su condición.
+       Ahora el reporte lo dice y `ok` pasa a false. Correr la suite completa exige `PRUEBAS.sh`. */
+    rep.salteados = salteados;
+    if (salteados.length) {
+      rep.incompleta = true;
+      rep.ok = false;
+      rep.motivoIncompleta = 'No corrió el emulador del endpoint (servir-gs.py en 8929): se saltearon ' +
+        salteados.length + ' archivos de casos. Levantalo con `bash pruebas/PRUEBAS.sh`.';
+    }
 
     console.log('%c' + (rep.ok ? '✅ TODO VERDE' : '❌ HAY FALLAS'),
       'font-weight:bold;font-size:14px;color:' + (rep.ok ? 'green' : 'red'));
