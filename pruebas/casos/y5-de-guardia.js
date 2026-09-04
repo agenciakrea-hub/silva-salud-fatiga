@@ -272,3 +272,76 @@ PRUEBAS.caso('los textos del interruptor están en los dos idiomas (R14)', () =>
     const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k);
   });
 });
+
+PRUEBAS.grupo('Y5c · la ausencia tiene que llegar a donde se descuenta');
+
+/* ⚠️ EL DEFECTO QUE ESTO FIJA ESTUVO ENTREGADO Y EN VERDE. Medido el 2026-09-04, con discriminador:
+   `ausenteHoy(p)` leía `p.cedula`, pero las personas del panel las arma `aptGente()` A PARTIR DE LOS
+   REGISTROS, y los registros que manda el endpoint no llevan cédula — los compone con persona,
+   empresa, departamento y cargo, y nada más. Así que recibía `undefined` y devolvía false SIEMPRE.
+   Efecto: la ausencia se guardaba en el CH, se veía marcada en la lista de nómina, y la cobertura
+   del IDC —el número entero por el que existe Y5— seguía castigando a quien estaba de vacaciones.
+   Ninguna de las 6 pruebas de Y5 lo vio, porque todas le pasaban la cédula a mano. */
+
+PRUEBAS.caso('⚠️ una persona SALIDA DE aptGente (sin cédula) se reconoce ausente', () => {
+  const prev = DASH;
+  try {
+    DASH = { vista:'hseq', params:{}, f:{}, aptitud:null, ausencias:{} };
+    const regs = [{ persona:'Ana Suárez', empresa:'Helitec', departamento:'Operaciones',
+                    cargo:'Piloto', fecha: todayStr() }];
+    const p = aptGente(regs)[0];
+    PRUEBAS.falso('cedula' in p,
+      'la persona del panel NO trae cédula — si algún día la trae, este caso sigue valiendo igual');
+    PRUEBAS.falso(ausenteHoy(p), 'sin ausencia cargada, no está ausente (discriminador)');
+    DASH.ausencias = { ['n:' + ausNombreClave('Ana Suárez') + '|' + todayStr()]: 'vacaciones' };
+    PRUEBAS.cierto(ausenteHoy(p),
+      '⚠️ con la ausencia cargada TIENE que reconocerla, o el descuento de la cobertura no ocurre');
+  } finally { DASH = prev; }
+});
+
+PRUEBAS.caso('⚠️ y la vía por cédula sigue funcionando (la usa la lista de nómina)', () => {
+  /* Las dos vías se usan de verdad: la nómina sí tiene cédula. Si el arreglo hubiera REEMPLAZADO
+     una por otra en vez de sumarla, se rompía la pantalla desde la que se marca la ausencia. */
+  const prev = DASH;
+  try {
+    DASH = { ausencias: { ['111|' + todayStr()]: 'vacaciones' } };
+    PRUEBAS.cierto(ausenteHoy({ cedula:'V-1.1.1' }), 'por cédula, ignorando puntos y guiones');
+    PRUEBAS.falso(ausenteHoy({ cedula:'V-222' }), 'y otra cédula no (discriminador)');
+  } finally { DASH = prev; }
+});
+
+PRUEBAS.caso('⚠️ la clave por nombre del cliente y la del .gs son LA MISMA función', () => {
+  /* El riesgo de tener dos normalizaciones: si se separan, los nombres con apóstrofo o punto dejan
+     de matchear EN SILENCIO — la ausencia se guarda, se ve marcada, y no descuenta nada. Esta es la
+     única prueba que cierra esa clase entera de bug, y por eso corre las dos implementaciones.
+     ⚠️ NO se puede usar `dashNorm`: probado abajo, para un apóstrofo las dos dan distinto. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = GS.cargarGs(CTX.gs, GS.crearEntorno({}), ['norm']);
+  const nombres = ["Luis O'Brien", 'J. Pérez', 'María  José  Núñez', 'ANA SUÁREZ ',
+                   'Jean-Luc Picard', 'Ñandú Ibáñez', 'de la Cruz, Ana'];
+  const distintos = nombres.filter(n => api.norm(n) !== ausNombreClave(n))
+    .map(n => n + ': gs="' + api.norm(n) + '" cliente="' + ausNombreClave(n) + '"');
+  PRUEBAS.igual(distintos, [], '⚠️ tienen que dar idéntico — ' + distintos.join(' · '));
+  PRUEBAS.cierto(dashNorm("Luis O'Brien") !== ausNombreClave("Luis O'Brien"),
+    'y `dashNorm` NO sirve para esto: deja la puntuación (por eso hay una función aparte)');
+});
+
+PRUEBAS.caso('⚠️ el servidor emite la clave por nombre además de la de cédula', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = y5Env([['a1','Helitec','V-111','Ana Suárez','2026-09-01','2026-09-01','vacaciones','vigente','','','','']]);
+  const idx = api.ausenciasDe('Helitec', '2026-09-01', '2026-09-01');
+  PRUEBAS.cierto(!!idx['111|2026-09-01'], 'la de cédula, como siempre');
+  PRUEBAS.cierto(!!idx['n:ana suarez|2026-09-01'],
+    '⚠️ y la de nombre, con prefijo `n:` para que no pueda chocar con una cédula');
+  PRUEBAS.falso(!!idx['n:otra persona|2026-09-01'], 'y sólo esa (discriminador)');
+});
+
+PRUEBAS.caso('⚠️ una fila SIN cédula igual sirve por nombre, en vez de descartarse', () => {
+  /* Antes la fila se salteaba entera si `cedulaNorm` daba vacío. En una nómina donde alguien no
+     tiene la cédula cargada, marcarle una ausencia era una operación que no hacía nada. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = y5Env([['a2','Helitec','','Ana Suárez','2026-09-01','2026-09-01','franco','vigente','','','','']]);
+  const idx = api.ausenciasDe('Helitec', '2026-09-01', '2026-09-01');
+  PRUEBAS.cierto(!!idx['n:ana suarez|2026-09-01'], '⚠️ tiene que quedar indexada por nombre');
+  PRUEBAS.falso(!!idx['|2026-09-01'], 'y NO puede quedar una clave con la cédula vacía');
+});

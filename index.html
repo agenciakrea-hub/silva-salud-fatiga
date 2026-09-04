@@ -5542,7 +5542,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.99';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.01';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14021,7 +14021,13 @@ function onDashData(d, scopeLabel, params, vista){
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
     DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
-    DASH.turnos = [];   // E2b: la demo no simula turnos (no es el foco de la demostración); las tarjetas quedan "pendiente"
+    /* ⚠️ S7 · ESTOS TRES FALTABAN y la demo mostraba menos de lo que el producto hace.
+       `turnos` estaba en `[]` con el comentario "no es el foco": el efecto era que TODAS las
+       tarjetas quedaban en "pendiente", o sea la app como si nadie la usara. `duty` y `ausencias`
+       son de Y4 e Y5, tan nuevos que la demo nunca los tuvo — y la portada ya los promete. */
+    DASH.turnos = turnosDemo();
+    DASH.duty = dutyDemo();
+    DASH.ausencias = ausenciasDemo();
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -15659,9 +15665,38 @@ function ausenteEse(cedula, fechaISO){
   if (!ced) return false;
   return !!idx[ced + '|' + String(fechaISO || '').substring(0, 10)];
 }
-/* ¿Esta persona estaba ausente HOY? Es la pregunta que hace el panel del día. */
+
+/* ⚠️ Replica EXACTAMENTE `norm()` del endpoint, que es quien arma la clave del índice. Si las dos
+   se separaran, los nombres con apóstrofo o punto ("Luis O'Brien", "J. Pérez") dejarían de
+   matchear EN SILENCIO: la ausencia se guarda, se ve marcada, y no descuenta nada.
+   ⚠️ NO es `dashNorm`, que deja la puntuación: probado, para "Luis O'Brien" las dos dan distinto.
+   Hay una prueba que corre esta función y la del .gs sobre los mismos nombres raros y las compara. */
+function ausNombreClave(s){
+  return String(s == null ? '' : s).toLowerCase().trim().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function ausentePersonaEse(nombre, fechaISO){
+  const idx = (typeof DASH !== 'undefined' && DASH && DASH.ausencias) || null;
+  if (!idx) return false;
+  const n = ausNombreClave(nombre);
+  if (!n) return false;
+  return !!idx['n:' + n + '|' + String(fechaISO || '').substring(0, 10)];
+}
+
+/* ¿Esta persona estaba ausente HOY? Es la pregunta que hace el panel del día.
+   ⚠️ POR NOMBRE ADEMÁS DE POR CÉDULA, y no es un cinturón de más: es lo que hace que Y5 funcione.
+   Medido el 2026-09-04, con discriminador: `aptGente()` arma cada persona desde los REGISTROS, y
+   los registros que manda el endpoint no traen cédula (los arma con persona/empresa/departamento/
+   cargo y nada más). Así que esto recibía `p.cedula === undefined` y devolvía false SIEMPRE: la
+   ausencia se guardaba en el CH, se veía marcada en la lista de nómina, y el número que motivó
+   toda la función —la cobertura del IDC— seguía castigando a quien estaba de vacaciones.
+   La lista de nómina sí tiene cédula, así que las dos vías se usan de verdad; ninguna sobra. */
 function ausenteHoy(p){
-  return ausenteEse(p && (p.cedula || p.ced), todayStr());
+  if (!p) return false;
+  return ausenteEse(p.cedula || p.ced, todayStr())
+      || ausentePersonaEse(p.nombre || p.persona, todayStr());
 }
 
 /* IDC — Índice de Disponibilidad Cognitiva.
@@ -16751,6 +16786,164 @@ function cicloRepintar(){
 
 /* Ejemplo: se ancla a la hora ACTUAL para que siempre se vea vivo, y cubre los estados que hay que
    poder mostrar (en curso, jornada excedida, completo, sin iniciar). */
+/* ════════ S7 · LO QUE LA DEMOSTRACIÓN NO ESTABA MOSTRANDO ═══════════════════════════════════
+   El plan lo decía en una línea ("en la demo de supervisor no está la nómina") y el inventario
+   encontró tres huecos más: `duty` (la jornada y los excesos, Y4), `ausencias` (Y5) y `turnos`, que
+   estaba explícitamente vacío con el comentario "no es el foco de la demostración".
+
+   ⚠️ POR QUÉ IMPORTA MÁS QUE ANTES. La portada acaba de prometer modelo SAFTE, escalas validadas y
+   trazabilidad. Si alguien entra a la demostración y la pestaña de Jornada dice "todavía no hay
+   jornadas registradas", la portada está prometiendo lo que la demo no muestra — y eso no se lee
+   como "la demo está incompleta", se lee como "el producto no lo hace".
+   Una demo que muestra menos de lo que el producto hace vende de menos. Y peor: con las tarjetas de
+   turno en "pendiente", se ve como si estuviera rota.
+
+   ⚠️ TODO SE GENERA EN EL CLIENTE, como ya hace `cicloDemo()`. El endpoint de demo no manda nada de
+   esto y no hace falta tocarlo: son datos de ejemplo, no datos reales recortados. */
+
+/* Jornada y excesos de ejemplo. Coherente con `cicloDemo()`: las mismas cuatro personas, y una sola
+   excedida — la demostración tiene que mostrar la función, no una operación en crisis. */
+/* ════════ LOS DATOS DE LA DEMOSTRACIÓN ════════════════════════════════════════════════════════
+   ⚠️ UN SOLO ELENCO, Y ES EL DEL CH. Las 19 personas de acá abajo son EXACTAMENTE las que el
+   endpoint devuelve en `action=demo` (consultado el 2026-09-04), con su departamento tal como
+   está en la planilla. No se inventan nombres: si la nómina hablara de gente que no aparece en
+   los registros, la demostración se contradiría sola —alguien visible en una pantalla y ausente
+   en la de al lado— y eso es exactamente lo que un cliente mirando la demo detecta enseguida.
+   Hay una prueba que compara los dos elencos y se pone en rojo si alguien se sale. */
+var DEMO_GENTE = [
+  ['Ana Suárez',      'V-9001', 'Administración', 'Piloto'],
+  ['Andrés Peña',     'V-9002', 'Mantenimiento',  'Técnico'],
+  ['Camila Torres',   'V-9003', 'Administración', 'Analista'],
+  ['Carlos Méndez',   'V-9004', 'Operaciones',    'Despachante'],
+  ['Diego Ramírez',   'V-9005', 'Operaciones',    'Despachante'],
+  ['Federico Blanco', 'V-9006', 'Administración', 'Analista'],
+  ['Gabriel Ortiz',   'V-9007', 'Administración', 'Analista'],
+  ['José Duarte',     'V-9008', 'Mantenimiento',  'Técnico'],
+  ['Julieta Cabrera', 'V-9009', 'Tripulación',    'Enfermera'],
+  ['Lucía Fernández', 'V-9010', 'Operaciones',    'Despachante'],
+  ['Martín Ibáñez',   'V-9011', 'Operaciones',    'Supervisor'],
+  ['Nicolás Herrera', 'V-9012', 'Tripulación',    'Piloto'],
+  ['Paula Giménez',   'V-9013', 'Tripulación',    'Enfermera'],
+  ['Ricardo Salcedo', 'V-9014', 'Dirección',      'Director'],
+  ['Rocío Vega',      'V-9015', 'Mantenimiento',  'Técnica'],
+  ['Rodolfo Ruiz',    'V-9016', 'Legal',          'Abogado'],
+  ['Sofía Núñez',     'V-9017', 'Operaciones',    'Despachante'],
+  ['Tomás Aguirre',   'V-9018', 'Mantenimiento',  'Técnico'],
+  ['Valentina Ríos',  'V-9019', 'Operaciones',    'Despachante']
+];
+/* Quiénes de ese elenco aparecen en jornada y en turnos del día. Tres alcanza para que se vea la
+   pantalla; más sólo agrega ruido. */
+var DEMO_ACTIVOS = ['Nicolás Herrera', 'Ana Suárez', 'Martín Ibáñez'];
+// A quién le toca la ausencia. Elegida a propósito entre quienes NO tienen dato de hoy: es el
+// único caso donde el descuento de la cobertura se ve, que es la función que Y5 vino a mostrar.
+var DEMO_AUSENTE = 'Rocío Vega';
+
+function demoDepDe(nombre){
+  for (var i = 0; i < DEMO_GENTE.length; i++) if (DEMO_GENTE[i][0] === nombre) return DEMO_GENTE[i][2];
+  return '';
+}
+function demoCedDe(nombre){
+  for (var i = 0; i < DEMO_GENTE.length; i++) if (DEMO_GENTE[i][0] === nombre) return DEMO_GENTE[i][1];
+  return '';
+}
+
+/* Jornada y excesos (Y4). El endpoint sólo manda `duty` a médico/HSEQ con contraseña, así que en
+   la demostración la pestaña quedaba en su estado vacío —"todavía no hay jornadas registradas"—
+   justo debajo de una portada que promete medir jornada. Eso no se lee como "la demo está
+   incompleta": se lee como "el producto no lo hace". */
+function dutyDemo(){
+  const hoy = todayStr(), ayer = fechaMasDias(hoy, -1), antes = fechaMasDias(hoy, -2);
+  const P = 'Empresa Demo';
+  const fila = (persona, fecha, jornada, previsto, abierto) => ({
+    persona: persona, empresa: P, departamento: demoDepDe(persona), fecha: fecha,
+    jornadaMin: jornada, previstoMin: previsto, excesoMin: Math.max(0, jornada - previsto),
+    abierto: !!abierto, umbralCongelado: true,
+    tramos: [{ tramo:'jornada', previsto: previsto, real: jornada,
+               exceso: Math.max(0, jornada - previsto), abierto: !!abierto,
+               abandonado: false, umbralCongelado: true }]
+  });
+  const A = DEMO_ACTIVOS[0], B = DEMO_ACTIVOS[1], C = DEMO_ACTIVOS[2];
+  const diario = [
+    fila(A, hoy,   660, 720, false),
+    fila(B, hoy,   845, 720, true),    // el único excedido de HOY, y todavía adentro
+    fila(C, hoy,   690, 720, false),
+    fila(A, ayer,  700, 720, false),
+    fila(B, ayer,  735, 720, false),   // el mismo, ayer: así se ve que es un patrón y no un mal día
+    fila(C, antes, 655, 720, false)
+  ];
+  const porPersona = {};
+  diario.forEach(f => {
+    const a = porPersona[f.persona] || (porPersona[f.persona] = { persona:f.persona, empresa:P,
+      departamento:f.departamento, dias:0, jornadaMin:0, excesoMin:0, diasConExceso:0, umbralCongelado:true });
+    a.dias++; a.jornadaMin += f.jornadaMin; a.excesoMin += f.excesoMin;
+    if (f.excesoMin > 0) a.diasConExceso++;
+  });
+  const personas = Object.keys(porPersona).map(k => {
+    const a = porPersona[k];
+    a.promedioJornadaMin = Math.round(a.jornadaMin / a.dias);
+    a.promedioExcesoMin = Math.round(a.excesoMin / a.dias);
+    return a;
+  });
+  const porDia = {};
+  diario.forEach(f => {
+    const d = porDia[f.fecha] || (porDia[f.fecha] = { fecha:f.fecha, personas:0, excesoMin:0, conExceso:0 });
+    d.personas++; d.excesoMin += f.excesoMin; if (f.excesoMin > 0) d.conExceso++;
+  });
+  return { dias: 7, diario: diario, personas: personas,
+           historico: Object.keys(porDia).sort().map(k => porDia[k]),
+           /* Cero a propósito: en la demo todo tiene su umbral, así el aviso de "sin comparar" no
+              aparece y no se confunde una limitación del ejemplo con una del producto. */
+           sinUmbralCongelado: 0 };
+}
+
+/* La nómina. Antes, en la demostración, `nominaListCargar` caía en la rama sin credenciales y
+   pintaba un ERROR: quien miraba la demo concluía que la función estaba rota, que es peor que no
+   mostrarla. Van los DOS estados —dada de alta y pendiente— porque el contraste entre ambos es
+   justamente lo que la pantalla muestra: quién de la lista ya usa la app y quién todavía no.
+   Los dos pendientes NO están en los registros, y eso es correcto por definición: alguien que
+   todavía no usó la app no puede tener mediciones. */
+function nominaDemo(){
+  const P = 'Empresa Demo', hoy = todayStr();
+  const alta = DEMO_GENTE.map((q, i) => ({
+    persona: q[0], cedula: q[1], empresa: P, departamento: q[2], cargo: q[3],
+    registrado: true, desde: fechaMasDias(hoy, -(60 - i))
+  }));
+  return alta.concat([
+    { persona:'Mariana Cárdenas', cedula:'V-9020', empresa:P, departamento:'Operaciones',
+      cargo:'Despachante', registrado:false, desde:'' },
+    { persona:'Esteban Rivas',    cedula:'V-9021', empresa:P, departamento:'Mantenimiento',
+      cargo:'Técnico',     registrado:false, desde:'' }
+  ]);
+}
+
+/* Una ausencia, para que se vea la función y el aviso de "no se cuentan en la cobertura".
+   ⚠️ LAS DOS CLAVES, igual que el endpoint: por cédula (la usa la lista de nómina, que la tiene)
+   y por nombre normalizado (la usa el panel del día, cuyas personas salen de los registros y NO
+   traen cédula). Con una sola de las dos, la mitad de la función queda muerta. */
+function ausenciasDemo(){
+  const idx = {}, hoy = todayStr();
+  idx[String(demoCedDe(DEMO_AUSENTE)).replace(/\D/g,'') + '|' + hoy] = 'vacaciones';
+  idx['n:' + ausNombreClave(DEMO_AUSENTE) + '|' + hoy] = 'vacaciones';
+  return idx;
+}
+
+/* Turnos del día. Estaban en `[]` con el comentario "no es el foco": el efecto era que TODAS las
+   tarjetas quedaban en "pendiente", o sea que la demo mostraba la app como si nadie la usara. */
+function turnosDemo(){
+  const hoy = todayStr();
+  const t = (persona, tipo, hora, kss, carga) => ({
+    fecha: hoy, hora: hora, id: 'demo_' + dashNorm(persona) + '_' + hoy + '_' + tipo,
+    tipo: tipo, persona: persona, empresa: 'Empresa Demo', departamento: demoDepDe(persona),
+    cargo: '', kss: (kss == null ? '' : kss), carga: (carga == null ? '' : carga)
+  });
+  const A = DEMO_ACTIVOS[0], B = DEMO_ACTIVOS[1], C = DEMO_ACTIVOS[2];
+  return [
+    t(A, 'checkin', '06:10', 3), t(A, 'carga', '12:30', null, 2),
+    t(B, 'checkin', '05:40', 6), t(B, 'carga', '13:05', null, 4),
+    t(C, 'checkin', '06:25', 4), t(C, 'checkout', '18:00', 5)
+  ];
+}
+
 function cicloDemo(){
   const M = 60000, ahora = Date.now(), p = n => String(n).padStart(2,'0');
   const ev = (persona, dep, evento, ms, test, res) => {
@@ -21594,6 +21787,19 @@ function nominaListCargar(){
   const body = document.getElementById('nomListBody');
   if (!NOMLIST.datos.length && body) body.innerHTML = skeletonHtml('persona', 5);
   const cred = (DASH && DASH.params) || {};
+  /* ⚠️ S7 · EN LA DEMOSTRACIÓN SE MUESTRA UNA NÓMINA DE EJEMPLO. Antes caía en la rama de abajo y
+     pintaba un ERROR DE CREDENCIALES — que es peor que no mostrar nada: quien está viendo la
+     demostración concluye que la función está rota, no que es un ejemplo.
+     Es el hueco que el plan marcaba en una línea ("en la demo de supervisor no está la nómina"). */
+  if (DASH && DASH.demoMode){
+    NOMLIST.datos = nominaDemo();
+    NOMLIST.total = NOMLIST.datos.length;
+    NOMLIST.registrados = NOMLIST.datos.filter(x => x.registrado).length;
+    NOMLIST.cargando = false;
+    nominaListPintarDeptos();
+    nominaListFiltrar();
+    return;
+  }
   if (!cred.usuario || !cred.pass){
     if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
     return;
