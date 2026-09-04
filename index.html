@@ -4824,7 +4824,7 @@
           <li data-i18n-html="ah_2">Al tocar el botón de abajo vas a ir a la App Store para descargar la app <strong>"Vital – Connect Wearables"</strong>.</li>
           <li data-i18n-html="ah_3">Abre la app Vital y elige <strong>"Permitir Todo"</strong> para otorgar los permisos de Sueño y Pulso.</li>
         </ol>
-        <button type="button" class="save-btn" onclick="redirigirATryVital()" data-i18n="ah_iniciar">Iniciar enlace en iPhone</button>
+        <button type="button" class="save-btn" onclick="redirigirATryVital()" data-i18n="ah_iniciar">Muy pronto: enlace con Apple Watch</button>
       </div>
 
       <button type="button" class="rbtn" id="cloudSyncBtn" onclick="enDesarrollo()">
@@ -5982,7 +5982,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.47';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.48';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6328,7 +6328,8 @@ const I18N = {
       ah_1:'Abre este portal <strong>únicamente desde tu iPhone</strong>.',
       ah_2:'Al tocar el botón de abajo vas a ir a la App Store para descargar la app <strong>"Vital – Connect Wearables"</strong>.',
       ah_3:'Abre la app Vital y elige <strong>"Permitir Todo"</strong> para otorgar los permisos de Sueño y Pulso.',
-      ah_iniciar:'Iniciar enlace en iPhone',
+      ah_iniciar:'Muy pronto: enlace con Apple Watch',
+      wear_pronto:'Muy pronto vas a poder enlazar tu reloj. Mientras tanto, tus registros diarios ya alcanzan para que el sistema te acompañe.',
       cloud_sinc:'Sincronizar dispositivo cloud',
       sitio_web:'Sitio web', sitio_web_d:'Ir a la web de Aeroambulancias Silva',
       // ── Tamaño de texto ──
@@ -7886,7 +7887,8 @@ const I18N = {
       ah_1:'Open this portal <strong>from your iPhone only</strong>.',
       ah_2:'Tapping the button below takes you to the App Store to download the <strong>"Vital – Connect Wearables"</strong> app.',
       ah_3:'Open the Vital app and choose <strong>"Allow All"</strong> to grant the Sleep and Heart Rate permissions.',
-      ah_iniciar:'Start linking on iPhone',
+      ah_iniciar:'Coming soon: Apple Watch linking',
+      wear_pronto:'Soon you will be able to link your watch. In the meantime, your daily entries are enough for the system to support you.',
       cloud_sinc:'Sync a cloud device',
       sitio_web:'Website', sitio_web_d:'Go to the Aeroambulancias Silva website',
       // ── Text size ──
@@ -10494,7 +10496,16 @@ function activarFlujoApple(){
   if (!guia.hidden) guia.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function redirigirATryVital(){
-  window.open(LINK_TRYVITAL, '_blank');
+  /* ⚠️ NO ABRE EL ENLACE. `LINK_TRYVITAL` es un token de sandbox que venció el 27 de mayo de 2026
+     (`exp: 1779843530`), así que quien tocaba este botón caía en una página de error — y era la
+     única pantalla de la app que se rompía sola con el paso del tiempo.
+     Ocultarlo era lo fácil, pero la decisión del dueño fue otra y es la correcta para un producto
+     que todavía se está vendiendo: lo que hay que comunicar es que la función VIENE, no esconder
+     que existe. Un "próximamente" es información; un botón que rompe es un descuido, y un botón
+     que desaparece es una función que el cliente nunca supo que iba a tener.
+     El día que se renueve el servicio, esto vuelve a ser una línea: `window.open(LINK_TRYVITAL)`.
+     La constante queda a propósito, para no tener que reconstruir la integración desde cero. */
+  showToast(t('wear_pronto'));
 }
 
 /* ════════════════ RENDER ════════════════ */
