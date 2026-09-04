@@ -130,3 +130,108 @@ PRUEBAS.caso('⚠️ y se apaga cuando la app ya decidió qué mostrar', () => {
   PRUEBAS.cierto(/animation:\s*preCargaRed/.test(css),
     '⚠️ tiene que tener el apagado automático por CSS, para el caso de que el JS no llegue nunca');
 });
+
+PRUEBAS.grupo('U3 · entrar con la contraseña propia (Z2-cliente)');
+
+/* ⚠️ ESTA PANTALLA FALTABA, y su ausencia era el defecto más caro de la auditoría. Z4 publicó la
+   pantalla que CREA la credencial sin la que la USA: `action:'login'` no aparecía ni una vez en el
+   cliente. Quien aceptaba "Elige tu contraseña" quedaba sin poder ver sus estadísticas, con un
+   mensaje del servidor que le decía "inicia sesión con ella" y ningún lugar donde hacerlo. */
+
+PRUEBAS.caso('⚠️ la app YA SABE entrar con contraseña propia', () => {
+  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+  PRUEBAS.cierto(/action\s*:\s*'login'/.test(fuente),
+    '⚠️ tiene que existir la llamada a `login`: sin ella, el bloque Z2/Z4 entero es decorativo');
+  PRUEBAS.cierto(!!document.getElementById('loginOv'), 'y la pantalla donde escribirla');
+  PRUEBAS.cierto(typeof lgnAbrir === 'function' && typeof lgnEntrar === 'function', 'y sus funciones');
+});
+
+PRUEBAS.caso('⚠️ cuando el servidor pide la contraseña, se abre el login (no un error mudo)', () => {
+  /* El enganche. Antes, `necesita_clave` caía en el `return false` de `misSincronizar` y en un
+     "Reintentar" que iba a fallar siempre. */
+  PRUEBAS.cierto(/necesita_clave/.test(String(misSincronizar)),
+    '⚠️ `misSincronizar` tiene que reconocer el motivo, no descartarlo');
+  PRUEBAS.cierto(/lgnAbrir/.test(String(misSincronizar)), 'y abrir el login');
+  PRUEBAS.cierto(/necesita_clave[\s\S]{0,300}lgnAbrir/.test(String(portalAutoLoginEmpleado)),
+    'y el panel del empleado también');
+});
+
+PRUEBAS.caso('⚠️ se guarda la SESIÓN, nunca la contraseña', () => {
+  const prevSes = localStorage.getItem(K_SES_PERSONA);
+  const prevPerfil = getProfile(), prevFetch = window.fetchConReloj;
+  try {
+    setProfile({ nombre:'Ana Suárez', empresa:'Helitec', cedula:'V-111' });
+    try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
+    document.getElementById('lgnCed').value = 'V-111';
+    document.getElementById('lgnPass').value = 'LaClaveDeAna2026';
+    window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({
+      ok:true, sesion:'sst_xyz.elsecreto', persona:{ empresa:'Helitec', cedula:'V-111', rol:'empleado' } }) });
+    lgnEntrar(null);
+    return new Promise(res => setTimeout(() => {
+      const todo = JSON.stringify(localStorage);
+      PRUEBAS.cierto(todo.indexOf('sst_xyz.elsecreto') >= 0, 'el token sí se guarda');
+      PRUEBAS.falso(todo.indexOf('LaClaveDeAna2026') >= 0,
+        '⚠️ la contraseña NO puede quedar en el dispositivo, en ninguna clave');
+      res();
+    }, 80));
+  } finally {
+    window.fetchConReloj = prevFetch;
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    try { prevSes == null ? localStorage.removeItem(K_SES_PERSONA) : localStorage.setItem(K_SES_PERSONA, prevSes); } catch(e){}
+    try { document.getElementById('loginOv').classList.remove('show'); } catch(e){}
+  }
+});
+
+PRUEBAS.caso('⚠️ el token de otra persona no sirve en este perfil', () => {
+  /* Si el teléfono cambió de dueño, la sesión de la persona anterior no puede seguir abriendo
+     datos de salud. Se compara la cédula además del token. */
+  const prevSes = localStorage.getItem(K_SES_PERSONA), prevPerfil = getProfile();
+  try {
+    localStorage.setItem(K_SES_PERSONA, JSON.stringify({ cedula:'V-111', token:'sst_de-ana.x' }));
+    setProfile({ nombre:'Ana Suárez', empresa:'Helitec', cedula:'V-111' });
+    PRUEBAS.igual(sesPersonaToken(), 'sst_de-ana.x', 'con su propia cédula, el token viaja');
+    setProfile({ nombre:'Beto Pérez', empresa:'Helitec', cedula:'V-222' });
+    PRUEBAS.igual(sesPersonaToken(), '', '⚠️ con OTRA cédula, no se manda nada');
+  } finally {
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    try { prevSes == null ? localStorage.removeItem(K_SES_PERSONA) : localStorage.setItem(K_SES_PERSONA, prevSes); } catch(e){}
+  }
+});
+
+PRUEBAS.caso('⚠️ "atrás" cierra el login, y no el portal que está debajo', () => {
+  /* R1: ninguna pantalla sin salida. El login se abre POR ENCIMA del portal, así que si `silvaAtras`
+     no lo contemplara, cerraría el portal por debajo y el login quedaría flotando sobre la nada. */
+  const ov = document.getElementById('loginOv');
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  try {
+    const manejo = silvaAtras();
+    PRUEBAS.cierto(manejo === true, '"atrás" tiene que hacerse cargo del login');
+    PRUEBAS.falso(ov.classList.contains('show'), 'y cerrarlo');
+  } finally { if (tenia) ov.classList.add('show'); else ov.classList.remove('show'); }
+});
+
+PRUEBAS.caso('⚠️ el candado del servidor SÓLO puede estar encendido con el login conectado', () => {
+  /* La invariante que quedó de la auditoría, ahora del lado correcto: el cliente ya sabe entrar, así
+     que el candado TIENE que estar encendido. Si alguien lo apaga sin motivo, esto lo dice. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido se saltea'); return; }
+  const encendido = /var\s+Z2_EXIGIR_CLAVE_PROPIA\s*=\s*true/.test(CTX.gs);
+  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+  const clienteSabeEntrar = /action\s*:\s*'login'/.test(fuente);
+  PRUEBAS.cierto(clienteSabeEntrar, 'el cliente sabe hacer login');
+  PRUEBAS.cierto(encendido,
+    '⚠️ con el login conectado, el candado tiene que estar encendido: si no, la contraseña que la ' +
+    'persona eligió no protege nada y la pantalla que se la pidió le mintió');
+});
+
+PRUEBAS.caso('los textos del login están en los dos idiomas (R14, R1)', () => {
+  ['lgn_titulo','lgn_lead','lgn_ced','lgn_pass','lgn_entrar','lgn_entrando','lgn_luego','lgn_listo',
+   'lgn_faltan','lgn_mal','lgn_sin_red','lgn_olvide','lgn_olvide_d'].forEach(k => {
+    const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k);
+  });
+  PRUEBAS.falso(/\b(escribí|podés|tenés|pediles)\b/i.test(t('lgn_lead') + ' ' + t('lgn_olvide_d')),
+    'español neutro (R1)');
+  /* Y que no prometa una recuperación que no existe: el servidor guarda un hash. */
+  PRUEBAS.cierto(/no se puede recuperar|cannot be recovered/i.test(t('lgn_olvide_d')),
+    '⚠️ tiene que decir la verdad: la contraseña está cifrada y nadie puede devolverla');
+});

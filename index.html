@@ -3331,7 +3331,7 @@
     border:1.5px solid var(--sem-azul); background: var(--card); color:var(--sem-azul); font-size:.82rem; font-weight:800;
     cursor:pointer; font-family:inherit; }
   .apt-act:active { transform:scale(.98); }
-  .apt-act-off { border-color:#7b8499; color:#525d73; }
+  .apt-act-off { border-color:var(--linea-2); color:var(--muted);   /* #525d73 daba 2,47:1 en oscuro */ }
 
   /* Hoja de restricción */
   .restr-sheet { max-width: 560px; }
@@ -4387,6 +4387,18 @@
       </button>
     </div>
 
+    <!-- ⚠️ ESTO CIERRA "MÁS TARDE ES NUNCA MÁS". La pantalla de contraseña se ofrecía UNA vez, al
+         final del alta, y `clvPosponer()` marcaba la cédula como "ya ofrecida" para siempre: quien
+         tocaba "Más tarde" —o quien estaba sin señal ese día, que era el único otro botón— no
+         volvía a tener forma de ponerse una contraseña nunca. Justo la persona que el comentario
+         del alta dice querer proteger. Acá hay una entrada permanente. -->
+    <div class="mas-sep" data-i18n="mas_sep_acceso">Tu acceso</div>
+    <button type="button" class="rbtn" id="miClaveBtn" onclick="miClaveTocar()">
+      <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <div class="tx"><span class="tt" id="miClaveTt" data-i18n="mi_clave">Mi contraseña</span><span class="ds" id="miClaveDs" data-i18n="mi_clave_d">Protege tus datos con una contraseña propia</span></div>
+      <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+    </button>
+
     <div class="mas-sep">Aeroambulancias Silva</div>
     <a class="rbtn" id="webSilvaLink" href="#" target="_blank" rel="noopener">
       <div class="ic" style="background:var(--sem-rojo-bg);color:var(--sem-rojo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
@@ -4679,6 +4691,29 @@
 <!-- ⚠️ Z4 · ELEGIR CONTRASEÑA. Último paso del alta, y OPCIONAL a propósito: la migración
      completa (ADR 001, D3) se apoya en que nadie quede afuera un solo día. Quien la pospone entra
      como siempre; quien la pone, queda cerrado con clave propia desde ese momento. -->
+<!-- ⚠️ ENTRAR CON LA CONTRASEÑA PROPIA (Z2-cliente, 2026-09-03). Esta pantalla FALTABA: Z4
+     publicó la que CREA la credencial sin la que la USA, así que quien se ponía contraseña quedaba
+     sin poder ver sus datos, sin ningún lugar donde escribirla. El servidor la validaba desde hacía
+     días contra el vacío. -->
+<div class="overlay" id="loginOv">
+  <div class="sheet">
+    <h2 data-i18n="lgn_titulo">Entra con tu contraseña</h2>
+    <p class="portal-hint" id="lgnLead" data-i18n="lgn_lead">Pusiste una contraseña propia para tus datos. Escríbela para continuar.</p>
+    <form id="lgnForm" onsubmit="lgnEntrar(this.querySelector('.save-btn')); return false;">
+      <div class="field"><label for="lgnCed" data-i18n="lgn_ced">Cédula</label>
+        <input id="lgnCed" type="text" inputmode="numeric" autocomplete="username" data-i18n-attr="placeholder:lgn_ced_ph" placeholder="Tu número de cédula"></div>
+      <div class="field"><label for="lgnPass" data-i18n="lgn_pass">Contraseña</label>
+        <div class="pw-wrap"><input id="lgnPass" type="password" autocomplete="current-password" data-i18n-attr="placeholder:lgn_pass_ph" placeholder="Tu contraseña">
+          <button type="button" class="pw-eye" onclick="togglePw('lgnPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      </div>
+      <div class="portal-err" id="lgnErr"></div>
+      <button class="save-btn" type="submit" data-i18n="lgn_entrar">Entrar</button>
+    </form>
+    <button type="button" class="cancel-btn" onclick="lgnOlvide()" data-i18n="lgn_olvide">Olvidé mi contraseña</button>
+    <button type="button" class="cancel-btn" onclick="lgnCerrar()" data-i18n="lgn_luego">Ahora no</button>
+  </div>
+</div>
+
 <div class="overlay" id="claveOv">
   <div class="sheet">
     <h2 data-i18n="clv_titulo">Elige tu contraseña</h2>
@@ -5272,7 +5307,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.86';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.88';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5540,8 +5575,12 @@ const I18N = {
       mas_sep_sesion:'Sesión',
       salir_t:'Cerrar sesión',
       salir_d:'Borra tus datos de este dispositivo',
-      salir_confirmar:'Vas a cerrar sesión en este dispositivo.\n\nSe borran tus datos, tus reportes guardados acá y tu consentimiento. La app vuelve a la pantalla de inicio y te va a pedir darte de alta otra vez.\n\nLo que ya se envió queda guardado en el sistema: esto no borra tu historial.',
-      salir_confirmar_cred:'También se borra la contraseña de acceso al panel que está guardada en este dispositivo.',
+      salir_confirmar:'Vas a cerrar sesión en este dispositivo.\n\nSe borran tus datos, tus reportes guardados aquí y tu consentimiento. La app vuelve a la pantalla de inicio y te va a pedir darte de alta otra vez.\n\nLo que ya se envió queda guardado en el sistema: esto no borra tu historial.',
+      /* ⚠️ Decía "También se borra la contraseña de acceso al panel que está guardada en este
+         dispositivo", y contradecía al cartel de recordar, que promete "no se guarda tu
+         contraseña". Desde S4 lo guardado es un permiso, no la contraseña: el texto tenía que
+         seguir al código. */
+      salir_confirmar_cred:'También se retira el permiso de este dispositivo para entrar directo al panel.',
       salir_confirmar_q:'¿Cerrar sesión?',
       salir_pendientes:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema.\n\nSi cierras sesión ahora, se pierden.\n\nToca Aceptar para intentar enviarlos primero.',
       salir_pendientes_2:'Si aun así cierras sesión, esos {n} registro(s) se pierden y no se pueden recuperar.\n\n¿Cerrar sesión igual?',
@@ -5596,6 +5635,23 @@ const I18N = {
       rec_no_encontrado:'No encontramos ese registro. Revisa la empresa y la cédula.',
       rec_listo:'Listo, recuperamos tus datos',
       ts_demo_no_guarda:'Estás en la demostración: no se guarda nada.',
+      mas_sep_acceso:'Tu acceso',
+      mi_clave:'Mi contraseña',
+      mi_clave_d:'Protege tus datos con una contraseña propia',
+      mi_clave_d_si:'Este dispositivo ya está recordado',
+      lgn_titulo:'Entra con tu contraseña',
+      lgn_lead:'Pusiste una contraseña propia para tus datos. Escríbela para continuar.',
+      lgn_ced:'Cédula', lgn_ced_ph:'Tu número de cédula',
+      lgn_pass:'Contraseña', lgn_pass_ph:'Tu contraseña',
+      lgn_entrar:'Entrar', lgn_entrando:'Entrando…',
+      lgn_luego:'Ahora no', lgn_listo:'Listo. Este dispositivo queda recordado.',
+      lgn_faltan:'Escribe tu cédula y tu contraseña.',
+      lgn_mal:'La cédula o la contraseña no coinciden.',
+      lgn_sin_red:'Necesitas conexión para entrar. Tus datos guardados aquí siguen disponibles.',
+      lgn_olvide:'Olvidé mi contraseña',
+      /* Se dice la verdad: la contraseña se guarda cifrada y nadie puede devolverla, tampoco
+         nosotros. Prometer un correo de recuperación que no existe sería peor. */
+      lgn_olvide_d:'Tu contraseña se guarda cifrada y no se puede recuperar. Pídele a tu supervisor o al servicio médico que la reinicie.',
       clv_titulo:'Elige tu contraseña',
       clv_lead:'Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.',
       clv_pass:'Contraseña', clv_pass2:'Repítela',
@@ -6226,7 +6282,7 @@ const I18N = {
       sf_t_revisar:'Hay indicadores para revisar',
       sf_x_revisar:'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.',
       mis_recuperando:'Estamos trayendo tu historial. Tus registros anteriores están guardados y van a aparecer en unos segundos.',
-      sf_t_sindato:'Todavía sin registros', sf_x_sindato:'Cuando completes tu primer test vas a ver tu estado acá.',
+      sf_t_sindato:'Todavía sin registros', sf_x_sindato:'Cuando completes tu primer test verás tu estado aquí.',
       sf_t_ok:'Estás en condiciones', sf_x_ok:'Tus indicadores más recientes están dentro de lo esperado.',
       sf_no_hagas:'No hagas hoy: {q}', sf_tarea_indicada:'la tarea indicada',
       sf_lo_indico_sup:'Lo indicó tu supervisor · vigente hasta {f}',
@@ -6995,7 +7051,7 @@ const I18N = {
       salir_t:'Sign out',
       salir_d:'Erases your data from this device',
       salir_confirmar:'You are about to sign out on this device.\n\nYour details, the reports stored here and your consent will be erased. The app will go back to the start screen and will ask you to register again.\n\nAnything already sent stays in the system: this does not erase your history.',
-      salir_confirmar_cred:'The panel password saved on this device will also be erased.',
+      salir_confirmar_cred:'This device will also lose its permission to open the panel directly.',
       salir_confirmar_q:'Sign out?',
       salir_pendientes:'Heads up: {n} record(s) have not been sent to the system yet.\n\nIf you sign out now, they will be lost.\n\nTap OK to try sending them first.',
       salir_pendientes_2:'If you sign out anyway, those {n} record(s) are lost and cannot be recovered.\n\nSign out anyway?',
@@ -7048,6 +7104,21 @@ const I18N = {
       rec_no_encontrado:'We could not find that record. Check the company and the ID number.',
       rec_listo:'Done, your details are back',
       ts_demo_no_guarda:'This is the demo: nothing is saved.',
+      mas_sep_acceso:'Your access',
+      mi_clave:'My password',
+      mi_clave_d:'Protect your data with your own password',
+      mi_clave_d_si:'This device is already remembered',
+      lgn_titulo:'Sign in with your password',
+      lgn_lead:'You set your own password for your data. Enter it to continue.',
+      lgn_ced:'ID number', lgn_ced_ph:'Your ID number',
+      lgn_pass:'Password', lgn_pass_ph:'Your password',
+      lgn_entrar:'Sign in', lgn_entrando:'Signing in…',
+      lgn_luego:'Not now', lgn_listo:'Done. This device will be remembered.',
+      lgn_faltan:'Enter your ID number and your password.',
+      lgn_mal:'The ID number or password do not match.',
+      lgn_sin_red:'You need a connection to sign in. Your data saved here is still available.',
+      lgn_olvide:'I forgot my password',
+      lgn_olvide_d:'Your password is stored encrypted and cannot be recovered. Ask your supervisor or the medical service to reset it.',
       clv_titulo:'Choose your password',
       clv_lead:'It will be yours alone. From now on you sign in with your ID number and this password, on any phone.',
       clv_pass:'Password', clv_pass2:'Repeat it',
@@ -8614,6 +8685,13 @@ function seccionesApp(){ return [
 
 /* ════════════════ STORAGE ════════════════ */
 const K_PROFILE = 'silva_fatiga_profile_v1';
+/* ⚠️ VIVE ACÁ ARRIBA A PROPÓSITO (R16). Estaba declarada junto a las funciones de login, ~12.000
+   líneas más abajo, y `sesPersonaGuardada()` la lee desde el camino de ARRANQUE: en zona muerta un
+   `const` LANZA, el `try/catch` de esa función se lo tragaba, y devolvía null. O sea que la sesión
+   guardada no se encontraba nunca al abrir la app y la persona tenía que volver a escribir su
+   contraseña — un bug mudo, exactamente el caso 2 de los tres que ya mordieron.
+   Lo detectó `pruebas/orden-declaracion.py`, no yo. */
+const K_SES_PERSONA = 'silva_fatiga_sesion_persona_v1';   // Z2-cliente: la sesión propia
 const K_REPORTS = 'silva_fatiga_reports_v1';
 const K_CONSENT = 'silva_fatiga_consent_v1';
 
@@ -8959,20 +9037,36 @@ const K_PENDING = 'silva_fatiga_pending_v1';
 function getPending(){ try { return JSON.parse(localStorage.getItem(K_PENDING)) || []; } catch(e){ return []; } }
 function setPending(arr){ try { localStorage.setItem(K_PENDING, JSON.stringify(arr)); } catch(e){} }
 
-function enviarConCola(url){
-  fetchConReloj(url, { mode:'no-cors' }).catch(() => {
+/* `sobrevive` marca los envíos que salen justo antes de una recarga —el caso de "cerrar sesión",
+   que ofrece "intentar enviarlos primero" y acto seguido hace `location.reload()`—. Sin
+   `keepalive`, el navegador ABORTA esos pedidos al recargar: la app prometía intentar el envío y no
+   llegaba a intentar nada, y como `flushPending` vacía la cola ANTES de confirmar, los registros se
+   perdían sin quedar ni en el CH ni en el teléfono. */
+function enviarConCola(url, sobrevive){
+  const opts = { mode:'no-cors' };
+  if (sobrevive) opts.keepalive = true;
+  fetchConReloj(url, opts).catch(() => {
     const q = getPending();
     q.push({ url, ts: Date.now() });
     setPending(q.slice(-50));   // tope de 50 pendientes
   });
 }
-function flushPending(){
+/* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
+   Cambia dos cosas, y las dos importan:
+   · Los envíos van con `keepalive`, o el navegador los aborta al recargar. La app ofrece "toca
+     Aceptar para intentar enviarlos primero" y sin esto no llegaba a intentar nada.
+   · La cola NO se vacía. En el camino normal vaciarla está bien porque lo que falle se re-encola
+     solo en el `catch`… pero si la página se descarga antes, ese `catch` no corre nunca y los
+     registros desaparecen: ni en el CH ni en el teléfono. Al salir, se dejan; si llegaron, la
+     próxima corrida los manda de nuevo y el servidor los deduplica por id (R15). Un duplicado que
+     el servidor descarta es infinitamente preferible a un test perdido. */
+function flushPending(alSalir){
   const q = getPending();
   if (!q.length) return;
   const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;   // descarta pendientes de más de 7 días
   const vigentes = q.filter(x => (Date.now() - x.ts) < MAX_EDAD);
-  setPending([]);   // se re-encolan solos si vuelven a fallar
-  vigentes.forEach(x => enviarConCola(x.url));
+  if (!alSalir) setPending([]);   // se re-encolan solos si vuelven a fallar
+  vigentes.forEach(x => enviarConCola(x.url, alSalir));
 }
 window.addEventListener('online', flushPending);
 setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
@@ -9397,7 +9491,7 @@ function pvtScheduleNext(){
   if (!pvtState || pvtState.ended) return;
   pvtState.awaiting = false;
   document.getElementById('pvtCircle').style.display = 'none';
-  document.getElementById('pvtMsg').textContent = 'Espera…';
+  document.getElementById('pvtMsg').textContent = t('pvt_espera');   /* R14: estaba en español fijo, y el PVT lo hace todo el personal */
   const isi = PVT_ISI_MIN + Math.random() * (PVT_ISI_MAX - PVT_ISI_MIN);
   pvtState.isiTimer = setTimeout(function(){
     if (!pvtState || pvtState.ended) return;
@@ -9467,7 +9561,7 @@ function pvtSummaryHTML(m){
   let verdict, vcol;
   if (m.validas < 3){ verdict = t('pvt_v_pocas'); vcol = 'var(--text-muted)'; }
   else if (m.rt_prom < 300 && m.lapsos <= 1){ verdict = t('pvt_v_buena'); vcol = 'var(--green)'; }
-  else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = t('pvt_v_moderada'); vcol = '#e8a400'; }
+  else if (m.rt_prom < 400 && m.lapsos <= 3){ verdict = t('pvt_v_moderada'); vcol = 'var(--sem-ambar-txt)';   /* #e8a400 daba 2,16:1 sobre la tarjeta: es el veredicto que la persona lee de su propio test */ }
   else { verdict = t('pvt_v_fatiga'); vcol = 'var(--sem-rojo)'; }
   return '<div class="pvt-result-lbl">' + esc(t('pvt_rt_prom')) + '</div>' +
     '<div class="pvt-result-big">' + m.rt_prom + ' <span style="font-size:1rem;color:var(--text-muted)">ms</span></div>' +
@@ -10172,7 +10266,8 @@ function misSincronizar(){
      los datos clínicos de esa persona con eso: bastaba saber un nombre. Ahora el servidor la exige,
      así que sin esto la sincronización se caería en silencio. */
   const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre,
-                                   cedula:p.cedula||'', dispositivoId:dispositivoId(), _:Date.now() });
+                                   cedula:p.cedula||'', pass: sesPersonaToken(p),
+                                   dispositivoId:dispositivoId(), _:Date.now() });
   return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -10187,6 +10282,15 @@ function misSincronizar(){
          avisarlo dos veces es ruido. */
       if (d && !d.ok && (d.motivo === 'falta_cedula' || d.motivo === 'cedula_mal')) {
         misPedirCedula(d.motivo);
+      }
+      /* Z2-cliente: la persona tiene contraseña propia y la sesión de este dispositivo venció o
+         nunca existió. Antes esto caía en el `return false` de abajo y era SILENCIO: sus datos
+         dejaban de actualizarse y nada se lo decía. Ahora se le abre el login.
+         La sesión guardada se borra primero: si el servidor la rechazó, no sirve, y dejarla haría
+         que el próximo arranque mande un token muerto y vuelva a caer acá. */
+      if (d && !d.ok && d.motivo === 'necesita_clave'){
+        try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
+        try { if (!document.getElementById('loginOv').classList.contains('show')) lgnAbrir(); } catch(e){}
       }
       if (!d || !d.ok) return false;
       const local = misDatos();
@@ -11351,7 +11455,7 @@ function mostrarVista(v){
   entrante.classList.add(v === 'mas' ? 'view-in-der' : 'view-in-izq');
   document.getElementById('bnInicio').classList.toggle('active', v === 'inicio');
   document.getElementById('bnMas').classList.toggle('active', v === 'mas');
-  if (v === 'mas') navPush();
+  if (v === 'mas'){ navPush(); try { miClavePintar(); } catch(e){} }   // el estado de la contraseña se relee al entrar
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 function marcarStatsActivo(on){
@@ -11593,6 +11697,12 @@ function silvaAtras(){
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
+  /* ⚠️ Las dos pantallas de contraseña, ANTES del portal: se abren por encima de él (el login
+     aparece cuando el panel del empleado recibe `necesita_clave`). Sin esto, "atrás" cerraba el
+     portal por debajo y la pantalla de contraseña quedaba flotando sobre la nada — el mismo
+     callejón sin salida que R1 corrigió para las cuatro del alta. */
+  if (visible('loginOv')){ lgnCerrar(); return true; }
+  if (visible('claveOv')){ clvPosponer(); return true; }
   if (visible('portalOverlay')){
     /* Atrás del teléfono: primero deshace filtros, igual que la flecha del panel. Antes cerraba
        el panel entero y lo sacaba de supervisor — el reflejo de "volver un paso" terminaba en
@@ -12826,6 +12936,7 @@ function sesionClavesBorrar(){
        El contraste es lo que lo delata como olvido: `K_TAREAS_CACHE` sí se protege, y su comentario
        dice exactamente por qué. */
     K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_TAREAS_CACHE, K_ZONA_OP,
+    K_SES_PERSONA,          // Z2-cliente: la sesión propia también se cierra
     /* Y la marca de "ya se le ofreció contraseña": es un mapa por CÉDULA, así que se iba
        acumulando la lista de todo el que usó el equipo. */
     K_CLV_OFRECIDA,
@@ -12847,7 +12958,7 @@ function cerrarSesionPedir(){
     // Todavía hay registros sin llegar al CH. Se ofrece sincronizar primero; salir igual exige
     // una segunda confirmación que dice el número exacto.
     if (!confirm(t('salir_pendientes', { n: pend }))) return;
-    try { flushPending(); empFlush(); gestPush(); } catch(e){}
+    try { flushPending(true); empFlush(); gestPush(); } catch(e){}   // true = la página se va a recargar
     if (!confirm(t('salir_pendientes_2', { n: pend }))) return;
   }
   if (!confirm(msg)) return;
@@ -12860,7 +12971,7 @@ function cerrarSesionPedir(){
    en una sola línea, y el orden es lo único que hace que esto funcione. */
 function sesionAvisarCierre(){
   try {
-    [dashGetCreds(), dashGetCredsMed()].forEach(c => {
+    [dashGetCreds(), dashGetCredsMed(), sesPersonaGuardada()].forEach(c => {
       if (!c || !c.token || !SHEETS_DASHBOARD_URL) return;
       fetch(SHEETS_DASHBOARD_URL, { method:'POST', keepalive:true,
         body: JSON.stringify({ action:'sesion_cerrar', token:c.token, dispositivoId: dispositivoId() }) })
@@ -13204,7 +13315,7 @@ function admCerrarDoc(){
 function portalLoginEmpleado(btn){
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'',
-                   cedula:p.cedula||'', dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
+                   cedula:p.cedula||'', pass: sesPersonaToken(p), dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('cargando'));
   conBloqueo('#portalGate', dashRequest(params)
@@ -13222,10 +13333,17 @@ function portalAutoLoginEmpleado(){
   dashMostrarEsqueleto();
   const p = getProfile() || {};
   const params = { action:'empleado', empresa:p.empresa||'', persona:p.nombre||'',
-                   cedula:p.cedula||'', dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
+                   cedula:p.cedula||'', pass: sesPersonaToken(p), dispositivoId:dispositivoId() };   // Z0b: la cédula viaja
   const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   conBloqueo('#portalDash', dashRequest(params)
     .then(d => { if (!cargaVigente(carga)) return;
+      /* Z2-cliente: si el servidor pide la contraseña propia, se abre el login en vez de mostrar
+         un error con un botón "Reintentar" que iba a fallar siempre. Al entrar, se vuelve a cargar
+         solo — por eso `lgnAbrir` recibe qué hacer después. */
+      if (d && !d.ok && d.motivo === 'necesita_clave'){
+        try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
+        if (lgnAbrir(portalAutoLoginEmpleado)) return;
+      }
       if (!d || !d.ok) { dashMostrarError(tError(d && d.error), portalAutoLoginEmpleado); return; }
       onDashData(d, p.nombre || 'Mis registros', params); })
     /* Antes esto mandaba a la persona de vuelta a la pantalla de acceso con un toast. Perder el
@@ -15267,7 +15385,12 @@ function renderHseqMrfo(rows){
   const celda = k => {
     const d = porDep[k], pct = Math.round(d.mal / d.n * 100);
     const col = pct >= 50 ? 'var(--sem-rojo-int)' : pct >= 25 ? 'var(--niv-4)' : pct > 0 ? 'var(--niv-3)' : 'var(--sem-verde)';
-    const bg  = pct >= 50 ? 'var(--sem-rojo-int-bg)' : pct >= 25 ? '#fdf0e4' : pct > 0 ? '#fdf5e4' : 'var(--sem-verde-bg)';
+    /* ⚠️ ERAN `#fdf0e4` y `#fdf5e4` — el valor del tema CLARO de `--niv-4-bg` y `--niv-3-bg`, escritos
+     a mano. En tema oscuro quedaban casi blancos mientras el texto seguía siendo `--text` (claro):
+     el nombre del departamento medía 1,05:1, o sea INVISIBLE, y el porcentaje 2,05:1. Los tokens ya
+     existían con su valor de oscuro y no se usaron. Es exactamente la caja blanca con texto
+     ilegible que R13 vino a prevenir. */
+  const bg  = pct >= 50 ? 'var(--sem-rojo-int-bg)' : pct >= 25 ? 'var(--niv-4-bg)' : pct > 0 ? 'var(--niv-3-bg)' : 'var(--sem-verde-bg)';
     const nivs = Object.keys(d.niveles).sort().map(n => 'N' + n + '·' + d.niveles[n]).join(' ');
     return '<div class="hs-cell" style="--hc:' + col + ';--hbg:' + bg + '">' +
       '<div class="hs-cell-top"><span class="hs-cell-dep">' + esc(k) + '</span>' +
@@ -17266,7 +17389,7 @@ function dashTelemedicinaCard(rows){
     '<div class="tm-t">Te sugerimos una telemedicina</div>' +
     '<div class="tm-x">Es una consulta con el servicio médico, sin costo para ti.' +
       (t.sugeridaPor ? ' La sugirió ' + esc(t.sugeridaPor) + '.' : '') +
-      ' <b>Podés aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.</div>' +
+      ' <b>Puedes aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.</div>' +
     '<div class="an-actions">' +
       '<button type="button" class="an-cancel" onclick="telemRechazar(\'' + t.id + '\')">Ahora no</button>' +
       '<button type="button" class="tm-si" onclick="telemAceptar(\'' + t.id + '\')">Aceptar</button>' +
@@ -17722,7 +17845,7 @@ function dashFilteredPVT(){
 function pvtVerdict(rt, lap){
   if (rt == null || rt <= 0) return { t:'—', c:'var(--text-muted)', over:false };
   if (rt < 300 && lap <= 1) return { t:'Buen estado de alerta', c:'var(--green)', over:false };
-  if (rt < 400 && lap <= 3) return { t:'Alerta moderada', c:'#e8a400', over:false };
+  if (rt < 400 && lap <= 3) return { t: t('pvt_v_moderada'), c:'var(--sem-ambar-txt)', over:false };   /* R13 + R14: color a mano y texto sin traducir */
   return { t:'Signos de fatiga', c:'var(--sem-rojo)', over:true };
 }
 function renderPVT(){
@@ -20462,6 +20585,115 @@ function avanzarAlta(){
    ⚠️ LO QUE SE VALIDA ACÁ NO PROTEGE NADA: el servidor vuelve a validarlo todo (Z4). Esto es
    cortesía —decirle a la persona qué falta antes de que toque el botón—, no una barrera. Este
    archivo es público: cualquier regla escrita acá se puede saltear. */
+/* ════════ Z2-CLIENTE · ENTRAR CON LA CONTRASEÑA PROPIA (2026-09-03) ═══════════════════════════
+   La contraparte que faltaba de Z2/Z4. El servidor sabía validar contraseñas por persona desde el
+   2026-09-02, pero la app no tenía dónde escribirlas: `action:'login'` no aparecía ni una vez en el
+   archivo. Resultado — quien aceptaba "Elige tu contraseña" quedaba sin poder ver sus estadísticas,
+   con un mensaje que le decía "inicia sesión con ella" y ningún lugar donde hacerlo.
+
+   ⚠️ SE GUARDA LA SESIÓN, NO LA CONTRASEÑA. `accionLogin` devuelve un token (el mismo mecanismo de
+   S4: no caduca, atado al dispositivo, anulable). Sin eso habría que escribir la contraseña en cada
+   arranque, porque `misSincronizar` corre siempre al abrir — un formulario diario que nadie usa. */
+function sesPersonaGuardada(){
+  try { return JSON.parse(localStorage.getItem(K_SES_PERSONA)); } catch(e){ return null; }
+}
+/* El token que hay que mandar en `action=empleado`, si esta persona ya tiene sesión abierta.
+   Se comprueba la CÉDULA además del token: si el perfil cambió de persona, la sesión de la anterior
+   no puede seguir abriendo datos. */
+function sesPersonaToken(perfil){
+  const p = perfil || getProfile() || {};
+  const g = sesPersonaGuardada();
+  if (!g || !g.token) return '';
+  const ced = c => String(c || '').replace(/\D/g, '');
+  if (ced(g.cedula) !== ced(p.cedula)) return '';
+  return g.token;
+}
+
+var _lgnPendiente;      // qué hacer cuando el login salga bien
+function lgnAbrir(alEntrar){
+  const p = getProfile();
+  if (!p || !p.empresa) return false;
+  _lgnPendiente = alEntrar || null;
+  const ced = document.getElementById('lgnCed');
+  const pass = document.getElementById('lgnPass');
+  if (ced) ced.value = p.cedula || '';
+  if (pass) pass.value = '';
+  document.getElementById('lgnErr').textContent = '';
+  document.getElementById('loginOv').classList.add('show');
+  syncScrollLock(); navPush();
+  /* El foco va a la contraseña y no a la cédula: la cédula ya viene puesta desde el perfil, y
+     empezar en un campo lleno obliga a la persona a saltarlo. */
+  setTimeout(() => { try { pass.focus(); } catch(e){} }, 60);
+  return true;
+}
+function lgnCerrar(){
+  document.getElementById('loginOv').classList.remove('show');
+  syncScrollLock();
+  _lgnPendiente = null;
+}
+function lgnEntrar(btn){
+  const p = getProfile() || {};
+  const err = document.getElementById('lgnErr');
+  const cedula = document.getElementById('lgnCed').value.trim();
+  const pass = document.getElementById('lgnPass').value;
+  err.textContent = '';
+  if (!cedula || !pass){ err.textContent = t('lgn_faltan'); return; }
+  if (!offHayConexion()){ err.textContent = t('lgn_sin_red'); return; }
+  btnSpin(btn, true, t('lgn_entrando'));
+  const cuerpo = { action:'login', empresa: p.empresa || '', cedula: cedula, pass: pass,
+                   dispositivoId: dispositivoId(), recordar: '1' };
+  conBloqueo('#loginOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
+      /* Lo que se guarda es el TOKEN. La contraseña se usó acá una vez y no se guarda en ningún
+         lado — si alguien la agrega "por si el token falla", vuelve el problema que S4 cerró. */
+      try { localStorage.setItem(K_SES_PERSONA, JSON.stringify({
+        cedula: (d.persona && d.persona.cedula) || cedula, token: d.sesion || '' })); } catch(e){}
+      /* Si la cédula que escribió no es la del perfil, se corrige el perfil: entró con ella, así
+         que es la suya, y era la fuente del desencuentro. */
+      if (String(cedula).replace(/\D/g,'') !== String(p.cedula||'').replace(/\D/g,'')){
+        p.cedula = cedula; setProfile(p);
+      }
+      lgnCerrar();
+      showToast(t('lgn_listo'));
+      const seguir = _lgnPendiente; _lgnPendiente = null;
+      if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
+      else { try { misSincronizar(); } catch(e){} }
+    })
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
+}
+/* Olvidó la contraseña. No hay recuperación automática y no puede haberla: el servidor guarda un
+   hash, así que nadie —tampoco nosotros— puede devolverle la que tenía. Lo honesto es decirlo y
+   dar el camino real, que es que su supervisor o el servicio médico se la reinicie. */
+function lgnOlvide(){
+  const err = document.getElementById('lgnErr');
+  if (err) err.textContent = t('lgn_olvide_d');
+}
+
+/* La fila "Mi contraseña" de la pestaña Más. Es la salida que faltaba: la pantalla de contraseña
+   se ofrecía UNA vez y `clvPosponer` marcaba la cédula como ofrecida para siempre, así que "Más
+   tarde" era "nunca más" — y sin señal era el único botón disponible. */
+function miClavePintar(){
+  const btn = document.getElementById('miClaveBtn');
+  if (!btn) return;
+  const p = getProfile();
+  /* Sin perfil o sin endpoint no hay nada que hacer con una contraseña: se esconde en vez de
+     ofrecer algo que va a fallar. */
+  btn.style.display = (p && p.cedula && p.empresa && SHEETS_DASHBOARD_URL && !simulando()) ? '' : 'none';
+  const tiene = !!sesPersonaGuardada();
+  const ds = document.getElementById('miClaveDs');
+  if (ds) ds.textContent = tiene ? t('mi_clave_d_si') : t('mi_clave_d');
+}
+function miClaveTocar(){
+  /* Si ya tiene sesión abierta en este dispositivo, lo que necesita es cambiarla; si no, ponerla o
+     entrar. `clvAbrir` decide sola si corresponde crearla. */
+  if (sesPersonaGuardada()){ lgnAbrir(); return; }
+  if (!clvAbrir()) lgnAbrir();
+}
+
 var CLV_LARGO_MINIMO = 8;   // el que exige el servidor; acá sólo para avisar antes
 
 function clvAbrir(){
