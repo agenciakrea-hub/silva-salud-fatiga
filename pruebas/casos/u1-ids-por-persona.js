@@ -146,9 +146,13 @@ PRUEBAS.caso('⚠️ y se apaga cuando la app ya decidió qué mostrar', () => {
   /* La red de seguridad: si el script se corta —que en este archivo ya pasó tres veces por orden de
      declaración (R16)— el pre-arranque tiene que apagarse solo igual. Es preferible ver la app rota
      que una pantalla tapada para siempre sin ninguna explicación. */
-  const css = [...document.querySelectorAll('style')].map(x=>x.textContent).join('');
-  PRUEBAS.cierto(/animation:\s*preCargaRed/.test(css),
-    '⚠️ tiene que tener el apagado automático por CSS, para el caso de que el JS no llegue nunca');
+  /* ⚠️ EL SEGURO YA NO ES UNA ANIMACIÓN, y el cambio fue deliberado: la app apaga TODAS las
+     animaciones (`.sin-animaciones`) cuando el sistema pide menos movimiento o la pestaña está
+     oculta, así que el apagado automático no corría justo para quien menos margen tiene. Ahora es un
+     `setTimeout` en su propio bloque de script. El caso que lo verifica está en U2c. */
+  const bloques = [...document.querySelectorAll('script')].map(x => x.textContent);
+  PRUEBAS.cierto(bloques.some(b => /setTimeout[\s\S]{0,120}classList\.add\('listo'\)/.test(b)),
+    '⚠️ tiene que haber un seguro que destape el pre-arranque si el script principal no llega');
 });
 
 PRUEBAS.grupo('U3 · entrar con la contraseña propia (Z2-cliente)');
@@ -314,4 +318,119 @@ PRUEBAS.caso('los textos del aviso están en los dos idiomas (R14)', () => {
   ['ver_nueva','ver_nueva_btn'].forEach(k => {
     const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k);
   });
+});
+
+PRUEBAS.grupo('U2c · la barra de versión nueva (defectos de la auditoría)');
+
+/* ⚠️ LOS TRES DEFECTOS DE ESTE COMPONENTE ERAN MÍOS Y DEL MISMO DÍA. Lo agregué sin revisarlo y una
+   auditoría los encontró a los diez minutos. Como el service worker manda ese aviso después de cada
+   publicación, era lo primero que iba a ver todo el mundo. */
+
+function u2cAbrir(){
+  const previo = document.getElementById('verNuevaBar');
+  if (previo) previo.remove();
+  versionNuevaAvisar();
+  return document.getElementById('verNuevaBar');
+}
+
+PRUEBAS.caso('⚠️ se lee en tema OSCURO (daba 1,05:1, o sea invisible)', () => {
+  /* El defecto: `background: var(--sobre-claro)` con `color: var(--card)`. Los dos son el mismo azul
+     oscuro en tema oscuro, así que el texto y la × desaparecían y quedaba un rectángulo con un botón
+     naranja flotando. `--sobre-claro` es TINTA para superficies claras; usarlo de fondo con otro
+     token oscuro encima es cómo se llega a 1:1. */
+  const b = u2cAbrir();
+  const rgba = c => { const m = String(c).match(/[\d.]+/g) || [0,0,0,1];
+    return { r:+m[0], g:+m[1], b:+m[2], a: m.length > 3 ? +m[3] : 1 }; };
+  const lum = c => { const g = v => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+    return 0.2126*g(c.r) + 0.7152*g(c.g) + 0.0722*g(c.b); };
+  const ratio = (x,y) => { const [h,l] = x > y ? [x,y] : [y,x]; return (h+0.05)/(l+0.05); };
+  const previo = document.documentElement.getAttribute('data-tema');
+  const flojos = [];
+  try {
+    ['claro','oscuro'].forEach(tema => {
+      document.documentElement.setAttribute('data-tema', tema);
+      void document.body.offsetWidth;
+      const cs = getComputedStyle(b), bg = rgba(cs.backgroundColor);
+      const rt = ratio(lum(rgba(cs.color)), lum(bg));
+      if (rt < 4.5) flojos.push(tema + '/texto: ' + rt.toFixed(2) + ':1');
+      const bt = b.querySelector('button'), bs = getComputedStyle(bt);
+      const rb = ratio(lum(rgba(bs.color)), lum(rgba(bs.backgroundColor)));
+      if (rb < 4.5) flojos.push(tema + '/botón: ' + rb.toFixed(2) + ':1');
+    });
+  } finally {
+    if (previo) document.documentElement.setAttribute('data-tema', previo);
+    else document.documentElement.removeAttribute('data-tema');
+    b.remove();
+  }
+  PRUEBAS.igual(flojos, [], 'nada por debajo de 4,5:1 — ' + flojos.join(' | '));
+});
+
+PRUEBAS.caso('⚠️ ocupa el ancho de la pantalla, no 207 px', () => {
+  /* Un `position:fixed` con `left:50%` y SIN `width` calcula su ancho de ajuste contra lo que queda
+     a la derecha: la mitad de la pantalla. La barra medía 207 px en un teléfono, con el mensaje
+     partido en seis renglones verticales, y el `max-width` no llegaba a aplicarse nunca. */
+  const b = u2cAbrir();
+  const malos = [];
+  try {
+    [[320,640],[375,812],[768,1024]].forEach(([w,h]) => {
+      PRUEBAS.enVentana(w, h, () => {
+        const r = b.getBoundingClientRect();
+        const esperado = Math.min(w - 32, 460);
+        if (Math.abs(r.width - esperado) > 4) malos.push(w + ': mide ' + Math.round(r.width) + ', esperaba ~' + esperado);
+        /* Alto: una barra de una o dos líneas, no una columna. */
+        if (r.height > 90) malos.push(w + ': alto ' + Math.round(r.height) + ' px — el texto se está apilando');
+      });
+    });
+  } finally { b.remove(); }
+  PRUEBAS.igual(malos, [], 'el ancho tiene que seguir a la pantalla — ' + malos.join(' | '));
+});
+
+PRUEBAS.caso('⚠️ no se monta sobre el cartel de "recordar dispositivo"', () => {
+  /* Estaba a `bottom:5.2rem` con z-index 60, y el cartel de recordar está a 5rem con z-index 5:
+     le tapaba los botones. Es el MISMO choque que ya se pagó con `.gest-fab`, y por el que ese
+     cartel está justamente a 5rem — esa franja está reservada. */
+  const b = u2cAbrir();
+  const cartel = document.getElementById('dashRemember');
+  const teniaC = cartel && cartel.classList.contains('show');
+  if (cartel) cartel.classList.add('show');
+  try {
+    PRUEBAS.cierto(!!cartel, 'tiene que existir el cartel para comparar');
+    if (!cartel) return;
+    const rb = b.getBoundingClientRect(), rc = cartel.getBoundingClientRect();
+    const seSolapan = !(rb.bottom <= rc.top || rb.top >= rc.bottom);
+    PRUEBAS.falso(seSolapan,
+      '⚠️ se solapan: barra ' + Math.round(rb.top) + '-' + Math.round(rb.bottom) +
+      ', cartel ' + Math.round(rc.top) + '-' + Math.round(rc.bottom));
+  } finally { b.remove(); if (cartel && !teniaC) cartel.classList.remove('show'); }
+});
+
+PRUEBAS.caso('⚠️ el seguro del pre-arranque NO puede ser una animación', () => {
+  /* El apagado automático a los 8 s existe para cuando el script principal se corta — en este
+     archivo ya pasó tres veces por orden de declaración. Estaba hecho con `animation`, y la app pone
+     `.sin-animaciones` (que hace `animation: none !important`) cuando el sistema pide menos
+     movimiento O cuando la pestaña está oculta. O sea que el seguro estaba apagado justo para quien
+     menos margen tiene, y el resultado habría sido una pantalla azul lisa para siempre. */
+  const html = document.documentElement;
+  const tenia = html.classList.contains('sin-animaciones');
+  html.classList.add('sin-animaciones');
+  try {
+    const pc = document.getElementById('preCarga');
+    PRUEBAS.cierto(!!pc, 'tiene que existir el pre-arranque');
+    if (pc) PRUEBAS.igual(getComputedStyle(pc).animationName, 'none',
+      'con `sin-animaciones` no queda ninguna animación de la que depender');
+  } finally { if (!tenia) html.classList.remove('sin-animaciones'); }
+
+  /* Y el seguro tiene que existir de verdad, en su propio bloque de script: si estuviera adentro
+     del script grande, dependería justo de lo que viene a cubrir. */
+  const bloques = [...document.querySelectorAll('script')].map(x => x.textContent);
+  const suyo = bloques.filter(b => /setTimeout[\s\S]{0,120}classList\.add\('listo'\)/.test(b));
+  PRUEBAS.alMenos(suyo.length, 1, '⚠️ tiene que haber un temporizador que destape el pre-arranque');
+  /* Lo que importa no es el largo exacto sino que sea un bloque APARTE del grande: si viviera
+     adentro del script principal, se caería con él — justo lo que viene a cubrir. Se compara contra
+     el bloque que declara `APP_VERSION`, que es el grande. */
+  const grande = bloques.find(b => /const APP_VERSION/.test(b)) || '';
+  PRUEBAS.falso(/setTimeout[\s\S]{0,120}classList\.add\('listo'\)/.test(grande),
+    '⚠️ el seguro NO puede vivir en el script principal: se caería junto con lo que viene a cubrir');
+  PRUEBAS.comoMucho((suyo[0] || '').length, grande.length / 100,
+    'y tiene que ser un bloque chico, no otro monolito');
 });

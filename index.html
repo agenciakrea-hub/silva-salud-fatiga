@@ -283,6 +283,7 @@
        ⚠️ Existe tambien para que un futuro reemplazo masivo de "color: #16233d" no se lo lleve
        puesto: ya paso una vez y dejo el icono invisible. */
     --sobre-claro: #16233d;
+    --sobre-claro-txt: #ffffff;   /* tinta sobre `--sobre-claro`: vale igual en los dos temas porque ese fondo tampoco cambia */
 
     /* ── Pantallas de entrada (A2, 2026-08-25: splash, carrusel, alta) ──
        Naranja PROPIO de estas pantallas, elegido por el usuario (#ff9900) — DISTINTO del
@@ -440,6 +441,7 @@
     /* La misma flecha, en claro, para que se vea contra el campo oscuro. */
     --flecha-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239fb0c8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
+    --sobre-claro-txt: #ffffff;   /* tinta sobre `--sobre-claro`: vale igual en los dos temas porque ese fondo tampoco cambia */
     --orange-txt:  #b8500a;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
     /* I6: el degradado del botón de marca. Los mismos dos tonos en los dos temas: el botón lleva
@@ -494,8 +496,7 @@
      ⚠️ Se apaga solo a los 8 s aunque el JS nunca llegue a quitarlo. Si el script se corta (que en
      este archivo ya pasó tres veces por orden de declaración, ver R16), es preferible ver la app
      rota que una pantalla tapada para siempre sin explicación. */
-  #preCarga { position: fixed; inset: 0; z-index: 999; background: var(--navy-deep);
-    animation: preCargaRed 8s forwards; }
+  #preCarga { position: fixed; inset: 0; z-index: 999; background: var(--navy-deep); }
   /* ⚠️ SIN LOGO Y SIN TRANSICIÓN, A PROPÓSITO — y la primera versión tenía los dos, mal.
      El sistema ya muestra SU pantalla de arranque con el ícono del manifest, a su tamaño (grande).
      Yo volvía a pintar el mismo ícono a 96 px fijos: el logo grande desaparecía y aparecía uno
@@ -507,16 +508,29 @@
      `display:none` y no `opacity:0`: una transición acá vuelve a introducir el parpadeo. */
   body.listo #preCarga { display: none; }
   /* Aviso de versión nueva: abajo, sobre la barra de navegación, sin tapar contenido. */
-  .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 5.2rem; z-index: 60;
-    display: flex; align-items: center; gap: .5rem; max-width: calc(100% - 1.6rem);
-    background: var(--sobre-claro); color: var(--card); border-radius: 12px;
+  /* ⚠️ TRES DEFECTOS CORREGIDOS ACÁ, los tres míos y del mismo día (auditoría 2026-09-03):
+     · `color: var(--card)` sobre `background: var(--sobre-claro)` daba **1,05:1 en tema oscuro** —
+       los dos son el mismo azul oscuro. El texto y la × desaparecían y quedaba un rectángulo con un
+       botón naranja flotando. `--sobre-claro` es TINTA para superficies claras, no fondo.
+     · Sin `width`, un `position:fixed` con `left:50%` calcula su ancho contra lo que queda a la
+       derecha: la barra medía **207 px** en un teléfono, con el mensaje partido en seis renglones.
+       El `max-width` no llegaba a aplicarse nunca. `.dash-remember` ya tenía la fórmula correcta.
+     · A `bottom:5.2rem` se montaba sobre el cartel de "recordar dispositivo" (5rem) y le tapaba los
+       botones — el MISMO choque que ya se pagó con `.gest-fab` y por el que ese cartel está a 5rem.
+       Va arriba de esa franja, que está reservada. */
+  .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 9.2rem; z-index: 60;
+    display: flex; align-items: center; gap: .5rem;
+    width: calc(100% - 2rem); max-width: 460px; box-sizing: border-box;
+    background: var(--sobre-claro); color: var(--sobre-claro-txt); border-radius: 12px;
     padding: .5rem .6rem .5rem .8rem; box-shadow: 0 8px 24px rgba(0,0,0,.28); font-size: .78rem; }
+  .ver-nueva span { flex: 1; min-width: 0; }
   .ver-nueva button { min-height: 44px; padding: 0 .7rem; border: none; border-radius: 8px;
-    font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer;
-    background: var(--orange-solido); color: #fff; }
+    font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer; flex-shrink: 0;
+    background: var(--orange-solido); color: var(--sobre-claro-txt); transition: transform .12s ease; }
+  /* Respuesta al toque: con guantes y red mala, sin acuse la gente toca tres veces. */
+  .ver-nueva button:active { transform: scale(.97); }
   .ver-nueva .vn-x { background: transparent; color: inherit; font-size: 1.1rem; padding: 0 .4rem;
     min-width: 44px; opacity: .8; }
-  @keyframes preCargaRed { 0%,99% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden;
     overscroll-behavior-y: none; }
@@ -1459,7 +1473,12 @@
      contraste atado al del texto principal, que ya está resuelto. */
   .dr-d { font-size: .76rem; line-height: 1.35; color: inherit; opacity: .82; margin: -.2rem 0 0; }
   .dr-btns { display: flex; gap: .5rem; }
-  .dr-btns button { flex: 1; padding: .55rem; border: none; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; }
+  /* `min-height:44px`: medían 34,6 y es el cartel que decide si la persona vuelve a escribir la
+     contraseña o no — conviene que se acierte de primera. Mismo arreglo que ya se hizo en
+     `.cancel-btn`, que no había llegado hasta acá. */
+  .dr-btns button { flex: 1; min-height: 44px; padding: .55rem; border: none; border-radius: var(--radius-xs);
+    font-family: inherit; font-weight: 700; font-size: .82rem; cursor: pointer; transition: transform .12s ease; }
+  .dr-btns button:active { transform: scale(.97); }
   /* Medido acá mismo: el naranja de marca con texto blanco da 2,75:1 y el mínimo es 4,5. Es el
      botón principal del cartel, el que hay que poder leer. Y va `--orange-solido`, no
      `--orange-legible`: ese segundo se aclara en tema oscuro (es para texto) y ahí el blanco encima
@@ -1473,8 +1492,10 @@
   .jor-kpi .jk-n { display: block; font-size: 1.15rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
   .jor-kpi .jk-l { display: block; font-size: .68rem; color: var(--muted); margin-top: .15rem; line-height: 1.2; }
   /* El bloque de quienes están adentro AHORA y ya se pasaron: es lo único accionable hoy. */
-  .jor-ahora { background: var(--sem-rojo-bg); border-left: 3px solid var(--sem-rojo); border-radius: var(--radius-xs);
-    padding: .6rem .7rem; margin: .6rem 0; font-size: .82rem; color: var(--text); }
+  /* Mismo padding y radio que las otras siete cajas de aviso del panel: dentro de la misma tarjeta,
+     una con las esquinas más filosas se lee como si fuera otro componente. */
+  .jor-ahora { background: var(--sem-rojo-bg); border-left: 3px solid var(--sem-rojo); border-radius: var(--radius-sm);
+    padding: .55rem .65rem; margin: .6rem 0; font-size: .82rem; color: var(--text); }
   .jor-ahora ul { margin: .35rem 0 0; padding-left: 1.1rem; }
   .jor-ahora li { margin: .15rem 0; }
   .jor-h4 { font-size: .82rem; font-weight: 700; color: var(--muted); margin: 1rem 0 .35rem;
@@ -1493,7 +1514,7 @@
   .jor-hist { display: flex; align-items: flex-end; gap: 3px; height: 76px; margin: .4rem 0 .2rem; overflow-x: auto; }
   .jor-barra { flex: 0 0 18px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
   .jor-barra i { display: block; width: 100%; background: var(--sem-rojo); border-radius: 3px 3px 0 0; min-height: 2px; }
-  .jor-barra span { font-size: .58rem; color: var(--muted); margin-top: .15rem; }
+  .jor-barra span { font-size: .68rem; color: var(--muted); margin-top: .15rem; }   /* .58rem daba 9,28 px: ilegible a distancia de brazo */
   .dash-aviso { font-size: .76rem; color: var(--muted); background: var(--chip-bg);
     border-radius: var(--radius-xs); padding: .45rem .6rem; margin: .4rem 0; line-height: 1.35; }
 
@@ -1537,9 +1558,9 @@
   .dash-collapse[open] > .dc-sum .dc-caret { transform: rotate(180deg); }
   .dash-collapse[open] > .dc-sum { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
   .dash-collapse .dc-body { border: 1.5px solid var(--sup-borde); border-top: none; border-radius: 0 0 12px 12px; padding: .3rem .85rem .7rem; }
-  .alerts-collapse > .dc-sum { background: var(--sem-rojo-bg); border-color: #f3c9c4; color: var(--sem-rojo-txt); }
+  .alerts-collapse > .dc-sum { background: var(--sem-rojo-bg); border-color: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
   .alerts-collapse > .dc-sum:hover { background: var(--sem-rojo-bg); }
-  .alerts-collapse .dc-body { border-color: #f3c9c4; }
+  .alerts-collapse .dc-body { border-color: var(--sem-rojo-bg); }
   .alerts-collapse .dc-count { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
 
   /* ── M1 · Esqueletos de carga ──────────────────────────────────────────────────────────────
@@ -3144,7 +3165,7 @@
 
   .gest-card { background: var(--card); border: 1px solid var(--sup-borde); border-radius: 13px; margin-bottom: .45rem; overflow: hidden;
     box-shadow: var(--shadow-sm); }
-  .gest-card.pinned { border-color: #f6c88a; box-shadow: 0 2px 12px rgba(244,122,31,.14); }
+  .gest-card.pinned { border-color: var(--sem-ambar-bg); box-shadow: 0 2px 12px rgba(244,122,31,.14); }
   /* Encabezado DENSO: 2 líneas, sin etiquetas grandes (el estado se lee por la barra y el punto). */
   .gest-chead { display: flex; align-items: center; gap: .45rem; padding: .5rem .6rem .5rem .7rem; }
   /* I2/R13: era #c3cbd8, gris casi blanco. Sobre la tarjeta daba 1,63:1 en tema claro — el
@@ -3405,7 +3426,7 @@
   .sf-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
   .sf-restr { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.82rem; color:var(--sem-azul-int); }
-  .sf-restr-pie { font-size:.71rem; color:#3f6fb8; font-weight:700; margin-top:.25rem; }
+  .sf-restr-pie { font-size:.71rem; color:var(--sem-azul-txt); font-weight:700; margin-top:.25rem; }   /* era #3f6fb8: 4,43 en claro y 2,90 en oscuro; el token da 6,83 / 7,56 */
 
   .sf-turno-paso { padding:.6rem 0; border-top:1px solid var(--sup-linea); }
   .sf-turno-paso:first-child { border-top:none; }
@@ -3639,7 +3660,7 @@
   .rep-op { font-size:.83rem; font-weight:700; color:var(--text); margin-top:.25rem; }
   .rep-coment { font-size:.79rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
   .rep-dep { font-size:.72rem; color:var(--text-muted); font-weight:700; margin-top:.3rem; }
-  .rep-nuevo { box-shadow:0 0 0 1.5px #f4c2be inset; }
+  .rep-nuevo { box-shadow:0 0 0 1.5px var(--sem-rojo-bg) inset; }
   .rep-block-anon .db-title { color:var(--sem-morado); }
 
   /* ── Ciclo operativo (supervisor y Dirección/HSEQ) ──
@@ -4283,6 +4304,26 @@
 <!-- Lo PRIMERO del body a propósito: es lo que el navegador pinta antes de ejecutar nada. Ver el
      bloque PRE-ARRANQUE en el CSS. -->
 <div id="preCarga" aria-hidden="true"></div>
+<script>
+/* ⚠️ EL SEGURO DEL PRE-ARRANQUE, Y VA ACÁ POR DOS RAZONES (auditoría 2026-09-03).
+   Qué hace: si a los 8 s el script principal todavía no marcó el body como listo, se destapa igual.
+   Existe porque en este archivo el arranque ya se cortó TRES veces por orden de declaración (R16), y
+   una pantalla azul lisa para siempre, sin ningún error visible, es peor que ver la app rota.
+
+   1 · NO puede ser una animación CSS. Lo era, y la app pone `.sin-animaciones` —que hace
+       `animation: none !important`— cuando el sistema pide menos movimiento O cuando la pestaña está
+       oculta. O sea que el seguro estaba apagado JUSTO para quien menos margen tiene, y también para
+       quien abre la app en una pestaña de fondo. Verificado midiendo: con esa clase puesta,
+       `animationName` daba `none`.
+   2 · Va en su PROPIO <script>, apenas después del div y muy antes del script grande. Si el grande
+       se corta, éste ya corrió: son dos bloques independientes, y un error en uno no impide que el
+       otro se ejecute. Ponerlo adentro del grande lo haría depender justo de lo que viene a cubrir. */
+(function(){
+  setTimeout(function(){
+    try { document.body.classList.add('listo'); } catch(e){}
+  }, 8000);
+})();
+</script>
 
 <div class="wrap" id="app" style="display:none;">
 
@@ -5360,7 +5401,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.92';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.93';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
