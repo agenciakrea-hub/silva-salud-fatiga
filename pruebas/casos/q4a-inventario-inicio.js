@@ -48,25 +48,11 @@ PRUEBAS.caso('⚠️ y entra a sus estadísticas de UN toque, sin selector', () 
     '⚠️ quien no es supervisor ni servicio médico no tiene otra vista posible: entra directo');
 });
 
-PRUEBAS.caso('⚠️ EL AUTO-LOGIN DEL SUPERVISOR ESTÁ ESCRITO Y NO SE LLAMA DESDE NINGÚN LADO', () => {
-  /* El hallazgo de Q4a. `openPortal()` tiene exactamente la lógica que haría falta —con token o
-     contraseña guardada, entra directo sin pasar por el gate— y tiene CERO usos. El botón
-     Estadísticas va a `openPortalGate()`, que no autologuea.
-     Efecto: el token que S4 guarda (3.11, potencia máxima) no se usa para entrar. La persona toca
-     "Sí, recordar" y en la siguiente entrada escribe la contraseña igual.
-
-     ⚠️ ESTE CASO ESTÁ ESCRITO AL REVÉS A PROPÓSITO: afirma el DEFECTO, no la solución. Cuando
-     Q4c lo arregle se va a poner en rojo, y eso es exactamente lo que tiene que pasar — ahí se
-     invierte la condición. Es la única forma de que un defecto conocido no se olvide. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const usos = (fuente.match(/\bopenPortal\s*\(/g) || []).length
-             - (fuente.match(/function\s+openPortal\s*\(/g) || []).length;
-  PRUEBAS.cierto(/portalAutoLoginSupervisor/.test(String(openPortal)),
-    'guarda de medibilidad: `openPortal` tiene que ser la que autologuea');
-  PRUEBAS.igual(usos, 0,
-    '⚠️ SI ESTO SE PUSO EN ROJO, alguien conectó `openPortal()` — invertí este caso y bajá el ' +
-    'techo del recorrido D de 3 acciones a 1 en INVENTARIO_INICIO.md');
-});
+/* ⚠️ ACÁ ESTABA EL CASO QUE AFIRMABA EL DEFECTO —`openPortal()` con cero usos—, escrito al revés a
+   propósito para que se pusiera en rojo el día que se arreglara. Q4c lo arregló el 2026-09-04 y el
+   caso se cumplió: sonó, y se reemplazó por su inverso, que ahora vive en
+   `q4c-sin-perfil-de-empleado.js` ("el auto-login del panel SE LLAMA desde el camino real").
+   Se deja escrito para que quede el rastro de por qué el techo del recorrido D bajó de 3 a 1. */
 
 PRUEBAS.caso('⚠️ el supervisor que ya usó la app llega al panel en 3 acciones o menos', () => {
   /* Recorrido D, el que el riesgo nº1 de Q4 dice que no se puede empeorar: tocar Estadísticas,
@@ -84,10 +70,13 @@ PRUEBAS.caso('⚠️ el supervisor que ya usó la app llega al panel en 3 accion
     const u = document.getElementById('pEmpresa'), p = document.getElementById('pPass');
     const entroDirecto = document.getElementById('portalDash').style.display !== 'none';
     const acciones = entroDirecto ? 1 : (1 + (u.value ? 0 : 1) + (p.value ? 0 : 1) + 1);
+    /* ⚠️ EL TECHO BAJÓ DE 3 A 1 con Q4c. Con el auto-login conectado, quien guardó su sesión entra
+       de un toque: tocar Estadísticas y ya está adentro. Este caso mide el camino de quien NO la
+       guardó (llama a `openPortalGate()` directo), que sigue siendo 3 y no puede empeorar. */
     PRUEBAS.comoMucho(acciones, 3,
-      '⚠️ el recorrido del supervisor no puede empeorar: hoy son 3 (Estadísticas · contraseña · Entrar)');
+      '⚠️ sin sesión guardada el recorrido son 3 (Estadísticas · contraseña · Entrar) y no puede crecer');
     PRUEBAS.cierto(!!u.value,
-      '⚠️ el usuario tiene que venir precargado, o son 4 — es lo único que hoy ahorra un paso');
+      '⚠️ el usuario tiene que venir precargado, o son 4');
   } finally {
     document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
     if (prev.perfil) localStorage.setItem(K_PROFILE, prev.perfil); else localStorage.removeItem(K_PROFILE);

@@ -1573,6 +1573,14 @@
   .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
   .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
   .ctx-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+  /* Q4c · La salida del portal. Discreta a propósito: es una acción de excepción, no un camino.
+     Sin color propio: hereda el de texto atenuado, que ya está medido en los dos temas. */
+  .portal-olvidar { margin-top: .9rem; text-align: center; }
+  .portal-olvidar-btn { background: none; border: none; font-family: inherit; font-size: .78rem;
+    font-weight: 700; color: var(--text-soft); cursor: pointer; padding: .55rem .7rem;
+    min-height: 44px; border-radius: var(--radius-sm); text-decoration: underline; }
+  .portal-olvidar-btn:hover { color: var(--text); }
+
   .ctx-chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--sem-azul-bg); color: var(--text); border-radius: 999px; padding: .3rem .65rem; font-size: .82rem; font-weight: 700; }
   /* ⚠️ `--sem-azul-int` y NO `--sem-azul`: medido, el azul del semáforo como TINTA sobre su propio
      fondo pálido da 4.28:1 con texto de 13 px — por debajo del mínimo. Es el mismo hallazgo que ya
@@ -5330,6 +5338,19 @@
         <button class="save-btn" type="submit" data-i18n="entrar">Entrar</button>
         </form><!-- /portalCreds -->
 
+        <!-- ⚠️ Q4c · LA SALIDA PARA QUIEN NUNCA VE `#app`. El único "Cerrar sesión" de la app vive
+             en la pestaña Más, o sea DENTRO de `#app`, y `#app` no se le revela a quien no completó
+             perfil de empleado. Medido: alguien que sólo usa el panel —el servicio médico de la
+             empresa cliente, un director de HSEQ— podía guardar su sesión con "Sí, recordar" y
+             después NO TENÍA NINGUNA FORMA de retirarla desde la app. En un teléfono prestado o
+             compartido eso es un token de empresa que se queda ahí.
+             Aparece sólo cuando hay algo que olvidar: `portalPintarOlvidar()` lo muestra o lo
+             esconde en cada apertura del gate. -->
+        <div class="portal-olvidar" id="portalOlvidar" style="display:none">
+          <button type="button" class="portal-olvidar-btn" onclick="portalOlvidarDispositivo(this)"
+                  data-i18n="pg_olvidar">Cerrar sesión en este dispositivo</button>
+        </div>
+
         <div class="portal-demo" id="portalDemoBloque">
           <div class="pd-sep"><span>o</span></div>
           <button type="button" class="portal-demo-btn" id="portalDemoBtn" onclick="portalVerDemo(this)" data-i18n="pg_demo">Ver demostración con datos simulados</button>
@@ -5596,7 +5617,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.09';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.15';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6058,6 +6079,9 @@ const I18N = {
       ts_sim_no_abre:'No se pudo abrir la simulación',
       ts_sim_salida:'Saliste del modo simulación',
       ts_guardado_disp:'Guardado en este dispositivo',
+      pg_olvidar:'Cerrar sesión en este dispositivo',
+      pg_olvidar_confirmar:'Se va a retirar el acceso al panel de esta empresa en este dispositivo. Tendrás que escribir la contraseña la próxima vez. ¿Continuar?',
+      pg_olvidado:'Sesión cerrada en este dispositivo',
       ts_recordar_sin_red:'Necesitas conexión para recordar este dispositivo. Vuelve a intentarlo.',
       ts_recordar_error:'No se pudo recordar este dispositivo. Puedes intentarlo la próxima vez.',
       ts_no_actualizar:'No se pudo actualizar',
@@ -7598,6 +7622,9 @@ const I18N = {
       ts_sim_no_abre:'Could not open the simulation',
       ts_sim_salida:'You left simulation mode',
       ts_guardado_disp:'Saved on this device',
+      pg_olvidar:'Sign out on this device',
+      pg_olvidar_confirmar:'This will remove access to the company dashboard on this device. You will need to enter the password next time. Continue?',
+      pg_olvidado:'Signed out on this device',
       ts_recordar_sin_red:'You need a connection to remember this device. Please try again.',
       ts_recordar_error:'This device could not be remembered. You can try again next time.',
       ts_no_actualizar:'Could not refresh',
@@ -11879,7 +11906,12 @@ function abrirDestinoEstadisticas(){
   const perfil = getProfile();
   const puedeEmpresa = !!(perfil && (perfil.esSupervisor || perfil.esServicioMedico));
   if (!puedeEmpresa){ portalAutoLoginEmpleado(); return; }
-  openPortalGate();
+  /* ⚠️ Q4c · `openPortal()` y NO `openPortalGate()`. Acá estaba el defecto: se saltaba el
+     auto-login y se iba derecho al formulario, así que el supervisor escribía su contraseña en
+     cada entrada aunque hubiera tocado "Sí, recordar". `openPortal` prueba primero el token y sólo
+     cae al gate si no hay ninguno — o sea que quien no guardó nada ve exactamente lo de antes.
+     Medido en Q4a: esto lleva el recorrido del supervisor de 3 acciones a 1. */
+  openPortal();
 }
 
 // Funciones todavía no disponibles (wearables): aviso breve, mismo estilo que el resto de avisos.
@@ -12894,25 +12926,67 @@ function dashTieneSesion(clave){
 }
 function dashGetCreds(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS)); } catch(e){ return null; } }
 
+/* ⚠️ Q4c · ESTA FUNCIÓN EXISTÍA Y NO LA LLAMABA NADIE. Medido en Q4a sobre el archivo completo,
+   markup incluido: 1 declaración, 0 usos. El botón Estadísticas iba a `abrirDestinoEstadisticas()`,
+   que llama a `openPortalGate()` — y ese no autologuea. O sea que el token que S4 guarda (3.11)
+   nunca se usaba para entrar: la persona tocaba "Sí, recordar" y en la siguiente entrada escribía
+   la contraseña igual. Ahora `abrirDestinoEstadisticas()` pasa por acá.
+
+   ⚠️ Y NO SE EXIGE PERFIL DE EMPLEADO. Antes las dos ramas pedían `p && p.esSupervisor`, así que
+   alguien que SÓLO usa el panel —el servicio médico de la empresa cliente, un director de HSEQ—
+   no podía ser recordado nunca, ni con la función conectada: `getProfile()` le da `null` porque
+   jamás se dio de alta como empleado. Era el defecto reportado como "el «Sí, recordar» no recuerda
+   si la persona entró desde el splash sin perfil".
+   Lo que autoriza a entrar es EL TOKEN, no el perfil: se emitió contra la contraseña de la empresa
+   y el servidor lo valida en cada pedido. El perfil sólo sirve para DESEMPATAR cuál de las dos
+   credenciales usar cuando hay guardadas las dos. */
 function openPortal(){
   document.getElementById('portalOverlay').classList.add('show');
   syncScrollLock();
   const p = getProfile();
   const cMed = dashGetCredsMed(), cSup = dashGetCreds();
-  // Auto-login: con contraseña guardada entra DIRECTO a la empresa (sin pasar por el gate).
-  // Si guardó las dos (supervisor y servicio médico), entra con la médica por defecto (vista completa).
-  if (p && p.esServicioMedico && cMed && cMed.usuario && (cMed.token || cMed.pass)){
-    portalAutoLoginSupervisor(cMed, K_DASH_CREDS_MED);
-    return;
-  }
-  if (p && p.esSupervisor && cSup && cSup.usuario && (cSup.token || cSup.pass)){
-    portalAutoLoginSupervisor(cSup, K_DASH_CREDS);
-    return;
-  }
+  const sirve = c => !!(c && c.usuario && (c.token || c.pass));
+  /* El desempate cuando hay dos: manda el perfil si lo dice; si no, la médica, que es la vista más
+     completa. Es la misma prioridad que ya tenía, sólo que ahora el perfil no es un requisito. */
+  const preferirMed = sirve(cMed) && (!sirve(cSup) || !(p && p.esSupervisor) || (p && p.esServicioMedico));
+  if (preferirMed){ portalAutoLoginSupervisor(cMed, K_DASH_CREDS_MED); return; }
+  if (sirve(cSup)){ portalAutoLoginSupervisor(cSup, K_DASH_CREDS); return; }
   openPortalGate();
 }
+/* ⚠️ Q4c · Sólo se ofrece olvidar si hay algo guardado. Un botón de "cerrar sesión" permanente en
+   la puerta de entrada confunde a quien nunca guardó nada: parece que hay una sesión abierta. */
+function portalPintarOlvidar(){
+  const cont = document.getElementById('portalOlvidar');
+  if (!cont) return;
+  const hay = !!((dashGetCreds() || {}).usuario || (dashGetCredsMed() || {}).usuario);
+  cont.style.display = hay ? '' : 'none';
+}
+
+/* Retira las credenciales de empresa de ESTE dispositivo. Es el equivalente de "Cerrar sesión" para
+   quien nunca ve `#app`, y hace exactamente lo mismo que hace aquél con las credenciales de empresa:
+   borra las dos claves y avisa al servidor para que el token deje de valer también del otro lado.
+   ⚠️ NO toca el perfil de empleado ni los registros pendientes. Quien además es empleado sigue
+   siendo empleado: lo único que se retira es el acceso al panel de la empresa. */
+function portalOlvidarDispositivo(btn){
+  if (!confirm(t('pg_olvidar_confirmar'))) return;
+  if (btn) btnSpin(btn, true, t('guardando'));
+  /* Se avisa al servidor, pero el borrado local NO espera la respuesta ni depende de ella: si no
+     hay señal, la persona igual tiene que poder sacar su sesión de un teléfono prestado. El token
+     queda vivo del lado del servidor hasta que alguien lo cierre, y eso es preferible a dejarlo
+     además en el dispositivo. */
+  try { sesionAvisarCierre(); } catch(e){}
+  try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+  try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+  DASH = null;
+  if (btn) btnSpin(btn, false);
+  portalPintarOlvidar();
+  openPortalGate();
+  showToast(t('pg_olvidado'));
+}
+
 function openPortalGate(){
   cargaCancelar();                    // volver al selector cancela la carga en curso
+  portalPintarOlvidar();
   document.getElementById('portalGate').style.display = '';
   document.getElementById('portalDash').style.display = 'none';
   const p = getProfile();
@@ -20258,9 +20332,17 @@ function ovFocoEnfocables(ov){
   return [...ov.querySelectorAll(ovFocoSelector())]
     .filter(el => el.offsetParent !== null || el === document.activeElement);  // visibles
 }
+/* ⚠️ EL INERT SE SINCRONIZA ACÁ, ANTES DE MOVER EL FOCO, y es explícito a propósito. Son DOS
+   MutationObserver mirando la misma clase —éste y el de `syncScrollLock`— y el orden en que corren
+   depende del orden en que se registraron, que es un detalle frágil escrito 1.000 líneas más abajo.
+   Cuando salió mal se vio así: al cerrar el de arriba, el foco tenía que volver a un botón que
+   seguía dentro de un subárbol `inert`, y `.focus()` sobre algo inert NO HACE NADA y no avisa. El
+   foco quedaba en el body y la persona perdía el lugar. Llamando acá, el estado de inert siempre
+   está al día antes de decidir a dónde va el foco. */
 function ovFocoAbrir(ov){
   OV_FOCO.pila = OV_FOCO.pila.filter(x => x.el !== ov);   // por si alguien reabre sin haber cerrado
   OV_FOCO.pila.push({ el: ov, disparador: document.activeElement });
+  try { sincronizarInert(); } catch(e){}
   const primero = ovFocoEnfocables(ov)[0];
   if (primero) primero.focus();
   else { ov.setAttribute('tabindex', '-1'); ov.focus(); }   // overlay sin nada enfocable adentro
@@ -20269,6 +20351,9 @@ function ovFocoCerrar(ov){
   const i = OV_FOCO.pila.findIndex(x => x.el === ov);
   if (i < 0) return;
   const [entrada] = OV_FOCO.pila.splice(i, 1);
+  /* Después de sacarlo de la pila: así `sincronizarInert()` ya lo ve cerrado y le devuelve el
+     tabulado al que queda debajo, que es justamente adonde va a volver el foco. */
+  try { sincronizarInert(); } catch(e){}
   /* ⚠️ El foco vuelve al disparador DE ESTE overlay (`entrada.disparador`: lo que tenía el foco
      justo antes de que ESTE se abriera) — NO al disparador del que quede debajo en la pila. La
      primera versión los confundía: con `setup` abierto y `recuperarOv` encima, al cerrar
@@ -21283,7 +21368,71 @@ empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento
 offPintar();      // muestra el estado de envío si quedó algo de una sesión anterior
 
 // Bloqueo de scroll del fondo: si hay algún overlay abierto, el body no scrollea
-function syncScrollLock(){ document.body.classList.toggle('modal-open', !!document.querySelector('.overlay.show, .ios-modal.show')); }
+function syncScrollLock(){
+  document.body.classList.toggle('modal-open', !!document.querySelector('.overlay.show, .ios-modal.show'));
+  sincronizarInert();
+}
+
+/* ⚠️ Q4c · LO QUE ESTÁ TAPADO NO SE TABULA. Medido: con el login de persona abierto encima de la
+   portada, quien navega con teclado tenía que pasar por los CINCO controles de la portada —idioma,
+   Ingresar, Ver demostración, Soy supervisor, Administrador— antes de llegar al campo de cédula.
+   Los overlays se apilan por z-index, así que el de abajo queda visualmente tapado pero sigue
+   entero en el orden de tabulación: `pointer-events` no lo cubre, y `visibility`/`display` no se
+   pueden usar porque los overlays se cruzan con una transición de opacidad.
+   `inert` es exactamente esto: saca el subárbol del foco, del tabulado y de la accesibilidad, sin
+   tocar cómo se ve. Va acá y no en cada `classList.add('show')` porque son ~20 lugares distintos
+   los que abren overlays: puesto en cada uno, el próximo que se agregue nace con el defecto.
+   ⚠️ `#app` TAMBIÉN. Primero lo dejé afuera suponiendo que algún overlay mostraba contenido montado
+   ahí dentro; lo verifiqué y es falso: los 19 overlays son HERMANOS de `#app`, ninguno desciende de
+   él, así que volverlo inert no deja muerto a ninguno. Y medido, hacía falta: con un overlay abierto
+   la app de atrás dejaba 14 controles tabulables —"Instalar la app", las tarjetas del inicio— por
+   delante de lo que la persona está mirando. */
+function sincronizarInert(){
+  /* La barra inferior va con la app: es hermana suya en el DOM, no hija, así que marcar sólo `#app`
+     dejaba sus tres botones (Inicio · Estadísticas · Más) tabulables detrás de cualquier overlay. */
+  const fondo = [document.getElementById('app'), document.querySelector('.bottom-nav')].filter(Boolean);
+  const abiertos = [...document.querySelectorAll('.overlay.show, .ios-modal.show')];
+  if (!abiertos.length){
+    document.querySelectorAll('.overlay[inert], .ios-modal[inert]').forEach(o => o.removeAttribute('inert'));
+    fondo.forEach(e => e.removeAttribute('inert'));
+    return;
+  }
+  fondo.forEach(e => e.setAttribute('inert', ''));
+  /* ⚠️ EL DE ARRIBA ES EL ÚLTIMO QUE SE ABRIÓ, y eso lo sabe `OV_FOCO.pila`, no el z-index.
+     Mi primera versión lo elegía por z-index computado y salió al revés en un caso real: con
+     `setup` abierto y `recuperarOv` encima, `setup` tiene z-index mayor o igual, así que el
+     desempate por orden del DOM le daba la cima a `setup` — y quedaba inert JUSTO el overlay que
+     la persona estaba usando. Lo agarró un caso que ya existía (L4, el del apilado del foco).
+     La pila es la fuente de verdad porque registra el orden de APERTURA, que es lo que importa:
+     dos overlays pueden compartir z-index y el que manda es el que se abrió después.
+     El z-index queda de respaldo por si alguno se abrió sin pasar por la pila. */
+  /* ⚠️ `try/catch` y NO `typeof`. `OV_FOCO` es un `const`, y R16 lo deja escrito: con `let`/`const`
+     en zona muerta `typeof` TAMBIÉN lanza, así que como guarda no sirve de nada. Hoy está declarado
+     bastante más arriba y esto no puede fallar; el `catch` es para el día que alguien lo mueva —
+     sin él, `syncScrollLock()` corre en el arranque y un error acá cortaría el script entero. */
+  let enPila = [];
+  try { enPila = (OV_FOCO && OV_FOCO.pila) || []; } catch(e){ enPila = []; }
+  let arriba = null;
+  for (let i = enPila.length - 1; i >= 0 && !arriba; i--){
+    if (abiertos.indexOf(enPila[i].el) >= 0) arriba = enPila[i].el;
+  }
+  if (!arriba){
+    let zMax = -Infinity;
+    arriba = abiertos[abiertos.length - 1];
+    abiertos.forEach(o => {
+      const z = parseInt(getComputedStyle(o).zIndex, 10);
+      const v = isFinite(z) ? z : 0;
+      if (v >= zMax){ zMax = v; arriba = o; }
+    });
+  }
+  document.querySelectorAll('.overlay, .ios-modal').forEach(o => {
+    /* Sólo los ABIERTOS que no son el de arriba. Uno cerrado ya está fuera del tabulado por su
+       `display:none`, y marcarlo inert sería ruido que después hay que acordarse de limpiar. */
+    if (o !== arriba && o.classList.contains('show')) o.setAttribute('inert', '');
+    else o.removeAttribute('inert');
+  });
+}
+
 const _scrollObs = new MutationObserver(syncScrollLock);
 document.querySelectorAll('.overlay, .ios-modal').forEach(el => _scrollObs.observe(el, { attributes:true, attributeFilter:['class'] }));
 
