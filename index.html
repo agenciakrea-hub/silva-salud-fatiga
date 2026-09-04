@@ -502,8 +502,20 @@
      oscuro) pero `background_color` del manifest es fijo `#0a1f40`: en tema oscuro la pantalla del
      sistema pintaba un azul y ésta otro, y el salto de color era exactamente lo que este bloque
      viene a eliminar. Acá el valor tiene que seguir al MANIFEST, no al tema. */
+  /* ⚠️ TERCERA VERSIÓN DE ESTO, y las dos anteriores estuvieron mal por razones opuestas.
+     · La 1ª pintaba `icon-192.png` a 96 px: el sistema muestra el logo COMPLETO (el del `.png` con
+       el texto "AeroAmbulancias Silva") y grande, así que se veía achicarse. Y encima con un fade.
+     · La 2ª no pintaba nada: quedaba un rectángulo azul VACÍO durante segundos, que es peor —
+       Franco mandó la captura.
+     Lo que hace que la transición sea invisible no es poner o no poner logo: es poner **el mismo
+     logo, del mismo tamaño y en la misma posición** que la pantalla del sistema. Medido sobre la
+     captura: el logo ocupa ~31% del ancho y está centrado. De ahí el 31vw con tope.
+     ⚠️ Sin `transition` ni `animation`: cualquiera de las dos reintroduce el parpadeo. */
   #preCarga { position: fixed; inset: 0; z-index: 999; background: var(--arranque-bg);
-    pointer-events: none; }
+    pointer-events: none; display: flex; align-items: center; justify-content: center; }
+  /* 31vw medido sobre la captura de la pantalla del sistema: el logo ocupa ~31% del ancho. El
+     `min-width` de 150 lo empujaba a 38% en un teléfono de 390 y volvía a haber salto de tamaño. */
+  #preCarga img { width: 31vw; max-width: 240px; min-width: 104px; height: auto; }
   /* ⚠️ SIN LOGO Y SIN TRANSICIÓN, A PROPÓSITO — y la primera versión tenía los dos, mal.
      El sistema ya muestra SU pantalla de arranque con el ícono del manifest, a su tamaño (grande).
      Yo volvía a pintar el mismo ícono a 96 px fijos: el logo grande desaparecía y aparecía uno
@@ -2324,8 +2336,9 @@
   /* Variante 1: naranja sobre navy — el fondo es navy, el círculo naranja se superpone arriba.
      Es la que va en el splash (fondo navy de toda la app) y en la mitad "Iniciar sesión" del
      mockup de referencia. */
-  .ent-circulos--naranja-navy::before { width:78%; background:var(--navy-card); top:-30%; right:-24%; z-index:1; }
-  .ent-circulos--naranja-navy::after  { width:56%; background:var(--entrada-naranja); top:-20%; right:-10%; z-index:2; }
+  /* Espejados con el logo: la composición naranja se ancla a la IZQUIERDA. */
+  .ent-circulos--naranja-navy::before { width:78%; background:var(--navy-card); top:-30%; left:-24%; right:auto; z-index:1; }
+  .ent-circulos--naranja-navy::after  { width:56%; background:var(--entrada-naranja); top:-20%; left:-10%; right:auto; z-index:2; }
   /* Variante 2: navy sobre naranja — la inversa, para distinguir visualmente un segundo bloque
      (p. ej. "Crear cuenta" al lado de "Iniciar sesión", como en el mockup: dos tarjetas
      contiguas que alternan cuál color queda arriba). */
@@ -2418,7 +2431,17 @@
      ESCRITORIO se queda a la derecha: ahí la pantalla se parte en dos y la mitad derecha es la
      tarjeta clara, que es la superficie para la que están pensados sus colores. Moverlo a la
      izquierda en escritorio lo pondría sobre el navy con tinta de tarjeta clara. */
-  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); left:16px; z-index:5;
+  /* ⚠️ A LA DERECHA. El logo de marca vive arriba a la izquierda: en lectura de izquierda a derecha,
+     lo primero que se ve tiene que ser quién es la app, no un control de idioma. */
+  /* Pie: la credencial normativa. Discreta y legible — es lo que mira un auditor, no la persona. */
+  /* ⚠️ `rgba(255,255,255,.6)` y no un token: el splash tiene fondo NAVY fijo en los dos temas, así
+     que acá el blanco translúcido es el patrón —lo mismo hacen `.splash-sub` y `.splash-link` tres
+     reglas más arriba—. Y `--entrada-sub`, que fue lo primero que escribí, NO EXISTE: lo agarró la
+     prueba de tokens. Es la quinta vez que invento un nombre plausible; ahora al menos salta sola. */
+  .splash-norma { font-size:.66rem; line-height:1.35; color:rgba(255,255,255,.6);
+    margin:.5rem 0 0; max-width:34ch; }
+
+  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; left:auto; z-index:5;
     background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
@@ -2447,7 +2470,10 @@
      con las cuatro esquinas y contra la deriva, así que si se cambia el tamaño del círculo o el del
      logo, salta.
      Yo lo había achicado a 58 px por mi cuenta, sin que nadie lo pidiera. Vuelve a 92. */
-  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); right:24px; z-index:5;
+  /* ⚠️ EL LOGO VA A LA IZQUIERDA Y EL IDIOMA A LA DERECHA (pedido de Franco). Se espejan los DOS
+     juntos: el logo se ancla dentro del círculo naranja, así que mover uno sin el otro deja el logo
+     flotando sobre el fondo azul. Ver `--naranja-navy` abajo, que también se espeja. */
+  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); left:24px; right:auto; z-index:5;
     width:min(92px, 24.5vw); height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
   /* ⚠️ EL CÍRCULO CRECE UN POCO, Y SÓLO EN EL SPLASH DE TELÉFONO. No es un retoque estético: es
      lo que hace que el logo entre.
@@ -2650,16 +2676,16 @@
   .spl-ef-punto { position: absolute; left: 43%; top: 52%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
     border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px var(--card); }
 
-  /* ── Gráfico de la lámina de cultura justa: una balanza equilibrada ──
-     Deliberadamente quieta y simétrica. Es el único mensaje del splash que no habla de lo que la app
-     mide sino de lo que la empresa se compromete a NO hacer, y un dibujo inquieto lo contradiría. */
+  /* ── Gráfico de la lámina de cultura justa: un escudo con el reporte adentro ──
+     ⚠️ Antes era una balanza, y una balanza dice "acá se juzga" — lo contrario del mensaje. El
+     escudo dice que lo que se reporta queda protegido, que es exactamente el compromiso.
+     Quieto a propósito: es el único mensaje del splash que no habla de lo que la app mide sino de
+     lo que la empresa se compromete a NO hacer, y un dibujo inquieto lo contradiría. */
   .spl-justa { display: flex; align-items: center; justify-content: center; }
-  .spl-esc { position: relative; display: block; width: 92px; height: 46px; }
-  .spl-esc i { position: absolute; background: var(--orange); border-radius: 2px; }
-  .spl-esc i:nth-child(1) { left: 50%; top: 0; width: 2px; height: 46px; margin-left: -1px; opacity: .55; }
-  .spl-esc i:nth-child(2) { left: 0; top: 12px; width: 92px; height: 2px; }
-  .spl-esc i:nth-child(3) { left: 50%; top: 6px; width: 12px; height: 12px; margin-left: -6px;
-    border-radius: 50%; }
+  .spl-justa svg { width: 56px; height: 56px; overflow: visible; }
+  .spl-ju-escudo { fill: none; stroke: var(--orange); stroke-width: 3.5; stroke-linejoin: round; }
+  .spl-ju-tilde  { fill: none; stroke: var(--orange); stroke-width: 4.5; stroke-linecap: round;
+    stroke-linejoin: round; }
 
   .spl-linea { position: relative; }
   .spl-linea svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -2866,6 +2892,20 @@
      mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
      por debajo de lo legible. */
   .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
+  /* ⚠️ APRETADO EN TELÉFONO (pedido de Franco sobre la captura). En la pantalla real había
+     demasiado aire entre el título, el botón y los tres enlaces: el ojo tiene que recorrer media
+     pantalla para llegar de una cosa a la otra, y el contenido de abajo —las láminas— quedaba
+     empujado fuera de vista.
+     Se aprieta sólo por debajo de 900 px: en escritorio el aire está bien y ya se auditó. */
+  @media (max-width:899px){
+    .splash-h1 { line-height:1.2; margin-bottom:.35rem; }
+    .splash-sub { font-size:.88rem; line-height:1.4; margin-bottom:16px; }
+    .splash-acciones { margin-bottom:.4rem; }
+    .splash-pie { gap:.15rem; margin-top:.5rem; }
+    .splash-link { padding:.4rem .5rem; font-size:.82rem; }
+    .splash-link--admin { font-size:.72rem; }
+    .splash-norma { font-size:.62rem; margin-top:.35rem; }
+  }
   @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
     .splash-wrap{ padding-top:calc(env(safe-area-inset-top,0px) + 88px); } }
 
@@ -3073,7 +3113,7 @@
        inverso al que J7 arregla. `--chip-bg`/`--text-soft` son theme-aware y resuelven los dos. */
     /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
        arriba sino dentro de la columna izquierda, en el flujo. */
-    .splash-lang { left: auto; right: 16px;
+    .splash-lang { right: 16px; left: auto;
       background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
 
     /* ═══ B2 · Carrusel ═══
@@ -4347,7 +4387,7 @@
 <body>
 <!-- Lo PRIMERO del body a propósito: es lo que el navegador pinta antes de ejecutar nada. Ver el
      bloque PRE-ARRANQUE en el CSS. -->
-<div id="preCarga" aria-hidden="true"></div>
+<div id="preCarga" aria-hidden="true"><img src="logo.png" alt="" width="220" height="220"></div>
 <script>
 /* ⚠️ EL SEGURO DEL PRE-ARRANQUE, Y VA ACÁ POR DOS RAZONES (auditoría 2026-09-03).
    Qué hace: si a los 8 s el script principal todavía no marcó el body como listo, se destapa igual.
@@ -4628,7 +4668,10 @@
 <div class="overlay" id="splashOv">
   <div class="splash-wrap">
     <div class="splash-circ-band"><div class="ent-circulos ent-circulos--naranja-navy" aria-hidden="true"></div></div>
-    <button type="button" class="splash-lang" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma">ES</button>
+    <!-- ⚠️ El idioma va a la DERECHA y el logo a la izquierda (pedido de Franco). El logo es lo que
+         identifica, y en lectura de izquierda a derecha lo primero que se ve tiene que ser quién es
+         la app, no un control. -->
+    <button type="button" class="splash-lang splash-lang--der" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma">ES</button>
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
@@ -4663,6 +4706,12 @@
         <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
         <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
         <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
+        <!-- ⚠️ DECLARACIÓN DE CUMPLIMIENTO. Dice "alineado con los lineamientos de", NUNCA
+             "certificado por": no tenemos ninguna certificación y es lo primero que un auditor
+             verifica. Una promesa de más acá cuesta la credibilidad de todo lo demás.
+             Va en el pie y no en el cuerpo porque es una credencial, no un argumento de venta:
+             quien la busca la encuentra, y a quien no le importa no le ocupa la pantalla. -->
+        <p class="splash-norma" data-i18n="splash_norma">Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.</p>
       </div>
       </div><!-- /.splash-der -->
     </div>
@@ -4743,10 +4792,18 @@
                    decidir usar la app. Quien todavía no confía no llegaba nunca. Es lo que decide si
                    alguien reporta honestamente, y por eso va acá. -->
               <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
-                  <div class="spl-p-tx"><b data-i18n="spl_justa_t">Reportar no se sanciona</b><span data-i18n="spl_justa_d">Los datos sirven para prevenir y para cuidarte. Nunca para castigar a quien reporta.</span></div>
+                  <div class="spl-p-tx"><b data-i18n="spl_justa_t">Cultura justa</b><span data-i18n="spl_justa_d">Reportar fatiga no tiene consecuencias para tu trabajo. Es el principio que sostiene todo el programa.</span></div>
+                  <!-- ⚠️ Una balanza no decía nada: podía leerse como "se juzga", que es lo contrario.
+                       Acá se muestra el escudo con el reporte adentro: lo que se reporta queda
+                       protegido. El chip nombra el principio, porque "cultura justa" es el término
+                       del marco FRMS y quien lo conoce tiene que reconocerlo. -->
                   <div class="spl-p-gr spl-justa" aria-hidden="true">
-                    <span class="spl-esc"><i></i><i></i><i></i></span>
+                    <svg viewBox="0 0 64 64" width="64" height="64">
+                      <path class="spl-ju-escudo" d="M32 5 L56 14 V32 C56 46 45 55 32 59 C19 55 8 46 8 32 V14 Z"/>
+                      <path class="spl-ju-tilde" d="M21 32 L29 40 L44 24"/>
+                    </svg>
                   </div>
+                  <span class="spl-chip" data-i18n="spl_justa_chip">No punitivo</span>
                 </div></div>
 
               <div class="splash-anim-slide" data-espera="3200"><div class="spl-p">
@@ -5475,7 +5532,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.97';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.98';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5561,8 +5618,9 @@ const I18N = {
       spl_safte_t:'Modelo predictivo SAFTE',
       spl_safte_d:'Estima la efectividad hora por hora a partir del ciclo real de cada persona. Con wearable, la precisión sube.',
       spl_safte_chip:'Proyectando…',
-      spl_justa_t:'Reportar no se sanciona',
-      spl_justa_d:'Los datos sirven para prevenir y para cuidarte. Nunca para castigar a quien reporta.',
+      spl_justa_t:'Cultura justa',
+      spl_justa_chip:'No punitivo',
+      spl_justa_d:'Reportar fatiga no tiene consecuencias para tu trabajo. Es el principio que sostiene todo el programa.',
       spl_p1_t_viejo:'Analítica Operativa',
       spl_p1_d_viejo:'Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.',
       spl_p2_t:'Prevención e Impacto',
@@ -5579,6 +5637,7 @@ const I18N = {
       splash_demo:'Ver una demostración',
       splash_portal:'Soy supervisor, servicio médico o dirección',
       splash_admin:'Administrador',
+      splash_norma:'Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.',
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
       car1_tit:'La fatiga es un riesgo, no una debilidad',
@@ -7035,8 +7094,9 @@ const I18N = {
       spl_safte_t:'SAFTE predictive model',
       spl_safte_d:'Estimates hour-by-hour effectiveness from each person\'s real cycle. With a wearable, accuracy improves.',
       spl_safte_chip:'Projecting…',
-      spl_justa_t:'Reporting is never penalised',
-      spl_justa_d:'The data is there to prevent and to look after you. Never to punish whoever reports.',
+      spl_justa_t:'Just culture',
+      spl_justa_chip:'Non-punitive',
+      spl_justa_d:'Reporting fatigue has no consequences for your job. It is the principle the whole programme rests on.',
       spl_p1_t_viejo:'Operational Analytics',
       spl_p1_d_viejo:'An integrated system to prevent accidents, optimise shifts and keep the workplace safe.',
       spl_p2_t:'Prevention and Impact',
@@ -7053,6 +7113,7 @@ const I18N = {
       splash_demo:'See a demo',
       splash_portal:'I am a supervisor, medical staff or management',
       splash_admin:'Administrator',
+      splash_norma:'Fatigue management programme aligned with ICAO guidance (Doc 9966) and ISO 45001.',
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──
       car1_tit:'Fatigue is a risk, not a weakness',

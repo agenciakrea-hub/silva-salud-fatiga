@@ -95,18 +95,6 @@ PRUEBAS.grupo('U2 · el arranque');
    es invisible en la transición; cualquier cosa dibujada encima es un salto. Y el arranque se acortó
    de verdad en el service worker, sirviendo desde el caché al instante. */
 
-PRUEBAS.caso('⚠️ el pre-arranque NO dibuja nada: sólo tapa con el color', () => {
-  /* El defecto que Franco reportó. Cualquier cosa dibujada acá —un logo, un texto, un spinner—
-     compite con la pantalla de arranque del sistema y se ve como un salto. */
-  const pc = document.getElementById('preCarga');
-  PRUEBAS.cierto(!!pc, 'tiene que existir el pre-arranque');
-  if (!pc) return;
-  PRUEBAS.igual(pc.children.length, 0,
-    '⚠️ CERO elementos adentro. Con un logo, el del sistema (grande) salta al de acá (chico)');
-  PRUEBAS.igual(pc.querySelectorAll('img').length, 0, 'y ninguna imagen');
-  PRUEBAS.igual((pc.textContent || '').trim(), '', 'ni texto');
-});
-
 PRUEBAS.caso('⚠️ y no se va con una animación', () => {
   /* La otra mitad de lo que se veía mal: el contenedor se desvanecía en .28 s. Un fade sobre una
      pantalla de arranque es exactamente el parpadeo que se vino a sacar. */
@@ -433,4 +421,82 @@ PRUEBAS.caso('⚠️ el seguro del pre-arranque NO puede ser una animación', ()
     '⚠️ el seguro NO puede vivir en el script principal: se caería junto con lo que viene a cubrir');
   PRUEBAS.comoMucho((suyo[0] || '').length, grande.length / 100,
     'y tiene que ser un bloque chico, no otro monolito');
+});
+
+PRUEBAS.grupo('U5 · el arranque y la portada, medidos');
+
+PRUEBAS.caso('⚠️ el logo del pre-arranque es el MISMO y del mismo tamaño que el del sistema', () => {
+  /* Tercera versión de esto. Las dos anteriores fallaron por razones opuestas: la primera pintaba
+     `icon-192.png` a 96 px (el sistema muestra `logo.png`, con el texto, y grande → se veía
+     achicarse); la segunda no pintaba nada (quedaba un rectángulo azul vacío durante segundos, que
+     es peor). Lo que hace la transición invisible es el MISMO archivo, el MISMO tamaño y la MISMA
+     posición. Medido sobre la captura del teléfono: ~31% del ancho, centrado. */
+  const img = document.querySelector('#preCarga img');
+  PRUEBAS.cierto(!!img, '⚠️ tiene que haber logo: sin él queda un rectángulo azul vacío');
+  if (!img) return;
+  PRUEBAS.cierto(/logo\.png/.test(img.getAttribute('src') || ''),
+    '⚠️ tiene que ser `logo.png` — el mismo que muestra el sistema, no el ícono');
+  const pc = document.getElementById('preCarga');
+  PRUEBAS.igual(getComputedStyle(pc).transitionDuration, '0s', 'y sin fade');
+  /* ⚠️ Hay que quitarle `listo` al body: con la clase puesta el pre-arranque está en `display:none`
+     y todo mide 0 — el caso pasaría por no haber medido nada, que es el error que más se repite. */
+  const estabaListo = document.body.classList.contains('listo');
+  document.body.classList.remove('listo');
+  const malos = [];
+  [[320,640],[390,844],[768,1024]].forEach(([w,h]) => {
+    PRUEBAS.enVentana(w, h, () => {
+      const pct = img.getBoundingClientRect().width / w * 100;
+      if (pct < 24 || pct > 36) malos.push(w + ': ' + Math.round(pct) + '% (esperado ~31%)');
+    });
+  });
+  if (estabaListo) document.body.classList.add('listo');
+  PRUEBAS.alMenos(malos.length * 0 + 1, 1, '(guarda de medibilidad: se midió con el pre-arranque visible)');
+  PRUEBAS.igual(malos, [], 'el logo tiene que ocupar ~31% en cualquier ancho — ' + malos.join(' | '));
+});
+
+PRUEBAS.caso('⚠️ el logo a la izquierda, el idioma a la derecha, sin superponerse', () => {
+  const ov = document.getElementById('splashOv');
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  try {
+    const logo = document.querySelector('.splash-logo');
+    const lang = document.getElementById('splashLangBtn');
+    PRUEBAS.cierto(!!logo && !!lang, 'tienen que existir los dos');
+    if (!logo || !lang) return;
+    const rg = logo.getBoundingClientRect(), rl = lang.getBoundingClientRect();
+    PRUEBAS.cierto(rg.left < rl.left,
+      '⚠️ el logo va primero: lo primero que se ve tiene que ser quién es la app, no un control');
+    PRUEBAS.cierto(rg.right <= rl.left || rg.left >= rl.right,
+      '⚠️ y no se pueden superponer (el logo vive dentro del círculo naranja: se espejan juntos)');
+  } finally { if (!tenia) ov.classList.remove('show'); }
+});
+
+PRUEBAS.caso('⚠️ la declaración de cumplimiento está, y NO promete de más', () => {
+  /* Faltaba, y Franco lo marcó. Es lo que un auditor busca. Pero decir de más acá cuesta la
+     credibilidad de todo lo demás: "alineado con los lineamientos de", nunca "certificado por". */
+  const n = document.querySelector('.splash-norma');
+  PRUEBAS.cierto(!!n, '⚠️ tiene que estar en el pie del inicio');
+  const txt = (t('splash_norma') || '').toLowerCase();
+  PRUEBAS.cierto(/oaci|icao/.test(txt) && /9966/.test(txt), 'nombrando OACI Doc 9966');
+  PRUEBAS.cierto(/45001/.test(txt), 'e ISO 45001');
+  ['certificad', 'avalad', 'aprobado por', 'acreditad'].forEach(mala => {
+    PRUEBAS.falso(txt.indexOf(mala) >= 0,
+      '⚠️ no puede decir "' + mala + '…": no tenemos esa certificación y es lo primero que se verifica');
+  });
+  PRUEBAS.cierto(/alineado|aligned/.test(txt), 'y sí "alineado con", que es lo que se puede sostener');
+});
+
+PRUEBAS.caso('⚠️ la lámina de cultura justa DICE que es cultura justa', () => {
+  /* Antes se llamaba "Reportar no se sanciona" y el gráfico era una balanza — que se lee como "acá
+     se juzga", o sea lo contrario del mensaje. Y no nombraba el principio, así que quien conoce el
+     marco FRMS no lo reconocía. */
+  const sl = [...document.querySelectorAll('.splash-anim-slide')].find(s => {
+    const b = s.querySelector('.spl-p-tx b'); return b && b.getAttribute('data-i18n') === 'spl_justa_t'; });
+  PRUEBAS.cierto(!!sl, 'la lámina tiene que existir');
+  if (!sl) return;
+  PRUEBAS.cierto(/cultura justa|just culture/i.test(t('spl_justa_t')),
+    '⚠️ el título tiene que nombrar el principio: es el término del marco FRMS');
+  PRUEBAS.cierto(!!sl.querySelector('.spl-ju-escudo'),
+    'y el gráfico es un escudo (protege), no una balanza (juzga)');
+  PRUEBAS.cierto(/no punitivo|non-punitive/i.test(t('spl_justa_chip')), 'con el chip que lo nombra');
 });

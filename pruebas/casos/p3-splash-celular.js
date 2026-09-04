@@ -54,36 +54,31 @@ PRUEBAS.caso('⚠️ el logo entra en el círculo naranja, en todo teléfono', (
     'por una esquina queda medio sobre el naranja y medio sobre el navy, que es lo que se pidió evitar');
 });
 
-PRUEBAS.caso('⚠️ el logo y el idioma ocupan esquinas opuestas, y se invierten en escritorio', () => {
-  /* En teléfono el logo va a la DERECHA porque ahí está el círculo, y el botón de idioma a la
-     izquierda. En escritorio se invierte: la pantalla se parte en dos, el logo baja al flujo de la
-     columna izquierda y el botón vuelve a la derecha — que es la mitad clara, la superficie para la
-     que están pensados sus colores. Moverlo a la izquierda en escritorio lo dejaría con tinta de
-     tarjeta clara sobre el navy. */
+PRUEBAS.caso('⚠️ el logo y el idioma ocupan esquinas opuestas', () => {
+  /* ⚠️ SE INVIRTIERON el 2026-09-04, a pedido de Franco: el LOGO va a la izquierda y el idioma a la
+     derecha. Antes era al revés y este caso lo fijaba así.
+     Lo que hay que vigilar NO es de qué lado está cada uno —eso es una decisión de diseño que puede
+     volver a cambiar— sino que estén en esquinas OPUESTAS y que el logo vaya primero. Si se juntan,
+     el chip de idioma tapa el logo: es lo que pasa si alguien mueve uno solo de los dos, porque el
+     logo vive anclado dentro del círculo naranja y los dos tienen que espejarse juntos. */
   const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
+  const tenia = ov.classList.contains('show');
   ov.classList.add('show');
-
-  const tel = PRUEBAS.enVentana(390, 844, () => {
-    const l = document.querySelector('.splash-logo').getBoundingClientRect();
-    const i = document.querySelector('.splash-lang').getBoundingClientRect();
-    return { logoALaDerecha: l.left > innerWidth / 2, idiomaALaIzquierda: i.left < innerWidth / 2,
-             chocan: l.left < i.right && l.right > i.left && l.top < i.bottom && l.bottom > i.top };
-  });
-  const esc = PRUEBAS.enVentana(1366, 768, () => {
-    const l = document.querySelector('.splash-logo');
-    const i = document.querySelector('.splash-lang').getBoundingClientRect();
-    return { logoEnFlujo: getComputedStyle(l).position === 'static',
-             idiomaALaDerecha: i.left > innerWidth / 2 };
-  });
-  if (!yaAbierto) ov.classList.remove('show');
-
-  PRUEBAS.cierto(tel.logoALaDerecha, 'en teléfono el logo va a la derecha, que es donde está el círculo');
-  PRUEBAS.cierto(tel.idiomaALaIzquierda, 'y el botón de idioma a la izquierda');
-  PRUEBAS.falso(tel.chocan, 'y no pueden superponerse');
-  PRUEBAS.cierto(esc.logoEnFlujo, 'en escritorio el logo vuelve al flujo, encabezando la columna');
-  PRUEBAS.cierto(esc.idiomaALaDerecha,
-    'y el idioma vuelve a la derecha: sus colores son para la tarjeta clara, no para el navy');
+  const malos = [];
+  try {
+    [[320,640],[390,844],[768,1024]].forEach(([w,h]) => {
+      PRUEBAS.enVentana(w, h, () => {
+        const logo = document.querySelector('.splash-logo');
+        const lang = document.getElementById('splashLangBtn');
+        if (!logo || !lang) { malos.push(w + ': falta uno de los dos'); return; }
+        const rg = logo.getBoundingClientRect(), rl = lang.getBoundingClientRect();
+        if (!(rg.width > 0 && rl.width > 0)) { malos.push(w + ': no medibles'); return; }
+        if (rg.left >= rl.left) malos.push(w + ': el logo no va primero');
+        if (!(rg.right <= rl.left || rg.left >= rl.right)) malos.push(w + ': se superponen');
+      });
+    });
+  } finally { if (!tenia) ov.classList.remove('show'); }
+  PRUEBAS.igual(malos, [], 'logo a la izquierda, idioma a la derecha, sin tocarse — ' + malos.join(' | '));
 });
 
 PRUEBAS.caso('⚠️ los tres accesos están JUNTO al botón, no sueltos', () => {
