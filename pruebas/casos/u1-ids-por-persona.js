@@ -483,7 +483,11 @@ PRUEBAS.caso('⚠️ la declaración de cumplimiento está, y NO promete de más
     PRUEBAS.falso(txt.indexOf(mala) >= 0,
       '⚠️ no puede decir "' + mala + '…": no tenemos esa certificación y es lo primero que se verifica');
   });
-  PRUEBAS.cierto(/alineado|aligned/.test(txt), 'y sí "alineado con", que es lo que se puede sostener');
+  /* "ajustado a" / "built to" — Franco pidió el cambio: "alineado" suena a coincidencia, "ajustado"
+     dice que el programa se construyó CONTRA esos lineamientos. Sigue sin prometer certificación,
+     que es lo que este caso vigila de verdad. */
+  PRUEBAS.cierto(/ajustado a|built to|alineado|aligned/.test(txt),
+    'y sí una fórmula que se pueda sostener, sin prometer certificación');
 });
 
 PRUEBAS.caso('⚠️ el pie del inicio SE PUEDE LEER en la pantalla más chica', () => {
