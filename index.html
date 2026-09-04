@@ -39,6 +39,9 @@
 
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
 
+<!-- `preload` para que la imagen del pre-arranque llegue con el HTML y no una vuelta después:
+     si tarda, el hueco de pantalla azul vacía vuelve, que es justo lo que se vino a sacar. -->
+<link rel="preload" as="image" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
@@ -476,6 +479,32 @@
      el patrón de la industria para una app con navegación inferior fija —Gmail, Instagram, la
      mayoría de las PWA "tipo app"— es apagar ese gesto a propósito, porque es la MISMA causa de
      este mismo bug. Anotado en PENDIENTES_USUARIO.md por si Franco prefiere lo contrario. */
+  /* ════════════ PRE-ARRANQUE (2026-09-03) ════════════════════════════════════════════════════
+     Franco lo reportó así: "aparece el logo, y desaparece el logo, mientras hay fondo azul se ve el
+     link de la web arriba, luego aparece el splash intro; un detalle feo que antes no estaba."
+
+     Qué pasaba. El navegador muestra SU pantalla de arranque (el ícono sobre `background_color` del
+     manifest) y la quita en cuanto la página hace su primer pintado. Ese primer pintado era
+     `html { background }`: azul, y VACÍO — porque el splash de la app lo muestra `splashMostrar()`,
+     que corre recién después de parsear las ~21.000 líneas del archivo. En ese hueco de pantalla
+     azul sin nada, Chrome aprovecha para mostrar la dirección del sitio, que es el "link flotando"
+     que se ve. Antes no se notaba porque sin service worker el arranque era otro.
+
+     Qué hace esto. Pinta el logo sobre el mismo azul ANTES de que corra una línea de JavaScript:
+     está en el CSS del <head>, así que entra en el primer pintado. La transición pasa a ser
+     logo → logo → splash, sin ningún hueco vacío en el medio.
+
+     ⚠️ Se apaga solo a los 8 s aunque el JS nunca llegue a quitarlo. Si el script se corta (que en
+     este archivo ya pasó tres veces por orden de declaración, ver R16), es preferible ver la app
+     rota que una pantalla tapada para siempre sin explicación. */
+  #preCarga { position: fixed; inset: 0; z-index: 999; display: flex; align-items: center;
+    justify-content: center; background: var(--navy-deep);
+    animation: preCargaRed 8s forwards; }
+  #preCarga img { width: 96px; height: auto; opacity: .92; }
+  body.listo #preCarga { opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+  @keyframes preCargaRed { 0%,99% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) { body.listo #preCarga { transition: none; } }
+
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden;
     overscroll-behavior-y: none; }
 
@@ -4198,6 +4227,9 @@
 </style>
 </head>
 <body>
+<!-- Lo PRIMERO del body a propósito: es lo que el navegador pinta antes de ejecutar nada. Ver el
+     bloque PRE-ARRANQUE en el CSS. -->
+<div id="preCarga" aria-hidden="true"><img src="icon-192.png" alt="" width="96" height="96"></div>
 
 <div class="wrap" id="app" style="display:none;">
 
@@ -5240,7 +5272,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.85';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.86';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -20336,6 +20368,9 @@ mostrarVista('inicio');
 /* La vista se prepara igual (para que el estado quede armado), pero la app queda oculta hasta que
    el alta termine: ver appRevelar(). */
 appRevelar(perfilCompleto(getProfile()));
+/* Se apaga el pre-arranque recién ACÁ: en este punto ya está decidido qué se ve (la app o el
+   splash), así que la transición no muestra ningún estado intermedio. */
+document.body.classList.add('listo');
 sectorRefrescar();   // A3: si su empresa cambió de sector en el CH, la terminología se actualiza sola
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
 empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento

@@ -77,3 +77,56 @@ PRUEBAS.caso('⚠️ y viaja `idPrevio`, para que el servidor actualice la fila 
   PRUEBAS.cierto(/consentimiento_guardar'[\s\S]{0,200}idPrevio/.test(fuenteOp),
     'y el consentimiento, que es la evidencia legal de que se informó');
 });
+
+PRUEBAS.grupo('U2 · el arranque no muestra una pantalla azul vacía');
+
+/* ⚠️ POR QUÉ EXISTE. Franco lo reportó mirando la app: "aparece el logo, y desaparece el logo,
+   mientras hay fondo azul se ve el link de la web arriba, luego aparece el splash intro; un detalle
+   feo que antes no estaba."
+   El navegador muestra SU pantalla de arranque (ícono sobre el `background_color` del manifest) y la
+   quita en cuanto la página hace su primer pintado. Ese primer pintado era `html { background }`:
+   azul y VACÍO, porque el splash de la app lo muestra `splashMostrar()`, que corre recién después de
+   parsear ~21.000 líneas. En ese hueco Chrome aprovecha para mostrar la dirección del sitio.
+   Antes no se notaba porque el service worker no instalaba y el arranque era otro. */
+
+PRUEBAS.caso('⚠️ hay algo pintado antes de que corra una línea de JavaScript', () => {
+  const pc = document.getElementById('preCarga');
+  PRUEBAS.cierto(!!pc, 'tiene que existir el elemento de pre-arranque');
+  if (!pc) return;
+  /* Que esté ANTES del script es lo que hace que entre en el primer pintado. Si alguien lo mueve
+     más abajo, o lo pinta con JS, vuelve el hueco. */
+  const cuerpo = document.body;
+  PRUEBAS.igual(cuerpo.firstElementChild && cuerpo.firstElementChild.id, 'preCarga',
+    '⚠️ tiene que ser el PRIMER hijo del body: más abajo ya no llega al primer pintado');
+  PRUEBAS.cierto(/#preCarga\s*{/.test([...document.querySelectorAll('style')].map(x=>x.textContent).join('')),
+    'y estar resuelto por CSS, no por JavaScript');
+});
+
+PRUEBAS.caso('⚠️ su fondo es EXACTAMENTE el del manifest, o se ve un salto de color', () => {
+  /* El navegador pinta su pantalla de arranque con `background_color` del manifest. Si el
+     pre-arranque usara otro azul, la transición entre las dos sería un parpadeo de color —el mismo
+     tipo de detalle que se vino a sacar. */
+  const pc = document.getElementById('preCarga');
+  if (!pc) { PRUEBAS.cierto(false, 'no existe el pre-arranque'); return; }
+  const fondo = getComputedStyle(pc).backgroundColor;
+  const m = String(fondo).match(/\d+/g) || [];
+  const hex = '#' + m.slice(0,3).map(n => Number(n).toString(16).padStart(2,'0')).join('');
+  PRUEBAS.igual(hex, '#0a1f40',
+    '⚠️ tiene que coincidir con background_color y theme_color del manifest (dio ' + fondo + ')');
+});
+
+PRUEBAS.caso('⚠️ y se apaga cuando la app ya decidió qué mostrar', () => {
+  /* Si no se apagara, taparía la app para siempre. Y tiene que apagarse DESPUÉS de que se decida
+     entre splash y app, o se vería el estado intermedio que este arreglo vino a esconder. */
+  PRUEBAS.cierto(document.body.classList.contains('listo'),
+    'al terminar el arranque, el body tiene que quedar marcado como listo');
+  const pc = document.getElementById('preCarga');
+  if (pc) PRUEBAS.igual(getComputedStyle(pc).opacity, '0', 'y el pre-arranque, invisible');
+
+  /* La red de seguridad: si el script se corta —que en este archivo ya pasó tres veces por orden de
+     declaración (R16)— el pre-arranque tiene que apagarse solo igual. Es preferible ver la app rota
+     que una pantalla tapada para siempre sin ninguna explicación. */
+  const css = [...document.querySelectorAll('style')].map(x=>x.textContent).join('');
+  PRUEBAS.cierto(/animation:\s*preCargaRed/.test(css),
+    '⚠️ tiene que tener el apagado automático por CSS, para el caso de que el JS no llegue nunca');
+});
