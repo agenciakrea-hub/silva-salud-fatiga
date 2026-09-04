@@ -864,8 +864,18 @@
   .nom-elegido { background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 12px;
     padding: .7rem .85rem; font-size: .9rem; font-weight: 800; color: var(--sem-ambar-txt); }
   .nom-err { color: var(--sem-rojo-alt); font-size: .8rem; font-weight: 700; margin-top: .5rem; min-height: 1.1rem; line-height: 1.4; }
-  .nom-pie { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: 1.1rem;
+  /* ⚠️ Q4d · EN COLUMNA, y lo encontré MIRANDO la pantalla, no midiendo. Este pie tenía dos enlaces
+     y entraban en una fila; Q4b le agregó el tercero ("Vengo a ver el panel de mi empresa") y con
+     `row` + `nowrap` los tres se comprimieron. Medido: a 320 px quedaban en 54, 84 y 79 px de ancho
+     y ocupaban 5, 4 y SEIS renglones cada uno — un bloque de texto amontonado donde antes había dos
+     enlaces legibles. A 768 seguían en tres renglones.
+     El auditor no lo marcó y tenía razón: el texto se ve entero, sólo envuelto. Es exactamente la
+     clase de defecto que la medición no da y que salta a la vista en una captura.
+     Apilados, cada uno ocupa su renglón completo y su área de toque cubre todo el ancho, que
+     además es lo que ya hace el pie de la portada. */
+  .nom-pie { display: flex; flex-direction: column; align-items: stretch; gap: .1rem; margin-top: 1.1rem;
     padding-top: .8rem; border-top: 1px solid var(--linea); }
+  .nom-pie .nom-link { justify-content: center; text-align: center; }
   /* I2: medían 27 px de alto, en seis lugares del flujo de alta (Cerrar, Actualizar, No estoy
      en la lista, Ya me había registrado…). El padding lateral además los separa entre sí: antes
      dos enlaces contiguos se tocaban casi sin margen de error. */
@@ -5672,7 +5682,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.20';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.23';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12348,6 +12358,7 @@ function nominaManual(){ altaProgresoLimpiar(); nominaCerrar(); openSetup(false)
 function nominaSoyGestor(){
   nominaCerrar();
   splashAbrirPortal();
+  portalReponerLoDeEmpresa();
   ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
     const b = document.getElementById(id); if (b) b.style.display = '';
   });
@@ -13068,6 +13079,7 @@ function portalAbrirDirecto(){
 
 function openPortalGate(){
   cargaCancelar();                    // volver al selector cancela la carga en curso
+  portalReponerLoDeEmpresa();
   portalPintarOlvidar();
   document.getElementById('portalGate').style.display = '';
   document.getElementById('portalDash').style.display = 'none';
@@ -13088,7 +13100,13 @@ function openPortalGate(){
   // salir entre Personal/Supervisor/Servicio médico se siente continuo, sin forzar siempre la
   // misma. Si no hay pista (primera vez, o venía de la demo), cae en la lógica de antes.
   const vistaPrevia = DASH && DASH.vista;
-  if (puedeEmpresa && c && c.usuario){                   // credenciales recordadas → prefill
+  /* ⚠️ Q4d · SIN `puedeEmpresa`. Era el MISMO defecto que Q4c arregló en `openPortal`, un piso más
+     abajo: el prefill exigía perfil de supervisor, y quien sólo usa el panel tiene `getProfile()`
+     en `null` para siempre. Efecto medido: al vencerle la sesión veía el gate con los dos campos
+     vacíos, incluido el usuario que la app tenía guardado.
+     Precargar un nombre de usuario no autoriza nada —entrar sigue necesitando la contraseña— así
+     que no hay razón para pedirle perfil a esto. */
+  if (c && c.usuario){                                  // credenciales recordadas → prefill
     document.getElementById('pEmpresa').value = c.usuario;
     /* S4: la contraseña ya NO se rellena, porque ya no se guarda. Con `autocomplete` puesto, quien
        la tenga en el gestor del sistema la ve ofrecida ahí — cifrada y detrás de la biometría, en
@@ -13118,7 +13136,20 @@ function portalAutoLoginSupervisor(c, credKey){
                    dispositivoId: dispositivoId() };
   conBloqueo('#portalDash', dashRequest(params).then(d => {
     if (!d || !d.ok){                                    // sesión cerrada / contraseña cambiada → volver al gate
-      try { localStorage.removeItem(credKey); } catch(e){}
+      /* ⚠️ Q4d · SE CONSERVA EL USUARIO. Antes se borraba la credencial entera, así que el gate se
+         repintaba con los DOS campos vacíos mientras el mensaje decía "escribe tu contraseña para
+         entrar de nuevo": prometía un paso y hacían falta dos. Se ve más ahora que en Q4b el
+         arranque lleva a esta persona derecho al panel, así que el vencimiento es lo primero que ve
+         al abrir la app.
+         Lo que caducó es el TOKEN, no el nombre de usuario — y el usuario de empresa no es un
+         secreto: ya se precarga en el gate por el camino normal. Se guarda sólo eso, sin token ni
+         contraseña, así que no autoriza nada: `portalTieneSesionDeEmpresa()` lo rechaza por pedir
+         `token || pass`, y la próxima apertura vuelve a la portada como corresponde. */
+      try {
+        const soloUsuario = (c && c.usuario) ? JSON.stringify({ usuario: c.usuario }) : null;
+        if (soloUsuario) localStorage.setItem(credKey, soloUsuario);
+        else localStorage.removeItem(credKey);
+      } catch(e){ try { localStorage.removeItem(credKey); } catch(e2){} }
       openPortalGate();
       document.getElementById('portalErr').textContent = t('pg_sesion_terminada');
       return;
@@ -22087,6 +22118,7 @@ function splashVerDemo(){
    igual, eso lo decide el servidor. */
 function splashPortal(){
   splashAbrirPortal();
+  portalReponerLoDeEmpresa();
   /* Las tres vistas con credencial quedan disponibles. Faltaba Dirección / HSEQ: el enlace del
      splash la nombra pero la pestaña no aparecía, así que no había forma de llegar. */
   ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
@@ -22094,11 +22126,42 @@ function splashPortal(){
   });
   portalMode('sup');
 }
+/* ⚠️ Q4d · ADMINISTRADOR MUESTRA SÓLO LO DE ADMINISTRADOR. Antes pasaba por `splashPortal()`, que
+   destapa las tres pestañas de credencial (Supervisor · Servicio médico · Dirección/HSEQ) y el
+   formulario de usuario y contraseña de empresa. Efecto medido al verificar Q4b: la puerta que la
+   reforma sacó de la portada seguía ahí, UN TOQUE MÁS ABAJO y con la etiqueta equivocada — alguien
+   que buscaba "Soy supervisor" lo encontraba adentro de "Administrador", que le dice que es
+   administrador cuando no lo es.
+   Y el admin no las necesita: `portalLoginAdmin` entra con `usuario:'*'` y acceso total, sin tocar
+   ninguna de esas pestañas.
+   ⚠️ Se ocultan al ENTRAR por acá y se reponen en `splashPortal()`/`openPortalGate()`, que son los
+   caminos legítimos: si sólo se ocultaran, quedarían escondidas para siempre en ese dispositivo. */
 function splashAdmin(){
-  splashPortal();
-  toggleAdminLogin();
+  splashAbrirPortal();
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = 'none';
+  });
+  portalMode('sup');                                   // el pane que contiene el bloque de admin
+  const creds = document.getElementById('portalCreds');
+  if (creds) creds.style.display = 'none';             // el login de empresa no es asunto del admin
+  const demo = document.getElementById('portalDemoBloque');
+  if (demo) demo.style.display = 'none';
+  const olvidar = document.getElementById('portalOlvidar');
+  if (olvidar) olvidar.style.display = 'none';
+  const box = document.getElementById('adminBox');
+  if (box) box.style.display = '';                     // abierto, no alternado: acá siempre se abre
   const pass = document.getElementById('pAdminPass');
   if (pass) pass.focus();
+}
+/* Repone lo que `splashAdmin()` esconde. Va en su propia función porque lo llaman los DOS caminos
+   legítimos, y con `style.display = ''` (no `'block'`): así cada elemento vuelve a lo que diga su
+   CSS, que no es lo mismo para un `<form>` que para un `<div>`. */
+function portalReponerLoDeEmpresa(){
+  ['portalCreds','portalDemoBloque'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.display = '';
+  });
+  const box = document.getElementById('adminBox');
+  if (box) box.style.display = 'none';
 }
 
 
