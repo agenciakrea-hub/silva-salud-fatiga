@@ -5956,7 +5956,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.43';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.44';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -22436,9 +22436,34 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    microsegundos". Y era además el agujero del "empleado fantasma" que ya preocupaba en closePortal:
    la app quedaba tocable detrás del splash de alguien sin perfil.
    Es función declarada, no variable: vive en el camino de arranque (ver la regla de N10). */
-/* El aviso de "hay una versión nueva". Discreto y con acción: una barra abajo, no un modal.
-   ⚠️ NO recarga sola. Alguien puede estar a mitad de un test de 90 segundos, y recargarle la app
-   debajo le haría perder el trabajo — la clase de "mejora" que se paga cara. Decide la persona. */
+/* ⚠️ ¿SE PUEDE RECARGAR AHORA SIN QUE ALGUIEN PIERDA TRABAJO?
+   Antes la app NUNCA recargaba sola y esperaba a que la persona tocara "Actualizar". El dueño lo
+   reportó desde su celular: con el scroll trabado no llegaba al cartel, así que quedó pegado en una
+   versión vieja sin forma de salir. Esperar a que la persona actúe convierte cualquier otro bug en
+   "no se puede actualizar nunca".
+   Pero recargar SIEMPRE tampoco: quien está a mitad de un PVT pierde 90 segundos de medición.
+   Entonces se recarga sola salvo que haya algo que se pierda, y en ese caso se reintenta al
+   terminar. Función declarada porque la llama el camino de arranque (R16). */
+function appOcupada(){
+  /* El PVT mide milisegundos de reacción: recargarlo por la mitad tira el test entero. */
+  const pvt = document.getElementById('pvtRun');
+  if (pvt && getComputedStyle(pvt).display !== 'none') return true;
+  /* Un cuestionario a medio contestar: las respuestas viven en el DOM hasta que se envía. */
+  const test = document.getElementById('testOverlay');
+  if (test && test.classList.contains('show')) return true;
+  return false;
+}
+
+/* Aplica la versión nueva. Si hay algo en curso, espera y reintenta cada 5 s en vez de rendirse:
+   así el caso "estaba ocupado" termina actualizando igual, sin depender de que nadie toque nada. */
+function versionAplicar(){
+  if (!appOcupada()){ location.reload(); return; }
+  try { versionNuevaAvisar(); } catch(e){}
+  setInterval(function(){ if (!appOcupada()) location.reload(); }, 5000);
+}
+
+/* El aviso de "hay una versión nueva". Sólo se ve si `versionAplicar()` encontró la app ocupada;
+   es la salida manual para quien quiera cortar el test y actualizar ya. */
 function versionNuevaAvisar(){
   if (document.getElementById('verNuevaBar')) return;
   const b = document.createElement('div');
@@ -23442,6 +23467,11 @@ tareasArranque();
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){
     refreshStates(); hideToast();
+    /* Volver al frente es EL momento de chequear si hay versión nueva: es cuando la persona va a
+       usar la app. Es gratis (el navegador compara el sw.js y corta si no cambió) y es lo único
+       que corre de verdad en un celular. Si hay versión nueva, el flujo sigue solo:
+       skipWaiting → claim → controllerchange → recarga. */
+    if (swReg){ try { swReg.update(); } catch(e){} }
     // Sólo se vuelve a pedir al servidor si CAMBIÓ EL DÍA mientras la app estaba minimizada/en
     // segundo plano. Minimizar y volver el mismo día (celular o escritorio) NO debe gastar un
     // pedido nuevo: el botón ↻ de arriba sigue disponible para cuando el usuario sí quiera actualizar.
@@ -23455,11 +23485,20 @@ document.addEventListener('visibilitychange', () => {
 document.getElementById('toast').addEventListener('click', hideToast);   // tocar el aviso para cerrarlo
 
 /* ════════════════ SERVICE WORKER (auto-update sin cache vieja) ════════════════ */
+/* R16: declarada SIN asignar. La lee `visibilitychange`, que está más ARRIBA en el archivo; una
+   declaración sin valor se iza y no pisa nada, y para cuando el evento corra ya está asignada. */
+var swReg;
 if ('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
+      swReg = reg;
       reg.update();
-      setInterval(() => reg.update(), 60 * 60 * 1000);  // chequea cada hora
+      /* ⚠️ EL INTERVALO NO ALCANZA EN CELULAR. Un `setInterval` de una hora se suspende cuando la
+         app pasa a segundo plano, y `load` no vuelve a dispararse al traerla al frente desde el
+         conmutador de aplicaciones. O sea: en el teléfono —que es donde se usa— este chequeo casi
+         nunca corría, y por eso una versión vieja podía quedar pegada días. El chequeo que sirve
+         es el de `visibilitychange`, más abajo. Éste queda para la sesión de escritorio larga. */
+      setInterval(() => reg.update(), 60 * 60 * 1000);
       /* ⚠️ EL REGISTRO RESUELVE AUNQUE EL `install` FALLE — la registración se crea igual; lo que
          falla es la instalación. Por eso el `.catch` de abajo no se dispara nunca y este error fue
          invisible durante meses (un `ASSETS` con dos íconos que daban 404 dejó a la app sin caché
@@ -23482,7 +23521,7 @@ if ('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('message', ev => {
       if (!ev.data || ev.data.tipo !== 'version-nueva' || avisoVersion) return;
       avisoVersion = true;
-      try { versionNuevaAvisar(); } catch(e){}
+      versionAplicar();
     });
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
