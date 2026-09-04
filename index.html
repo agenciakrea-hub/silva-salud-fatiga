@@ -1454,6 +1454,36 @@
   .dr-yes { background: var(--orange-solido); color: #fff; }
   .dr-no { background: rgba(255,255,255,.14); color: #fff; }
 
+  /* ── Y4 · jornada y excesos (HSEQ). Todos los colores por token y en los dos temas (R13). ── */
+  .jor-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: .5rem; margin: .7rem 0; }
+  .jor-kpi { background: var(--chip-bg); border-radius: var(--radius-sm); padding: .6rem .5rem; text-align: center; }
+  .jor-kpi .jk-n { display: block; font-size: 1.15rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  .jor-kpi .jk-l { display: block; font-size: .68rem; color: var(--muted); margin-top: .15rem; line-height: 1.2; }
+  /* El bloque de quienes están adentro AHORA y ya se pasaron: es lo único accionable hoy. */
+  .jor-ahora { background: var(--sem-rojo-bg); border-left: 3px solid var(--sem-rojo); border-radius: var(--radius-xs);
+    padding: .6rem .7rem; margin: .6rem 0; font-size: .82rem; color: var(--text); }
+  .jor-ahora ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+  .jor-ahora li { margin: .15rem 0; }
+  .jor-h4 { font-size: .82rem; font-weight: 700; color: var(--muted); margin: 1rem 0 .35rem;
+    text-transform: uppercase; letter-spacing: .04em; }
+  /* ⚠️ `overflow-x` en su PROPIO contenedor: una tabla ancha no puede hacer scrollear la página
+     entera de costado — es el mismo defecto que Y6 corrigió en el panel. */
+  .jor-tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .jor-tabla { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .jor-tabla th { text-align: left; font-weight: 700; color: var(--muted); padding: .35rem .45rem;
+    border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  .jor-tabla td { padding: .38rem .45rem; border-bottom: 1px solid var(--linea-2); color: var(--text);
+    font-variant-numeric: tabular-nums; }
+  .jor-tabla tr.jor-mal td { background: var(--sem-rojo-bg); }
+  .jor-chip { display: inline-block; font-size: .64rem; font-weight: 700; padding: .05rem .3rem;
+    border-radius: 6px; background: var(--chip-bg); color: var(--muted); }
+  .jor-hist { display: flex; align-items: flex-end; gap: 3px; height: 76px; margin: .4rem 0 .2rem; overflow-x: auto; }
+  .jor-barra { flex: 0 0 18px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+  .jor-barra i { display: block; width: 100%; background: var(--sem-rojo); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .jor-barra span { font-size: .58rem; color: var(--muted); margin-top: .15rem; }
+  .dash-aviso { font-size: .76rem; color: var(--muted); background: var(--chip-bg);
+    border-radius: var(--radius-xs); padding: .45rem .6rem; margin: .4rem 0; line-height: 1.35; }
+
   /* Barra de contexto (breadcrumb) */
   .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
   .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
@@ -5307,7 +5337,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.88';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.89';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5703,7 +5733,21 @@ const I18N = {
       tab_resumen:'Resumen', tab_comparar:'Comparar', tab_individual:'Individual',
       tab_evolucion:'Evolución', tab_pvt:'Reacción', tab_comentarios:'Comentarios',
       tab_informe:'Informe IA', tab_gestiones:'Gestiones', tab_aptitud:'Aptitud',
-      tab_reportes:'Reportes', tab_ciclo:'Ciclo operativo', tab_idc:'Disponibilidad',
+      /* Y4 · jornada y excesos. R2: se dice "por encima de lo previsto", con los minutos medidos y
+         los configurados al lado. Nunca "incumplimiento" ni "falta": la app señala, no sanciona. */
+      jor_titulo:'Jornada y tiempo por encima de lo previsto',
+      jor_lead:'Últimos {dias} días. Cada jornada se compara con las horas que la empresa tenía configuradas ese día.',
+      jor_vacio:'Todavía no hay jornadas registradas en este período.',
+      jor_sin_permiso:'Esta información es del servicio médico y de Dirección / HSEQ.',
+      jor_sin_umbral:'{n} jornada(s) quedaron sin comparar: son anteriores a que se guardara el límite vigente de cada día, y no se les aplica el actual.',
+      jor_sin_umbral_1:'Sin límite guardado para ese día: no se compara.',
+      jor_k_dias:'jornadas por encima', jor_k_total:'tiempo acumulado', jor_k_personas:'personas con registro',
+      jor_ahora:'{n} persona(s) siguen en jornada y ya pasaron lo previsto',
+      jor_por_persona:'Por persona', jor_historico:'Día por día', jor_diario:'Detalle',
+      jor_c_persona:'Persona', jor_c_dias:'Días', jor_c_prom:'Jornada promedio',
+      jor_c_exceso:'Por encima', jor_c_fecha:'Fecha', jor_c_jornada:'Jornada',
+      jor_abierto:'en curso',
+      tab_reportes:'Reportes', tab_ciclo:'Ciclo operativo', tab_jornada:'Jornada', tab_idc:'Disponibilidad',
       tab_mrfo:'Mapa de riesgo', tab_intervenciones:'Intervenciones',
       tab_auditoria:'Trazabilidad', tab_costos:'Costos', tab_predictivo:'Predictivo',
       // ── F1 · Períodos ──
@@ -7206,7 +7250,19 @@ const I18N = {
       tab_resumen:'Summary', tab_comparar:'Compare', tab_individual:'Individual',
       tab_evolucion:'Trend', tab_pvt:'Reaction', tab_comentarios:'Comments',
       tab_informe:'AI report', tab_gestiones:'Case notes', tab_aptitud:'Fitness',
-      tab_reportes:'Reports', tab_ciclo:'Operational cycle', tab_idc:'Availability',
+      jor_titulo:'Duty time and time above plan',
+      jor_lead:'Last {dias} days. Each shift is compared against the hours the company had configured that day.',
+      jor_vacio:'No shifts recorded in this period yet.',
+      jor_sin_permiso:'This information is for the medical service and Management / HSEQ.',
+      jor_sin_umbral:'{n} shift(s) were not compared: they predate the storing of each day\'s limit, and the current one is not applied to them.',
+      jor_sin_umbral_1:'No stored limit for that day: not compared.',
+      jor_k_dias:'shifts above plan', jor_k_total:'accumulated time', jor_k_personas:'people with records',
+      jor_ahora:'{n} person(s) are still on duty and already past plan',
+      jor_por_persona:'By person', jor_historico:'Day by day', jor_diario:'Detail',
+      jor_c_persona:'Person', jor_c_dias:'Days', jor_c_prom:'Average shift',
+      jor_c_exceso:'Above plan', jor_c_fecha:'Date', jor_c_jornada:'Shift',
+      jor_abierto:'ongoing',
+      tab_reportes:'Reports', tab_ciclo:'Operational cycle', tab_jornada:'Duty time', tab_idc:'Availability',
       tab_mrfo:'Risk map', tab_intervenciones:'Interventions',
       tab_auditoria:'Traceability', tab_costos:'Costs', tab_predictivo:'Predictive',
       // ── F1 · Periods ──
@@ -9422,7 +9478,15 @@ function enviarOperacional(campo, test, resultado){
       idPrevio: 'op_' + dashNorm(p.nombre||'') + '_' + fecha + '_' + campo,   // el de antes, para no duplicar
       fecha: fecha, hora: pad(now.getHours()) + ':' + pad(now.getMinutes()), iso: now.toISOString(),
       persona: p.nombre||'', empresa: p.empresa||'', departamento: p.departamento||'', cargo: p.cargo||'',
-      evento: campo, test: test||'', resultado: (resultado != null ? String(resultado) : '')
+      evento: campo, test: test||'', resultado: (resultado != null ? String(resultado) : ''),
+      /* ⚠️ Y4 · EL UMBRAL VIAJA CON EL HECHO, y es lo que hace que el registro de exceso signifique
+         algo. Sin esto, el exceso se juzga siempre contra la jornada configurada HOY: el día que una
+         empresa baje de 12 h a 8 h, todos los ciclos pasados pasarían a estar excedidos
+         retroactivamente. Un registro de "se pasó de jornada" tiene consecuencias laborales; que
+         cambie solo porque alguien editó una configuración es inaceptable.
+         Es el mismo criterio que la bitácora ya aplica con su umbral (R3): se congela el número
+         contra el que se juzgó, en el momento en que ocurrió. */
+      plan: JSON.stringify(cicloPlan() || {})
     }));
   }
 }
@@ -13594,7 +13658,7 @@ function portalLoginAdmin(btn){
    constante, porque una constante se congelaría en el idioma que hubiera al cargar el archivo y
    cambiar de idioma no la tocaría. */
 const TAB_KEYS = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe',
-  'gestiones','aptitud','reportes','ciclo','idc','mrfo','intervenciones','auditoria','costos','predictivo'];
+  'gestiones','aptitud','reportes','ciclo','jornada','idc','mrfo','intervenciones','auditoria','costos','predictivo'];
 function tabLabel(k){ return t('tab_' + k); }
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
@@ -13614,7 +13678,7 @@ function dashTabsFor(rol, hasPvt, vista){
   if (vista === 'supervisor') return ['aptitud','reportes','ciclo'];
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
-  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
+  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   /* ⚠️ Si algún día se le agregan pestañas al médico (I1, hallazgos 4 y 5: horas de jornada y
      reportes identificados), NO alcanza con tocar esta lista: `dashOrderedTabs()` tiene su PROPIO
@@ -13875,7 +13939,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
 function dashOrderedTabs(){
   if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
-  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo'];
+  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
   let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
@@ -14312,6 +14376,7 @@ function renderDash(){
     else if (tb === 'aptitud') html = renderAptitud(rows);            // vista de supervisor (sin datos médicos)
     else if (tb === 'reportes') html = renderReportesSupervisor();    // bandeja del supervisor (dataset propio)
     else if (tb === 'ciclo') html = renderCicloOperativo();           // ciclo operativo del día (dataset propio)
+    else if (tb === 'jornada') html = renderJornada();                // Y4: duty time y excesos
     else if (tb === 'idc') html = renderHseqIdc(rows);                // ── Dirección / HSEQ ──
     else if (tb === 'mrfo') html = renderHseqMrfo(rows);
     else if (tb === 'intervenciones') html = renderHseqIntervenciones();
@@ -16537,6 +16602,103 @@ function cicloDelPeriodo(){
   const desde = new Date(new Date(hoyF + 'T12:00:00').getTime() - (dias - 1) * 86400000)
                   .toISOString().slice(0, 10);
   return { historico:true, dias:dias, desde:desde, hasta:hoyF, ciclos:cicloHistorico(desde, hoyF) };
+}
+
+/* ════════ Y4 · JORNADA Y EXCESOS (HSEQ) ══════════════════════════════════════════════════════
+   Los cinco cortes que pidió HSEQ: diario, acumulado, individual, promedio e histórico.
+   ⚠️ TODO EL CÁLCULO ESTÁ EN EL SERVIDOR (`leerDuty` en el .gs). Acá NO se recalcula nada: si se
+   recalculara, dos pantallas podrían mostrar números distintos del mismo hecho, y este número tiene
+   consecuencias laborales. Esta función sólo pinta lo que vino.
+   ⚠️ R2 · SEÑALA, NO SANCIONA. Dice "por encima de lo previsto", con los minutos medidos y los
+   configurados al lado. No dice "incumplimiento" ni "falta": esa lectura la hace una persona. */
+function jorMin(m){
+  const n = Math.max(0, Math.round(Number(m) || 0));
+  const h = Math.floor(n / 60), r = n % 60;
+  return h ? (h + ' h' + (r ? ' ' + r + ' min' : '')) : (r + ' min');
+}
+function renderJornada(){
+  const d = DASH && DASH.duty;
+  /* `null` es "no te corresponde ver esto" (el servidor lo recorta por rol); un objeto vacío sería
+     "no hubo excesos". No se pueden confundir. */
+  if (!d) return '<div class="dash-card"><p class="dash-vacio">' + esc(t('jor_sin_permiso')) + '</p></div>';
+  const filas = d.diario || [], personas = d.personas || [], hist = d.historico || [];
+  if (!filas.length) return '<div class="dash-card"><p class="dash-vacio">' + esc(t('jor_vacio')) + '</p></div>';
+
+  const conExceso = filas.filter(f => f.excesoMin > 0);
+  const totalExceso = filas.reduce((a, f) => a + f.excesoMin, 0);
+  const abiertos = filas.filter(f => f.abierto);
+
+  let h = '<div class="dash-card">';
+  h += '<h3 class="dash-h3">' + esc(t('jor_titulo')) + '</h3>';
+  h += '<p class="dash-sub">' + esc(t('jor_lead', { dias: d.dias })) + '</p>';
+
+  /* ⚠️ ESTE AVISO NO ES OPCIONAL. Las filas anteriores a que el umbral viajara con el evento no
+     tienen contra qué juzgarse, y no se les inventa uno. Presentarlas como "sin exceso" sin decir
+     por qué sería afirmar algo que no se midió. */
+  if (d.sinUmbralCongelado > 0){
+    h += '<p class="dash-aviso">' + esc(t('jor_sin_umbral', { n: d.sinUmbralCongelado })) + '</p>';
+  }
+
+  // ── Corte 1 · acumulado del período
+  h += '<div class="jor-kpis">';
+  h += '<div class="jor-kpi"><span class="jk-n">' + conExceso.length + '</span><span class="jk-l">' + esc(t('jor_k_dias')) + '</span></div>';
+  h += '<div class="jor-kpi"><span class="jk-n">' + esc(jorMin(totalExceso)) + '</span><span class="jk-l">' + esc(t('jor_k_total')) + '</span></div>';
+  h += '<div class="jor-kpi"><span class="jk-n">' + personas.length + '</span><span class="jk-l">' + esc(t('jor_k_personas')) + '</span></div>';
+  h += '</div>';
+
+  /* Quien está adentro AHORA y ya pasó su jornada. Va primero porque es lo único accionable hoy:
+     el resto ya ocurrió. */
+  const ahoraExcedidos = abiertos.filter(f => f.excesoMin > 0);
+  if (ahoraExcedidos.length){
+    h += '<div class="jor-ahora"><b>' + esc(t('jor_ahora', { n: ahoraExcedidos.length })) + '</b><ul>';
+    ahoraExcedidos.forEach(f => {
+      h += '<li>' + esc(f.persona) + ' · ' + esc(jorMin(f.jornadaMin)) + ' · <b>+' + esc(jorMin(f.excesoMin)) + '</b></li>';
+    });
+    h += '</ul></div>';
+  }
+
+  // ── Cortes 2 y 3 · individual y promedio
+  h += '<h4 class="jor-h4">' + esc(t('jor_por_persona')) + '</h4>';
+  h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
+       '<th>' + esc(t('jor_c_persona')) + '</th><th>' + esc(t('jor_c_dias')) + '</th>' +
+       '<th>' + esc(t('jor_c_prom')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
+       '</tr></thead><tbody>';
+  personas.slice().sort((a,b) => b.excesoMin - a.excesoMin).forEach(pe => {
+    h += '<tr' + (pe.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
+         '<td>' + esc(pe.persona) + '</td>' +
+         '<td>' + pe.dias + (pe.diasConExceso ? ' <span class="jor-chip">' + pe.diasConExceso + '</span>' : '') + '</td>' +
+         '<td>' + esc(jorMin(pe.promedioJornadaMin)) + '</td>' +
+         '<td>' + (pe.excesoMin > 0 ? '<b>+' + esc(jorMin(pe.excesoMin)) + '</b>' : '—') + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  // ── Corte 4 · histórico por día
+  if (hist.length > 1){
+    const tope = Math.max.apply(null, hist.map(x => x.excesoMin)) || 1;
+    h += '<h4 class="jor-h4">' + esc(t('jor_historico')) + '</h4><div class="jor-hist">';
+    hist.forEach(dia => {
+      const alto = Math.max(2, Math.round((dia.excesoMin / tope) * 100));
+      h += '<div class="jor-barra" title="' + esc(dia.fecha + ' · ' + jorMin(dia.excesoMin)) + '">' +
+           '<i style="height:' + alto + '%"></i><span>' + esc(dia.fecha.slice(8)) + '</span></div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Corte 5 · el detalle diario, al final porque es lo más largo
+  h += '<h4 class="jor-h4">' + esc(t('jor_diario')) + '</h4>';
+  h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
+       '<th>' + esc(t('jor_c_fecha')) + '</th><th>' + esc(t('jor_c_persona')) + '</th>' +
+       '<th>' + esc(t('jor_c_jornada')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
+       '</tr></thead><tbody>';
+  filas.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).forEach(f => {
+    h += '<tr' + (f.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
+         '<td>' + esc(f.fecha) + '</td><td>' + esc(f.persona) + '</td>' +
+         '<td>' + esc(jorMin(f.jornadaMin)) + (f.abierto ? ' <span class="jor-chip">' + esc(t('jor_abierto')) + '</span>' : '') + '</td>' +
+         '<td>' + (f.excesoMin > 0 ? '<b>+' + esc(jorMin(f.excesoMin)) + '</b>' : '—') +
+         (f.umbralCongelado ? '' : ' <span class="jor-chip" title="' + esc(t('jor_sin_umbral_1')) + '">?</span>') + '</td></tr>';
+  });
+  h += '</tbody></table></div></div>';
+  return h;
 }
 
 function renderCicloOperativo(){
