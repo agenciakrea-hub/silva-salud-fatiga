@@ -2336,9 +2336,12 @@
   /* Variante 1: naranja sobre navy — el fondo es navy, el círculo naranja se superpone arriba.
      Es la que va en el splash (fondo navy de toda la app) y en la mitad "Iniciar sesión" del
      mockup de referencia. */
-  /* Espejados con el logo: la composición naranja se ancla a la IZQUIERDA. */
-  .ent-circulos--naranja-navy::before { width:78%; background:var(--navy-card); top:-30%; left:-24%; right:auto; z-index:1; }
-  .ent-circulos--naranja-navy::after  { width:56%; background:var(--entrada-naranja); top:-20%; left:-10%; right:auto; z-index:2; }
+  /* ⚠️ EL NARANJA SE QUEDA A LA DERECHA. Lo que se intercambia es sólo el logo con el botón de
+     idioma; la composición de círculos es la identidad de marca y no se mueve. Lo intenté espejar
+     junto con el logo y Franco lo corrigió: el logo pasa a vivir sobre el azul, a la izquierda, y el
+     naranja queda como estaba, con el chip de idioma encima. */
+  .ent-circulos--naranja-navy::before { width:78%; background:var(--navy-card); top:-30%; right:-24%; left:auto; z-index:1; }
+  .ent-circulos--naranja-navy::after  { width:56%; background:var(--entrada-naranja); top:-20%; right:-10%; left:auto; z-index:2; }
   /* Variante 2: navy sobre naranja — la inversa, para distinguir visualmente un segundo bloque
      (p. ej. "Crear cuenta" al lado de "Iniciar sesión", como en el mockup: dos tarjetas
      contiguas que alternan cuál color queda arriba). */
@@ -2433,14 +2436,14 @@
      izquierda en escritorio lo pondría sobre el navy con tinta de tarjeta clara. */
   /* ⚠️ A LA DERECHA. El logo de marca vive arriba a la izquierda: en lectura de izquierda a derecha,
      lo primero que se ve tiene que ser quién es la app, no un control de idioma. */
-  /* Pie: la credencial normativa. Discreta y legible — es lo que mira un auditor, no la persona. */
-  /* ⚠️ `rgba(255,255,255,.6)` y no un token: el splash tiene fondo NAVY fijo en los dos temas, así
-     que acá el blanco translúcido es el patrón —lo mismo hacen `.splash-sub` y `.splash-link` tres
-     reglas más arriba—. Y `--entrada-sub`, que fue lo primero que escribí, NO EXISTE: lo agarró la
-     prueba de tokens. Es la quinta vez que invento un nombre plausible; ahora al menos salta sola. */
-  .splash-norma { font-size:.66rem; line-height:1.35; color:rgba(255,255,255,.6);
-    margin:.5rem 0 0; max-width:34ch; }
+  /* La credencial normativa: cierra la pantalla, debajo de las láminas. Discreta y centrada — es
+     lo que mira un auditor, no la persona que va a reportar su fatiga. */
+  .splash-norma { font-size:.64rem; line-height:1.4; color:rgba(255,255,255,.55);
+    margin:.85rem auto 0; max-width:40ch; text-align:center; padding:0 1rem;
+    position:relative; z-index:2; }
 
+  /* Queda ENCIMA del círculo naranja, así que su fondo propio (`--entrada-chip`) es lo que lo
+     separa: sin él, texto naranja sobre naranja. */
   .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; left:auto; z-index:5;
     background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
@@ -4706,14 +4709,14 @@
         <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
         <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
         <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
-        <!-- ⚠️ DECLARACIÓN DE CUMPLIMIENTO. Dice "alineado con los lineamientos de", NUNCA
-             "certificado por": no tenemos ninguna certificación y es lo primero que un auditor
-             verifica. Una promesa de más acá cuesta la credibilidad de todo lo demás.
-             Va en el pie y no en el cuerpo porque es una credencial, no un argumento de venta:
-             quien la busca la encuentra, y a quien no le importa no le ocupa la pantalla. -->
-        <p class="splash-norma" data-i18n="splash_norma">Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.</p>
       </div>
       </div><!-- /.splash-der -->
+
+      <!-- ⚠️ DECLARACIÓN DE CUMPLIMIENTO, debajo de las láminas y como cierre de la pantalla.
+           Va acá y no entre los enlaces porque es el pie de página de todo lo de arriba: las
+           láminas cuentan qué hace el programa, y esta línea dice bajo qué marco lo hace.
+           Dice "alineado con los lineamientos de", NUNCA "certificado por": no tenemos ninguna
+           certificación y es lo primero que un auditor verifica. Hay un caso que lo vigila. -->
     </div>
     <!-- ── N8 · Tira de presentación ─────────────────────────────────────────────────────
          Cinco pantallas hechas en CSS. Antes eran videos y se cambiaron por tres razones que
@@ -4812,6 +4815,13 @@
                 </div></div>
               </div>
             </div>
+
+      <!-- ⚠️ DEBAJO DE LAS LÁMINAS y como cierre de la pantalla (pedido de Franco). Va acá y no
+           entre los enlaces porque es el pie de todo lo de arriba: las láminas cuentan qué hace el
+           programa, y esta línea dice bajo qué marco lo hace.
+           Dice "alineado con los lineamientos de", NUNCA "certificado por": no tenemos ninguna
+           certificación y es lo primero que un auditor verifica. Hay un caso que lo vigila. -->
+      <p class="splash-norma" data-i18n="splash_norma">Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.</p>
   </div>
 </div>
 
@@ -5532,7 +5542,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.98';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.99';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

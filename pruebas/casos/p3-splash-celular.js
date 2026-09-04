@@ -27,31 +27,37 @@ function p3Margen(){
     esq.map(e => r - Math.hypot(e[0] - c[0], e[1] - c[1])))));
 }
 
-PRUEBAS.caso('⚠️ el logo entra en el círculo naranja, en todo teléfono', () => {
-  /* ⚠️ POR QUÉ ESTO NO ERA OBVIO, y por qué se comprueba a varios tamaños en vez de a uno:
-     el RADIO del círculo va con el ANCHO de pantalla (56% del ancho) y su recorte de arriba va con
-     el ALTO (la banda mide `min(46vh,360px)` y el círculo se sube un 20% de eso). En un teléfono
-     angosto y alto las dos cosas se pelean: el círculo queda chico Y muy subido, así que del naranja
-     se ve poco. Con el logo puesto a ojo a 390x844 —donde sobraban 3 px— a 320x800 se salía 11.
-     El tamaño del círculo se subió a 62% SÓLO en el splash de teléfono justamente para que el logo
-     entrara sin tener que achicarlo a 66 px, que era la alternativa. */
+PRUEBAS.caso('⚠️ el logo se lee sobre el fondo, y no choca con nada', () => {
+  /* ⚠️ ESTE CASO CAMBIÓ DE INVARIANTE el 2026-09-04. Antes comprobaba que el logo entrara DENTRO del
+     círculo naranja, porque vivía ahí. Franco pidió intercambiarlo con el botón de idioma: ahora el
+     logo va a la izquierda, sobre el fondo azul, y el naranja se queda a la derecha con el chip de
+     idioma encima.
+     Lo que hay que vigilar pasó a ser otra cosa: que el logo esté entero en pantalla, que no se
+     monte sobre el chip de idioma, y que el chip —que SÍ quedó sobre el naranja— tenga fondo propio,
+     porque sin él sería texto naranja sobre naranja. */
   const ov = document.getElementById('splashOv');
-  const yaAbierto = ov.classList.contains('show');
+  const tenia = ov.classList.contains('show');
   ov.classList.add('show');
-  const malos = [], medidos = [];
-  for (const v of PRUEBAS.VENTANAS) {
-    PRUEBAS.enVentana(v.w, v.h, () => {
-      const m = p3Margen();
-      if (m === null) return;                       // escritorio: el logo va en el flujo
-      medidos.push(v.w + 'x' + v.h + ': ' + Math.round(m));
-      if (m < 4) malos.push(v.w + 'x' + v.h + ': ' + Math.round(m) + 'px');
+  const malos = [];
+  try {
+    [[320,800],[375,667],[390,844],[768,1024]].forEach(([w,h]) => {
+      PRUEBAS.enVentana(w, h, () => {
+        const logo = document.querySelector('.splash-logo');
+        const lang = document.getElementById('splashLangBtn');
+        if (!logo || !lang) { malos.push(w + 'x' + h + ': falta un elemento'); return; }
+        const rg = logo.getBoundingClientRect(), rl = lang.getBoundingClientRect();
+        if (rg.width < 40) { malos.push(w + 'x' + h + ': el logo mide ' + Math.round(rg.width) + 'px'); return; }
+        if (rg.left < -1 || rg.right > w + 1) malos.push(w + 'x' + h + ': el logo se sale de la pantalla');
+        if (!(rg.right <= rl.left || rg.left >= rl.right)) malos.push(w + 'x' + h + ': logo e idioma se superponen');
+        /* El chip de idioma queda sobre el naranja: necesita fondo propio o no se lee. */
+        const bg = getComputedStyle(lang).backgroundColor;
+        const m = String(bg).match(/[\d.]+/g) || [];
+        const opaco = m.length < 4 || Number(m[3]) > 0.5;
+        if (!opaco) malos.push(w + 'x' + h + ': el chip de idioma no tiene fondo propio (queda sobre el naranja)');
+      });
     });
-  }
-  if (!yaAbierto) ov.classList.remove('show');
-  PRUEBAS.alMenos(medidos.length, 3, 'control: tiene que haber medido en varios tamaños de teléfono');
-  PRUEBAS.igual(malos, [],
-    'el logo tiene que quedar dentro del círculo naranja con margen, contando la deriva: si asoma ' +
-    'por una esquina queda medio sobre el naranja y medio sobre el navy, que es lo que se pidió evitar');
+  } finally { if (!tenia) ov.classList.remove('show'); }
+  PRUEBAS.igual(malos, [], 'el logo entero, sin chocar, y el chip legible — ' + malos.join(' | '));
 });
 
 PRUEBAS.caso('⚠️ el logo y el idioma ocupan esquinas opuestas', () => {
