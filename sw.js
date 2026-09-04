@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v294';
+const VERSION = 'v296';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -50,13 +50,31 @@ self.addEventListener('fetch', event => {
   // ── HTML / navegación: SIEMPRE a la red (ignora caché HTTP del browser).
   //    Así nunca queda una versión vieja pegada. Si no hay red, usa el caché.
   if (event.request.mode === 'navigate') {
+    /* ⚠️ CON TOPE DE ESPERA (2026-09-03). La estrategia sigue siendo RED PRIMERO —es la promesa que
+       no se negocia acá: "nunca queda una versión vieja pegada" es el error más caro que tuvo este
+       proyecto—. Lo que cambia es qué pasa mientras la red no contesta.
+
+       Antes se esperaba a la red sin límite. Como el service worker recién empezó a instalarse (los
+       íconos del ASSETS daban 404 y el install fallaba), ese arranque intermediado es NUEVO: con
+       señal mala la persona se queda mirando la pantalla azul del sistema —el `background_color`
+       del manifest— hasta que la red conteste. Franco lo reportó como "un detalle feo que antes no
+       estaba", y tenía razón: antes no había SW que esperar.
+
+       Ahora: si la red no contestó en 2,5 s, se sirve lo cacheado y la respuesta de red, cuando
+       llegue, actualiza el caché igual para la próxima apertura. O sea, se pierde como mucho una
+       apertura de frescura y se gana un arranque instantáneo en el hangar, que es donde se usa.
+       ⚠️ El `fetch` NO se cancela al vencer el tope: se lo deja terminar justamente para que
+       actualice el caché. Cancelarlo dejaría la app pegada en la versión vieja para siempre. */
+    const alaRed = fetch(event.request, { cache: 'no-store' }).then(resp => {
+      caches.open(CACHE).then(c => c.put('./index.html', resp.clone()));
+      return resp;
+    });
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
-        .then(resp => {
-          caches.open(CACHE).then(c => c.put('./index.html', resp.clone()));
-          return resp;
-        })
-        .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+      Promise.race([
+        alaRed,
+        new Promise(resolve => setTimeout(
+          () => resolve(caches.match('./index.html').then(r => r || alaRed)), 2500))
+      ]).catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
     );
     return;
   }

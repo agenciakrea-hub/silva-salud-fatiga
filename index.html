@@ -5240,7 +5240,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.83';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.85';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8675,8 +8675,10 @@ function consentSync(){
   if (!s.items || s.sincronizado) return;
   const p = getProfile();
   if (!p || !p.nombre) return;   // todavía no hay a quién asociarlo: se reintenta al guardar el perfil
-  const id = 'consent_' + dashNorm(p.nombre) + '_' + Object.keys(s.items).map(k => k + s.items[k]).join('-');
+  const versiones = Object.keys(s.items).map(k => k + s.items[k]).join('-');
+  const id = 'consent_' + idPersonaClave(p) + '_' + versiones;
   empEncolar(id, 'consentimiento_guardar', {
+    idPrevio: 'consent_' + dashNorm(p.nombre) + '_' + versiones,   // la fila ya escrita, si la hay
     persona: p.nombre, empresa: p.empresa || '', cedula: p.cedula || '',
     versiones: JSON.stringify(s.items), fecha: s.fecha || Date.now(), app: APP_VERSION
   });
@@ -9060,7 +9062,25 @@ function turnoSub(x){ return t(x.sub); }
 function turnoInfo(k){ return TURNO_TIPOS.find(t => t.k === k) || TURNO_TIPOS[0]; }
 function turnosAll(){ try { return JSON.parse(localStorage.getItem(K_TURNOS)) || {}; } catch(e){ return {}; } }
 function turnosSave(o){ return lsSet(K_TURNOS, JSON.stringify(o)); }
-function turnoHoyId(persona, tipo){ return 'turno_' + dashNorm(persona) + '_' + todayStr() + '_' + tipo; }
+/* ⚠️ LA CÉDULA VA EN EL ID (2026-09-03, auditoría). Los ids de turno, operacional y consentimiento
+   se armaban con el nombre normalizado y nada más, y el servidor los buscaba en TODA la hoja: dos
+   "José Rodríguez" —de la misma empresa o de dos clientes distintos— generaban el mismo id y el
+   upsert le reemplazaba la fila al otro. El primero desaparecía del CH y en el panel figuraba como
+   "no registró hoy", sin dejar rastro. Que hay homónimos lo da por hecho el propio endpoint, que
+   mantiene un índice de nombres ambiguos.
+   Se usa la cédula porque es lo único que identifica sin ambigüedad. Si el perfil todavía no la
+   tiene (perfiles anteriores a que fuera obligatoria), cae al nombre: el id queda como estaba y no
+   se rompe nada, simplemente ese caso sigue sin desambiguar. */
+function idPersonaClave(perfil){
+  const p = perfil || getProfile() || {};
+  const ced = String(p.cedula || '').replace(/\D/g, '');
+  return ced ? ('c' + ced) : dashNorm(p.nombre || '');
+}
+/* El id ANTERIOR, sólo por nombre. Viaja como `idPrevio` para que el servidor encuentre y actualice
+   la fila que ya estaba escrita, en vez de crear una nueva al lado. Sin esto, el día del cambio
+   cada persona duplicaría su check-in. */
+function turnoHoyIdPrevio(persona, tipo){ return 'turno_' + dashNorm(persona) + '_' + todayStr() + '_' + tipo; }
+function turnoHoyId(persona, tipo){ return 'turno_' + idPersonaClave() + '_' + todayStr() + '_' + tipo; }
 /* Cuánto puede durar un turno de punta a punta. Es el techo del ciclo (12 h de jornada + los
    traslados), y es la ventana que define "este turno" para la pantalla. */
 const TURNO_VENTANA_MS = 14 * 60 * 60 * 1000;
@@ -9075,7 +9095,14 @@ const TURNO_VENTANA_MS = 14 * 60 * 60 * 1000;
    ayer sólo se traen si son de las últimas 14 h y hoy no hay uno de ese tipo. */
 function turnosHoy(persona){
   const all = turnosAll(), out = {};
-  TURNO_TIPOS.forEach(tp => { const r = all[turnoHoyId(persona, tp.k)]; if (r) out[tp.k] = r; });
+  /* ⚠️ SE BUSCAN LOS DOS IDS. El id pasó a llevar la cédula (ver `idPersonaClave`), y lo guardado
+     ANTES del cambio está con el formato viejo. Sin esta segunda búsqueda, quien hizo su check-in
+     por la mañana abría la app por la tarde y la tarjeta se lo volvía a pedir como si no lo hubiera
+     hecho — el mismo síntoma que I4 ya había corregido para los turnos de noche. */
+  TURNO_TIPOS.forEach(tp => {
+    const r = all[turnoHoyId(persona, tp.k)] || all[turnoHoyIdPrevio(persona, tp.k)];
+    if (r) out[tp.k] = r;
+  });
   // L1: el "ayer" tiene que moverse con el "hoy" de la operación, o la ventana de 14 h de los
   // turnos nocturnos (I4) queda mirando un día que no es.
   const ayerStr = fechaMasDias(todayStr(), -1);
@@ -9104,6 +9131,7 @@ function turnoGuardar(tipo, campos){
     empresa: perfil.empresa || '', departamento: perfil.departamento || '', cargo: perfil.cargo || '',
     creada: Date.now() }, campos || {});
   const all = turnosAll(); all[id] = reg; turnosSave(all);
+  reg.idPrevio = turnoHoyIdPrevio(persona, tipo);   // para que el servidor actualice la fila ya escrita
   empEncolar(id, 'turno_guardar', reg);
   haptic(12);
   /* I4: era `turnoInfo(tipo).t + ' registrado'`. En TURNO_TIPOS, `.t` es la CLAVE del
@@ -9264,7 +9292,8 @@ function enviarOperacional(campo, test, resultado){
     const fecha = todayStr();
     enviarConCola(SHEETS_DASHBOARD_URL + '?' + new URLSearchParams({
       action:'operacional_guardar',
-      id: 'op_' + dashNorm(p.nombre||'') + '_' + fecha + '_' + campo,   // uno por persona/día/evento
+      id: 'op_' + idPersonaClave(p) + '_' + fecha + '_' + campo,          // uno por persona/día/evento
+      idPrevio: 'op_' + dashNorm(p.nombre||'') + '_' + fecha + '_' + campo,   // el de antes, para no duplicar
       fecha: fecha, hora: pad(now.getHours()) + ':' + pad(now.getMinutes()), iso: now.toISOString(),
       persona: p.nombre||'', empresa: p.empresa||'', departamento: p.departamento||'', cargo: p.cargo||'',
       evento: campo, test: test||'', resultado: (resultado != null ? String(resultado) : '')
