@@ -361,7 +361,17 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        para que cerrar sesión funcione también sin señal. */
     'dashMigrarCredsAToken',
     /* Aparecieron al incluir `async function` en el barrido: corren solas, no las dispara nadie. */
-    'sincronizarRegistro'
+    'sincronizarRegistro',
+    /* ⚠️ Y5 · `ausTocar` SÍ la dispara la persona, y aun así no bloquea — es la única de la lista
+       con esa forma, y por eso la justificación tiene que ser explícita.
+       Es una acción OPTIMISTA: la pantalla ya respondió (la fila se repinta en el acto) y el pedido
+       viaja detrás. El supervisor marca a varias personas seguidas, y bloquear la pantalla los 3-5 s
+       que tarda el endpoint por CADA una lo haría abandonar a la tercera — y un dato que nadie carga
+       es peor que no tenerlo, porque los porcentajes quedan iguales y uno cree que están corregidos.
+       Lo que la hace segura no es el bloqueo sino la REVERSIÓN: si el servidor falla, el cambio se
+       deshace y se avisa. Hay un caso que lo verifica en `y5-de-guardia.js` ("si el guardado FALLA,
+       la pantalla se revierte"). Si esa reversión se rompe, esta excepción deja de ser válida. */
+    'ausTocar'
   ];
 
   const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');

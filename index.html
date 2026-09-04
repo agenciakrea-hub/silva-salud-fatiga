@@ -3497,6 +3497,16 @@
   .hs-duo-c { text-align:center; padding:.5rem .3rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
   .hs-duo-c .hs-cap small { font-size:.72rem; color:var(--text-muted); font-weight:600; }
   .hs-duo-flojo .hs-pct-big { color:var(--text-muted); }        /* poca cobertura: no es dato confiable */
+  /* Y5 · nota de a quién no se le contó el día. Discreta pero legible: es un dato de control, no
+     una alarma, pero tiene que poder leerse para que una ausencia mal cargada se note. */
+  /* Y5 · el interruptor de la nómina. 44 px de alto: se toca con guantes. */
+  .nomlist-aus { min-height:44px; padding:.3rem .55rem; border:1px solid var(--linea-2);
+    background:transparent; color:var(--muted); border-radius:var(--radius-xs);
+    font-family:inherit; font-size:.7rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .nomlist-aus.on { background:var(--chip-bg); color:var(--text); border-color:var(--linea); }
+  .nomlist-row.nomlist-ausente { opacity:.72; }
+  .hs-nota-aus { font-size:.74rem; color:var(--muted); background:var(--chip-bg);
+    border-radius:var(--radius-xs); padding:.4rem .55rem; margin-top:.4rem; line-height:1.35; }
   .hs-duo-alerta { background:var(--sem-ambar-bg); }
   .hs-duo-alerta .hs-pct-big { color:var(--sem-ambar); }
   .hs-pct-big { font-size:2.4rem; font-weight:800; color:var(--text); line-height:1.05; font-variant-numeric: tabular-nums; }
@@ -5337,7 +5347,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.89';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.91';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5862,6 +5872,13 @@ const I18N = {
       // ── F1 · Subtítulos de bloque ──
       sub_resumen_op:'Resumen operativo del grupo que tengas filtrado',
       sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
+      /* Y5. Se dice el número, no se esconde: una ausencia mal cargada tiene que poder verse. */
+      hs_no_tocaba:'{n} persona(s) no estaban de guardia hoy y no se cuentan en la cobertura.',
+      aus_marcar:'Marcar que hoy no está de guardia', aus_marcar_corto:'De guardia',
+      aus_quitar:'Volver a contarlo hoy', aus_no_guardia:'No está hoy',
+      aus_puesta:'{p} no se cuenta hoy', aus_quitada:'{p} vuelve a contarse hoy',
+      aus_sin_red:'Necesitas conexión para cambiar esto.',
+      aus_error:'No se pudo guardar. Vuelve a intentarlo.',
       sub_gente_nivel:'Cuánta gente hay en cada nivel y qué proporción está en condiciones',
       sub_pct_atencion:'% de personas con indicadores que requieren atención · ordenado de mayor a menor',
       sub_total_acc:'Total de acciones de cuidado registradas',
@@ -7373,6 +7390,12 @@ const I18N = {
       // ── F1 · Block subtitles ──
       sub_resumen_op:'Operational summary of the group you have filtered',
       sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
+      hs_no_tocaba:'{n} person(s) were not on duty today and are not counted in coverage.',
+      aus_marcar:'Mark as not on duty today', aus_marcar_corto:'On duty',
+      aus_quitar:'Count them again today', aus_no_guardia:'Off today',
+      aus_puesta:'{p} is not counted today', aus_quitada:'{p} counts again today',
+      aus_sin_red:'You need a connection to change this.',
+      aus_error:'Could not save. Please try again.',
       sub_gente_nivel:'How many people are at each level and what share is fit',
       sub_pct_atencion:'% of people with indicators needing attention · highest first',
       sub_total_acc:'Total care actions logged',
@@ -15361,6 +15384,33 @@ function aptGente(rows){
 // Población de la nómina que este usuario tiene a la vista, con su estado ya resuelto.
 function hseqGente(rows){ return aptGente(rows); }
 
+/* ════════ Y5 · QUIÉN NO ESTABA DE GUARDIA ════════════════════════════════════════════════════
+   El pedido era distinguir a quien no reportó **debiendo** de quien no reportó **porque no le
+   tocaba**. Hoy los dos caen en "sin dato", y eso hace dos cosas malas a la vez: baja la cobertura
+   (que se lee como "no estamos midiendo") y pone en la misma bolsa a alguien que estaba de
+   vacaciones con alguien que se salteó su test.
+
+   ⚠️ EL DEFAULT NO CAMBIA NADA. `DASH.ausencias` llega vacío mientras nadie marque nada, y con el
+   índice vacío `ausenteEse` devuelve false para todos: los números quedan exactamente como venían.
+   Era un requisito explícito del plan —"si esto filtra a quién se le muestran las tarjetas, el
+   default tiene que ser sí se le muestra"— y acá sale por construcción.
+
+   ⚠️ Y NO FILTRA TARJETAS. Una persona ausente sigue viendo su app y sigue pudiendo reportar: puede
+   estar de franco y querer registrar igual. Lo único que cambia es cómo se la CUENTA en los
+   porcentajes del panel. Esconderle la app a alguien porque una planilla dice que hoy no trabaja
+   sería el error caro que el plan advierte. */
+function ausenteEse(cedula, fechaISO){
+  const idx = (typeof DASH !== 'undefined' && DASH && DASH.ausencias) || null;
+  if (!idx) return false;
+  const ced = String(cedula || '').replace(/\D/g, '');
+  if (!ced) return false;
+  return !!idx[ced + '|' + String(fechaISO || '').substring(0, 10)];
+}
+/* ¿Esta persona estaba ausente HOY? Es la pregunta que hace el panel del día. */
+function ausenteHoy(p){
+  return ausenteEse(p && (p.cedula || p.ced), todayStr());
+}
+
 /* IDC — Índice de Disponibilidad Cognitiva.
    ⚠️ Un IDC alto porque nadie hizo tests es una mentira peligrosa: parece que todo está bien
    cuando en realidad no se sabe nada. Por eso el numerador/denominador es sobre quienes SÍ tienen
@@ -15368,27 +15418,38 @@ function hseqGente(rows){ return aptGente(rows); }
 function renderHseqIdc(rows){
   const gente = hseqGente(rows);
   if (!gente.length) return dashHelp(t('hlp_sin_registros')) + dashVacio('idc', 'gente');
-  const conDato = gente.filter(p => p.estado !== 'sindato');
+  /* ⚠️ Y5 · A QUIEN NO LE TOCABA NO CUENTA EN LA COBERTURA. Antes, alguien de vacaciones bajaba la
+     cobertura igual que alguien que se salteó su test, y el panel decía "sólo medimos al 40%"
+     cuando en realidad se había medido a todos los que estaban. Es la diferencia entre un problema
+     de medición y una semana de francos.
+     ⚠️ Se sacan del DENOMINADOR, no de la lista: siguen apareciendo, marcados, porque un supervisor
+     tiene que poder ver a quién no se le está contando el día — si no, una ausencia mal cargada se
+     vuelve invisible y nadie la corrige. */
+  const ausentes = gente.filter(p => p.estado === 'sindato' && ausenteHoy(p));
+  const cuentan = gente.filter(p => !(p.estado === 'sindato' && ausenteHoy(p)));
+  const conDato = cuentan.filter(p => p.estado !== 'sindato');
   const disp = conDato.filter(p => p.estado === 'ok' || p.estado === 'aptomed').length;
-  const sinDato = gente.length - conDato.length;
+  const sinDato = cuentan.length - conDato.length;
   const pct = conDato.length ? Math.round(disp / conDato.length * 100) : null;
-  const cobertura = Math.round(conDato.length / gente.length * 100);
+  const cobertura = cuentan.length ? Math.round(conDato.length / cuentan.length * 100) : null;
 
   const ayuda = dashHelp(t('hlp_idc'));
 
   // Reparto por estado, sin nombres.
   const porEstado = {};
-  gente.forEach(p => { porEstado[p.estado] = (porEstado[p.estado] || 0) + 1; });
+  /* Sobre `cuentan`, no sobre `gente`: si el reparto incluyera a los ausentes, la suma de la tabla
+     no cuadraría con el denominador de la cobertura de arriba y el panel se contradiría solo. */
+  cuentan.forEach(p => { porEstado[p.estado] = (porEstado[p.estado] || 0) + 1; });
   const filas = Object.keys(APT_ESTADOS).filter(k => porEstado[k]).map(k => {
     const i = aptEstadoInfo(k), n = porEstado[k];
     return '<div class="hs-row"><span class="hs-dot" style="background:' + i.c + '"></span>' +
       '<span class="hs-k">' + esc(i.t) + '</span><span class="hs-v">' + n + '</span>' +
-      '<span class="hs-pct">' + Math.round(n / gente.length * 100) + '%</span></div>';
+      '<span class="hs-pct">' + Math.round(n / Math.max(1, cuentan.length) * 100) + '%</span></div>';
   }).join('');
 
   // Nivel de riesgo: dónde está concentrada la exposición.
   const porNivel = {};
-  gente.forEach(p => { porNivel[p.nivel] = porNivel[p.nivel] || { n:0, disp:0 }; porNivel[p.nivel].n++;
+  cuentan.forEach(p => { porNivel[p.nivel] = porNivel[p.nivel] || { n:0, disp:0 }; porNivel[p.nivel].n++;
     if (p.estado === 'ok' || p.estado === 'aptomed') porNivel[p.nivel].disp++; });
   const filasNivel = [1,2,3,4,5].filter(n => porNivel[n]).map(n => {
     const d = porNivel[n], p = Math.round(d.disp / d.n * 100);
@@ -15413,15 +15474,19 @@ function renderHseqIdc(rows){
           '<div class="hs-cap">' + esc(t('hs_en_condiciones')) + '<br><small>' + esc(t('hs_n_de_m_datos', { n: disp, m: conDato.length })) + '</small></div></div>' +
         '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-alerta' : '') + '">' +
           '<div class="hs-pct-big">' + cobertura + '%</div>' +
-          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: gente.length })) + '</small></div></div>' +
+          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: cuentan.length })) + '</small></div></div>' +
       '</div>' +
       '<div class="hs-bar"><i style="width:' + (pct || 0) + '%"></i></div>' +
       (sinDato ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: sinDato, u: t(sinDato===1?'n_persona':'n_personas') }) +
         (cobFlaca ? (' ' + t('hs_cob_flaca')) : '') + '</div>'
-              : '<div class="hs-ok">' + esc(t('hs_cob_completa', { n: gente.length })) + '</div>') +
+              : '<div class="hs-ok">' + esc(t('hs_cob_completa', { n: cuentan.length })) + '</div>') +
+      /* ⚠️ A quién NO se le contó el día se DICE, siempre. Sacarlos del denominador en silencio
+         sería inflar la cobertura sin que nadie pueda revisarlo, y una ausencia mal cargada se
+         volvería invisible: nadie la corregiría nunca. */
+      (ausentes.length ? '<div class="hs-nota-aus">' + esc(t('hs_no_tocaba', { n: ausentes.length })) + '</div>' : '') +
     '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_reparto_estado')) + '</div>' +
-      '<div class="db-sub">' + esc(t('hs_sub_reparto', { n: gente.length })) + '</div>' + filas + '</div>' +
+      '<div class="db-sub">' + esc(t('hs_sub_reparto', { n: cuentan.length })) + '</div>' + filas + '</div>' +
     (filasNivel ? '<div class="dash-block"><div class="db-title">' + esc(t('db_exposicion_nivel')) + '</div>' +
       '<div class="db-sub">' + esc(t('sub_gente_nivel')) + '</div>' + filasNivel + '</div>' : '');
 }
@@ -21314,9 +21379,72 @@ function nominaListFiltrar(){
     const badge = x.registrado
       ? '<span class="nom-op-ya">' + esc(t('nomlist_registrado') + (x.desde ? ' · ' + x.desde : '')) + '</span>'
       : '<span class="nomlist-pend">' + esc(t('nomlist_pendiente')) + '</span>';
-    return '<div class="nomlist-row"><span class="nomlist-info"><b>' + esc(x.persona) + '</b>' +
-      (sub ? '<span class="nomlist-sub">' + esc(sub) + '</span>' : '') + '</span>' + badge + '</div>';
+    /* ⚠️ Y5 · SE MARCA DESDE ACÁ, y no en una pantalla nueva. Esta lista ya es donde el supervisor
+       ve a su gente: agregar el control acá lo hace descubrible sin que nadie tenga que aprender
+       nada. Una pantalla aparte para un dato que se toca dos veces por semana no se abre nunca.
+       ⚠️ La cédula va por `data-`, no dentro del `onclick`: un nombre con comilla rompía el HTML
+       (ya pasó en este archivo) y una cédula puede venir con puntos y guiones. */
+    const hoyAus = ausenteHoy(x);
+    const btn = x.cedula
+      ? '<button type="button" class="nomlist-aus' + (hoyAus ? ' on' : '') + '"' +
+        ' data-ced="' + esc(String(x.cedula)) + '" data-per="' + esc(String(x.persona)) + '"' +
+        ' onclick="ausTocar(this)" title="' + esc(t(hoyAus ? 'aus_quitar' : 'aus_marcar')) + '">' +
+        esc(t(hoyAus ? 'aus_no_guardia' : 'aus_marcar_corto')) + '</button>'
+      : '';
+    return '<div class="nomlist-row' + (hoyAus ? ' nomlist-ausente' : '') + '"><span class="nomlist-info"><b>' + esc(x.persona) + '</b>' +
+      (sub ? '<span class="nomlist-sub">' + esc(sub) + '</span>' : '') + '</span>' + badge + btn + '</div>';
   }).join('');
+}
+
+/* ════════ Y5 · MARCAR QUE ALGUIEN NO ESTÁ DE GUARDIA ════════════════════════════════════════
+   ⚠️ ES UN INTERRUPTOR DEL DÍA DE HOY, no un formulario de rangos. El 90% de los casos es "hoy
+   fulano está de franco", y para eso un formulario con fecha desde/hasta es fricción que hace que
+   nadie lo use — y un dato que nadie carga es peor que no tenerlo, porque los porcentajes quedan
+   iguales pero uno cree que están corregidos.
+   Los rangos largos (vacaciones) se cargan en la hoja `Ausencias` del CH, que ya acepta desde/hasta.
+
+   ⚠️ El motivo por defecto es `franco`. No se le pregunta: preguntar el motivo convierte dos toques
+   en cinco, y el motivo casi nunca cambia lo que hay que hacer. Quien necesite precisarlo lo edita
+   en la hoja. Y ningún motivo clínico entra acá — el servidor los rechaza (R2). */
+function ausTocar(btn){
+  if (!btn || !DASH || !DASH.params) return;
+  const ced = btn.getAttribute('data-ced') || '';
+  const persona = btn.getAttribute('data-per') || '';
+  const hoy = todayStr();
+  const yaEsta = ausenteHoy({ cedula: ced });
+  const cedNum = String(ced).replace(/\D/g, '');
+  if (!cedNum) return;
+  const id = 'aus_' + cedNum + '_' + hoy;
+  if (!offHayConexion()){ showToast(t('aus_sin_red')); return; }
+
+  /* Se pinta el cambio ANTES de que conteste el servidor y se revierte si falla: el supervisor está
+     marcando varias personas seguidas y esperar 3 s por cada una lo haría abandonar. */
+  const idx = DASH.ausencias || (DASH.ausencias = {});
+  const clave = cedNum + '|' + hoy;
+  if (yaEsta) delete idx[clave]; else idx[clave] = 'franco';
+  try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+
+  const cuerpo = { action:'ausencia_guardar', usuario: DASH.params.usuario || DASH.params.empresa,
+                   empresa: DASH.params.empresa || '', pass: DASH.params.pass || '',
+                   dispositivoId: dispositivoId(), id: id, cedula: ced, persona: persona,
+                   desde: hoy, hasta: hoy, motivo: 'franco',
+                   quien: (getProfile() || {}).nombre || '' };
+  if (yaEsta) cuerpo.anular = '1';
+  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.ok){ showToast(t(yaEsta ? 'aus_quitada' : 'aus_puesta', { p: persona })); return; }
+      /* Falló: se deshace lo que se había pintado. Dejar el cambio en pantalla haría creer que la
+         ausencia quedó cargada cuando en el CH no está, y esa persona seguiría contando. */
+      if (yaEsta) idx[clave] = 'franco'; else delete idx[clave];
+      try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+      showToast(tError(d && d.error) || t('aus_error'));
+    })
+    .catch(() => {
+      if (yaEsta) idx[clave] = 'franco'; else delete idx[clave];
+      try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+      showToast(t('aus_error'));
+    });
 }
 
 /* ════════════════ TAREAS Y NOTIFICACIONES · lado de la persona (D1, 2026-08-26) ═════════════
