@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v303';
+const VERSION = 'v305';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -68,17 +68,33 @@ self.addEventListener('fetch', event => {
        hacer esperar a todos, siempre, por si acaso. */
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
+
+      /* ⚠️ SE PIDE LA URL PEDIDA, NO SIEMPRE `./index.html`. Antes esto respondía con la app para
+         CUALQUIER navegación dentro del scope: abrir `/pruebas/panel.html` en el mismo origen
+         devolvía la app en vez del panel, y la suite dejaba de poder correrse hasta desregistrar el
+         service worker a mano. Sólo la navegación a la raíz se sirve desde el caché de la app. */
+      const url = new URL(event.request.url);
+      const esLaApp = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+      if (!esLaApp) {
+        return fetch(event.request).catch(() => cache.match(event.request));
+      }
+
       const guardado = await cache.match('./index.html');
+      /* ⚠️ EL TEXTO SE LEE ANTES DE ENTREGAR LA RESPUESTA. `respondWith` BLOQUEA el body de lo que
+         se devuelve, así que un `guardado.clone()` posterior lanza `Response body is already used`
+         — y como el `.catch` de la revalidación se lo tragaba, el `cache.put` no corría NUNCA: el
+         caché no se actualizaba y el aviso de versión nueva no se mandaba jamás. O sea que la
+         promesa que este bloque declara innegociable ("nunca queda una versión vieja pegada") se
+         rompía en silencio, que es la peor forma de romperla. */
+      const textoViejo = guardado ? await guardado.clone().text() : null;
 
       const deLaRed = fetch(event.request, { cache: 'no-store' }).then(async resp => {
         if (resp && resp.ok) {
-          const copia = resp.clone();
-          const nuevo = await copia.text();
-          const viejo = guardado ? await guardado.clone().text() : null;
+          const nuevo = await resp.clone().text();
           await cache.put('./index.html', resp.clone());
           /* Sólo se avisa si de verdad cambió. Avisar en cada apertura sería un cartel que se
              aprende a cerrar sin leer, y entonces el día que importe tampoco se va a leer. */
-          if (viejo && nuevo !== viejo) {
+          if (textoViejo && nuevo !== textoViejo) {
             const clientes = await self.clients.matchAll({ type: 'window' });
             clientes.forEach(c => c.postMessage({ tipo: 'version-nueva' }));
           }
@@ -86,7 +102,7 @@ self.addEventListener('fetch', event => {
         return resp;
       }).catch(() => null);
 
-      /* Si no hay nada cacheado (primera visita), no queda otra que esperar a la red. */
+      /* Primera visita: no hay nada cacheado y no queda otra que esperar a la red. */
       return guardado || (await deLaRed) || fetch(event.request);
     })());
     return;

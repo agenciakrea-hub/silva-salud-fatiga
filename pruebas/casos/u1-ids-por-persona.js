@@ -273,7 +273,7 @@ PRUEBAS.caso('⚠️ el sw avisa cuando lo que sirvió no es lo último', async 
   PRUEBAS.alMenos(r.length, 100, 'tiene que poder leerse sw.js');
   PRUEBAS.cierto(/postMessage\(\{\s*tipo:\s*'version-nueva'/.test(r),
     '⚠️ el service worker tiene que avisarle a la app cuando hay versión nueva');
-  PRUEBAS.cierto(/nuevo !== viejo/.test(r),
+  PRUEBAS.cierto(/nuevo !== textoViejo/.test(r),
     'y sólo cuando de verdad cambió: avisar en cada apertura es un cartel que se aprende a cerrar sin leer');
   PRUEBAS.cierto(/cache\.put\('\.\/index\.html'/.test(r),
     'y la revalidación tiene que guardar la versión nueva, o el aviso no serviría de nada');
