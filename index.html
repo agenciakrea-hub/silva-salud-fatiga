@@ -39,9 +39,6 @@
 
 <meta name="description" content="Portal de Gestión de Fatiga · Silva Salud — Reporte operacional y de bienestar vía WhatsApp con EVA.">
 
-<!-- `preload` para que la imagen del pre-arranque llegue con el HTML y no una vuelta después:
-     si tarda, el hueco de pantalla azul vacía vuelve, que es justo lo que se vino a sacar. -->
-<link rel="preload" as="image" href="icon-192.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
@@ -497,13 +494,29 @@
      ⚠️ Se apaga solo a los 8 s aunque el JS nunca llegue a quitarlo. Si el script se corta (que en
      este archivo ya pasó tres veces por orden de declaración, ver R16), es preferible ver la app
      rota que una pantalla tapada para siempre sin explicación. */
-  #preCarga { position: fixed; inset: 0; z-index: 999; display: flex; align-items: center;
-    justify-content: center; background: var(--navy-deep);
+  #preCarga { position: fixed; inset: 0; z-index: 999; background: var(--navy-deep);
     animation: preCargaRed 8s forwards; }
-  #preCarga img { width: 96px; height: auto; opacity: .92; }
-  body.listo #preCarga { opacity: 0; pointer-events: none; transition: opacity .28s ease; }
+  /* ⚠️ SIN LOGO Y SIN TRANSICIÓN, A PROPÓSITO — y la primera versión tenía los dos, mal.
+     El sistema ya muestra SU pantalla de arranque con el ícono del manifest, a su tamaño (grande).
+     Yo volvía a pintar el mismo ícono a 96 px fijos: el logo grande desaparecía y aparecía uno
+     chico. Se ve como si se achicara. Y encima el contenedor se iba con un fade de .28 s, que es la
+     "animación" que Franco reportó. Dos defectos donde no había ninguno.
+     Lo único que este bloque tiene que hacer es tapar el hueco con EL MISMO COLOR que la pantalla
+     del sistema, para que el paso de una a otra no se note. Un color plano idéntico es invisible;
+     cualquier cosa dibujada encima es un salto.
+     `display:none` y no `opacity:0`: una transición acá vuelve a introducir el parpadeo. */
+  body.listo #preCarga { display: none; }
+  /* Aviso de versión nueva: abajo, sobre la barra de navegación, sin tapar contenido. */
+  .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 5.2rem; z-index: 60;
+    display: flex; align-items: center; gap: .5rem; max-width: calc(100% - 1.6rem);
+    background: var(--sobre-claro); color: var(--card); border-radius: 12px;
+    padding: .5rem .6rem .5rem .8rem; box-shadow: 0 8px 24px rgba(0,0,0,.28); font-size: .78rem; }
+  .ver-nueva button { min-height: 44px; padding: 0 .7rem; border: none; border-radius: 8px;
+    font-family: inherit; font-weight: 700; font-size: .76rem; cursor: pointer;
+    background: var(--orange-solido); color: #fff; }
+  .ver-nueva .vn-x { background: transparent; color: inherit; font-size: 1.1rem; padding: 0 .4rem;
+    min-width: 44px; opacity: .8; }
   @keyframes preCargaRed { 0%,99% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-  @media (prefers-reduced-motion: reduce) { body.listo #preCarga { transition: none; } }
 
   html { background: var(--navy-deep); -webkit-text-size-adjust: 100%; overflow-x: hidden;
     overscroll-behavior-y: none; }
@@ -4269,7 +4282,7 @@
 <body>
 <!-- Lo PRIMERO del body a propósito: es lo que el navegador pinta antes de ejecutar nada. Ver el
      bloque PRE-ARRANQUE en el CSS. -->
-<div id="preCarga" aria-hidden="true"><img src="icon-192.png" alt="" width="96" height="96"></div>
+<div id="preCarga" aria-hidden="true"></div>
 
 <div class="wrap" id="app" style="display:none;">
 
@@ -5347,7 +5360,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '4.91';                 // ← Subí este número en cada actualización
+const APP_VERSION = '4.92';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5874,6 +5887,7 @@ const I18N = {
       sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
       /* Y5. Se dice el número, no se esconde: una ausencia mal cargada tiene que poder verse. */
       hs_no_tocaba:'{n} persona(s) no estaban de guardia hoy y no se cuentan en la cobertura.',
+      ver_nueva:'Hay una versión nueva de la app.', ver_nueva_btn:'Actualizar',
       aus_marcar:'Marcar que hoy no está de guardia', aus_marcar_corto:'De guardia',
       aus_quitar:'Volver a contarlo hoy', aus_no_guardia:'No está hoy',
       aus_puesta:'{p} no se cuenta hoy', aus_quitada:'{p} vuelve a contarse hoy',
@@ -7391,6 +7405,7 @@ const I18N = {
       sub_resumen_op:'Operational summary of the group you have filtered',
       sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
       hs_no_tocaba:'{n} person(s) were not on duty today and are not counted in coverage.',
+      ver_nueva:'A new version of the app is available.', ver_nueva_btn:'Update',
       aus_marcar:'Mark as not on duty today', aus_marcar_corto:'On duty',
       aus_quitar:'Count them again today', aus_no_guardia:'Off today',
       aus_puesta:'{p} is not counted today', aus_quitada:'{p} counts again today',
@@ -21055,6 +21070,20 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    microsegundos". Y era además el agujero del "empleado fantasma" que ya preocupaba en closePortal:
    la app quedaba tocable detrás del splash de alguien sin perfil.
    Es función declarada, no variable: vive en el camino de arranque (ver la regla de N10). */
+/* El aviso de "hay una versión nueva". Discreto y con acción: una barra abajo, no un modal.
+   ⚠️ NO recarga sola. Alguien puede estar a mitad de un test de 90 segundos, y recargarle la app
+   debajo le haría perder el trabajo — la clase de "mejora" que se paga cara. Decide la persona. */
+function versionNuevaAvisar(){
+  if (document.getElementById('verNuevaBar')) return;
+  const b = document.createElement('div');
+  b.id = 'verNuevaBar';
+  b.className = 'ver-nueva';
+  b.innerHTML = '<span>' + esc(t('ver_nueva')) + '</span>' +
+    '<button type="button" onclick="location.reload()">' + esc(t('ver_nueva_btn')) + '</button>' +
+    '<button type="button" class="vn-x" onclick="this.parentNode.remove()" aria-label="' + esc(t('cerrar')) + '">×</button>';
+  document.body.appendChild(b);
+}
+
 function appRevelar(ver){
   const app = document.getElementById('app');
   const nav = document.getElementById('bottomNav');
@@ -21976,7 +22005,30 @@ if ('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').then(reg => {
       reg.update();
       setInterval(() => reg.update(), 60 * 60 * 1000);  // chequea cada hora
+      /* ⚠️ EL REGISTRO RESUELVE AUNQUE EL `install` FALLE — la registración se crea igual; lo que
+         falla es la instalación. Por eso el `.catch` de abajo no se dispara nunca y este error fue
+         invisible durante meses (un `ASSETS` con dos íconos que daban 404 dejó a la app sin caché
+         y nadie se enteró). Se mira el estado de verdad. */
+      if (reg.installing){
+        reg.installing.addEventListener('statechange', function(){
+          if (this.state === 'redundant') console.error('[sw] la instalación falló: la app queda sin caché offline');
+        });
+      }
     }).catch(()=>{});
+
+    /* ⚠️ LA CONTRAPARTE DEL CACHÉ-PRIMERO. El service worker ahora sirve la app desde el caché al
+       instante y revalida por detrás, que es lo que saca los segundos de pantalla azul al abrir.
+       Eso sólo es aceptable si, cuando lo servido NO es lo último, se dice. Sin este aviso estaría
+       cambiando "arranca lento" por "puede quedar pegada una versión vieja", que es el error más
+       caro que tuvo este proyecto.
+       Se avisa una sola vez y sin interrumpir: un cartel que tapa la pantalla al abrir la app se
+       aprende a cerrar sin leer, y entonces el día que importe tampoco se lee. */
+    let avisoVersion = false;
+    navigator.serviceWorker.addEventListener('message', ev => {
+      if (!ev.data || ev.data.tipo !== 'version-nueva' || avisoVersion) return;
+      avisoVersion = true;
+      try { versionNuevaAvisar(); } catch(e){}
+    });
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return; refreshing = true; window.location.reload();

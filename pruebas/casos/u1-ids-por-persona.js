@@ -78,28 +78,46 @@ PRUEBAS.caso('⚠️ y viaja `idPrevio`, para que el servidor actualice la fila 
     'y el consentimiento, que es la evidencia legal de que se informó');
 });
 
-PRUEBAS.grupo('U2 · el arranque no muestra una pantalla azul vacía');
+PRUEBAS.grupo('U2 · el arranque');
 
-/* ⚠️ POR QUÉ EXISTE. Franco lo reportó mirando la app: "aparece el logo, y desaparece el logo,
-   mientras hay fondo azul se ve el link de la web arriba, luego aparece el splash intro; un detalle
-   feo que antes no estaba."
-   El navegador muestra SU pantalla de arranque (ícono sobre el `background_color` del manifest) y la
-   quita en cuanto la página hace su primer pintado. Ese primer pintado era `html { background }`:
-   azul y VACÍO, porque el splash de la app lo muestra `splashMostrar()`, que corre recién después de
-   parsear ~21.000 líneas. En ese hueco Chrome aprovecha para mostrar la dirección del sitio.
-   Antes no se notaba porque el service worker no instalaba y el arranque era otro. */
+/* ⚠️ HISTORIA, PORQUE EXPLICA POR QUÉ ESTOS CASOS SON COMO SON. Franco reportó que al abrir la app
+   "se ponía azul el fondo durante unos segundos, vacío, con el link de la web arriba". Ese link lo
+   pinta el navegador —muestra el origen mientras la PWA todavía no pintó nada— y no se puede quitar
+   desde la app: lo único que se puede hacer es que la página pinte ANTES.
 
-PRUEBAS.caso('⚠️ hay algo pintado antes de que corra una línea de JavaScript', () => {
+   Mi primer intento fue poner el logo sobre el fondo. Fue PEOR: el sistema ya muestra su pantalla de
+   arranque con el ícono del manifest a su tamaño (grande), y yo volvía a pintarlo a 96 px fijos, con
+   un fade de .28 s encima. El logo grande desaparecía y aparecía uno chico. Franco lo describió como
+   "el logo se achica o tiene como una animación, tipo horrible" — y tenía razón: agregué dos
+   defectos donde no había ninguno.
+
+   Lo que quedó: el pre-arranque tapa el hueco con EL MISMO COLOR y nada más. Un color plano idéntico
+   es invisible en la transición; cualquier cosa dibujada encima es un salto. Y el arranque se acortó
+   de verdad en el service worker, sirviendo desde el caché al instante. */
+
+PRUEBAS.caso('⚠️ el pre-arranque NO dibuja nada: sólo tapa con el color', () => {
+  /* El defecto que Franco reportó. Cualquier cosa dibujada acá —un logo, un texto, un spinner—
+     compite con la pantalla de arranque del sistema y se ve como un salto. */
   const pc = document.getElementById('preCarga');
-  PRUEBAS.cierto(!!pc, 'tiene que existir el elemento de pre-arranque');
+  PRUEBAS.cierto(!!pc, 'tiene que existir el pre-arranque');
   if (!pc) return;
-  /* Que esté ANTES del script es lo que hace que entre en el primer pintado. Si alguien lo mueve
-     más abajo, o lo pinta con JS, vuelve el hueco. */
-  const cuerpo = document.body;
-  PRUEBAS.igual(cuerpo.firstElementChild && cuerpo.firstElementChild.id, 'preCarga',
-    '⚠️ tiene que ser el PRIMER hijo del body: más abajo ya no llega al primer pintado');
-  PRUEBAS.cierto(/#preCarga\s*{/.test([...document.querySelectorAll('style')].map(x=>x.textContent).join('')),
-    'y estar resuelto por CSS, no por JavaScript');
+  PRUEBAS.igual(pc.children.length, 0,
+    '⚠️ CERO elementos adentro. Con un logo, el del sistema (grande) salta al de acá (chico)');
+  PRUEBAS.igual(pc.querySelectorAll('img').length, 0, 'y ninguna imagen');
+  PRUEBAS.igual((pc.textContent || '').trim(), '', 'ni texto');
+});
+
+PRUEBAS.caso('⚠️ y no se va con una animación', () => {
+  /* La otra mitad de lo que se veía mal: el contenedor se desvanecía en .28 s. Un fade sobre una
+     pantalla de arranque es exactamente el parpadeo que se vino a sacar. */
+  const pc = document.getElementById('preCarga');
+  if (!pc) { PRUEBAS.cierto(false, 'no existe'); return; }
+  const cs = getComputedStyle(pc);
+  PRUEBAS.igual(cs.transitionDuration, '0s',
+    '⚠️ sin transición: se apaga con display:none, no con un fade');
+  const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('');
+  PRUEBAS.cierto(/body\.listo #preCarga \{ display: none; \}/.test(css),
+    'y el apagado es display:none');
 });
 
 PRUEBAS.caso('⚠️ su fondo es EXACTAMENTE el del manifest, o se ve un salto de color', () => {
@@ -121,7 +139,9 @@ PRUEBAS.caso('⚠️ y se apaga cuando la app ya decidió qué mostrar', () => {
   PRUEBAS.cierto(document.body.classList.contains('listo'),
     'al terminar el arranque, el body tiene que quedar marcado como listo');
   const pc = document.getElementById('preCarga');
-  if (pc) PRUEBAS.igual(getComputedStyle(pc).opacity, '0', 'y el pre-arranque, invisible');
+  /* `display:none` y NO `opacity:0`: con opacidad hay transición, y una transición acá es
+     exactamente el parpadeo que Franco reportó. */
+  if (pc) PRUEBAS.igual(getComputedStyle(pc).display, 'none', 'y el pre-arranque, fuera de escena');
 
   /* La red de seguridad: si el script se corta —que en este archivo ya pasó tres veces por orden de
      declaración (R16)— el pre-arranque tiene que apagarse solo igual. Es preferible ver la app rota
@@ -234,4 +254,64 @@ PRUEBAS.caso('los textos del login están en los dos idiomas (R14, R1)', () => {
   /* Y que no prometa una recuperación que no existe: el servidor guarda un hash. */
   PRUEBAS.cierto(/no se puede recuperar|cannot be recovered/i.test(t('lgn_olvide_d')),
     '⚠️ tiene que decir la verdad: la contraseña está cifrada y nadie puede devolverla');
+});
+
+PRUEBAS.grupo('U2b · el service worker no puede dejar una versión pegada');
+
+/* El arranque se acortó sirviendo la app desde el caché al instante en vez de esperar a la red. Eso
+   es lo que de verdad saca los segundos de pantalla azul —el navegador muestra el link del sitio
+   mientras la página no pintó— pero sólo es aceptable si, cuando lo servido NO es lo último, se
+   dice. Sin el aviso estaríamos cambiando "arranca lento" por "puede quedar pegada una versión
+   vieja", que es el error más caro que tuvo este proyecto. */
+
+PRUEBAS.caso('⚠️ el sw avisa cuando lo que sirvió no es lo último', async () => {
+  const r = await fetch('/sw.js').then(x => x.text()).catch(() => '');
+  PRUEBAS.alMenos(r.length, 100, 'tiene que poder leerse sw.js');
+  PRUEBAS.cierto(/postMessage\(\{\s*tipo:\s*'version-nueva'/.test(r),
+    '⚠️ el service worker tiene que avisarle a la app cuando hay versión nueva');
+  PRUEBAS.cierto(/nuevo !== viejo/.test(r),
+    'y sólo cuando de verdad cambió: avisar en cada apertura es un cartel que se aprende a cerrar sin leer');
+  PRUEBAS.cierto(/cache\.put\('\.\/index\.html'/.test(r),
+    'y la revalidación tiene que guardar la versión nueva, o el aviso no serviría de nada');
+});
+
+PRUEBAS.caso('⚠️ la app escucha ese aviso y ofrece actualizar', () => {
+  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+  PRUEBAS.cierto(/'version-nueva'/.test(fuente),
+    '⚠️ sin esto, el sw avisa al vacío y la versión vieja se queda para siempre');
+  PRUEBAS.cierto(typeof versionNuevaAvisar === 'function', 'y existe la función que lo muestra');
+});
+
+PRUEBAS.caso('⚠️ pero NO recarga sola', () => {
+  /* Alguien puede estar a mitad de un test de reacción de 90 segundos. Recargarle la app debajo le
+     hace perder el trabajo — la clase de "mejora" que se paga cara. Decide la persona. */
+  const f = String(versionNuevaAvisar);
+  PRUEBAS.falso(/^[\s\S]*location\.reload\(\)\s*;/m.test(f.replace(/onclick="[^"]*"/g, '')),
+    '⚠️ la recarga sólo puede salir de un botón, nunca automática');
+  PRUEBAS.cierto(/onclick="location\.reload\(\)"/.test(f), 'y ese botón tiene que existir');
+});
+
+PRUEBAS.caso('⚠️ el aviso no aparece hasta que haga falta, y se puede cerrar', () => {
+  PRUEBAS.falso(!!document.getElementById('verNuevaBar'),
+    'en una app al día no puede haber ningún cartel');
+  const previo = document.getElementById('verNuevaBar');
+  if (previo) previo.remove();
+  versionNuevaAvisar();
+  const b = document.getElementById('verNuevaBar');
+  try {
+    PRUEBAS.cierto(!!b, 'al llamarlo, aparece');
+    versionNuevaAvisar();
+    PRUEBAS.igual(document.querySelectorAll('#verNuevaBar').length, 1,
+      '⚠️ y no se apila si el aviso llega dos veces');
+    const cerrar = b.querySelector('.vn-x');
+    PRUEBAS.cierto(!!cerrar, 'tiene que poder cerrarse: no puede tapar la app para siempre');
+    PRUEBAS.alMenos(Math.round(b.querySelector('button').getBoundingClientRect().height), 44,
+      'y sus botones se tocan con guantes');
+  } finally { if (b) b.remove(); }
+});
+
+PRUEBAS.caso('los textos del aviso están en los dos idiomas (R14)', () => {
+  ['ver_nueva','ver_nueva_btn'].forEach(k => {
+    const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k);
+  });
 });

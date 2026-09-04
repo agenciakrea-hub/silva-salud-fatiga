@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v302';
+const VERSION = 'v303';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -50,32 +50,45 @@ self.addEventListener('fetch', event => {
   // ── HTML / navegación: SIEMPRE a la red (ignora caché HTTP del browser).
   //    Así nunca queda una versión vieja pegada. Si no hay red, usa el caché.
   if (event.request.mode === 'navigate') {
-    /* ⚠️ CON TOPE DE ESPERA (2026-09-03). La estrategia sigue siendo RED PRIMERO —es la promesa que
-       no se negocia acá: "nunca queda una versión vieja pegada" es el error más caro que tuvo este
-       proyecto—. Lo que cambia es qué pasa mientras la red no contesta.
+    /* ⚠️ CACHÉ PRIMERO, RED DETRÁS — y este cambio es el que de verdad resuelve lo que Franco
+       reportó: "se ponía azul el fondo durante unos segundos, vacío, con el link arriba".
 
-       Antes se esperaba a la red sin límite. Como el service worker recién empezó a instalarse (los
-       íconos del ASSETS daban 404 y el install fallaba), ese arranque intermediado es NUEVO: con
-       señal mala la persona se queda mirando la pantalla azul del sistema —el `background_color`
-       del manifest— hasta que la red conteste. Franco lo reportó como "un detalle feo que antes no
-       estaba", y tenía razón: antes no había SW que esperar.
+       Ese link lo pinta el navegador: cuando se abre una PWA, Chrome muestra el origen del sitio
+       mientras la página todavía no pintó nada. No se puede quitar desde la app. Lo único que se
+       puede hacer es que la página pinte ANTES, y para eso hay que dejar de esperar a la red.
 
-       Ahora: si la red no contestó en 2,5 s, se sirve lo cacheado y la respuesta de red, cuando
-       llegue, actualiza el caché igual para la próxima apertura. O sea, se pierde como mucho una
-       apertura de frescura y se gana un arranque instantáneo en el hangar, que es donde se usa.
-       ⚠️ El `fetch` NO se cancela al vencer el tope: se lo deja terminar justamente para que
-       actualice el caché. Cancelarlo dejaría la app pegada en la versión vieja para siempre. */
-    const alaRed = fetch(event.request, { cache: 'no-store' }).then(resp => {
-      caches.open(CACHE).then(c => c.put('./index.html', resp.clone()));
-      return resp;
-    });
-    event.respondWith(
-      Promise.race([
-        alaRed,
-        new Promise(resolve => setTimeout(
-          () => resolve(caches.match('./index.html').then(r => r || alaRed)), 2500))
-      ]).catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
-    );
+       Antes esto era red-primero (con un tope de 2,5 s que agregué y no alcanzó): el arranque
+       quedaba atado a la latencia del hosting. Ahora se responde con lo cacheado en el acto —
+       milisegundos— y la red corre por detrás para dejar la versión nueva lista.
+
+       ⚠️ LA PROMESA QUE NO SE ROMPE: "nunca queda una versión vieja pegada" es el error más caro que
+       tuvo este proyecto. Se sostiene por otro lado: la revalidación SIEMPRE corre, guarda la
+       versión nueva, y `sw.js` avisa a la app cuando lo que se sirvió no es lo último. La app lo
+       muestra y ofrece recargar. O sea: se ve al instante, y si hay algo nuevo se dice — en vez de
+       hacer esperar a todos, siempre, por si acaso. */
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const guardado = await cache.match('./index.html');
+
+      const deLaRed = fetch(event.request, { cache: 'no-store' }).then(async resp => {
+        if (resp && resp.ok) {
+          const copia = resp.clone();
+          const nuevo = await copia.text();
+          const viejo = guardado ? await guardado.clone().text() : null;
+          await cache.put('./index.html', resp.clone());
+          /* Sólo se avisa si de verdad cambió. Avisar en cada apertura sería un cartel que se
+             aprende a cerrar sin leer, y entonces el día que importe tampoco se va a leer. */
+          if (viejo && nuevo !== viejo) {
+            const clientes = await self.clients.matchAll({ type: 'window' });
+            clientes.forEach(c => c.postMessage({ tipo: 'version-nueva' }));
+          }
+        }
+        return resp;
+      }).catch(() => null);
+
+      /* Si no hay nada cacheado (primera visita), no queda otra que esperar a la red. */
+      return guardado || (await deLaRed) || fetch(event.request);
+    })());
     return;
   }
 
