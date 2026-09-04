@@ -261,9 +261,14 @@ PRUEBAS.caso('⚠️ el arranque no rompe el script (TDZ)', () => {
     'esta se declara DESPUÉS: si falta, el script se cortó en el medio y media app no existe');
 });
 
-PRUEBAS.caso('son cinco pantallas y todas tienen texto y gráfico', () => {
+PRUEBAS.caso('toda pantalla del recorrido tiene texto, gráfico y duración', () => {
+  /* ⚠️ ANTES ESTE CASO FIJABA EL NÚMERO (`igual(slides.length, 5)`) y se puso en rojo el día que se
+     agregaron dos láminas legítimas — SAFTE y cultura justa. Una prueba que fija un conteo obliga a
+     editarla cada vez que el contenido crece, y una prueba que hay que editar para que pase se
+     termina editando sin leer. Lo que importa no es cuántas son sino que **cada una** esté completa.
+     Se deja un piso: si quedaran menos de tres, el carrusel dejó de ser un recorrido. */
   const slides = [...document.querySelectorAll('#splashAnimTrack .splash-anim-slide')];
-  PRUEBAS.igual(slides.length, 5, 'las cinco del recorrido');
+  PRUEBAS.alMenos(slides.length, 3, 'tiene que haber un recorrido, no una sola lámina');
   const flojas = slides
     .map((sl, i) => {
       const b = sl.querySelector('.spl-p-tx b'), gr = sl.querySelector('.spl-p-gr');
@@ -814,4 +819,44 @@ PRUEBAS.caso('⚠️ el punto de la línea cae sobre el final de la línea', asy
   PRUEBAS.comoMucho(dx, 2, 'el punto tiene que caer sobre el final de la línea en horizontal');
   PRUEBAS.comoMucho(dy, 2, 'y en vertical (' + dy.toFixed(1) + ' px de desfase)');
   PRUEBAS.cierto(dentro, 'y no puede salirse de la tarjeta');
+});
+
+PRUEBAS.caso('⚠️ SAFTE va SEGUNDA, y la cultura justa está en el recorrido', () => {
+  /* El orden no es estético. SAFTE va segunda porque es lo que nos pone en la misma conversación que
+     los productos con los que nos van a comparar; enterrada al final, no la ve nadie.
+     Y la cultura justa estaba SÓLO en el consentimiento, o sea que se leía después de decidir usar
+     la app: quien todavía no confía no llegaba nunca. Es lo que decide si alguien reporta con
+     honestidad, así que tiene que estar antes de pedirle nada. */
+  const slides = [...document.querySelectorAll('#splashAnimTrack .splash-anim-slide')];
+  const clave = i => { const b = slides[i] && slides[i].querySelector('.spl-p-tx b');
+    return b ? (b.getAttribute('data-i18n') || '') : ''; };
+  PRUEBAS.igual(clave(1), 'spl_safte_t', '⚠️ la SEGUNDA lámina tiene que ser la de SAFTE');
+  PRUEBAS.cierto(slides.some((_, i) => clave(i) === 'spl_justa_t'),
+    '⚠️ la de cultura justa tiene que estar en el recorrido');
+});
+
+PRUEBAS.caso('⚠️ los textos nuevos no prometen de más', () => {
+  /* La regla que hace que el resto se pueda sostener: se dice "estima", no "mide"; se nombra el
+     wearable como lo que mejora la precisión, no como requisito. Una promesa de más en la primera
+     pantalla cuesta la credibilidad de todo lo demás — y es lo primero que un auditor va a mirar. */
+  const safte = (t('spl_safte_d') || '').toLowerCase();
+  PRUEBAS.cierto(/estima/.test(safte), 'SAFTE tiene que decir que ESTIMA, no que mide');
+  PRUEBAS.falso(/\bmide\b|\bmedimos\b|\bexacta\b|\bprecis[oa]\b/.test(safte.replace('precisión','')),
+    '⚠️ no puede afirmar medición ni exactitud: el modelo infiere, no mide');
+  PRUEBAS.cierto(/wearable/.test(safte), 'y tiene que nombrar el wearable');
+
+  /* Y ninguna lámina puede reclamar una certificación que no tenemos. */
+  const todas = ['spl_p1_d','spl_safte_d','spl_p2_d','spl_p3_d','spl_p4_d','spl_justa_d','spl_p5_d']
+    .map(k => (t(k) || '').toLowerCase()).join(' ');
+  ['certificad', 'avalad', 'aprobado por', 'garantiza'].forEach(mala => {
+    PRUEBAS.falso(todas.indexOf(mala) >= 0,
+      '⚠️ no se puede afirmar "' + mala + '…": no tenemos esa certificación y es lo primero que se verifica');
+  });
+});
+
+PRUEBAS.caso('los textos de las láminas nuevas están en los dos idiomas (R14, R1)', () => {
+  ['spl_safte_t','spl_safte_d','spl_safte_chip','spl_justa_t','spl_justa_d','spl_p1_t','spl_p1_d']
+    .forEach(k => { const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k); });
+  PRUEBAS.falso(/\b(tenés|podés|cuidarte vos|sos)\b/i.test(t('spl_justa_d') + ' ' + t('spl_safte_d')),
+    'español neutro (R1)');
 });
