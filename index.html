@@ -5956,7 +5956,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.44';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.45';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12983,6 +12983,15 @@ function nominaConfirmar(){
         nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
         cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
         esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'',
+        /* ⚠️ EL SERVIDOR YA MANDABA ESTO Y EL CLIENTE LO TIRABA. La columna L de `Nómina` se llama
+           "Rol en la app", `leerNomina()` la lee y `accionNominaConfirmar` la devuelve como `rol`
+           desde hace tiempo — pero este `setProfile` arma el perfil con una lista CERRADA de
+           campos, así que `rol` llegaba al navegador y se perdía sin un error ni una advertencia.
+           Es la misma forma exacta que ya se comió `duty` y `ausencias` en `onDashData` (R17), un
+           piso más abajo: el dato viaja, nadie lo nombra, nadie se entera.
+           El rol PROPONE, no autoriza: lo único que abre el panel sigue siendo la contraseña de
+           empresa (ver `docs/adr/002-como-sabe-la-app-quien-gestiona.md`). */
+        rol: q.rol || '',
         // A3: el sector viene con el perfil y define toda la terminología que verá esta persona
         // (aeropuerto vs. planta). Se guarda con sus datos para no tener que volver a pedirlo.
         sector: q.sector || ''
@@ -23331,7 +23340,17 @@ function recuperarConfirmar(){
       const nuevo = Object.assign({}, prev, {
         nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
         cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
-        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'', esSupervisor: !!q.esSupervisor,
+        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'',
+        /* ⚠️ BUG VIVO, Y LE PEGA A HELITEC HOY. `accionRecuperarPerfil` tiene DOS ramas: la de
+           `Registrados Fatiga` manda `esSupervisor`, y la de `Nómina` NO lo manda — devuelve
+           nombre, cédula, cargo, `rol`… y nada más. Con `!!q.esSupervisor` a secas, `undefined`
+           se convertía en `false` y PISABA el flag: cualquier supervisor de una empresa con
+           nómina cargada que recuperara su perfil perdía el panel, en silencio y sin poder
+           deducir por qué.
+           Se pisa SÓLO si el servidor lo mandó de verdad. Que una clave no venga significa "no
+           tengo ese dato", nunca "es falso". */
+        esSupervisor: ('esSupervisor' in q) ? !!q.esSupervisor : !!prev.esSupervisor,
+        rol: q.rol || prev.rol || '',
         sector: q.sector||''
       });
       setProfile(nuevo);
