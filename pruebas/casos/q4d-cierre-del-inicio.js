@@ -194,3 +194,63 @@ PRUEBAS.caso('⚠️ los enlaces del pie del alta entran en UNA línea cada uno'
   } finally { if (!tenia) ov.classList.remove('show'); }
   PRUEBAS.igual(malos, [], '⚠️ un enlace por renglón, sin envolver — ' + malos.join(' · '));
 });
+
+PRUEBAS.caso('⚠️ Administrador no arrastra la pantalla de supervisor', () => {
+  /* Franco: "cuando toco el botón de administrador aparece un texto de vista operativa: quiénes
+     están etc, raro". `portalMode('sup')` —que se llama para llegar al bloque de admin— le escribe
+     el texto de supervisor a `#portalSupHint`, que es HERMANO del formulario y no hijo, así que
+     esconder `#portalCreds` no lo alcanzaba. */
+  const ov = document.getElementById('splashOv');
+  const tenia = ov.classList.contains('show');
+  try {
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    ov.classList.add('show');
+    splashAdmin();
+    const vis = id => { const e = document.getElementById(id); if (!e) return false;
+      const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    PRUEBAS.falso(vis('portalSupHint'),
+      '⚠️ el texto de la vista de supervisor no tiene nada que hacer en Administrador');
+    const tog = document.querySelector('.admin-toggle');
+    PRUEBAS.cierto(!!tog && getComputedStyle(tog).display === 'none',
+      '⚠️ ni el botón que abre esto: la persona YA lo tocó, no se le ofrece otra vez');
+    PRUEBAS.cierto(vis('pAdminPass'), 'y sí el campo de contraseña, que es a lo que vino');
+  } finally {
+    portalReponerLoDeEmpresa();
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    if (tenia) ov.classList.add('show');
+  }
+});
+
+PRUEBAS.caso('⚠️ y pasar por Administrador NO rompe "Ver una demostración"', () => {
+  /* El defecto que Franco reportó y que yo había "documentado" mal: mi comentario decía que las
+     pestañas se reponían en `splashPortal()`/`openPortalGate()`. Falso por partida doble —
+     `splashVerDemo()` no llama a ninguna de las dos, y `splashPortal()` no la llamaba NADIE (era
+     código muerto, el mismo defecto que Q4c encontró antes).
+     Efecto: la demo quedaba con UNA pestaña muerta y el botón clavado en "(para supervisor)", hasta
+     recargar la página. */
+  try {
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    document.getElementById('splashOv').classList.add('show');
+    splashAdmin();                                  // esconde las pestañas
+    closePortal();
+    document.getElementById('splashOv').classList.add('show');
+    splashVerDemo();                                // tiene que reponerlas
+    const vis = id => { const e = document.getElementById(id); if (!e) return false;
+      const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    PRUEBAS.igual(['ptabEmp','ptabSup','ptabMed','ptabHseq'].filter(vis).length, 4,
+      '⚠️ la demostración tiene que ofrecer las cuatro vistas, se haya pasado o no por Administrador');
+    PRUEBAS.falso(vis('pAdminPass'), 'y el campo de administrador se guarda (discriminador)');
+  } finally { document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); }
+});
+
+PRUEBAS.caso('⚠️ cerrar el panel no deja la sesión de empresa viva detrás', () => {
+  /* Medido: al salir del panel médico quedaba `DASH = {vista:'medico', rol:'empresa'}` vivo en el
+     splash, con la contraseña de la empresa dentro de `DASH.params`, y `gestCanSync()` devolvía
+     true mientras la persona ya miraba el gate de la demostración. */
+  const prev = DASH;
+  try {
+    DASH = { vista:'medico', rol:'empresa', params:{ pass:'secreta' }, f:{} };
+    closePortal();
+    PRUEBAS.igual(DASH, null, '⚠️ cerrar el panel tiene que anular la vista de empresa cargada');
+  } finally { DASH = prev; }
+});

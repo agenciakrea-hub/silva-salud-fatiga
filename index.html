@@ -748,8 +748,17 @@
      `necesita_clave`—, así que quedaba pintado debajo: el empleado con contraseña propia veía el
      panel en "Cargando…" para siempre, sin error y sin ningún lugar donde escribirla. Exactamente
      el callejón sin salida que esa pantalla vino a cerrar.
-     Yo había escrito en `silvaAtras` que "se abren por encima de él". No lo medí. Era falso. */
-  #loginOv, #claveOv { z-index: 1010; }
+     Yo había escrito en `silvaAtras` que "se abren por encima de él". No lo medí. Era falso.
+
+     ⚠️ `#recuperarOv` SE SUMA POR LA MISMA RAZÓN, y la encontró una auditoría después de que este
+     mismo defecto rompiera producción por segunda vez. Se abre DESDE ADENTRO de `#setup` y de
+     `#nominaOv` sin cerrarlos, o sea que es apilable por diseño — pero `#setup` (5353) está DESPUÉS
+     que él (5327) en el DOM, así que con z-index igual `#setup` era el que se pintaba arriba.
+     Consecuencia medida: la persona veía el formulario de alta, el mecanismo de `inert` lo marcaba
+     como tapado (correctamente, según lo que el navegador pinta), y sus toques ATRAVESABAN el
+     formulario visible hacia los campos invisibles de recuperar.
+     Con 1010, lo que se ve y lo que está activo vuelven a ser lo mismo. */
+  #loginOv, #claveOv, #recuperarOv { z-index: 1010; }
   @starting-style { .overlay.show { opacity: 0; } }
   body.modal-open { overflow: hidden; }   /* evita scrollear el fondo con un overlay abierto */
   /* El scroller real de la página es <html>: si no lo bloqueamos, queda una 2da barra de scroll
@@ -5943,7 +5952,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.34';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.38';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -13641,7 +13650,12 @@ function portalAutoLoginSupervisor(c, credKey){
 // abierta: comparten el mismo z-index/posición fija que el panel de estadísticas, y si una queda
 // "pegada" (abierta pero sin su clase 'show' sacada) tapa la pantalla entera y bloquea los
 // toques — se sentía como "no puedo salir" aunque el botón de cerrar funcionaba.
+/* ⚠️ `DASH` NO PUEDE SOBREVIVIR AL CIERRE. Medido: al salir del panel médico quedaba
+   `{vista:'medico', rol:'empresa'}` vivo en el splash, con la contraseña de la empresa dentro de
+   `DASH.params` — y `gestCanSync()` devolvía true mientras la persona ya estaba mirando el gate de
+   la demostración. `abrirDestinoEstadisticas()` tenía la guarda; los tres caminos del splash no. */
 function closePortal(){
+  DASH = null;
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
   stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); cicloTickStop();
   const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
@@ -21996,33 +22010,32 @@ function sincronizarInert(){
     });
     return;
   }
-  /* ⚠️ EL DE ARRIBA ES EL ÚLTIMO QUE SE ABRIÓ, y eso lo sabe `OV_FOCO.pila`, no el z-index.
-     Mi primera versión lo elegía por z-index computado y salió al revés en un caso real: con
-     `setup` abierto y `recuperarOv` encima, `setup` tiene z-index mayor o igual, así que el
-     desempate por orden del DOM le daba la cima a `setup` — y quedaba inert JUSTO el overlay que
-     la persona estaba usando. Lo agarró un caso que ya existía (L4, el del apilado del foco).
-     La pila es la fuente de verdad porque registra el orden de APERTURA, que es lo que importa:
-     dos overlays pueden compartir z-index y el que manda es el que se abrió después.
-     El z-index queda de respaldo por si alguno se abrió sin pasar por la pila. */
-  /* ⚠️ `try/catch` y NO `typeof`. `OV_FOCO` es un `const`, y R16 lo deja escrito: con `let`/`const`
-     en zona muerta `typeof` TAMBIÉN lanza, así que como guarda no sirve de nada. Hoy está declarado
-     bastante más arriba y esto no puede fallar; el `catch` es para el día que alguien lo mueva —
-     sin él, `syncScrollLock()` corre en el arranque y un error acá cortaría el script entero. */
-  let enPila = [];
-  try { enPila = (OV_FOCO && OV_FOCO.pila) || []; } catch(e){ enPila = []; }
-  let arriba = null;
-  for (let i = enPila.length - 1; i >= 0 && !arriba; i--){
-    if (abiertos.indexOf(enPila[i].el) >= 0) arriba = enPila[i].el;
-  }
-  if (!arriba){
-    let zMax = -Infinity;
-    arriba = abiertos[abiertos.length - 1];
-    abiertos.forEach(o => {
-      const z = parseInt(getComputedStyle(o).zIndex, 10);
-      const v = isFinite(z) ? z : 0;
-      if (v >= zMax){ zMax = v; arriba = o; }
-    });
-  }
+  /* ⚠️ EL DE ARRIBA ES EL QUE EL NAVEGADOR PINTA ARRIBA, y eso NO es el último que se abrió.
+     Yo lo tenía al revés y lo dejé ESCRITO al revés, que es peor: el comentario afirmaba que la
+     pila del foco era la fuente de verdad "porque registra el orden de apertura". El orden de
+     apertura no decide qué se ve. Lo decide el z-index y, con empate, la posición en el DOM.
+
+     ROMPIÓ EN PRODUCCIÓN DOS VECES, POR DOS PUERTAS DISTINTAS:
+     · alta → "Ya me había registrado" → cerrar: el alta quedaba visible pero muerta al toque.
+     · formulario manual (`#setup`) → "Ya me había registrado": `#setup` está DESPUÉS de
+       `#recuperarOv` en el DOM y los dos comparten `z-index: 1000`, así que `#setup` es el que se
+       ve. Pero se abrió ANTES, así que la pila lo daba por tapado y lo marcaba inert. La persona
+       veía el formulario, no podía tocarlo ni deslizarlo, y sus toques ATRAVESABAN hacia los
+       campos invisibles de `#recuperarOv`.
+     El primer arreglo —"con un solo overlay abierto nunca se marca inert"— tapaba el primer caso y
+     no el segundo, porque ahí hay TRES abiertos. Y el caso de prueba que escribí verificaba
+     overlays "en soledad", justo el escenario donde el defecto no ocurre.
+
+     La pila del foco sigue existiendo y sirve para lo suyo —a dónde vuelve el foco al cerrar—,
+     pero no para esto. */
+  let arriba = abiertos[0], zMax = -Infinity;
+  abiertos.forEach(o => {
+    const z = parseInt(getComputedStyle(o).zIndex, 10);
+    const v = isFinite(z) ? z : 0;
+    /* `>=` y no `>`: con z-index igual gana el ÚLTIMO del DOM, que es el criterio del navegador.
+       `abiertos` sale de `querySelectorAll`, que devuelve en orden de documento. */
+    if (v >= zMax){ zMax = v; arriba = o; }
+  });
   document.querySelectorAll('.overlay, .ios-modal').forEach(o => {
     /* Sólo los ABIERTOS que no son el de arriba. Uno cerrado ya está fuera del tabulado por su
        `display:none`, y marcarlo inert sería ruido que después hay que acordarse de limpiar. */
@@ -22588,6 +22601,7 @@ function splashAbrirPortal(){
   syncScrollLock(); navPush();
 }
 function splashVerDemo(){
+  portalReponerLoDeEmpresa();   // ⚠️ si se viene de Administrador, las pestañas están escondidas
   /* Abre el portal para MIRAR el ejemplo y nada más: sin credenciales, eligiendo la vista.
      No se dispara el pedido acá — eso era lo que impedía elegir. */
   splashAbrirPortal();
@@ -22633,6 +22647,17 @@ function splashAdmin(){
   if (demo) demo.style.display = 'none';
   const olvidar = document.getElementById('portalOlvidar');
   if (olvidar) olvidar.style.display = 'none';
+  /* ⚠️ EL HINT DE SUPERVISOR TAMBIÉN. `portalMode('sup')` —que se llama arriba para llegar al bloque
+     de admin— le escribe a `#portalSupHint` el texto "Vista operativa: quiénes están en condiciones
+     de trabajar…", que no tiene nada que ver con esta pantalla. Se colaba porque es HERMANO del
+     formulario, no hijo, así que esconder `#portalCreds` no lo alcanzaba. Franco lo reportó como
+     "aparece un texto raro". */
+  const hint = document.getElementById('portalSupHint');
+  if (hint) hint.style.display = 'none';
+  /* ⚠️ Y EL BOTÓN QUE ABRE ESTO. La persona ya tocó "Administrador"; adentro le volvíamos a ofrecer
+     el mismo enlace "Administrador / Desarrollador", ahora con el formulario ya abierto debajo. */
+  const sep = document.getElementById('adminSep');
+  if (sep) sep.querySelector('.admin-toggle').style.display = 'none';
   const box = document.getElementById('adminBox');
   if (box) box.style.display = '';                     // abierto, no alternado: acá siempre se abre
   const pass = document.getElementById('pAdminPass');
@@ -22642,11 +22667,25 @@ function splashAdmin(){
    legítimos, y con `style.display = ''` (no `'block'`): así cada elemento vuelve a lo que diga su
    CSS, que no es lo mismo para un `<form>` que para un `<div>`. */
 function portalReponerLoDeEmpresa(){
-  ['portalCreds','portalDemoBloque'].forEach(id => {
+  ['portalCreds','portalDemoBloque','portalSupHint'].forEach(id => {
     const e = document.getElementById(id); if (e) e.style.display = '';
   });
+  /* ⚠️ LAS PESTAÑAS TAMBIÉN, Y ACÁ ESTÁ EL DEFECTO QUE REPORTÓ FRANCO. `splashAdmin()` las esconde
+     y el comentario que escribí decía que "se reponen en `splashPortal()`/`openPortalGate()`".
+     Falso por partida doble: `splashVerDemo()` no llama a ninguna de las dos, y `splashPortal()` no
+     la llamaba NADIE — era código muerto, el mismo defecto que Q4c encontró cuatro pantallas antes.
+     Efecto medido: tocar Administrador y después "Ver una demostración" dejaba la demo con UNA sola
+     pestaña muerta, el texto de supervisor colgando y el botón clavado en "(para supervisor)".
+     Quedaba así hasta recargar la página.
+     Se repone acá, en el único lugar que todos los caminos legítimos llaman. */
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = '';
+  });
+  const sep = document.getElementById('adminSep');
+  if (sep) sep.querySelector('.admin-toggle').style.display = '';
   const box = document.getElementById('adminBox');
   if (box) box.style.display = 'none';
+  try { portalPintarOlvidar(); } catch(e){}
 }
 
 

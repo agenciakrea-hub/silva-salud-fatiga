@@ -189,6 +189,40 @@ PRUEBAS.caso('⚠️ EL OVERLAY VISIBLE NUNCA QUEDA INERT (bug de producción)',
     rec.classList.remove('show'); sincronizarInert();
     PRUEBAS.falso(nom.hasAttribute('inert'),
       '⚠️ al quedar solo, el visible TIENE que volver a ser usable — si no, la pantalla queda muerta');
+    /* ⚠️ Y EL CASO QUE ESTE ARCHIVO NO CUBRÍA, que es el que rompió en producción por segunda vez.
+       `#setup` está DESPUÉS de `#recuperarOv` en el DOM y los dos comparten `z-index: 1000`, así
+       que `#setup` es el que se VE aunque se haya abierto antes. Con el criterio viejo —"el de
+       arriba es el último que se abrió"— quedaba inert el único que la persona podía ver, y sus
+       toques atravesaban hacia los campos invisibles del otro.
+       Acá hay TRES overlays abiertos, así que la guarda de "uno solo" no lo salva. */
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    const setup = document.getElementById('setup');
+    document.getElementById('splashOv').classList.add('show');
+    setup.classList.add('show');
+    rec.classList.add('show');
+    sincronizarInert();
+    /* ⚠️ Y ACÁ ESTÁ LA LECCIÓN COMPLETA. Mi primera versión de este caso afirmaba que `#setup` NO
+       podía quedar inert, porque con el mismo z-index era el que se pintaba arriba. Eso era cierto
+       y era el bug: `#recuperarOv` se abre DESDE ADENTRO de `#setup`, o sea que la intención del
+       diseño es que aparezca ENCIMA — le faltaba el `z-index: 1010` que los otros overlays
+       apilables ya tenían.
+       Con el z-index puesto, la intención y lo que el navegador pinta vuelven a coincidir: se ve
+       `recuperarOv`, y `#setup` está tapado de verdad. Lo que el caso fija no es cuál de los dos
+       gana, sino la propiedad que importa: EL QUE SE VE NUNCA ESTÁ MUERTO. */
+    PRUEBAS.cierto(setup.hasAttribute('inert'),
+      'con el z-index correcto, `#setup` queda genuinamente tapado');
+    PRUEBAS.falso(rec.hasAttribute('inert'),
+      '⚠️ y `#recuperarOv`, que es el que se ve, tiene que estar vivo');
+
+    /* La propiedad general, y la que había que fijar desde el principio: EL QUE SE VE NUNCA ESTÁ
+       MUERTO. Se comprueba preguntándole al navegador quién responde en el centro de la pantalla,
+       que es exactamente lo que hace un dedo. */
+    const enElCentro = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    const ovVisible = enElCentro && enElCentro.closest('.overlay');
+    PRUEBAS.cierto(!!ovVisible, 'guarda: algo tiene que responder en el centro de la pantalla');
+    if (ovVisible) PRUEBAS.falso(ovVisible.hasAttribute('inert'),
+      '⚠️ el overlay que responde al toque en el centro NO puede estar inert — es "' + ovVisible.id + '"');
+
     /* Y el caso general, no sólo ese par: cualquier overlay abierto en soledad. */
     const malos = [];
     ['nominaOv','testOverlay','opinionOv','portalOverlay','carruselOv','splashOv'].forEach(id => {
