@@ -209,6 +209,16 @@
         PRUEBAS._actual.ok = false;
         PRUEBAS._actual.error = (e && e.message) ? e.message : String(e);
       }
+      /* ⚠️ EL `inert` DE LOS OVERLAYS SE PONE AL DÍA ENTRE CASO Y CASO. La app lo sincroniza con un
+         MutationObserver, que es ASÍNCRONO: un caso que abre o cierra un overlay y mide en el mismo
+         tick ve el estado que dejó el caso anterior, no el suyo. Eso hacía que dos casos ajenos
+         —uno de M1 y uno del portal— pasaran o fallaran según el ORDEN en que corrieran, que es lo
+         peor que le puede pasar a una suite: el resultado deja de depender del código.
+         Va acá, una vez, y no en el `finally` de cada caso que abra un overlay: puesto en cada uno,
+         el próximo caso que alguien escriba nace con el problema. */
+      try { if (typeof app !== 'undefined' && app.sincronizarInert) app.sincronizarInert(); } catch(e){}
+      try { if (window.sincronizarInert) window.sincronizarInert(); } catch(e){}
+
       /* Un caso sin ninguna comprobación es un caso que no prueba nada. Pasa si alguien escribe
          el caso y se olvida de comprobar: se marca como falla para que no dé verde en falso. */
       if (!PRUEBAS._actual.comprobaciones.length && !PRUEBAS._actual.error) {

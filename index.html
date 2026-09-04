@@ -2949,6 +2949,16 @@
      que se ve, no lo que se puede tocar. */
   .splash-pie { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
     gap:2px; padding:16px 24px calc(env(safe-area-inset-bottom,0px) + 4px); }
+  /* Q4b · Los dos accesos de excepción, en una sola línea. En fila y separados por un punto se
+     leen como "y además, esto": pesan menos que el botón principal sin quedar escondidos, que es
+     lo que se pidió. Con `flex-wrap` por si el idioma alarga los textos: en inglés no entran a
+     320 px y bajar el segundo a otra línea es preferible a que se corte. */
+  .splash-pie--compacto { flex-direction:row; flex-wrap:wrap; justify-content:center;
+    gap:0 .2rem; padding-top:10px; }
+  .splash-pie-sep { color:var(--entrada-tenue); font-size:.8rem; align-self:center; }
+  /* Si envuelven, el punto sobra: separaría dos cosas que ya están en renglones distintos. */
+  @media (max-width: 359px){ .splash-pie--compacto { flex-direction:column; gap:2px; }
+    .splash-pie--compacto .splash-pie-sep { display:none; } }
   /* I2: medían 27 px de alto. Son los tres caminos secundarios de la PRIMERA pantalla, y se
      tocan parados, con una sola mano. `inline-flex` + min-height para llegar a 44 sin cambiar
      cómo se ven. */
@@ -3010,6 +3020,12 @@
   .car-dots span { width:7px; height:7px; border-radius:50%; background:var(--linea-2);
     transition:background var(--dur-tap), transform var(--dur-tap); }
   .car-dots span.on { background:var(--entrada-naranja); transform:scale(1.3); }
+  /* Discreto y sin competir con "Siguiente", que es el camino que queremos que se tome. 44 px de
+     alto igual: es un control real y se toca parado, con una sola mano. */
+  .car-saltar { display:block; margin:.2rem auto 0; background:none; border:none; font-family:inherit;
+    font-size:.8rem; font-weight:700; color:var(--text-soft); cursor:pointer;
+    padding:.6rem 1rem; min-height:44px; border-radius:var(--radius-sm); }
+  .car-saltar:hover { color:var(--text); }
   .car-nav { display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
   .car-atras { background:none; border:none; color:var(--text-soft); font-family:inherit; font-weight:700;
     font-size:.9rem; cursor:pointer; padding:.6rem .5rem; visibility:hidden; }
@@ -4780,9 +4796,21 @@
            la distancia la fija su propio relleno, no un reparto que no controlo.
            En escritorio no cambia nada: `.splash-cuerpo` es `display:contents` a partir de 900, o
            sea que el pie sigue siendo un ítem directo de la grilla y conserva su celda. -->
-      <div class="splash-pie">
+      <!-- ⚠️ Q4b · UNA SOLA PUERTA. Acá había un tercer enlace, "Soy supervisor, servicio médico o
+           dirección", del mismo tamaño que los otros dos. Se sacó porque le pedía a la persona que
+           SE CLASIFICARA ANTES DE IDENTIFICARSE, y esa clasificación es falsa: un supervisor de
+           Helitec es además alguien que reporta su propia fatiga, y al hacerlo elegir en la puerta
+           la app lo empujaba a un rol y le escondía el otro. Encima es la decisión más difícil
+           justo cuando menos contexto tiene.
+           Ahora el rol se resuelve DESPUÉS de identificarse: quien viene sólo al panel lo dice en
+           el primer paso del alta, y quien ya guardó su sesión ni siquiera ve esta pantalla.
+           ⚠️ QUEDAN DOS Y SON DE EXCEPCIÓN, no caminos: la demostración es para mirar sin entrar, y
+           Administrador es para nosotros. Por eso van juntos, chicos y al pie — pedido de Franco:
+           "dejando obvio el botón de ver demostración y el de administrador, pero más compactos
+           abajo". -->
+      <div class="splash-pie splash-pie--compacto">
         <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
-        <button type="button" class="splash-link" onclick="splashPortal()" data-i18n="splash_portal">Soy supervisor o servicio médico</button>
+        <span class="splash-pie-sep" aria-hidden="true">·</span>
         <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
       </div>
       </div><!-- /.splash-der -->
@@ -4961,6 +4989,12 @@
       </div>
     </div>
     <div class="car-dots" id="carDots" role="tablist" aria-label="Pantallas"></div>
+    <!-- ⚠️ Q4b · SE PUEDE SALTAR. Antes no: la única salida era la ✕, que devuelve a la portada en
+         vez de continuar, así que las 5 pantallas eran obligatorias antes de poder darse de alta.
+         Medido en Q4a: son 5 de las 11 acciones del alta. Con la puerta única esos 5 toques los
+         hereda también quien viene sólo al panel, y ahí ya no son una presentación: son un peaje.
+         `carruselTerminar()` y no `carruselCerrar()`: saltar CONTINÚA al alta, no vuelve atrás. -->
+    <button type="button" class="car-saltar" onclick="carruselTerminar()" data-i18n="car_saltar">Saltar</button>
     <div class="car-nav">
       <button type="button" class="car-atras" id="carAtrasBtn" onclick="carruselAtras()" data-i18n="atras">Atrás</button>
       <button type="button" class="ent-btn ent-btn--solid car-sig" id="carSigBtn" onclick="carruselSiguiente()" data-i18n="siguiente">Siguiente</button>
@@ -5103,6 +5137,14 @@
       <button type="button" class="nom-link" id="nomVolver" style="display:none" onclick="nominaVolver()" data-i18n="nom_volver">‹ Volver</button>
       <button type="button" class="nom-link" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
       <button type="button" class="nom-link" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
+      <!-- ⚠️ Q4b · LA SALIDA DEL QUE NO VIENE A REGISTRARSE. Reemplaza al enlace "Soy supervisor"
+           que estaba en la portada. Va ACÁ, en el primer paso del alta, y no después de completarla:
+           el servicio médico de la empresa cliente o un director de HSEQ no son empleados de nadie
+           y no tienen por qué llenar un perfil con departamento, cargo y edad para ver un tablero.
+           Medido: sin esto, sacar el enlace de la portada les llevaba el recorrido de 4 acciones a
+           unas 19 (carrusel + los 9 campos del formulario). Con esto son 5, y una sola vez: desde
+           la segunda apertura el arranque los lleva derecho al panel. -->
+      <button type="button" class="nom-link nom-link--panel" onclick="nominaSoyGestor()" data-i18n="nom_soy_gestor">Vengo a ver el panel de mi empresa</button>
     </div>
   </div>
 </div>
@@ -5630,7 +5672,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.18';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.20';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5756,6 +5798,8 @@ const I18N = {
       nom_buscate:'Búscate en la lista',
       nom_volver:'‹ Volver',
       nom_no_estoy:'No estoy en la lista',
+      nom_soy_gestor:'Vengo a ver el panel de mi empresa',
+      car_saltar:'Saltar',
       nom_cedula_lbl:'Confirma tu número de cédula',
       nom_cedula_btn:'Confirmar y entrar',
       nom_codigo_lbl:'Código de tu empresa',
@@ -7242,6 +7286,8 @@ const I18N = {
       nom_buscate:'Find yourself in the list',
       nom_volver:'‹ Back',
       nom_no_estoy:'I am not on the list',
+      nom_soy_gestor:'I am here for my company dashboard',
+      car_saltar:'Skip',
       nom_cedula_lbl:'Confirm your ID number',
       nom_cedula_btn:'Confirm and enter',
       nom_codigo_lbl:'Your company code',
@@ -12297,6 +12343,16 @@ function nominaCerrar(){ nominaEl('nominaOv').classList.remove('show'); syncScro
 // "No estoy en la lista" y todos los caminos de error terminan acá: el formulario de siempre.
 // Se limpia el progreso: quien elige cargar a mano ya no va a volver a este recorrido.
 function nominaManual(){ altaProgresoLimpiar(); nominaCerrar(); openSetup(false); }
+/* Q4b · Del alta directo al gate del panel. No se limpia el progreso del alta a propósito: alguien
+   puede tocar esto por curiosidad y querer volver a registrarse donde estaba. */
+function nominaSoyGestor(){
+  nominaCerrar();
+  splashAbrirPortal();
+  ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.display = '';
+  });
+  portalMode('sup');
+}
 /* ¿Queda un paso atras dentro de la nomina? Es la MISMA condicion que decide si se ve el boton
    "‹ Volver" (ver `nominaPaso`): en el primer paso no hay a donde retroceder, y ahi "atras"
    significa salir del alta. Se escribe como funcion para que el boton fisico del telefono y el de
@@ -12993,6 +13049,21 @@ function portalOlvidarDispositivo(btn){
   portalPintarOlvidar();
   openPortalGate();
   showToast(t('pg_olvidado'));
+}
+
+/* ⚠️ FUNCIÓN DECLARADA y no una expresión: la llama el ARRANQUE, y R16 lo deja escrito — lo que se
+   use en ese camino se iza entero o corta el script de ahí para abajo. */
+function portalTieneSesionDeEmpresa(){
+  try {
+    const c = dashGetCreds() || {}, m = dashGetCredsMed() || {};
+    return !!((c.usuario && (c.token || c.pass)) || (m.usuario && (m.token || m.pass)));
+  } catch(e){ return false; }
+}
+/* Abre el panel sin pasar por la portada. `openPortal()` ya decide sola si autologuea o cae al
+   formulario, así que si el token venciera esta persona ve el gate con su usuario cargado en vez
+   de una pantalla en blanco. */
+function portalAbrirDirecto(){
+  try { openPortal(); } catch(e){ splashMostrar(); }
 }
 
 function openPortalGate(){
@@ -21756,8 +21827,21 @@ function continuarAlta(){ avanzarAlta(); }
    SIN CAMBIOS: continuarAlta() corre directo, exactamente como corría este mismo código antes
    de que existiera el splash. Es la app en producción con Helitec probando en vivo: nada de lo
    de acá abajo puede tocar ese camino. Sólo quien NUNCA completó su perfil ve el splash. */
+/* ⚠️ Q4b · TRES CAMINOS, NO DOS. Antes eran dos —perfil completo va a la app, si no, a la portada—
+   y eso dejaba a quien SÓLO usa el panel viendo la portada en cada apertura, para siempre: nunca
+   completa perfil de empleado, así que `_complete` es falso siempre.
+   Con la puerta única eso se volvía caro de verdad. Medido en Q4a: hoy llega a su panel en 4
+   acciones por el enlace "Soy supervisor". Sacando ese enlace, su camino pasaba a ser Ingresar +
+   los 5 toques del carrusel + "No estoy en la lista" + los 9 campos del formulario de perfil: unas
+   19 acciones para alguien que ni siquiera es empleado. La puerta única no puede costar eso.
+   Con credenciales de empresa guardadas, va DIRECTO al panel: cero acciones, mejor que las cuatro
+   de antes. Y es coherente con Q4c, que ya decidió que lo que autoriza es el token y no el perfil.
+   ⚠️ El orden importa: `_complete` PRIMERO. Quien es empleado y además gestiona tiene que ver su
+   app, no el panel — el panel lo abre desde Estadísticas cuando quiera. */
 if (_complete){
   continuarAlta();
+} else if (portalTieneSesionDeEmpresa()){
+  portalAbrirDirecto();
 } else {
   splashMostrar();
 }
