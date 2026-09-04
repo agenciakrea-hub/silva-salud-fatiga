@@ -2601,7 +2601,11 @@
   .splash-wrap {
     --splash-lado: 28px;
     --splash-logo-w: min(92px, 24.5vw);
-    --splash-logo-h: calc(var(--splash-logo-w) * 1.267);
+    /* ⚠️ 1 = CUADRADO. El logo pasó a ser Escudo 360 (`escudo360.svg`, viewBox 0 0 160 160), que es
+       cuadrado; el de AeroAmbulancias era 1184x1500, o sea 1.267 de alto por cada uno de ancho.
+       Este número es lo que reserva el aire para que el logo no se pise con el titular: con el
+       ratio viejo sobraban ~25 px de relleno en cada ancho. */
+    --splash-logo-h: calc(var(--splash-logo-w) * 1);
     --splash-logo-top: calc(env(safe-area-inset-top, 0px) + 8px);
     /* El aire entre el logo y el titular. Es el que hace que se vea acomodado y no apretado. */
     --splash-logo-aire: 22px;
@@ -4717,7 +4721,7 @@
   <!-- ═══════════════ VISTA MÁS ═══════════════ -->
   <div class="view" id="viewMas" style="display:none">
     <div class="mas-hero">
-      <div class="logo-box"><img src="logo.png" alt="Silva Salud"></div>
+      <div class="logo-box"><img src="escudo360.svg" alt="Escudo 360 · Silva Salud"></div>
       <h1>Silva Salud</h1>
       <div class="sub" data-i18n="mas_portal">Portal de Fatiga</div>
       <p data-i18n="mas_sms">Gestión de Seguridad Operacional (SMS). Reporta tu estado y EVA registrará tus indicadores automáticamente.</p>
@@ -4913,7 +4917,7 @@
     <button type="button" class="splash-lang splash-lang--der" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma">ES</button>
     <div class="splash-cuerpo">
       <div class="splash-brand">
-        <img class="splash-logo ent-logo-entra" src="logo.png" alt="Silva Salud">
+        <img class="splash-logo ent-logo-entra" src="escudo360.svg" alt="Escudo 360 · Silva Salud">
         <h1 class="splash-h1 ent-texto-entra ent-texto-entra--2" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h1>
         <p class="splash-sub ent-texto-entra ent-texto-entra--3" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
       </div>
@@ -5134,7 +5138,7 @@
          pieza, y el lado izquierdo queda fijo mientras el derecho desliza. -->
     <div class="ent-brand">
       <div class="ent-circulos ent-circulos--naranja-navy" aria-hidden="true"></div>
-      <img class="ent-brand-logo" src="logo.png" alt="Silva Salud">
+      <img class="ent-brand-logo" src="escudo360.svg" alt="Escudo 360 · Silva Salud">
       <h2 class="ent-brand-h1" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h2>
       <p class="ent-brand-sub" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
     </div>
@@ -5628,7 +5632,7 @@
     <div id="portalGate">
       <button class="portal-x" onclick="closePortal()">✕</button>
       <div class="portal-gate-card">
-      <img class="pg-logo" src="logo.png" alt="Silva Salud">
+      <img class="pg-logo" src="escudo360.svg" alt="Escudo 360 · Silva Salud">
       <h2 data-i18n="pg_titulo">Panel de estadísticas</h2>
       <p class="lead" data-i18n="pg_lead">Consulta los indicadores de bienestar y fatiga.</p>
 
@@ -5952,7 +5956,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.38';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.43';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15414,8 +15418,46 @@ function renderDash(){
     else if (tb === 'evolucion') html = renderEvolucion(rows);
     else if (tb === 'comentarios') html = renderComentarios(rows);
     else html = renderResumen(rows);
-    return '<section class="dash-sec" id="dsec-' + tb + '" data-tab="' + tb + '">' + html + '</section>';
-  }).join('');
+    return { tb: tb, html: html };
+  });
+
+  /* ⚠️ LO QUE NO TIENE DATOS VA ABAJO, EN TODOS LOS PANELES. Pedido de Franco, y la razón es de
+     lectura, no de gusto: el panel de HSEQ abría con tres secciones en "todavía no hay datos" y la
+     información real quedaba a tres pantallazos de scroll. La persona concluye que la app no tiene
+     nada que mostrarle y deja de bajar.
+     ⚠️ Y ES ESTABLE: `sort` en JavaScript es estable desde ES2019, así que dentro de cada grupo se
+     conserva el orden que decidió `dashOrderedTabs()`. Sin eso, las secciones se reordenarían entre
+     sí en cada refresco y nadie encontraría dos veces lo mismo en el mismo lugar.
+     Cómo se reconoce una sección sin datos: por el estado vacío que `dashVacio()` ya emite en todas
+     ellas. No hace falta que cada `render*` declare nada — y por eso una sección nueva entra en la
+     regla sola, sin que nadie se acuerde de sumarla. */
+  /* ⚠️ QUÉ CUENTA COMO "SIN DATOS", medido sección por sección en vez de supuesto. No hay UN
+     estado vacío: cada `render*` lo resuelve a su manera, y eso salió de mirarlo, no de leerlo.
+     · `auditoria` y `mrfo` emiten el bloque `<div class="dv">` de `dashVacio()`.
+     · `jornada` sin datos emite 185 caracteres —sólo el texto de ayuda— contra los 1.175 o más de
+       cualquier sección con contenido.
+     · `predictivo` emite 6.213 y ninguno es un dato: es el anticipo de lo que viene. Franco lo pidió
+       explícito: "lo que está como pendiente, y como spoiler de lo que se viene, debería estar
+       abajo". Por eso va en una lista, no por heurística: no hay forma de deducirlo del HTML.
+     ⚠️ El criterio es CONSERVADOR a propósito: ante la duda, la sección se queda donde estaba.
+     Equivocarse hacia abajo esconde información real; equivocarse hacia arriba sólo deja un hueco.
+     ⚠️ Y escribí primero `dash-vacio`, que suena razonable y NO EXISTE — el detector habría dado
+     `false` siempre y la regla habría quedado como código muerto que parece andar (R17). La clase
+     es `dv`, y se pide con la comilla para no engancharse con `dv-t`, `dv-ic` ni `dv-btn`. */
+  const ANTICIPO = ['predictivo'];
+  const vacia = (h, tb) => {
+    if (!h || !h.trim()) return true;
+    if (ANTICIPO.indexOf(tb) >= 0) return true;
+    if (h.indexOf('class="dv"') >= 0) return true;
+    return h.length < 400;          // sólo el bloque de ayuda, sin contenido propio
+  };
+  const orden = secciones
+    .map((x, i) => ({ ...x, i: i, sinDatos: vacia(x.html, x.tb) }))
+    .sort((a, b) => (a.sinDatos - b.sinDatos) || (a.i - b.i))
+    .map(x => '<section class="dash-sec' + (x.sinDatos ? ' dash-sec--vacia' : '') + '"' +
+              ' id="dsec-' + x.tb + '" data-tab="' + x.tb + '">' + x.html + '</section>')
+    .join('');
+  const seccionesOrdenadas = orden;
   // Bloques del SERVICIO MÉDICO (determinar aptitud de una persona / cola de trabajo del grupo).
   // El gate es por VISTA, no por rol: un supervisor tiene rol 'supervisor' (no 'empleado'), así
   // que con la condición vieja, al elegir una persona en el filtro le aparecía el formulario para
@@ -15427,7 +15469,7 @@ function renderDash(){
   /* ⚠️ "Imprimir este panel" SACADO a pedido del usuario (2026-08-26): andaba mal y prefirió
      quitarlo antes que arreglarlo ahora. Las funciones siguen abajo, sin llamadores, para que
      volver a encenderlo sea restituir esta línea. */
-  body.innerHTML = dashContext() + anotBloque + aviso + secciones;
+  body.innerHTML = dashContext() + anotBloque + aviso + seccionesOrdenadas;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -21617,7 +21659,11 @@ function closeGestiones(){
     gestPersonasDe(g).length || (g.departamento||'').trim() || (g.seguimientos||[]).length || gestTareasDe(g).length);
   if (vivas.length !== gestList().length) gestSaveList(vivas);
   document.getElementById('gestionesOverlay').classList.remove('show');
-  if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
+  /* ⚠️ `syncScrollLock()` Y NO quitar `modal-open` a mano. Quitar la clase suelta la MITAD del
+     bloqueo: la otra mitad es el `inert` que `sincronizarInert()` le pone a `#app` y a la barra
+     inferior, y eso quedaba puesto. Resultado: no había overlay, la pantalla se veía normal, y la
+     app no aceptaba toques ni scroll. Franco lo reportó dos veces. */
+  syncScrollLock();
   if (typeof renderDash === 'function' && DASH) renderDash();   // refleja el nuevo conteo en la tarjeta de estadísticas
 }
 function gestVisible(){ const e=document.getElementById('gestionesOverlay'); return e && e.classList.contains('show'); }
@@ -21987,8 +22033,14 @@ function sincronizarInert(){
   const fondo = [document.getElementById('app'), document.querySelector('.bottom-nav')].filter(Boolean);
   const abiertos = [...document.querySelectorAll('.overlay.show, .ios-modal.show')];
   if (!abiertos.length){
-    document.querySelectorAll('.overlay[inert], .ios-modal[inert]').forEach(o => o.removeAttribute('inert'));
-    fondo.forEach(e => e.removeAttribute('inert'));
+    /* ⚠️ SIN OVERLAYS NO PUEDE QUEDAR NI UN `inert`, VENGA DE DONDE VENGA. Antes esto sólo limpiaba
+       los overlays y el fondo, y dejaba vivos los que pone `cargaBloquear()` sobre contenedores
+       internos (`.sheet`, `#portalGate`) mientras un pedido está en vuelo. Si ese pedido termina
+       con la pantalla ya cerrada, el `inert` se queda ahí para siempre y la próxima vez que ese
+       overlay se abra está muerto de entrada, sin que nada lo delate.
+       Es un barrido de todo el documento y corre sólo cuando no hay nada abierto, así que no puede
+       pisar un bloqueo legítimo: si hubiera uno, habría un overlay abierto. */
+    document.querySelectorAll('[inert]').forEach(o => o.removeAttribute('inert'));
     return;
   }
   fondo.forEach(e => e.setAttribute('inert', ''));
@@ -22716,7 +22768,11 @@ function nominaListAbrir(){
 }
 function nominaListCerrar(){
   document.getElementById('nominaListOv').classList.remove('show');
-  if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
+  /* ⚠️ `syncScrollLock()` Y NO quitar `modal-open` a mano. Quitar la clase suelta la MITAD del
+     bloqueo: la otra mitad es el `inert` que `sincronizarInert()` le pone a `#app` y a la barra
+     inferior, y eso quedaba puesto. Resultado: no había overlay, la pantalla se veía normal, y la
+     app no aceptaba toques ni scroll. Franco lo reportó dos veces. */
+  syncScrollLock();
 }
 function nominaListCargar(){
   const body = document.getElementById('nomListBody');
@@ -23207,7 +23263,11 @@ function recuperarPintarDatalist(){
 }
 function recuperarCerrar(){
   document.getElementById('recuperarOv').classList.remove('show');
-  if (!document.querySelector('.overlay.show')) document.body.classList.remove('modal-open');
+  /* ⚠️ `syncScrollLock()` Y NO quitar `modal-open` a mano. Quitar la clase suelta la MITAD del
+     bloqueo: la otra mitad es el `inert` que `sincronizarInert()` le pone a `#app` y a la barra
+     inferior, y eso quedaba puesto. Resultado: no había overlay, la pantalla se veía normal, y la
+     app no aceptaba toques ni scroll. Franco lo reportó dos veces. */
+  syncScrollLock();
 }
 // Al elegir empresa, se adelanta si va a pedir código — igual que en el alta (B3). No es
 // obligatorio (el servidor lo exige igual), es sólo para no sorprender con un campo que aparece
@@ -23333,7 +23393,7 @@ function carruselCerrar(){
   const HTML =
     '<div class="ent-brand">' +
       '<div class="ent-circulos ent-circulos--naranja-navy" aria-hidden="true"></div>' +
-      '<img class="ent-brand-logo" src="logo.png" alt="Silva Salud">' +
+      '<img class="ent-brand-logo" src="escudo360.svg" alt="Escudo 360 · Silva Salud">' +
       '<h2 class="ent-brand-h1" data-i18n="splash_h1"></h2>' +
       '<p class="ent-brand-sub" data-i18n="splash_sub"></p>' +
     '</div>';

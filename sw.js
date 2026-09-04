@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v347';
+const VERSION = 'v352';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -11,6 +11,10 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './logo.png',
+  /* ⚠️ El SVG de Escudo 360 va al caché igual que el PNG: si no está, la app instalada abre sin
+     logo cuando no hay señal — y el logo es lo primero que se ve. El `logo.png` se queda porque
+     lo sigue usando la pantalla de pre-arranque (pedido de Franco: ése no se toca). */
+  './escudo360.svg',
   /* ⚠️ ESTOS DOS NOMBRES ESTABAN MAL Y ROMPÍAN LA APP ENTERA SIN DECIR NADA (2026-09-03, auditoría).
      Decían `ic192v2.png` / `ic512v2.png`; los archivos del repo son `icon-192.png` / `icon-512.png`
      (manifest.json ya apuntaba bien). Medido contra producción: los dos daban 404.
