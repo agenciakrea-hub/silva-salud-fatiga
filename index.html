@@ -593,7 +593,24 @@
     -webkit-font-smoothing: antialiased;
     padding: env(safe-area-inset-top) 0 0;
     overflow-x: hidden;   /* el deslizamiento lateral de las vistas no debe desbordar (achicaba la pantalla) */
-    overscroll-behavior-y: none;   /* repetido acá: el "scrolling element" real varía según navegador */
+    /* ⚠️ ACÁ NO VA `overscroll-behavior-y: none`. Estuvo cinco días y dejó la app SIN SCROLL CON EL
+       DEDO para todos los usuarios, en todas las pantallas. La cadena:
+       · `overflow-x: hidden` con el eje Y en `visible` hace que el eje Y compute a `auto`, así que
+         `<body>` pasa a ser un CONTENEDOR DE SCROLL;
+       · pero `<html>` también tiene `overflow-x: hidden`, y el overflow del root es el que se
+         propaga al viewport — el de `body` no. O sea que `body` queda como un scroller SIN NADA
+         QUE SCROLLEAR (`scrollHeight === clientHeight`, medido);
+       · y `overscroll-behavior-y: none` sobre ese scroller vacío PROHÍBE pasarle el sobrante al
+         viewport. El gesto empieza en `body`, `body` no puede moverse, y no tiene permiso para
+         encadenar. El documento no se mueve.
+       Por qué sobrevivió a TRES cacerías del scroll: el teclado, la barra y `scrollTo()` andan
+       perfecto (medido: `scrollTo(0,500)` → 500). Sólo muere el gesto. Cualquier verificación por
+       JS daba verde, y los overlays internos scrollean bien porque tienen overflow de verdad — por
+       eso el panel se movía y el Inicio no.
+       La justificación que tenía escrita al lado ("el scrolling element varía según navegador") es
+       falsa en este documento: hay `<!DOCTYPE html>`, o sea modo estándar, y ahí
+       `document.scrollingElement` nunca es `<body>`. La copia nunca hizo falta.
+       El rebote elástico sigue apagado por la regla de `html` (arriba), que SÍ se propaga. */
   }
 
   .wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 1.1rem 1.05rem 6rem; }
@@ -5956,7 +5973,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.45';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.46';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10310,7 +10327,17 @@ function pvtVerInfo(){
   document.getElementById('pvtIntro').style.display = '';
   const chk = document.getElementById('pvtNoMostrar'); if (chk) chk.checked = false;
 }
-function closePVT(){ pvtCleanup(); document.getElementById('pvtOverlay').classList.remove('show'); pvtState = null; }
+function closePVT(){
+  pvtCleanup();
+  document.getElementById('pvtOverlay').classList.remove('show');
+  /* ⚠️ SIN ESTO `appOcupada()` QUEDABA EN `true` PARA SIEMPRE. `display` computado no hereda el
+     `none` del ancestro, así que con el overlay cerrado `#pvtRun` seguía diciendo `block` y la
+     app se declaraba ocupada de por vida: la actualización automática quedaba apagada en ese
+     dispositivo hasta que alguien recargara a mano. Le pasaba a cualquiera que abriera el PVT y
+     se arrepintiera. Lo reponen `openPVT()` y `pvtEnd()`, pero no la salida por la ✕. */
+  document.getElementById('pvtRun').style.display = 'none';
+  pvtState = null;
+}
 function pvtCleanup(){
   if (!pvtState) return;
   if (pvtState.isiTimer) clearTimeout(pvtState.isiTimer);
@@ -13582,6 +13609,13 @@ function openPortalGate(){
   const puedeEmpresa = !!(p && (p.esSupervisor || p.esServicioMedico));
   document.getElementById('ptabSup').style.display = puedeEmpresa ? '' : 'none';
   document.getElementById('ptabMed').style.display = puedeEmpresa ? '' : 'none';
+  /* ⚠️ `ptabHseq` FALTABA ACÁ. Se agregó después que las otras dos y esta línea no se actualizó,
+     así que quedaba VISIBLE SIEMPRE: cualquier empleado común que tocaba "Estadísticas" veía una
+     pestaña "Dirección / HSEQ" que no le corresponde. Medido con discriminador — se la escondió a
+     mano, se llamó a `openPortalGate()`, y volvió visible mientras las otras dos quedaron ocultas.
+     Es la clase de olvido que no rompe nada y por eso no se descubre: la pestaña no daba acceso
+     (falta la contraseña), pero le anunciaba a todo el mundo que existe un panel de dirección. */
+  document.getElementById('ptabHseq').style.display = puedeEmpresa ? '' : 'none';
   const cMed = dashGetCredsMed(), cSup = dashGetCreds();
   const c = (p && p.esServicioMedico && cMed && cMed.usuario) ? cMed : cSup;   // prioriza la médica si está guardada
   const btnEntrar = document.querySelector('#portalSup .save-btn');
@@ -22454,21 +22488,50 @@ consentSync();   // si quedó una aceptación sin enviar (se firmó antes de exi
    Entonces se recarga sola salvo que haya algo que se pierda, y en ese caso se reintenta al
    terminar. Función declarada porque la llama el camino de arranque (R16). */
 function appOcupada(){
-  /* El PVT mide milisegundos de reacción: recargarlo por la mitad tira el test entero. */
+  /* El PVT mide milisegundos de reacción: recargarlo por la mitad tira el test entero.
+     ⚠️ Se exige que el overlay esté ABIERTO además de que `#pvtRun` esté visible. `display`
+     computado no hereda el `none` del ancestro, así que mirar sólo `#pvtRun` daba `true` para
+     siempre después de cerrar el PVT con la ✕. */
   const pvt = document.getElementById('pvtRun');
-  if (pvt && getComputedStyle(pvt).display !== 'none') return true;
+  if (pvt && getComputedStyle(pvt).display !== 'none'){
+    const ov = pvt.closest('.overlay');
+    if (ov && ov.classList.contains('show')) return true;
+  }
   /* Un cuestionario a medio contestar: las respuestas viven en el DOM hasta que se envía. */
   const test = document.getElementById('testOverlay');
   if (test && test.classList.contains('show')) return true;
+  /* ⚠️ Y CUALQUIER OTRA PANTALLA CON ALGO YA ESCRITO. Antes esto miraba dos pantallas de nueve, y
+     las siete que faltaban tienen datos que viven ÚNICAMENTE en el DOM: el alta (`#setup`, nueve
+     campos), la nómina, la opinión anónima, la contraseña a medio tipear, las tareas, la
+     restricción y la nota de gestiones. Alguien por el sexto campo del alta perdía los seis sin
+     aviso — y la opinión anónima es peor, porque no se puede reconstruir: no queda registrada en
+     ningún lado hasta que se envía (R7: nunca un "se perdió").
+     Se pregunta por el CONTENIDO, no por una lista de ids: así una pantalla nueva queda cubierta
+     el día que se agrega, sin que nadie tenga que acordarse de sumarla acá. */
+  const abiertos = document.querySelectorAll('.overlay.show, .ios-modal.show');
+  for (let i = 0; i < abiertos.length; i++){
+    const campos = abiertos[i].querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea');
+    for (let j = 0; j < campos.length; j++){
+      if (String(campos[j].value || '').trim()) return true;
+    }
+  }
   return false;
 }
 
 /* Aplica la versión nueva. Si hay algo en curso, espera y reintenta cada 5 s en vez de rendirse:
    así el caso "estaba ocupado" termina actualizando igual, sin depender de que nadie toque nada. */
+var versionEspera;
 function versionAplicar(){
   if (!appOcupada()){ location.reload(); return; }
   try { versionNuevaAvisar(); } catch(e){}
-  setInterval(function(){ if (!appOcupada()) location.reload(); }, 5000);
+  /* Se guarda el temporizador y no se instala dos veces: sin esto quedaba uno nuevo por cada
+     aviso, corriendo por el resto de la sesión sin que nadie los pudiera apagar. */
+  if (versionEspera) return;
+  versionEspera = setInterval(function(){
+    if (appOcupada()) return;
+    clearInterval(versionEspera); versionEspera = null;
+    location.reload();
+  }, 5000);
 }
 
 /* El aviso de "hay una versión nueva". Sólo se ve si `versionAplicar()` encontró la app ocupada;
@@ -23544,7 +23607,14 @@ if ('serviceWorker' in navigator){
     });
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return; refreshing = true; window.location.reload();
+      if (refreshing) return; refreshing = true;
+      /* ⚠️ ESTA RECARGA ERA INCONDICIONAL, Y EL CHEQUEO AL VOLVER AL FOCO LA VOLVIÓ FRECUENTE.
+         Antes casi no se disparaba en celular; ahora `swReg.update()` corre en cada
+         `visibilitychange`, así que este camino pasó a ser el normal. Escenario real: alguien a
+         los 40 segundos de un PVT de 90 atiende una llamada y vuelve → update → hay sw nuevo →
+         skipWaiting → claim → controllerchange → recarga, y se pierden los 90 segundos que
+         `appOcupada()` existe para proteger. Va por la misma puerta que todo lo demás. */
+      versionAplicar();
     });
   });
 }

@@ -13,12 +13,49 @@ PRUEBAS.grupo('W1 · el rebote feo del scroll no arrastra la navegación');
    ese rebote en el documento. Verificar el efecto final queda para probarlo en un teléfono real. */
 
 PRUEBAS.caso('⚠️ el rebote elástico del documento está apagado', () => {
+  /* ⚠️ ANTES ESTE CASO EXIGÍA LA PROPIEDAD TAMBIÉN EN `body`, Y ESO FIJABA UN BUG CRÍTICO.
+     `body { overscroll-behavior-y: none }` dejó la app SIN SCROLL CON EL DEDO durante cinco días,
+     para todos los usuarios (ver el comentario largo en el CSS de `body`). Este caso lo defendía:
+     borrar la línea ponía la prueba en rojo, y la sesión siguiente iba a "arreglar la prueba"
+     reponiendo el bug.
+     La raíz es R17 en estado puro: comprobaba que la propiedad ESTUVIERA ESCRITA, no que la
+     página se pudiera deslizar. Y el propio archivo admitía que no podía reproducir el rebote —
+     o sea que no verificaba nada y daba verde igual.
+     Ahora se exige sólo en `html`, que es el único que se propaga al viewport. */
   const html = getComputedStyle(document.documentElement).overscrollBehaviorY;
-  const body = getComputedStyle(document.body).overscrollBehaviorY;
-  /* Se comprueba en los dos: el "scrolling element" real —a quién le hace caso el navegador—
-     cambia según el motor, así que la regla está repetida a propósito en el CSS. */
   PRUEBAS.igual(html, 'none', 'el html tiene que tener el rebote apagado');
-  PRUEBAS.igual(body, 'none', 'y el body también, por si el motor usa éste como scrolling element');
+});
+
+PRUEBAS.caso('⚠️ y el documento SE PUEDE DESLIZAR — la otra mitad, que faltaba', () => {
+  /* El caso que habría atrapado el bug de los cinco días. No mira una propiedad: mira la
+     condición que hace que el gesto muera.
+     El mecanismo: `body { overflow-x: hidden }` hace que el eje Y compute a `auto`, así que
+     `body` pasa a ser un contenedor de scroll. Pero el overflow que se propaga al viewport es el
+     de `html`, no el de `body` — o sea que `body` queda como un scroller SIN NADA QUE SCROLLEAR.
+     Si además tiene `overscroll-behavior-y: none`, tiene PROHIBIDO pasarle el gesto al viewport,
+     y el documento no se mueve.
+     ⚠️ No se puede medir con la rueda acá (la pestaña está oculta de forma permanente, ver
+     LEEME.md), y por eso se mide la CONDICIÓN, que sí es medible y es exactamente la que se dio. */
+  CTX.resetear({ esPiloto: true });
+  const b = document.body;
+  const esScrollerVacio = b.scrollHeight === b.clientHeight;
+  const cortaElEncadenado = getComputedStyle(b).overscrollBehaviorY === 'none';
+  PRUEBAS.falso(esScrollerVacio && cortaElEncadenado,
+    '⚠️ el gesto no puede morir en el body: o tiene a dónde ir, o puede encadenar al viewport');
+});
+
+PRUEBAS.caso('el DISCRIMINADOR: la medición de arriba detecta el bug de verdad', () => {
+  /* R17: un cero sin discriminador no es un resultado. Se repone la condición exacta que tuvo la
+     app cinco días y se confirma que la comprobación cambia de signo. */
+  const b = document.body, previo = b.style.overscrollBehaviorY;
+  try {
+    b.style.overscrollBehaviorY = 'none';
+    const roto = (b.scrollHeight === b.clientHeight) && getComputedStyle(b).overscrollBehaviorY === 'none';
+    b.style.overscrollBehaviorY = previo || '';
+    const sano = (b.scrollHeight === b.clientHeight) && getComputedStyle(b).overscrollBehaviorY === 'none';
+    PRUEBAS.cierto(roto, '⚠️ con la propiedad repuesta, la condición se cumple: la prueba SÍ detecta');
+    PRUEBAS.falso(sano, 'y sin ella no — o sea que discrimina, no da verde siempre');
+  } finally { b.style.overscrollBehaviorY = previo || ''; }
 });
 
 PRUEBAS.caso('la barra de navegación sigue fija abajo en cualquier punto del scroll', () => {
@@ -50,7 +87,8 @@ PRUEBAS.caso('⚠️ nada quedó con su propio scroll bloqueado', () => {
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('')
     .replace(/\/\*[\s\S]*?\*\//g, '');
   const total = (fuente.match(/overscroll-behavior/g) || []).length;
-  PRUEBAS.igual(total, 2,
-    'sólo html y body tocan esta propiedad; si aparece un tercer lugar hay que revisar a mano que ' +
-    'no bloquee un scroll interno sin querer');
+  PRUEBAS.igual(total, 1,
+    '⚠️ SÓLO `html` toca esta propiedad. Era 2 —html y body— y esa segunda aparición es la que ' +
+    'dejó la app sin scroll cinco días. Si vuelve a aparecer en otro lado hay que revisar a mano ' +
+    'que no mate el gesto ni bloquee un scroll interno');
 });
