@@ -486,19 +486,6 @@ PRUEBAS.caso('⚠️ la declaración de cumplimiento está, y NO promete de más
   PRUEBAS.cierto(/alineado|aligned/.test(txt), 'y sí "alineado con", que es lo que se puede sostener');
 });
 
-PRUEBAS.caso('⚠️ y aclara que "alineado" NO es "certificado"', () => {
-  /* Pedido de Franco: la credencial va al pie "con aclaración". Sin ella, "alineado con ISO 45001"
-     se lee como "certificado ISO 45001" — que sería una afirmación falsa en la pantalla que abre
-     la app, y la primera que un cliente grande hace verificar. */
-  const ac = document.querySelector('.splash-norma-ac');
-  PRUEBAS.cierto(!!ac, '⚠️ la aclaración tiene que existir');
-  const txt = (t('splash_norma_ac') || '').toLowerCase();
-  PRUEBAS.cierto(/no es una certificaci|not a certification/.test(txt),
-    '⚠️ tiene que decir explícitamente que no es una certificación');
-  PRUEBAS.cierto(!!t('splash_norma_ac') && t('splash_norma_ac') !== 'splash_norma_ac',
-    'y estar traducida (R14)');
-});
-
 PRUEBAS.caso('⚠️ el pie del inicio SE PUEDE LEER en la pantalla más chica', () => {
   /* Es la TERCERA vez que este bloque tapa algo del pie: antes fue el enlace "Administrador", y
      ahora la aclaración de la credencial —medida a 320x568, terminaba 21 px por debajo del borde

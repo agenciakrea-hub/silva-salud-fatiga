@@ -149,3 +149,70 @@ PRUEBAS.caso('el splash no se recorta a ningún tamaño', () => {
   if (!yaAbierto) ov.classList.remove('show');
   PRUEBAS.igual(cortados, [], 'nada del splash puede quedar abajo del borde, menos los accesos del pie');
 });
+
+PRUEBAS.grupo('P3b · la cabecera del inicio: sin solapamiento y simétrica');
+
+/* ⚠️ ESTO LO REPORTÓ FRANCO MIRANDO EL TELÉFONO, no lo encontró ninguna medición. Por eso los casos
+   miden GEOMETRÍA y no reglas de CSS: lo que hay que fijar es que dos cajas no se toquen y que dos
+   márgenes den igual, no cómo está escrito el estilo que lo consigue. */
+
+PRUEBAS.caso('⚠️ el logo NO se pisa con el titular, en ningún ancho', () => {
+  /* Medido antes del arreglo: a 320 px el titular arrancaba 3 px ARRIBA del borde inferior del
+     logo, o sea encima. La causa era que el logo medía `min(92px, 24.5vw)` de ancho y el relleno
+     que le reservaba lugar era un `104px` fijo, escrito aparte — y el logo es más ALTO que ancho
+     (1184x1500), así que a 375 terminaba en 124 contra 104 reservados.
+     Ahora los dos salen de las mismas variables y no se pueden desincronizar. */
+  const ov = document.getElementById('splashOv');
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  const malos = [];
+  try {
+    for (const v of PRUEBAS.VENTANAS) {
+      PRUEBAS.enVentana(v.w, v.h, () => {
+        const logo = document.querySelector('.splash-logo'), h1 = document.querySelector('.splash-h1');
+        if (!logo || !h1) return;
+        const rl = logo.getBoundingClientRect(), rh = h1.getBoundingClientRect();
+        const seTocan = !(rl.bottom <= rh.top || rl.right <= rh.left || rl.left >= rh.right);
+        if (seTocan) malos.push(v.w + 'x' + v.h + ': se pisan');
+        else if (rh.top - rl.bottom < 8) malos.push(v.w + 'x' + v.h + ': quedan a ' + Math.round(rh.top - rl.bottom) + 'px');
+      });
+    }
+  } finally { if (!tenia) ov.classList.remove('show'); }
+  PRUEBAS.igual(malos, [],
+    '⚠️ el logo y el titular necesitan al menos 8 px entre ellos — ' + malos.join(' · '));
+});
+
+PRUEBAS.caso('⚠️ el logo y el botón de idioma están a la MISMA distancia de su borde', () => {
+  /* Son los dos elementos que ocupan las esquinas superiores. Medido: el logo estaba a 28 px del
+     borde izquierdo y el chip a 16 del derecho —y a 768, 48 contra 16—, así que la cabecera se leía
+     torcida. Se excluye escritorio a propósito: ahí el logo entra al flujo de la columna izquierda
+     y su referencia pasa a ser el titular, no el borde de la ventana. */
+  const ov = document.getElementById('splashOv');
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  const malos = [];
+  try {
+    for (const v of PRUEBAS.VENTANAS.filter(x => x.w < 900)) {
+      PRUEBAS.enVentana(v.w, v.h, () => {
+        const logo = document.querySelector('.splash-logo'), lang = document.getElementById('splashLangBtn');
+        if (!logo || !lang) return;
+        const rl = logo.getBoundingClientRect(), rg = lang.getBoundingClientRect();
+        const izq = Math.round(rl.left), der = Math.round(v.w - rg.right);
+        if (izq !== der) malos.push(v.w + 'px: ' + izq + ' izq contra ' + der + ' der');
+        if (Math.abs(rl.top - rg.top) > 1)
+          malos.push(v.w + 'px: arrancan a distinta altura (' + Math.round(rl.top) + ' y ' + Math.round(rg.top) + ')');
+      });
+    }
+  } finally { if (!tenia) ov.classList.remove('show'); }
+  PRUEBAS.igual(malos, [], '⚠️ las dos esquinas tienen que ser espejo — ' + malos.join(' · '));
+});
+
+PRUEBAS.caso('⚠️ el pie dice SÓLO la línea del programa de gestión', () => {
+  /* Franco pidió sacar la aclaración de "no es una certificación": abajo de todo, pegado al margen,
+     va una sola línea. Se comprueba que no vuelva a aparecer un segundo párrafo ahí. */
+  PRUEBAS.cierto(!!document.querySelector('.splash-norma'), 'la línea de la norma tiene que estar');
+  PRUEBAS.falso(!!document.querySelector('.splash-norma-ac'),
+    '⚠️ y NO puede haber una segunda línea debajo: se sacó a pedido');
+  const txt = (t('splash_norma') || '').toLowerCase();
+  PRUEBAS.cierto(/oaci|icao/.test(txt) && /45001/.test(txt), 'y sigue nombrando las dos normas');
+});

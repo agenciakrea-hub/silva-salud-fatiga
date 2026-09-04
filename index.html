@@ -317,9 +317,6 @@
        entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
        El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
     --entrada-tenue:    #a9b4c6;
-    /* Un escalón más apagado, para la aclaración del pie. Es un TOKEN y no una `opacity` a
-       propósito: `opacity` baja el contraste real y el auditor, que lee `color`, no lo ve. */
-    --entrada-tenue-2:  #8e9aae;
 
     /* Radio más grande que --radius, sólo para las tarjetas/círculos de estas pantallas
        (mockup de referencia: ui.ruman). No es color, no hace falta en el bloque oscuro —
@@ -481,9 +478,6 @@
        entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
        El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
     --entrada-tenue:    #a9b4c6;
-    /* Un escalón más apagado, para la aclaración del pie. Es un TOKEN y no una `opacity` a
-       propósito: `opacity` baja el contraste real y el auditor, que lee `color`, no lo ve. */
-    --entrada-tenue-2:  #8e9aae;
   }
 
   /* ⚠️ W1 (2026-08-29), "el rebote feo del scroll": "al llegar al tope con fuerza, la animación
@@ -2456,7 +2450,7 @@
      dos esquinas. Sin esto, al centrar el bloque del medio el título se subía encima del logo
      (medido: se solapaban). */
   .splash-wrap { position:relative; justify-content:space-evenly;
-    padding-top:calc(env(safe-area-inset-top,0px) + 104px); min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
+    padding-top:calc(var(--splash-logo-top) + var(--splash-logo-h) + var(--splash-logo-aire)); min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
     display:flex; flex-direction:column;
     /* ⚠️ `overflow:hidden` a secas CORTABA el pie. Medido a 320x568: la aclaración de la credencial
        terminaba 21 px por debajo del borde y NO había forma de llegar a ella — sin scroll, ese
@@ -2486,16 +2480,16 @@
   .splash-norma { font-size:.72rem; line-height:1.45; color:var(--entrada-tenue);
     margin:.6rem auto 0; max-width:34rem; text-align:center; padding:0 1rem;
     position:relative; z-index:2; }
-  /* La aclaración, más chica todavía y debajo: "alineado con" NO es "certificado por", y esa
-     distinción tiene que estar escrita, no sobreentendida. Es lo primero que pregunta un cliente
-     grande y lo primero que verifica un auditor. */
-  .splash-norma-ac { font-size:.66rem; line-height:1.4; color:var(--entrada-tenue-2);
-    margin:.24rem auto 0; max-width:36rem; text-align:center; padding:0 1rem;
-    position:relative; z-index:2; }
 
   /* Queda ENCIMA del círculo naranja, así que su fondo propio (`--entrada-chip`) es lo que lo
      separa: sin él, texto naranja sobre naranja. */
-  .splash-lang { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:16px; left:auto; z-index:5;
+  /* ⚠️ MISMAS COORDENADAS QUE EL LOGO, DERIVADAS DE LAS MISMAS VARIABLES. Medido: el logo estaba a
+     28 px del borde izquierdo y este chip a 16 del derecho —y a 768, 48 contra 16—, con el logo
+     arrancando en y=8 y el chip en y=16. Son los dos elementos que ocupan las esquinas superiores:
+     con distinto margen y distinta altura, la cabecera se lee torcida. Franco lo reportó como "no
+     es simétrico". Ahora los dos salen de `--splash-lado` y `--splash-logo-top`, así que cambiar
+     uno mueve al otro y no pueden volver a separarse. */
+  .splash-lang { position:absolute; top:var(--splash-logo-top); right:var(--splash-lado); left:auto; z-index:5;
     background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
@@ -2506,8 +2500,27 @@
      aire el cuerpo bajó y se llevó el logo encima del título (medido: se solapaban título y bajada).
      El `z-index` sigue funcionando igual porque esto es un ítem flex, y ahí no hace falta estar
      posicionado — que era lo único que aportaba el `relative`: quedar por encima de los círculos. */
+  /* ⚠️ EL LOGO Y EL AIRE QUE SE LE RESERVA SALEN DEL MISMO NÚMERO. Antes no: el logo medía
+     `min(92px, 24.5vw)` de ancho y el relleno que le dejaba lugar era un `104px` fijo, escrito
+     aparte. Como el logo es más ALTO que ancho (1184x1500, ratio 1.267), a 375 px terminaba en 124
+     y el relleno reservaba 104 — se pisaba con el titular. Medido: a 320 px el titular arrancaba
+     3 px ARRIBA del borde inferior del logo, o sea encima, y a 375 quedaba a 3 px, que se lee como
+     pisado. Franco lo reportó mirándolo en el teléfono.
+     Con las variables el aire se recalcula solo en cada ancho, y cambiar el tamaño del logo no
+     puede volver a desincronizarlo. `--splash-lado` es además el MISMO valor que usa el relleno
+     lateral del cuerpo, así que el logo y el titular quedan alineados por la izquierda: antes el
+     logo estaba en 24 y el titular en 28. */
+  .splash-wrap {
+    --splash-lado: 28px;
+    --splash-logo-w: min(92px, 24.5vw);
+    --splash-logo-h: calc(var(--splash-logo-w) * 1.267);
+    --splash-logo-top: calc(env(safe-area-inset-top, 0px) + 8px);
+    /* El aire entre el logo y el titular. Es el que hace que se vea acomodado y no apretado. */
+    --splash-logo-aire: 22px;
+  }
   .splash-cuerpo { position:static; z-index:2; flex:0 1 auto; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; padding:0 28px; gap:6px; }
+    align-items:center; justify-content:center; text-align:center;
+    padding:0 var(--splash-lado); gap:6px; }
   /* El logo va anclado ARRIBA A LA IZQUIERDA, en espejo con el botón de idioma que ya estaba
      arriba a la derecha: las dos esquinas superiores ocupadas y el bloque central (titular, bajada,
      botón) queda libre para centrarse de verdad. Antes el logo estaba dentro del flujo y empujaba
@@ -2527,8 +2540,8 @@
   /* ⚠️ EL LOGO VA A LA IZQUIERDA Y EL IDIOMA A LA DERECHA (pedido de Franco). Se espejan los DOS
      juntos: el logo se ancla dentro del círculo naranja, así que mover uno sin el otro deja el logo
      flotando sobre el fondo azul. Ver `--naranja-navy` abajo, que también se espeja. */
-  .splash-logo { position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); left:24px; right:auto; z-index:5;
-    width:min(92px, 24.5vw); height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
+  .splash-logo { position:absolute; top:var(--splash-logo-top); left:var(--splash-lado); right:auto; z-index:5;
+    width:var(--splash-logo-w); height:auto; margin:0; filter:drop-shadow(0 4px 18px rgba(0,0,0,.25)); }
   /* ⚠️ EL CÍRCULO CRECE UN POCO, Y SÓLO EN EL SPLASH DE TELÉFONO. No es un retoque estético: es
      lo que hace que el logo entre.
      El radio del círculo va con el ANCHO de pantalla (56% del ancho) y su recorte de arriba va con
@@ -2959,10 +2972,11 @@
     .splash-link { padding:.4rem .5rem; font-size:.82rem; }
     .splash-link--admin { font-size:.72rem; }
     .splash-norma { font-size:.7rem; margin-top:.35rem; }
-    .splash-norma-ac { font-size:.64rem; }
   }
   @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
-    .splash-wrap{ padding-top:calc(env(safe-area-inset-top,0px) + 88px); } }
+    /* En pantalla baja el aire se recorta, pero SIGUE derivándose del logo: nunca puede volver a
+       quedar por debajo de lo que el logo ocupa, que es lo que causaba el solapamiento. */
+    .splash-wrap{ --splash-logo-aire: 12px; } }
 
   /* ── Carrusel de presentación (B2, 2026-08-25) ──
      .car-track se desliza con transform (JS calcula % según CAR_IDX). La transición se apaga
@@ -3023,8 +3037,8 @@
      renglones sueltos. */
   @media (min-width: 600px) and (max-width: 899px) {
     .splash-circ-band { height: min(42vh, 420px); }
-    .splash-cuerpo { padding: 0 48px; gap: 10px; }
-    .splash-logo { width: 116px; }  /* sigue anclado en la esquina del círculo; sólo cambia el tamaño */
+    .splash-cuerpo { gap: 10px; }   /* el lado ya lo pone --splash-lado, para no desalinear el logo */
+    .splash-wrap { --splash-logo-w: 116px; --splash-lado: 48px; }   /* tablet: logo más grande y más aire al costado */
     .splash-h1 { font-size: clamp(1.8rem, 3.4vw, 2.15rem); max-width: 20ch; }
     .splash-sub { font-size: 1.04rem; max-width: 46ch; margin-bottom: 32px; }
     .splash-cta { max-width: 360px; }
@@ -3177,7 +3191,7 @@
        inverso al que J7 arregla. `--chip-bg`/`--text-soft` son theme-aware y resuelven los dos. */
     /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
        arriba sino dentro de la columna izquierda, en el flujo. */
-    .splash-lang { right: 16px; left: auto;
+    .splash-lang { right: var(--splash-lado); left: auto;
       background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
 
     /* ═══ B2 · Carrusel ═══
@@ -4883,7 +4897,6 @@
            Dice "alineado con los lineamientos de", NUNCA "certificado por": no tenemos ninguna
            certificación y es lo primero que un auditor verifica. Hay un caso que lo vigila. -->
       <p class="splash-norma" data-i18n="splash_norma">Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.</p>
-      <p class="splash-norma-ac" data-i18n="splash_norma_ac">No es una certificación: es una alineación metodológica declarada por Silva Salud.</p>
   </div>
 </div>
 
@@ -5617,7 +5630,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.15';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.18';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5723,7 +5736,6 @@ const I18N = {
       splash_portal:'Soy supervisor, servicio médico o dirección',
       splash_admin:'Administrador',
       splash_norma:'Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.',
-      splash_norma_ac:'No es una certificación: es una alineación metodológica declarada por Silva Salud.',
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
       car1_tit:'La fatiga es un riesgo, no una debilidad',
@@ -7210,7 +7222,6 @@ const I18N = {
       splash_portal:'I am a supervisor, medical staff or management',
       splash_admin:'Administrator',
       splash_norma:'Fatigue management programme aligned with ICAO guidance (Doc 9966) and ISO 45001.',
-      splash_norma_ac:'Not a certification: a methodological alignment declared by Silva Salud.',
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──
       car1_tit:'Fatigue is a risk, not a weakness',
