@@ -5897,7 +5897,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.30';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.31';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -21930,6 +21930,24 @@ function sincronizarInert(){
     return;
   }
   fondo.forEach(e => e.setAttribute('inert', ''));
+
+  /* ⚠️ CON UN SOLO OVERLAY ABIERTO, NUNCA SE MARCA INERT. Es una invariante que no puede fallar, y
+     acá es lo único que evita el peor defecto posible de este mecanismo: la pantalla que la persona
+     está mirando, muerta al toque y al scroll.
+     PASÓ EN PRODUCCIÓN y lo reportó Franco: entrar al alta, abrir "Ya me había registrado", cerrarlo
+     y quedar con `nominaOv` visible PERO inert. La causa es una carrera — `sincronizarInert()` corre
+     desde dos MutationObserver y desde `ovFocoAbrir/Cerrar`, y en el orden equivocado la pila del
+     foco todavía no refleja el overlay que quedó, así que "el de arriba" se resuelve a otro y el
+     único visible se marca.
+     Arreglar la carrera no alcanza: cualquier camino nuevo que abra un overlay puede volver a
+     desincronizarla. Esto lo corta por abajo, sin depender del orden de nada. */
+  if (abiertos.length === 1){
+    abiertos[0].removeAttribute('inert');
+    document.querySelectorAll('.overlay[inert], .ios-modal[inert]').forEach(o => {
+      if (o !== abiertos[0]) o.removeAttribute('inert');
+    });
+    return;
+  }
   /* ⚠️ EL DE ARRIBA ES EL ÚLTIMO QUE SE ABRIÓ, y eso lo sabe `OV_FOCO.pila`, no el z-index.
      Mi primera versión lo elegía por z-index computado y salió al revés en un caso real: con
      `setup` abierto y `recuperarOv` encima, `setup` tiene z-index mayor o igual, así que el

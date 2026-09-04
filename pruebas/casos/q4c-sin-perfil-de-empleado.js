@@ -170,3 +170,36 @@ PRUEBAS.caso('los textos de la salida están en los dos idiomas (R14)', () => {
     PRUEBAS.falso(/\bvos\b|tenés|querés|podés/.test(String(v)), '⚠️ R1: español neutro, nunca voseo — ' + k);
   });
 });
+
+PRUEBAS.caso('⚠️ EL OVERLAY VISIBLE NUNCA QUEDA INERT (bug de producción)', () => {
+  /* ⚠️ ESTO ROMPIÓ LA APP Y LO REPORTÓ FRANCO: "no puedo deslizar en el panel del inicio". El camino
+     exacto: entrar al alta, abrir "Ya me había registrado", cerrarlo — y quedar con el alta VISIBLE
+     pero `inert`, o sea muerta al toque, al teclado y al scroll.
+     La causa es una carrera: `sincronizarInert()` corre desde dos MutationObserver y desde
+     `ovFocoAbrir/Cerrar`, y en el orden equivocado la pila del foco todavía no refleja el overlay
+     que quedó, así que "el de arriba" se resuelve a otro y el único visible se marca.
+     Arreglar la carrera no alcanzaba: cualquier camino nuevo puede volver a desincronizarla. La
+     invariante que sí se sostiene es ésta — con UN solo overlay abierto, nunca hay nada que tapar. */
+  const previos = [...document.querySelectorAll('.overlay')].map(o => [o, o.className]);
+  try {
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    const nom = document.getElementById('nominaOv'), rec = document.getElementById('recuperarOv');
+    nom.classList.add('show'); rec.classList.add('show'); sincronizarInert();
+    PRUEBAS.cierto(nom.hasAttribute('inert'), 'con los dos abiertos, el de abajo sí queda inert');
+    rec.classList.remove('show'); sincronizarInert();
+    PRUEBAS.falso(nom.hasAttribute('inert'),
+      '⚠️ al quedar solo, el visible TIENE que volver a ser usable — si no, la pantalla queda muerta');
+    /* Y el caso general, no sólo ese par: cualquier overlay abierto en soledad. */
+    const malos = [];
+    ['nominaOv','testOverlay','opinionOv','portalOverlay','carruselOv','splashOv'].forEach(id => {
+      document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+      const e = document.getElementById(id); if (!e) return;
+      e.classList.add('show'); sincronizarInert();
+      if (e.hasAttribute('inert')) malos.push(id);
+    });
+    PRUEBAS.igual(malos, [], '⚠️ ninguno puede quedar inert estando solo — ' + malos.join(', '));
+  } finally {
+    previos.forEach(([o, cls]) => { o.className = cls; });
+    sincronizarInert();
+  }
+});
