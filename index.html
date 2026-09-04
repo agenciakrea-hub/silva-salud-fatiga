@@ -306,6 +306,13 @@
        que es justo el bug que esto arregla (medido: 1.94:1 sobre el naranja). */
     --entrada-chip:     #ffffff;
     --entrada-chip-ink: #0a1f40;
+    /* Texto secundario sobre el navy del splash (la credencial normativa del pie). INVARIANTE
+       entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
+       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
+    --entrada-tenue:    #a9b4c6;
+    /* Un escalón más apagado, para la aclaración del pie. Es un TOKEN y no una `opacity` a
+       propósito: `opacity` baja el contraste real y el auditor, que lee `color`, no lo ve. */
+    --entrada-tenue-2:  #8e9aae;
 
     /* Radio más grande que --radius, sólo para las tarjetas/círculos de estas pantallas
        (mockup de referencia: ui.ruman). No es color, no hace falta en el bloque oscuro —
@@ -461,6 +468,13 @@
     /* Mismo valor que en :root, a propósito: ver el comentario junto a su declaración. */
     --entrada-chip:     #ffffff;
     --entrada-chip-ink: #0a1f40;
+    /* Texto secundario sobre el navy del splash (la credencial normativa del pie). INVARIANTE
+       entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
+       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
+    --entrada-tenue:    #a9b4c6;
+    /* Un escalón más apagado, para la aclaración del pie. Es un TOKEN y no una `opacity` a
+       propósito: `opacity` baja el contraste real y el auditor, que lee `color`, no lo ve. */
+    --entrada-tenue-2:  #8e9aae;
   }
 
   /* ⚠️ W1 (2026-08-29), "el rebote feo del scroll": "al llegar al tope con fuerza, la animación
@@ -2422,7 +2436,17 @@
      (medido: se solapaban). */
   .splash-wrap { position:relative; justify-content:space-evenly;
     padding-top:calc(env(safe-area-inset-top,0px) + 104px); min-height:100vh; min-height:100dvh;   /* vh PRIMERO como respaldo y dvh DESPUES: gana la ultima que el navegador entienda. Estaba al reves, asi que mandaba 100vh, que en un telefono ignora la barra del navegador y estira el contenido por debajo de lo visible. El ultimo enlace del pie (Administrador) quedaba tapado y parecia no existir. Lo reporto el usuario. */ width:100%;
-    display:flex; flex-direction:column; overflow:hidden; }
+    display:flex; flex-direction:column;
+    /* ⚠️ `overflow:hidden` a secas CORTABA el pie. Medido a 320x568: la aclaración de la credencial
+       terminaba 21 px por debajo del borde y NO había forma de llegar a ella — sin scroll, ese
+       texto simplemente no existía para esa persona. Es la tercera vez que este bloque tapa algo
+       del pie; la anterior fue el enlace "Administrador" (está en el comentario de arriba).
+       El `hidden` sigue en la X, que es para lo que hacía falta: recortar los círculos de la banda.
+       En la Y, `auto` no cambia NADA cuando el contenido entra —no aparece ninguna barra— y salva
+       la pantalla cuando no entra. El `padding-bottom` es para que la última línea no quede pegada
+       al borde en los teléfonos donde entra por poco (medido: 9 px de sobra a 390x844). */
+    overflow-x:hidden; overflow-y:auto;
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px); }
   .splash-circ-band { position:absolute; top:0; left:0; right:0; height:min(46vh,360px); overflow:hidden; }
   /* I2: medía 41x29. */
   /* J7: era `rgba(255,255,255,.14)` con texto blanco. Un velo blanco al 14% sobre el círculo
@@ -2438,8 +2462,14 @@
      lo primero que se ve tiene que ser quién es la app, no un control de idioma. */
   /* La credencial normativa: cierra la pantalla, debajo de las láminas. Discreta y centrada — es
      lo que mira un auditor, no la persona que va a reportar su fatiga. */
-  .splash-norma { font-size:.64rem; line-height:1.4; color:rgba(255,255,255,.55);
-    margin:.85rem auto 0; max-width:40ch; text-align:center; padding:0 1rem;
+  .splash-norma { font-size:.72rem; line-height:1.45; color:var(--entrada-tenue);
+    margin:.6rem auto 0; max-width:34rem; text-align:center; padding:0 1rem;
+    position:relative; z-index:2; }
+  /* La aclaración, más chica todavía y debajo: "alineado con" NO es "certificado por", y esa
+     distinción tiene que estar escrita, no sobreentendida. Es lo primero que pregunta un cliente
+     grande y lo primero que verifica un auditor. */
+  .splash-norma-ac { font-size:.66rem; line-height:1.4; color:var(--entrada-tenue-2);
+    margin:.24rem auto 0; max-width:36rem; text-align:center; padding:0 1rem;
     position:relative; z-index:2; }
 
   /* Queda ENCIMA del círculo naranja, así que su fondo propio (`--entrada-chip`) es lo que lo
@@ -2907,7 +2937,8 @@
     .splash-pie { gap:.15rem; margin-top:.5rem; }
     .splash-link { padding:.4rem .5rem; font-size:.82rem; }
     .splash-link--admin { font-size:.72rem; }
-    .splash-norma { font-size:.62rem; margin-top:.35rem; }
+    .splash-norma { font-size:.7rem; margin-top:.35rem; }
+    .splash-norma-ac { font-size:.64rem; }
   }
   @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
     .splash-wrap{ padding-top:calc(env(safe-area-inset-top,0px) + 88px); } }
@@ -3034,6 +3065,15 @@
       position: relative; z-index: 2;
       display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       text-align: left; gap: .4rem; padding: 3rem clamp(2rem, 4.5vw, 4.5rem); }
+    /* ⚠️ EN LAS PANTALLAS BAJAS DE ESCRITORIO, ese `3rem` arriba y abajo es lo primero que sobra.
+       Medido a 900x660 —el punto justo donde se pasa a dos columnas, y el más apretado de todos—:
+       con la credencial del pie de dos líneas más su aclaración de tres, la grilla se pasaba 20 px
+       del alto disponible. Los 96 px de relleno vertical se recortan a 32 y sobra de sobra.
+       Sólo por debajo de 760 px de alto: en un monitor normal no cambia nada, y ahí ese aire es
+       parte de cómo respira el panel de presentación. */
+    @media (max-height: 760px) {
+      .splash-brand { padding-top: 1rem; padding-bottom: 1rem; }
+    }
     /* En escritorio el logo VUELVE AL FLUJO: la columna izquierda es el panel de presentación y
        ahí el logo encabeza el bloque, alineado con el titular. El anclaje a la esquina es para
        teléfono, donde no hay columna que encabezar. */
@@ -4822,6 +4862,7 @@
            Dice "alineado con los lineamientos de", NUNCA "certificado por": no tenemos ninguna
            certificación y es lo primero que un auditor verifica. Hay un caso que lo vigila. -->
       <p class="splash-norma" data-i18n="splash_norma">Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.</p>
+      <p class="splash-norma-ac" data-i18n="splash_norma_ac">No es una certificación: es una alineación metodológica declarada por Silva Salud.</p>
   </div>
 </div>
 
@@ -5542,7 +5583,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.01';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.04';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5648,6 +5689,7 @@ const I18N = {
       splash_portal:'Soy supervisor, servicio médico o dirección',
       splash_admin:'Administrador',
       splash_norma:'Programa de gestión de fatiga alineado con los lineamientos de la OACI (Doc 9966) y con ISO 45001.',
+      splash_norma_ac:'No es una certificación: es una alineación metodológica declarada por Silva Salud.',
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
       car1_tit:'La fatiga es un riesgo, no una debilidad',
@@ -7124,6 +7166,7 @@ const I18N = {
       splash_portal:'I am a supervisor, medical staff or management',
       splash_admin:'Administrator',
       splash_norma:'Fatigue management programme aligned with ICAO guidance (Doc 9966) and ISO 45001.',
+      splash_norma_ac:'Not a certification: a methodological alignment declared by Silva Salud.',
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──
       car1_tit:'Fatigue is a risk, not a weakness',

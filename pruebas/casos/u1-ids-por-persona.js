@@ -486,6 +486,41 @@ PRUEBAS.caso('⚠️ la declaración de cumplimiento está, y NO promete de más
   PRUEBAS.cierto(/alineado|aligned/.test(txt), 'y sí "alineado con", que es lo que se puede sostener');
 });
 
+PRUEBAS.caso('⚠️ y aclara que "alineado" NO es "certificado"', () => {
+  /* Pedido de Franco: la credencial va al pie "con aclaración". Sin ella, "alineado con ISO 45001"
+     se lee como "certificado ISO 45001" — que sería una afirmación falsa en la pantalla que abre
+     la app, y la primera que un cliente grande hace verificar. */
+  const ac = document.querySelector('.splash-norma-ac');
+  PRUEBAS.cierto(!!ac, '⚠️ la aclaración tiene que existir');
+  const txt = (t('splash_norma_ac') || '').toLowerCase();
+  PRUEBAS.cierto(/no es una certificaci|not a certification/.test(txt),
+    '⚠️ tiene que decir explícitamente que no es una certificación');
+  PRUEBAS.cierto(!!t('splash_norma_ac') && t('splash_norma_ac') !== 'splash_norma_ac',
+    'y estar traducida (R14)');
+});
+
+PRUEBAS.caso('⚠️ el pie del inicio SE PUEDE LEER en la pantalla más chica', () => {
+  /* Es la TERCERA vez que este bloque tapa algo del pie: antes fue el enlace "Administrador", y
+     ahora la aclaración de la credencial —medida a 320x568, terminaba 21 px por debajo del borde
+     con `overflow:hidden`, o sea que no existía para esa persona. Lo que se fija no es que entre
+     (en 320 no entra, y está bien), sino que SE PUEDA LLEGAR. */
+  const ov = document.getElementById('splashOv');
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  const wr = document.querySelector('.splash-wrap');
+  try {
+    PRUEBAS.cierto(!!wr, 'tiene que existir el contenedor');
+    if (!wr) return;
+    const cs = getComputedStyle(wr);
+    PRUEBAS.falso(cs.overflowY === 'hidden' || cs.overflowY === 'clip',
+      '⚠️ en la VERTICAL no puede recortar: es lo que hacía desaparecer el pie sin dejar scroll');
+    PRUEBAS.cierto(cs.overflowX === 'hidden' || cs.overflowX === 'clip',
+      'pero en la horizontal SÍ, o los círculos de la banda desbordan a los costados');
+    PRUEBAS.falso(wr.scrollWidth > wr.clientWidth + 1,
+      'y no puede quedar scroll horizontal (discriminador de lo anterior)');
+  } finally { if (!tenia) ov.classList.remove('show'); }
+});
+
 PRUEBAS.caso('⚠️ la lámina de cultura justa DICE que es cultura justa', () => {
   /* Antes se llamaba "Reportar no se sanciona" y el gráfico era una balanza — que se lee como "acá
      se juzga", o sea lo contrario del mensaje. Y no nombraba el principio, así que quien conoce el
