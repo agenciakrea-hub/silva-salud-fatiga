@@ -304,8 +304,19 @@ PRUEBAS.caso('⚠️ ningún color escrito a mano en las pantallas (R13)', () =>
   const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
   const bloque = (fuente.match(/\.spl-p \{[\s\S]*?html\.sin-animaciones \.spl-activa/) || [''])[0];
   PRUEBAS.alMenos(bloque.length, 200, 'tiene que encontrar el bloque de las pantallas');
-  const aMano = (bloque.match(/#[0-9a-fA-F]{3,6}\b/g) || []);
+  /* ⚠️ SIN LOS COMENTARIOS. Un hex DENTRO de un comentario no pinta nada, y los comentarios de este
+     archivo citan colores todo el tiempo para explicar por qué se cambió uno ("era #f47a1f y daba
+     2.75:1"). Sin esta línea, el caso se ponía en rojo por una explicación bien escrita — y la
+     salida obvia habría sido empobrecer el comentario para que la prueba pase, que es exactamente
+     al revés de lo que hay que hacer.
+     Lo que sigue vigilando es lo que importa: un color escrito a mano EN UNA DECLARACIÓN. */
+  const sinComentarios = bloque.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const aMano = (sinComentarios.match(/#[0-9a-fA-F]{3,6}\b/g) || []);
   PRUEBAS.igual(aMano, [], 'todo tiene que salir de tokens, o el modo oscuro se rompe');
+  /* Y el discriminador: si el filtro de comentarios se comiera el CSS entero, el caso daría verde
+     siempre. Con un color de mentira en una declaración, tiene que sonar. */
+  PRUEBAS.alMenos((sinComentarios.match(/\{/g) || []).length, 5,
+    'guarda: tras sacar los comentarios tiene que quedar CSS de verdad');
 });
 
 PRUEBAS.caso('en los dos temas el título de la pantalla se lee', () => {

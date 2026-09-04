@@ -95,6 +95,14 @@
        quedaría ilegible — medido, 2,06:1. Va donde el naranja es la superficie, no la tinta:
        típicamente botones dentro de una tarjeta de color fijo. Con blanco da 5,01:1. */
     --orange-solido: #b8500a;
+    /* ⚠️ LA TINTA DE LOS GRÁFICOS DEL SPLASH. Todos usaban `--orange` (#f47a1f) directamente, y eso
+       tenía dos problemas a la vez: convivían CUATRO naranjas en la misma pantalla —el círculo
+       #ff9900, los trazos #f47a1f, el botón mostaza y el chip #b8500a—, y además #f47a1f sobre la
+       tarjeta blanca da 2.75:1, por debajo del 3:1 que WCAG pide para objetos gráficos. Fallaba
+       SÓLO en tema claro, que es el que ve casi todo el mundo.
+       Con este token: 5.01:1 en claro y 3.27:1 en oscuro. Y es el mismo naranja que el botón
+       Ingresar y que "Menú y filtros", que es lo que Franco pidió. */
+    --spl-tinta: #b8500a;
     --card:        #ffffff;
     --text:        #16233d;
     --text-soft:   #525d73;
@@ -464,6 +472,7 @@
     --btn-marca-1: #a86500;  --btn-marca-2: #bb590d;
     --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
     --orange-solido: #b8500a;    /* éste NO cambia a propósito: es fondo, no tinta (ver :root) */
+    --spl-tinta: #b8500a;   /* mismo valor: pasa el mínimo sobre --card en los dos temas */
 
     /* --entrada-naranja: mismo valor que en :root, a propósito (decisión de marca invariante,
        igual que --orange) — ver el comentario junto a su declaración arriba.
@@ -1064,19 +1073,28 @@
      los dos bloques fijos se leen como uno solo y no se entiende cuál es tocable).
      En escritorio hay espacio de sobra, así que se fuerza siempre abierto y en flujo normal
      (ver media query más abajo). */
-  .dfm-wrap { position: relative; z-index: 25; flex-shrink: 0; margin: .6rem .8rem 0; border-radius: 14px;
-    background: linear-gradient(135deg, var(--orange), var(--orange-2)); box-shadow: 0 6px 16px rgba(244,122,31,.35); }
+  /* ⚠️ SÓLIDO Y BLANCO, y un solo cambio resuelve dos pedidos. Franco pidió (a) que el texto vuelva
+     a ser blanco y (b) que esta barra, el panel de gestiones y el botón de info sean del mismo
+     color, sin brillo.
+     Con el gradiente `--orange → --orange-2` el blanco daba 2.28:1 — la mitad del mínimo—, y por eso
+     yo lo había pasado a navy. Sobre `--orange-solido` (#b8500a), que es EXACTAMENTE el color que
+     ya usa "Abrir panel de gestiones", el blanco da 5.01:1. Se puede tener las dos cosas.
+     ⚠️ El halo `rgba(244,122,31,.35)` era además un color a mano (R13) y el único de los tres con
+     sombra de color: pasa a `--shadow-md`, la neutra que usan los otros dos. Y el radio de 14 a 13,
+     que es el de gestiones. */
+  .dfm-wrap { position: relative; z-index: 25; flex-shrink: 0; margin: .6rem .8rem 0; border-radius: 13px;
+    background: var(--orange-solido); box-shadow: var(--shadow-md); }
   .dfm-row { display: flex; }
   .dfm-toggle { display: flex; align-items: center; gap: .7rem; flex: 1; min-width: 0; text-align: left;
     padding: .65rem .9rem; border: none; background: transparent; font-family: inherit; cursor: pointer; }
   /* El icono y la flechita van JUNTOS (la flechita como una insignia sobre el icono): así se
      entiende de un vistazo que ese cuadradito es lo que abre/cierra el desplegable. */
   .dfm-toggle-ic { position: relative; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
-    background: rgba(255,255,255,.28); color: var(--orange-ink); display: flex; align-items: center; justify-content: center; }
+    background: rgba(255,255,255,.2); color: #fff; display: flex; align-items: center; justify-content: center; }
   .dfm-toggle-ic svg:first-child { width: 17px; height: 17px; }
   .dfm-toggle-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
-  .dfm-toggle-title { font-size: .86rem; font-weight: 800; color: var(--orange-ink); }
-  .dfm-toggle-sub { font-size: .74rem; font-weight: 700; color: var(--orange-ink); opacity: .82; overflow: hidden;
+  .dfm-toggle-title { font-size: .86rem; font-weight: 800; color: #fff; }
+  .dfm-toggle-sub { font-size: .74rem; font-weight: 700; color: #fff; opacity: .88; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
   /* Insignia circular con la flechita, sobre la esquina del icono: ahí se nota que ESE cuadradito
      es el que despliega/repliega, en vez de una flecha suelta del otro lado del botón. */
@@ -1217,8 +1235,22 @@
   .kfresco-viejo { color: var(--sem-ambar-txt); font-weight: 700; }
   .kpi.over .kref { color: var(--sem-rojo-txt); }
 
-  .dash-block { margin-bottom: 1.5rem; }
-  .db-title { font-size: 1.02rem; font-weight: 800; color: var(--text); margin-bottom: .75rem; }
+  /* ⚠️ CADA BLOQUE ES UNA TARJETA, y hasta ahora no lo era: la única regla base era
+     `margin-bottom: 1.5rem`. Sin fondo, sin borde, sin sombra — 24 px de aire y nada más entre un
+     bloque y el siguiente. Franco lo reportó como "está todo saturado, no se nota qué bloque es
+     cuál", y tiene razón: la vista del servicio médico apila ~33 bloques en un solo desplazamiento.
+     ⚠️ LA PRUEBA DE QUE YA SE SABÍA está en el CSS de impresión, más arriba: ahí `.dash-block` SÍ
+     lleva `border: 1px solid #ddd`, agregado para poder distinguirlos EN PAPEL. En pantalla, no.
+     Todos los tokens ya existen y resuelven los dos temas. */
+  .dash-block { margin-bottom: 1.1rem; background: var(--card); border: 1px solid var(--sup-borde);
+    border-radius: var(--radius); padding: 1rem 1.05rem; box-shadow: var(--shadow-sm); }
+  /* ⚠️ Un bloque vacío no dibuja una tarjeta vacía: sin esto, cada estado "todavía no hay datos"
+     pintaría un rectángulo con borde alrededor de nada. */
+  .dash-block:empty { display: none; }
+  /* Más contundente, como pidió Franco: de 1.02 a 1.15rem y con el interletrado apretado, que es
+     lo que hace que un título se lea como título y no como una línea en negrita. */
+  .db-title { font-size: 1.15rem; font-weight: 800; color: var(--text); letter-spacing: -.012em;
+    margin-bottom: .7rem; line-height: 1.25; }
   .db-sub { font-size: .82rem; font-weight: 600; color: var(--text-muted); margin: -.5rem 0 .75rem; line-height: 1.4; }
   .bars { display: flex; flex-direction: column; gap: .5rem; }
   .bar-row { display: grid; grid-template-columns: 90px 1fr 46px; gap: .55rem; align-items: center; }
@@ -2739,9 +2771,15 @@
   }
 
   /* Chip de estado: el "Reportando…" / "Analizando…" de los clips. */
-  .spl-chip { align-self: flex-start; font-size: .64rem; font-weight: 700; letter-spacing: .03em;
-    color: var(--orange-legible); background: var(--orange-bg); border: 1px solid var(--orange);
-    border-radius: 999px; padding: .16rem .55rem; }
+  /* ⚠️ EL BORDE PESABA MÁS QUE EL TEXTO. Era `1px solid var(--orange)` —#f47a1f a saturación
+     plena— sobre `--orange-bg`: el contorno marcaba 2.48:1 contra el 4.53:1 del texto, así que la
+     pastilla se leía como un sticker pegado encima y no como una etiqueta. Y cambiaba de peso entre
+     temas: en oscuro el borde saltaba a 5.31 y el texto a 7.06, o sea al revés.
+     Con el borde al 45% del mismo naranja, el contorno acompaña en vez de competir. */
+  .spl-chip { align-self: flex-start; font-size: .66rem; font-weight: 700; letter-spacing: .04em;
+    color: var(--orange-legible); background: var(--orange-bg);
+    border: 1px solid color-mix(in srgb, var(--spl-tinta) 45%, transparent);
+    border-radius: 999px; padding: .22rem .6rem; }
   .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) calc(var(--spl-in) + .35s) both; }
   @keyframes splChip { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -2751,7 +2789,7 @@
   .spl-rt-fila { display: flex; align-items: center; gap: .5rem; }
   .spl-rt-pt { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
     background: var(--chip-bg); }
-  .spl-rt-pt.on { background: var(--orange); }
+  .spl-rt-pt.on { background: var(--spl-tinta); }
   .spl-rt-l { height: 7px; border-radius: 4px; background: var(--chip-bg); width: var(--w); }
   .spl-activa .spl-rt-l { animation: splRtCorre .7s cubic-bezier(.22,1,.36,1) var(--spl-in) both; }
   .spl-activa .spl-rt-fila:nth-child(2) .spl-rt-l { animation-delay: calc(var(--spl-in) + .1s) }
@@ -2765,7 +2803,7 @@
      personas del otro lado, y el latido lo dice sin una palabra. */
   .spl-tele { position: relative; display: flex; align-items: center; justify-content: center; }
   .spl-tele svg { width: 100%; height: 100%; }
-  .spl-tele-ecg { fill: none; stroke: var(--orange); stroke-width: 2.4; stroke-linecap: round;
+  .spl-tele-ecg { fill: none; stroke: var(--spl-tinta); stroke-width: 2.4; stroke-linecap: round;
     stroke-linejoin: round; }
   .spl-activa .spl-tele-ecg { stroke-dasharray: 420; stroke-dashoffset: 420;
     animation: splTeleTrazo 1.5s ease-out var(--spl-in) both; }
@@ -2780,9 +2818,9 @@
      ⚠️ Y DURA MENOS QUE LA LÁMINA. El escalonado sumaba 4.160 ms contra los 3.200 que dura cada
      pantalla, así que el tercer anillo se cortaba a la mitad. */
   .spl-tele-pulso span { position: absolute; inset: 0; border-radius: 50%;
-    border: 2px solid var(--orange); opacity: .5; }
+    border: 2px solid var(--spl-tinta); opacity: .5; }
   .spl-tele-pulso span:nth-child(2){ inset: 22%; opacity: .75; }
-  .spl-tele-pulso span:nth-child(3){ inset: 40%; opacity: 1; background: var(--orange); }
+  .spl-tele-pulso span:nth-child(3){ inset: 40%; opacity: 1; background: var(--spl-tinta); }
   .spl-activa .spl-tele-pulso span { animation: splTelePulso 1.5s ease-out var(--spl-in) both; }
   .spl-activa .spl-tele-pulso span:nth-child(2){ animation-delay: calc(var(--spl-in) + .12s) }
   .spl-activa .spl-tele-pulso span:nth-child(3){ animation-delay: calc(var(--spl-in) + .24s) }
@@ -2792,7 +2830,7 @@
   .spl-barras { display: flex; align-items: flex-end; gap: .34rem; }
   .spl-barras i { flex: 1; height: var(--h); background: var(--chip-bg); border-radius: 5px 5px 2px 2px;
     transform-origin: bottom; }
-  .spl-barras i.on { background: var(--orange); }
+  .spl-barras i.on { background: var(--spl-tinta); }
   .spl-activa .spl-barras i { animation: splCrece .62s cubic-bezier(.22,1.2,.36,1) var(--spl-in) both; }
   .spl-activa .spl-barras i:nth-child(2){ animation-delay: calc(var(--spl-in) + .06s) }
   .spl-activa .spl-barras i:nth-child(3){ animation-delay: calc(var(--spl-in) + .12s) }
@@ -2827,11 +2865,11 @@
   .spl-efect { position: relative; }
   .spl-efect svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .spl-ef-area  { fill: url(#splEfectG); stroke: none; }
-  .spl-ef-linea { fill: none; stroke: var(--orange); stroke-width: 2.5; stroke-linecap: round;
+  .spl-ef-linea { fill: none; stroke: var(--spl-tinta); stroke-width: 2.5; stroke-linecap: round;
     vector-effect: non-scaling-stroke; }
   /* El punto marca "ahora" sobre la curva: lo que sigue a la derecha es proyección. */
   .spl-ef-punto { position: absolute; left: 43%; top: 52%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
-    border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 3px var(--card); }
+    border-radius: 50%; background: var(--spl-tinta); box-shadow: 0 0 0 3px var(--card); }
 
   /* ── Gráfico de la lámina de cultura justa: un escudo con el reporte adentro ──
      ⚠️ Antes era una balanza, y una balanza dice "acá se juzga" — lo contrario del mensaje. El
@@ -2840,8 +2878,8 @@
      lo que la empresa se compromete a NO hacer, y un dibujo inquieto lo contradiría. */
   .spl-justa { display: flex; align-items: center; justify-content: center; }
   .spl-justa svg { width: 56px; height: 56px; overflow: visible; }
-  .spl-ju-escudo { fill: none; stroke: var(--orange); stroke-width: 3.5; stroke-linejoin: round; }
-  .spl-ju-tilde  { fill: none; stroke: var(--orange); stroke-width: 4.5; stroke-linecap: round;
+  .spl-ju-escudo { fill: none; stroke: var(--spl-tinta); stroke-width: 3.5; stroke-linejoin: round; }
+  .spl-ju-tilde  { fill: none; stroke: var(--spl-tinta); stroke-width: 4.5; stroke-linecap: round;
     stroke-linejoin: round; }
 
   .spl-linea { position: relative; }
@@ -2849,7 +2887,7 @@
   .spl-linea polyline { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
     vector-effect: non-scaling-stroke; }
   .spl-l-fondo { stroke: var(--chip-bg); }
-  .spl-l-viva  { stroke: var(--orange); }
+  .spl-l-viva  { stroke: var(--spl-tinta); }
   /* ⚠️ EL LARGO DEL TRAZO LO MIDE EL JS (`splMedirTrazo`), NO UN NÚMERO ESCRITO A MANO.
      Acá había un `420` fijo y estaba roto de una forma que se veía a simple vista: la línea se
      pintaba naranja hasta cierto punto y el tramo final quedaba GRIS —el color de `.spl-l-fondo`,
@@ -2882,7 +2920,7 @@
      salía de la caja. En escritorio, donde el gráfico mide 581 px de ancho, se notaba. */
   .spl-l-punto { position: absolute; left: 100%; top: 6%; width: 10px; height: 10px;
     margin: 0; transform: translate(-50%, -50%); border-radius: 50%;
-    background: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
+    background: var(--spl-tinta); box-shadow: 0 0 0 3px var(--orange-bg); }
   /* Dos animaciones sobre la misma pieza, y conviven porque tocan propiedades DISTINTAS: la primera
      lo hace aterrizar (opacidad y escala), la segunda le da un latido al halo (sombra). Si las dos
      tocaran `transform`, la última ganaría y la otra no se vería. */
@@ -2942,8 +2980,8 @@
   .spl-activa .spl-ojo--med i:nth-child(3){ animation-delay: calc(var(--spl-in) + .60s) }
   @keyframes splRenglon { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .spl-ojo i:first-child { width: 62%; background: var(--text-muted); opacity: .55; }
-  .spl-ojo--med { background: var(--orange-bg); box-shadow: inset 0 0 0 1px var(--orange); }
-  .spl-ojo--med i { background: var(--orange); opacity: .45; }
+  .spl-ojo--med { background: var(--orange-bg); box-shadow: inset 0 0 0 1px var(--spl-tinta); }
+  .spl-ojo--med i { background: var(--spl-tinta); opacity: .7; }
   .spl-ojo--med i:first-child { opacity: .8; }
 
   /* 5 · Sin señal. Tres registros en cola; se van yendo de a uno cuando vuelve la conexión. */
@@ -3026,7 +3064,15 @@
   .splash-h1 { color:#fff; font-size:clamp(1.4rem,5vw,1.8rem); font-weight:800; line-height:1.28;
     max-width:22ch; text-wrap:balance; margin-bottom:4px; }
   .splash-sub { color:rgba(255,255,255,.72); font-size:.94rem; line-height:1.5; max-width:36ch; margin-bottom:26px; }
-  .splash-cta { max-width:320px; }
+  /* ⚠️ MAYÚSCULAS, MÁS GRANDE Y SIN EL HALO. Pedido de Franco: "agrandalo, no la caja sino el texto,
+     puesto en mayúsculas y más estético, como espaciado entre letras, pero no tanto, y sacale más
+     brillo porque está re IA slop eso".
+     El halo era `#ff9900` al 38% con 26 px de blur alrededor de un botón mostaza: el elemento con
+     más brillo de toda la app, y un naranja distinto del propio botón.
+     ⚠️ Va acá y NO en `.ent-btn--solid`: esa clase la comparte el "Siguiente" del carrusel, que no
+     tiene por qué gritar en mayúsculas. */
+  .splash-cta { max-width:320px; font-size:1.06rem; letter-spacing:.045em; text-transform:uppercase;
+    box-shadow: var(--shadow-md); }
   .splash-empresa { margin-top:18px; font-size:.78rem; font-weight:700; color:rgba(255,255,255,.8);
     background:rgba(255,255,255,.1); padding:.35rem .9rem; border-radius:999px; }
   /* ⚠️ EL AIRE DE ACÁ SE MIDE, NO SE ELIGE, y el reclamo fue "los botones están muy arriba y
@@ -5003,10 +5049,10 @@
           <div class="splash-anim-slide" data-espera="4600"><div class="spl-p">
               <div class="spl-p-tx"><b data-i18n="spl_p3_t">Enfoque científico y analítico</b><span data-i18n="spl_p3_d">Monitoreo constante de variables y síntomas clave para detectar alertas tempranas de fatiga.</span></div>
               <div class="spl-p-gr spl-mon" aria-hidden="true">
-                <span><i>ESTRÉS</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
-                <span><i>GASTRO</i><u class="alt" data-i18n="spl_p3_e">Elevado</u></span>
-                <span><i>FATIGA</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
-                <span><i>SOMNOLENCIA</i><u class="cri" data-i18n="spl_p3_c">Crítico</u></span>
+                <span><i data-i18n="spl_m_estres">ESTRÉS</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i data-i18n="spl_m_gastro">GASTRO</i><u class="alt" data-i18n="spl_p3_e">Elevado</u></span>
+                <span><i data-i18n="spl_m_fatiga">FATIGA</i><u class="ok" data-i18n="spl_p3_n">Normal</u></span>
+                <span><i data-i18n="spl_m_somnol">SOMNOLENCIA</i><u class="cri" data-i18n="spl_p3_c">Crítico</u></span>
               </div>
               <span class="spl-chip" data-i18n="spl_p3_chip">Analizando…</span>
             </div></div>
@@ -5897,7 +5943,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.32';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.34';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5978,6 +6024,7 @@ const I18N = {
          · Nombrar las escalas. KSS, Samn-Perelli y el test de reacción son nuestro diferencial real:
            los dos productos con los que nos comparan NO los tienen como función.
          · R1: español neutro. */
+      spl_m_estres:'ESTRÉS', spl_m_gastro:'GASTRO', spl_m_fatiga:'FATIGA', spl_m_somnol:'SOMNOLENCIA',
       spl_rt_t:'Operación en tiempo real',
       spl_rt_d:'Cada salida, llegada y descanso queda registrado en el momento. El supervisor ve el turno mientras pasa, no al mes siguiente.',
       spl_rt_chip:'En curso',
@@ -5988,7 +6035,7 @@ const I18N = {
       spl_p1_d:'La mayor parte de los incidentes empieza en una persona cansada, no en una máquina rota. Es lo que este programa vigila todos los días.',
       spl_safte_t:'Modelo predictivo SAFTE',
       spl_safte_d:'Estima la efectividad cruzando tres cosas: lo que la persona siente, sus horas de sueño y su test de reacción, y un modelo biomatemático. El objetivo es mantenerla en su franja óptima. Con wearable, la precisión sube.',
-      spl_safte_chip:'Proyectando…',
+      spl_safte_chip:'Proyectando',
       spl_justa_t:'Cultura justa',
       spl_justa_chip:'No punitivo',
       spl_justa_d:'Reportar fatiga no tiene consecuencias para tu trabajo. Es el principio que sostiene todo el programa.',
@@ -5996,10 +6043,10 @@ const I18N = {
       spl_p1_d_viejo:'Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.',
       spl_p2_t:'Prevención e Impacto',
       spl_p2_d:'Menos incidentes, turnos mejor planificados y evidencia lista para una auditoría.',
-      spl_p2_chip:'Reportando…',
+      spl_p2_chip:'Reportando',
       spl_p3_t:'Escalas validadas, no encuestas',
       spl_p3_d:'KSS, Samn-Perelli y test de reacción. Los mismos instrumentos que usa la investigación en aviación.',
-      spl_p3_chip:'Analizando…',
+      spl_p3_chip:'Analizando',
       spl_p3_n:'Normal', spl_p3_e:'Elevado', spl_p3_c:'Crítico',
       spl_p4_t:'Cada quien ve lo suyo',  spl_p4_d:'Tu supervisor ve si estás en condiciones hoy. El servicio médico, tus resultados. Nadie ve de más.',
       spl_p5_t:'Funciona sin señal',     spl_p5_d:'En el hangar o en la planta, se registra igual. Se envía solo al volver la señal.',
@@ -7509,6 +7556,7 @@ const I18N = {
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
       splash_h1:'Your wellbeing and safety, in one place',
+      spl_m_estres:'STRESS', spl_m_gastro:'GASTRO', spl_m_fatiga:'FATIGUE', spl_m_somnol:'SLEEPINESS',
       spl_rt_t:'Live operations',
       spl_rt_d:'Every departure, arrival and rest period is logged as it happens. Your supervisor sees the shift while it runs, not next month.',
       spl_rt_chip:'In progress',
@@ -7519,7 +7567,7 @@ const I18N = {
       spl_p1_d:'Most incidents start with a tired person, not a broken machine. That is what this programme watches, every day.',
       spl_safte_t:'SAFTE predictive model',
       spl_safte_d:'It estimates effectiveness by combining three things: what the person feels, their sleep hours and reaction test, and a biomathematical model. The aim is to keep them in their optimal range. With a wearable, accuracy goes up.',
-      spl_safte_chip:'Projecting…',
+      spl_safte_chip:'Projecting',
       spl_justa_t:'Just culture',
       spl_justa_chip:'Non-punitive',
       spl_justa_d:'Reporting fatigue has no consequences for your job. It is the principle the whole programme rests on.',
@@ -7527,10 +7575,10 @@ const I18N = {
       spl_p1_d_viejo:'An integrated system to prevent accidents, optimise shifts and keep the workplace safe.',
       spl_p2_t:'Prevention and Impact',
       spl_p2_d:'Fewer incidents, better planned shifts, and evidence ready for an audit.',
-      spl_p2_chip:'Reporting…',
+      spl_p2_chip:'Reporting',
       spl_p3_t:'Validated scales, not surveys',
       spl_p3_d:'KSS, Samn-Perelli and a reaction test. The same instruments used in aviation research.',
-      spl_p3_chip:'Analysing…',
+      spl_p3_chip:'Analysing',
       spl_p3_n:'Normal', spl_p3_e:'Raised', spl_p3_c:'Critical',
       spl_p4_t:'Everyone sees their own',spl_p4_d:'Your supervisor, the daily status. Occupational health, the results.',
       spl_p5_t:'Works with no signal',   spl_p5_d:'It is saved and sent on its own when you are back online.',
