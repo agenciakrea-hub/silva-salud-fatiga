@@ -345,3 +345,23 @@ PRUEBAS.caso('⚠️ una fila SIN cédula igual sirve por nombre, en vez de desc
   PRUEBAS.cierto(!!idx['n:ana suarez|2026-09-01'], '⚠️ tiene que quedar indexada por nombre');
   PRUEBAS.falso(!!idx['|2026-09-01'], 'y NO puede quedar una clave con la cédula vacía');
 });
+
+PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una sola', () => {
+  /* Encontrado en A4, y lo había introducido yo el mismo día al agregar la clave por nombre.
+     `ausTocar` pintaba el cambio local usando SÓLO la clave de cédula. Al marcar, la lista de
+     nómina se actualizaba (busca por cédula) y la cobertura del IDC no (busca por nombre): dos
+     partes de la misma pantalla diciendo cosas distintas. Al quitar era peor — se borraba la de
+     cédula y quedaba la de nombre, o sea que la persona seguía descontada de la cobertura después
+     de que el supervisor le sacara la ausencia, sin nada en pantalla que lo delatara. */
+  const fuente = String(ausTocar);
+  PRUEBAS.cierto(/ausNombreClave\(persona\)/.test(fuente),
+    '⚠️ el pintado local tiene que armar también la clave por nombre');
+  PRUEBAS.falso(/const clave = cedNum \+ '\|' \+ hoy;/.test(fuente),
+    'y no puede quedar la variante de una sola clave');
+  const revertidos = (fuente.match(/claves\.forEach/g) || []).length;
+  PRUEBAS.alMenos(revertidos, 3,
+    '⚠️ las dos claves en los TRES lugares: el pintado y los dos revertidos (servidor y red) — ' +
+    'si un revertido quedara con una sola, un guardado fallido dejaría media ausencia puesta');
+  PRUEBAS.cierto(/ausenteHoy\(\{ cedula: ced, nombre: persona \}\)/.test(fuente),
+    '⚠️ y el estado previo se pregunta por las dos, o una ausencia que vino por nombre se lee como "no está"');
+});

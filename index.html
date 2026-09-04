@@ -71,6 +71,13 @@
        debajo del minimo legible— y es el color del boton principal de toda la app.
        #b8500a con blanco da 4.6:1 y se sigue leyendo como el mismo naranja. */
     --orange-txt:  #b8500a;
+    /* ⚠️ A4 · TINTA SOBRE EL GRADIENTE NARANJA (la barra "Menú y filtros", que está en TODOS los
+       paneles). Estaba en blanco: medido contra el gradiente real (`--orange` → `--orange-2`) daba
+       2.28:1 en el extremo claro, la mitad del mínimo, y EN LOS DOS TEMAS — el gradiente no cambia
+       con el tema, así que el defecto tampoco. En navy da 5.96:1 en el peor punto.
+       Se cambia la TINTA y no el naranja: el naranja es color de marca (misma decisión que
+       `--entrada-naranja`). Por eso el valor es el mismo en los dos bloques. */
+    --orange-ink:  #0a1f40;
     --orange-txt-2:#c25c0d;
     /* I6: los dos extremos del degradado del botón de marca. Elegidos para que AMBOS pasen 4.5
        con texto blanco (4.63 y 4.62): el que estaba arrancaba en #ff9900, que daba 2.14. */
@@ -452,6 +459,8 @@
     --sobre-claro-txt: #ffffff;   /* tinta sobre `--sobre-claro`: vale igual en los dos temas porque ese fondo tampoco cambia */
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
     --orange-txt:  #b8500a;
+    /* Mismo valor que en :root, a propósito: el gradiente naranja es invariante entre temas. */
+    --orange-ink:  #0a1f40;
     --orange-txt-2:#c25c0d;   /* el naranja legible no cambia entre temas */
     /* I6: el degradado del botón de marca. Los mismos dos tonos en los dos temas: el botón lleva
        su propio relleno, así que no depende de la superficie de atrás. */
@@ -1059,11 +1068,11 @@
   /* El icono y la flechita van JUNTOS (la flechita como una insignia sobre el icono): así se
      entiende de un vistazo que ese cuadradito es lo que abre/cierra el desplegable. */
   .dfm-toggle-ic { position: relative; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
-    background: rgba(255,255,255,.2); color: #fff; display: flex; align-items: center; justify-content: center; }
+    background: rgba(255,255,255,.28); color: var(--orange-ink); display: flex; align-items: center; justify-content: center; }
   .dfm-toggle-ic svg:first-child { width: 17px; height: 17px; }
   .dfm-toggle-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
-  .dfm-toggle-title { font-size: .86rem; font-weight: 800; color: #fff; }
-  .dfm-toggle-sub { font-size: .74rem; font-weight: 700; color: rgba(255,255,255,.85); overflow: hidden;
+  .dfm-toggle-title { font-size: .86rem; font-weight: 800; color: var(--orange-ink); }
+  .dfm-toggle-sub { font-size: .74rem; font-weight: 700; color: var(--orange-ink); opacity: .82; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
   /* Insignia circular con la flechita, sobre la esquina del icono: ahí se nota que ESE cuadradito
      es el que despliega/repliega, en vez de una flecha suelta del otro lado del botón. */
@@ -1565,7 +1574,11 @@
   .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
   .ctx-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
   .ctx-chip { display: inline-flex; align-items: center; gap: .3rem; background: var(--sem-azul-bg); color: var(--text); border-radius: 999px; padding: .3rem .65rem; font-size: .82rem; font-weight: 700; }
-  .ctx-chip.ctx-period { background: var(--sem-azul-bg); color: var(--sem-azul); }
+  /* ⚠️ `--sem-azul-int` y NO `--sem-azul`: medido, el azul del semáforo como TINTA sobre su propio
+     fondo pálido da 4.28:1 con texto de 13 px — por debajo del mínimo. Es el mismo hallazgo que ya
+     está anotado para `-verde` y `-rojo` en el CSS de más arriba: el color del semáforo sirve para
+     pintar, no para escribir. El intenso da 7.06:1. */
+  .ctx-chip.ctx-period { background: var(--sem-azul-bg); color: var(--sem-azul-int); }
   .ctx-chip.ctx-person { background: var(--orange-bg); color: var(--orange-legible); }
   .ctx-chip b { cursor: pointer; font-weight: 800; opacity: .55; padding: 0 .1rem; }
   .ctx-chip b:hover { opacity: 1; }
@@ -5583,7 +5596,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.04';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.09';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -5990,7 +6003,7 @@ const I18N = {
       cic_cfg_ayuda:'Se aplica a todo el personal del alcance actual y la ven todos los supervisores, no sólo este dispositivo. Cuando alguien toca «{evento}», el reloj de jornada corre contra las horas que pongas aquí.',
       cic_guardar_emp:'Guardar para toda la empresa',
       cic_cfg_err:'Revisa los valores: cada tramo va entre 5 y 1440 minutos.',
-      cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
+      cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo-txt)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
       cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
       rango_admin:'Administrador', rango_personal:'Personal',
@@ -6004,10 +6017,12 @@ const I18N = {
       jor_lead:'Últimos {dias} días. Cada jornada se compara con las horas que la empresa tenía configuradas ese día.',
       jor_vacio:'Todavía no hay jornadas registradas en este período.',
       jor_sin_permiso:'Esta información es del servicio médico y de Dirección / HSEQ.',
-      jor_sin_umbral:'{n} jornada(s) quedaron sin comparar: son anteriores a que se guardara el límite vigente de cada día, y no se les aplica el actual.',
+      jor_sin_umbral:'{n} jornadas quedaron sin comparar: son anteriores a que se guardara el límite vigente de cada día, y no se les aplica el actual.',
       jor_sin_umbral_1:'Sin límite guardado para ese día: no se compara.',
       jor_k_dias:'jornadas por encima', jor_k_total:'tiempo acumulado', jor_k_personas:'personas con registro',
-      jor_ahora:'{n} persona(s) siguen en jornada y ya pasaron lo previsto',
+      jor_ahora:'{n} personas siguen en jornada y ya pasaron lo previsto',
+      jor_ahora_1:'1 persona sigue en jornada y ya pasó lo previsto',
+      jor_n_dias:'{n} días', jor_n_dias_1:'1 día',
       jor_por_persona:'Por persona', jor_historico:'Día por día', jor_diario:'Detalle',
       jor_c_persona:'Persona', jor_c_dias:'Días', jor_c_prom:'Jornada promedio',
       jor_c_exceso:'Por encima', jor_c_fecha:'Fecha', jor_c_jornada:'Jornada',
@@ -6128,9 +6143,14 @@ const I18N = {
       sub_resumen_op:'Resumen operativo del grupo que tengas filtrado',
       sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
       /* Y5. Se dice el número, no se esconde: una ausencia mal cargada tiene que poder verse. */
-      hs_no_tocaba:'{n} persona(s) no estaban de guardia hoy y no se cuentan en la cobertura.',
+      /* ⚠️ A4 · NO DICE "de guardia". El plan lo deja escrito: ese término NO EXISTE en el
+         vocabulario del producto, y el propio commit de Y5 dice "se declara la AUSENCIA, no la
+         guardia". Además es terminología de aviación: en una planta industrial no significa nada,
+         y el servicio se está expandiendo a plantas (R14). "Ausente" funciona en los dos. */
+      hs_no_tocaba:'{n} personas estuvieron ausentes hoy y no se cuentan en la cobertura.',
+      hs_no_tocaba_1:'1 persona estuvo ausente hoy y no se cuenta en la cobertura.',
       ver_nueva:'Hay una versión nueva de la app.', ver_nueva_btn:'Actualizar',
-      aus_marcar:'Marcar que hoy no está de guardia', aus_marcar_corto:'Marcar ausente',
+      aus_marcar:'Marcar como ausente hoy', aus_marcar_corto:'Marcar ausente',
       aus_quitar:'Volver a contarlo hoy', aus_no_guardia:'No está hoy', aus_vuelve:'Volver a contar',
       aus_puesta:'{p} no se cuenta hoy', aus_quitada:'{p} vuelve a contarse hoy',
       aus_sin_red:'Necesitas conexión para cambiar esto.',
@@ -7489,7 +7509,7 @@ const I18N = {
       cic_cfg_ayuda:'Applies to everyone in the current scope and is seen by every supervisor, not just this device. When someone taps "{evento}", the on-duty clock runs against the hours you set here.',
       cic_guardar_emp:'Save for the whole company',
       cic_cfg_err:'Check the values: each segment must be between 5 and 1440 minutes.',
-      cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo)">red</b> with the excess counting up, so you can act on it. Anyone who has not tapped anything still appears, <b>in grey</b>.',
+      cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo-txt)">red</b> with the excess counting up, so you can act on it. Anyone who has not tapped anything still appears, <b>in grey</b>.',
       cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
       // ── Perelli and KSS: what does NOT change by sector (C2). Instrument scales. ──
       pf_q_nivel:'How would you rate your overall level of fatigue right now?',
@@ -7537,10 +7557,12 @@ const I18N = {
       jor_lead:'Last {dias} days. Each shift is compared against the hours the company had configured that day.',
       jor_vacio:'No shifts recorded in this period yet.',
       jor_sin_permiso:'This information is for the medical service and Management / HSEQ.',
-      jor_sin_umbral:'{n} shift(s) were not compared: they predate the storing of each day\'s limit, and the current one is not applied to them.',
+      jor_sin_umbral:'{n} shifts were not compared: they predate the storing of each day\'s limit, and the current one is not applied to them.',
       jor_sin_umbral_1:'No stored limit for that day: not compared.',
       jor_k_dias:'shifts above plan', jor_k_total:'accumulated time', jor_k_personas:'people with records',
-      jor_ahora:'{n} person(s) are still on duty and already past plan',
+      jor_ahora:'{n} people are still on duty and already past plan',
+      jor_ahora_1:'1 person is still on duty and already past plan',
+      jor_n_dias:'{n} days', jor_n_dias_1:'1 day',
       jor_por_persona:'By person', jor_historico:'Day by day', jor_diario:'Detail',
       jor_c_persona:'Person', jor_c_dias:'Days', jor_c_prom:'Average shift',
       jor_c_exceso:'Above plan', jor_c_fecha:'Date', jor_c_jornada:'Shift',
@@ -7656,9 +7678,10 @@ const I18N = {
       // ── F1 · Block subtitles ──
       sub_resumen_op:'Operational summary of the group you have filtered',
       sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
-      hs_no_tocaba:'{n} person(s) were not on duty today and are not counted in coverage.',
+      hs_no_tocaba:'{n} people were absent today and are not counted in coverage.',
+      hs_no_tocaba_1:'1 person was absent today and is not counted in coverage.',
       ver_nueva:'A new version of the app is available.', ver_nueva_btn:'Update',
-      aus_marcar:'Mark as not on duty today', aus_marcar_corto:'Mark absent',
+      aus_marcar:'Mark as absent today', aus_marcar_corto:'Mark absent',
       aus_quitar:'Count them again today', aus_no_guardia:'Off today', aus_vuelve:'Count again',
       aus_puesta:'{p} is not counted today', aus_quitada:'{p} counts again today',
       aus_sin_red:'You need a connection to change this.',
@@ -13987,6 +14010,15 @@ function dashTabsFor(rol, hasPvt, vista){
      orden fijo y filtra contra él, así que lo que no esté ahí se descarta en silencio y la
      pestaña no existe. Hay que tocar las dos. */
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
+  /* ⚠️ A4 · Y4 DEJÓ ESTO A MEDIO CAMINO. El endpoint ya le manda `duty` al servicio médico
+     (`acc.vista === "medico"` en la condición), pero no había ninguna pantalla donde verlo: el dato
+     viajaba y se tiraba. Es el hallazgo I1 nº 4, textual — "el médico es el único que puede firmar
+     una determinación de aptitud por fatiga, y las horas de servicio son de las variables más
+     relevantes que existen para esa firma".
+     No hay riesgo de cortafuegos: la pestaña muestra horas y excesos por persona, nada clínico.
+     ⚠️ Y va también en `dashOrderedTabs()`, que tiene su PROPIA lista y descarta en silencio lo que
+     no esté ahí — está advertido cuatro líneas más arriba y es exactamente la trampa que avisa. */
+  if (rol !== 'empleado') base.push('jornada');
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
   return base;
 }
@@ -14051,6 +14083,18 @@ function onDashData(d, scopeLabel, params, vista){
            // E2a: sólo supervisor/HSEQ traen esto (el resto sigue con `registros`/`pvt` crudos).
            aptitud: Array.isArray(d.aptitud) ? d.aptitud : null,
            turnos: d.turnos || [],   // E2b: check-in/carga/check-out, hoy y ayer
+           /* ⚠️ A4 · ESTAS TRES SE PERDÍAN. El servidor las mandaba y este objeto —que es una lista
+              EXPLÍCITA de campos, no una copia del payload— no las nombraba, así que se tiraban al
+              entrar. Efecto medido: `duty` nunca llegaba, o sea que la pestaña Jornada (Y4) mostraba
+              su estado vacío SIEMPRE en producción; y `ausencias` nunca llegaba, o sea que Y5 no
+              descontaba a nadie de la cobertura. Dos prompts enteros, los dos con su suite en verde,
+              entregando funciones que del lado del cliente no existían.
+              Las suites no lo veían porque armaban `DASH` a mano (`DASH = {duty: dutyDemo()}`) en vez
+              de pasar por acá, que es el único camino real. Hay un caso nuevo que compara las claves
+              del payload del .gs contra lo que sobrevive, para que el próximo campo no se pierda igual. */
+           duty: d.duty || null,
+           ausencias: (d.ausencias && typeof d.ausencias === 'object') ? d.ausencias : {},
+           operacionalPeriodo: d.operacionalPeriodo || null,
            rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]) };
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
@@ -14205,6 +14249,11 @@ function dashRefresh(manual){
     DASH.operacionalPeriodo = d.operacionalPeriodo || null;
     DASH.aptitud = Array.isArray(d.aptitud) ? d.aptitud : null;   // E2a: se refresca junto con lo demás
     DASH.turnos = d.turnos || [];   // E2b: idem
+    /* ⚠️ A4 · Y ACÁ TAMBIÉN. Son dos lugares distintos los que copian campos del servidor —la carga
+       inicial y este refresco— y `duty`/`ausencias` faltaban en LOS DOS. Si sólo se arreglara arriba,
+       marcar una ausencia y esperar al refresco la borraría de la pantalla. */
+    DASH.duty = d.duty || null;
+    if (d.ausencias && typeof d.ausencias === 'object') DASH.ausencias = d.ausencias;
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
@@ -14248,7 +14297,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 function dashOrderedTabs(){
   if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
   if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
-  let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones'];
+  let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
 }
@@ -15814,7 +15863,7 @@ function renderHseqIdc(rows){
       /* ⚠️ A quién NO se le contó el día se DICE, siempre. Sacarlos del denominador en silencio
          sería inflar la cobertura sin que nadie pueda revisarlo, y una ausencia mal cargada se
          volvería invisible: nadie la corregiría nunca. */
-      (ausentes.length ? '<div class="hs-nota-aus">' + esc(t('hs_no_tocaba', { n: ausentes.length })) + '</div>' : '') +
+      (ausentes.length ? '<div class="hs-nota-aus">' + esc(ausentes.length === 1 ? t('hs_no_tocaba_1') : t('hs_no_tocaba', { n: ausentes.length })) + '</div>' : '') +
     '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_reparto_estado')) + '</div>' +
       '<div class="db-sub">' + esc(t('hs_sub_reparto', { n: cuentan.length })) + '</div>' + filas + '</div>' +
@@ -17196,7 +17245,10 @@ function renderJornada(){
      tienen contra qué juzgarse, y no se les inventa uno. Presentarlas como "sin exceso" sin decir
      por qué sería afirmar algo que no se midió. */
   if (d.sinUmbralCongelado > 0){
-    h += '<p class="dash-aviso">' + esc(t('jor_sin_umbral', { n: d.sinUmbralCongelado })) + '</p>';
+    /* `jor_sin_umbral_1` ya existía pero sólo se usaba en el `title` del chip: acá el aviso decía
+       "1 jornadas quedaron sin comparar". Con uno solo se usa la forma singular, que además explica
+       mejor porque no arrastra el conteo. */
+    h += '<p class="dash-aviso">' + esc(d.sinUmbralCongelado === 1 ? t('jor_sin_umbral_1') : t('jor_sin_umbral', { n: d.sinUmbralCongelado })) + '</p>';
   }
 
   // ── Corte 1 · acumulado del período
@@ -17210,7 +17262,9 @@ function renderJornada(){
      el resto ya ocurrió. */
   const ahoraExcedidos = abiertos.filter(f => f.excesoMin > 0);
   if (ahoraExcedidos.length){
-    h += '<div class="jor-ahora"><b>' + esc(t('jor_ahora', { n: ahoraExcedidos.length })) + '</b><ul>';
+    /* Plural con dos claves, que es como la app lo resuelve en otros seis lugares. Decía
+       "1 persona(s) siguen en jornada": el "(s)" y el verbo en plural con uno solo. */
+    h += '<div class="jor-ahora"><b>' + esc(t(ahoraExcedidos.length === 1 ? 'jor_ahora_1' : 'jor_ahora', { n: ahoraExcedidos.length })) + '</b><ul>';
     ahoraExcedidos.forEach(f => {
       h += '<li>' + esc(f.persona) + ' · ' + esc(jorMin(f.jornadaMin)) + ' · <b>+' + esc(jorMin(f.excesoMin)) + '</b></li>';
     });
@@ -17226,9 +17280,16 @@ function renderJornada(){
   personas.slice().sort((a,b) => b.excesoMin - a.excesoMin).forEach(pe => {
     h += '<tr' + (pe.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
          '<td>' + esc(pe.persona) + '</td>' +
-         '<td>' + pe.dias + (pe.diasConExceso ? ' <span class="jor-chip">' + pe.diasConExceso + '</span>' : '') + '</td>' +
+         /* ⚠️ A4 · EL CHIP SE MOVIÓ DE COLUMNA. Estaba acá, al lado de los días: la celda mostraba
+            "2 2" bajo un encabezado que dice "Días", y el segundo número no lo explicaba nada. Un
+            dato sin etiqueta en una tabla que el servicio médico lee para firmar es peor que no
+            mostrarlo. En "Por encima", al lado del total, se lee solo: "+2 h 20 min · 2 días". */
+         '<td>' + pe.dias + '</td>' +
          '<td>' + esc(jorMin(pe.promedioJornadaMin)) + '</td>' +
-         '<td>' + (pe.excesoMin > 0 ? '<b>+' + esc(jorMin(pe.excesoMin)) + '</b>' : '—') + '</td></tr>';
+         '<td>' + (pe.excesoMin > 0
+             ? '<b>+' + esc(jorMin(pe.excesoMin)) + '</b>' +
+               (pe.diasConExceso ? '<span class="jor-chip">' + esc(t(pe.diasConExceso === 1 ? 'jor_n_dias_1' : 'jor_n_dias', { n: pe.diasConExceso })) + '</span>' : '')
+             : '—') + '</td></tr>';
   });
   h += '</tbody></table></div>';
 
@@ -21937,7 +21998,7 @@ function ausTocar(btn){
   const ced = btn.getAttribute('data-ced') || '';
   const persona = btn.getAttribute('data-per') || '';
   const hoy = todayStr();
-  const yaEsta = ausenteHoy({ cedula: ced });
+  const yaEsta = ausenteHoy({ cedula: ced, nombre: persona });
   const cedNum = String(ced).replace(/\D/g, '');
   if (!cedNum) return;
   const id = 'aus_' + cedNum + '_' + hoy;
@@ -21945,9 +22006,15 @@ function ausTocar(btn){
 
   /* Se pinta el cambio ANTES de que conteste el servidor y se revierte si falla: el supervisor está
      marcando varias personas seguidas y esperar 3 s por cada una lo haría abandonar. */
+  /* ⚠️ LAS DOS CLAVES, igual que el servidor. Encontrado en A4: acá se ponía sólo la de cédula, y
+     eso rompía distinto en cada dirección. Al MARCAR, la lista de nómina se actualizaba (busca por
+     cédula) pero la cobertura del IDC no (busca por nombre), así que dos partes de la misma pantalla
+     decían cosas distintas. Y al QUITAR era peor: se borraba la de cédula y quedaba la de nombre, o
+     sea que la persona seguía descontada de la cobertura aunque el supervisor le hubiera sacado la
+     ausencia — y sin nada en pantalla que lo delatara hasta el siguiente refresco. */
   const idx = DASH.ausencias || (DASH.ausencias = {});
-  const clave = cedNum + '|' + hoy;
-  if (yaEsta) delete idx[clave]; else idx[clave] = 'franco';
+  const claves = [cedNum + '|' + hoy, 'n:' + ausNombreClave(persona) + '|' + hoy];
+  claves.forEach(k => { if (yaEsta) delete idx[k]; else idx[k] = 'franco'; });
   try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
 
   const cuerpo = { action:'ausencia_guardar', usuario: DASH.params.usuario || DASH.params.empresa,
@@ -21962,12 +22029,12 @@ function ausTocar(btn){
       if (d && d.ok){ showToast(t(yaEsta ? 'aus_quitada' : 'aus_puesta', { p: persona })); return; }
       /* Falló: se deshace lo que se había pintado. Dejar el cambio en pantalla haría creer que la
          ausencia quedó cargada cuando en el CH no está, y esa persona seguiría contando. */
-      if (yaEsta) idx[clave] = 'franco'; else delete idx[clave];
+      claves.forEach(k => { if (yaEsta) idx[k] = 'franco'; else delete idx[k]; });
       try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
       showToast(tError(d && d.error) || t('aus_error'));
     })
     .catch(() => {
-      if (yaEsta) idx[clave] = 'franco'; else delete idx[clave];
+      claves.forEach(k => { if (yaEsta) idx[k] = 'franco'; else delete idx[k]; });
       try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
       showToast(t('aus_error'));
     });

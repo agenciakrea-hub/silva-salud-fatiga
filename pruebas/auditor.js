@@ -244,6 +244,18 @@
     const cs = getComputedStyle(el);
     if (cs.webkitLineClamp && cs.webkitLineClamp !== 'none') return true;
     if (cs.textOverflow === 'ellipsis') return true;
+    /* ⚠️ UN TEXTO QUE SE DESLIZA (T3) NO ESTÁ CORTADO: se lee entero, moviéndose. Y acá parece
+       cortado igual que uno de verdad, porque con la pestaña oculta `.sin-animaciones` congela el
+       recorrido en el primer fotograma. Me hizo reportar "Actualizado … se pasa 98px de ancho" como
+       defecto en A4, cuando el mecanismo estaba funcionando.
+       Se reconoce por la marca que deja `dashWireMarquees()`, y se exige que la distancia ALCANCE
+       para mostrar todo: un marquee mal calculado sí es un corte, y ese tiene que seguir sonando. */
+    if (el.classList.contains('marquee')) {
+      const dist = Math.abs(parseFloat(cs.getPropertyValue('--marquee-dist')) || 0);
+      const dentro = el.querySelector('.mq-in');
+      const falta = dentro ? (dentro.scrollWidth - el.clientWidth) : Infinity;
+      if (dist >= falta) return true;
+    }
     /* ⚠️ UN CARRUSEL SE RECONOCE POR SU FORMA, no por su transición. Probé con la transición
        (`transition-property: transform` en el hijo) y falla justo acá: el entorno de pruebas corre
        con `.sin-animaciones`, que apaga TODAS las transiciones con `!important`. O sea que el

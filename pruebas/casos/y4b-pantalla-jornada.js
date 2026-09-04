@@ -58,7 +58,26 @@ PRUEBAS.caso('⚠️ una jornada sin umbral guardado se marca, no se presenta co
   try {
     const aviso = c.querySelector('.dash-aviso');
     PRUEBAS.cierto(!!aviso, '⚠️ tiene que haber aviso cuando hay filas sin umbral');
-    PRUEBAS.cierto((aviso.textContent||'').indexOf('1') >= 0, 'diciendo cuántas son');
+    /* ⚠️ Se fija la PROPIEDAD, no el carácter. Esto decía `indexOf('1') >= 0`, y al resolver el
+       plural —el aviso pasó a decir "Sin límite guardado para ese día" cuando es una sola, en vez de
+       "1 jornadas quedaron sin comparar"— se puso en rojo por una mejora. Lo que importa es que el
+       aviso explique que ESA jornada no se pudo comparar, no que aparezca el dígito. */
+    const tx = (aviso.textContent||'').toLowerCase();
+    PRUEBAS.cierto(/sin comparar|no se compara/.test(tx),
+      '⚠️ el aviso tiene que decir que no se comparó — decía: ' + tx.slice(0,70));
+  } finally { c.remove(); }
+});
+
+PRUEBAS.caso('⚠️ y cuando son VARIAS, dice cuántas', () => {
+  /* Acá el número sí es imprescindible: "algunas jornadas quedaron sin comparar" no le sirve a
+     nadie para saber si es una de treinta o veinte de treinta. */
+  const d = y4bDuty(); d.sinUmbralCongelado = 4;
+  const c = y4bPintar(d);
+  try {
+    const aviso = c.querySelector('.dash-aviso');
+    PRUEBAS.cierto(!!aviso, 'tiene que haber aviso');
+    PRUEBAS.cierto((aviso.textContent||'').indexOf('4') >= 0,
+      '⚠️ con varias, el aviso tiene que traer el número — decía: ' + (aviso.textContent||'').slice(0,70));
   } finally { c.remove(); }
 });
 
@@ -130,4 +149,70 @@ PRUEBAS.caso('los textos de la pantalla están en los dos idiomas (R14, R1)', ()
     .forEach(k => { const v = t(k); PRUEBAS.cierto(!!v && v !== k, 'falta ' + k); });
   PRUEBAS.falso(/\b(tenés|podés|mirá|fijate)\b/i.test(t('jor_lead') + ' ' + t('jor_sin_umbral')),
     'español neutro (R1)');
+});
+
+PRUEBAS.grupo('Y4b · quién puede ver la jornada (A4)');
+
+PRUEBAS.caso('⚠️ el servicio médico TIENE la pestaña Jornada', () => {
+  /* Y4 la puso sólo en HSEQ, pero el endpoint ya mandaba `duty` también al médico: el dato viajaba
+     y se tiraba. Es el hallazgo I1 nº 4 — el médico es el único que firma una determinación por
+     fatiga, y las horas de servicio son de las variables más relevantes para esa firma. */
+  PRUEBAS.cierto(dashTabsFor('empresa', false, 'medico').indexOf('jornada') >= 0,
+    '⚠️ tiene que estar en la lista de pestañas del médico');
+});
+
+PRUEBAS.caso('⚠️ y sobrevive a dashOrderedTabs(), que tiene su propia lista', () => {
+  /* La trampa que el propio código advierte: `dashOrderedTabs()` filtra contra un orden fijo
+     PROPIO, así que una pestaña agregada sólo en `dashTabsFor` se descarta en silencio y la
+     pantalla no aparece. Hay que tocar las dos, y esto lo comprueba. */
+  const prev = DASH;
+  try {
+    DASH = { vista:'medico', rol:'empresa', f:{}, tabs: dashTabsFor('empresa', false, 'medico') };
+    PRUEBAS.cierto(dashOrderedTabs().indexOf('jornada') >= 0,
+      '⚠️ el orden fijo tiene que incluirla, o no se pinta aunque esté en `tabs`');
+  } finally { DASH = prev; }
+});
+
+PRUEBAS.caso('⚠️ el empleado NO la ve, y el supervisor tampoco (discriminador)', () => {
+  /* El recorte es del servidor —a esas dos vistas no les manda `duty`—, pero la pantalla no puede
+     ofrecer una pestaña que siempre va a estar vacía: se lee como una función rota. */
+  PRUEBAS.falso(dashTabsFor('empleado', false, 'empleado').indexOf('jornada') >= 0,
+    '⚠️ el empleado no ve horas de terceros');
+  PRUEBAS.falso(dashTabsFor('empresa', false, 'supervisor').indexOf('jornada') >= 0,
+    '⚠️ el supervisor tampoco: el servidor no le manda `duty` (K1a/K1b)');
+});
+
+PRUEBAS.caso('⚠️ ningún número queda sin decir qué es', () => {
+  /* Salió MIRANDO la captura, no midiendo: la columna "Días" mostraba "2 2" —los días y, al lado,
+     los días con exceso— y el segundo número no lo explicaba nada. Un dato sin etiqueta en la tabla
+     que el servicio médico lee para firmar una determinación es peor que no mostrarlo.
+     Ahora va en "Por encima", junto al total, donde se lee solo: "+2 h 20 min · 2 días". */
+  const fuente = String(renderJornada);
+  PRUEBAS.falso(/'<td>' \+ pe\.dias \+ \(pe\.diasConExceso/.test(fuente),
+    '⚠️ el chip no puede volver a la columna de días, donde queda sin etiqueta');
+  PRUEBAS.cierto(/jor_n_dias/.test(fuente),
+    'y el número tiene que venir con su palabra ("2 días"), traducida por t()');
+  ['jor_n_dias','jor_n_dias_1'].forEach(k =>
+    PRUEBAS.cierto(!!t(k) && t(k) !== k, 'falta la traducción de ' + k));
+});
+
+PRUEBAS.caso('⚠️ los plurales se resuelven, no se escriben "persona(s)"', () => {
+  /* R1 pide español neutro bien escrito, y "1 persona(s) siguen en jornada" no lo es. La app ya
+     resuelve el plural con dos claves en otros seis lugares; acá faltaba. */
+  ['jor_ahora','jor_ahora_1','jor_sin_umbral','jor_sin_umbral_1','hs_no_tocaba','hs_no_tocaba_1'].forEach(k => {
+    const v = t(k);
+    PRUEBAS.cierto(!!v && v !== k, 'falta ' + k);
+    PRUEBAS.falso(/\(s\)/.test(v), '⚠️ ' + k + ' no puede llevar "(s)": ' + v);
+  });
+  PRUEBAS.cierto(/jor_ahora_1/.test(String(renderJornada)), 'y el llamador tiene que elegir la forma');
+});
+
+PRUEBAS.caso('⚠️ y NO dice "de guardia" en ningún texto visible', () => {
+  /* El plan lo deja escrito: ese término no existe en el vocabulario del producto, y el commit de
+     Y5 dice "se declara la AUSENCIA, no la guardia". Además es terminología de aviación: el
+     servicio se está expandiendo a plantas industriales, donde no significa nada (R14). */
+  ['hs_no_tocaba','hs_no_tocaba_1','aus_marcar','aus_marcar_corto','aus_quitar','aus_no_guardia'].forEach(k => {
+    const v = String(t(k) || '').toLowerCase();
+    PRUEBAS.falso(/de guardia|on duty/.test(v), '⚠️ ' + k + ' dice "de guardia": ' + v);
+  });
 });
