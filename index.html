@@ -311,6 +311,11 @@
     --demo-chip:    rgba(255,255,255,.12);
     --demo-chip-on: #f0f4fb;
     --demo-chip-on-txt: #16233d;
+    /* El relleno del chip en reposo da 1.44:1 contra la barra: el texto se lee perfecto (10.87:1)
+       pero el CONTORNO del control no llega a 3:1, así que no se lee como botón. Subir el relleno
+       no alcanza —ni al 30% pasa de 2.67:1—, hace falta borde. Medido: 4.28:1 contra la franja 1
+       y 3.80:1 contra la 2. */
+    --demo-borde:   #7f8694;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
 
     /* ── Pantallas de entrada (A2, 2026-08-25: splash, carrusel, alta) ──
@@ -486,6 +491,11 @@
     --demo-chip:    rgba(255,255,255,.12);
     --demo-chip-on: #f0f4fb;
     --demo-chip-on-txt: #16233d;
+    /* El relleno del chip en reposo da 1.44:1 contra la barra: el texto se lee perfecto (10.87:1)
+       pero el CONTORNO del control no llega a 3:1, así que no se lee como botón. Subir el relleno
+       no alcanza —ni al 30% pasa de 2.67:1—, hace falta borde. Medido: 4.28:1 contra la franja 1
+       y 3.80:1 contra la 2. */
+    --demo-borde:   #7f8694;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
     --orange-txt:  #b8500a;
     /* Mismo valor que en :root, a propósito: el gradiente naranja es invariante entre temas. */
@@ -3858,10 +3868,34 @@
     font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap;
     transition:transform .12s ease, background .12s ease; }
   .db-v:active { transform:scale(.97); }
-  /* La vista activa no se marca SÓLO por color: cambia el fondo Y suma un punto delante, así se
-     distingue sin depender de ver bien el matiz. */
-  .db-v[aria-pressed="true"] { background:var(--demo-chip-on); color:var(--demo-chip-on-txt); }
-  .db-v[aria-pressed="true"]::before { content:"● "; }
+  /* ⚠️ LA MARCA DE ACTIVO NO PUEDE ENSANCHAR EL BOTÓN. Antes era un `●` delante, y ensanchaba el
+     botón activo 10,3 px: todo lo que estaba a su derecha se corría, o sea que EL BOTÓN QUE
+     ACABÁS DE TOCAR SE MUEVE DEBAJO DEL DEDO — justo mientras le mostrás la app a alguien.
+     Medido: de Personal a Supervisor, el borde izquierdo de "Supervisor" saltaba de x=101,7 a
+     x=91,5. Con el anillo interior el salto es 0.
+     Y sigue sin depender del matiz: cambia el relleno (9,86:1 de diferencia de luminancia contra
+     el inactivo) más el anillo. */
+  .db-v[aria-pressed="true"] { background:var(--demo-chip-on); color:var(--demo-chip-on-txt);
+    box-shadow:inset 0 0 0 2px var(--demo-bar); }
+  /* Que un botón se vea como botón es contraste de CONTORNO, no de texto (WCAG 1.4.11). */
+  .db-v { border:1.5px solid var(--demo-borde); }
+  .db-v:focus-visible { outline:3px solid var(--demo-chip-on); outline-offset:2px; }
+  /* En inglés a 375 px "Management" se cortaba 9,8 px. Con menos relleno entran las dos lenguas:
+     medido, 340,9 px de contenido contra 353 disponibles. */
+  @media (max-width: 430px) { .db-v { padding:.3rem .6rem; } }
+  /* ⚠️ UNA SOLA FILA CUANDO HAY ANCHO. A 1366 el selector usa 362 px y quedaban 981 vacíos a la
+     derecha, y la barra igual ocupaba dos filas: el 16% de la pantalla regalado en la máquina
+     típica de una demostración. Medido: la barra baja de 103,2 a 60 px y el área de scroll sube
+     de 539 a 582 px. */
+  @media (min-width: 560px) {
+    .demo-bar { display:flex; align-items:center; gap:.7rem; }
+    .db-fila { display:contents; }
+    .db-vistas { margin-top:0; flex:0 0 auto; order:8; }
+    .demo-bar .sim-salir { order:9; }
+    .demo-bar .sim-txt { flex:1 1 auto; }
+  }
+  /* 36 px estaba por debajo del mínimo para tocar con el dedo. Viene heredado de `.sim-bar`. */
+  .demo-bar .sim-salir { min-height:44px; }
   .sim-ico { font-size:1rem; flex:0 0 auto; }
   .sim-txt { flex:1 1 auto; line-height:1.35; }
   .sim-txt b { font-weight:800; }
@@ -6044,7 +6078,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.50';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.51';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7230,7 +7264,7 @@ const I18N = {
          fila a 375 px. Y el texto de la barra dice qué es sin sonar a error ni a disculpa: quien
          la lee es un cliente al que le están mostrando el producto. */
       dv_medico:'Médico', dv_direccion:'Dirección', vista_grupo:'Vista',
-      demo_bar_txt:'Demostración con datos de ejemplo',
+      demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
       ctx_viendo:'Viendo {q} · {n}',
       lg_perfil:'Perfil',
@@ -8868,7 +8902,7 @@ const I18N = {
       vista_personal:'Personal', vista_supervisor:'Supervisor',
       vista_medico:'Medical staff', vista_hseq:'Management / HSEQ',
       dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
-      demo_bar_txt:'Demo with sample data',
+      demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_sin_datos:'Open the demo again to switch views.',
       ctx_viendo:'Viewing {q} · {n}',
       lg_perfil:'Profile',
@@ -9394,6 +9428,13 @@ function aplicarIdioma(){
      que simPintarBarra() había llenado con el rol. Hay que volver a pintarlo DESPUÉS del barrido
      o la barra queda diciendo "—" al cambiar de idioma. */
   try { if (typeof simPintarBarra === 'function') simPintarBarra(); } catch(e){}
+  /* ⚠️ MISMO MOTIVO QUE LA LÍNEA DE ARRIBA, y sin esto la barra quedaba BILINGÜE: con la app en
+     inglés el mensaje pasaba a "Demo with sample data" y el botón a "Exit", pero los cuatro
+     botones de vista seguían en español. `demoPintarBarra()` los arma con `innerHTML` y `t()`, así
+     que no llevan `data-i18n` y el barrido no los alcanza — hay que repintarlos.
+     Verificado con discriminador: en inglés, antes decía "Personal / Supervisor / Médico /
+     Dirección"; ahora "Personal / Supervisor / Medical / Management". */
+  try { if (typeof demoPintarBarra === 'function') demoPintarBarra(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateGestFab === 'function') dashUpdateGestFab(); } catch(e){}
 }
 function fijarIdioma(k){
