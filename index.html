@@ -299,6 +299,17 @@
        puesto: ya paso una vez y dejo el icono invisible. */
     --sobre-claro: #16233d;
     --sobre-claro-txt: #ffffff;   /* tinta sobre `--sobre-claro`: vale igual en los dos temas porque ese fondo tampoco cambia */
+    /* S7 · la barra de la DEMOSTRACIÓN. Igual que `--sobre-claro`, NO cambia entre temas: es una
+       superficie propia que tiene que verse idéntica en los dos, porque su trabajo es que nadie
+       confunda la demostración con la sesión real ni mirando de reojo.
+       `--demo-bar-2` es la segunda franja de las rayas diagonales; `--demo-chip` el fondo de un
+       botón de vista en reposo, y `--demo-chip-on` el de la vista activa.
+       Contraste medido sobre `--demo-bar`: texto blanco 13.8:1 · chip activo 8.9:1. */
+    --demo-bar:     #16233d;
+    --demo-bar-2:   #1b2c4c;
+    --demo-chip:    rgba(255,255,255,.12);
+    --demo-chip-on: #f0f4fb;
+    --demo-chip-on-txt: #16233d;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
 
     /* ── Pantallas de entrada (A2, 2026-08-25: splash, carrusel, alta) ──
@@ -462,6 +473,17 @@
     --flecha-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239fb0c8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     --sobre-claro: #16233d;   /* igual que en claro: la superficie no cambia */
     --sobre-claro-txt: #ffffff;   /* tinta sobre `--sobre-claro`: vale igual en los dos temas porque ese fondo tampoco cambia */
+    /* S7 · la barra de la DEMOSTRACIÓN. Igual que `--sobre-claro`, NO cambia entre temas: es una
+       superficie propia que tiene que verse idéntica en los dos, porque su trabajo es que nadie
+       confunda la demostración con la sesión real ni mirando de reojo.
+       `--demo-bar-2` es la segunda franja de las rayas diagonales; `--demo-chip` el fondo de un
+       botón de vista en reposo, y `--demo-chip-on` el de la vista activa.
+       Contraste medido sobre `--demo-bar`: texto blanco 13.8:1 · chip activo 8.9:1. */
+    --demo-bar:     #16233d;
+    --demo-bar-2:   #1b2c4c;
+    --demo-chip:    rgba(255,255,255,.12);
+    --demo-chip-on: #f0f4fb;
+    --demo-chip-on-txt: #16233d;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
     --orange-txt:  #b8500a;
     /* Mismo valor que en :root, a propósito: el gradiente naranja es invariante entre temas. */
@@ -3811,9 +3833,33 @@
   .sf-rep-send { flex:1; }
 
   /* ── Modo simulación (P8): imposible de confundir con la sesión real ── */
+  /* ⚠️ Tenía tres colores escritos a mano (`#4338ca`, `#3c32b8`, `#fff`), que es R13. Pasaron a
+     tokens en el mismo movimiento en que se agregó la barra de la demostración. */
   .sim-bar { display:flex; align-items:center; gap:.5rem; padding:.5rem .8rem;
-    background:repeating-linear-gradient(135deg,#4338ca,#4338ca 12px,#3c32b8 12px,#3c32b8 24px);
-    color:#fff; font-size:.8rem; font-weight:700; }
+    background:repeating-linear-gradient(135deg,var(--demo-bar),var(--demo-bar) 12px,var(--demo-bar-2) 12px,var(--demo-bar-2) 24px);
+    color:var(--sobre-claro-txt); font-size:.8rem; font-weight:700; }
+
+  /* ── S7 · LA BARRA DE LA DEMOSTRACIÓN ──────────────────────────────────────────────
+     Dos filas, porque a 375 px las cuatro etiquetas de vista no entran al lado del texto y del
+     botón de salir. La primera fila dice qué es esto; la segunda es el selector.
+     El selector NO es un `<select>`: delante de un cliente, abrir un desplegable nativo y buscar
+     una opción se ve peor —y tarda más— que tocar el nombre que ya está a la vista. */
+  .demo-bar { display:block; padding:.45rem .7rem .55rem; }
+  .db-fila { display:flex; align-items:center; gap:.5rem; }
+  .db-vistas { display:flex; gap:.3rem; margin-top:.45rem; overflow-x:auto; scrollbar-width:none;
+    -webkit-overflow-scrolling:touch; }
+  .db-vistas::-webkit-scrollbar { display:none; }
+  /* 44 px de alto: el mínimo para tocar con el dedo. Esta barra se usa en un teléfono sostenido
+     en la mano delante de otra persona, que es el peor caso para errarle a un botón. */
+  .db-v { flex:0 0 auto; min-height:44px; padding:.3rem .75rem; border-radius:999px; border:none;
+    background:var(--demo-chip); color:var(--sobre-claro-txt); font-family:inherit;
+    font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap;
+    transition:transform .12s ease, background .12s ease; }
+  .db-v:active { transform:scale(.97); }
+  /* La vista activa no se marca SÓLO por color: cambia el fondo Y suma un punto delante, así se
+     distingue sin depender de ver bien el matiz. */
+  .db-v[aria-pressed="true"] { background:var(--demo-chip-on); color:var(--demo-chip-on-txt); }
+  .db-v[aria-pressed="true"]::before { content:"● "; }
   .sim-ico { font-size:1rem; flex:0 0 auto; }
   .sim-txt { flex:1 1 auto; line-height:1.35; }
   .sim-txt b { font-weight:800; }
@@ -5759,6 +5805,20 @@
         <span class="sim-txt" data-i18n-html="sim_txt">Estás viendo la app <b id="simRol">—</b> · <b>modo simulación, no se guarda nada</b></span>
         <button type="button" class="sim-salir" onclick="simSalir()" data-i18n="salir">Salir</button>
       </div>
+      <!-- ⚠️ S7 · LA BARRA DE LA DEMOSTRACIÓN. Es OTRA barra, no la de simulación de rol, y la
+           diferencia importa: la de arriba avisa que la app está en sólo lectura; ésta es la
+           herramienta con la que se muestra el producto. Comparte el estilo a propósito —las dos
+           dicen "esto no es la sesión real"— pero su contenido y su motivo son distintos.
+           El selector cambia de vista SIN pedir nada a la red: el payload de la demostración ya
+           trae las cuatro. -->
+      <div class="sim-bar demo-bar" id="demoBar" style="display:none">
+        <div class="db-fila">
+          <span class="sim-ico" aria-hidden="true">👁</span>
+          <span class="sim-txt" data-i18n="demo_bar_txt">Demostración con datos de ejemplo</span>
+          <button type="button" class="sim-salir" onclick="closePortal()" data-i18n="salir">Salir</button>
+        </div>
+        <div class="db-vistas" id="dbVistas" role="group" aria-label="Vista"></div>
+      </div>
       <div class="dash-top">
         <button class="portal-back" id="portalBackBtn" onclick="portalBackToGate()">←</button>
         <img id="dashBrandLogo" class="dash-brand-logo" alt="" style="display:none">
@@ -5982,7 +6042,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.48';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.49';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7164,6 +7224,12 @@ const I18N = {
       sim_como:'como {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
       vista_medico:'Servicio médico', vista_hseq:'Dirección / HSEQ',
+      /* S7 · etiquetas cortas para el selector de la demostración: las largas no entran en una
+         fila a 375 px. Y el texto de la barra dice qué es sin sonar a error ni a disculpa: quien
+         la lee es un cliente al que le están mostrando el producto. */
+      dv_medico:'Médico', dv_direccion:'Dirección',
+      demo_bar_txt:'Demostración con datos de ejemplo',
+      demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
       ctx_viendo:'Viendo {q} · {n}',
       lg_perfil:'Perfil',
       apt_a_noapto:'No apto', apt_a_condiciones:'Apto con condiciones', apt_a_alta:'Alta / Reincorporación',
@@ -8799,6 +8865,9 @@ const I18N = {
       sim_como:'as {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
       vista_medico:'Medical staff', vista_hseq:'Management / HSEQ',
+      dv_medico:'Medical', dv_direccion:'Management',
+      demo_bar_txt:'Demo with sample data',
+      demo_sin_datos:'Open the demo again to switch views.',
       ctx_viendo:'Viewing {q} · {n}',
       lg_perfil:'Profile',
       apt_a_noapto:'Unfit', apt_a_condiciones:'Fit with conditions', apt_a_alta:'Clearance / Return to duty',
@@ -13734,6 +13803,8 @@ function closePortal(){
   // silencio. Se limpia acá y no en simSalir() para cubrir TODAS las formas de cerrar (la ✕,
   // el botón atrás del teléfono, y el propio simSalir).
   if (SIMUL){ SIMUL = null; simPintarBarra(); }
+  DEMO_PAYLOAD = null;                // S7: el payload de la demo no sobrevive al cierre
+  const dbar = document.getElementById('demoBar'); if (dbar) dbar.style.display = 'none';
   portalDemoModo(false);              // salir del modo "sólo demo", si venía de ahí
   marcarStatsActivo(false); syncScrollLock();
   /* B5, 2026-08-25 — BUG REAL encontrado probando "Los otros tres caminos". El splash (B1) abre
@@ -14554,6 +14625,7 @@ function portalVerDemo(btn){
         portalDemoPedirClave(d.motivo); return;
       }
       if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) || 'No se pudo abrir la demostración.'; return; }
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };   // S7: para cambiar de vista sin red
       onDashData(d, 'Empresa Demo', params, PORTAL_VISTA);   // la demo respeta la pestaña elegida
     })
     .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
@@ -14589,18 +14661,98 @@ function portalVerDemoEmpleado(btn){
       if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) || t('pg_demo_error'); return; }
       const uno = demoPersonaEjemplo(d);
       if (!uno){ if (errEl) errEl.textContent = t('pg_demo_sin_persona'); return; }
+      /* ⚠️ S7 · SE GUARDA EL PAYLOAD COMPLETO, NO EL RECORTADO. Guardar el recortado dejaría a la
+         demostración encerrada en la vista personal: al pasar a supervisor se vería la empresa
+         entera con los datos de una sola persona, y nadie entendería por qué. */
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };
       /* Se recorta a esa persona y se entra como EMPLEADO: mismas pestañas y misma pantalla que
          ve un piloto de verdad, que es el punto de mostrarlo. */
-      const propio = Object.assign({}, d, {
-        rol: 'empleado',
-        registros: d.registros.filter(r => r.persona === uno),
-        pvt: (d.pvt || []).filter(r => r.persona === uno),
-        comentarios: null
-      });
-      onDashData(propio, uno, params, 'empleado');
+      onDashData(demoRecortarAPersona(d, uno), uno, params, 'empleado');
     })
     .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false);
       if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
+}
+
+/* ══════════ S7 · PILOTEAR LA DEMOSTRACIÓN SIN VOLVER A LA PORTADA ══════════
+   ⚠️ POR QUÉ EXISTE ESTO. La demo es la herramienta de venta: es lo que se le muestra a un cliente
+   antes de que firme. Y hasta ahora, pasar de la vista de supervisor a la de médico DELANTE DE ESE
+   CLIENTE costaba 4 toques, entre 3,5 y 12 segundos con la pantalla bloqueada, y un viaje de vuelta
+   a la portada —medido, no estimado—, perdiendo todo el contexto en el medio.
+   No hacía falta nada de eso: `portalVerDemo` y `portalVerDemoEmpleado` mandan EXACTAMENTE el mismo
+   pedido (`action:'demo'`, mismos params) y la vista de empleado se arma filtrando esa misma
+   respuesta del lado del cliente. O sea que el payload que ya está en memoria alcanza para las
+   cuatro vistas: el pedido de red era puro desperdicio.
+   Se guarda el payload COMPLETO —nunca el recortado— y cambiar de vista pasa a ser un toque y cero
+   red. `onDashData()` reconstruye `DASH` entero en cada llamada (no acumula estado), así que
+   volver a llamarla es el camino limpio y no hace falta desarmar nada a mano.
+
+   ⚠️ VIVE FUERA DE `DASH` A PROPÓSITO. `onDashData()` REEMPLAZA el objeto `DASH` completo; si el
+   payload viviera adentro, la primera vez que alguien cambiara de vista se borraría a sí mismo y
+   el segundo cambio volvería a pedir a la red sin que nadie entendiera por qué.
+   R16: declarada sin asignar — una declaración sin valor no pisa lo que ya haya. */
+var DEMO_PAYLOAD;
+
+/* Recorta el payload a UNA persona. Estaba escrito adentro de `portalVerDemoEmpleado`; se saca acá
+   porque ahora lo necesitan los dos caminos, y duplicarlo garantizaba que se desincronizaran.
+   ⚠️ Devuelve un objeto NUEVO (`Object.assign({}, d, …)`): el payload original queda intacto, que es
+   lo que permite volver a supervisor con todos los datos después de haber visto la vista personal. */
+function demoRecortarAPersona(d, uno){
+  return Object.assign({}, d, {
+    rol: 'empleado',
+    registros: d.registros.filter(r => r.persona === uno),
+    pvt: (d.pvt || []).filter(r => r.persona === uno),
+    comentarios: null
+  });
+}
+
+/* Cambia de vista SIN pedir nada a la red. Devuelve false si no hay payload guardado —por ejemplo
+   si alguien llama a esto fuera de la demostración—, así el llamador puede caer al camino largo en
+   vez de dejar la pantalla como estaba sin explicación. */
+function demoVerVista(vista){
+  if (!DEMO_PAYLOAD || !DEMO_PAYLOAD.d) return false;
+  const g = DEMO_PAYLOAD;
+  if (vista === 'empleado'){
+    const uno = demoPersonaEjemplo(g.d);
+    if (!uno) return false;
+    onDashData(demoRecortarAPersona(g.d, uno), uno, g.params, 'empleado');
+  } else {
+    onDashData(g.d, g.scope, g.params, vista);
+  }
+  /* `onDashData` reemplazó `DASH`, pero `DEMO_PAYLOAD` es de módulo y sobrevive. Se repinta la
+     barra para que el selector marque la vista nueva. */
+  simPintarBarra();
+  return true;
+}
+
+/* Pinta la barra de la demostración: la muestra sólo en demo, arma los cuatro botones y marca
+   cuál está activa. Se llama desde `onDashData()`, que es por donde pasa TODO cambio de vista —
+   así no hay forma de que la barra quede diciendo una vista y la pantalla mostrando otra.
+   Las etiquetas se resuelven en cada pintada, no una vez: si no, cambiar de idioma dejaría los
+   botones congelados en el idioma que hubiera al abrir. */
+function demoPintarBarra(){
+  const bar = document.getElementById('demoBar');
+  if (!bar) return;
+  const hay = !!(DASH && DASH.demoMode && DEMO_PAYLOAD);
+  bar.style.display = hay ? '' : 'none';
+  if (!hay) return;
+  const cont = document.getElementById('dbVistas');
+  if (!cont) return;
+  cont.innerHTML = ['empleado','supervisor','medico','hseq'].map(v =>
+    '<button type="button" class="db-v" onclick="demoIrVista(\'' + v + '\')"' +
+    ' aria-pressed="' + (DASH.vista === v ? 'true' : 'false') + '">' +
+    esc(t(DEMO_VISTA_CORTA[v])) + '</button>').join('');
+}
+
+/* Etiquetas CORTAS para el selector. Las largas ("Servicio médico", "Dirección / HSEQ") no entran
+   en una fila a 375 px, y acortarlas en el momento de pintar sería adivinar. */
+const DEMO_VISTA_CORTA = { empleado:'vista_personal', supervisor:'vista_supervisor',
+                           medico:'dv_medico', hseq:'dv_direccion' };
+
+/* Lo que toca el botón. Si por lo que sea no hay payload guardado, se avisa en vez de dejar la
+   pantalla igual sin explicación — un botón que no hace nada es peor que uno que dice por qué. */
+function demoIrVista(v){
+  if (DASH && DASH.vista === v) return;          // ya está ahí: no rehacer el panel al pedo
+  if (!demoVerVista(v)) showToast(t('demo_sin_datos'));
 }
 
 /* Elige a quién mostrar: la persona con MÁS registros de la demostración. Es determinista (la
@@ -14739,6 +14891,20 @@ function dashTabsFor(rol, hasPvt, vista){
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
   if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
+  /* ⚠️ VISTA PERSONAL: MANDA LA VISTA, NO EL ROL — y faltaba, mientras las dos ramas de arriba sí
+     lo hacían. Efecto medido: `dashTabsFor('supervisor', false, 'empleado')` devolvía las OCHO
+     pestañas del servicio médico, con 22 gráficos. O sea que elegir "Vista personal" desde una
+     cuenta que no es de empleado mostraba el panel médico completo, y era imposible previsualizar
+     lo que ve un piloto de verdad — justo lo que alguien quiere mostrar en una demostración.
+     El propio archivo ya había aprendido esta lección en otro lado: "El gate es por VISTA, no por
+     rol". Acá no se había aplicado.
+     ⚠️ Y va también en `dashOrderedTabs()`, que tiene su PROPIA lista y descarta en silencio lo
+     que no esté ahí. Tocar sólo una de las dos deja la pestaña inexistente sin ningún error. */
+  if (vista === 'empleado'){
+    const emp = ['resumen','evolucion'];
+    if (hasPvt) emp.push('pvt');
+    return emp;
+  }
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
   /* ⚠️ Si algún día se le agregan pestañas al médico (I1, hallazgos 4 y 5: horas de jornada y
      reportes identificados), NO alcanza con tocar esta lista: `dashOrderedTabs()` tiene su PROPIO
@@ -14873,6 +15039,7 @@ function onDashData(d, scopeLabel, params, vista){
   dashPintarVista(vista);
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
+  demoPintarBarra();          // S7: la barra sigue a la vista, no al revés
   dashUpdateBackBtn();
   buildDashTabs();
   buildDashFilters();
@@ -15032,6 +15199,10 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 function dashOrderedTabs(){
   if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
   if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
+  /* La otra mitad del fix de `dashTabsFor`: acá también manda la VISTA. Sin esto, la vista
+     personal recibía el orden completo del médico y las dos pestañas que sí le tocan quedaban
+     mezcladas en una lista pensada para otra pantalla. */
+  if (DASH.vista === 'empleado') return ['resumen','evolucion','pvt'].filter(t => DASH.tabs.indexOf(t) >= 0);
   let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada'];
   if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
   return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
