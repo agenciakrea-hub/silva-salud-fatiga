@@ -304,7 +304,8 @@
        confunda la demostración con la sesión real ni mirando de reojo.
        `--demo-bar-2` es la segunda franja de las rayas diagonales; `--demo-chip` el fondo de un
        botón de vista en reposo, y `--demo-chip-on` el de la vista activa.
-       Contraste medido sobre `--demo-bar`: texto blanco 13.8:1 · chip activo 8.9:1. */
+       Contraste MEDIDO en el navegador, en los dos temas (dan igual, porque los tokens no cambian):
+       texto sobre la barra 15.65:1 · chip en reposo 15.65:1 · chip activo 14.19:1. */
     --demo-bar:     #16233d;
     --demo-bar-2:   #1b2c4c;
     --demo-chip:    rgba(255,255,255,.12);
@@ -478,7 +479,8 @@
        confunda la demostración con la sesión real ni mirando de reojo.
        `--demo-bar-2` es la segunda franja de las rayas diagonales; `--demo-chip` el fondo de un
        botón de vista en reposo, y `--demo-chip-on` el de la vista activa.
-       Contraste medido sobre `--demo-bar`: texto blanco 13.8:1 · chip activo 8.9:1. */
+       Contraste MEDIDO en el navegador, en los dos temas (dan igual, porque los tokens no cambian):
+       texto sobre la barra 15.65:1 · chip en reposo 15.65:1 · chip activo 14.19:1. */
     --demo-bar:     #16233d;
     --demo-bar-2:   #1b2c4c;
     --demo-chip:    rgba(255,255,255,.12);
@@ -5817,7 +5819,7 @@
           <span class="sim-txt" data-i18n="demo_bar_txt">Demostración con datos de ejemplo</span>
           <button type="button" class="sim-salir" onclick="closePortal()" data-i18n="salir">Salir</button>
         </div>
-        <div class="db-vistas" id="dbVistas" role="group" aria-label="Vista"></div>
+        <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
       </div>
       <div class="dash-top">
         <button class="portal-back" id="portalBackBtn" onclick="portalBackToGate()">←</button>
@@ -6042,7 +6044,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.49';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.50';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7227,7 +7229,7 @@ const I18N = {
       /* S7 · etiquetas cortas para el selector de la demostración: las largas no entran en una
          fila a 375 px. Y el texto de la barra dice qué es sin sonar a error ni a disculpa: quien
          la lee es un cliente al que le están mostrando el producto. */
-      dv_medico:'Médico', dv_direccion:'Dirección',
+      dv_medico:'Médico', dv_direccion:'Dirección', vista_grupo:'Vista',
       demo_bar_txt:'Demostración con datos de ejemplo',
       demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
       ctx_viendo:'Viendo {q} · {n}',
@@ -8865,7 +8867,7 @@ const I18N = {
       sim_como:'as {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
       vista_medico:'Medical staff', vista_hseq:'Management / HSEQ',
-      dv_medico:'Medical', dv_direccion:'Management',
+      dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
       demo_bar_txt:'Demo with sample data',
       demo_sin_datos:'Open the demo again to switch views.',
       ctx_viendo:'Viewing {q} · {n}',
@@ -9807,10 +9809,32 @@ function simulBloquea(queIntentaba){
 /* ¿Se está mirando la demostración en este momento? Se exige que el panel esté ABIERTO, no sólo que
    `DASH` sea de demo: una persona real que miró la demo, la cerró y volvió a su inicio tiene que
    poder registrar lo suyo con normalidad. */
+/* ⚠️ LA APP PREPARANDO SU PROPIO EJEMPLO NO ES UNA PERSONA ESCRIBIENDO, Y CONFUNDIRLAS DEJABA LA
+   DEMOSTRACIÓN VACÍA. `gestSembrarDemoAnotaciones()` y `gestSembrarDemo()` escriben las anotaciones
+   médicas y las gestiones de ejemplo llamando a `gestUpsert()`, que consulta este guard. Y en el
+   momento en que siembran, las dos condiciones de abajo se cumplen —`DASH.demoMode` ya está puesto
+   y el portal está abierto—, así que las escrituras se cancelaban TODAS.
+   Efecto medido: cero anotaciones. La vista de supervisor no mostraba ninguna indicación médica en
+   "Estado por persona" y la del médico mostraba "Anotaciones de servicio médico" vacío — que es
+   justamente el contenido que la demostración existe para enseñar. Más un toast
+   "no se guarda nada" en cada entrada, y desde S7 en CADA TOQUE del selector de vista, delante del
+   cliente.
+   El guard sigue valiendo para todo lo demás: lo que se bloquea es que alguien escriba DESDE LA
+   INTERFAZ mientras mira un ejemplo. Que la app arme ese ejemplo es otra cosa. */
+var DEMO_SEMBRANDO;
+
 function demoBloqueaEscritura(){
+  if (DEMO_SEMBRANDO) return false;
   const ov = document.getElementById('portalOverlay');
   return !!(typeof DASH !== 'undefined' && DASH && DASH.demoMode &&
             ov && ov.classList.contains('show'));
+}
+
+/* Corre `fn` marcando que la escritura es de la app, no de una persona. `finally` para que una
+   excepción a mitad de la siembra no deje la bandera puesta: eso abriría la escritura de verdad. */
+function demoSembrando(fn){
+  DEMO_SEMBRANDO = true;
+  try { return fn(); } finally { DEMO_SEMBRANDO = false; }
 }
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
 function setProfile(p){ return lsSet(K_PROFILE, JSON.stringify(p)); }
@@ -13683,6 +13707,10 @@ function portalAbrirDirecto(){
 }
 
 function openPortalGate(){
+  /* Volver al selector es salir de la demostración, aunque el portal no se cierre. Sin esto el
+     payload sobrevivía a la flecha ← y quedaba disponible para pisar el panel real. */
+  DEMO_PAYLOAD = null;
+  const _db = document.getElementById('demoBar'); if (_db) _db.style.display = 'none';
   cargaCancelar();                    // volver al selector cancela la carga en curso
   portalReponerLoDeEmpresa();
   portalPintarOlvidar();
@@ -14709,7 +14737,17 @@ function demoRecortarAPersona(d, uno){
    si alguien llama a esto fuera de la demostración—, así el llamador puede caer al camino largo en
    vez de dejar la pantalla como estaba sin explicación. */
 function demoVerVista(vista){
+  /* ⚠️ SE EXIGE ESTAR EN LA DEMOSTRACIÓN, no sólo tener un payload guardado. `portalBackToGate()`
+     —la flecha ←, para quien tiene perfil de supervisor o de servicio médico— NO cierra el portal:
+     oculta el panel y vuelve al gate, sin tocar `DEMO_PAYLOAD`. Con la guarda vieja, alguien que
+     miró la demo y después entró a su empresa de verdad podía terminar con los 253 registros de
+     Empresa Demo encima de su panel real, y con `DASH.params` pisado por `{action:'demo'}` — o sea
+     que el refresco automático y cualquier sincronización posterior quedaban apuntando a la demo.
+     Hoy no se puede disparar porque el único llamador es el botón, que sólo se dibuja en demo:
+     la contención estaba en la capa de pintado, no acá. Eso es exactamente la clase de suposición
+     que se rompe sola el día que alguien agrega un segundo llamador. */
   if (!DEMO_PAYLOAD || !DEMO_PAYLOAD.d) return false;
+  if (!DASH || !DASH.demoMode) return false;
   const g = DEMO_PAYLOAD;
   if (vista === 'empleado'){
     const uno = demoPersonaEjemplo(g.d);
@@ -14718,9 +14756,11 @@ function demoVerVista(vista){
   } else {
     onDashData(g.d, g.scope, g.params, vista);
   }
-  /* `onDashData` reemplazó `DASH`, pero `DEMO_PAYLOAD` es de módulo y sobrevive. Se repinta la
-     barra para que el selector marque la vista nueva. */
-  simPintarBarra();
+  /* ⚠️ ACÁ NO VA `simPintarBarra()`. Es la barra de SIMULACIÓN DE ROL, otra distinta, y con
+     `SIMUL === null` sólo le pone `display:none` a un elemento que ya está oculto: código muerto
+     que además decía hacer lo que hace otra función. Quien marca la vista activa es
+     `demoPintarBarra()`, y la llama `onDashData()` —por donde pasa TODO cambio de vista—, así que
+     ya quedó repintada antes de llegar acá. */
   return true;
 }
 
@@ -15005,7 +15045,8 @@ function onDashData(d, scopeLabel, params, vista){
   nivelCacheClear();
   casosOdooArmar();                       // P13: abre la espera del puente a Odoo para ESTA carga
   if (DASH.demoMode){
-    gestSembrarDemoAnotaciones(); dashSembrarComentariosDemo();   // re-sella la vigencia cada vez que se entra a la demo
+    demoSembrando(function(){ gestSembrarDemoAnotaciones(); });   // re-sella la vigencia cada vez que se entra a la demo
+    dashSembrarComentariosDemo();
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
     DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
@@ -15040,6 +15081,12 @@ function onDashData(d, scopeLabel, params, vista){
   dashApplyMarca(d.marca);
   dashUpdateDemoBtn();
   demoPintarBarra();          // S7: la barra sigue a la vista, no al revés
+  /* ⚠️ ARRIBA DE TODO AL CAMBIAR DE VISTA. Sin esto, ir de Dirección (8 secciones, ~7.500 px) a
+     Personal (2 secciones) dejaba a la persona aterrizando al final de la vista nueva, porque el
+     navegador recorta el scroll al máximo posible — y el marcador de sección resaltaba la que
+     quedó en pantalla, no la primera. `dashGoPerson` y `dashClearOne` ya hacían esto; el cambio
+     de vista no, porque hasta S7 no existía. */
+  const _ds = document.getElementById('dashScroll'); if (_ds) _ds.scrollTop = 0;
   dashUpdateBackBtn();
   buildDashTabs();
   buildDashFilters();
@@ -21865,7 +21912,7 @@ function openGestiones(){
   GEST.q=''; const s=document.getElementById('gestSearch'); if(s) s.value='';
   document.getElementById('gestionesOverlay').classList.add('show');
   document.body.classList.add('modal-open');
-  if (DASH && DASH.demoMode) gestSembrarDemo();
+  if (DASH && DASH.demoMode) demoSembrando(gestSembrarDemo);
   renderGestiones();                          // muestra la copia local al instante
   navPush();
   const sc=document.getElementById('gestScroll'); if(sc) sc.scrollTop = 0;
