@@ -6135,7 +6135,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7324,6 +7324,13 @@ const I18N = {
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_bar_corto:'Demostración · nada se guarda',
       demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
+      hs_costo_evitado:'estimación de costo evitado',
+      hs_como_se_llega:'Cómo se llega a ese número',
+      hs_intervenciones_reg:'intervenciones registradas',
+      hs_factor_conv:'factor de conversión a incidentes evitados',
+      hs_costo_grave:'costo de incidente grave',
+      hs_es_estimacion_t:'Es una estimación, no una medición.',
+      hs_es_estimacion_d:'Depende del factor de conversión, que es un supuesto de negocio cargado por la empresa y no un dato observado. Presentarlo como cifra cerrada frente a una auditoría sería un riesgo.',
       sim_bar_corto:'Ves la app como otra persona · nada se guarda',
       sim_bar_largo:'Ves la app tal como la ve otra persona. Nada de lo que hagas aquí se guarda.',
       demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
@@ -8966,6 +8973,13 @@ const I18N = {
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
       demo_aplicado:'Applied in the demo. Everything resets when you leave.',
+      hs_costo_evitado:'estimated cost avoided',
+      hs_como_se_llega:'How this number is reached',
+      hs_intervenciones_reg:'interventions recorded',
+      hs_factor_conv:'conversion factor to incidents avoided',
+      hs_costo_grave:'cost of a serious incident',
+      hs_es_estimacion_t:'This is an estimate, not a measurement.',
+      hs_es_estimacion_d:'It depends on the conversion factor, which is a business assumption entered by the company and not an observed value. Presenting it as a firm figure in an audit would be a risk.',
       sim_bar_corto:'Viewing as someone else · nothing is saved',
       sim_bar_largo:'You are viewing the app as another person sees it. Nothing you do here is saved.',
       demo_sin_datos:'Open the demo again to switch views.',
@@ -17260,15 +17274,18 @@ function renderHseqCostos(rows){
   return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_estim_retorno')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_supuestos')) + '</div>' +
     '<div class="hs-gauge"><div class="hs-pct-big">' + fmt(ahorro) + '</div>' +
-      '<div class="hs-cap">estimación de costo evitado</div></div>' +
-    '<div class="hs-supuestos"><b>Cómo se llega a ese número</b>' +
-      '<div>' + intervenciones + ' intervenciones registradas</div>' +
-      '<div>× ' + c.factorConversion + ' (factor de conversión a incidentes evitados) = ' + evitados.toFixed(2) + '</div>' +
-      '<div>× ' + fmt(parseFloat(c.incidenteGrave) || 0) + ' (costo de incidente grave)</div>' +
+      /* ⚠️ ESTOS CINCO TEXTOS ESTABAN EN ESPAÑOL ESCRITO A MANO (R1/R14) y nadie lo había notado
+         porque esta rama NUNCA se ejecutaba: hacía falta tener los 9 datos de costos cargados, y
+         ninguna empresa los tenía. Al sembrar los costos de la demostración pasaron a verse — y en
+         inglés se habrían visto en español. Es el patrón de siempre: el código muerto no delata
+         sus defectos hasta el día que revive. */
+      '<div class="hs-cap">' + esc(t('hs_costo_evitado')) + '</div></div>' +
+    '<div class="hs-supuestos"><b>' + esc(t('hs_como_se_llega')) + '</b>' +
+      '<div>' + intervenciones + ' ' + esc(t('hs_intervenciones_reg')) + '</div>' +
+      '<div>× ' + c.factorConversion + ' (' + esc(t('hs_factor_conv')) + ') = ' + evitados.toFixed(2) + '</div>' +
+      '<div>× ' + fmt(parseFloat(c.incidenteGrave) || 0) + ' (' + esc(t('hs_costo_grave')) + ')</div>' +
     '</div>' +
-    '<div class="hs-aviso-est"><b>Es una estimación, no una medición.</b> Depende del factor de conversión, ' +
-      'que es un supuesto de negocio cargado por la empresa y no un dato observado. Presentarlo como cifra ' +
-      'cerrada frente a una auditoría sería un riesgo.</div>' +
+    '<div class="hs-aviso-est"><b>' + esc(t('hs_es_estimacion_t')) + '</b> ' + esc(t('hs_es_estimacion_d')) + '</div>' +
   '</div>';
 }
 
@@ -22091,8 +22108,31 @@ function gestSembrarDemoAnotaciones(){
     { nivel:'medio', ms: 3*dia, nota:'Apto para tareas en tierra. Evitar turnos rotativos hasta la próxima evaluación.' },
     { nivel:'ok',    ms: 7*dia, nota:'Evaluado y en seguimiento. Los indicadores altos ya están explicados: apto para trabajar normal.' }
   ];
+  /* ⚠️ LAS ANOTACIONES VAN SOBRE QUIEN ESTÁ MAL, NO SOBRE EL PRIMERO DEL ABECEDARIO.
+     Antes se repartían con `nombres[i % nombres.length]` sobre la lista ordenada alfabéticamente,
+     así que caían en Ana Suárez, Andrés Peña y Camila Torres — y funcionaba de casualidad, porque
+     Ana estaba en crisis. Al arreglar los datos del ejemplo (P107b) Ana pasó a verde, y la
+     anotación "No apto para turno noche por fatiga" le quedó encima a alguien con todos los
+     indicadores impecables: una contradicción visible en la misma tarjeta, justo en la pantalla
+     que se le muestra a un cliente. Y de paso la bajaba a "no apto", así que la disponibilidad
+     caía de 79% a 63% por una razón que no tenía nada que ver con sus datos.
+     Ahora se eligen por ESTADO: las dos primeras van sobre quienes de verdad tienen indicadores
+     fuera de rango, y la tercera —"evaluado, apto para trabajar normal"— sobre alguien en verde,
+     que es exactamente el caso que ilustra. */
+  const fuera = nombres.filter(nom => {
+    const rs = DASH.registros.filter(r => r.persona === nom);
+    if (!rs.length) return false;
+    const u = rs[rs.length - 1];
+    return (DASH.metrics || []).filter(m => u[m] != null && DASH.ref && DASH.ref[m] != null
+                                            && u[m] > DASH.ref[m]).length >= 3;
+  });
+  const enVerde = nombres.filter(n => fuera.indexOf(n) < 0);
+  const paraSpec = i => (i < 2)
+    ? (fuera[i] || fuera[0] || nombres[i % nombres.length])
+    : (enVerde[0] || nombres[i % nombres.length]);
+
   specs.forEach((s, i) => {
-    const persona = nombres[i % nombres.length];
+    const persona = paraSpec(i);
     const fila = DASH.registros.find(r => r.persona === persona) || {};
     gestUpsert({ id:'ademo_' + i, tipo:GEST_TIPO_ANOTACION, persona:persona, departamento: fila.departamento || '',
       nivel:s.nivel, nota:s.nota, medico:'Dr. Ejemplo', creada:ahora, vigenciaHasta: ahora + s.ms });
