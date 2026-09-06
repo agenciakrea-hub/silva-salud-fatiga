@@ -6390,7 +6390,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.72';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.73';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -16068,7 +16068,7 @@ function onDashData(d, scopeLabel, params, vista){
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
   else if (gestCanSync()){
     casosOdooListo('niveles');            // los niveles ya vinieron en el payload
-    gestPull().then(ok => { if (ok && DASH) renderDash(); }).then(() => casosOdooListo('gestiones'));
+    gestPull().then(ok => { if (ok && DASH) dashRepintar(); }).then(() => casosOdooListo('gestiones'));
   }
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
@@ -16076,7 +16076,7 @@ function onDashData(d, scopeLabel, params, vista){
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
-    casosResumenPull().then(ok => { if (ok && DASH) renderDash(); });
+    casosResumenPull().then(ok => { if (ok && DASH) dashRepintar(); });
   }
   const nombreVisible = (d.marca && d.marca.nombre) ? d.marca.nombre : scopeLabel;
   dashSetMq('dashScope', nombreVisible + ((DASH_DEMO || d.demo) ? (' · ' + t('dash_ejemplo')) : ''));
@@ -16117,7 +16117,7 @@ function dashCargarNiveles(){
     if (d.config && typeof d.config === 'object') DASH._cfg = d.config;
     nivelCacheClear();
     buildDashFilters();     // el selector de nivel sólo aparece si hay niveles cargados
-    renderDash();
+    dashRepintar();         // P049 · repinta con los niveles, SIN volver a animar todo el panel
   }).catch(()=>{})
     // Se avisa igual si falló: el puente a Odoo (P13) espera a que los niveles ESTÉN RESUELTOS,
     // y "no hay hoja de niveles" es una resolución válida (se juzga con el default, nivel 3).
@@ -16135,7 +16135,7 @@ function dashCargarReportes(){
   gestPost(gestAuth({ action:'reportes' })).then(d => {
     if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH) return;
     DASH._reportes = d.reportes;
-    if (DASH.tab === 'reportes') renderDash();
+    if (DASH.tab === 'reportes') dashRepintar();   // P049 · idem: llega tarde, no re-anima
   }).catch(()=>{});
 }
 
@@ -16688,6 +16688,37 @@ function dashGroup(rows, key){ const g={}; rows.forEach(r=>{ const k=r[key]||'�
 
 /* ── Router de pestañas ── */
 let _dashActiveTab = null, _dashSpyRaf = 0, _dashSpyLock = 0, _dashScrollEl = null, _dashOnScroll = null;
+/* ══════════ P049 · REPINTADO QUE LLEGA TARDE (no es una carga nueva del panel) ══════════
+   Abrir el panel dispara VARIOS pedidos independientes al servidor, y cada respuesta terminaba en
+   un `renderDash()` completo. Medido con `renderDash` instrumentado, entrando por `onDashData()`
+   con `fetch` reemplazado (R17), antes de este cambio:
+
+     · servicio médico  → 3 renders · sync + (niveles_riesgo | gestiones) + casos_odoo_resumen
+     · supervisor       → 4 renders · los 3 de arriba + el gestPull propio de renderAptitud()
+     · Dirección/HSEQ   → 2 renders · sync + niveles_riesgo
+     · personal         → 2 renders · sync + niveles_riesgo
+
+   Los CUATRO rearmaban la animación de entrada: ninguno marcaba `_skipAnim`, así que el panel se
+   veía "entrar" tres o cuatro veces seguidas mientras llegaban las respuestas.
+
+   ⚠️ LO QUE ESTO **NO** HACE, a propósito: no cambia cuántas veces se PIDEN los datos ni junta las
+   respuestas. Son pedidos distintos, cada uno trae algo que el panel necesita (niveles de riesgo,
+   anotaciones del servicio médico, casos del puente, bandeja de reportes) y llegan con cientos de
+   ms de diferencia — coalescer en una microtarea no juntaría nada, porque no caen en el mismo
+   turno. Lo que se arregla es la ANIMACIÓN, que es lo que se ve.
+
+   ⚠️ Y NO SE USA `requestAnimationFrame` para coalescer, aunque el plan lo sugería: con la app en
+   segundo plano (o en la pestaña de pruebas, oculta de forma permanente — ver pruebas/LEEME.md)
+   rAF no dispara NUNCA, así que el repintado quedaría pendiente para siempre y el dato que acaba
+   de llegar no se pintaría.
+
+   Es una función DECLARADA (R16): la llama el camino de arranque del panel. */
+function dashRepintar(){
+  if (!DASH) return;
+  DASH._skipAnim = true;   // lo consume dashWireAnimaciones() en este mismo render y se resetea solo
+  renderDash();
+}
+
 function renderDash(){
   gestAnotCacheClear();   // el alcance (empresa) puede haber cambiado con los filtros → cache limpia
   restCacheClear();       // idem para las restricciones de tarea del supervisor
@@ -19967,7 +19998,11 @@ function renderAptitud(rows){
   // (sin pasar por la pestaña Gestiones, que el supervisor no tiene). Se trae una sola vez por sesión.
   if (DASH && !DASH._aptPulled && gestCanSync()){
     DASH._aptPulled = true;
-    gestPull().then(ok => { if (ok && DASH && DASH.tab === 'aptitud') renderDash(); });
+    /* P049 · ésta es la CUARTA cascada del supervisor, y la más fácil de pasar por alto: no la
+       dispara `onDashData` sino `renderAptitud()`, o sea que sale DESDE ADENTRO del primer render.
+       Cuando vuelve, repinta — pero sin re-animar, que es lo que hacía que el panel del supervisor
+       "entrara" cuatro veces seguidas en el primer segundo. */
+    gestPull().then(ok => { if (ok && DASH && DASH.tab === 'aptitud') dashRepintar(); });
   }
   const ayuda = dashHelp(t('hlp_aptitud') + (nivelFilas().length ? t('hlp_aptitud_nivel') : ''));
 
