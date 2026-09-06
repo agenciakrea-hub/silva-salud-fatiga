@@ -153,3 +153,79 @@ PRUEBAS.caso('el área táctil de los accesos no se sacrificó al volver atrás'
   PRUEBAS.alMenos(m.alto, 44, 'cada acceso llega a 44 px de alto (I2)');
   PRUEBAS.comoMucho(m.desborda, 0, 'sin desbordar el ancho de la pantalla');
 });
+
+/* ── Lo que Franco pidió mirando la pantalla, 2026-09-06 ────────────────────────────────────────
+   *"los puntos quedaron lejos de los slices, además los dos botones de admin y demostración se ven
+   distintos. Podría además estar mejor acomodado, o sea más estirado hacia abajo y aprovechar los
+   espacios, porque en algunos dispositivos se pisan cosas dentro de los slices."*
+
+   Medido a 375×812 antes de tocar: **44 px** entre la tira y los puntos, y los dos accesos en
+   13,12 px / .68 contra 11,52 px / .58.
+
+   ⚠️ LA CAUSA DE LOS 44 px NO ERA EL MARGEN. `.splash-wrap` es `justify-content:space-evenly`, así
+   que reparte todo el aire sobrante en huecos iguales entre sus seis hijos: achicar un margen se
+   lo devuelve al reparto. Es la misma trampa que ya mordió con el pie. Lo que funciona es darle el
+   aire a la tira — y eso resuelve las dos mitades del pedido a la vez, porque los paneles de
+   adentro dejan de pisarse. */
+
+PRUEBAS.caso('⚠️ los puntitos van pegados a la tira, no flotando abajo', () => {
+  const m = p095Con(() => PRUEBAS.enVentana(375, 812, () => {
+    const tira = document.getElementById('splashAnim');
+    const dots = document.getElementById('splashAnimDots');
+    if (!tira || !dots || getComputedStyle(tira).display === 'none') return null;
+    const rt = tira.getBoundingClientRect(), rd = dots.getBoundingClientRect();
+    return { gap: Math.round(rd.top - rt.bottom), alto: Math.round(rt.height) };
+  }));
+  PRUEBAS.cierto(!!m, 'la tira y los puntos existen y se ven · si no, no se mide nada');
+  /* ⚠️ EL TOPE ES 28 Y NO 15, aunque en la ventana real mida 15. `space-evenly` reparte el aire
+     SOBRANTE, así que el hueco depende de cuánto alto le queda al contenedor: en la ventana real
+     da 15 px y en el iframe de la suite —que tiene otro alto— da 24. Fijar el número exacto
+     convertiría este caso en uno que falla según dónde se mire, que es ruido, no señal.
+     28 distingue perfectamente lo arreglado (15-24) de lo que había (44). */
+  PRUEBAS.comoMucho(m.gap, 28,
+    '⚠️ los puntos pegados a la tira · eran 44 px · midió ' + m.gap);
+  PRUEBAS.alMenos(m.alto, 230,
+    'y la tira se quedó con ese aire · era 195 px y por eso los paneles se pisaban · midió ' + m.alto);
+});
+
+PRUEBAS.caso('⚠️ los dos accesos se ven IGUAL', () => {
+  const m = p095Con(() => {
+    const L = [...document.querySelectorAll('.splash-link')];
+    if (L.length < 2) return null;
+    const a = getComputedStyle(L[0]), b = getComputedStyle(L[1]);
+    return { fs: [a.fontSize, b.fontSize], col: [a.color, b.color], fw: [a.fontWeight, b.fontWeight] };
+  });
+  PRUEBAS.cierto(!!m, 'los dos accesos existen');
+  PRUEBAS.igual(m.fs[0], m.fs[1], '⚠️ mismo tamaño · eran 13,12 y 11,52 px');
+  PRUEBAS.igual(m.col[0], m.col[1], '⚠️ mismo color · eran .68 y .58 de opacidad');
+  PRUEBAS.igual(m.fw[0], m.fw[1], 'y mismo peso');
+});
+
+PRUEBAS.caso('⚠️ ninguna lámina se pisa, a ningún ancho ni tamaño de letra', () => {
+  /* La razón por la que se pidió estirar la pantalla. `m5` ya recorre seis tamaños vigilando esto;
+     acá se mide en los dos anchos donde el aire es más escaso, porque es lo que este cambio movió. */
+  const malos = [];
+  let medidos = 0;
+  const nivelAntes = (typeof nivelTextoActual === 'function') ? nivelTextoActual() : 1;
+  p095Con(() => {
+    [[320, 800], [375, 667], [375, 812]].forEach(([w, h]) => {
+      PRUEBAS.enVentana(w, h, () => {
+        [0, 1, 2].forEach(n => {
+          fijarTamanoTexto(n); void document.body.offsetWidth;
+          const tira = document.getElementById('splashAnim');
+          if (!tira || getComputedStyle(tira).display === 'none') return;
+          medidos++;
+          document.querySelectorAll('#splashAnimTrack .spl-p').forEach((c, i) => {
+            const sobra = c.scrollHeight - c.clientHeight;
+            if (sobra > 1) malos.push(w + 'x' + h + ' letra ' + n + ' lámina ' + (i + 1) + ': ' + sobra + 'px');
+          });
+        });
+      });
+    });
+  });
+  fijarTamanoTexto(nivelAntes); void document.body.offsetWidth;
+  PRUEBAS.alMenos(medidos, 3,
+    'guarda de medibilidad: se midió la tira en varios estados · si la tira estuviera siempre ' +
+    'oculta, `malos` sería [] por no haber mirado nada · midió ' + medidos);
+  PRUEBAS.igual(malos, [], '⚠️ ninguna lámina se desborda — ' + malos.join(' | '));
+});

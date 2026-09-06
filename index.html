@@ -2804,8 +2804,18 @@
      su tamaño mínimo automático lo calcula el CONTENIDO: la tira de cinco pantallas lo estiraba a
      520 px dentro de una pantalla de 390 (medido). Se veía "bien" sólo porque el contenedor recorta.
      `min()` deja el aire lateral en teléfono y le pone techo en pantallas anchas. */
-  .splash-anim { position:relative; z-index:2; height:clamp(130px, 24vh, 220px);
-    overflow:hidden; width:min(100% - 40px, 520px); margin:0 auto 20px; align-self:center; }
+  /* ⚠️ LOS PUNTITOS VAN PEGADOS A LA TIRA, y el margen de abajo de la tira es CERO por eso.
+     Franco lo reportó mirando la pantalla: *"los puntos quedaron lejos de los slices"*. Medido a
+     375×812: había **44 px** entre el borde de la tira y los puntos.
+     Y no eran los 20 px de este margen: `.splash-wrap` es `justify-content:space-evenly`, así que
+     reparte TODO el aire sobrante en huecos iguales entre sus seis hijos. Achicar un margen no
+     alcanza — el reparto devuelve ese espacio al hueco, que es exactamente la trampa que ya mordió
+     una vez con el pie (ver el comentario de `.splash-pie`).
+     Lo que sí funciona es DARLE EL AIRE A LA TIRA: cuanto más alta, menos sobrante queda para
+     repartir y más juntos quedan todos. De paso los paneles de adentro dejan de pisarse, que es la
+     otra mitad de lo que se pidió. */
+  .splash-anim { position:relative; z-index:2; height:clamp(150px, 32vh, 280px);
+    overflow:hidden; width:min(100% - 40px, 520px); margin:0 auto; align-self:center; }
   .splash-anim-track { display:flex; height:100%; transition:transform .55s cubic-bezier(.4,0,.2,1); }
   .splash-anim-slide { flex:0 0 100%; height:100%; display:flex; align-items:center; justify-content:center; }
   .splash-anim-v { max-width:100%; max-height:100%; width:auto; height:100%; object-fit:contain; display:block; }
@@ -2898,7 +2908,9 @@
 
   /* Puntitos de posición: en qué lámina estoy y cuántas hay. Sin ellos la tira parece que no
      termina nunca, y quien la mira no sabe si vale la pena esperar. */
-  .spl-dots { display:flex; justify-content:center; gap:.32rem; margin-top:.5rem; }
+  /* `margin-top` chico: los puntos son parte de la tira, no un bloque aparte. Lo que los separa
+     de verdad es el reparto de `space-evenly` del contenedor, no este número. */
+  .spl-dots { display:flex; justify-content:center; gap:.32rem; margin-top:.4rem; }
   .spl-dot { width:5px; height:5px; border-radius:999px; background:var(--spl-dot);
     transition:width .28s ease, background .28s ease; }
   /* El activo se ALARGA además de cambiar de color: se distingue sin depender de ver bien el
@@ -3275,10 +3287,15 @@
   .splash-link { background:none; border:none; color:rgba(255,255,255,.68); font-family:inherit;
     font-size:.82rem; font-weight:600; cursor:pointer; padding:.3rem .75rem;
     display:inline-flex; align-items:center; justify-content:center; min-height:44px; }
-  /* .42 medía 3.7:1 sobre --navy (compuesto con el alfa, no el rgba crudo) — por debajo del
-     mínimo. .58 da 5.72:1: sigue leyéndose como el link "menos importante" del pie sin quedar
-     por debajo de lo legible. */
-  .splash-link--admin { color:rgba(255,255,255,.58); font-size:.74rem; }
+  /* ⚠️ LOS DOS ACCESOS SE VEN IGUAL, y esto lo pidió Franco mirando la pantalla: *"los dos
+     botones de admin y demostración se ven distintos"*. Antes "Administrador" era más chico
+     (11,52 px contra 13,12) y más tenue (.58 contra .68) para leerse como "el menos importante".
+     La intención era buena y el resultado no: al lado uno del otro, dos cosas del mismo rango con
+     tamaños distintos se ven desprolijas, no jerarquizadas. La jerarquía ya la da el botón
+     naranja de arriba.
+     ⚠️ Y el cambio MEJORA el contraste: .58 daba 5,72:1 y .68 da 7,29:1 — el comentario viejo
+     advertía que .42 quedaba en 3,7:1, por debajo del mínimo; subir nunca fue el problema. */
+  .splash-link--admin { color:rgba(255,255,255,.68); font-size:.82rem; }
   /* ⚠️ APRETADO EN TELÉFONO (pedido de Franco sobre la captura). En la pantalla real había
      demasiado aire entre el título, el botón y los tres enlaces: el ojo tiene que recorrer media
      pantalla para llegar de una cosa a la otra, y el contenido de abajo —las láminas— quedaba
@@ -3290,7 +3307,7 @@
     .splash-acciones { margin-bottom:.4rem; }
     .splash-pie { gap:.15rem; margin-top:.5rem; }
     .splash-link { padding:.4rem .5rem; font-size:.82rem; }
-    .splash-link--admin { font-size:.72rem; }
+    .splash-link--admin { font-size:.82rem; }
     .splash-norma { font-size:.7rem; margin-top:.35rem; }
   }
   @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
@@ -3445,7 +3462,7 @@
     .splash-cta { max-width: 360px; }
     .splash-pie { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: .4rem 1.6rem; }
     .splash-link { font-size: .88rem; }
-    .splash-link--admin { font-size: .8rem; }
+    .splash-link--admin { font-size: .88rem; }
 
     .car-slide { padding: 64px 56px 0; gap: 18px; }
     .car-ic { width: 76px; height: 76px; }
@@ -3605,7 +3622,7 @@
     /* Sobre superficie clara los blancos translúcidos del panel derecho no se ven: se retiñen
        con los tokens de texto, que ya resuelven los dos temas (R13). */
     .splash-link { color: var(--text-soft); }
-    .splash-link--admin { color: var(--text-muted); }
+    .splash-link--admin { color: var(--text-soft); }
     .splash-cta:focus-visible, .splash-link:focus-visible {
       outline-color: var(--orange-txt); }
     .splash-empresa { background: var(--chip-bg); color: var(--text-soft); }
@@ -6436,7 +6453,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
