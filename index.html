@@ -6735,7 +6735,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.86';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.87';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11492,7 +11492,7 @@ function cicloMioGuardar(evento, test, resultado){
   /* Poda: se conservan DOS ventanas de ciclo. Una sola dejaría afuera el ciclo de ayer justo
      cuando arranca el de hoy, y con dos alcanza para cualquier caso real sin que la lista crezca
      para siempre. */
-  const corte = Date.now() - (cicloTotalMin(cicloPlan()) * 60000 * 2);
+  const corte = Date.now() - (cicloTotalMin(cicloPlan(cicloYo())) * 60000 * 2);
   const podada = lista.filter(e => { const t = Date.parse(e.iso); return isFinite(t) && t >= corte; });
   try { localStorage.setItem(K_CICLO_MIO, JSON.stringify(podada)); } catch(e){}
 }
@@ -11524,7 +11524,11 @@ function enviarOperacional(campo, test, resultado){
          cambie solo porque alguien editó una configuración es inaceptable.
          Es el mismo criterio que la bitácora ya aplica con su umbral (R3): se congela el número
          contra el que se juzgó, en el momento en que ocurrió. */
-      plan: JSON.stringify(cicloPlan() || {})
+      /* ⚠️ P057a · ACÁ SE CONGELA EL UMBRAL, y por eso lleva la persona. Mientras no exista un
+         plan por persona esto devuelve lo mismo que antes; el día que exista, este número —que no
+         se corrige después— queda escrito con la jornada de QUIEN la trabajó, no con la de la
+         empresa. Es la línea por la que P057 se partió en tres. */
+      plan: JSON.stringify(cicloPlan(cicloYo()) || {})
     }));
   }
 }
@@ -12111,7 +12115,7 @@ function iniTieneCiclo(){ const p = getProfile(); return !!(p && p.esPiloto); }
    cicloMio() (registro local) en vez del payload del servidor. */
 function cicloMiBloque(){
   let html = '<div class="cic-mio">' + iniAhoraHtml();
-  const plan = cicloPlan();
+  const plan = cicloPlan(cicloYo());
   const c = cicloMio();
   /* La línea de tiempo se dibuja SIEMPRE. Antes aparecía recién después del primer evento, así
      que quien todavía no la había usado no sabía que existía — el bloque más útil de la pantalla
@@ -16434,6 +16438,12 @@ function onDashData(d, scopeLabel, params, vista){
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista, costosPayload);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            operacional: d.operacional || [],   // ciclo operativo (endpoint viejo no lo manda → [])
+           /* ⚠️ P057a · ESTE CAMPO VA ACÁ AHORA, aunque el servidor todavía no lo mande. Esta lista
+              es EXPLÍCITA: un campo que el endpoint manda y que no esté nombrado se descarta en
+              silencio. Ya pasó con `duty` y `ausencias` (hallazgo A4) — el servidor los mandaba, el
+              cliente los tiraba, y dos prompts enteros «funcionaban» en las pruebas y no en
+              producción. Dejarlo puesto desde ahora es lo que evita repetirlo en P057b. */
+           cicloPlanPersona: d.cicloPlanPersona || null,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
@@ -18896,8 +18906,45 @@ function cicloPlanEmpresa(){
   try { const g = JSON.parse(localStorage.getItem(K_CICLO_PLAN)); if (g && typeof g === 'object') return g; } catch(e){}
   return null;
 }
-function cicloPlan(){
-  const c = cicloPlanEmpresa();
+/* ⚠️ P057a · EL PLAN PUEDE SER DE UNA PERSONA, NO SÓLO DE LA EMPRESA.
+   Lo que hoy existe es un plan por EMPRESA (`Config Empresa`, clave `cicloPlan`). P057 lo hace
+   configurable por persona, y el motivo de que esto se haga en tres pasos y no de una es un dato
+   que no se puede corregir después:
+
+   `enviarOperacional()` escribe `plan: JSON.stringify(cicloPlan())` con CADA evento, y ese número
+   queda CONGELADO en la hoja `Operacional`. El propio endpoint lo defiende así: «el día que una
+   empresa baje la jornada de 12 h a 8 h todos los ciclos pasados quedarían excedidos
+   retroactivamente. Un registro de "se pasó de jornada" tiene consecuencias laborales: no puede
+   cambiar porque alguien editó una configuración». Si ese número se escribe con la jornada de la
+   empresa cuando la persona tiene la suya, queda mal para siempre.
+
+   Por eso este paso NO ESCRIBE NADA. Sólo prepara el camino: `cicloPlan()` acepta una persona y
+   los diez llamadores le pasan la que corresponde. Mientras no exista un plan por persona, todos
+   devuelven exactamente lo mismo que antes.
+
+   ⚠️ ERAN DIEZ LLAMADORES, no los tres que decía el plan, y se dividen en dos grupos:
+   · los del EMPLEADO —`cicloMioGuardar`, `enviarOperacional`, `cicloMiBloque`, `cicloMio`— que
+     miran el ciclo de quien está usando la app;
+   · los del PANEL —`cicloArmar`, `cicloHistorico`, `cicloPromedios`, `cicloUbicarAguja`,
+     `renderCicloOperativo`, `cicloFullPintar`— que dibujan el de OTRAS personas, una por una.
+   Los del segundo grupo son los que hoy usarían la jornada equivocada. */
+/* Quién soy: los cuatro llamadores del lado del EMPLEADO miran su propio ciclo. Se saca de una
+   sola función para que no queden cuatro `getProfile()` que después alguien cambie a medias. */
+function cicloYo(){ return ((getProfile() || {}).nombre) || ''; }
+function cicloPlanPersona(persona){
+  /* Todavía no hay de dónde leerlo: la hoja `Ciclo Persona` llega en P057b. Devolver `null` deja
+     que todo caiga al plan de empresa, que es exactamente lo que pasa hoy. Cuando exista, lo único
+     que cambia es esta función — los diez llamadores ya le pasan la persona. */
+  if (!persona) return null;
+  const porPersona = (DASH && DASH.cicloPlanPersona) || null;
+  if (!porPersona) return null;
+  const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).trim().toLowerCase();
+  const c = porPersona[k];
+  return (c && typeof c === 'object') ? c : null;
+}
+function cicloPlan(persona){
+  /* La persona manda sobre la empresa; sin persona, o sin plan propio, se usa el de la empresa. */
+  const c = cicloPlanPersona(persona) || cicloPlanEmpresa();
   const p = Object.assign({}, cicloForma().plan);
   if (c && typeof c === 'object'){
     // Sólo se aceptan los tramos que la forma vigente declara: una config vieja con un tramo que
@@ -18953,6 +19000,12 @@ function cicloFechaLabel(ms){
    medianoche quedaría partido en dos y la mitad de after-midnight se vería como "sin iniciar".
    "Saliendo de casa" abre ciclo; el resto se cuelga del ciclo abierto mientras entre en la ventana. */
 function cicloArmar(){
+  /* ⚠️ P057a · ESTE SE QUEDA CON EL PLAN DE LA EMPRESA, A PROPÓSITO, y no es un olvido.
+     `plan` se usa acá para calcular la VENTANA con la que se agrupan los eventos sueltos en
+     ciclos, y esa agrupación se hace sobre TODAS las filas de una vez. Hacerlo por persona no es
+     cambiar la firma: es agrupar por persona primero y aplicarle a cada grupo su propia ventana,
+     o sea otra forma de recorrer los datos. Va en P057c junto con el resto del cambio de lógica.
+     Mientras tanto la ventana es la de la empresa, que es exactamente lo que hace hoy. */
   const plan = cicloPlan(), ventana = cicloTotalMin(plan) * 60000;
   const rows = (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
@@ -19044,6 +19097,8 @@ function cicloAgruparTodos(eventos, ventana){
    la contraria: el período ES lo que se está mirando. Son dos vistas distintas del mismo dato y
    por eso son dos funciones, no un parámetro. */
 function cicloHistorico(desdeF, hastaF){
+  /* ⚠️ P057a · Igual que `cicloArmar`: la ventana de agrupación es del grupo, no de una persona.
+     Ver el comentario largo allá. Va en P057c. */
   const plan = cicloPlan(), ventana = cicloTotalMin(plan) * 60000;
   const rows = (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
@@ -19105,6 +19160,9 @@ var CICLO_ATIPICO_X = 3;
    Devuelve, por tramo: promedio, cuántas mediciones lo sostienen, cuántas se descartaron y el
    previsto contra el que se compara. */
 function cicloPromedios(ciclosPorPersona, plan){
+  /* P057a · El promedio es del GRUPO —cuánto se excede la gente contra lo previsto—, así que el
+     plan de referencia es el de la empresa por definición. Si cada persona tuviera el suyo, un
+     promedio contra planes distintos no significaría nada. Se deja como está. */
   plan = plan || cicloPlan();
   const ahora = Date.now();
   const acum = {};
@@ -19212,7 +19270,7 @@ function cicloPuedeHistorico(){
 function cicloMio(){
   const eventos = cicloMioAll();
   if (!eventos.length) return null;
-  return cicloAgruparEventos(eventos, cicloTotalMin(cicloPlan()) * 60000);
+  return cicloAgruparEventos(eventos, cicloTotalMin(cicloPlan(cicloYo())) * 60000);
 }
 
 /* El estado de un ciclo, tramo por tramo. `real` es lo que efectivamente duró (o lo que lleva
@@ -19325,7 +19383,14 @@ function cicloUbicarAguja(barra){
   if (!aguja) return;
   const t0 = Number(aguja.getAttribute('data-cic-needle'));
   if (!t0) return;
-  const plan = cicloPlan();
+  /* ⚠️ P057a · LA AGUJA SE MIDE CONTRA LA JORNADA DE ESA PERSONA. Es uno de los tres casos que el
+     plan nombraba: si se dibuja contra la jornada de la empresa, alguien con una jornada distinta
+     ve la aguja en un lugar que no corresponde a su ciclo. La persona no llega por parámetro —esta
+     función recibe una barra suelta y la llaman desde tres lugares— así que se lee del DOM, que es
+     donde está: la tarjeta chica la pone en `.cic-nom` y la pantalla completa en `.cic-full-nom`. */
+  const cont = barra.closest('.cic-card') || barra.closest('#cicFullCuerpo') || document;
+  const nomEl = cont.querySelector('.cic-nom, .cic-full-nom');
+  const plan = cicloPlan(nomEl ? nomEl.textContent.trim() : '');
   let min = (Date.now() - t0) / 60000, acum = 0, x = null;
   const TRAMOS = cicloTramos();
   for (let i = 0; i < TRAMOS.length; i++){
@@ -20025,6 +20090,10 @@ function cicloCorte(){ return Math.max(3, cicloColumnas() * 2); }
 
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
+  /* ⚠️ P057a · ESTE `plan` ES EL DE LA EMPRESA A PROPÓSITO, y queda para dos usos donde eso es lo
+     correcto: `cicloCfgHtml(plan)` —el EDITOR del plan de la empresa, que edita justamente eso— y
+     `cicloPromediosHtml(...)`, donde el promedio es del grupo y contra planes distintos no
+     significaría nada. Todo lo que se dibuja o se juzga POR PERSONA usa `cicloPlan(pe.persona)`. */
   const plan = cicloPlan();
   /* R14: la ayuda nombraba "los cuatro botones" y "Llegando al aeropuerto" a mano. Ahora los
      nombres salen de la forma del sector y la cantidad se cuenta, así una planta lee su propio
@@ -20084,7 +20153,13 @@ function renderCicloOperativo(){
     return ayuda + perHtml + cfgHtml + dashVacio('personal', 'gente');
   }
   const ahora = Date.now();
-  const filas = personas.map(p => ({ p:p, st:cicloEstado(p.ciclo, ahora, plan) }));
+  /* ⚠️ P057a · ACÁ SE DECIDE QUIÉN ESTÁ EXCEDIDO, y por eso va el plan de CADA persona. Lo
+     encontró la prueba de este mismo prompt: yo había conectado la barra y los tramos pero me
+     había salteado esta línea, que es la que de verdad importa — `cicloEstado` es la que devuelve
+     `excedido`, y ese estado alimenta el chip de la tarjeta, los contadores de arriba y el color
+     del borde. Con el plan de la empresa, alguien con una jornada propia más larga aparecería
+     pasado de tiempo sin estarlo. */
+  const filas = personas.map(p => ({ p:p, st:cicloEstado(p.ciclo, ahora, cicloPlan(p.persona)) }));
   // Lo que necesita atención primero: excedidos, después en curso, después completos, y al final
   // los que no arrancaron.
   const ORD = { excedido:0, curso:1, descanso:2, completo:3, inactivo:4 };
@@ -20214,7 +20289,10 @@ function renderCicloOperativo(){
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
       cicloTurnoHtml(pe.persona) +
-      cicloBarra(st, plan) + cicloTramosHtml(st, plan) +
+      /* P057a · cada tarjeta se dibuja con el plan de SU persona. Hoy `cicloPlan(x)` devuelve el
+         de la empresa para todos, así que no cambia nada; el día que exista un plan por persona,
+         la barra de cada uno se mide contra su propia jornada sin tocar esta línea. */
+      cicloBarra(st, cicloPlan(pe.persona)) + cicloTramosHtml(st, cicloPlan(pe.persona)) +
       /* Y3 · el promedio DE ESTA PERSONA en el período. Sólo en histórico (en "En curso" hay un
          solo ciclo y su promedio sería ese mismo ciclo, o sea ruido) y sólo para quien puede ver
          promedios individuales: Dirección ve el del grupo pero no el de una persona. */
@@ -20373,7 +20451,7 @@ function cicloFullPintar(){
   const f = filas[CICFULL.i];
   if (!f) return;
   const st = f.st, pe = f.p;
-  const plan = cicloPlan();
+  const plan = cicloPlan(pe.persona);   // P057a · el plan de ESTA persona, no el de la empresa
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
                  completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
   const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
