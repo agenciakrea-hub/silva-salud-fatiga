@@ -105,10 +105,14 @@ PRUEBAS.caso('⚠️ los tres accesos están JUNTO al botón, no sueltos', () =>
     const visible = emp && getComputedStyle(emp).display !== 'none';
     /* Lo que la persona ve arriba de los accesos es el chip de empresa si lo hay, y si no el botón. */
     const arriba = (visible ? emp : document.querySelector('.splash-cta')).getBoundingClientRect();
-    const L = [...document.querySelectorAll('.splash-link')];
+    /* ⚠️ P095 · `.splash-link` YA NO EXISTE. Los dos accesos pasaron de ser enlaces de 11-13 px
+       pegados a filas de una lista rotulada, con su nombre y una línea que dice qué hacen. Lo que
+       se mide arriba es el ROTULO del bloque, que es lo primero que se ve de él. */
+    const rot = document.getElementById('splashOtrasT');
+    const L = [...document.querySelectorAll('.splash-op')];
     return {
       dentroDelCuerpo: cuerpo.contains(pie),
-      distancia: Math.round(L[0].getBoundingClientRect().top - arriba.bottom),
+      distancia: Math.round(rot.getBoundingClientRect().top - arriba.bottom),
       entre: L.slice(1).map((l, i) => Math.round(l.getBoundingClientRect().top - L[i].getBoundingClientRect().bottom)),
       toque: Math.min.apply(null, L.map(l => Math.round(l.getBoundingClientRect().height)))
     };
@@ -120,8 +124,14 @@ PRUEBAS.caso('⚠️ los tres accesos están JUNTO al botón, no sueltos', () =>
     'apretarlo por dentro lo empeora');
   PRUEBAS.comoMucho(m.distancia, 30,
     'los accesos van pegados a lo que tienen arriba (eran 54 px, y un intento los dejó en 72)');
-  PRUEBAS.comoMucho(Math.max.apply(null, m.entre), 4,
-    'y entre ellos casi no hay hueco: con 44 px de área de toque y 17 de texto, 9 px se ven como 36');
+  /* ⚠️ ESTE NÚMERO CAMBIÓ A PROPÓSITO, no se relajó para que pasara. El "casi sin hueco" de antes
+     era consecuencia de que fueran dos enlaces en línea separados por un punto: pegarlos era lo
+     único que los hacía leer como un solo bloque. Ahora son dos FILAS con borde propio, y dos
+     filas sin aire entre ellas se leen como una sola caja partida. Sigue siendo un tope chico —lo
+     que Franco pidió es que el bloque esté compacto, no que las filas se toquen— pero medido sobre
+     otra forma. */
+  PRUEBAS.comoMucho(Math.max.apply(null, m.entre), 10,
+    'las filas quedan juntas: es una lista, no dos botones sueltos a media pantalla');
   PRUEBAS.alMenos(m.toque, 44,
     '⚠️ pero el ÁREA DE TOQUE no se toca: 44 px es lo que permite apretarlos parado y con una mano ' +
     '(I2). Lo que se junta es lo que se ve, no lo que se puede tocar');
