@@ -6188,7 +6188,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.61';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.62';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10284,11 +10284,42 @@ function enviarConCola(url, sobrevive){
       if (d && d.ok === false) throw new Error('rechazo:' + String(d.error || ''));
       return d;
     });
-  }).catch(err => { colaGuardar(url, err); });
+  }).then(() => { colaConfirmar(url); })
+     .catch(err => { colaGuardar(url, err); })
+     .then(() => { delete _colaEnVuelo[url]; });
 }
-/* Tope de reintentos automáticos. La cola corre cada 60 s: sin tope, un envío que el servidor
-   rechaza siempre se reintentaría 1.440 veces por día y el cartel diría "Enviando…" para siempre. */
+/* Tope de reintentos automáticos. La cola corre cada 60 s: sin tope, un envío que sigue fallando
+   se reintentaría 1.440 veces por día y el cartel diría "Enviando…" para siempre. */
 const COLA_MAX_INTENTOS = 10;
+const COLA_TOPE = 50;
+/* Los que están viajando AHORA. Mismo candado que ya usa `empFlush` con `_empEnVuelo`, y por la
+   misma razón: la cola ya no se vacía al mandar —se vacía cuando el servidor confirma—, así que
+   sin esto el evento `online` y el timer de 60 s, que pueden caer casi juntos, mandarían el mismo
+   registro dos veces. No se persiste: si la app se cierra a mitad de un envío, al reabrir
+   corresponde reintentar, porque nadie lo confirmó. */
+const _colaEnVuelo = {};
+
+/* ⚠️ SE SACA DE LA COLA CUANDO EL SERVIDOR CONFIRMA, NO CUANDO SE MANDA.
+   `flushPending` vaciaba la cola ANTES de mandar y contaba con que el `.catch` re-encolara lo que
+   fallara. Eso tenía dos agujeros: si la página se descargaba en el medio el `.catch` no corría
+   nunca y el registro desaparecía, y —más sutil— `colaGuardar` no encontraba el item previo, así
+   que `intentos` volvía a 1 en cada vuelta y el tope de arriba era INALCANZABLE: un envío que
+   fallaba siempre se reintentaba para siempre, que es justo lo que el tope venía a evitar.
+   Medido con el bloque real corriendo en node: 21 envíos, `intentos` = 1. */
+function colaConfirmar(url){
+  const q = getPending();
+  const n = q.filter(x => x && x.url !== url);
+  if (n.length !== q.length){ setPending(n); try { offPintar(); } catch(e){} }
+}
+/* El recorte del tope. NO es `slice(-50)`: eso descarta los más VIEJOS, y los retenidos son
+   justamente los que quedan al frente. Con el .gs rechazando durante dos semanas, cada registro
+   nuevo iba borrando en silencio el retenido más viejo — el que el cartel decía estar guardando.
+   Se conservan primero los retenidos y el resto se completa con los más recientes. */
+function colaRecortar(q){
+  if (q.length <= COLA_TOPE) return q;
+  const trab = q.filter(x => x && x.trabado).slice(-COLA_TOPE);
+  return trab.concat(q.filter(x => x && !x.trabado).slice(-(COLA_TOPE - trab.length)));
+}
 function colaGuardar(url, err){
   const q = getPending();
   const motivo = String((err && err.message) || err || 'error');
@@ -10297,12 +10328,17 @@ function colaGuardar(url, err){
   const prev = i >= 0 ? q[i] : null;
   const item = { url: url, ts: prev && prev.ts ? prev.ts : Date.now(),
                  intentos: ((prev && prev.intentos) || 0) + 1, motivo: motivo };
-  /* Un RECHAZO del servidor es determinista: mandarlo otra vez da el mismo rechazo. Se retiene y
-     se avisa, en vez de gastar batería y datos toda la noche. Un 500, una respuesta no-JSON o un
-     fallo de red sí se reintentan: esos pasan solos. */
-  if (motivo.indexOf('rechazo:') === 0 || item.intentos >= COLA_MAX_INTENTOS) item.trabado = true;
+  /* ⚠️ TODO FALLO SE REINTENTA, incluido un `{ok:false}`. La primera versión retenía los `ok:false`
+     al primer golpe, con el argumento de que "un rechazo del servidor es determinista". Es FALSO
+     para este endpoint: `doGet` envuelve todo en un try/catch que devuelve `{ok:false, error:…}`,
+     así que un "Service Spreadsheets timed out" o un límite de ejecución —que pasan solos en un
+     minuto— llegan con la misma forma que un "Falta id". Distinguirlos por el texto del error
+     sería adivinar. Se reintenta todo y se retiene sólo por CANTIDAD de intentos: un rechazo de
+     validación cuesta diez pedidos y después se avisa; uno transitorio tiene diez oportunidades
+     de pasar solo. */
+  if (item.intentos >= COLA_MAX_INTENTOS) item.trabado = true;
   if (i >= 0) q[i] = item; else q.push(item);
-  setPending(q.slice(-50));   // tope de 50 pendientes
+  setPending(colaRecortar(q));
   try { offPintar(); } catch(e){}
 }
 /* Los que dejaron de reintentarse solos. Se cuentan aparte porque el cartel no puede decir
@@ -10312,33 +10348,43 @@ function colaTrabados(){ try { return getPending().filter(x => x && x.trabado); 
    al tocarlo. Sin esto, un registro retenido no tendría forma de salir nunca. */
 function colaReintentar(){
   const q = getPending();
-  q.forEach(x => { if (x){ x.trabado = false; x.intentos = 0; } });
+  q.forEach(x => { if (x){ x.trabado = false; x.intentos = 0; x.ts = Date.now(); } });
   setPending(q);
   try { offPintar(); } catch(e){}
   flushPending();
 }
 /* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
-   Cambia dos cosas, y las dos importan:
-   · Los envíos van con `keepalive`, o el navegador los aborta al recargar. La app ofrece "toca
-     Aceptar para intentar enviarlos primero" y sin esto no llegaba a intentar nada.
-   · La cola NO se vacía. En el camino normal vaciarla está bien porque lo que falle se re-encola
-     solo en el `catch`… pero si la página se descarga antes, ese `catch` no corre nunca y los
-     registros desaparecen: ni en el CH ni en el teléfono. Al salir, se dejan; si llegaron, la
-     próxima corrida los manda de nuevo y el servidor los deduplica por id (R15). Un duplicado que
-     el servidor descarta es infinitamente preferible a un test perdido. */
+   Los envíos van con `keepalive`, o el navegador los aborta al recargar: la app ofrece "toca
+   Aceptar para intentar enviarlos primero" y sin esto no llegaba a intentar nada. Y se mandan
+   TAMBIÉN los retenidos, porque `cerrarSesion` borra la cola del teléfono a continuación: ese es
+   el último intento que van a tener, y la app acaba de prometer que lo iba a hacer.
+
+   ⚠️ LA CADUCIDAD DE 7 DÍAS NO ALCANZA A LOS RETENIDOS. Un retenido no se reenvía, así que su `ts`
+   queda congelado en la primera falla; con el filtro de edad aplicado a todos, a los 7 días exactos
+   una vuelta del timer lo borraba SIN HABER INTENTADO MANDARLO NUNCA, y el cartel desaparecía con
+   él. Peor: tocar "intentar otra vez" el día 8 lo destruía antes de hacer un solo pedido. El que
+   está esperando a una persona espera lo que haga falta; el tope de 50 es lo que acota la cola. */
 function flushPending(alSalir){
   const q = getPending();
   if (!q.length) return;
-  const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;   // descarta pendientes de más de 7 días
-  const vigentes = q.filter(x => (Date.now() - x.ts) < MAX_EDAD);
-  const aMandar  = vigentes.filter(x => !x.trabado);
-  /* Los retenidos NO se sacan de la cola: siguen guardados y contados, y sólo salen si la persona
-     toca el cartel. Vaciarlos acá sería exactamente el silencio que este prompt vino a sacar. */
-  if (!alSalir) setPending(vigentes.filter(x => x.trabado));
-  aMandar.forEach(x => enviarConCola(x.url, alSalir));
+  const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;
+  const vivos = q.filter(x => x && (x.trabado || (Date.now() - x.ts) < MAX_EDAD));
+  if (vivos.length !== q.length) setPending(vivos);
+  vivos.forEach(x => {
+    if (x.trabado && !alSalir) return;
+    if (_colaEnVuelo[x.url]) return;      // ya está viajando: no se manda dos veces
+    _colaEnVuelo[x.url] = 1;
+    enviarConCola(x.url, alSalir);
+  });
 }
-window.addEventListener('online', flushPending);
-setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
+/* ⚠️ `function(){ flushPending(); }` y NO `flushPending` a secas. El navegador le pasa el `Event`
+   como primer argumento, o sea `alSalir` llegaba TRUTHY en cada reconexión: se mandaba con
+   `keepalive` con la página bien viva y la cola no se limpiaba, así que 60 segundos después el
+   timer mandaba lo mismo otra vez. En los ocho webhooks que no mandan `id` eso son DOS FILAS de la
+   misma prueba en la hoja clínica — exactamente el daño que se evita dejándolos en `no-cors`.
+   El bug es anterior a P087; lo encontró la verificación de P087. */
+window.addEventListener('online', function(){ flushPending(); });
+setInterval(function(){ flushPending(); }, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
 
 /* ════════════════ COLA DEL EMPLEADO (turnos y reportes rápidos) ════════════════
    ⚠️ Distinta del canal de Gestiones (gestPush/gestPull, P2/P3): ese requiere contraseña de
