@@ -6344,7 +6344,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.65';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.66';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15790,8 +15790,19 @@ function onDashData(d, scopeLabel, params, vista){
            /* ⚠️ P096 · SE NOMBRAN ACÁ O NO EXISTEN. Este objeto es una lista CERRADA de campos:
               lo que el servidor mande y no esté escrito acá se descarta sin error. Es exactamente
               lo que ya se comió `duty` y `ausencias` (A4). */
-           nominaTotal: Number(d.nominaTotal) || 0,
-           nominaSinDato: Array.isArray(d.nominaSinDato) ? d.nominaSinDato : [],
+           /* ⚠️ P107 · EN LA DEMOSTRACIÓN LA NÓMINA SALE DE LA NÓMINA DE EJEMPLO, y esto es lo que
+              hacía que la vista de Dirección dijera **100% de cobertura**. El endpoint de la demo
+              no manda `nominaTotal` —su payload son registros, PVT, comentarios, marca y config—,
+              así que llegaba 0, el cliente caía al denominador viejo (`cuentan.length`) y la
+              cobertura terminaba midiendo "100% de los que ya tenían datos".
+              Un 100% en una demostración de venta juega EN CONTRA: si ya está todo cubierto, el
+              producto no hace falta. Y sobre todo, escondía la función que más se quiere mostrar —
+              la línea de "N personas operando sin ninguna medición" no listaba a nadie.
+              `nominaDemo()` ya tenía a las dos personas sin registrar (Mariana Cárdenas y Esteban
+              Rivas): existían y no llegaban a la cuenta. Se usa el elenco que ya está, no una lista
+              nueva, para que nadie aparezca en una pantalla y no en la de al lado. */
+           nominaTotal: demoNominaTotal(d),
+           nominaSinDato: demoNominaSinDato(d),
            /* A11 · si al servidor se le rompió la lectura de la nómina, el síntoma era un 0 que
               parecía un dato: la cobertura volvía al denominador viejo y decía "100% medido" sin
               que nada avisara. Ahora el motivo viaja y la pantalla lo dice. */
@@ -18826,6 +18837,25 @@ function dutyDemo(){
    justamente lo que la pantalla muestra: quién de la lista ya usa la app y quién todavía no.
    Los dos pendientes NO están en los registros, y eso es correcto por definición: alguien que
    todavía no usó la app no puede tener mediciones. */
+/* ── P107 · la cobertura de la demostración ────────────────────────────────────────────────────
+   Fuera de la demostración devuelven exactamente lo que mandó el servidor: son un envoltorio, no
+   una regla nueva. Sólo cuando `d.demo` es cierto se usa la nómina de ejemplo, que es la nómina
+   REAL de esa empresa de mentira. */
+function demoNominaTotal(d){
+  if (!d || !d.demo) return Number(d && d.nominaTotal) || 0;
+  try { return nominaDemo().length; } catch(e){ return 0; }
+}
+function demoNominaSinDato(d){
+  if (!d || !d.demo) return Array.isArray(d && d.nominaSinDato) ? d.nominaSinDato : [];
+  try {
+    /* Quién tiene mediciones sale de los REGISTROS que acaban de llegar, no de una lista aparte:
+       si mañana la demo trae datos de alguien más, la cuenta se corrige sola. */
+    const con = {};
+    (d.registros || []).forEach(r => { if (r && r.persona) con[dashNorm(r.persona)] = 1; });
+    return nominaDemo().map(x => x.persona).filter(n => n && !con[dashNorm(n)]);
+  } catch(e){ return []; }
+}
+
 function nominaDemo(){
   const P = 'Empresa Demo', hoy = todayStr();
   const alta = DEMO_GENTE.map((q, i) => ({

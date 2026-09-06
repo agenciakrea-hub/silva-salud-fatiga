@@ -77,11 +77,27 @@ PRUEBAS.caso('⚠️ una nómina MENOR que lo conocido no achica el denominador'
 
 PRUEBAS.caso('⚠️ el campo sobrevive a onDashData', () => {
   /* R17 / A4: `onDashData` arma DASH con una lista CERRADA de campos. Lo que el servidor mande y
-     no esté nombrado ahí se descarta sin error — es lo que ya se comió `duty` y `ausencias`. */
-  const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-  PRUEBAS.cierto(/nominaTotal:\s*Number\(d\.nominaTotal\)/.test(fuente),
-    '⚠️ nominaTotal está nombrado en onDashData');
-  PRUEBAS.cierto(/nominaSinDato:\s*Array\.isArray\(d\.nominaSinDato\)/.test(fuente),
-    'y nominaSinDato también');
+     no esté nombrado ahí se descarta sin error — es lo que ya se comió `duty` y `ausencias`.
+
+     ⚠️ ESTE CASO MIRABA EL TEXTO DEL CÓDIGO (`/nominaTotal:\s*Number\(d\.nominaTotal\)/`) y se puso
+     en rojo el día que P107 cambió esa línea por una llamada a función — con el comportamiento
+     INTACTO. Un caso que se rompe porque alguien reescribió la misma lógica de otra forma no está
+     midiendo lo que dice medir: obliga a tocarlo para que pase, que es como se pierde la señal.
+     Ahora se entra por `onDashData` con un payload y se mira el DASH que sale, que es lo que el
+     panel usa de verdad. */
+  const prev = (typeof DASH !== 'undefined') ? DASH : null;
+  const oFetch = window.fetch;
+  window.fetch = () => new Promise(() => {});
+  try {
+    onDashData({ ok:true, rol:'supervisor', referencia:{ kss:6 }, metricas:['kss'],
+      registros:[{ persona:'Ana', empresa:'X', departamento:'Op', fecha:'2026-09-06', kss:4 }],
+      nominaTotal: 9, nominaSinDato: ['Beto', 'Caro'] }, 'X', {}, 'hseq');
+    PRUEBAS.igual(DASH.nominaTotal, 9,
+      '⚠️ nominaTotal llega al DASH · si se descarta, la cobertura vuelve al denominador viejo');
+    PRUEBAS.igual(DASH.nominaSinDato, ['Beto', 'Caro'], 'y nominaSinDato también');
+  } finally {
+    window.fetch = oFetch;
+    try { stopDashAutoRefresh(); } catch(e){}
+    if (prev !== null) DASH = prev;
+  }
 });

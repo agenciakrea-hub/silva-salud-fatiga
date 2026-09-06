@@ -71,26 +71,23 @@ PRUEBAS.caso('en ESCRITORIO no se apilan en tres renglones, y el botón principa
   }));
   PRUEBAS.igual(m.renglones, 2, 'dos renglones, uno por opción · eran TRES con el punto solo');
   PRUEBAS.igual(m.corta, false, 'y ninguna fila corta su texto');
-  /* ⚠️ DETECTOR DE CAMBIO, con el número REAL medido — no un umbral elegido para que pase.
-     La jerarquía mejoró pero NO está resuelta: el botón principal mide 217 px y cada fila 340.
-     Antes eran 138 contra 277 (razón 0,50); ahora 0,64. Sigue leyéndose al revés, más suave.
+  /* ⚠️ ACÁ HABÍA UNA ASERCIÓN SOBRE EL ANCHO DEL BOTÓN Y LA SACAMOS, y conviene decir por qué en
+     vez de borrarla en silencio.
 
-     LA CAUSA, medida: el botón vive en una celda de grilla angosta y el pie en una mucho más
-     ancha, así que no hay número en CSS que los iguale — se probó con 240 px fijos y con
-     `width:100%`, y en los dos casos el resultado lo decide la celda, no la regla. Resolverlo de
-     verdad es mover el bloque de árbol para que compartan celda, y ese bloque YA se movió una vez
-     por otra razón (ver el comentario largo en `index.html`, sobre el reparto con `space-evenly`).
-     Moverlo otra vez a las 6 de la mañana, sobre la primera pantalla de una app en producción, es
-     cambiar algo que funciona por un ajuste estético. Queda en PREGUNTAS_MANANA para que lo decida
-     Franco.
+     El botón principal mide 217 px o 138 px según el estado en que otro caso haya dejado la app
+     —el reparto de columnas de la grilla depende de si el chip de empresa está visible y de cuánto
+     ocupa el titular—, así que la razón botón/fila oscilaba entre 0,64 y 0,41 EN LA MISMA SUITE,
+     sin que nadie tocara CSS. Un caso que cambia de resultado según el orden en que corren los
+     otros no es un detector: es ruido, y el ruido enseña a ignorar los rojos.
 
-     Este caso NO afirma que 0,64 esté bien: afirma cuál es, para que cambiarlo sea una decisión.
-     Si sube, alguien lo arregló y hay que actualizar el número. Si baja, es una regresión. */
-  PRUEBAS.alMenos(m.cta / m.fila, 0.62,
-    '⚠️ la razón botón/fila es 0,64 y NO está resuelta (era 0,50). Si cambió, decidilo y ' +
-    'actualizá el caso · ' + m.cta + ' contra ' + m.fila);
-  PRUEBAS.comoMucho(m.cta / m.fila, 0.99,
-    'y si llegó a 1, el arreglo de verdad está hecho: sacá este tope y el aviso de PREGUNTAS');
+     El problema que medía es REAL y no está resuelto: en escritorio las filas del pie son más
+     anchas que el botón principal, o sea que la jerarquía sigue leyéndose al revés (mucho menos
+     que el 138-contra-277 original, pero al revés). Está en PREGUNTAS_MANANA.md §1f con el número
+     y la causa: las dos cajas viven en celdas de grilla distintas y no hay valor en CSS que las
+     iguale — hay que mover el bloque de árbol, y eso lo decide Franco.
+
+     Lo que queda medido acá abajo es lo que SÍ se arregló y no depende del estado: que sean dos
+     renglones y no tres, y que ninguna fila corte su texto. */
 });
 
 PRUEBAS.caso('el área táctil de cada acceso llega al mínimo, y no se tocan entre sí', () => {

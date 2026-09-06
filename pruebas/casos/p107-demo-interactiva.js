@@ -201,3 +201,80 @@ PRUEBAS.caso('el DISCRIMINADOR del helper: ignora comentarios y no corta el cuer
   PRUEBAS.falso(/\/\*/.test(c), 'y sin comentarios adentro');
   PRUEBAS.igual(p107Cuerpo('estaFuncionNoExisteEnNingunLado__'), null, 'y avisa cuando no existe');
 });
+
+/* ── P107 · la cobertura de la demostración ─────────────────────────────────────────────────────
+   Medido en la demo real antes de tocar nada: la vista de Dirección decía **100% de cobertura**.
+   El endpoint de la demo no manda `nominaTotal` —su payload son registros, PVT, comentarios, marca
+   y config, nada más—, así que llegaba 0, el cliente caía al denominador viejo (`cuentan.length`)
+   y la cobertura terminaba midiendo "100% de los que ya tenían datos".
+
+   Dos cosas malas a la vez, y la segunda es peor:
+   · Un 100% en una demostración de venta juega EN CONTRA. Si ya está todo cubierto, el producto no
+     hace falta.
+   · Y escondía justamente la función que más se quiere mostrar: la línea de "N personas operando
+     sin ninguna medición" no listaba a nadie.
+
+   `nominaDemo()` YA tenía a las dos personas sin registrar —Mariana Cárdenas y Esteban Rivas—:
+   existían en el elenco y no llegaban a la cuenta. No se inventó gente nueva. */
+
+function p107Payload(){
+  /* El payload que manda `accionDemo` de verdad: se comprobó contra el endpoint publicado
+     (`action=demo`, 2026-09-06) y sus claves son exactamente éstas. Si mañana el servidor empieza
+     a mandar `nominaTotal`, este caso sigue valiendo: lo que se prueba es que la demo NO dependa
+     de que lo mande. */
+  const gente = (typeof DEMO_GENTE !== 'undefined') ? DEMO_GENTE : [];
+  const regs = gente.map(g => ({ persona: Array.isArray(g) ? g[0] : g.nombre,
+    empresa: 'Empresa Demo', departamento: Array.isArray(g) ? g[2] : g.departamento,
+    fecha: (typeof todayStr === 'function' ? todayStr() : '2026-09-06'), kss: 4 }));
+  return { ok:true, demo:true, rol:'supervisor', vista:'medico',
+           referencia:{ kss:6 }, metricas:['kss'], registros:regs, pvt:[], comentarios:null,
+           marca:null, config:null };
+}
+
+PRUEBAS.caso('⚠️ la demostración NO dice 100% de cobertura', () => {
+  const d = p107Payload();
+  PRUEBAS.cierto(d.registros.length > 0, 'el elenco de ejemplo tiene gente · si no, no se mide nada');
+  const total = demoNominaTotal(d);
+  const sin = demoNominaSinDato(d);
+  PRUEBAS.alMenos(total, d.registros.length + 1,
+    'la nómina de ejemplo es MÁS grande que quienes tienen mediciones · si fueran iguales, la ' +
+    'cobertura volvería a dar 100% y no habría nada que mostrar · ' + total +
+    ' contra ' + d.registros.length);
+  PRUEBAS.alMenos(sin.length, 1,
+    'y hay al menos una persona sin ninguna medición, que es lo que el producto sirve para ver');
+  PRUEBAS.comoMucho(Math.round(d.registros.length / total * 100), 99,
+    'la cobertura de la demostración queda por debajo de 100%');
+});
+
+PRUEBAS.caso('los que faltan salen del MISMO elenco, no de una lista aparte', () => {
+  /* Si se hubieran inventado nombres nuevos, aparecerían en la línea de "sin medición" y en
+     ninguna otra pantalla — el fantasma que este archivo ya cazó una vez con "Luis Ferrer". */
+  const d = p107Payload();
+  const elenco = new Set(nominaDemo().map(x => x.persona));
+  const fuera = demoNominaSinDato(d).filter(n => !elenco.has(n));
+  PRUEBAS.igual(fuera, [], '⚠️ nadie sale de la nómina de ejemplo — ' + fuera.join(', '));
+});
+
+PRUEBAS.caso('la cuenta se corrige sola si la demo trae datos de alguien más', () => {
+  /* No es una lista fija de "los que faltan": se calcula contra los registros que llegaron. El día
+     que la demo traiga mediciones de Mariana, deja de figurar sin que nadie edite nada. */
+  const d = p107Payload();
+  const antes = demoNominaSinDato(d).length;
+  PRUEBAS.alMenos(antes, 1, 'hay alguien sin medición para poder mover');
+  const quien = demoNominaSinDato(d)[0];
+  d.registros = d.registros.concat([{ persona: quien, empresa:'Empresa Demo',
+    departamento:'Operaciones', fecha:'2026-09-06', kss:4 }]);
+  PRUEBAS.igual(demoNominaSinDato(d).length, antes - 1,
+    'al llegar su medición, ' + quien + ' sale de la lista sola');
+});
+
+PRUEBAS.caso('el DISCRIMINADOR: fuera de la demo NO se toca nada', () => {
+  /* Estas dos funciones son un envoltorio, no una regla nueva. Si se aplicaran a una empresa real,
+     le pisarían el denominador con la nómina de ejemplo — 21 personas que no son suyas. */
+  const real = { demo:false, nominaTotal:37, nominaSinDato:['Alguien Real'],
+                 registros:[{ persona:'Alguien Real' }] };
+  PRUEBAS.igual(demoNominaTotal(real), 37, 'una empresa real conserva SU total');
+  PRUEBAS.igual(demoNominaSinDato(real), ['Alguien Real'], 'y SU lista de no medidos');
+  /* Y un endpoint viejo que no manda el campo sigue cayendo al comportamiento anterior. */
+  PRUEBAS.igual(demoNominaTotal({ demo:false }), 0, 'sin el campo, 0 · como antes');
+});
