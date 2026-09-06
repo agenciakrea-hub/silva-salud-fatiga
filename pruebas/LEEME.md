@@ -241,3 +241,16 @@ Todos los casos de esta carpeta se validaron así. Y no es teórico: al escribir
 apareció un bug real —"Tu actividad" no se traducía al cambiar de idioma— que se había escapado
 porque cuando lo verifiqué a mano llamé al repintado yo mismo, que era justo lo que ocultaba el
 problema.
+
+
+## ⚠️ Correr `correr.js` a mano contra un iframe ya usado da FALSOS ROJOS (2026-09-06)
+
+Costó una corrida entera: 14 casos en rojo (L4, Y2, A2c, S4b, U3, U2b, U2c, Q4c, P108, P048) contra
+**903/903** por el botón, con el mismo código.
+
+**El botón "Correr" del panel recarga el iframe antes de correr.** Eso es lo que hace la corrida
+reproducible: los casos dejan estado en la app —perfil, `localStorage`, overlays abiertos, idioma,
+tema— y el que corre después lo hereda. Sin la recarga, el resultado depende del orden.
+
+**Usá siempre el botón.** Y si vas a medir dos veces seguidas (por ejemplo para un discriminador),
+recargá el panel entre una y otra.
