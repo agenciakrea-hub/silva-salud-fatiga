@@ -37,17 +37,25 @@ PRUEBAS.caso('⚠️ las secciones sin datos quedan TODAS al final, sin mezclars
     secs.map(s => s.tab + (s.vacia ? '(vacía)' : '')).join(' · '));
 });
 
-PRUEBAS.caso('⚠️ el "spoiler de lo que se viene" va abajo aunque tenga mucho HTML', () => {
-  /* `predictivo` emite 6.213 caracteres y ninguno es un dato: es el anticipo de lo que va a hacer
-     la función. Por largo parecería la sección más llena de todas, así que va en una lista
-     explícita — no hay forma de deducirlo del HTML, y fingir que sí la habría es peor. */
-  const secs = n5Hseq(false);
-  const i = secs.findIndex(s => s.tab === 'predictivo');
-  PRUEBAS.alMenos(i, 0, 'la sección tiene que existir');
-  if (i < 0) return;
-  PRUEBAS.cierto(secs[i].vacia, '⚠️ el predictivo va marcado como anticipo, no como contenido');
-  const conDatos = secs.filter(s => !s.vacia).length;
-  PRUEBAS.cierto(i >= conDatos, '⚠️ y queda por debajo de todo lo que sí tiene datos');
+PRUEBAS.caso('⚠️ el "spoiler de lo que se viene" quedó AFUERA de las secciones (P097)', () => {
+  /* P097 (2026-09-04): esta prueba medía a `predictivo` como una `.dash-sec` más, marcada como
+     "vacía" para que la regla de arriba la mandara al final. Ese mecanismo dejó de existir:
+     `predictivo` emitía 6.213 caracteres y ninguno era un dato, y era una de sólo 8 pestañas de
+     Dirección/HSEQ — un cuarto de la barra sin nada operable ningún día (auditoría del
+     2026-09-04). Ahora ya NO es una pestaña ni una sección: es un bloque plegado, cerrado por
+     defecto, colgado a mano al final de `renderDash()` (ver `renderHseqQueViene`), afuera del
+     array que arma `secciones`. Este caso reemplaza al viejo: ya no comprueba una posición DENTRO
+     de la lista, sino que el bloque exista, esté cerrado y quede DESPUÉS de todas las secciones. */
+  n5Hseq(false);
+  const cuerpo = document.getElementById('dashBody');
+  const bloque = cuerpo && cuerpo.querySelector('.hseq-que-viene');
+  PRUEBAS.cierto(!!bloque, '⚠️ el bloque "qué viene" tiene que existir en la vista hseq');
+  if (!bloque) return;
+  PRUEBAS.falso(bloque.classList.contains('dash-sec'),
+    'no es una sección más: sin esto volvería a competir por atención con lo que sí hay que mirar hoy');
+  PRUEBAS.falso(bloque.open, '⚠️ tiene que arrancar cerrado — es <details>, no se pinta como abierto');
+  PRUEBAS.cierto(bloque === cuerpo.lastElementChild,
+    '⚠️ y tiene que quedar DESPUÉS de toda sección, sea cual sea el orden que armen entre ellas');
 });
 
 PRUEBAS.caso('⚠️ una sección que RECIBE datos sube (discriminador)', () => {

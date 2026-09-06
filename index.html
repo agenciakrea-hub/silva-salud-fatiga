@@ -6151,7 +6151,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7271,6 +7271,10 @@ const I18N = {
       hs_tasa_acept:'Tasa de aceptación: <b>{p}%</b>. Una tasa baja no es un problema de cumplimiento: puede indicar que hace falta explicar mejor de qué se trata.',
       hs_faltan_datos:'Faltan {n} de {m} datos para poder calcular costos y retorno',
       hs_costos_nota:'Estos valores se cargan una sola vez en la configuración de la empresa. Hasta entonces, el resto de la consola funciona normalmente.',
+      // P097: Predictivo salió de las pestañas (era el 25% de la barra sin nada operable ningún
+      // día — auditoría del 2026-09-04). Sigue existiendo como anticipo comercial, pero ahora
+      // plegado al final de la vista: este es el título del <summary> que lo abre.
+      hs_que_viene:'Lo que viene: Plan Predictivo (360°)',
       cos_t_hora_hombre:'Costo de hora-hombre', cos_d_hora_hombre:'Promedio, por departamento o por nivel de riesgo',
       cos_t_parada:'Costo de una hora de parada', cos_d_parada:'Operación detenida o activo fuera de servicio',
       cos_t_inc_leve:'Costo promedio de incidente leve',
@@ -8929,6 +8933,7 @@ const I18N = {
       hs_tasa_acept:'Acceptance rate: <b>{p}%</b>. A low rate is not a compliance problem: it may mean it needs to be explained better.',
       hs_faltan_datos:'{n} of {m} data points are missing before costs and return can be calculated',
       hs_costos_nota:'These values are entered once in the company settings. Until then, the rest of the console works normally.',
+      hs_que_viene:'What is coming: Predictive Plan (360°)',
       cos_t_hora_hombre:'Cost per person-hour', cos_d_hora_hombre:'Average, by department or by risk level',
       cos_t_parada:'Cost of one hour of downtime', cos_d_parada:'Operation stopped or asset out of service',
       cos_t_inc_leve:'Average cost of a minor incident',
@@ -15183,13 +15188,43 @@ function dashPintarVista(vista){
   const el = document.getElementById('dashVista');
   if (el) el.textContent = vistaLabel(vista);
 }
-function dashTabsFor(rol, hasPvt, vista){
+/* P097 (auditoría del 2026-09-04): de las 8 pestañas de Dirección/HSEQ, 2 no servían para
+   trabajar ningún día. Predictivo emite 6.213 caracteres de material de venta con TODOS los
+   valores en "—" (ver PRED_ITEMS / renderHseqPredictivo): nunca hay nada que leer ahí, así que
+   sale de la barra siempre — sigue existiendo, pero como bloque plegable al final de la vista
+   (ver renderHseqQueViene). Costos dice "Faltan 9 de 9 datos" salvo que la empresa los tenga
+   cargados (ver HSEQ_COSTOS_CAMPOS / renderHseqCostos): entra a la barra SÓLO si hay algo que
+   mostrar, con el mismo criterio "objeto con datos" que ya usa cfg('costos') en el resto del
+   archivo — nunca un `if` por empresa (R14), es genérico para cualquiera que cargue costos. */
+function hseqTieneCostos(costosCfg){
+  // `costosCfg` es el CAMPO `costos` YA RESUELTO (lo que devolvería `cfg('costos')`), no el
+  // objeto de config completo — pasar el config entero haría que cualquier empresa con la hoja
+  // "Config Empresa" (por *cualquier* motivo: persistencia, anonN…) mostrara la pestaña aunque
+  // nunca haya cargado un costo. Es un parámetro EXPLÍCITO y no `cfg('costos')` leído siempre acá
+  // adentro: ver el comentario largo en onDashData() sobre por qué, en su primer llamado, `cfg()`
+  // todavía no ve el payload que acaba de llegar. Los llamados posteriores (DASH ya al día) no
+  // pasan nada y caen al fallback, que sí puede leer `cfg()` con seguridad.
+  const c = (costosCfg !== undefined) ? costosCfg : cfg('costos');
+  if (!c || typeof c !== 'object') return false;
+  // No alcanza con "es un objeto": un `{}` (o uno con los 9 campos en null) también lo es, y ESO
+  // es justo el estado que hoy hace que la pestaña diga "Faltan 9 de 9 datos" siempre. Tiene que
+  // haber AL MENOS UN campo cargado — no se listan los 9 de HSEQ_COSTOS_CAMPOS a propósito, para
+  // no depender de esa lista (que vive mucho más abajo en el archivo) ni de que el .gs mande
+  // siempre las mismas 9 claves.
+  return Object.keys(c).some(k => c[k] != null && c[k] !== '');
+}
+function dashTabsFor(rol, hasPvt, vista, costosCfg){
   // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes + el ciclo operativo del día.
   // Nada de indicadores, comentarios ni informes: eso es del servicio médico.
   if (vista === 'supervisor') return ['aptitud','reportes','ciclo'];
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
-  if (vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
+  if (vista === 'hseq'){
+    const hseq = ['idc','mrfo','intervenciones','auditoria'];
+    if (hseqTieneCostos(costosCfg)) hseq.push('costos');   // mismo lugar donde vivía en la lista vieja
+    hseq.push('ciclo','jornada');
+    return hseq;
+  }
   /* ⚠️ VISTA PERSONAL: MANDA LA VISTA, NO EL ROL — y faltaba, mientras las dos ramas de arriba sí
      lo hacían. Efecto medido: `dashTabsFor('supervisor', false, 'empleado')` devolvía las OCHO
      pestañas del servicio médico, con 22 gráficos. O sea que elegir "Vista personal" desde una
@@ -15271,12 +15306,27 @@ function onDashData(d, scopeLabel, params, vista){
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
   const pvt = d.pvt || null;
   vista = vista || ((d.rol === 'empleado') ? 'empleado' : 'medico');
-  const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista);
+  // P097: dashTabsFor necesita saber si HAY costos configurados para decidir la pestaña 'costos'
+  // (vista hseq). Se calcula ACÁ, igual que `pvt`/`hasPvt` unas líneas arriba, y no leyendo
+  // `cfg('costos')` adentro de dashTabsFor: en este punto `DASH` todavía es el de la empresa
+  // ANTERIOR (o no existe, en la primera carga de la sesión) — `DASH._cfg` recién se pisa con el
+  // payload que acaba de llegar unas líneas más abajo. Leer `cfg()` acá adentro habría dado la
+  // config vieja (o ninguna) justo el llamado que más importa: el de la carga que se está pintando.
+  const cfgPayload = (d.config && typeof d.config === 'object') ? d.config : null;
+  /* ⚠️ SE PASA `costosPayload` (el CAMPO costos ya resuelto), NO `cfgPayload` entero. Error real
+     que se corrigió acá mismo antes de llegar a la suite: pasar el config completo hace que
+     `hseqTieneCostos` vea "hay un objeto" con SÓLO que exista la hoja "Config Empresa" — aunque
+     esa empresa nunca haya tocado el costeo (persistencia/anonN alcanzan para tener `d.config`).
+     Con eso la pestaña 'costos' habría vuelto a aparecer para CUALQUIERA con config, que es
+     exactamente el estado que la auditoría reportó como roto. Tiene que mirar el campo, no el
+     contenedor. Mismo cálculo que hace `cfg('costos')` una vez que `DASH._cfg` queda seteado. */
+  const costosPayload = (cfgPayload && cfgPayload.costos != null && cfgPayload.costos !== '') ? cfgPayload.costos : null;
+  const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista, costosPayload);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
            operacional: d.operacional || [],   // ciclo operativo (endpoint viejo no lo manda → [])
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
-           _niveles:null, _cfg:null, _reportes:null, _reportesPedidos:false,
+           _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(),
@@ -15305,7 +15355,8 @@ function onDashData(d, scopeLabel, params, vista){
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
   // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
   DASH._niveles = Array.isArray(d.niveles) ? d.niveles : null;
-  DASH._cfg     = (d.config && typeof d.config === 'object') ? d.config : null;
+  // _cfg ya quedó puesto arriba (cfgPayload), antes de llamar a dashTabsFor: no se reasigna acá
+  // para no tener dos lugares que puedan quedar diciendo cosas distintas.
   nivelCacheClear();
   casosOdooArmar();                       // P13: abre la espera del puente a Odoo para ESTA carga
   if (DASH.demoMode){
@@ -15509,7 +15560,16 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
 function dashOrderedTabs(){
   if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
-  if (DASH.vista === 'hseq') return ['idc','mrfo','intervenciones','auditoria','costos','predictivo','ciclo','jornada'];
+  // P097: MISMO criterio que dashTabsFor (ver el comentario largo ahí) — predictivo nunca entra
+  // a la barra y costos entra sólo con datos cargados. Acá SÍ se puede leer `cfg('costos')`
+  // directo (sin parámetro): `dashOrderedTabs()` corre desde `renderDash()`/`buildDashTabs()`,
+  // siempre DESPUÉS de que `DASH._cfg` ya quedó al día con la empresa que se está mirando.
+  if (DASH.vista === 'hseq'){
+    const hseq = ['idc','mrfo','intervenciones','auditoria'];
+    if (hseqTieneCostos()) hseq.push('costos');
+    hseq.push('ciclo','jornada');
+    return hseq;
+  }
   /* La otra mitad del fix de `dashTabsFor`: acá también manda la VISTA. Sin esto, la vista
      personal recibía el orden completo del médico y las dos pestañas que sí le tocan quedaban
      mezcladas en una lista pensada para otra pantalla. */
@@ -15956,7 +16016,9 @@ function renderDash(){
     else if (tb === 'intervenciones') html = renderHseqIntervenciones();
     else if (tb === 'auditoria') html = renderHseqAuditoria();
     else if (tb === 'costos') html = renderHseqCostos(rows);
-    else if (tb === 'predictivo') html = renderHseqPredictivo();
+    // P097: 'predictivo' ya no es una pestaña (ver dashOrderedTabs) — nunca va a llegar acá. El
+    // contenido de renderHseqPredictivo() ahora se cuelga aparte, al final de la vista hseq (ver
+    // más abajo, `queViene`), como bloque plegable fuera del sistema de pestañas.
     else if (!rows.length) html = dashVacio('tests', 'tests');
     else if (tb === 'comparar') html = renderComparar(rows);
     else if (tb === 'individual') html = renderIndividual(rows);
@@ -15981,15 +16043,17 @@ function renderDash(){
      · `auditoria` y `mrfo` emiten el bloque `<div class="dv">` de `dashVacio()`.
      · `jornada` sin datos emite 185 caracteres —sólo el texto de ayuda— contra los 1.175 o más de
        cualquier sección con contenido.
-     · `predictivo` emite 6.213 y ninguno es un dato: es el anticipo de lo que viene. Franco lo pidió
-       explícito: "lo que está como pendiente, y como spoiler de lo que se viene, debería estar
-       abajo". Por eso va en una lista, no por heurística: no hay forma de deducirlo del HTML.
+     · `predictivo` emitía 6.213 y ninguno era un dato: por eso vivía en esta lista, no por
+       heurística — no hay forma de deducirlo del HTML. P097 (2026-09-04) lo sacó de las pestañas
+       DEL TODO (ver dashOrderedTabs): ya no pasa por `secciones`, así que no hace falta nombrarlo
+       acá. La lista queda vacía a propósito, no borrada: es el lugar donde va la PRÓXIMA sección
+       que sea puro anticipo comercial, si aparece una.
      ⚠️ El criterio es CONSERVADOR a propósito: ante la duda, la sección se queda donde estaba.
      Equivocarse hacia abajo esconde información real; equivocarse hacia arriba sólo deja un hueco.
      ⚠️ Y escribí primero `dash-vacio`, que suena razonable y NO EXISTE — el detector habría dado
      `false` siempre y la regla habría quedado como código muerto que parece andar (R17). La clase
      es `dv`, y se pide con la comilla para no engancharse con `dv-t`, `dv-ic` ni `dv-btn`. */
-  const ANTICIPO = ['predictivo'];
+  const ANTICIPO = [];
   const vacia = (h, tb) => {
     if (!h || !h.trim()) return true;
     if (ANTICIPO.indexOf(tb) >= 0) return true;
@@ -16014,7 +16078,11 @@ function renderDash(){
   /* ⚠️ "Imprimir este panel" SACADO a pedido del usuario (2026-08-26): andaba mal y prefirió
      quitarlo antes que arreglarlo ahora. Las funciones siguen abajo, sin llamadores, para que
      volver a encenderlo sea restituir esta línea. */
-  body.innerHTML = dashContext() + anotBloque + aviso + seccionesOrdenadas;
+  // P097: el anticipo comercial (ex pestaña Predictivo) va SIEMPRE al final de la vista hseq,
+  // afuera de `seccionesOrdenadas` — no es una sección más: no tiene chip en la barra, no entra
+  // al scrollspy y no compite con lo que el director sí necesita mirar hoy. Plegado por defecto.
+  const queViene = (DASH.vista === 'hseq') ? renderHseqQueViene() : '';
+  body.innerHTML = dashContext() + anotBloque + aviso + seccionesOrdenadas + queViene;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -17406,9 +17474,27 @@ function renderHseqPredictivo(){
     '<div class="pred-d">' + esc(t('pred_medevac_d')) + '</div>' +
     '<div class="pred-warn">⚠ ' + t('pred_medevac_warn') + '</div>' +
   '</div>';
-  return intro + '<div class="dash-block"><div class="db-title">' + esc(t('pred_titulo')) + '</div>' +
+  /* ⚠️ P097: el `<div>` de acá ERA `<div class="dash-block">` — tenía sentido cuando esta función
+     pintaba una sección de la barra, por su cuenta, directo en `#dashBody`. Ahora el ÚNICO
+     llamador es `renderHseqQueViene()`, que ya cuelga esto adentro de SU PROPIO
+     `.dash-block.dash-collapse`: con la clase acá también, salía una tarjeta (borde + fondo +
+     sombra) DENTRO de otra tarjeta. Medido en el navegador: `getComputedStyle` daba el mismo
+     `border`/`background` en las dos, una calcada adentro de la otra. Se saca la clase y listo —
+     el título, el texto y las tarjetas de PRED_ITEMS no cambian en nada, sólo el cascarón. */
+  return intro + '<div><div class="db-title">' + esc(t('pred_titulo')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_esqueleto')) + '</div>' +
     '<div class="pred-grid">' + cards + medevac + '</div></div>';
+}
+/* P097: Predictivo salió de las pestañas de Dirección/HSEQ (ver dashTabsFor/dashOrderedTabs) pero
+   NO se borra — sigue siendo el anticipo comercial que pidió D9 (PLAN_ECOSISTEMA §7). Se cuelga
+   como bloque plegable, cerrado por defecto, al FINAL de la vista (lo arma renderDash, no acá:
+   esta función sólo devuelve el HTML del bloque). Mismo patrón que dashAlertas() más abajo en el
+   archivo: `<details class="dash-block dash-collapse">` con su `dc-sum`/`dc-body`, no el patrón de
+   `dashHelp()` (ese es para una AYUDA de dos líneas, no para colgar una sección entera adentro). */
+function renderHseqQueViene(){
+  return '<details class="dash-block dash-collapse hseq-que-viene"><summary class="dc-sum">' +
+    '<span class="dc-t">' + esc(t('hs_que_viene')) + '</span><span class="dc-caret">▾</span></summary>' +
+    '<div class="dc-body">' + renderHseqPredictivo() + '</div></details>';
 }
 
 /* ══════════ BANDEJA DE REPORTES (vista del SUPERVISOR) ══════════

@@ -135,10 +135,15 @@ PRUEBAS.caso('⚠️ los minutos se muestran en horas, no en un número crudo', 
 
 PRUEBAS.caso('la pestaña existe para HSEQ y para servicio médico, no para el supervisor', () => {
   /* Mismo recorte por rol que el resto del ciclo. El servidor ya manda `duty:null` al supervisor;
-     esto es que además no le aparezca una pestaña vacía. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  PRUEBAS.cierto(/'hseq'\)\s*return\s*\[[^\]]*'jornada'/.test(fuente), 'HSEQ la tiene');
-  PRUEBAS.falso(/'supervisor'\)\s*return\s*\[[^\]]*'jornada'/.test(fuente),
+     esto es que además no le aparezca una pestaña vacía.
+     ⚠️ P097 (2026-09-06): esto comprobaba el SOURCE del `if ('hseq') return [...]` con una regex,
+     no la conducta. Dejó de andar en cuanto la rama hseq pasó de un `return [literal]` a varias
+     líneas (por Costos, que ahora entra o no según configuración) — 'jornada' seguía estando,
+     pero ya no en la forma exacta que la regex esperaba. Se cambia a llamar `dashTabsFor()` de
+     verdad, como ya hacen los casos del grupo de abajo: prueba la conducta, no la forma del texto,
+     así que sobrevive a que la función se siga reescribiendo por dentro. */
+  PRUEBAS.cierto(dashTabsFor('empresa', false, 'hseq').indexOf('jornada') >= 0, 'HSEQ la tiene');
+  PRUEBAS.falso(dashTabsFor('empresa', false, 'supervisor').indexOf('jornada') >= 0,
     '⚠️ el supervisor NO: el duty time es del servicio médico y de Dirección');
 });
 
