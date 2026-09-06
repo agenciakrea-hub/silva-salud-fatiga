@@ -303,3 +303,62 @@ PRUEBAS.caso('⚠️ el cron escribe la empresa CANÓNICA, que es por la que fil
   PRUEBAS.falso(caso.Empresa === cruda,
     'y NO la cruda · el panel filtra por la canónica y no la encontraría');
 });
+
+/* ── A12 · dos `catch` que borraban el rastro ───────────────────────────────────────────────────
+   El defecto de `alias` en `accionSupervisor` —que dejó a P096 sin funcionar todo un día— no fue
+   sólo una variable sin declarar: fue una variable sin declarar DEBAJO de un `try/catch` que
+   convertía el error en un cero plausible. Se buscaron los otros catch del mismo tipo. De los 72
+   del archivo, dos importan:
+
+   1 · `bitacoraServidor` devolvía `null` en silencio. ⚠️ R3 dice que la bitácora NUNCA se edita y
+   NUNCA se borra porque su único valor es ser prueba de lo que pasó. Un registro probatorio con
+   agujeros que nadie puede detectar es peor que no tenerlo: se sigue confiando en él igual.
+   No se puede tumbar la acción cuando falla el log —la persona perdería su registro por un
+   problema de la bitácora— así que ahora se cuenta el fallo y se guarda el último motivo con su
+   hora, y el mantenimiento los devuelve en `salud` EN CADA LLAMADA. Un dato de salud que hay que
+   acordarse de pedir es un dato que nadie pide.
+
+   2 · Las ausencias del panel devolvían `{}`. Es el default seguro —no descontar a nadie— pero es
+   INDISTINGUIBLE de "hoy no hay ausencias": si la hoja se rompe, todas dejan de contar y el panel
+   muestra a gente ausente como si no hubiera reportado. Mismo tratamiento que `nominaError`.
+
+   Los otros dos catch que devuelven un valor por defecto se miraron y se dejan: `dutyPlanDeFila`
+   (un JSON mal formado no es un plan, y el llamador distingue el null) y `anotarVariantes` (no
+   anotar una variante de nombre no cambia ningún número). */
+
+PRUEBAS.caso('⚠️ un fallo de la bitácora deja rastro (R3)', () => {
+  const api = a11Env({ 'Bitácora': [A11_BITA_CAB.slice()] },
+    ['bitacoraServidor', 'mantSalud', 'accionMantenimiento']);
+  /* Se rompe la escritura por el camino real: la hoja existe pero `appendRow` falla, que es lo que
+     pasa cuando la hoja está llena o se cae el permiso. */
+  const sh = api.__env.__libro.getSheetByName('Bitácora');
+  const orig = sh.appendRow;
+  sh.appendRow = () => { throw new Error('Service Spreadsheets timed out'); };
+  let r;
+  try { r = api.bitacoraServidor('Consorcio HELITEC', 'prueba', 'Ana', {}); }
+  finally { sh.appendRow = orig; }
+  PRUEBAS.igual(r, null, 'la acción no se cae: devuelve null y sigue');
+  const s = api.mantSalud();
+  PRUEBAS.alMenos(s.bitacoraFallos, 1,
+    '⚠️ pero el fallo QUEDA CONTADO · antes desaparecía sin dejar nada');
+  PRUEBAS.cierto(/timed out/.test(String(s.bitacoraUltimoError)),
+    'con el motivo · decía «' + s.bitacoraUltimoError + '»');
+});
+
+PRUEBAS.caso('el DISCRIMINADOR: sin fallos, la salud no inventa ninguno', () => {
+  /* Si `mantSalud` devolviera siempre un número, el caso de arriba daría verde por construcción. */
+  const api = a11Env({ 'Bitácora': [A11_BITA_CAB.slice()] }, ['bitacoraServidor', 'mantSalud']);
+  api.bitacoraServidor('Consorcio HELITEC', 'prueba', 'Ana', {});
+  const s = api.mantSalud();
+  PRUEBAS.igual(s.bitacoraFallos, 0, 'cero fallos cuando la escritura entra');
+  PRUEBAS.igual(s.bitacoraUltimoError, null, 'y sin error viejo colgado');
+});
+
+PRUEBAS.caso('la salud viaja en TODA respuesta del mantenimiento, no en una tarea aparte', () => {
+  const api = a11Env({}, ['accionMantenimiento']);
+  /* Sin token: hasta el rechazo la lleva. Es el punto — no hay que acordarse de pedirla. */
+  const r = a11Json(api.accionMantenimiento({ token:'mal', tarea:'encabezados' }));
+  PRUEBAS.igual(r.ok, false, 'un token malo se rechaza igual que antes');
+  PRUEBAS.cierto(!!r.salud, 'y la respuesta trae la salud');
+  PRUEBAS.igual(typeof r.salud.bitacoraFallos, 'number', 'con el contador adentro');
+});

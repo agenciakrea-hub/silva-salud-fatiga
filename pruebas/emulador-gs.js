@@ -315,12 +315,19 @@ function __digestHex(bytes) {
 
       Logger: { log: function () { registro.logs.push([].slice.call(arguments).join(' ')); } },
 
-      PropertiesService: {
-        getScriptProperties: function () {
-          const p = opciones.propiedades || {};
-          return { getProperty: k => (k in p ? p[k] : null), setProperty: (k, v) => { p[k] = String(v); } };
-        }
-      },
+      /* ⚠️ EL ALMACÉN SE CREA UNA SOLA VEZ. Estaba adentro de `getScriptProperties()`, así que
+         `opciones.propiedades || {}` fabricaba un objeto NUEVO en cada llamada: lo que una escribía
+         la siguiente no lo veía. En Apps Script las propiedades del script SON persistentes, así
+         que el emulador estaba modelando lo contrario de lo real — y una prueba que guarda algo y
+         lo lee después daba cero sin que nada fallara. */
+      PropertiesService: (function () {
+        const almacen = opciones.propiedades || {};
+        const api = { getProperty: k => (k in almacen ? almacen[k] : null),
+                      setProperty: (k, v) => { almacen[k] = String(v); return api; },
+                      deleteProperty: k => { delete almacen[k]; return api; },
+                      getProperties: () => Object.assign({}, almacen) };
+        return { getScriptProperties: () => api, getUserProperties: () => api };
+      })(),
 
       /* — Red: NO sale a internet. Devuelve lo que el caso configure; si el caso no configuró
            nada, LANZA. Es a propósito: una prueba que dispara una llamada de red inesperada tiene
