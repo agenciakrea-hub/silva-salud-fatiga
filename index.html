@@ -100,6 +100,9 @@
        4.64 de los dos extremos del degradado que reemplaza. Invariante entre temas por el
        mismo motivo que su fondo: es fondo de marca, no superficie del tema. */
     --sobre-marca: #fff;
+    /* P056 · lo lee el CSS de `.cic-lista` Y `cicloColumnas()`. Una sola fuente. */
+    --cic-card-min: 26rem;
+    --cic-lista-gap: .9rem;
     /* ⚠️ LA TINTA DE LOS GRÁFICOS DEL SPLASH. Todos usaban `--orange` (#f47a1f) directamente, y eso
        tenía dos problemas a la vez: convivían CUATRO naranjas en la misma pantalla —el círculo
        #ff9900, los trazos #f47a1f, el botón mostaza y el chip #b8500a—, y además #f47a1f sobre la
@@ -520,6 +523,7 @@
     --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
     --orange-solido: #b8500a;    /* éste NO cambia a propósito: es fondo, no tinta (ver :root) */
     --sobre-marca: #fff;         /* idem: acompaña a --orange-solido */
+    --cic-card-min: 26rem;  --cic-lista-gap: .9rem;   /* idem: geometría, no color */
     --spl-tinta: #b8500a;   /* mismo valor: pasa el mínimo sobre --card en los dos temas */
 
     /* --entrada-naranja: mismo valor que en :root, a propósito (decisión de marca invariante,
@@ -4663,8 +4667,14 @@
      además al tamaño de letra que la persona eligió: con letra grande entran menos columnas y nada
      se aplasta, en vez de romperse en el ancho donde el corte a mano dejó de valer.
      En teléfono da una sola columna sin necesidad de una media query. */
-  .cic-lista { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap:.9rem; align-items:start; }
+  /* ⚠️ P056 · EL ANCHO MÍNIMO DE TARJETA ES UN TOKEN, y no por prolijidad: el corte de cuántas
+     tarjetas se dibujan lo calcula el JS, y necesita saber cuántas columnas entran. Con el número
+     escrito en los dos lados, el día que alguien cambie el `26rem` de acá el corte seguiría
+     calculando con el viejo y empezaría a dejar filas a medias sin que nadie lo relacione — la
+     misma mina que P054 tuvo que desactivar en el menú de pestañas. */
+  .cic-lista { display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(min(100%, var(--cic-card-min)), 1fr));
+    gap:var(--cic-lista-gap); align-items:start; }
   .cic-card { background:var(--sup-suave); border:1px solid var(--sup-linea); border-radius:var(--radius-sm);
     padding:.85rem .85rem .8rem; }
   .cic-est-excedido { border-color:var(--sem-rojo); }
@@ -6725,7 +6735,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.85';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.86';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -19987,6 +19997,32 @@ function renderJornada(){
   return h;
 }
 
+/* ⚠️ P056 · CUÁNTAS COLUMNAS ENTRAN, LEÍDO DEL MISMO TOKEN QUE USA EL CSS.
+   `cicloBloque()` arma el HTML ANTES de que exista el layout, así que no se puede medir
+   `getComputedStyle` de la lista: hay que reproducir la cuenta que va a hacer el navegador. Lo que
+   NO se hace es escribir el `26rem` otra vez — se lee `--cic-card-min`, el mismo que el CSS pone
+   en el `minmax`. Con el número en dos lados, cambiar uno rompería el otro en silencio.
+   Se mide contra la SECCIÓN del panel, no contra `innerWidth`: la lista vive dentro de una
+   sección con sus propios márgenes, y a 1366 la diferencia es de casi cien píxeles. */
+function cicloColumnas(){
+  const cs = getComputedStyle(document.documentElement);
+  const raiz = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const rem = v => { const n = parseFloat(v); return /rem/.test(v) ? n * raiz : n; };
+  const min = rem(cs.getPropertyValue('--cic-card-min')) || 416;
+  const gap = rem(cs.getPropertyValue('--cic-lista-gap')) || 14;
+  /* Si la lista ya está en pantalla se usa SU ancho, que es el dato exacto; en el primer dibujo
+     todavía no existe y se cae a la sección, y de última al ancho de la ventana. */
+  const lista = document.getElementById('cicLista');
+  const sec = document.getElementById('dsec-ciclo') || document.getElementById('dashScroll');
+  const ancho = (lista && lista.clientWidth) || (sec && sec.clientWidth) || window.innerWidth || 1024;
+  if (!min || ancho <= 0) return 1;
+  return Math.max(1, Math.floor((ancho + gap) / (min + gap)));
+}
+/* Dos filas completas: alcanza para que se vea que la lista sigue —y que el botón «ver todos»
+   signifique algo— sin dejar una fila a la mitad. El piso de 3 conserva lo de siempre en teléfono,
+   donde hay una sola columna y bajar a 2 sería un cambio que nadie pidió. */
+function cicloCorte(){ return Math.max(3, cicloColumnas() * 2); }
+
 function renderCicloOperativo(){
   _cicloUltimoRender = Date.now();
   const plan = cicloPlan();
@@ -20100,7 +20136,15 @@ function renderCicloOperativo(){
      los KPIs empezarían a mentir — y mentirían hacia abajo, que es la dirección peligrosa: diría
      "1 pasado de tiempo" cuando hay nueve.
      Acá abajo sólo se recorta lo que se DIBUJA. */
-  const CORTE = 3;
+  /* ⚠️ P056 · EL CORTE SIGUE A LAS COLUMNAS QUE DE VERDAD ENTRAN. Era `3` fijo, y eso deja media
+     fila vacía en cuanto hay más de una columna: medido a 1366, la lista entra en 2 columnas, así
+     que tres tarjetas dibujan una fila completa y una segunda con un hueco al lado. En una pantalla
+     de 1920 entran cuatro columnas y se seguían mostrando tres — una fila a la mitad, con espacio
+     de sobra abajo y el resto de la gente escondida detrás de un botón.
+     Ahora se muestran DOS FILAS COMPLETAS: suficiente para que se vea que la lista sigue (y que el
+     botón «ver todos» tenga sentido) sin dejar huecos. El piso de 3 conserva el comportamiento de
+     siempre en teléfono, que es donde hay una sola columna. */
+  const CORTE = cicloCorte();
   const q = DASH._cicQ || '';
   /* `buscarCoincide` usa `buscarNorm`, que además de normalizar saca acentos, apóstrofos y guiones
      y compara por tokens en cualquier orden ("pérez ana" encuentra a "Ana Pérez").
