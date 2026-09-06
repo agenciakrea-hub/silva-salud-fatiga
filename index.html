@@ -6746,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.88';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.89';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -19021,13 +19021,10 @@ function cicloFechaLabel(ms){
    medianoche quedaría partido en dos y la mitad de after-midnight se vería como "sin iniciar".
    "Saliendo de casa" abre ciclo; el resto se cuelga del ciclo abierto mientras entre en la ventana. */
 function cicloArmar(){
-  /* ⚠️ P057a · ESTE SE QUEDA CON EL PLAN DE LA EMPRESA, A PROPÓSITO, y no es un olvido.
-     `plan` se usa acá para calcular la VENTANA con la que se agrupan los eventos sueltos en
-     ciclos, y esa agrupación se hace sobre TODAS las filas de una vez. Hacerlo por persona no es
-     cambiar la firma: es agrupar por persona primero y aplicarle a cada grupo su propia ventana,
-     o sea otra forma de recorrer los datos. Va en P057c junto con el resto del cambio de lógica.
-     Mientras tanto la ventana es la de la empresa, que es exactamente lo que hace hoy. */
-  const plan = cicloPlan(), ventana = cicloTotalMin(plan) * 60000;
+  /* ✅ P057c · La ventana ya no es una sola: se calcula por persona, abajo, en el bucle que ya
+     agrupaba por persona. La variable `plan` que había acá quedó SIN USO y se sacó — dejarla
+     habría sido peor que un comentario viejo: la próxima persona que la viera pensaría que esta
+     función todavía depende del plan de la empresa. */
   const rows = (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
@@ -19047,7 +19044,10 @@ function cicloArmar(){
   rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
   const out = {};
   Object.keys(porPersona).forEach(k => {
-    const c = cicloAgruparEventos(porPersona[k], ventana);
+    /* La persona sale de la primera fila del grupo: `k` es su clave normalizada, y `cicloPlan`
+       necesita el nombre tal cual para cruzarlo contra el mapa. */
+    const nombre = (porPersona[k][0] || {}).persona || '';
+    const c = cicloAgruparEventos(porPersona[k], cicloVentanaDe(nombre));
     if (c) out[k] = c;
   });
   return out;
@@ -19061,6 +19061,24 @@ function cicloArmar(){
    Devuelve el ciclo ABIERTO más reciente (el que le interesa a las dos), o null si no hay eventos.
    `ventana` acota cuánto puede durar un ciclo: pasado eso, un evento nuevo abre uno nuevo en vez
    de colgarse del anterior. */
+/* ⚠️ P057c · LA VENTANA DE AGRUPACIÓN ES DE CADA PERSONA, y esto es lo último que quedaba del
+   plan por persona. La ventana decide DÓNDE CORTA un ciclo y empieza el siguiente: pasado ese
+   tiempo, un evento nuevo abre un ciclo nuevo en vez de sumarse al anterior.
+   Con la ventana de la empresa, alguien con una jornada más larga que la del resto veía su ciclo
+   PARTIDO EN DOS —el traslado de vuelta caía fuera de la ventana y arrancaba un ciclo fantasma sin
+   apertura— y alguien con una más corta veía dos jornadas distintas pegadas en una sola.
+   Ninguna de las dos cosas da error: dan un número creíble y equivocado.
+
+   ⚠️ ACÁ SE USA EL PLAN VIGENTE DE LA PERSONA, no el congelado del evento, y es a propósito. El
+   plan congelado sirve para JUZGAR (¿se excedió contra lo que estaba pactado ese día?) y de eso se
+   encarga el servidor, que ya lo hace bien: `dutyDePersona` mide cada tramo contra
+   `dutyPlanDeFila(abre.plan)`. La ventana, en cambio, sólo AGRUPA, y para agrupar hace falta un
+   número antes de haber leído el primer evento del grupo. Son dos preguntas distintas y por eso
+   dos fuentes distintas. */
+function cicloVentanaDe(persona){
+  return cicloTotalMin(cicloPlan(persona)) * 60000;
+}
+
 function cicloAgruparEventos(eventos, ventana){
   const evInicial = cicloEventoInicial();
   const evs = (eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
@@ -19118,9 +19136,8 @@ function cicloAgruparTodos(eventos, ventana){
    la contraria: el período ES lo que se está mirando. Son dos vistas distintas del mismo dato y
    por eso son dos funciones, no un parámetro. */
 function cicloHistorico(desdeF, hastaF){
-  /* ⚠️ P057a · Igual que `cicloArmar`: la ventana de agrupación es del grupo, no de una persona.
-     Ver el comentario largo allá. Va en P057c. */
-  const plan = cicloPlan(), ventana = cicloTotalMin(plan) * 60000;
+  /* ✅ P057c · Igual que `cicloArmar`: la ventana se calcula por persona en el bucle de abajo, y
+     la variable `plan` quedó sin uso. */
   const rows = (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
@@ -19140,7 +19157,8 @@ function cicloHistorico(desdeF, hastaF){
   rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
   const out = {};
   Object.keys(porPersona).forEach(k => {
-    const c = cicloAgruparTodos(porPersona[k], ventana);
+    const nombre = (porPersona[k][0] || {}).persona || '';
+    const c = cicloAgruparTodos(porPersona[k], cicloVentanaDe(nombre));
     if (c.length) out[k] = c;
   });
   return out;

@@ -93,19 +93,19 @@ PRUEBAS.caso('⚠️ los diez llamadores están conectados o documentados, ningu
     .filter(x => !/cicloPlanEmpresa|cicloPlanPersona|cicloPlanGuardar/.test(x)).length;
   PRUEBAS.alMenos(conArg, 3,
     '⚠️ hay llamadas que pasan la persona · encontré ' + conArg);
-  /* ⚠️ QUEDAN EXACTAMENTE CUATRO SIN PERSONA, y los cuatro están decididos y documentados:
-       1. `cicloArmar`            · la VENTANA con que se agrupan eventos sueltos en ciclos
-       2. `cicloHistorico`        · ídem
-       3. `cicloPromedios`        · el promedio es del GRUPO, contra planes distintos no diría nada
-       4. `renderCicloOperativo`  · alimenta el EDITOR del plan de empresa y los promedios
-     Si aparece un quinto, alguien agregó un llamador sin decidir de quién es el plan — que es
+  /* ⚠️ QUEDAN EXACTAMENTE DOS SIN PERSONA, y los dos están decididos:
+       1. `cicloPromedios`        · el promedio es del GRUPO; contra planes distintos no diría nada
+       2. `renderCicloOperativo`  · alimenta el EDITOR del plan de empresa y los promedios
+     Si aparece un tercero, alguien agregó un llamador sin decidir de quién es el plan — que es
      exactamente como se pierde este arreglo.
 
-     ⚠️ Este número empezó en 3 y la prueba me puso en rojo: había conectado la barra y los tramos
-     pero me había salteado `cicloEstado(p.ciclo, ahora, plan)`, que es LA línea que decide quién
-     está excedido. El caso hizo su trabajo. */
-  PRUEBAS.igual(sinArg, 4,
-    '⚠️ quedan exactamente 4 sin persona, los cuatro decididos a propósito · encontré ' + sinArg);
+     ⚠️ Este número se movió DOS VECES y las dos por algo real:
+     · empezó en 3 y dio 4, porque me había salteado `cicloEstado(p.ciclo, ahora, plan)` — LA línea
+       que decide quién está excedido. El caso lo encontró;
+     · y bajó a 2 en P057c, cuando las dos ventanas de agrupación pasaron a calcularse por persona
+       y las variables `plan` de `cicloArmar` y `cicloHistorico` quedaron sin uso y se sacaron. */
+  PRUEBAS.igual(sinArg, 2,
+    '⚠️ quedan exactamente 2 sin persona, los dos decididos a propósito · encontré ' + sinArg);
 });
 
 PRUEBAS.caso('⚠️ `onDashData` NO descarta el campo nuevo (el hallazgo A4)', () => {

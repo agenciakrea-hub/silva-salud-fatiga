@@ -90,6 +90,35 @@ PRUEBAS.caso('⚠️ el servidor y el cliente coinciden en QUIÉN puede cambiar 
   });
 });
 
+PRUEBAS.caso('⚠️ EL CONTRATO · el servidor y el cliente derivan la MISMA clave de persona', () => {
+  /* ⚠️ ESTE CASO ENCONTRÓ UN DEFECTO REAL, y es el bug nº1 de este repo: un escritor y un lector
+     que derivan el mismo dato distinto. `cipClave` del servidor usaba `norm()`, que además de
+     acentos reemplaza la PUNTUACIÓN por espacio; el cliente usa `dashNorm()`, que no la toca:
+
+       "Luis O'Brien"  →  servidor «luis o brien»   ·  cliente «luis o'brien»
+
+     El plan de cualquiera con apóstrofo, guión o punto en el nombre se guardaba bajo una clave que
+     el cliente nunca iba a buscar. La persona configuraba su jornada, el servidor la guardaba, y
+     su ciclo se seguía midiendo contra la de la empresa SIN UN SOLO ERROR en ningún lado.
+     Ya había pasado igual con el `IdCaso` de Odoo, con este mismo apellido de ejemplo.
+     Se arregló del lado del SERVIDOR porque `dashNorm` genera los ids de upsert del CH: cambiarla
+     dejaría de parear filas ya escritas. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede comparar'); return; }
+  const env = GS.crearEntorno({ 'Accesos': [['Usuario','Clave','Rol','Empresas']] });
+  const api = GS.cargarGs(CTX.gs, env, ['cipClave']);
+  /* Nombres con lo que de verdad aparece en una nómina: apóstrofo, guión, punto y acentos. */
+  const NOMBRES = ["Luis O'Brien", 'Ana Suárez', 'Núñez-Vega', 'J. Pérez', 'MARÍA  DEL  CARMEN'];
+  /* DISCRIMINADOR: la comparación tiene que poder fallar. Si `dashNorm` no existiera, todo daría
+     `undefined === undefined` y el caso pasaría sin comparar nada. */
+  PRUEBAS.igual(typeof dashNorm, 'function', 'guarda de medibilidad: `dashNorm` existe en el cliente');
+  PRUEBAS.cierto(dashNorm("Luis O'Brien") !== dashNorm('Luis OBrien'),
+    'guarda: `dashNorm` distingue los nombres de prueba entre sí');
+  const distintos = NOMBRES.filter(n => api.cipClave(n) !== dashNorm(n))
+    .map(n => n + ': srv «' + api.cipClave(n) + '» ≠ cli «' + dashNorm(n) + '»');
+  PRUEBAS.igual(distintos, [],
+    '⚠️ los dos lados tienen que dar la MISMA clave · si divergen, el plan se guarda donde nadie lo busca');
+});
+
 PRUEBAS.caso('⚠️ un plan con basura NO se guarda a medias', () => {
   /* Un plan incompleto haría que la persona se mida contra una jornada que nadie configuró, y peor:
      en P057c ese número se congela. Se comprueba la validación del servidor. */
