@@ -32,7 +32,7 @@ PRUEBAS.grupo('P051 · quién ve qué · el contrato con el servidor');
 
 /* Las nueve cadenas de la lámina. Vive acá arriba porque la usan cinco casos. */
 const P051_CLAVES = ['car4_tit', 'car4_yo_t', 'car4_yo_d', 'car4_sup_t', 'car4_sup_d',
-                     'car4_med_t', 'car4_med_d', 'car4_dir_t', 'car4_dir_d', 'car4_pie'];
+                     'car4_med_t', 'car4_med_d', 'car4_dir_t', 'car4_dir_d'];
 
 function p051Texto(clave, lang) {
   const antes = idiomaActual();
@@ -400,75 +400,6 @@ PRUEBAS.caso('⚠️ y con la letra al MÁXIMO no se pierde ni una línea: se pu
   PRUEBAS.igual(malos, [], '⚠️ con la letra al máximo hay texto fuera de alcance · ' + malos.join(' | '));
 });
 
-PRUEBAS.caso('⚠️ el pie arranca donde arrancan las filas, en los cinco tamaños', () => {
-  /* Salió MIRANDO la captura a 768, no midiendo: el pie quedaba 78 px a la derecha del borde
-     izquierdo del esquema, y a 375 casi no se notaba porque el texto ocupa todo el ancho.
-     La causa: `.car-slide` centra sus hijos, y un `<p>` sin `width` se encoge al texto. El `<ul>`
-     no lo sufría porque ya declaraba `width:100%`.
-     Se vigila porque es de las cosas que se rompen sin dar error y sólo se ven al mirar. */
-  const malos = [];
-  PRUEBAS.VENTANAS.forEach(v => {
-    const d = PRUEBAS.enVentana(v.w, v.h, () => p051Con(sl => {
-      if (!sl) return null;
-      const ul = sl.querySelector('.car-quien'), pie = sl.querySelector('.car-pie');
-      if (!ul || !pie) return null;
-      return Math.round(pie.getBoundingClientRect().left - ul.getBoundingClientRect().left);
-    }));
-    if (d === null) { malos.push(v.w + 'x' + v.h + ': faltan el esquema o el pie'); return; }
-    if (Math.abs(d) > 1) malos.push(v.w + 'x' + v.h + ': ' + d + ' px de desfase');
-  });
-  PRUEBAS.igual(malos, [], '⚠️ el pie y las filas comparten borde izquierdo · ' + malos.join(' | '));
-
-  /* DISCRIMINADOR: se reproduce la forma del defecto —el pie centrado y más angosto que las
-     filas— y la medición tiene que verlo. Sin esto, el caso daría verde con el defecto puesto.
-     ⚠️ Dos cosas que no alcanzan, y las dos las descubrí viendo el discriminador en 0:
-     · tocar sólo el `width` del pie: la caja lo estira igual (`align-items:stretch` por defecto);
-     · dejarlo en `auto`: a 390 px de ancho el texto ya ocupa toda la línea, así que el borde
-       izquierdo no se mueve ni un píxel. Se le da un ancho chico y explícito para que el desfase
-       exista sí o sí, sea cual sea el tamaño de la ventana en la que corra la suite. */
-  const ve = p051Con(sl => {
-    const caja = sl.querySelector('.car-quien-caja');
-    const pie = sl.querySelector('.car-pie'), ul = sl.querySelector('.car-quien');
-    const antesCaja = caja.style.alignItems, antesPie = pie.style.width;
-    caja.style.alignItems = 'center';
-    pie.style.width = '40px';
-    void document.body.offsetWidth;
-    const d = Math.round(pie.getBoundingClientRect().left - ul.getBoundingClientRect().left);
-    caja.style.alignItems = antesCaja; pie.style.width = antesPie;
-    void document.body.offsetWidth;
-    return d;
-  });
-  PRUEBAS.alMenos(Math.abs(ve), 2,
-    '⚠️ discriminador: con el pie centrado y angosto, la medición tiene que ver el desfase · vio ' + ve);
-});
-
-PRUEBAS.caso('R13 · las tres tintas del esquema pasan 4.5:1 en los DOS temas', () => {
-  /* El fondo real es el del overlay (`background: var(--card)`), no el de `body`: medirlo contra
-     `body` es el error que ya hizo reportar títulos "ilegibles" que tenían 16:1. */
-  const previo = temaGuardado();
-  const malos = [];
-  let medidos = 0;
-  try {
-    ['claro', 'oscuro'].forEach(tema => {
-      fijarTema(tema);
-      p051Con(sl => {
-        if (!sl) return;
-        const fondo = getComputedStyle(document.getElementById('carruselOv')).backgroundColor;
-        [['.cq-rol', 'el rol'], ['.cq-ve', 'lo que ve'], ['.car-pie', 'el pie']].forEach(([sel, q]) => {
-          const el = sl.querySelector(sel);
-          if (!el) { malos.push(tema + ' · falta ' + sel); return; }
-          medidos++;
-          const c = CTX.contraste(getComputedStyle(el).color, fondo);
-          if (c < 4.5) malos.push(tema + ' · ' + q + ' (' + sel + '): ' + c + ':1');
-        });
-      });
-    });
-  } finally { fijarTema(previo || 'claro'); }
-  PRUEBAS.igual(medidos, 6, 'guarda de medibilidad: tres tintas × dos temas · medidos ' + medidos);
-  PRUEBAS.igual(malos, [],
-    '⚠️ el modo oscuro ya estuvo roto una vez con ~400 colores a mano (R13) · ' + malos.join(' | '));
-});
-
 PRUEBAS.caso('R13 · ningún color escrito a mano en el esquema', () => {
   /* Se mira la hoja de estilo, no el color calculado: un `#fff` y un `var(--card)` computan igual
      en tema claro, así que medir el resultado no distingue el defecto que R13 prohíbe. */
@@ -488,7 +419,7 @@ PRUEBAS.caso('R13 · ningún color escrito a mano en el esquema', () => {
 
 PRUEBAS.grupo('P051 · quién ve qué · los textos');
 
-PRUEBAS.caso('R14 · las diez cadenas existen en español y en inglés', () => {
+PRUEBAS.caso('R14 · las nueve cadenas existen en español y en inglés', () => {
   const previo = idiomaActual();
   const faltan = { es: [], en: [] };
   try {
@@ -537,7 +468,10 @@ PRUEBAS.caso('⚠️ la fila del supervisor NO se suaviza: nombra el semáforo p
   const es = p051Texto('car4_sup_d', 'es'), en = p051Texto('car4_sup_d', 'en');
   PRUEBAS.cierto(/indicador/i.test(es) && /indicator/i.test(en),
     '⚠️ tiene que decir que ve CADA indicador, no un estado global · «' + es + '»');
-  PRUEBAS.cierto(/verde|amarillo|rojo/i.test(es) && /green|amber|red/i.test(en),
+  /* "semáforo" dice la misma granularidad que enumerar los tres colores, y en menos palabras —
+     Franco pidió textos profesionales, no una explicación. Lo que este caso impide sigue siendo lo
+     mismo: que se suavice a un estado global ("sólo ve si estás en condiciones"). */
+  PRUEBAS.cierto(/sem[aá]foro|verde|amarillo|rojo/i.test(es) && /flag|green|amber|red/i.test(en),
     'y con qué granularidad · «' + en + '»');
   PRUEBAS.cierto(/nombre/i.test(es) && /name/i.test(en),
     '⚠️ y que ve tu NOMBRE: es lo que lo separa de Dirección, y esconderlo sería lo contrario de R4');

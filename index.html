@@ -3405,9 +3405,9 @@
   .car-dots span.on { background:var(--entrada-naranja); transform:scale(1.3); }
   /* Discreto y sin competir con "Siguiente", que es el camino que queremos que se tome. 44 px de
      alto igual: es un control real y se toca parado, con una sola mano. */
-  .car-saltar { display:block; margin:.2rem auto 0; background:none; border:none; font-family:inherit;
-    font-size:.8rem; font-weight:700; color:var(--text-soft); cursor:pointer;
-    padding:.6rem 1rem; min-height:44px; border-radius:var(--radius-sm); }
+  .car-saltar { flex:none; background:none; border:none; font-family:inherit;
+    font-size:.8rem; font-weight:700; color:var(--text-muted); cursor:pointer;
+    padding:.6rem .7rem; min-height:44px; border-radius:var(--radius-sm); }
   .car-saltar:hover { color:var(--text); }
   .car-nav { position:relative; display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
   .car-atras { background:none; border:none; color:var(--text-soft); font-family:inherit; font-weight:700;
@@ -4833,6 +4833,38 @@
   .nomlist-pend { flex-shrink:0; font-size:.66rem; font-weight:800; text-transform:uppercase;
     letter-spacing:.03em; color:var(--text-soft); background:var(--chip-bg);
     border-radius:999px; padding:.1rem .45rem; }
+  /* ── P039 · T5 · gestión de departamentos ──────────────────────────────────────────────────
+     R13: ni un color a mano. Todo sale de tokens que ya existen en los DOS temas (`--linea`,
+     `--sup-borde`, `--card`, `--text`, `--text-muted`, `--text-soft`, `--chip-bg`). La fila de
+     un departamento dado de baja NO se distingue por color —sería el único indicio y en el
+     tema oscuro se pierde— sino por opacidad y por su propia sección con título. */
+  .dep-alta { display:flex; gap:.5rem; align-items:stretch; margin:.1rem 0 1rem; }
+  .dep-alta-in { flex:1 1 auto; min-width:0; }
+  .dep-sec { margin-top:1.1rem; }
+  .dep-sec:first-of-type { margin-top:0; }
+  .dep-sec-t { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--text-soft); margin:0 0 .45rem; }
+  .dep-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    padding:.65rem .8rem; border:1.5px solid var(--sup-borde); border-radius:12px;
+    background:var(--card); margin-bottom:.5rem; }
+  .dep-info { min-width:0; flex:1; }
+  .dep-nom { display:block; font-size:.9rem; font-weight:700; color:var(--text); overflow-wrap:anywhere; }
+  .dep-sub { display:block; font-size:.76rem; color:var(--text-muted); margin-top:.1rem; }
+  /* ⚠️ UN DEPARTAMENTO DADO DE BAJA NO SE DISTINGUE CON OPACIDAD. La primera versión usaba
+     `opacity:.62` y se midió el 2026-09-06 en la app real: el contraste EFECTIVO del subtítulo y
+     del botón "Volver a activar" caía a 2.45:1 en claro y 2.99:1 en oscuro — muy por debajo del
+     4.5:1 de R13, y sobre un botón que hay que poder tocar. `getComputedStyle().color` no incluye
+     la opacidad heredada, así que un auditor de contraste normal NO lo ve: hay que componer el
+     color contra su fondo.
+     Se distingue por el BORDE punteado y por su propia sección con título ("Dados de baja · N"),
+     que no le sacan legibilidad a nada. */
+  .dep-row.dep-off { border-style:dashed; }
+  .dep-btn { flex-shrink:0; min-height:44px; padding:.3rem .7rem; border:1px solid var(--linea-2);
+    border-radius:11px; background:transparent; color:var(--text-muted);
+    font-family:inherit; font-size:.76rem; font-weight:700; cursor:pointer; }
+  .dep-btn:active { transform:scale(.97); }
+  .dep-aviso { font-size:.78rem; color:var(--text-muted); background:var(--chip-bg);
+    border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; line-height:1.45; }
   .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
   .gest-fab-row { display: flex; gap: .5rem; }
   .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: 13px; padding: .85rem 1.1rem;
@@ -5598,7 +5630,7 @@
             <li><b class="cq-rol" data-i18n="car4_med_t">El servicio médico</b><span class="cq-ve" data-i18n="car4_med_d">Los resultados completos y tus comentarios. Es el único que firma una determinación de aptitud.</span></li>
             <li><b class="cq-rol" data-i18n="car4_dir_t">Dirección y seguridad</b><span class="cq-ve" data-i18n="car4_dir_d">El mismo semáforo por indicador que tu supervisor. Tampoco puntajes ni comentarios.</span></li>
           </ul>
-          <p class="car-pie" data-i18n="car4_pie">El recorte lo hace el servidor antes de enviar, no la pantalla.</p>
+
           </div>
         </div>
         <div class="car-slide">
@@ -5614,8 +5646,12 @@
          Medido en Q4a: son 5 de las 11 acciones del alta. Con la puerta única esos 5 toques los
          hereda también quien viene sólo al panel, y ahí ya no son una presentación: son un peaje.
          `carruselTerminar()` y no `carruselCerrar()`: saltar CONTINÚA al alta, no vuelve atrás. -->
-    <button type="button" class="car-saltar" onclick="carruselTerminar()" data-i18n="car_saltar">Saltar</button>
     <div class="car-nav">
+      <!-- ⚠️ "Saltar" va ADENTRO de la barra, no suelto arriba de ella. Estaba como hermano con
+           `margin:.2rem auto 0`, así que quedaba flotando en una línea propia y en escritorio se
+           leía como un elemento perdido abajo a la izquierda. Franco lo reportó mirando la
+           pantalla. Acá comparte fila con Atrás y Siguiente, que son las otras dos salidas. -->
+      <button type="button" class="car-saltar" onclick="carruselTerminar()" data-i18n="car_saltar">Saltar</button>
       <button type="button" class="car-atras" id="carAtrasBtn" onclick="carruselAtras()" data-i18n="atras">Atrás</button>
       <button type="button" class="ent-btn ent-btn--solid car-sig" id="carSigBtn" onclick="carruselSiguiente()" data-i18n="siguiente">Siguiente</button>
     </div>
@@ -6326,6 +6362,7 @@
     <div class="gest-top">
       <button class="gest-back" onclick="nominaListCerrar()" data-i18n="nomlist_volver">‹ Estadísticas</button>
       <div class="gest-title" id="nomListTitle">Nómina</div>
+      <button class="gest-new" id="depFabBtn" onclick="depAbrir()" style="display:none" data-i18n="dep_abrir">Departamentos</button>
     </div>
     <div class="gest-scroll">
       <div class="nomlist-resumen" id="nomListResumen"></div>
@@ -6334,6 +6371,29 @@
         <select id="nomListDepto" class="gest-sort" onchange="nominaListFiltrar()"></select>
       </div>
       <div id="nomListBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- P039 · T5 · Departamentos. Compartido entre supervisor y Dirección/HSEQ; la vista médica
+     SEPARADA sólo mira (el recorte real está en el .gs, `depPuedeEscribir`, no acá). Un
+     departamento no se borra nunca: se da de baja, y el historial que lo menciona se sigue
+     leyendo igual. -->
+<div class="overlay gest-overlay" id="depOv">
+  <div class="sheet gest-sheet">
+    <div class="gest-top">
+      <button class="gest-back" onclick="depCerrarUI()" data-i18n="nomlist_volver">‹ Estadísticas</button>
+      <div class="gest-title" id="depTitle">Departamentos</div>
+    </div>
+    <div class="gest-scroll">
+      <div id="depAyuda"></div>
+      <div class="dep-alta" id="depAltaCaja">
+        <input id="depNuevo" class="gest-search dep-alta-in" type="text" maxlength="60" autocomplete="off"
+               data-i18n-attr="placeholder:dep_nuevo_ph;aria-label:dep_agregar"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();depAgregar();}">
+        <button class="gest-quick-btn" onclick="depAgregar()" data-i18n-attr="aria-label:dep_agregar">+</button>
+      </div>
+      <div id="depBody"></div>
     </div>
   </div>
 </div>
@@ -6453,7 +6513,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.76';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.77';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6575,11 +6635,11 @@ const I18N = {
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
       car1_tit:'La fatiga es un riesgo, no una debilidad',
-      car1_cuerpo:'El cansancio acumulado afecta el juicio, los tiempos de reacción y la seguridad — la tuya y la de quienes dependen de tu trabajo. Por eso se mide como cualquier otro riesgo del puesto.',
-      car2_tit:'Reportas en segundos',
-      car2_cuerpo:'Tests breves antes y después de tu turno, un test de reacción, y el registro del ciclo de tu jornada. Funciona incluso sin conexión: nada se pierde, se envía solo apenas vuelve la señal.',
-      car3_tit:'Hacia dónde vamos',
-      car3_cuerpo:'Estamos sumando pulseras y relojes que miden sueño y frecuencia cardíaca, para completar lo que ya reportas con datos objetivos. Todavía no está activo: por ahora, todo lo que ve el sistema es lo que tú mismo registras.',
+      car1_cuerpo:'El cansancio acumulado afecta el juicio, los tiempos de reacción y la seguridad de toda la operación, y por eso se mide como cualquier otro riesgo del puesto.',
+      car2_tit:'Registro en segundos',
+      car2_cuerpo:'Evaluaciones breves al inicio y al cierre del turno, prueba de tiempo de reacción y registro del ciclo de jornada, con funcionamiento sin conexión.',
+      car3_tit:'Medición objetiva',
+      car3_cuerpo:'Integración prevista con pulseras y relojes, para incorporar sueño y frecuencia cardíaca al análisis de fatiga.',
       car4_tit:'Quién ve qué',
       /* ⚠️ P051 · ESTO NO ES TEXTO DE PRESENTACIÓN: ES UNA PROMESA DE PRIVACIDAD, y se lee justo
          antes de decidir si se contesta la verdad (R4). Cada línea se verificó CORRIENDO el
@@ -6590,17 +6650,16 @@ const I18N = {
          prohibido por escrito.
          Antes de tocar cualquiera de estas cinco cadenas, correr `pruebas/casos/p051-quien-ve-que.js`:
          compara lo que dicen contra lo que el `.gs` manda de verdad. */
-      car4_yo_t:'Tú',
-      car4_yo_d:'Tus resultados completos, con los puntajes, y tu historial de 30 días.',
-      car4_sup_t:'Tu supervisor',
-      car4_sup_d:'Tu nombre y si cada indicador está en verde, amarillo o rojo. Ningún puntaje y ningún comentario.',
-      car4_med_t:'El servicio médico',
-      car4_med_d:'Los resultados completos y tus comentarios. Es el único que firma una determinación de aptitud.',
+      car4_yo_t:'Cada persona',
+      car4_yo_d:'Sus resultados completos, con valores e historial',
+      car4_sup_t:'Supervisión',
+      car4_sup_d:'Nombre y semáforo por indicador, sin valores ni comentarios',
+      car4_med_t:'Servicio médico',
+      car4_med_d:'Resultados completos, comentarios y firma de la determinación de aptitud',
       car4_dir_t:'Dirección y seguridad',
-      car4_dir_d:'El mismo semáforo por indicador que tu supervisor. Tampoco puntajes ni comentarios.',
-      car4_pie:'El recorte lo hace el servidor antes de enviar, no la pantalla.',
+      car4_dir_d:'Semáforo por indicador, sin nombres ni valores',
       car5_tit:'Listos para empezar',
-      car5_cuerpo:'Eliges tu empresa, buscas tu nombre en la lista y confirmas tu cédula. Si tu empresa usa un código de registro, tu supervisor te lo da. En menos de un minuto quedas dentro.',
+      car5_cuerpo:'El alta toma menos de un minuto: seleccionar la empresa, buscar el nombre en la lista y confirmar la cédula.',
       car_registrarse:'Registrarse',
       // ── Alta por nómina (B3) ──
       nom_elige_empresa:'Elige tu empresa',
@@ -7879,6 +7938,23 @@ const I18N = {
       tar_err_titulo:'Escribe qué le pides.',
       tar_err_creds:'Vuelve a entrar con tu usuario para poder enviar.',
       // ── Nómina de sólo lectura (D2) ──
+      /* ── P039 · T5 · gestión de departamentos (2026-09-06) ── */
+      dep_titulo:'Departamentos', dep_abrir:'Departamentos',
+      dep_nuevo_ph:'Nombre del área nueva…', dep_agregar:'Agregar',
+      dep_activos:'Activos', dep_de_baja:'Dados de baja',
+      dep_personas:'{n} en la nómina', dep_sin_gente:'Sin personas asignadas',
+      dep_baja_btn:'Dar de baja', dep_alta_btn:'Volver a activar',
+      dep_derivado:'Viene de la nómina',
+      dep_vacio:'Todavía no hay departamentos para esta empresa. Escribe el nombre del primero arriba.',
+      dep_conf_baja:'¿Dar de baja el departamento "{d}"?\n\nDeja de ofrecerse al elegir área, pero no se borra nada: todo el historial que lo menciona se sigue viendo, y puedes volver a activarlo cuando quieras.',
+      dep_conf_baja_gente:'"{d}" todavía tiene {n} persona(s) en la nómina:\n{p}\n\nDarlo de baja NO las cambia de área ni toca sus datos: siguen igual y su historial se sigue viendo. Lo único que cambia es que nadie nuevo podrá elegir esta área.\n\n¿Continuar de todos modos?',
+      dep_conf_alta:'¿Volver a activar el departamento "{d}"?',
+      dep_hecho_alta:'Departamento "{d}" agregado', dep_hecho_baja:'Departamento "{d}" dado de baja',
+      dep_hecho_react:'Departamento "{d}" activado de nuevo',
+      dep_error:'No se pudo guardar el cambio. Intenta de nuevo.',
+      dep_solo_lectura:'Esta cuenta puede consultar los departamentos, pero no modificarlos.',
+      dep_dupes:'Hay {n} fila(s) repetida(s) en la hoja Departamentos. Se está usando la última de cada una.',
+      hlp_dep:'Las <b>áreas</b> de tu empresa: lo que aparece cuando una persona elige su departamento, y con lo que se agrupan los tableros.<br><br>Puedes agregar un área <b>antes</b> de que tenga personal, para que quien se dé de alta ya pueda elegirla.<br><br><b>Dar de baja no borra nada.</b> El área deja de ofrecerse, pero todo lo que ya ocurrió ahí se sigue viendo igual, y puedes volver a activarla cuando quieras. Si todavía tiene personas asignadas, se te avisa cuántas antes de continuar: <b>no se les cambia el área</b>, eso lo decide la empresa en su nómina.<br><br>Mayúsculas, acentos y espacios no crean un área nueva: "Operaciones" y "operación" son la misma.',
       nomlist_titulo:'Nómina', nomlist_volver:'‹ Estadísticas',
       nomlist_en_nomina:'en la nómina', nomlist_registrados:'registrados', nomlist_sin_registrar:'sin registrar',
       nomlist_todos_dep:'Todos los departamentos',
@@ -8209,25 +8285,24 @@ const I18N = {
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──
       car1_tit:'Fatigue is a risk, not a weakness',
-      car1_cuerpo:'Accumulated tiredness affects judgment, reaction time and safety — yours and everyone who depends on your work. That is why it is measured like any other job-site risk.',
-      car2_tit:'Report in seconds',
-      car2_cuerpo:'Short tests before and after your shift, a reaction test, and a log of your day\'s cycle. It works even offline: nothing is lost, it sends automatically once you are back online.',
-      car3_tit:'Where this is going',
-      car3_cuerpo:'We are adding wristbands and watches that measure sleep and heart rate, to complement what you already report with objective data. It is not active yet — for now, everything the system sees is what you report yourself.',
+      car1_cuerpo:'Accumulated tiredness affects judgment, reaction time and the safety of the whole operation, which is why it is measured like any other job-site risk.',
+      car2_tit:'Logged in seconds',
+      car2_cuerpo:'Short assessments at the start and end of the shift, a reaction-time test and a duty-cycle log, all working offline.',
+      car3_tit:'Objective measurement',
+      car3_cuerpo:'Planned integration with wristbands and watches, to bring sleep and heart rate into the fatigue analysis.',
       car4_tit:'Who sees what',
       /* P051 · ver la nota larga en el bloque español: cada línea está verificada contra el
          endpoint, y la de Dirección NO promete anonimato a propósito. */
-      car4_yo_t:'You',
-      car4_yo_d:'Your full results, with the scores, and your 30-day history.',
-      car4_sup_t:'Your supervisor',
-      car4_sup_d:'Your name and whether each indicator is green, amber or red. No scores and no comments.',
+      car4_yo_t:'Each person',
+      car4_yo_d:'Their full results, with values and history',
+      car4_sup_t:'Supervision',
+      car4_sup_d:'Name and a red/amber/green flag per indicator, without values or comments',
       car4_med_t:'Medical staff',
-      car4_med_d:'The full results and your comments. The only ones who sign a fitness determination.',
+      car4_med_d:'Full results, comments and sign-off on fitness determinations',
       car4_dir_t:'Management and safety',
-      car4_dir_d:'The same per-indicator status your supervisor sees. No scores and no comments either.',
-      car4_pie:'The server trims the data before sending it, not just on the screen.',
+      car4_dir_d:'Red/amber/green flag per indicator, without names or values',
       car5_tit:'Ready to start',
-      car5_cuerpo:'Pick your company, find your name on the list and confirm your ID. If your company uses a registration code, your supervisor will give it to you. You are in within a minute.',
+      car5_cuerpo:'Sign-up takes under a minute: pick the company, find the name on the list and confirm the ID.',
       car_registrarse:'Sign up',
       // ── Roster sign-up (B3) ──
       nom_elige_empresa:'Choose your company',
@@ -9587,6 +9662,23 @@ const I18N = {
       tar_err_titulo:'Write what you are asking for.',
       tar_err_creds:'Sign in again with your username to be able to send.',
       // ── Read-only roster (D2) ──
+      /* ── P039 · T5 · department management (2026-09-06) ── */
+      dep_titulo:'Departments', dep_abrir:'Departments',
+      dep_nuevo_ph:'Name of the new area…', dep_agregar:'Add',
+      dep_activos:'Active', dep_de_baja:'Deactivated',
+      dep_personas:'{n} on the roster', dep_sin_gente:'No one assigned',
+      dep_baja_btn:'Deactivate', dep_alta_btn:'Reactivate',
+      dep_derivado:'Comes from the roster',
+      dep_vacio:'There are no departments for this company yet. Type the name of the first one above.',
+      dep_conf_baja:'Deactivate the department "{d}"?\n\nIt stops being offered when choosing an area, but nothing is deleted: all the history that mentions it stays visible, and you can reactivate it whenever you want.',
+      dep_conf_baja_gente:'"{d}" still has {n} person(s) on the roster:\n{p}\n\nDeactivating it does NOT move them to another area or touch their data: they stay as they are and their history stays visible. The only change is that no one new will be able to pick this area.\n\nContinue anyway?',
+      dep_conf_alta:'Reactivate the department "{d}"?',
+      dep_hecho_alta:'Department "{d}" added', dep_hecho_baja:'Department "{d}" deactivated',
+      dep_hecho_react:'Department "{d}" reactivated',
+      dep_error:'The change could not be saved. Please try again.',
+      dep_solo_lectura:'This account can view departments, but not modify them.',
+      dep_dupes:'There are {n} duplicate row(s) in the Departamentos sheet. The last one of each is being used.',
+      hlp_dep:'Your company\'s <b>areas</b>: what shows up when someone picks their department, and what the dashboards group by.<br><br>You can add an area <b>before</b> it has any staff, so whoever signs up can already pick it.<br><br><b>Deactivating deletes nothing.</b> The area stops being offered, but everything that already happened there stays visible, and you can reactivate it whenever you want. If it still has people assigned, you are told how many before continuing: <b>their area is not changed</b> — that is the company\'s decision, on its roster.<br><br>Capitals, accents and spaces do not create a new area: "Operations" and "operations" are the same one.',
       nomlist_titulo:'Roster', nomlist_volver:'‹ Statistics',
       nomlist_en_nomina:'on the roster', nomlist_registrados:'signed up', nomlist_sin_registrar:'not signed up',
       nomlist_todos_dep:'All departments',
@@ -13645,6 +13737,7 @@ function silvaAtras(){
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
+  if (visible('depOv')){ depCerrar(); return true; }                   // P039: va ENCIMA de la nómina, que es de donde se abre
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
@@ -16914,6 +17007,7 @@ function renderDash(){
   dashWireAnimaciones();
   dashUpdateGestFab();
   dashUpdateNomFab();
+  depActualizarBoton();                       // P039: el botón de departamentos vive dentro de la nómina
   // La flecha "atrás" ahora también depende de si hay un filtro puesto, así que hay que
   // recalcularla en cada repintado y no sólo al cargar el panel.
   dashUpdateBackBtn();
@@ -25043,7 +25137,14 @@ function nominaListCargar(){
 function nominaListPintarDeptos(){
   const sel = document.getElementById('nomListDepto'); if (!sel) return;
   const vistos = {}, deps = [];
-  NOMLIST.datos.forEach(x => { const d = x.departamento || ''; if (d && !vistos[d]){ vistos[d] = 1; deps.push(d); } });
+  /* ⚠️ P039 · agrupaba por la CADENA CRUDA (`vistos[d]`), que era la cuarta derivación distinta del
+     mismo concepto en este proyecto: "Operaciones" y "operaciones " daban DOS opciones en este
+     desplegable y UNA sola en la pantalla de Departamentos, que agrupa con la clave del servidor.
+     Dos partes de la misma pantalla contando cosas distintas. Ahora las dos usan la misma regla.
+     El texto que se MUESTRA sigue siendo el primero que apareció: normalizar es para no duplicar,
+     no para aplastar cómo escribe su área cada empresa. */
+  NOMLIST.datos.forEach(x => { const d = x.departamento || ''; const k = depClaveCliente(d);
+    if (d && k && !vistos[k]){ vistos[k] = 1; deps.push(d); } });
   deps.sort((a,b) => a.localeCompare(b));
   const actual = sel.value;
   sel.innerHTML = '<option value="">' + esc(t('nomlist_todos_dep')) + '</option>' +
@@ -25060,8 +25161,12 @@ function nominaListFiltrar(){
   const mostrarEmpresa = Object.keys(empresas).length > 1;
   const q = (document.getElementById('nomListSearch') || {}).value || '';
   const dep = (document.getElementById('nomListDepto') || {}).value || '';
+  /* ⚠️ Se compara por CLAVE, no por texto. Si el desplegable agrupa las variantes en una opción
+     (ver `nominaListPintarDeptos`) y este filtro siguiera comparando `===`, elegir "Operaciones"
+     escondería a la gente cargada como "operaciones" — una lista que oculta filas sin decirlo. */
+  const depK = depClaveCliente(dep);
   const lista = NOMLIST.datos.filter(x =>
-    (!q || buscarCoincide(x.persona, q)) && (!dep || x.departamento === dep));
+    (!q || buscarCoincide(x.persona, q)) && (!depK || depClaveCliente(x.departamento) === depK));
 
   resumen.innerHTML =
     '<span class="cic-kpi"><b>' + NOMLIST.total + '</b> ' + esc(t('nomlist_en_nomina')) + '</span>' +
@@ -25159,6 +25264,248 @@ function ausTocar(btn){
       try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
       showToast(t('aus_error'));
     });
+}
+
+/* ════════════════ P039 · T5 · DEPARTAMENTOS, ALTA Y BAJA (2026-09-06) ════════════════════════
+   Se abre desde la Nómina, que es donde ya vivía el desplegable de departamentos: la pregunta
+   "¿qué áreas tengo?" aparece justo cuando alguien está mirando a su gente.
+
+   ⚠️ LO QUE ESTA PANTALLA **NO** HACE, y conviene tenerlo a la vista:
+   · No mueve a nadie de área. A dónde va la gente de un departamento que se saca lo decide la
+     empresa en su nómina; el endpoint se niega si hay personas y sólo continúa si quien lo pide
+     confirma sabiendo cuántas son y quiénes.
+   · No renombra. Cambiar el nombre dejaría huérfano todo el historial que lo referencia por
+     texto. Renombrar = baja del viejo + alta del nuevo, y así quedan las dos cosas en la bitácora.
+
+   🔒 El recorte de quién puede escribir está en el SERVIDOR (`depPuedeEscribir` en el .gs).
+   `DEPS.puedeEditar` sólo sirve para no mostrarle controles que le van a rebotar a la vista
+   médica separada: esconderlos acá sería dejar la puerta a un F12 de distancia. */
+const DEPS = { lista: [], empresa: '', puedeEditar: false, duplicadas: 0, cargando: false };
+
+/* ⚠️ ESPEJO EXACTO de `norm()` del .gs, que es lo que `depClave()` usa allá para decidir si dos
+   textos son el MISMO departamento. Tiene que ser idéntica letra por letra, y hay un caso que la
+   compara contra la función real leída del `.gs` (`p039-departamentos.js`) justamente porque
+   "escribir dos veces la misma regla" es el defecto que más veces apareció en este código.
+   ⚠️ NO sirve `dashNorm()`: ésa saca acentos pero NO puntuación, así que "Operación-Aérea" y
+   "Operación Aérea" le dan distinto y al servidor le dan igual. Usarla acá habría creado una
+   quinta derivación en vez de cerrar la cuarta. */
+function depClaveCliente(s){
+  return String(s == null ? '' : s).toLowerCase().trim().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // saca acentos, igual que el .gs
+    .replace(/[^a-z0-9 ]/g, ' ')       // puntuacion y simbolos -> espacio, igual que el .gs
+    .replace(/\s+/g, ' ').trim();
+}
+
+function depActualizarBoton(){
+  const btn = document.getElementById('depFabBtn'); if (!btn) return;
+  /* Mismo criterio que el botón de la nómina: todos menos el empleado. La vista médica entra a
+     mirar (los nombres de área no son datos de nadie) y el servidor le rechaza las escrituras. */
+  btn.style.display = (DASH && DASH.vista !== 'empleado') ? '' : 'none';
+}
+
+function depAbrir(){
+  const tit = document.getElementById('depTitle');
+  if (tit) tit.textContent = t('dep_titulo') + ' · ' + gestEmpresaActual();
+  document.getElementById('depOv').classList.add('show');
+  document.body.classList.add('modal-open');
+  navPush();
+  const inp = document.getElementById('depNuevo'); if (inp) inp.value = '';
+  /* ⚠️ La guía se pinta ACÁ, no dentro de `depPintar()`. Es parte de la pantalla, no de los
+     datos: si viviera en el repintado, no aparecería mientras carga —ni nunca, si la carga
+     falla por credenciales o por red— y R5 pide la guía en el módulo, no en el caso feliz. */
+  depPintarAyuda();
+  depCargar();
+}
+function depPintarAyuda(){
+  const a = document.getElementById('depAyuda');
+  if (a) a.innerHTML = dashHelp(t('hlp_dep'));
+}
+/* Dos cierres, y la diferencia importa (P048): `depCerrar()` es el que llama `silvaAtras()`
+   —ahí el navegador ya consumió su entrada de historial— y `depCerrarUI()` es el del botón de
+   volver, que además tiene que descartarla. Sin esta separación se consumen DOS entradas por cada
+   toque del botón físico. */
+function depCerrar(){
+  document.getElementById('depOv').classList.remove('show');
+  /* ⚠️ `syncScrollLock()`, no quitar `modal-open` a mano: la otra mitad del bloqueo es el `inert`
+     que `sincronizarInert()` deja puesto, y quitando sólo la clase la app queda sin aceptar
+     toques. Franco lo reportó dos veces con la nómina. */
+  syncScrollLock();
+}
+function depCerrarUI(){ depCerrar(); navConsumir(); }
+
+function depCargar(){
+  const body = document.getElementById('depBody');
+  if (!DEPS.lista.length && body) body.innerHTML = skeletonHtml('persona', 4);
+  const cred = (DASH && DASH.params) || {};
+
+  /* En la demostración se ven las áreas del ejemplo y los botones responden, pero no sale nada a
+     la red — mismo criterio que la nómina y que las ausencias. Pintar un error de credenciales
+     sería peor que no mostrar nada: quien mira la demo concluye que la función está rota. */
+  if (DASH && DASH.demoMode){
+    const vistos = {}, lista = [];
+    (typeof nominaDemo === 'function' ? nominaDemo() : []).forEach(x => {
+      const d = String(x.departamento || '').trim(); if (!d) return;
+      const k = d.toLowerCase();
+      if (!vistos[k]){ vistos[k] = { nombre:d, clave:k, estado:'activo', origen:'nomina', personas:0 }; lista.push(vistos[k]); }
+      vistos[k].personas++;
+    });
+    DEPS.lista = lista.sort((a,b) => a.nombre.localeCompare(b.nombre));
+    DEPS.empresa = gestEmpresaActual(); DEPS.puedeEditar = true; DEPS.duplicadas = 0;
+    DEPS.cargando = false;
+    depPintar();
+    return;
+  }
+  if (!cred.usuario || !cred.pass){
+    if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
+    /* Sin credenciales el campo de alta no sirve para nada: `depEnviar` lo corta igual, pero
+       dejarlo a la vista invita a escribir un nombre y que no pase nada. */
+    const c0 = document.getElementById('depAltaCaja'); if (c0) c0.style.display = 'none';
+    return;
+  }
+  DEPS.cargando = true;
+  const hoja = document.querySelector('#depOv .sheet') || document.getElementById('depOv');
+  conCarga(hoja, dashRequest({ action:'departamentos', usuario:cred.usuario,
+      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass })
+    .then(d => {
+      DEPS.cargando = false;
+      if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d && d.error)) + '</div>'; return; }
+      DEPS.lista = d.departamentos || [];
+      DEPS.empresa = d.empresa || '';
+      DEPS.puedeEditar = !!d.puedeEditar;
+      DEPS.duplicadas = Number(d.duplicadas) || 0;
+      depPintar();
+    })
+    .catch(() => { DEPS.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; }));
+}
+
+function depPintar(){
+  const caja  = document.getElementById('depAltaCaja');
+  const body  = document.getElementById('depBody');
+  if (!body) return;
+  /* R5 · la guía ⓘ, cerrada por defecto. Se repinta acá además de al abrir para que siga el
+     idioma si alguien lo cambia con la pantalla abierta. */
+  depPintarAyuda();
+  if (caja) caja.style.display = DEPS.puedeEditar ? '' : 'none';
+
+  const activos = DEPS.lista.filter(d => d.estado !== 'baja');
+  const bajas   = DEPS.lista.filter(d => d.estado === 'baja');
+
+  let h = '';
+  if (!DEPS.puedeEditar) h += '<div class="dep-aviso">' + esc(t('dep_solo_lectura')) + '</div>';
+  /* Una fila repetida en la hoja se DICE, no se resuelve en silencio: es la señal de que dos
+     personas escribieron al mismo tiempo y el candado no alcanzó. */
+  if (DEPS.duplicadas > 0) h += '<div class="dep-aviso">' + esc(t('dep_dupes', { n: DEPS.duplicadas })) + '</div>';
+  if (!activos.length && !bajas.length){
+    body.innerHTML = h + '<div class="nom-vacio">' + esc(t('dep_vacio')) + '</div>';
+    return;
+  }
+  if (activos.length) h += depSeccion(t('dep_activos'), activos, false);
+  if (bajas.length)   h += depSeccion(t('dep_de_baja'), bajas, true);
+  body.innerHTML = h;
+}
+
+function depSeccion(titulo, filas, esBaja){
+  return '<div class="dep-sec"><div class="dep-sec-t">' + esc(titulo) + ' · ' + filas.length + '</div>' +
+    filas.map(d => {
+      const n = Number(d.personas) || 0;
+      const sub = (n ? t('dep_personas', { n: n }) : t('dep_sin_gente')) +
+                  (d.origen === 'nomina' && !esBaja ? ' · ' + t('dep_derivado') : '');
+      const btn = DEPS.puedeEditar
+        ? '<button type="button" class="dep-btn" data-dep="' + esc(String(d.nombre)) + '" data-n="' + n +
+          '" onclick="' + (esBaja ? 'depPedirAlta(this)' : 'depPedirBaja(this)') + '">' +
+          esc(t(esBaja ? 'dep_alta_btn' : 'dep_baja_btn')) + '</button>'
+        : '';
+      return '<div class="dep-row' + (esBaja ? ' dep-off' : '') + '">' +
+        '<span class="dep-info"><span class="dep-nom">' + esc(d.nombre) + '</span>' +
+        '<span class="dep-sub">' + esc(sub) + '</span></span>' + btn + '</div>';
+    }).join('') + '</div>';
+}
+
+/* ── Agregar ────────────────────────────────────────────────────────────────────────────────── */
+function depAgregar(){
+  const inp = document.getElementById('depNuevo'); if (!inp) return;
+  const nombre = String(inp.value || '').trim().replace(/\s+/g, ' ');
+  if (!nombre) return;
+  inp.value = '';
+  depEnviar('departamento_guardar', nombre, {}, 'alta');
+}
+
+/* ── Volver a activar ───────────────────────────────────────────────────────────────────────── */
+function depPedirAlta(btn){
+  const nombre = btn && btn.getAttribute('data-dep'); if (!nombre) return;
+  if (!confirm(t('dep_conf_alta', { d: nombre }))) return;
+  haptic(12);
+  depEnviar('departamento_guardar', nombre, {}, 'react');
+}
+
+/* ── Dar de baja ────────────────────────────────────────────────────────────────────────────
+   R8 · confirmación Y háptico. Sacar un área del mapa tiene consecuencia operativa —nadie nuevo
+   se puede asignar ahí— y en un teléfono un toque accidental es lo normal, no la excepción.
+   La confirmación dice explícitamente que NO se borra nada, porque el miedo a perder historial es
+   justo lo que hace que nadie use una pantalla como ésta. */
+function depPedirBaja(btn){
+  const nombre = btn && btn.getAttribute('data-dep'); if (!nombre) return;
+  if (!confirm(t('dep_conf_baja', { d: nombre }))) return;
+  haptic(16);
+  /* ⚠️ NUNCA se manda `forzar` en el primer intento, ni siquiera cuando esta pantalla ya sabe que
+     el área tiene gente. El servidor se niega, devuelve CUÁNTAS y QUIÉNES, y recién con ESE número
+     se hace la segunda pregunta (ver la rama `con_gente` de `depEnviar`).
+     Es a propósito y es la lección que más veces se pagó acá: si el cliente contara la gente por
+     su cuenta para armar el mensaje, habría dos derivaciones del mismo dato y la pantalla podría
+     decir "3 personas" mientras el servidor ve 5 —porque otro supervisor asignó dos mientras esta
+     pantalla estaba abierta— y el supervisor confirmaría una cosa distinta de la que ocurre. */
+  depEnviar('departamento_baja', nombre, {}, 'baja');
+}
+
+/* ── El envío, uno solo para las tres acciones ───────────────────────────────────────────────
+   ⚠️ NO se pinta el cambio antes de que conteste el servidor, a diferencia de las ausencias. Ahí
+   el supervisor marca diez personas seguidas y esperar sería insoportable; acá es una acción
+   ocasional y con consecuencia, y mostrarla aplicada antes de que el CH la tenga sería justo la
+   clase de mentira que hace desconfiar de la pantalla. */
+function depEnviar(accion, nombre, extra, tipo){
+  if (DASH && DASH.demoMode){ showToast(t('demo_aplicado')); return; }
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass){ showToast(t('tar_err_creds')); return; }
+  const cuerpo = Object.assign({ action: accion, usuario: cred.usuario,
+    empresa: (DASH.f.emp || cred.empresa || cred.usuario), pass: cred.pass,
+    dispositivoId: dispositivoId(), nombre: nombre,
+    quien: (getProfile() || {}).nombre || '' }, extra || {});
+  const hoja = document.querySelector('#depOv .sheet') || document.getElementById('depOv');
+  conCarga(hoja, fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.ok){
+        /* R3 · toda acción queda en la bitácora, y con lo que hace falta para entenderla dentro de
+           seis meses: qué área, de qué empresa, y cuánta gente había si se forzó. */
+        const detalle = { departamento: nombre, empresa: DEPS.empresa || gestEmpresaActual(),
+                          personas: Number(d.personas) || 0, forzado: !!d.forzado };
+        if (d.baja)            bitacoraRegistrar('departamento_baja', '', detalle);
+        else if (d.reactivado) bitacoraRegistrar('departamento_reactivado', '', detalle);
+        else if (d.nuevo)      bitacoraRegistrar('departamento_alta', '', detalle);
+        showToast(t(d.baja ? 'dep_hecho_baja' : (d.reactivado ? 'dep_hecho_react' : 'dep_hecho_alta'), { d: nombre }));
+        /* Se relee del servidor en vez de parchear la lista en memoria: es lo que hace que dos
+           supervisores trabajando a la vez vean lo mismo, y lo que muestra un duplicado si lo
+           hubo. */
+        depCargar();
+        /* El desplegable de la nómina se arma con los departamentos de las personas, así que no
+           cambia con esto — pero el combo del alta sí, y la caché de `listas` puede quedar vieja.
+           Se limpia para que la próxima apertura del alta pida la lista nueva. */
+        try { listasCacheLimpiar(); } catch(e){}
+        return;
+      }
+      /* Y si el servidor se negó por gente adentro (llegó acá porque otro supervisor asignó
+         personas mientras esta pantalla estaba abierta), se dice con el número REAL del
+         servidor, no con el que tenía la pantalla. */
+      if (d && d.motivo === 'con_gente'){
+        if (confirm(t('dep_conf_baja_gente', { d: nombre, n: d.n || 0, p: (d.personas || []).join(', ') }))){
+          haptic(16);
+          depEnviar('departamento_baja', nombre, { forzar: '1' }, 'baja');
+        }
+        return;
+      }
+      showToast(tError(d && d.error) || t('dep_error'));
+    })
+    .catch(() => showToast(t('dep_error'))));
 }
 
 /* ════════════════ TAREAS Y NOTIFICACIONES · lado de la persona (D1, 2026-08-26) ═════════════
@@ -25510,6 +25857,13 @@ const K_LISTAS_CACHE = 'silva_fatiga_listas_cache_v1';
 function listasCacheGuardar(){
   try { localStorage.setItem(K_LISTAS_CACHE, JSON.stringify({
     empresas: SETUP_LISTS.empresas || [], departamentos: SETUP_LISTS.departamentos || [] })); } catch(e){}
+}
+/* P039 · la caché de `listas` se limpia cuando un departamento cambia de estado. Sin esto, un
+   área recién dada de baja se seguiría ofreciendo en el alta hasta que la caché venciera, y
+   alguien nuevo podría asignarse a un departamento que su supervisor acaba de sacar. */
+function listasCacheLimpiar(){
+  try { localStorage.removeItem(K_LISTAS_CACHE); } catch(e){}
+  SETUP_LISTS_LOADED = false;   // que el próximo `loadSetupLists()` vuelva a pedirla
 }
 function listasCacheAplicar(){
   if (SETUP_LISTS.empresas.length) return false;      // ya hay algo más fresco en memoria

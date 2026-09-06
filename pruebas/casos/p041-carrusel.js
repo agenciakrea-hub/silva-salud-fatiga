@@ -38,12 +38,21 @@ function p041Nav(){
            anchoSig: Math.round(rs.width), anchoNav: Math.round(rn.width) };
 }
 
-PRUEBAS.caso('⚠️ en la PRIMERA lámina el único botón queda centrado', () => {
-  const m = p041Con(() => { CAR_IDX = 0; carruselPintar(); return p041Nav(); });
-  PRUEBAS.cierto(m.anchoNav > 0, 'la barra se está midiendo · si mide 0, este caso no dice nada');
-  PRUEBAS.comoMucho(Math.abs(m.desfase), 2,
-    '"Siguiente" centrado en la barra · estaba 33 px a la derecha porque "Atrás", oculto con ' +
-    '`visibility:hidden`, seguía ocupando sus 54 px · desfase ' + m.desfase);
+PRUEBAS.caso('⚠️ en la PRIMERA lámina "Siguiente" ocupa el ancho, no queda flotando', () => {
+  /* ⚠️ ESTE CASO CAMBIÓ DE FORMA EL 2026-09-06 y conviene decir por qué. Antes exigía que
+     "Siguiente" quedara CENTRADO en la barra, porque era el único elemento visible: "Atrás" estaba
+     con `visibility:hidden` pero seguía ocupando sus 54 px, y el botón quedaba 33 px corrido.
+     Ese arreglo sigue puesto (`.car-atras:not(.on) { position:absolute }`), pero ahora la barra
+     tiene TRES elementos: "Saltar" se mudó adentro —estaba flotando suelto arriba y Franco lo
+     reportó mirando la pantalla— así que el centro de la barra ya no es el lugar correcto para el
+     botón principal.
+     Lo que se sigue vigilando es lo que importaba: que "Atrás" oculto NO le coma el ancho. */
+  const solo = p041Con(() => { CAR_IDX = 0; carruselPintar(); return p041Nav(); });
+  const dos  = p041Con(() => { CAR_IDX = 2; carruselPintar(); return p041Nav(); });
+  PRUEBAS.cierto(solo.anchoNav > 0, 'la barra se está midiendo · si mide 0, este caso no dice nada');
+  PRUEBAS.alMenos(solo.anchoSig, dos.anchoSig + 20,
+    '⚠️ sin "Atrás" en el reparto, el botón usa ese ancho · ' + solo.anchoSig +
+    ' contra ' + dos.anchoSig);
 });
 
 PRUEBAS.caso('el DISCRIMINADOR: con "Atrás" visible SÍ se corre, y está bien', () => {
@@ -109,24 +118,23 @@ PRUEBAS.caso('el DISCRIMINADOR del detector de voseo: reconoce una forma rioplat
   PRUEBAS.falso(VOSEO.test('Eliges tu empresa y te registras'), 'y no marca el neutro');
 });
 
-PRUEBAS.caso('⚠️ "Listos para empezar" explica el proceso y NO promete el código', () => {
-  /* El plan lo advierte: el texto no puede prometer un código si el código todavía no se pide.
-     Se verificó en el `.gs` que `pideCodigo` sale de la clave `codigoRegistro` de cada empresa,
-     o sea que es opcional. Prometerlo de forma incondicional sería mandar a alguien a pedirle a su
-     supervisor algo que su empresa no usa. */
+PRUEBAS.caso('"Listos para empezar" describe el alta sin prometer un código', () => {
+  /* ⚠️ EL CÓDIGO SALIÓ DEL TEXTO el 2026-09-06. R3 pedía nombrarlo, y se hizo — pero Franco leyó
+     las láminas y dijo que las explicaciones sobraban: *"¿qué son esas explicaciones? Muy malas,
+     poco profesionales"*. El código de registro es un detalle operativo que sólo aplica a algunas
+     empresas (`pideCodigo` sale de la clave `codigoRegistro` de cada una), y el paso donde de
+     verdad hace falta ya lo pide con su propia pantalla.
+     Lo que este caso sostiene ahora es lo contrario de antes: que el texto NO prometa un código,
+     porque prometerlo mandaría a pedir algo que la empresa de esa persona quizá no usa. */
   const antes = (typeof idiomaActual === 'function') ? idiomaActual() : 'es';
   let es = '', en = '';
   try { fijarIdioma('es'); es = t('car5_cuerpo'); fijarIdioma('en'); en = t('car5_cuerpo'); }
   finally { fijarIdioma(antes); }
-  PRUEBAS.cierto(/c[óo]digo/i.test(es), 'el texto nombra el código · decía «' + es + '»');
-  PRUEBAS.cierto(/supervisor/i.test(es), 'y dice quién lo da');
-  PRUEBAS.cierto(/\bsi\b/i.test(es),
-    '⚠️ pero CONDICIONAL: el código es opcional por empresa, prometerlo mandaría a pedir algo ' +
-    'que su empresa quizá no usa');
-  PRUEBAS.cierto(/lista|nombre/i.test(es), 'y explica el proceso, no sólo el resultado');
-  PRUEBAS.cierto(/code/i.test(en) && /supervisor/i.test(en), 'lo mismo en inglés · «' + en + '»');
+  PRUEBAS.cierto(es.length > 20 && en.length > 20, 'la lámina tiene texto en los dos idiomas');
+  PRUEBAS.falso(/c[óo]digo/i.test(es) || /\bcode\b/i.test(en),
+    '⚠️ no promete un código · es opcional por empresa · «' + es + '»');
+  PRUEBAS.cierto(/lista|nombre/i.test(es), 'y sí describe el alta · «' + es + '»');
 });
-
 PRUEBAS.caso('el texto nuevo no desborda la lámina en un teléfono', () => {
   const m = p041Con(() => PRUEBAS.enVentana(375, 667, () => {
     const sl = document.querySelectorAll('.car-slide')[4];
