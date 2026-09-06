@@ -6513,7 +6513,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.77';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.78';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15028,6 +15028,24 @@ function portalMode(m){
    más), y con `fresh:'1'` ni siquiera usa la cache del endpoint. Lleva su propio plazo, más
    holgado que el general. */
 const DASH_TIMEOUT_MS = 120000;
+/* ⚠️ A15 · TODA CREDENCIAL QUE VIAJE AL PANEL SE ARMA ACÁ, NUNCA A MANO.
+   `DASH.params.pass` es el TOKEN de sesión cuando el dispositivo está recordado
+   (`const secreto = c.token || c.pass`), y `sesResolver()` del endpoint rechaza un token cuya
+   sesión tiene dispositivo guardado si el pedido no lo trae. Escribir el objeto a mano y olvidar
+   `dispositivoId` deja la pantalla muerta con "Usuario o contraseña incorrecta" para todo el que
+   tildó "recordar este dispositivo" — y no se ve probando con usuario y contraseña.
+   Ya había pasado CINCO veces (`nomina_listar`, `tareas_persona`, `tarea_guardar`,
+   `ciclo_config_guardar` y `departamentos`); `gestAuth()` era el único que lo hacía bien.
+   Reproducido con el `.gs` real: SIN disp → "Usuario o contraseña incorrecta" · CON disp → ok. */
+function dashAuth(extra){
+  const cred = (DASH && DASH.params) || {};
+  return Object.assign({
+    usuario: cred.usuario,
+    empresa: ((DASH && DASH.f && DASH.f.emp) || cred.empresa || cred.usuario),
+    pass: cred.pass,
+    dispositivoId: dispositivoId()
+  }, extra || {});
+}
 function dashRequest(params){
   if (!DASH_DEMO){
     if (params && params.pass){
@@ -15121,10 +15139,22 @@ function conCarga(el, promesa){
 function conBloqueo(sel, promesa){
   return conCarga(typeof sel === 'string' ? document.querySelector(sel) : sel, promesa);
 }
+/* ⚠️ A15 · CUENTA LOS BLOQUEOS ANIDADOS, no pone y quita el atributo. Dos `conCarga` sobre el
+   MISMO elemento se pisaban: `depEnviar()` bloquea `#depOv .sheet`, y en su `.then` llama a
+   `depCargar()`, que vuelve a bloquear el mismo elemento — pero el `soltar()` del externo está
+   encadenado DESPUÉS del handler, así que corre un microtask más tarde y **suelta el bloqueo del
+   interno**. Resultado medido: tras dar de baja, la hoja queda tocable, sin indicador, durante los
+   2 a 5 s que tarda la relectura, con la fila todavía mostrándose activa y su botón «Dar de baja»
+   vivo. Lo natural es volver a tocar.
+   Con un contador el externo baja de 2 a 1 y la zona sigue bloqueada hasta que la relectura
+   termina. Vale para los 31 usos de `conCarga`, no sólo para éste.
+   `'reset'` suelta del todo sin importar el contador: es lo que necesita `cargaCancelar()`, cuyo
+   trabajo es justamente rescatar una pantalla que quedó muerta. */
 function cargaBloquear(el, on){
   if (!el) return;
-  if (on){ el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
-  else { el.removeAttribute('aria-busy'); el.removeAttribute('inert'); }
+  const n = on === 'reset' ? 0 : Math.max(0, (Number(el.dataset.cargaBloqN) || 0) + (on ? 1 : -1));
+  if (n > 0){ el.dataset.cargaBloqN = n; el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
+  else { delete el.dataset.cargaBloqN; el.removeAttribute('aria-busy'); el.removeAttribute('inert'); }
 }
 function btnSpin(btn, on, labelOn){
   if (!btn) return;
@@ -16112,7 +16142,7 @@ function cargaCancelar(){
   const ui = _cargaUI; _cargaUI = null;
   if (!ui) return;
   try { btnSpin(ui.btn, false); } catch(e){}
-  try { cargaBloquear(ui.gate, false); } catch(e){}
+  try { cargaBloquear(ui.gate, 'reset'); } catch(e){}   // rescate: suelta sí o sí, sin mirar el contador
 }
 function cargaVigente(n){ return n === _cargaN; }
 
@@ -19145,8 +19175,7 @@ function cicloCfgGuardar(btn){
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ if (err) err.textContent = 'Vuelve a entrar con tu usuario para poder guardar.'; return; }
   btnSpin(btn, true, t('guardando'));
-  conBloqueo('#portalDash', dashRequest({ action:'ciclo_config_guardar', usuario:cred.usuario, empresa:(DASH.f.emp || cred.empresa || cred.usuario),
-                pass:cred.pass, plan:JSON.stringify(plan) })
+  conBloqueo('#portalDash', dashRequest(dashAuth({ action:'ciclo_config_guardar', plan:JSON.stringify(plan) }))
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ if (err) err.textContent = (d && d.error) || 'No se pudo guardar.'; return; }
@@ -25121,8 +25150,7 @@ function nominaListCargar(){
      buscador y cambiar el filtro de departamento sobre una lista que todavía no existía, y al
      llegar los datos el filtro se pisaba solo. */
   const hojaNom = document.querySelector('#nominaListOv .sheet') || document.getElementById('nominaListOv');
-  conCarga(hojaNom, dashRequest({ action:'nomina_listar', usuario:cred.usuario,
-      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass })
+  conCarga(hojaNom, dashRequest(dashAuth({ action:'nomina_listar' }))
     .then(d => {
       NOMLIST.cargando = false;
       if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d && d.error)) + '</div>'; return; }
@@ -25335,6 +25363,16 @@ function depCerrarUI(){ depCerrar(); navConsumir(); }
 
 function depCargar(){
   const body = document.getElementById('depBody');
+  /* ⚠️ A15 · SI CAMBIÓ LA EMPRESA, LO DE ANTES NO VALE. `DEPS` es global y sobrevivía al cambio de
+     filtro del administrador: el encabezado decía «Cardón» y el cuerpo listaba las áreas de
+     Consorcio HELITEC, porque el esqueleto sólo se pinta con la lista vacía. Mientras carga la
+     hoja está `inert`, así que el daño normal era sólo visual — pero si la relectura falla,
+     `depPintar()` no corre, la caja de alta queda visible con lo de la empresa anterior y el
+     `inert` ya se soltó. */
+  const empAhora = (DASH && DASH.f && DASH.f.emp) || (DASH && DASH.params && DASH.params.empresa) || '';
+  if (DEPS.empresa && empAhora && DEPS.empresa !== empAhora){
+    DEPS.lista = []; DEPS.puedeEditar = false; DEPS.duplicadas = 0; DEPS.empresa = '';
+  }
   if (!DEPS.lista.length && body) body.innerHTML = skeletonHtml('persona', 4);
   const cred = (DASH && DASH.params) || {};
 
@@ -25364,8 +25402,7 @@ function depCargar(){
   }
   DEPS.cargando = true;
   const hoja = document.querySelector('#depOv .sheet') || document.getElementById('depOv');
-  conCarga(hoja, dashRequest({ action:'departamentos', usuario:cred.usuario,
-      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass })
+  conCarga(hoja, dashRequest(dashAuth({ action:'departamentos' }))
     .then(d => {
       DEPS.cargando = false;
       if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d && d.error)) + '</div>'; return; }
@@ -25471,18 +25508,37 @@ function depEnviar(accion, nombre, extra, tipo){
     dispositivoId: dispositivoId(), nombre: nombre,
     quien: (getProfile() || {}).nombre || '' }, extra || {});
   const hoja = document.querySelector('#depOv .sheet') || document.getElementById('depOv');
-  conCarga(hoja, fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+  /* ⚠️ A15 · DEVUELVE LA PROMESA. No cambia nada para los tres botones que la llaman —ninguno la
+     usa— pero es lo que permite que una prueba espere a que TERMINE en vez de medir el instante
+     anterior. El caso de R3 comprobaba el texto fuente justamente porque no había nada que esperar,
+     y por eso no vio que dos respuestas del servidor salían sin bitácora. */
+  return conCarga(hoja, fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
     .then(r => r.json())
     .then(d => {
       if (d && d.ok){
         /* R3 · toda acción queda en la bitácora, y con lo que hace falta para entenderla dentro de
-           seis meses: qué área, de qué empresa, y cuánta gente había si se forzó. */
-        const detalle = { departamento: nombre, empresa: DEPS.empresa || gestEmpresaActual(),
-                          personas: Number(d.personas) || 0, forzado: !!d.forzado };
-        if (d.baja)            bitacoraRegistrar('departamento_baja', '', detalle);
-        else if (d.reactivado) bitacoraRegistrar('departamento_reactivado', '', detalle);
-        else if (d.nuevo)      bitacoraRegistrar('departamento_alta', '', detalle);
-        showToast(t(d.baja ? 'dep_hecho_baja' : (d.reactivado ? 'dep_hecho_react' : 'dep_hecho_alta'), { d: nombre }));
+           seis meses: qué área, de qué empresa, y cuánta gente había si se forzó.
+
+           ⚠️ A15 · SE USA `tipo` —lo que la persona PIDIÓ— y no el shape de la respuesta. Antes
+           esto era `if (d.baja) … else if (d.reactivado) … else if (d.nuevo)`, y el servidor tiene
+           dos respuestas más que no entraban en ninguna rama: `actualizado:true` (alta de algo que
+           ya estaba activo) y `yaEstaba:true` (baja de algo que ya estaba de baja). Las dos caían
+           al final SIN dejar bitácora y mostrando «agregado» — o sea que dar de baja dos veces
+           decía «agregado» y no quedaba rastro de ninguna de las dos.
+           `tipo` no puede tener ese agujero: lo fija el llamador, no la red.
+
+           ⚠️ Y LA EMPRESA ES LA QUE SE MANDÓ, no `DEPS.empresa`. Son dos derivaciones distintas
+           del mismo dato y se separan: la fila se escribe con `cuerpo.empresa` (`DASH.f.emp`)
+           mientras `DEPS.empresa` es la de la ÚLTIMA carga. Si el filtro cambió y la relectura
+           falló, el CH decía una empresa y la bitácora otra, para el mismo hecho. */
+        const detalle = { departamento: nombre, empresa: cuerpo.empresa,
+                          personas: Number(d.personas) || 0, forzado: !!d.forzado,
+                          sinCambio: !!(d.yaEstaba || d.actualizado) };
+        bitacoraRegistrar(tipo === 'baja'  ? 'departamento_baja' :
+                          tipo === 'react' ? 'departamento_reactivado' : 'departamento_alta',
+                          '', detalle);
+        showToast(t(tipo === 'baja'  ? 'dep_hecho_baja' :
+                    tipo === 'react' ? 'dep_hecho_react' : 'dep_hecho_alta', { d: nombre }));
         /* Se relee del servidor en vez de parchear la lista en memoria: es lo que hace que dos
            supervisores trabajando a la vez vean lo mismo, y lo que muestra un duplicado si lo
            hubo. */
@@ -25776,8 +25832,7 @@ function tareasFichaCargar(){
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass) return;
   TAREAS_FICHA.cargando = true;
-  dashRequest({ action:'tareas_persona', usuario:cred.usuario,
-                empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass, persona:per })
+  dashRequest(dashAuth({ action:'tareas_persona', persona:per }))
     .then(d => {
       TAREAS_FICHA.cargando = false;
       if (!d || !d.ok || TAREAS_FICHA.persona !== per) return;
@@ -25806,9 +25861,8 @@ function tareaCrear(btn){
   // sobre la misma fila en vez de crear dos pedidos iguales (R15).
   const id = 'tar_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   btnSpin(btn, true, t('guardando'));
-  conBloqueo('#tareasOv .sheet', dashRequest({ action:'tarea_guardar', usuario:cred.usuario,
-      empresa:(DASH.f.emp || cred.empresa || cred.usuario), pass:cred.pass,
-      tarea: JSON.stringify({ id:id, persona:per, titulo:titulo, detalle:detalle, vence:vence }) })
+  conBloqueo('#tareasOv .sheet', dashRequest(dashAuth({ action:'tarea_guardar',
+      tarea: JSON.stringify({ id:id, persona:per, titulo:titulo, detalle:detalle, vence:vence }) }))
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ if (err) err.textContent = (d && d.error) || t('err_generico'); return; }

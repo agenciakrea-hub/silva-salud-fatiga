@@ -82,3 +82,19 @@ PRUEBAS.caso('⚠️ igual() NO puede dar por iguales dos elementos del DOM dist
   const uno = document.createElement('span');
   PRUEBAS.igual(uno, uno, 'y el MISMO elemento sigue siendo igual a sí mismo');
 });
+
+PRUEBAS.caso('⚠️ todo archivo marcado en `soloConGs` está TAMBIÉN en `casos`', async () => {
+  /* `correr.js` itera sobre `lista.casos` y usa `soloConGs` sólo como marca de "saltealo si no
+     está el emulador". Un archivo que está en `soloConGs` y NO en `casos` no se carga NUNCA —
+     ni con el `.gs` levantado— y tampoco entra en `rep.salteados`, así que el panel titula
+     «Todo verde» sin mencionarlo.
+     Pasó de verdad: al arreglar el hallazgo 7 de la revisión de P039 se MOVIÓ el archivo en vez de
+     agregarlo, y la suite pasó de 976 a 934 casos anunciando «✅ Todo verde» sin un solo aviso.
+     Cuarenta y dos casos desaparecidos y ni una línea roja. */
+  const lista = await fetch('/pruebas/casos.json?v=' + Date.now()).then(r => r.json());   // BASE de correr.js
+  PRUEBAS.alMenos((lista.soloConGs || []).length, 1,
+    'guarda de medibilidad: hay archivos marcados · con la lista vacía esto pasaría sin medir');
+  const huerfanos = (lista.soloConGs || []).filter(a => (lista.casos || []).indexOf(a) < 0);
+  PRUEBAS.igual(huerfanos, [],
+    '⚠️ estos están marcados pero no se cargan nunca, y el panel no lo dice: ' + JSON.stringify(huerfanos));
+});

@@ -389,9 +389,38 @@ function __digestHex(bytes) {
     }).formatToParts(d);
     partes.forEach(x => { p[x.type] = x.value; });
     if (p.hour === '24') p.hour = '00';
-    return String(patron)
-      .replace(/yyyy/g, p.year).replace(/MM/g, p.month).replace(/dd/g, p.day)
-      .replace(/HH/g, p.hour).replace(/mm/g, p.minute).replace(/ss/g, p.second);
+
+    /* ⚠️ LOS LITERALES ENTRE COMILLAS SIMPLES. Apps Script usa `SimpleDateFormat`, donde lo que va
+       entre comillas simples se copia TAL CUAL y las comillas desaparecen: el patrón
+       `yyyy-MM-dd'T'HH:mm:ss` —el que usa `formatoIsoLocal_`, o sea las fechas de `Reportes`,
+       `Ausencias` y `Departamentos`— da `2026-09-06T12:34:17`.
+       Este emulador reemplazaba a ciegas sobre la cadena entera y devolvía `2026-09-06'T'12:34:17`,
+       con las comillas puestas. Lo encontró P039 (2026-09-06) al comprobar que la fecha de alta de
+       un departamento fuera ISO: el caso se puso rojo con el .gs CORRECTO.
+       Es el defecto más caro que puede tener una herramienta de verificación —hace reportar un
+       problema que no existe— y va en la dirección contraria a la que advierte el encabezado de
+       este archivo, así que conviene dejarlo dicho: acá el emulador mentía por defecto, no por
+       exceso. `''` (dos comillas seguidas) es un apóstrofo literal, igual que en SimpleDateFormat. */
+    const salida = [];
+    const pat = String(patron);
+    let i = 0, buf = '';
+    const volcar = () => {
+      if (!buf) return;
+      salida.push(buf
+        .replace(/yyyy/g, p.year).replace(/MM/g, p.month).replace(/dd/g, p.day)
+        .replace(/HH/g, p.hour).replace(/mm/g, p.minute).replace(/ss/g, p.second));
+      buf = '';
+    };
+    while (i < pat.length) {
+      if (pat[i] !== "'") { buf += pat[i++]; continue; }
+      volcar();
+      if (pat[i + 1] === "'") { salida.push("'"); i += 2; continue; }   // '' = un apóstrofo
+      i++;                                                              // abre literal
+      while (i < pat.length && pat[i] !== "'") salida.push(pat[i++]);
+      i++;                                                              // cierra literal
+    }
+    volcar();
+    return salida.join('');
   }
 
   /* ── Cargar el `.gs` de verdad ──────────────────────────────────────────────────────────────
