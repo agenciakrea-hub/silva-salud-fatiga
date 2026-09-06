@@ -4466,6 +4466,79 @@
   /* ── Ciclo operativo (supervisor y Dirección/HSEQ) ──
      Sin un solo color escrito a mano: todo sale de los tokens de los dos temas (R13). */
   /* I2: medía 36 px de alto. */
+  /* ══ P055 · N9 · EL CICLO A PANTALLA COMPLETA ═══════════════════════════════════════════════
+     ⚠️ ACÁ NO SE REDIBUJA NADA: se RE-VISTE. El HTML de adentro lo generan las mismas
+     `cicloBarra()` y `cicloTramosHtml()` que la tarjeta chica, y todo lo de abajo son las mismas
+     clases con otro tamaño bajo `.cic-full-cuerpo`. Escribir un segundo generador habría dado dos
+     dibujos del mismo ciclo que con el tiempo dirían cosas distintas.
+
+     El número que motivó el prompt: `.cic-seg span` está en `.62rem` FIJO, o sea 9,92 px, y medía
+     exactamente lo mismo a 375 que a 1920. La barra del ciclo es lo que un supervisor mira para
+     decidir si alguien sigue o para, y en la pantalla donde más lugar hay era donde peor se leía.
+     Acá el rótulo escala con el ancho: `clamp()` con `vw` en el medio, con tope para que en un
+     monitor de 2560 no se vuelva un cartel. */
+  .cic-full-sheet { max-width: min(1400px, 96vw); width: 100%; display: flex; flex-direction: column;
+    gap: .6rem; padding: 1rem 1.1rem 1.2rem; }
+  /* ⚠️ La ✕ va en su PROPIO renglón, arriba de todo. En la primera versión compartía línea con el
+     nombre y el chip de estado, y a 1366 el chip «Pasado de tiempo» le pasaba por encima. Se vio
+     mirando: medir no lo habría mostrado, porque las cajas no se solapaban — se solapaba la tinta
+     del chip con el glifo. */
+  .cic-full-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+    flex: 0 0 auto; }
+  .cic-full-pos { font-size: .8rem; font-weight: 800; color: var(--text-muted);
+    font-variant-numeric: tabular-nums; }
+  .cic-full-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+  .cic-full-nom { font-size: clamp(1.05rem, 2.4vw, 1.7rem); font-weight: 800; color: var(--text); }
+  .cic-full-sub { font-size: clamp(.76rem, 1.1vw, .95rem); color: var(--text-soft); }
+  .cic-full-card { background: var(--sup-suave); border: 1px solid var(--sup-linea);
+    border-radius: var(--radius-sm); padding: 1rem; }
+  .cic-full-card.cic-est-excedido { border-color: var(--sem-rojo); }
+
+  /* La barra: de 34 px fijos a una altura que sigue al ancho de la pantalla. El tope de 96 px no
+     es estético — más alto que eso y los puntos de evento (13 px) quedan perdidos en el medio. */
+  .cic-full-cuerpo .cic-barra { height: clamp(44px, 6.5vw, 96px); }
+  .cic-full-cuerpo .cic-seg span { font-size: clamp(.72rem, 1.35vw, 1.15rem); }
+  .cic-full-cuerpo .cic-pt { width: clamp(15px, 1.5vw, 22px); height: clamp(15px, 1.5vw, 22px); }
+  .cic-full-cuerpo .cic-now { width: 3px; }
+  /* Los tramos de abajo acompañan: si la barra crece y la tabla no, la tarjeta se ve desbalanceada
+     y el detalle —que es lo que se lee DESPUÉS de la barra— queda en letra de tarjeta chica. */
+  .cic-full-cuerpo .cic-tr-top b  { font-size: clamp(.8rem, 1.15vw, 1.05rem); }
+  .cic-full-cuerpo .cic-tr-desde  { font-size: clamp(.7rem, .95vw, .85rem); }
+  .cic-full-cuerpo .cic-tr-val    { font-size: clamp(1.02rem, 1.5vw, 1.4rem); }
+  .cic-full-cuerpo .cic-tr-det    { font-size: clamp(.72rem, 1vw, .92rem); }
+
+  .cic-full-nav { display: flex; gap: .6rem; }
+  /* 56 px de alto: es una pantalla que se usa de pie, con una mano, mirando a otra persona. Los 44
+     del mínimo alcanzan para cumplir, no para acertarle sin mirar. */
+  .cic-full-flecha { flex: 1; min-height: 56px; display: flex; align-items: center;
+    justify-content: center; border: 1px solid var(--sup-linea); border-radius: var(--radius-sm);
+    background: var(--chip-bg); color: var(--text); cursor: pointer; font-family: inherit;
+    transition: transform var(--dur-tap) var(--ease-app); }
+  .cic-full-flecha:active { transform: scale(.97); }
+  /* En el borde no se esconde: se apaga. Un botón que desaparece mueve al otro de lugar y la mano
+     ya iba en camino. */
+  .cic-full-flecha:disabled { opacity: .38; cursor: default; }
+  .cic-full-flecha:disabled:active { transform: none; }
+
+  /* El botón que abre el modo grande. No compite con la acción principal de la pantalla: es una
+     forma de VER lo mismo, no una acción nueva. */
+  .cic-full-btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px;
+    margin: .1rem 0 .7rem; padding: .4rem .8rem; border: 1px solid var(--sup-linea);
+    border-radius: var(--radius-sm); background: var(--chip-bg); color: var(--text-soft);
+    font-family: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+  .cic-full-btn:hover { color: var(--text); background: var(--chip-bg-h); }
+  .cic-full-btn:active { transform: scale(.97); }
+
+  /* En pantalla angosta la hoja ocupa todo: es el caso en el que el modo grande más se nota. */
+  @media (max-width: 640px) {
+    .cic-full-sheet { max-width: 100%; height: 100%; border-radius: 0; }
+    .cic-full-cuerpo .cic-seg span { font-size: .76rem; }
+  }
+  /* Con movimiento reducido, el cambio de persona no se anima. */
+  @media (prefers-reduced-motion: reduce) {
+    .cic-full-flecha:active, .cic-full-btn:active { transform: none; }
+  }
+
   .cic-cfg-btn { width:100%; text-align:left; background:var(--chip-bg); border:1px solid var(--sup-linea);
     border-radius:10px; padding:.5rem .7rem; min-height:44px; font-family:inherit; font-size:.74rem; font-weight:600;
     color:var(--text-soft); cursor:pointer; margin:.7rem 0 .2rem; line-height:1.5; }
@@ -6493,6 +6566,31 @@
      SEPARADA sólo mira (el recorte real está en el .gs, `depPuedeEscribir`, no acá). Un
      departamento no se borra nunca: se da de baja, y el historial que lo menciona se sigue
      leyendo igual. -->
+<!-- \u26a0\ufe0f P055 \u00b7 EL CICLO A PANTALLA COMPLETA. Adentro NO hay HTML del ciclo escrito a
+     mano: lo pinta `cicloFullPintar()` llamando a las MISMAS `cicloBarra()` y `cicloTramosHtml()`
+     que la tarjeta chica. Lo \u00fanico propio de esta pantalla es el marco. -->
+<div class="overlay" id="cicFullOv" ontouchstart="cicloFullTouchIni(event)" ontouchend="cicloFullTouchFin(event)">
+  <div class="sheet cic-full-sheet">
+    <div class="cic-full-top">
+      <button type="button" class="portal-x cic-full-cerrar" onclick="cicloFullCerrarUI()"
+              aria-label="Cerrar" data-i18n-attr="aria-label:cerrar">✕</button>
+      <span class="cic-full-pos" id="cicFullPos" aria-live="polite">1 / 1</span>
+    </div>
+    <div class="cic-full-cuerpo" id="cicFullCuerpo"></div>
+    <div class="cic-full-nav">
+      <button type="button" class="cic-full-flecha" id="cicFullIzq" onclick="cicloFullIr(-1)"
+              aria-label="Anterior" data-i18n-attr="aria-label:cic_full_ant">
+        <svg class="ico-svg" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button type="button" class="cic-full-flecha" id="cicFullDer" onclick="cicloFullIr(1)"
+              aria-label="Siguiente" data-i18n-attr="aria-label:cic_full_sig">
+        <svg class="ico-svg" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
 <div class="overlay gest-overlay" id="depOv">
   <div class="sheet gest-sheet">
     <div class="gest-top">
@@ -6627,7 +6725,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.84';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.85';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7342,6 +7440,7 @@ const I18N = {
       cic_ciclo_de:'Ciclo de {f}', cic_sin_iniciar:'Sin ciclo iniciado',
       cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
+      cic_full_abrir:'Ver en pantalla completa', cic_full_ant:'Persona anterior', cic_full_sig:'Persona siguiente',
       cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
       cic_mi_ciclo:'Tu ciclo de hoy',
       cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando acá.',
@@ -9017,6 +9116,7 @@ const I18N = {
       cic_ciclo_de:'Cycle of {f}', cic_sin_iniciar:'Cycle not started',
       cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
       cic_e_comp:'Complete', cic_e_sin:'Not started',
+      cic_full_abrir:'View full screen', cic_full_ant:'Previous person', cic_full_sig:'Next person',
       cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
       cic_mi_ciclo:'Your cycle today',
       cic_mi_vacio:'You have not logged anything today. As you tap the buttons above, each stage fills in here.',
@@ -13851,6 +13951,12 @@ function silvaAtras(){
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
+  /* ⚠️ P055 · EL CICLO A PANTALLA COMPLETA VA ACÁ, y esta línea no es opcional: este manejador
+     tiene una lista EXPLÍCITA, así que un overlay que no se nombre no existe para «atrás» — el
+     toque se consume y no pasa nada. Está documentado dos veces más abajo, para `rolOv` y para las
+     cuatro pantallas del alta que R1 tuvo que corregir por lo mismo. Va después de gestiones y
+     antes de la nómina porque se abre desde la pestaña del ciclo, por encima del panel. */
+  if (visible('cicFullOv')){ cicloFullCerrar(); return true; }         // P055
   if (visible('depOv')){ depCerrar(); return true; }                   // P039: va ENCIMA de la nómina, que es de donde se abre
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
@@ -19980,6 +20086,11 @@ function renderCicloOperativo(){
     return cicloHseqAgregado(filas, plan, ayuda + cicloPeriodoHtml(),
       resumen + cicloPromediosHtml(sel.ciclos, plan, t('prm_titulo')));
   DASH._cicNames = filas.map(f => f.p.persona);
+  /* ⚠️ P055 · SE GUARDAN LAS FILAS, NO SÓLO LOS NOMBRES. El modo de pantalla completa dibuja
+     exactamente lo mismo que la tarjeta —mismas `cicloBarra()` y `cicloTramosHtml()`—, y para eso
+     necesita el MISMO `st` ya calculado. Volver a calcularlo allá sería un segundo derivador del
+     mismo dato: el defecto que más veces apareció en este repo. */
+  DASH._cicFilas = filas;
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
 
   /* ══ T1 · LISTAS LARGAS ═══════════════════════════════════════════════════════════════════════
@@ -20015,6 +20126,15 @@ function renderCicloOperativo(){
         '<button type="button" class="apt-buscar-x" onclick="cicloBuscar(\'\')" aria-label="' + esc(t('bus_limpiar')) + '"' +
           (q ? '' : ' style="display:none"') + '>\u00d7</button>' +
       '</div>')
+    : '';
+
+  /* ⚠️ P055 · LA ENTRADA AL MODO GRANDE. Va acá y no en la barra de arriba porque pertenece a esta
+     lista: abre la MISMA gente que se está viendo, con el mismo filtro y la misma búsqueda ya
+     aplicados. Sólo aparece si hay alguien: un botón que abre una pantalla vacía es peor que no
+     tenerlo. */
+  const btnFull = visibles.length
+    ? '<button type="button" class="cic-full-btn" onclick="cicloFullAbrir(0)">' +
+        svgIco('expandir', 15) + '<span>' + esc(t('cic_full_abrir')) + '</span></button>'
     : '';
 
   const cards = activosMostrados.map((f, i) => {
@@ -20109,10 +20229,131 @@ function renderCicloOperativo(){
   const promHtml = cicloPromediosHtml(sel.ciclos, plan, t('prm_titulo'));
   const promAyuda = promHtml ? dashHelp(t('prm_ayuda')) : '';
 
-  return ayuda + perHtml + cfgHtml + resumen + promAyuda + promHtml + buscador +
+  return ayuda + perHtml + cfgHtml + resumen + promAyuda + promHtml + buscador + btnFull +
     '<div id="cicCuerpo">' +
       '<div class="cic-lista" id="cicLista">' + cards + '</div>' + masBtn + grisesHtml +
     '</div>';
+}
+
+/* ══ P055 · N9 · EL CICLO EN PANTALLA COMPLETA ═════════════════════════════════════════════════
+   Medido antes de tocar: el rótulo de cada tramo mide **9,92 px** (`.cic-seg span` está en
+   `.62rem`, fijo) y da exactamente lo mismo en un teléfono de 375 que en un monitor de 1920. La
+   barra del ciclo es la pieza que un supervisor mira para decidir si alguien sigue o para, y en la
+   pantalla donde más lugar hay es donde peor se lee.
+
+   ⚠️ NO SE ESCRIBE UN SEGUNDO GENERADOR DE HTML, y el plan lo pide explícitamente. Este modo llama
+   a las MISMAS `cicloBarra()` y `cicloTramosHtml()` que la tarjeta, con el MISMO `st` ya calculado
+   (`DASH._cicFilas`), y sólo las re-viste por CSS. La razón es la de siempre en este repo: dos
+   generadores del mismo dibujo terminan diciendo cosas distintas, y el que se mira menos es el que
+   se queda viejo. Acá lo único que cambia es el tamaño.
+
+   ⚠️ Y NO RECALCULA `st`. Volver a derivar el estado del ciclo para la pantalla grande sería un
+   segundo derivador del mismo dato — el defecto que más veces apareció en este proyecto. Se guarda
+   `DASH._cicFilas` en el momento de dibujar la lista y de ahí sale todo.
+
+   Navegación: flechas en pantalla, teclado (← →, Escape) y deslizamiento con el dedo. Las tres
+   sobre el mismo `cicloFullIr()`, así que no hay tres caminos que puedan divergir. */
+var CICFULL = { i: 0, abierto: false, x0: null, y0: null };
+
+function cicloFullAbrir(i){
+  const filas = (DASH && DASH._cicFilas) || [];
+  if (!filas.length) return;
+  CICFULL.i = Math.min(Math.max(i || 0, 0), filas.length - 1);
+  CICFULL.abierto = true;
+  const ov = document.getElementById('cicFullOv');
+  if (!ov) return;
+  cicloFullPintar();
+  ov.classList.add('show');
+  syncScrollLock();
+  /* R8 · abrir a pantalla completa cambia de contexto: se avisa con el mismo háptico corto que
+     usa el resto de la app para una acción con consecuencia visible. */
+  try { haptic(8); } catch(e){}
+  document.addEventListener('keydown', cicloFullTecla, true);
+  navPush();   // no toma argumentos: empuja una entrada y `silvaAtras()` decide qué cerrar
+  const foco = ov.querySelector('.cic-full-cerrar');
+  if (foco) foco.focus();
+}
+
+function cicloFullCerrar(){
+  const ov = document.getElementById('cicFullOv');
+  CICFULL.abierto = false;
+  if (ov) ov.classList.remove('show');
+  document.removeEventListener('keydown', cicloFullTecla, true);
+  syncScrollLock();
+}
+function cicloFullCerrarUI(){ cicloFullCerrar(); navConsumir(); }
+
+/* Una sola función de movimiento para los tres caminos (flecha, teclado, dedo): si cada uno
+   moviera el índice por su cuenta, tarde o temprano uno se olvidaría de los bordes. */
+function cicloFullIr(delta){
+  const filas = (DASH && DASH._cicFilas) || [];
+  if (!filas.length) return;
+  const n = filas.length;
+  const nuevo = CICFULL.i + delta;
+  if (nuevo < 0 || nuevo >= n) return;   // sin dar la vuelta: el borde se siente, no sorprende
+  CICFULL.i = nuevo;
+  try { haptic(6); } catch(e){}
+  cicloFullPintar();
+}
+
+function cicloFullTecla(e){
+  if (!CICFULL.abierto) return;
+  if (e.key === 'Escape'){ e.preventDefault(); cicloFullCerrarUI(); return; }
+  if (e.key === 'ArrowLeft'){ e.preventDefault(); cicloFullIr(-1); }
+  if (e.key === 'ArrowRight'){ e.preventDefault(); cicloFullIr(1); }
+}
+
+/* Deslizamiento: se exige que el movimiento sea claramente HORIZONTAL antes de cambiar de persona.
+   Sin esa comparación, un desplazamiento vertical para leer los tramos cambiaba de persona a mitad
+   de camino — el gesto más frustrante que puede tener una pantalla que se lee hacia abajo. */
+function cicloFullTouchIni(e){
+  const t0 = e.touches && e.touches[0];
+  if (!t0) return;
+  CICFULL.x0 = t0.clientX; CICFULL.y0 = t0.clientY;
+}
+function cicloFullTouchFin(e){
+  if (CICFULL.x0 == null) return;
+  const t0 = e.changedTouches && e.changedTouches[0];
+  const x0 = CICFULL.x0, y0 = CICFULL.y0;
+  CICFULL.x0 = null; CICFULL.y0 = null;
+  if (!t0) return;
+  const dx = t0.clientX - x0, dy = t0.clientY - y0;
+  if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+  cicloFullIr(dx < 0 ? 1 : -1);
+}
+
+function cicloFullPintar(){
+  const cuerpo = document.getElementById('cicFullCuerpo');
+  const filas = (DASH && DASH._cicFilas) || [];
+  if (!cuerpo || !filas.length) return;
+  const f = filas[CICFULL.i];
+  if (!f) return;
+  const st = f.st, pe = f.p;
+  const plan = cicloPlan();
+  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
+                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
+  const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
+  /* Mismo HTML que la tarjeta, con `cic-full` arriba: todo el cambio de tamaño vive en el CSS. */
+  cuerpo.innerHTML =
+    '<div class="cic-full-head">' +
+      '<span class="cic-full-nom">' + esc(pe.persona) + '</span>' +
+      '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span>' +
+    '</div>' +
+    '<div class="cic-full-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + '</div>' +
+    '<div class="cic-full-card cic-est-' + st.estado + '">' +
+      cicloBarra(st, plan) + cicloTramosHtml(st, plan) +
+    '</div>';
+  const pos = document.getElementById('cicFullPos');
+  if (pos) pos.textContent = (CICFULL.i + 1) + ' / ' + filas.length;
+  const izq = document.getElementById('cicFullIzq'), der = document.getElementById('cicFullDer');
+  if (izq) izq.disabled = (CICFULL.i === 0);
+  if (der) der.disabled = (CICFULL.i === filas.length - 1);
+  /* ⚠️ La aguja del «ahora» NO se ubica por CSS: `cicloUbicarAguja` la mide contra el tramo real
+     en el DOM, porque los puntos ocupan lugar y los tramos tienen mínimos, así que el tiempo no es
+     lineal a lo largo de la barra. Como acá se acaba de reemplazar el HTML, hay que reubicarla o
+     se queda en el `left:0` del CSS — el mismo síntoma que ya está documentado para la tarjeta:
+     «quien llevaba seis horas de jornada la veía al principio». */
+  try { cicloUbicarAgujas(cuerpo); } catch(e){}
 }
 
 /* Devuelve SÓLO el cuerpo (resultados + "ver todos" + grises), para reemplazarlo sin tocar el
@@ -22150,7 +22391,10 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 var P053_ICOS = {
   info:      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
   candado:   '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-  prohibido: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>'
+  prohibido: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
+  expandir:  '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>',
+  izq:       '<path d="M15 18l-6-6 6-6"/>',
+  der:       '<path d="M9 18l6-6-6-6"/>'
 };
 function svgIco(nombre, tam) {
   var d = P053_ICOS[nombre];
