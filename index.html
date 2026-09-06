@@ -5478,6 +5478,22 @@
       <div class="nom-elegido" id="nomElegido"></div>
       <label class="nom-lbl" for="nomCedula" data-i18n="nom_cedula_lbl">Confirma tu número de cédula</label>
       <input type="tel" id="nomCedula" class="restr-input" inputmode="numeric" placeholder="Sólo números" data-i18n-attr="placeholder:f_ced_ph" autocomplete="off" onkeydown="if(event.key==='Enter')nominaConfirmar()">
+      <!-- ⚠️ P099 · EL CÓDIGO DE SUPERVISOR VA PLEGADO Y ES OPCIONAL. Sólo aparece si la empresa
+           tiene uno cargado (`tieneCodigoSup`), y aun así arranca cerrado detrás de un enlace: la
+           enorme mayoría de quienes se dan de alta son empleados y no tienen ningún código. Un
+           campo más visible en esta pantalla le agregaría un paso mental a todos para servirle a
+           unos pocos.
+           Y no bloquea nada: si el código está mal, el alta sigue igual y sólo no propone el rol. -->
+      <div id="nomSupBloque" style="display:none">
+        <button type="button" class="nom-link" id="nomSupToggle" onclick="nominaSupToggle()"
+                data-i18n="nom_sup_tengo">Tengo un código de supervisor</button>
+        <div id="nomSupCampo" style="display:none">
+          <label class="nom-lbl" for="nomCodigoSup" data-i18n="nom_sup_lbl">Código de supervisor (opcional)</label>
+          <input type="text" id="nomCodigoSup" class="restr-input" autocomplete="off"
+                 data-i18n-attr="placeholder:nom_sup_ph" placeholder="Sólo si te lo dieron"
+                 onkeydown="if(event.key==='Enter')nominaConfirmar()">
+        </div>
+      </div>
       <div class="nom-err" id="nomErr"></div>
       <button class="save-btn" id="nomBtnConfirmar" onclick="nominaConfirmar()" data-i18n="nom_cedula_btn">Confirmar y entrar</button>
     </div>
@@ -6135,7 +6151,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.55';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.56';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7324,6 +7340,9 @@ const I18N = {
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_bar_corto:'Demostración · nada se guarda',
       demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
+      nom_sup_tengo:'Tengo un código de supervisor',
+      nom_sup_lbl:'Código de supervisor (opcional)',
+      nom_sup_ph:'Sólo si te lo dieron',
       hs_costo_evitado:'estimación de costo evitado',
       hs_como_se_llega:'Cómo se llega a ese número',
       hs_intervenciones_reg:'intervenciones registradas',
@@ -8973,6 +8992,9 @@ const I18N = {
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
       demo_aplicado:'Applied in the demo. Everything resets when you leave.',
+      nom_sup_tengo:'I have a supervisor code',
+      nom_sup_lbl:'Supervisor code (optional)',
+      nom_sup_ph:'Only if you were given one',
       hs_costo_evitado:'estimated cost avoided',
       hs_como_se_llega:'How this number is reached',
       hs_intervenciones_reg:'interventions recorded',
@@ -13245,12 +13267,30 @@ function nominaFiltrar(){
       (p.yaRegistrado ? '<span class="nom-op-ya">' + esc(t('nom_ya_alta')) + '</span>' : '<span class="nom-op-chev">›</span>') +
     '</button>').join('');
 }
+/* P099 · abre el campo del código de supervisor. Se pliega para no agregarle un paso mental al
+   empleado común, que es la enorme mayoría de quien pasa por esta pantalla. */
+function nominaSupToggle(){
+  const c = document.getElementById('nomSupCampo');
+  const b = document.getElementById('nomSupToggle');
+  if (!c) return;
+  const abierto = c.style.display !== 'none';
+  c.style.display = abierto ? 'none' : '';
+  if (b) b.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+  if (!abierto){ try { document.getElementById('nomCodigoSup').focus(); } catch(e){} }
+}
+
 function nominaElegirPersona(nombre){
   NOM.persona = nombre;
   nominaPaso('cedula');
   altaProgresoGuardar();
   nominaEl('nomElegido').textContent = nombre;
   nominaEl('nomCedula').value = '';
+  /* El bloque del código sólo existe para las empresas que tienen uno cargado. `tieneCodigoSup`
+     es un booleano: el valor del código nunca viaja al navegador. */
+  const supB = document.getElementById('nomSupBloque');
+  if (supB) supB.style.display = (NOM.perfil && NOM.perfil.tieneCodigoSup) ? '' : 'none';
+  const supC = document.getElementById('nomSupCampo'); if (supC) supC.style.display = 'none';
+  const supI = document.getElementById('nomCodigoSup'); if (supI) supI.value = '';
   nominaEl('nomErr').textContent = '';
   setTimeout(() => { try { nominaEl('nomCedula').focus(); } catch(e){} }, 60);
 }
@@ -13265,7 +13305,11 @@ function nominaConfirmar(){
      defiende sola), así que si no se mandara, una empresa con código no podría confirmar nunca. */
   conBloqueo('#nominaOv .sheet', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'nomina_confirmar', empresa: NOM.empresa, persona: NOM.persona, cedula: ced,
-      codigo: NOM.codigo || '', dispositivoId: dispositivoId() }) })
+      codigo: NOM.codigo || '',
+      /* P099 · opcional. El servidor lo trata aparte del código de empresa: si está mal, no corta
+         el alta — sólo no propone rol. */
+      codigoSup: (function(){ const e = document.getElementById('nomCodigoSup'); return e ? e.value.trim() : ''; })(),
+      dispositivoId: dispositivoId() }) })
     .then(r => r.json())
     .then(d => {
       btnSpin(btn, false);
