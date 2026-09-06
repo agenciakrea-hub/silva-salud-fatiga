@@ -95,6 +95,11 @@
        quedaría ilegible — medido, 2,06:1. Va donde el naranja es la superficie, no la tinta:
        típicamente botones dentro de una tarjeta de color fijo. Con blanco da 5,01:1. */
     --orange-solido: #b8500a;
+    /* P052 · la tinta que va SOBRE un fondo de marca. Existía sólo como `#fff` escrito a mano
+       en cada botón. Medido: blanco sobre `--orange-solido` da 5.01:1, mejor que los 4.62 y
+       4.64 de los dos extremos del degradado que reemplaza. Invariante entre temas por el
+       mismo motivo que su fondo: es fondo de marca, no superficie del tema. */
+    --sobre-marca: #fff;
     /* ⚠️ LA TINTA DE LOS GRÁFICOS DEL SPLASH. Todos usaban `--orange` (#f47a1f) directamente, y eso
        tenía dos problemas a la vez: convivían CUATRO naranjas en la misma pantalla —el círculo
        #ff9900, los trazos #f47a1f, el botón mostaza y el chip #b8500a—, y además #f47a1f sobre la
@@ -514,6 +519,7 @@
     --btn-marca-1: #a86500;  --btn-marca-2: #bb590d;
     --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
     --orange-solido: #b8500a;    /* éste NO cambia a propósito: es fondo, no tinta (ver :root) */
+    --sobre-marca: #fff;         /* idem: acompaña a --orange-solido */
     --spl-tinta: #b8500a;   /* mismo valor: pasa el mínimo sobre --card en los dos temas */
 
     /* --entrada-naranja: mismo valor que en :root, a propósito (decisión de marca invariante,
@@ -2605,14 +2611,62 @@
   .ent-field--oscuro:focus { border-color:var(--entrada-naranja); background:rgba(255,255,255,.12); }
 
   /* ── Botón pill ── */
+  /* ══ P052 · UN SOLO LENGUAJE PARA «LO QUE HAY QUE TOCAR AHORA» ═══════════════════════════════
+     La misma acción estaba definida CUATRO veces con cuatro apariencias distintas:
+
+       | dónde              | fondo                        | sombra                        | al tocar |
+       | `.ent-btn--solid`  | degradado de dos tonos       | halo `color-mix` 38%          | .96      |
+       | `.ini-ahora`       | `--orange-txt`               | `0 10px 24px rgba(184,80,10,.3)` | .985  |
+       | `.gest-fab-main`   | `--orange-txt`               | `--shadow-md`                 | .98      |
+
+     Tres problemas, y ninguno es estético:
+     1. **`--orange-txt` es el token de TINTA, no de fondo.** Su gemelo `--orange-solido` lleva
+        escrito «éste NO cambia a propósito: es fondo, no tinta». Usar la tinta como fondo significa
+        que el día que alguien ajuste el naranja del TEXTO para ganar contraste en oscuro, van a
+        cambiar de color tres botones sin que nadie lo pida.
+     2. **Dos sombras son halos de color escritos a mano** (R13), y una de ellas repite `#b8500a`
+        en `rgba()` — o sea el mismo color del token, copiado a mano y ya desincronizable.
+     3. **Tres respuestas distintas al mismo gesto.** Tocar el botón principal se siente diferente
+        en cada pantalla sin que haya una razón.
+
+     Lo que se unifica es el SIGNIFICADO —color, sombra, tinta y respuesta al tacto—; la geometría
+     de cada uno se respeta, porque son formas distintas por función distinta: una píldora ancha en
+     la portada, una tarjeta con ícono en el inicio, un botón de barra en gestión.
+
+     ⚠️ Y APLANAR EL DEGRADADO MEJORA EL CONTRASTE, que era lo que había que comprobar antes de
+     tocarlo: el comentario de I6 defiende ese degradado porque el naranja anterior daba 2.14:1 con
+     blanco. Medido ahora: `--orange-solido` da **5.01:1**, contra 4.64 y 4.62 de los dos extremos
+     del degradado. Se gana, no se pierde. */
+  /* Las cuatro que cumplen el rol se nombran ACÁ y no en el HTML, a propósito: así el lenguaje se
+     lee de un vistazo y no hay forma de agregar un botón principal olvidándose de la clase.
+     ⚠️ `.ini-ahora.ini-listo` NO es una acción —es el estado «al día», un `<div>` verde sin
+     `cursor:pointer`— y queda afuera sola: su regla tiene dos clases contra una y gana. */
+  .accion-principal,
+  .ent-btn--solid,
+  .ini-ahora,
+  .gest-fab-main {
+    background: var(--orange-solido);
+    color: var(--sobre-marca);
+    box-shadow: var(--shadow-md);
+    transition: transform var(--dur-tap) var(--ease-app), box-shadow var(--dur-tap) ease;
+  }
+  .accion-principal:active,
+  .ent-btn--solid:active,
+  .ini-ahora:active,
+  .gest-fab-main:active { transform: scale(.97); }
+  /* El estado «al día» no responde al tacto porque no hace nada. */
+  .ini-ahora.ini-listo:active { transform: none; }
+
   .ent-btn { width:100%; border:none; border-radius:999px; padding:.9rem 1.5rem;
     font-family:inherit; font-size:.98rem; font-weight:700; cursor:pointer;
     transition:transform var(--dur-tap) var(--ease-app), box-shadow var(--dur-tap) ease; }
   /* I6: blanco sobre este degradado daba 2.14 en su extremo claro (mínimo 4.5) — el texto se
      lavaba con sol de frente, que es exactamente la condición de un hangar. Se mantiene el
      degradado naranja de A2, corrido a dos tonos que AMBOS pasan con blanco. */
-  .ent-btn--solid { color:#fff; background:linear-gradient(135deg, var(--btn-marca-1), var(--btn-marca-2));
-    box-shadow:0 10px 26px color-mix(in srgb, var(--entrada-naranja) 38%, transparent); }
+  /* P052 · el fondo, la tinta y la sombra los pone `.accion-principal`. Acá queda sólo lo propio
+     de la entrada. El degradado se fue: plano contrasta mejor (5.01 contra 4.64), y era la única
+     de las cuatro apariencias que no se podía tokenizar. */
+  .ent-btn--solid { }
   .ent-btn--fantasma { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.22); }
   .ent-btn:active { transform:scale(.96); }
   .ent-btn:disabled { opacity:.55; cursor:not-allowed; transform:none; }
@@ -4923,11 +4977,10 @@
     border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; line-height:1.45; }
   .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
   .gest-fab-row { display: flex; gap: .5rem; }
-  .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: 13px; padding: .85rem 1.1rem;
-    background: var(--orange-txt); color: #fff; font-family: inherit;
-    font-weight: 800; font-size: .88rem; cursor: pointer; box-shadow: var(--shadow-md);
+  .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: var(--radius-sm);
+    padding: .85rem 1.1rem; font-family: inherit;
+    font-weight: 800; font-size: .88rem; cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .gest-fab-main:active { transform: scale(.98); }
   /* Mismo estilo que el botón principal, pero CUADRADO (mismo alto que ancho) */
   .gest-fab-info { flex-shrink: 0; width: 46px; border: none; border-radius: 13px;
     background: var(--orange-txt); color: #fff; font-size: 1.25rem;
@@ -5023,9 +5076,8 @@
 
   /* ── Lo que te toca ahora ── */
   .ini-ahora { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
-    border-radius: 16px; padding: .9rem 1rem; border: none; cursor: pointer; font-family: inherit;
-    background: var(--orange-txt); color: #fff; box-shadow: 0 10px 24px rgba(184,80,10,.3); }
-  .ini-ahora:active { transform: scale(.985); }
+    border-radius: var(--radius-lg); padding: .9rem 1rem; border: none; cursor: pointer;
+    font-family: inherit; }
   .ini-ahora .ic { width: 42px; height: 42px; border-radius: var(--radius-sm); flex-shrink: 0; display: flex;
     align-items: center; justify-content: center; background: rgba(255,255,255,.2); }
   .ini-ahora .ic svg { width: 22px; height: 22px; }
@@ -6569,7 +6621,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.81';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.82';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
