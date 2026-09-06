@@ -6135,7 +6135,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.53';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.54';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7323,6 +7323,7 @@ const I18N = {
       dv_medico:'Médico', dv_direccion:'Dirección', vista_grupo:'Vista',
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_bar_corto:'Demostración · nada se guarda',
+      demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
       sim_bar_corto:'Ves la app como otra persona · nada se guarda',
       sim_bar_largo:'Ves la app tal como la ve otra persona. Nada de lo que hagas aquí se guarda.',
       demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
@@ -8964,6 +8965,7 @@ const I18N = {
       dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
+      demo_aplicado:'Applied in the demo. Everything resets when you leave.',
       sim_bar_corto:'Viewing as someone else · nothing is saved',
       sim_bar_largo:'You are viewing the app as another person sees it. Nothing you do here is saved.',
       demo_sin_datos:'Open the demo again to switch views.',
@@ -9893,6 +9895,24 @@ function lsSet(key, val){ try { localStorage.setItem(key, val); return true; } c
 let SIMUL = null;   // { vista, rol } mientras se simula; null = sesión real
 function simulando(){ return !!SIMUL; }
 // Devuelve true y avisa si la escritura fue bloqueada. Se usa como: if (simulBloquea('...')) return;
+/* ⚠️ EL CANAL DE GESTIÓN SÍ SE PUEDE TOCAR EN LA DEMOSTRACIÓN. EL DEL EMPLEADO NO.
+   Son dos cosas distintas y mezclarlas es lo que dejaba diecinueve botones que no hacían nada.
+   · GESTIÓN (restringir una tarea, levantarla, sugerir telemedicina, firmar una determinación,
+     escribir una nota): se aplica en memoria y se ve en pantalla. No sale a la red porque
+     `gestCanSync()` tiene dos candados, el servidor exige contraseña para esas dos acciones, el
+     almacén está partido por empresa, y `demoEsIdSembrado()` impide que suba aunque alguien llegue
+     con una cuenta real. Cuatro capas.
+   · EMPLEADO (registrar un test, un turno, un evento operacional): sigue bloqueado. Es el único
+     canal de la app que escribe SIN contraseña, y registrar un test desde la demostración no
+     aporta nada a la venta.
+   La simulación de rol (`SIMUL`) sigue bloqueando las dos: ahí la persona está mirando la app de
+   otro, y escribir sería escribir en su nombre. */
+function simulBloqueaGestion(queIntentaba){
+  if (DEMO_SEMBRANDO) return false;
+  if (typeof DASH !== 'undefined' && DASH && DASH.demoMode && !simulando()) return false;
+  return simulBloquea(queIntentaba);
+}
+
 function simulBloquea(queIntentaba){
   /* ⚠️ S1 · LA DEMOSTRACION TAMBIEN BLOQUEA, y esto lo encontre probando lo que acababa de abrir.
      Al mostrar "Mis estadisticas" dentro de la demo (que antes estaba oculta), quedo alcanzable la
@@ -9927,6 +9947,25 @@ function simulBloquea(queIntentaba){
    INTERFAZ mientras mira un ejemplo. Que la app arme ese ejemplo es otra cosa. */
 var DEMO_SEMBRANDO;
 
+/* ⚠️ EN LA DEMOSTRACIÓN SE PUEDE TOCAR DE VERDAD, Y ESO ES DELIBERADO.
+   Pedido del dueño, textual: "que él pueda tocar e interactuar, y en vivo mostrarlo, para que no
+   sea sólo «miren, el botón está, no podemos probarlo, pero funciona»".
+   Antes la barra prometía "puedes tocar todo" y era mentira: restringir una tarea abría el
+   formulario, pedía confirmación, y después `gestUpsert` cancelaba la escritura y la tarjeta
+   quedaba igual. Diecinueve botones que no hacían nada.
+   Ahora las escrituras de GESTIÓN se aplican en memoria: la banda naranja aparece, el contador de
+   Intervenciones sube en vivo, y al salir se borra todo.
+
+   ⚠️ ESTO SÓLO ES SEGURO POR LO QUE HAY DEBAJO, y conviene que quede escrito porque es lo que
+   alguien podría deshacer sin darse cuenta:
+   · `gestCanSync()` tiene DOS candados —`DASH.params.pass` (la demo no lo trae) y `demoMode`—, así
+     que `gestPush`/`bitPush` no salen a la red;
+   · del lado servidor, `gestion_guardar` y `bitacora_guardar` EXIGEN contraseña;
+   · el almacén está particionado por empresa: lo de la demo vive en `'empresa demo'`;
+   · `demoEsIdSembrado()` impide que esos ids suban aunque alguien llegue con una cuenta real;
+   · y `empFlush()` —la única cola que escribe SIN contraseña— tiene su propia guarda.
+   La cola del empleado (`empEncolar`, `turnoGuardar`) NO se abre: registrar un test desde la
+   demostración no aporta nada a la venta y es el único canal capaz de escribir sin credencial. */
 function demoBloqueaEscritura(){
   if (DEMO_SEMBRANDO) return false;
   const ov = document.getElementById('portalOverlay');
@@ -10168,6 +10207,17 @@ function empEncolar(id, accion, payload){
 }
 function empFlush(){
   if (simulando()) return;                              // ni siquiera se sube lo que ya estaba en cola
+  /* ⚠️ ESTA LÍNEA ES LA QUE IMPIDE QUE LA DEMOSTRACIÓN ESCRIBA EN EL CH DE VERDAD, y faltaba.
+     `simulando()` mira `SIMUL` —la simulación de rol—, NO `DASH.demoMode`. Son cosas distintas, y
+     la diferencia importa acá más que en ningún otro lado: ésta es la ÚNICA cola de la app que
+     escribe sin contraseña. Del lado del servidor, `registro`, `reporte_guardar`, `turno_guardar`,
+     `operacional_guardar`, `confiabilidad_guardar`, `consentimiento_guardar`, `opinion_guardar` y
+     `tarea_estado` no piden credencial: un envío desde la demo dejaría filas con
+     `Empresa = "Empresa Demo"` en las hojas reales del cliente.
+     Hoy no se dispara porque `empEncolar()` y `turnoGuardar()` tienen su propio guard, pero eso es
+     contención en la capa de arriba: el día que se relaje cualquiera de las dos —y P107 relaja
+     justamente las escrituras de la demo— esto queda abierto sin que nadie lo note. */
+  if (demoBloqueaEscritura()) return;
   if (!SHEETS_DASHBOARD_URL) return;
   const c = empColaAll();
   const ids = Object.keys(c);
@@ -13922,7 +13972,12 @@ function portalAutoLoginSupervisor(c, credKey){
    `{vista:'medico', rol:'empresa'}` vivo en el splash, con la contraseña de la empresa dentro de
    `DASH.params` — y `gestCanSync()` devolvía true mientras la persona ya estaba mirando el gate de
    la demostración. `abrirDestinoEstadisticas()` tenía la guarda; los tres caminos del splash no. */
+/* El nombre de la empresa de ejemplo, para no repetir el literal en tres lugares. Tiene que ser
+   el mismo que usa `EMPRESA_DEMO` en el endpoint. */
+const EMPRESA_DEMO_NOMBRE = 'Empresa Demo';
+
 function closePortal(){
+  const _eraDemo = !!(DASH && DASH.demoMode);   // se lee ANTES de perder DASH
   DASH = null;
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
   stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); cicloTickStop();
@@ -13935,6 +13990,19 @@ function closePortal(){
   // silencio. Se limpia acá y no en simSalir() para cubrir TODAS las formas de cerrar (la ✕,
   // el botón atrás del teléfono, y el propio simSalir).
   if (SIMUL){ SIMUL = null; simPintarBarra(); }
+  /* ⚠️ SE BORRA LO QUE LA DEMOSTRACIÓN ESCRIBIÓ, y hay que leer `demoMode` ANTES del `DASH = null`
+     de arriba — para cuando llega acá ya no hay a quién preguntarle.
+     Desde que la demo puede escribir de verdad, esto dejó de ser cosmético: sin la limpieza, la
+     segunda demostración arranca con las restricciones que se aplicaron en la primera, delante de
+     otro cliente. Se limpia por la clave normalizada de la empresa de ejemplo, que es la partición
+     donde vive todo lo suyo. */
+  if (_eraDemo){
+    try {
+      const k = dashNorm(EMPRESA_DEMO_NOMBRE);
+      const g = gestStoreAll(); delete g[k]; gestSaveStoreAll(g);
+      const b = bitStoreAll();  delete b[k]; bitSaveStoreAll(b);
+    } catch(e){}
+  }
   DEMO_PAYLOAD = null;                // S7: el payload de la demo no sobrevive al cierre
   const dbar = document.getElementById('demoBar'); if (dbar) dbar.style.display = 'none';
   portalDemoModo(false);              // salir del modo "sólo demo", si venía de ahí
@@ -15172,7 +15240,7 @@ function onDashData(d, scopeLabel, params, vista){
   nivelCacheClear();
   casosOdooArmar();                       // P13: abre la espera del puente a Odoo para ESTA carga
   if (DASH.demoMode){
-    demoSembrando(function(){ gestSembrarDemoAnotaciones(); });   // re-sella la vigencia cada vez que se entra a la demo
+    demoSembrando(function(){ gestSembrarDemoAnotaciones(); bitacoraSembrarDemo(); });   // re-sella la vigencia cada vez que se entra a la demo
     dashSembrarComentariosDemo();
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
@@ -18170,13 +18238,13 @@ function cicloDemo(){
     ev('Nicolás Herrera','Tripulación','salida_casa',  A),
     ev('Nicolás Herrera','Tripulación','llegada_aero', A + 55*M, 'kss', 3),
 
-    ev('Ana Suárez','Operaciones','salida_casa',  B),
-    ev('Ana Suárez','Operaciones','llegada_aero', B + 64*M, 'kss', 6),
+    ev('Ana Suárez','Administración','salida_casa',  B),
+    ev('Ana Suárez','Administración','llegada_aero', B + 64*M, 'kss', 6),
 
-    ev('Luis Ferrer','Tripulación','salida_casa',  C),
-    ev('Luis Ferrer','Tripulación','llegada_aero', C + 58*M,  'kss', 3),
-    ev('Luis Ferrer','Tripulación','salida_aero',  C + 790*M, 'perelli', 5.4),
-    ev('Luis Ferrer','Tripulación','llegada_casa', C + 845*M)
+    ev('Nicolás Herrera','Tripulación','salida_casa',  C),
+    ev('Nicolás Herrera','Tripulación','llegada_aero', C + 58*M,  'kss', 3),
+    ev('Nicolás Herrera','Tripulación','salida_aero',  C + 790*M, 'perelli', 5.4),
+    ev('Nicolás Herrera','Tripulación','llegada_casa', C + 845*M)
   ];
 }
 
@@ -20607,11 +20675,11 @@ function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!
 function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); telemCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
-function gestUpsert(g){ if (simulBloquea('guardar')) return;   // guard de simulación (ver SIMUL)
+function gestUpsert(g){ if (simulBloqueaGestion('guardar')) return;   // en demo se aplica local (ver simulBloqueaGestion)
   const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
   if(i>=0) s.items[i]=g; else s.items.unshift(g); s.up[g.id]=1; delete s.del[g.id]; gestSaveStore(s); gestScheduleSync(); }
 // Usado por la limpieza de gestiones en blanco al cerrar: reconcilia con la cola de borrados.
-function gestSaveList(list){ if (simulBloquea('borrar')) return;   // guard de simulación
+function gestSaveList(list){ if (simulBloqueaGestion('borrar')) return;   // en demo se aplica local
   const s=gestStore();
   s.items.forEach(g=>{ if(!list.some(x=>x.id===g.id)){ delete s.up[g.id]; s.del[g.id]=1; } });
   s.items=list; gestSaveStore(s); gestScheduleSync(); }
@@ -20637,12 +20705,25 @@ function gestPost(body){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'PO
 // mandaban el mismo registro dos veces. Se prefija 'u'/'d' porque un mismo id puede estar a la vez
 // en la cola de subida y en la de borrado, y son dos envíos distintos que no deben bloquearse.
 const _gestEnVuelo = {};
+/* ⚠️ LO QUE SEMBRÓ LA DEMOSTRACIÓN NO SUBE AL CH JAMÁS, VENGA DE DONDE VENGA.
+   `gestCanSync()` ya frena en modo demo, pero hay un camino que lo esquiva y existe desde antes de
+   P107: un ADMINISTRADOR (usuario `*`) entra con su contraseña real —`demoMode:false`— y filtra
+   por empresa "Empresa Demo". Ahí `gestKey()` da `"empresa demo"`, `gestCanSync()` da `true`, y
+   `gestUpsert` marcó cada gestión sembrada con `s.up[id]=1`: la cola subiría al CH real las
+   gestiones `gdemo*` y las anotaciones `ademo_*` del ejemplo.
+   Se filtra por ID y no por empresa porque el ID es lo único que viaja con el dato. */
+function demoEsIdSembrado(id){
+  const x = String(id || '');
+  return x.indexOf('gdemo') === 0 || x.indexOf('ademo_') === 0 || x.indexOf('bdemo') === 0;
+}
+
 function gestPush(){
   if(simulando()) return Promise.resolve();   // guard de simulación: nada sale al servidor
   if(!gestCanSync()) return Promise.resolve();
   const s=gestStore(); const jobs=[];
   Object.keys(s.up).forEach(id=>{ const g=s.items.find(x=>x.id===id);
     if(!g){ delete s.up[id]; return; }
+    if(demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
     if(_gestEnVuelo['u'+id]) return;
     _gestEnVuelo['u'+id] = 1;
     jobs.push(gestPost(gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
@@ -20722,7 +20803,7 @@ function bitacoraRegistrar(accion, sujeto, detalle, origen){
   if (!accion) return null;
   // ⚠️ Guard de simulación. Es EL punto crítico: un evento firmado por un rol simulado
   // contaminaría el valor probatorio de toda la bitácora, no sólo de esa línea.
-  if (simulBloquea('registrar en la bitácora')) return null;
+  if (simulBloqueaGestion('registrar en la bitácora')) return null;
   const p = (DASH && DASH.params) || {};
   const ev = {
     id: bitNewId(), ts: Date.now(),
@@ -20753,6 +20834,7 @@ function bitPush(){
   Object.keys(s.up).forEach(id => {
     const ev = s.items.find(x => x.id === id);
     if (!ev){ delete s.up[id]; return; }
+    if (demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
     if (_bitEnVuelo[id]) return;
     _bitEnVuelo[id] = 1;
     jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }))
@@ -21932,6 +22014,65 @@ function anotQuitar(id){
 // aparece en el resto del panel, en vez de un nombre inventado que no está en ningún lado. Se
 // re-sella la vigencia CADA VEZ que se entra a la demo, para que la fecha "vigente hasta" sea
 // siempre relativa a hoy y nunca se vea vencida.
+/* ⚠️ LA BITÁCORA DE LA DEMOSTRACIÓN. Llena TRES bloques de una sola vez: "Intervenciones
+   preventivas", "Telemedicina" y "Trazabilidad" — que juntos eran 592 px de ceros en la vista de
+   Dirección, o sea la pantalla que se le muestra a quien firma. El texto de ayuda de ese bloque
+   dice "que este número sea alto es una buena señal", y la demostración lo mostraba en cero.
+   Escribe DIRECTO en el almacén y no por `bitacoraRegistrar()`: esa función arma el evento con el
+   actor y el rol de la sesión, y acá hacen falta fechas repartidas en el tiempo para que la
+   trazabilidad se vea como un historial y no como quince cosas que pasaron todas hoy.
+   Los ids empiezan con `bdemo`, que es lo que `demoEsIdSembrado()` usa para que esto no suba nunca
+   al CH, ni siquiera desde una cuenta real que filtre por esta empresa. */
+function bitacoraSembrarDemo(){
+  if (!DASH || !DASH.demoMode) return;
+  const s = bitStore();
+  /* Idempotente: si ya está sembrada no se duplica. Se re-siembra sí cuando cambió el día, para
+     que "hace 2 días" siga diciendo la verdad si alguien deja la demo abierta. */
+  const hoy = todayStr();
+  const yaHay = s.items.some(e => String(e.id||'').indexOf('bdemo') === 0 && e.dia === hoy);
+  if (yaHay) return;
+  s.items = s.items.filter(e => String(e.id||'').indexOf('bdemo') !== 0);
+
+  const gente = (typeof DEMO_GENTE !== 'undefined' && DEMO_GENTE.length)
+    ? DEMO_GENTE.map(g => g.nombre)
+    : Array.from(new Set((DASH.registros||[]).map(r => r.persona).filter(Boolean)));
+  if (!gente.length) return;
+  const quien = i => gente[i % gente.length];
+  const dia = 86400000, ahora = Date.now();
+
+  /* El reparto cuenta una historia: se restringe, se levanta parte, el médico firma, alguien se
+     reincorpora, y la telemedicina tiene su embudo (sugeridas > aceptadas > realizadas, con una
+     rechazada, que es lo que pasa de verdad). */
+  const guion = [
+    ['restriccion_tarea',      1,  0], ['restriccion_tarea',      2,  1],
+    ['restriccion_tarea',      3,  3], ['restriccion_tarea',      5,  6],
+    ['restriccion_tarea',      8,  9], ['restriccion_tarea',     11, 13],
+    ['restriccion_levantada',  1,  2], ['restriccion_levantada',  2,  4],
+    ['restriccion_levantada',  3,  7], ['restriccion_levantada',  5, 11],
+    ['determinacion_medica',   4,  5], ['determinacion_medica',   9, 10],
+    ['determinacion_medica',  13, 16], ['alta_reincorporacion',   4, 12],
+    ['alta_reincorporacion',   9, 18], ['telemedicina_sugerida',  6,  2],
+    ['telemedicina_sugerida',  7,  5], ['telemedicina_sugerida', 10,  8],
+    ['telemedicina_sugerida', 12, 14], ['telemedicina_sugerida', 15, 19],
+    ['telemedicina_aceptada',  6,  3], ['telemedicina_aceptada',  7,  6],
+    ['telemedicina_aceptada', 10,  9], ['telemedicina_rechazada',12, 15],
+    ['telemedicina_realizada', 6,  4], ['telemedicina_realizada', 7,  8]
+  ];
+  guion.forEach((g, i) => {
+    const [accion, iPersona, diasAtras] = g;
+    s.items.push({
+      id: 'bdemo' + i, ts: ahora - diasAtras * dia, dia: hoy,
+      empresa: gestEmpresaActual(), actor: t('vista_medico'), rol: 'medico',
+      accion: accion, sujeto: quien(iPersona), detalle: {}, origen: 'app',
+      umbral: null, app: APP_VERSION
+    });
+  });
+  s.items.sort((a, b) => b.ts - a.ts);
+  /* ⚠️ NO se marca `s.up[id]`: eso es la cola de subida. Lo sembrado no tiene que subir ni
+     intentarlo. `demoEsIdSembrado()` es el cinturón; esto es el tirante. */
+  bitSaveStore(s);
+}
+
 function gestSembrarDemoAnotaciones(){
   if (!DASH || !DASH.registros || !DASH.registros.length) return;
   // Limpia CUALQUIER anotación demo vieja antes de sembrar (ids de versiones anteriores de este
@@ -23228,9 +23369,15 @@ const NOMLIST = { datos: [], total: 0, registrados: 0, cargando: false };
 
 function dashUpdateNomFab(){
   const btn = document.getElementById('nomFabBtn'); if (!btn) return;
-  // No en la vista de empleado (no le corresponde) ni en modo demo (no hay credenciales reales
-  // contra las que pedir `nomina_listar`, así que el botón no tendría qué mostrar).
-  btn.style.display = (DASH && DASH.vista !== 'empleado' && !DASH.demoMode) ? '' : 'none';
+  /* No en la vista de empleado: no le corresponde.
+     ⚠️ EN DEMO SÍ. El comentario que había acá decía que en modo demo "no hay credenciales contra
+     las que pedir `nomina_listar`, así que el botón no tendría qué mostrar" — y era falso desde
+     que S7 escribió `nominaDemo()`: `nominaListCargar()` tiene su rama de demostración con 21
+     personas, 19 dadas de alta y 2 pendientes. O sea que la pantalla estaba escrita, funcionando,
+     y era INALCANZABLE, porque este `if` escondía el único botón que la abre.
+     Es la misma forma de defecto que `openPortal()` y que el rol de la nómina: código que anda y
+     que nadie puede llegar a usar. */
+  btn.style.display = (DASH && DASH.vista !== 'empleado') ? '' : 'none';
 }
 function nominaListAbrir(){
   document.getElementById('nomListTitle').textContent = t('nomlist_titulo') + ' · ' + gestEmpresaActual();
@@ -23377,6 +23524,13 @@ function ausTocar(btn){
   const claves = [cedNum + '|' + hoy, 'n:' + ausNombreClave(persona) + '|' + hoy];
   claves.forEach(k => { if (yaEsta) delete idx[k]; else idx[k] = 'franco'; });
   try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+
+  /* ⚠️ EN LA DEMOSTRACIÓN EL CAMBIO SE VE, PERO NO SALE NADA A LA RED. El índice de arriba ya se
+     tocó, así que la pantalla muestra la ausencia aplicada —que es el punto de poder mostrarla— y
+     acá se corta antes del POST. Sin esto se mandaba `ausencia_guardar` con `pass:''`: el servidor
+     lo rechaza, pero el pedido salía igual, y "lo rechaza el servidor" no es una defensa que uno
+     quiera que sea la única. */
+  if (DASH.demoMode){ showToast(t('demo_aplicado')); return; }
 
   const cuerpo = { action:'ausencia_guardar', usuario: DASH.params.usuario || DASH.params.empresa,
                    empresa: DASH.params.empresa || '', pass: DASH.params.pass || '',
