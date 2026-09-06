@@ -36,11 +36,28 @@ function conZona(z, fn) {
 }
 
 PRUEBAS.caso('el día sale de la zona configurada, no del dispositivo', () => {
+  /* ⚠️ ESTE CASO FALLABA SEGÚN LA HORA A LA QUE SE CORRIERA, y eso es peor que un caso que falla:
+     hace desconfiar de la suite entera. Comparaba el día en Caracas (UTC−4) contra Auckland
+     (UTC+12/+13) y daba por sentado que SIEMPRE son distintos. Son distintos unas 16 horas de cada
+     24; las otras 8 coinciden, y ahí el caso se ponía en rojo sin que nada estuviera mal. Se
+     descubrió corriendo la suite a la 1:23 de la madrugada.
+     Ahora se compara contra el día calculado de forma INDEPENDIENTE con `Intl`, para cada zona.
+     Eso prueba lo mismo —que el día sale de la zona configurada y no del reloj del dispositivo— y
+     da igual a cualquier hora. */
+  const diaEn = z => new Intl.DateTimeFormat('en-CA', { timeZone: z, year:'numeric', month:'2-digit', day:'2-digit' })
+    .format(new Date());
   const caracas = conZona('America/Caracas', () => todayStr());
   const auckland = conZona('Pacific/Auckland', () => todayStr());
   PRUEBAS.cierto(/^\d{4}-\d{2}-\d{2}$/.test(caracas), 'el formato tiene que seguir siendo YYYY-MM-DD: es el que arma los ids');
-  PRUEBAS.falso(caracas === auckland,
-    'en el mismo instante, dos operaciones en husos lejanos están en días distintos — si diera igual, no estaría usando la zona');
+  PRUEBAS.igual(caracas, diaEn('America/Caracas'), '⚠️ el día en Caracas es el de Caracas');
+  PRUEBAS.igual(auckland, diaEn('Pacific/Auckland'), '⚠️ y el de Auckland, el de Auckland');
+  /* Y cuando de verdad caen en días distintos —16 de cada 24 horas— se comprueba también eso, que
+     es la consecuencia que importa. Cuando coinciden, no se afirma nada: no habría qué afirmar. */
+  if (diaEn('America/Caracas') !== diaEn('Pacific/Auckland')){
+    PRUEBAS.falso(caracas === auckland, 'ahora mismo están en días distintos, y la app lo refleja');
+  } else {
+    PRUEBAS.igual(caracas, auckland, 'ahora mismo coinciden, y la app también');
+  }
 });
 
 PRUEBAS.caso('sin zona conocida usa la del dispositivo, no rompe', () => {

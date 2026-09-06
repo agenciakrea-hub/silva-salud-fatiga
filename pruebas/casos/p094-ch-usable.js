@@ -118,8 +118,11 @@ PRUEBAS.caso('⚠️ avisa si una columna documentada ya no existe', () => {
   /* Sin esto, renombrar una columna dejaría su explicación huérfana en silencio: la nota
      simplemente no se pondría y nadie se enteraría hasta que alguien la buscara. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  /* Un nombre que NO se parece a ninguno documentado: con el matching normalizado,
+     "CEDULA_RENOMBRADA" sí encuentra a "Cédula" —y está bien que la encuentre, es la misma
+     columna—, así que para probar el aviso hace falta algo que de verdad no exista. */
   const env = GS.crearEntorno({
-    'Nómina': [["Empresa","Nombre y apellido","CEDULA_RENOMBRADA","Departamento"]],
+    'Nómina': [["Empresa","Nombre y apellido","Departamento"]],
   });
   const r = GS.cargarGs(CTX.gs, env, ['documentarCH']).documentarCH();
   PRUEBAS.cierto((r.sinColumna || []).some(x => /Cédula/.test(x)),
@@ -133,4 +136,42 @@ PRUEBAS.caso('no se rompe si falta una hoja', () => {
   const r = GS.cargarGs(CTX.gs, env, ['documentarCH']).documentarCH();
   PRUEBAS.alMenos((r.sinHoja || []).length, 1, 'las que faltan se listan');
   PRUEBAS.alMenos(r.puestas, 1, 'y las que están igual se documentan');
+});
+
+PRUEBAS.caso('⚠️ la nota llega aunque el encabezado real difiera en tildes o paréntesis', () => {
+  /* LO QUE PASÓ EN LA PRIMERA CORRIDA SOBRE EL CH REAL: siete columnas quedaron sin nota
+     —`Registrados Fatiga → Cédula`, las cinco de `PVT`, `Operacional → Plan`— y ninguna había
+     desaparecido. Los encabezados de verdad difieren de los que el código sugiere, porque varias
+     de esas hojas las creó Google Forms o se editaron a mano.
+     Exigir el nombre exacto convertía cualquiera de esas diferencias en una explicación que no
+     llega, en silencio. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const env = GS.crearEntorno({
+    'PVT': [["Marca temporal","Nombre","Empresa","Departamento","Reacciones validas",
+             "RT promedio","RT minimo","RT maximo","Lapsos","RT mediano","Salidas en falso"]],
+    'Registrados Fatiga': [["Fecha de registro","Ultima actualizacion","Nombre","Email","CEDULA"]],
+  });
+  GS.cargarGs(CTX.gs, env, ['documentarCH']).documentarCH();
+  const pvt = env.__libro.getSheetByName('PVT');
+  const cab = pvt.getDataRange().getValues()[0];
+  PRUEBAS.cierto(/milésimas|milesimas/i.test(pvt.__notaDe(1, cab.indexOf('RT promedio') + 1) || ''),
+    '⚠️ "RT promedio" recibe la nota de "RT promedio (ms)"');
+  PRUEBAS.cierto(/medio segundo/i.test(pvt.__notaDe(1, cab.indexOf('Lapsos') + 1) || ''),
+    'y Lapsos la suya');
+  const reg = env.__libro.getSheetByName('Registrados Fatiga');
+  PRUEBAS.cierto(/llave de todo/i.test(reg.__notaDe(1, 5) || ''),
+    '⚠️ "CEDULA" en mayúsculas y sin tilde recibe la nota de "Cédula"');
+});
+
+PRUEBAS.caso('el DISCRIMINADOR: no se le pone la nota a una columna ajena', () => {
+  /* La relajación tiene un límite: si "Cédula" se pusiera sobre cualquier columna, el arreglo
+     sería peor que el defecto — una nota que dice "sólo los números importan" sobre Departamento. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const env = GS.crearEntorno({
+    'Registrados Fatiga': [["Fecha de registro","Departamento","Sexo","Edad"]],
+  });
+  GS.cargarGs(CTX.gs, env, ['documentarCH']).documentarCH();
+  const reg = env.__libro.getSheetByName('Registrados Fatiga');
+  [2, 3, 4].forEach(c => PRUEBAS.igual(reg.__notaDe(1, c), null,
+    '⚠️ ninguna columna ajena recibe la nota de Cédula'));
 });
