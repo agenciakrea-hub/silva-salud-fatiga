@@ -3258,58 +3258,13 @@
     gap:0 .2rem; padding-top:10px; }
   .splash-pie-sep { color:var(--entrada-tenue); font-size:.8rem; align-self:center; }
 
-  /* ── P095 · la lista rotulada ────────────────────────────────────────────────────────────────
-     Cada opción es una fila completa con su nombre y su explicación. El rótulo de arriba dice de
-     qué se trata el bloque, para que no parezcan dos botones más del mismo rango que "Ingresar".
-     Los colores salen de tokens que ya resuelven los dos temas (R13): sobre el navy del panel se
-     usan los `--entrada-*`, y en escritorio —donde el fondo pasa a ser claro— se retiñen con los
-     de texto, igual que hacía `.splash-link`. */
-  .splash-pie--lista { flex-direction:column; align-items:stretch; gap:6px;
-    width:min(340px,100%); margin:0 auto; padding-top:14px; }
-  .splash-otras-t { font-size:.68rem; font-weight:700; letter-spacing:.06em;
-    text-transform:uppercase; color:var(--entrada-tenue); text-align:left;
-    padding:0 2px 2px; }
-  .splash-op { display:flex; align-items:center; gap:.6rem; width:100%;
-    background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.13);
-    border-radius:12px; padding:.55rem .7rem; min-height:52px;
-    font-family:inherit; text-align:left; cursor:pointer;
-    transition:background .15s ease, border-color .15s ease; }
-  .splash-op:hover, .splash-op:focus-visible { background:rgba(255,255,255,.1);
-    border-color:rgba(255,255,255,.24); }
-  .splash-op-tx { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-  .splash-op-k { font-size:.86rem; font-weight:700; color:rgba(255,255,255,.94); }
-  .splash-op-d { font-size:.72rem; font-weight:500; line-height:1.35;
-    color:rgba(255,255,255,.72); }
-  .splash-op-fl { font-size:1.1rem; color:rgba(255,255,255,.5); flex:none; }
-  /* La segunda pesa menos que la primera: es para nosotros, no para quien llega. */
-  .splash-op--admin .splash-op-k { font-weight:600; color:rgba(255,255,255,.82); }
-
-  /* ⚠️ EN PANTALLA APRETADA LA LISTA SE COMPACTA, y esto no es cosmético: lo encontró la suite.
-     `.splash-anim` declara `height:clamp(130px,24vh,220px)`, pero es un ítem flex con el
-     `flex-shrink:1` por defecto — o sea que ese alto es un DESEO, no un piso. La lista ocupa unos
-     60 px más que los dos enlaces en línea que reemplazó, y con eso el contenedor se quedaba sin
-     aire y COMPRIMÍA la tira de láminas: a 320×800 y a 375×667 los paneles se desbordaban hasta
-     47 px, encimando el texto. No se veía tocando la portada: se vio porque `m5` recorre seis
-     tamaños por cuatro niveles de letra.
-     Se comprobó por comparación directa —con el index.html anterior el caso pasa, con éste no—,
-     que es la única forma de no atribuirle a un cambio algo que ya estaba roto.
-     Acá se recupera ese alto: sin la línea explicativa y con las filas al mínimo táctil. Se pierde
-     la explicación justo donde menos lugar hay, que es la decisión correcta: una lámina encimada
-     rompe la primera impresión de la app, y el nombre de cada opción sigue estando. */
-  @media (max-width:359px), (max-height:760px){
-    .splash-pie--lista { gap:4px; padding-top:8px; }
-    .splash-otras-t { font-size:.62rem; padding-bottom:0; }
-    .splash-op { min-height:44px; padding:.35rem .6rem; }
-    .splash-op-d { display:none; }
-  }
-
   /* ⚠️ EL ANILLO DE FOCO DE ESTA PANTALLA. La regla global usa `--orange-txt`, que sobre el navy
      del panel da 2,82:1 en tema claro — por debajo del 3:1 que pide WCAG 2.2 SC 1.4.11 para un
-     indicador no textual. En oscuro daba 3,46:1 y pasaba, así que el defecto sólo existía en un
-     tema: exactamente el tipo de cosa que se ve mirando los dos y no uno (R13).
-     Se usa un token que ya está definido en los DOS temas y es claro en los dos, porque acá el
-     fondo es navy en los dos. */
-  .splash-op:focus-visible, .splash-cta:focus-visible, .splash-link:focus-visible {
+     indicador no textual. En oscuro daba 3,46:1 y pasaba, así que el defecto existía en UN solo
+     tema: el tipo de cosa que sólo se ve mirando los dos (R13).
+     ⚠️ Esto se queda aunque la lista rotulada se haya revertido: es un defecto de accesibilidad
+     medido, no tiene nada que ver con cómo se ven los dos accesos. */
+  .splash-cta:focus-visible, .splash-link:focus-visible {
     outline:2.5px solid var(--entrada-tenue); outline-offset:2px; }
   /* Si envuelven, el punto sobra: separaría dos cosas que ya están en renglones distintos. */
   @media (max-width: 359px){ .splash-pie--compacto { flex-direction:column; gap:2px; }
@@ -3640,34 +3595,18 @@
        lista y sus filas lo heredan, que es lo que hace que se apilen a propósito y no por
        desborde. */
     .splash-acciones > * { width: min(340px, 100%); }
-    /* ⚠️ LA LISTA SE ALINEA AL BOTÓN, y el número sale de él, no de un valor elegido a ojo.
-       El botón principal vive en una celda de grilla angosta —138 px medidos a 1366 en el iframe
-       de la suite— y el pie en una mucho más ancha. Con la lista a 340 px, las dos filas
-       secundarias ENVOLVÍAN al botón y la jerarquía volvía a leerse al revés: exactamente el
-       defecto que este prompt vino a arreglar, sólo que más suave que el 138-contra-277 original.
-       Probé acotarla a un ancho fijo (240 px) y no alcanza: sigue siendo el doble del botón, y
-       cualquier número que elija se rompe con otro reparto de columnas.
-       La lista toma el ancho de la celda —`width:100%` sin el relleno lateral heredado, que a 1366
-       son 54,6 px por lado y le dejaban las filas en 151 px con el texto envuelto en cuatro
-       renglones— y un tope para que en pantallas muy anchas no se estire. */
-    .splash-pie--lista { width: 100%; max-width: 340px; padding-left: 0; padding-right: 0;
-      margin-inline: auto; }
+    /* ⚠️ `.splash-pie > *` NO va acá, y esto se queda aunque la lista rotulada se haya revertido.
+       Esa regla le aplicaba `min(340px,100%)` a CADA hijo del pie — incluido el separador `·`, que
+       es un `<span>`— y con `flex-wrap` los tres terminaban apilados en renglones de 277 px
+       mientras el botón principal medía 138: el punto quedaba SOLO en un renglón propio de
+       277×17 px y la jerarquía se leía al revés, 1:2 en contra del botón principal.
+       Es un defecto de escritorio medido, no tiene nada que ver con cómo se ven los dos accesos. */
     .splash-cta { max-width: 340px; }
     /* Sobre superficie clara los blancos translúcidos del panel derecho no se ven: se retiñen
        con los tokens de texto, que ya resuelven los dos temas (R13). */
     .splash-link { color: var(--text-soft); }
     .splash-link--admin { color: var(--text-muted); }
-    /* Sobre superficie clara, los blancos translúcidos no se ven: se retiñen con los tokens de
-       texto, que ya resuelven los dos temas (R13). Mismo criterio que ya se aplicaba arriba. */
-    .splash-otras-t { color: var(--text-muted); }
-    .splash-op { background: var(--chip-bg); border-color: var(--linea); }
-    .splash-op:hover, .splash-op:focus-visible { background: var(--sobre-card);
-      border-color: var(--linea-2); }
-    .splash-op-k { color: var(--text); }
-    .splash-op--admin .splash-op-k { color: var(--text-soft); }
-    .splash-op-d { color: var(--text-soft); }
-    .splash-op-fl { color: var(--text-muted); }
-    .splash-op:focus-visible, .splash-cta:focus-visible {
+    .splash-cta:focus-visible, .splash-link:focus-visible {
       outline-color: var(--orange-txt); }
     .splash-empresa { background: var(--chip-bg); color: var(--text-soft); }
     /* ⚠️ El botón de idioma TAMBIÉN se retiñe acá, y hay que dejarlo. En móvil J7 lo volvió un chip
@@ -5397,22 +5336,17 @@
            `.splash-pie > * { width: min(340px,100%) }` se lo aplicaba TAMBIÉN a él: quedaba solo,
            centrado, en un renglón propio de 277×17 px, y empujaba a los otros dos a apilarse en
            tres líneas. Un separador que ocupa un renglón ya no separa nada. -->
-      <div class="splash-pie splash-pie--lista" id="splashPie">
-        <div class="splash-otras-t" id="splashOtrasT" data-i18n="splash_otras">Otras formas de entrar</div>
-        <button type="button" class="splash-op" onclick="splashVerDemo()">
-          <span class="splash-op-tx">
-            <span class="splash-op-k" data-i18n="splash_demo">Ver una demostración</span>
-            <span class="splash-op-d" data-i18n="splash_demo_d">Mira la aplicación con datos de ejemplo. No necesitas registrarte.</span>
-          </span>
-          <span class="splash-op-fl" aria-hidden="true">›</span>
-        </button>
-        <button type="button" class="splash-op splash-op--admin" onclick="splashAdmin()">
-          <span class="splash-op-tx">
-            <span class="splash-op-k" data-i18n="splash_admin">Administrador</span>
-            <span class="splash-op-d" data-i18n="splash_admin_d">Panel con todas las empresas. Requiere contraseña.</span>
-          </span>
-          <span class="splash-op-fl" aria-hidden="true">›</span>
-        </button>
+      <!-- ⚠️ LOS DOS ACCESOS VAN DIRECTOS, sin rótulo y sin explicación debajo. Se probó la
+           variante de "lista rotulada" (P095) y Franco la rechazó mirándola: *"me gustaba como
+           estaba antes, directamente los dos botones, además le metiste ese texto que yo no pedí"*.
+           No volver a proponerla.
+           Lo que SÍ se conserva de aquel cambio son dos defectos medidos que no tienen que ver con
+           esto: que el separador `·` no se apile solo en un renglón en escritorio, y que el anillo
+           de foco llegue al 3:1 en tema claro. Los dos están comentados donde viven. -->
+      <div class="splash-pie splash-pie--compacto">
+        <button type="button" class="splash-link" onclick="splashVerDemo()" data-i18n="splash_demo">Ver una demostración</button>
+        <span class="splash-pie-sep" aria-hidden="true">·</span>
+        <button type="button" class="splash-link splash-link--admin" onclick="splashAdmin()" data-i18n="splash_admin">Administrador</button>
       </div>
       </div><!-- /.splash-der -->
 
@@ -6502,7 +6436,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.74';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.75';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6617,12 +6551,9 @@ const I18N = {
       spl_p5_t:'Funciona sin señal',     spl_p5_d:'Se guarda en el teléfono y se envía solo cuando vuelve la señal.',
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
-      splash_otras:'Otras formas de entrar',
       splash_demo:'Ver una demostración',
-      splash_demo_d:'Mira la aplicación con datos de ejemplo. No necesitas registrarte.',
       splash_portal:'Soy supervisor, servicio médico o dirección',
       splash_admin:'Administrador',
-      splash_admin_d:'Panel con todas las empresas. Requiere contraseña.',
       splash_norma:'Programa de gestión de fatiga ajustado a los lineamientos de la OACI (Doc 9966) y a ISO 45001.',
       splash_nomina_de:'Nómina de {empresa}',
       // ── Carrusel de presentación (B2) ──
@@ -8254,12 +8185,9 @@ const I18N = {
       spl_p5_t:'Works with no signal',   spl_p5_d:'It is saved and sent on its own when you are back online.',
       splash_sub:'Preventing, detecting and acting on operational fatigue.',
       splash_ingresar:'Get started',
-      splash_otras:'Other ways in',
       splash_demo:'See a demo',
-      splash_demo_d:'Explore the app with sample data. No sign-up needed.',
       splash_portal:'I am a supervisor, medical staff or management',
       splash_admin:'Administrator',
-      splash_admin_d:'Panel across all companies. Password required.',
       splash_norma:'Fatigue management programme built to ICAO guidance (Doc 9966) and ISO 45001.',
       splash_nomina_de:'{empresa} roster',
       // ── Onboarding carousel (B2) ──

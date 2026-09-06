@@ -127,6 +127,17 @@ PRUEBAS.caso('⚠️ discriminador: sin navConsumir() el caso de arriba se cae',
 PRUEBAS.caso('⚠️ cerrar la opinión por UI no cierra un overlay abierto por debajo', async () => {
   /* El caso que justifica el flag `_navConsumiendo`: opinión abierta ENCIMA del panel de
      estadísticas, cerrada por su botón X. El panel, que la persona no tocó, tiene que seguir ahí. */
+  /* ⚠️ SE ANCLA EL HISTORIAL ANTES DE MEDIR, y esto no es un apaño: el historial del navegador es
+     estado GLOBAL que comparten los 933 casos de la suite, y este caso hace un `back()` de verdad.
+     Si el puntero quedó en el borde —porque otro caso consumió entradas, o porque cambió cuántos
+     casos corren antes— el `back()` se va fuera de la app y el overlay de abajo se cierra por una
+     razón que no tiene nada que ver con lo que este caso vigila.
+     Pasó el 2026-09-06: revertir la lista rotulada de P095 quitó 3 casos, el orden se corrió, y
+     este empezó a fallar sobre una app que funciona bien (verificado a mano por el camino real:
+     la opinión cierra, el portal sigue abierto, el historial queda en 50 → 50).
+     Con dos entradas propias de colchón, el `back()` siempre tiene a dónde volver dentro de la
+     app y el caso mide lo que dice medir. */
+  try { history.pushState({ p048: 1 }, ''); history.pushState({ p048: 2 }, ''); } catch(e){}
   abrirDestinoEstadisticas();
   await new Promise(r => setTimeout(r, 20));
   const portalAntes = document.getElementById('portalOverlay').classList.contains('show');
