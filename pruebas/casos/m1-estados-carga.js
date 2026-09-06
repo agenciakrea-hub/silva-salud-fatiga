@@ -50,16 +50,23 @@ PRUEBAS.caso('mientras carga, no se puede tocar ni tabular a la zona', () => {
      mouse, del TECLADO y del lector de pantalla a la vez. Con `pointer-events` alguien puede
      seguir tabulando hasta un botón que no ve y activarlo — que es exactamente lo que el usuario
      describe cuando dice que puede tocar otras cosas mientras carga. */
+  /* ⚠️ P058 CAMBIÓ QUÉ ELEMENTO SE BLOQUEA, y este caso medía el de antes. Bloquear
+     `#portalGate` entero dejaba la ✕ —que vive adentro— fuera de alcance durante hasta 120 s, sin
+     ninguna forma de cancelar salvo el botón físico del teléfono. Ahora se bloquea
+     `.portal-gate-card`, que tiene todo lo interactivo del formulario y NO la ✕.
+     Lo que este caso sostiene sigue siendo lo mismo: que la zona del formulario queda fuera del
+     alcance del mouse, del teclado y del lector de pantalla. Sólo cambió dónde mirarlo. */
   const gate = document.getElementById('portalGate');
+  const zona = gate.querySelector('.portal-gate-card') || gate;
   PRUEBAS.cierto('inert' in HTMLElement.prototype, 'el navegador tiene que soportar inert');
   cargaBloquear(gate, true);
-  PRUEBAS.igual(gate.getAttribute('aria-busy'), 'true',
+  PRUEBAS.igual(zona.getAttribute('aria-busy'), 'true',
     'aria-busy es lo que le anuncia la carga a quien no ve la pantalla');
-  PRUEBAS.cierto(gate.hasAttribute('inert'), 'y inert es lo que impide tocarla de verdad');
-  const btn = gate.querySelector('button');
+  PRUEBAS.cierto(zona.hasAttribute('inert'), 'y inert es lo que impide tocarla de verdad');
+  const btn = zona.querySelector('button');
   if (btn){ btn.focus(); PRUEBAS.falso(document.activeElement === btn, 'ni con el teclado se puede llegar a un botón de adentro'); }
   cargaBloquear(gate, false);
-  PRUEBAS.falso(gate.hasAttribute('inert'), 'y al terminar se libera');
+  PRUEBAS.falso(zona.hasAttribute('inert'), 'y al terminar se libera');
   PRUEBAS.igual(gate.getAttribute('aria-busy'), null, 'sin dejar el aria-busy pegado');
 });
 
@@ -311,14 +318,27 @@ PRUEBAS.caso('⚠️ con el login cargando, nada de la pantalla recibe el foco',
     const b = document.getElementById(id); if (b) b.style.display = '';
   });
 
+  /* ⚠️ EL CRITERIO SOBRE LA ✕ SE INVIRTIÓ EN P058, y vale contar por qué en vez de sólo cambiar
+     el número. Este caso nació exigiendo que durante la carga NADA recibiera foco, la ✕ incluida:
+     el miedo era que alguien cerrara a mitad de un login y dejara estado a medias.
+     Pero ese miedo ya lo cubre otro mecanismo: `closePortal()` llama a `cargaCancelar()`, que
+     invalida la carga en vuelo y restaura la interfaz — o sea que cerrar durante la carga es
+     seguro, y lo era desde antes.
+     Lo que NO era aceptable es lo otro: con `DASH_TIMEOUT_MS` en 120 000 ms, la persona podía
+     quedarse dos minutos frente a una pantalla que no responde, sin más salida que el botón
+     físico del teléfono. En escritorio, ninguna.
+     Así que ahora la ✕ tiene que seguir viva y todo lo demás bloqueado. */
   cargaBloquear(gate, true);
-  const bloqueado = { campo: q1Alcanza(campo), cerrar: q1Alcanza(cerrar), pestana: q1Alcanza(pestana) };
+  const bloqueado = { campo: q1Alcanza(campo), pestana: q1Alcanza(pestana) };
+  const cerrarVivo = q1Alcanza(cerrar);
   cargaBloquear(gate, false);
   const suelto = { campo: q1Alcanza(campo), cerrar: q1Alcanza(cerrar), pestana: q1Alcanza(pestana) };
 
+  PRUEBAS.cierto(cerrarVivo,
+    '⚠️ P058 · la ✕ SIGUE alcanzable con el pedido en vuelo · es la única salida durante hasta 120 s');
   const siguenVivos = Object.keys(bloqueado).filter(k => bloqueado[k]);
   PRUEBAS.igual(siguenVivos, [],
-    'con el pedido en vuelo no se puede llegar a cerrar, ni cambiar de pestaña, ni reenviar');
+    'con el pedido en vuelo no se puede cambiar de pestaña ni reenviar · cerrar SÍ, ver arriba');
 
   /* El control que hace que la prueba valga: si sin bloqueo TAMPOCO se llega, la comprobación de
      arriba pasaría por el motivo equivocado y no estaría probando nada. */

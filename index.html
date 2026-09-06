@@ -6746,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.89';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.90';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15405,7 +15405,24 @@ function conBloqueo(sel, promesa){
    termina. Vale para los 31 usos de `conCarga`, no sólo para éste.
    `'reset'` suelta del todo sin importar el contador: es lo que necesita `cargaCancelar()`, cuyo
    trabajo es justamente rescatar una pantalla que quedó muerta. */
-function cargaBloquear(el, on){
+/* ⚠️ P058 · LO QUE SE BLOQUEA ES EL CONTENIDO, NO EL MARCO CON LA ✕.
+   `inert` alcanza a TODOS los descendientes y **no se puede revertir en uno**: no existe un
+   `inert="false"` que rescate a un hijo. Así que bloquear `#portalGate` entero dejaba la ✕
+   —que vive adentro— fuera de alcance mientras el login carga: entre 2,5 y 5 s normales, y hasta
+   `DASH_TIMEOUT_MS` = **120 s** si el servidor no contesta. En todo ese rato la única salida era
+   el botón físico del teléfono; en escritorio, ninguna.
+   Y la ✕ ya hacía lo correcto: `closePortal()` llama a `cargaCancelar()`, o sea que cancela la
+   carga en curso además de cerrar. Lo único que faltaba era poder tocarla.
+
+   Se resuelve acá, en una sola función, y no en los cuatro llamadores: cuatro criterios sobre qué
+   bloquear terminan siendo cuatro criterios distintos. */
+function cargaZona(el){
+  if (!el) return el;
+  /* La tarjeta del login tiene todo lo interactivo salvo la ✕, que es hermana suya. */
+  return el.querySelector ? (el.querySelector('.portal-gate-card') || el) : el;
+}
+function cargaBloquear(el0, on){
+  const el = cargaZona(el0);   // P058 · el contenido, no el marco con la ✕
   if (!el) return;
   const n = on === 'reset' ? 0 : Math.max(0, (Number(el.dataset.cargaBloqN) || 0) + (on ? 1 : -1));
   if (n > 0){ el.dataset.cargaBloqN = n; el.setAttribute('aria-busy', 'true'); el.setAttribute('inert', ''); }
