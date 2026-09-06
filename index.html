@@ -3856,9 +3856,34 @@
      botón de salir. La primera fila dice qué es esto; la segunda es el selector.
      El selector NO es un `<select>`: delante de un cliente, abrir un desplegable nativo y buscar
      una opción se ve peor —y tarda más— que tocar el nombre que ya está a la vista. */
-  .demo-bar { display:block; padding:.45rem .7rem .55rem; }
+  /* ⚠️ LISA, NO RAYADA. Heredó las rayas diagonales de `.sim-bar`, y ahí están bien: esa barra
+     ADVIERTE que la app está en sólo lectura. Ésta PRESENTA el producto delante de un cliente, y
+     vestirla de cinta de obra juega en contra de lo que se está mostrando.
+     El fondo es un punto más claro que el encabezado para que se lea como barra aparte —antes
+     daban 1,11:1 y parecían el mismo bloque— y la línea de abajo hace el corte SIN GASTAR ALTO,
+     que es más barato que separar con espacio. */
+  /* ⚠️ EL ALTO ES EL PRESUPUESTO. La barra le saca alto al área de contenido, y cada píxel de más
+     hace que el panel se vea apretado — justo la impresión que no se quiere dar mostrando el
+     producto. Lo que lo baja de verdad es el TEXTO: el largo ocupaba dos renglones en teléfono, y
+     el corto ocupa uno.
+     ⚠️ Probé disolver la fila con `display:contents` para que "Salir" compartiera renglón con el
+     selector, y salió peor: los tres hijos se repartieron en filas propias y la barra pasó de 103
+     a 163 px. Queda anotado para que nadie lo intente de nuevo pensando que es una mejora obvia. */
+  .demo-bar { display:block; padding:.25rem .7rem .3rem;
+    background:var(--demo-bar-2); border-bottom:2px solid var(--demo-chip-on); }
   .db-fila { display:flex; align-items:center; gap:.5rem; }
-  .db-vistas { display:flex; gap:.3rem; margin-top:.45rem; overflow-x:auto; scrollbar-width:none;
+  /* Simulando un rol vuelven las rayas: ahí sí son advertencia, no presentación. */
+  .demo-bar--sim { background:repeating-linear-gradient(135deg,var(--demo-bar),var(--demo-bar) 12px,var(--demo-bar-2) 12px,var(--demo-bar-2) 24px);
+    border-bottom-color:var(--demo-borde); }
+  /* ⚠️ Y QUE NO COMA MARCO. La barra le saca alto al contenido, así que cada píxel de más hace que
+     el panel se vea apretado — justo la impresión que no se quiere dar mostrando el producto. En
+     teléfono el mensaje largo ocupaba dos líneas: se muestra el corto, y el largo aparece cuando
+     hay ancho para una sola línea. */
+  .db-corto { display:inline; }
+  .db-largo { display:none; }
+  @media (min-width: 560px) { .db-corto { display:none; } .db-largo { display:inline; } }
+
+  .db-vistas { display:flex; gap:.3rem; margin-top:.2rem; overflow-x:auto; scrollbar-width:none;
     -webkit-overflow-scrolling:touch; }
   .db-vistas::-webkit-scrollbar { display:none; }
   /* 44 px de alto: el mínimo para tocar con el dedo. Esta barra se usa en un teléfono sostenido
@@ -3887,6 +3912,8 @@
      derecha, y la barra igual ocupaba dos filas: el 16% de la pantalla regalado en la máquina
      típica de una demostración. Medido: la barra baja de 103,2 a 60 px y el área de scroll sube
      de 539 a 582 px. */
+  /* Con ancho, todo en una sola fila: a 1366 el selector usa 362 px y quedaban 981 vacíos a la
+     derecha mientras la barra igual ocupaba dos filas. Medido: 103 → 60 px. */
   @media (min-width: 560px) {
     .demo-bar { display:flex; align-items:center; gap:.7rem; }
     .db-fila { display:contents; }
@@ -5850,7 +5877,7 @@
       <div class="sim-bar demo-bar" id="demoBar" style="display:none">
         <div class="db-fila">
           <span class="sim-ico" aria-hidden="true">👁</span>
-          <span class="sim-txt" data-i18n="demo_bar_txt">Demostración con datos de ejemplo</span>
+          <span class="sim-txt"><span class="db-corto" data-i18n="demo_bar_corto">Demostración · nada se guarda</span><span class="db-largo" data-i18n="demo_bar_txt">Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.</span></span>
           <button type="button" class="sim-salir" onclick="closePortal()" data-i18n="salir">Salir</button>
         </div>
         <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
@@ -6078,7 +6105,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7265,6 +7292,9 @@ const I18N = {
          la lee es un cliente al que le están mostrando el producto. */
       dv_medico:'Médico', dv_direccion:'Dirección', vista_grupo:'Vista',
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
+      demo_bar_corto:'Demostración · nada se guarda',
+      sim_bar_corto:'Ves la app como otra persona · nada se guarda',
+      sim_bar_largo:'Ves la app tal como la ve otra persona. Nada de lo que hagas aquí se guarda.',
       demo_sin_datos:'Vuelve a abrir la demostración para cambiar de vista.',
       ctx_viendo:'Viendo {q} · {n}',
       lg_perfil:'Perfil',
@@ -8903,6 +8933,9 @@ const I18N = {
       vista_medico:'Medical staff', vista_hseq:'Management / HSEQ',
       dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
+      demo_bar_corto:'Demo · nothing is saved',
+      sim_bar_corto:'Viewing as someone else · nothing is saved',
+      sim_bar_largo:'You are viewing the app as another person sees it. Nothing you do here is saved.',
       demo_sin_datos:'Open the demo again to switch views.',
       ctx_viendo:'Viewing {q} · {n}',
       lg_perfil:'Profile',
@@ -14330,17 +14363,22 @@ function simEntrar(vista){
   dashRequest({ action:'demo' })
     .then(d => {
       if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(); return; }
+      /* ⚠️ S7 · SIN ESTO, QUIEN ENTRA POR ACÁ NO TIENE EL SELECTOR. Es la otra puerta al mismo
+         payload, y es la que usa la Dirección para revisar cómo se ve cada rol. Sin guardarlo,
+         `demoPintarBarra()` calculaba que no hay demo y escondía la barra: la misma pantalla se
+         comportaba distinto según por dónde se hubiera entrado, y por acá seguía costando 4 toques
+         y hasta 12 segundos. */
+      DEMO_PAYLOAD = { d: d, params: { action:'demo' }, scope: 'Empresa Demo' };
       if (vista === 'empleado'){
-        // Para la vista personal se acota a UNA persona de la demo: es lo que ve el empleado.
-        const quien = (d.registros[0] || {}).persona || '';
-        d = Object.assign({}, d, { rol:'empleado',
-          registros: d.registros.filter(r => r.persona === quien),
-          pvt: (d.pvt || []).filter(r => r.persona === quien) });
-        onDashData(d, quien || 'Personal (ejemplo)', { action:'demo' }, 'empleado');
+        /* Se reusa el recorte de S7 en vez de repetirlo. La copia que había acá elegía
+           `registros[0].persona` —la primera fila que viniera—, mientras `demoPersonaEjemplo`
+           elige la que MÁS registros tiene: la misma siempre, sin caer en alguien con un solo dato
+           que dejaría la pantalla casi vacía. Dos formas distintas de elegir según la puerta. */
+        const quien = demoPersonaEjemplo(d) || '';
+        onDashData(demoRecortarAPersona(d, quien), quien || 'Personal (ejemplo)', { action:'demo' }, 'empleado');
       } else {
         onDashData(d, 'Empresa Demo', { action:'demo' }, vista);
       }
-      simPintarBarra();   // onDashData vuelve a dibujar: la barra se re-afirma después
     })
     .catch(() => { showToast(t('sin_conexion')); simSalir(); });
 }
@@ -14790,6 +14828,10 @@ function demoVerVista(vista){
   if (!DEMO_PAYLOAD || !DEMO_PAYLOAD.d) return false;
   if (!DASH || !DASH.demoMode) return false;
   const g = DEMO_PAYLOAD;
+  /* Si se está simulando un rol, el rol simulado ES la vista elegida. Sin esto `SIMUL.vista`
+     quedaba con lo que fijó `simEntrar` una sola vez: la barra diría "como Servicio médico" con el
+     panel de Supervisor en pantalla. */
+  if (SIMUL){ SIMUL.vista = vista; SIMUL.rol = (vista === 'empleado' ? 'empleado' : 'supervisor'); }
   if (vista === 'empleado'){
     const uno = demoPersonaEjemplo(g.d);
     if (!uno) return false;
@@ -14815,7 +14857,21 @@ function demoPintarBarra(){
   if (!bar) return;
   const hay = !!(DASH && DASH.demoMode && DEMO_PAYLOAD);
   bar.style.display = hay ? '' : 'none';
+  /* ⚠️ UNA SOLA BARRA, NUNCA DOS. Quien entra por Ajustes → Administrador → rol está simulando Y
+     en la demostración a la vez (`simEntrar` pide `action:'demo'`), así que las dos se mostrarían
+     juntas: 52 + 103 = 155 px de cromo sobre 812, y el panel se vería apretado. Cuando hay
+     simulación, ésta absorbe el aviso y la otra se esconde. */
+  const simBar = document.getElementById('simBar');
+  if (simBar && hay) simBar.style.display = 'none';
   if (!hay) return;
+  bar.classList.toggle('demo-bar--sim', !!SIMUL);
+  const txtC = bar.querySelector('.db-corto'), txtL = bar.querySelector('.db-largo');
+  if (txtC && txtL){
+    const kc = SIMUL ? 'sim_bar_corto' : 'demo_bar_corto';
+    const kl = SIMUL ? 'sim_bar_largo' : 'demo_bar_txt';
+    txtC.setAttribute('data-i18n', kc); txtC.textContent = t(kc);
+    txtL.setAttribute('data-i18n', kl); txtL.textContent = t(kl);
+  }
   const cont = document.getElementById('dbVistas');
   if (!cont) return;
   cont.innerHTML = ['empleado','supervisor','medico','hseq'].map(v =>
