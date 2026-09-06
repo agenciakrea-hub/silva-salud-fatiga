@@ -2035,6 +2035,9 @@
     border-top: 1px solid var(--sem-ambar); text-align: center;
     padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
   .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
+  /* Retenida: usa el rojo del semáforo, que ya está definido en los dos temas (R13). */
+  .off-bar.off-bar-trabada { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); border-top-color: var(--sem-rojo); }
+  .off-bar.off-bar-trabada:focus-visible { outline: 2px solid var(--sem-rojo); outline-offset: -3px; }
   .bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
     display: flex; align-items: flex-end; justify-content: space-around; gap: 0.3rem;
     max-width: 560px; margin: 0 auto;
@@ -6185,7 +6188,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.60';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.61';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6898,6 +6901,8 @@ const I18N = {
       err_reintentar:'Reintentar',
       // ── Sin conexión ──
       off_enviando_1:'Enviando 1 registro…', off_enviando_n:'Enviando {n} registros…',
+      off_trabado_1:'1 registro no se pudo enviar. Toca aquí para intentarlo otra vez.',
+      off_trabado_n:'{n} registros no se pudieron enviar. Toca aquí para intentarlo otra vez.',
       off_guardado_1:'1 registro guardado en este teléfono', off_guardado_n:'{n} registros guardados en este teléfono',
       mot_patron:'Patrón sostenido',
       mot_patron_rep:'{m} por encima del límite en {n} mediciones seguidas',
@@ -8510,6 +8515,8 @@ const I18N = {
       err_reintentar:'Try again',
       // ── Offline ──
       off_enviando_1:'Sending 1 record…', off_enviando_n:'Sending {n} records…',
+      off_trabado_1:'1 record could not be sent. Tap here to try again.',
+      off_trabado_n:'{n} records could not be sent. Tap here to try again.',
       off_guardado_1:'1 record saved on this phone', off_guardado_n:'{n} records saved on this phone',
       mot_patron:'Sustained pattern',
       mot_patron_rep:'{m} above the limit in {n} measurements in a row',
@@ -10239,14 +10246,76 @@ function setPending(arr){ try { localStorage.setItem(K_PENDING, JSON.stringify(a
    `keepalive`, el navegador ABORTA esos pedidos al recargar: la app prometía intentar el envío y no
    llegaba a intentar nada, y como `flushPending` vacía la cola ANTES de confirmar, los registros se
    perdían sin quedar ni en el CH ni en el teléfono. */
+/* ⚠️ P087 · `mode:'no-cors'` DABA POR ENVIADO LO QUE EL SERVIDOR HABÍA RECHAZADO.
+   Con `no-cors` la respuesta es OPACA: el navegador resuelve la promesa igual aunque el servidor
+   conteste 500, se quede sin cuota o devuelva `{ok:false}`. El `.catch` sólo se disparaba cuando
+   el pedido NO SALÍA del teléfono. O sea: el único error que la app sabía manejar era el que menos
+   daño hace —el de la falta de señal, que ya estaba resuelto con la cola— y el que sí pierde el
+   dato pasaba desapercibido.
+
+   El endpoint del CH SÍ responde con CORS (medido: `type:"cors"`, cuerpo legible desde otro
+   origen), así que para él se lee la respuesta de verdad.
+
+   ⚠️ LOS OTROS OCHO WEBHOOKS SIGUEN EN `no-cors` A PROPÓSITO. Los siete tests y el operacional
+   viejo apuntan a proyectos de Apps Script DISTINTOS, que no están en este repositorio y cuyo
+   código no controlamos: no sabemos si devuelven JSON ni si tienen CORS. Y sobre todo **no mandan
+   `id`**, así que el servidor no puede deduplicar: un reintento nuestro escribiría la prueba dos
+   veces en la hoja clínica. Cambiarlos a `cors` a ciegas tiene un modo de falla peor que el
+   defecto — si el CORS no está, `fetch` rechaza, la app marcaría como "no enviado" un dato que SÍ
+   llegó, y quedaría avisando de un problema inexistente. Para probarlos hay que mandarles un
+   registro de prueba a la hoja real, que es decisión de Franco: está en PREGUNTAS_MANANA.md. */
+function envioLeeRespuesta(url){
+  return typeof SHEETS_DASHBOARD_URL === 'string' && !!SHEETS_DASHBOARD_URL &&
+         String(url).indexOf(SHEETS_DASHBOARD_URL) === 0;
+}
 function enviarConCola(url, sobrevive){
-  const opts = { mode:'no-cors' };
+  const leible = envioLeeRespuesta(url);
+  const opts = { mode: leible ? 'cors' : 'no-cors' };
   if (sobrevive) opts.keepalive = true;
-  fetchConReloj(url, opts).catch(() => {
-    const q = getPending();
-    q.push({ url, ts: Date.now() });
-    setPending(q.slice(-50));   // tope de 50 pendientes
-  });
+  return fetchConReloj(url, opts).then(r => {
+    if (!leible) return;                         // respuesta opaca: no hay nada que mirar
+    if (!r.ok) throw new Error('http_' + r.status);
+    return r.text().then(txt => {
+      let d = null;
+      /* Apps Script contesta con una PÁGINA HTML de error cuando el script se cae, y lo hace con
+         estado 200. Sin este chequeo, "se produjo un error en la secuencia de comandos" contaría
+         como guardado igual que antes. */
+      try { d = JSON.parse(txt); } catch(e){ throw new Error('no_json'); }
+      if (d && d.ok === false) throw new Error('rechazo:' + String(d.error || ''));
+      return d;
+    });
+  }).catch(err => { colaGuardar(url, err); });
+}
+/* Tope de reintentos automáticos. La cola corre cada 60 s: sin tope, un envío que el servidor
+   rechaza siempre se reintentaría 1.440 veces por día y el cartel diría "Enviando…" para siempre. */
+const COLA_MAX_INTENTOS = 10;
+function colaGuardar(url, err){
+  const q = getPending();
+  const motivo = String((err && err.message) || err || 'error');
+  let i = -1;
+  for (let k = 0; k < q.length; k++){ if (q[k] && q[k].url === url){ i = k; break; } }
+  const prev = i >= 0 ? q[i] : null;
+  const item = { url: url, ts: prev && prev.ts ? prev.ts : Date.now(),
+                 intentos: ((prev && prev.intentos) || 0) + 1, motivo: motivo };
+  /* Un RECHAZO del servidor es determinista: mandarlo otra vez da el mismo rechazo. Se retiene y
+     se avisa, en vez de gastar batería y datos toda la noche. Un 500, una respuesta no-JSON o un
+     fallo de red sí se reintentan: esos pasan solos. */
+  if (motivo.indexOf('rechazo:') === 0 || item.intentos >= COLA_MAX_INTENTOS) item.trabado = true;
+  if (i >= 0) q[i] = item; else q.push(item);
+  setPending(q.slice(-50));   // tope de 50 pendientes
+  try { offPintar(); } catch(e){}
+}
+/* Los que dejaron de reintentarse solos. Se cuentan aparte porque el cartel no puede decir
+   "Enviando…" de algo que ya nadie está enviando. */
+function colaTrabados(){ try { return getPending().filter(x => x && x.trabado); } catch(e){ return []; } }
+/* La salida de la persona: vuelve a habilitar los retenidos y los manda. Es lo que hace el cartel
+   al tocarlo. Sin esto, un registro retenido no tendría forma de salir nunca. */
+function colaReintentar(){
+  const q = getPending();
+  q.forEach(x => { if (x){ x.trabado = false; x.intentos = 0; } });
+  setPending(q);
+  try { offPintar(); } catch(e){}
+  flushPending();
 }
 /* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
    Cambia dos cosas, y las dos importan:
@@ -10262,8 +10331,11 @@ function flushPending(alSalir){
   if (!q.length) return;
   const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;   // descarta pendientes de más de 7 días
   const vigentes = q.filter(x => (Date.now() - x.ts) < MAX_EDAD);
-  if (!alSalir) setPending([]);   // se re-encolan solos si vuelven a fallar
-  vigentes.forEach(x => enviarConCola(x.url, alSalir));
+  const aMandar  = vigentes.filter(x => !x.trabado);
+  /* Los retenidos NO se sacan de la cola: siguen guardados y contados, y sólo salen si la persona
+     toca el cartel. Vaciarlos acá sería exactamente el silencio que este prompt vino a sacar. */
+  if (!alSalir) setPending(vigentes.filter(x => x.trabado));
+  aMandar.forEach(x => enviarConCola(x.url, alSalir));
 }
 window.addEventListener('online', flushPending);
 setInterval(flushPending, 60000);   // red flaky que no dispara 'online': reintenta cada 1 min igual
@@ -10365,13 +10437,39 @@ function offPintar(){
   const n = offPendientes(), online = offHayConexion();
   // Sin pendientes y con conexión no se muestra nada: un cartel permanente diciendo "todo bien"
   // es ruido, y termina ignorándose justo cuando pasa a decir otra cosa.
-  if (!n && online){ el.style.display = 'none'; return; }
+  if (!n && online){
+    /* Se limpia lo del estado retenido antes de esconderla: si no, queda un `role="button"` y un
+       `tabindex` pegados en un elemento oculto, y el día que algo lo vuelva a mostrar el lector de
+       pantalla anunciaría un botón que ya no hace nada. */
+    el.style.display = 'none'; el.className = 'off-bar'; el.onclick = null;
+    el.style.cursor = ''; el.setAttribute('role', 'status'); el.removeAttribute('tabindex');
+    return;
+  }
   el.style.display = '';
-  el.className = 'off-bar' + (online ? ' off-bar-sync' : '');
+  /* P087 · los que el servidor RECHAZÓ ya no se están reintentando. Decir "Enviando…" de eso sería
+     la misma mentira que el `no-cors`, sólo que en la pantalla. Se avisa y se ofrece la salida. */
+  const trabados = colaTrabados().length;
+  el.className = 'off-bar' + (trabados ? ' off-bar-trabada' : (online ? ' off-bar-sync' : ''));
+  el.onclick = trabados ? colaReintentar : null;
+  el.style.cursor = trabados ? 'pointer' : '';
+  el.setAttribute('role', trabados ? 'button' : 'status');
+  if (trabados) el.setAttribute('tabindex', '0'); else el.removeAttribute('tabindex');
+  if (trabados){
+    el.textContent = t(trabados === 1 ? 'off_trabado_1' : 'off_trabado_n', { n: trabados });
+    return;
+  }
   el.textContent = online
     ? t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n })
     : (t('ts_sin_conexion') + (n ? (' · ' + t(n === 1 ? 'off_guardado_1' : 'off_guardado_n', { n: n })) : ''));
 }
+/* Con `role="button"` el lector de pantalla lo anuncia como botón; sin esto, Enter y Espacio no
+   harían nada y la promesa sería falsa para quien no usa el dedo. */
+document.addEventListener('keydown', function(e){
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = document.getElementById('offBar');
+  if (!el || document.activeElement !== el || !el.onclick) return;
+  e.preventDefault(); colaReintentar();
+});
 window.addEventListener('online',  offPintar);
 window.addEventListener('offline', offPintar);
 setInterval(offPintar, 15000);   // la cola se vacía sola en segundo plano: el cartel tiene que seguirla
