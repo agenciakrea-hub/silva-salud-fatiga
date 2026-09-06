@@ -72,13 +72,23 @@ PRUEBAS.caso('el resto de las pestañas de hseq no se mueve', () => {
 
 PRUEBAS.grupo('P097 · dashOrderedTabs() no se desincroniza de dashTabsFor (la trampa que el archivo advierte)');
 
-/* El propio index.html lo dice en dos comentarios distintos: dashOrderedTabs() tiene su PROPIA
-   lista para hseq, y lo que no esté en las dos se descarta EN SILENCIO — sin error en consola,
-   la pestaña simplemente no existe. Este caso fija el contrato para que el día que alguien toque
-   una lista y se olvide de la otra, quede en rojo acá y no en producción. */
+/* ⚠️ P054 CAMBIÓ LO QUE ESTO MIDE, y el caso estaba apoyado en el defecto. Cuando se escribió,
+   `dashOrderedTabs()` tenía su PROPIA copia de la lista de hseq y lo que no estuviera en las dos se
+   descartaba en silencio; el caso fijaba el contrato «que no se desincronicen».
+   Desde P054 hay UNA sola lista de disponibilidad (`dashTabsFor` → `DASH.tabs`) y `dashOrderedTabs`
+   sólo ORDENA lo que recibe. O sea que ya no puede haber dos listas que difieran — pero sí puede
+   romperse el orden, y eso es lo que estos casos siguen cuidando.
+
+   ⚠️ Y POR ESO HAY QUE PONER `tabs`: la versión anterior armaba `DASH` sin ese campo y funcionaba
+   igual, porque la rama de hseq devolvía su lista fija sin mirarlo. Con la lógica nueva eso da `[]`.
+   Es R17 en su forma más incómoda: la prueba pasaba GRACIAS al defecto. Ahora se arma `DASH` como
+   lo arma `onDashData` — con `tabs` salido de `dashTabsFor` — que es el único estado que existe en
+   producción. */
 function p097OrderedParaCfg(costosCfg){
   const previo = (typeof DASH !== 'undefined') ? DASH : null;
-  DASH = { vista: 'hseq', rol: 'empresa', f: {}, _cfg: costosCfg != null ? { costos: costosCfg } : null };
+  const tabs = dashTabsFor('empresa', false, 'hseq', costosCfg);
+  DASH = { vista: 'hseq', rol: 'empresa', f: {}, tabs: tabs,
+           _cfg: costosCfg != null ? { costos: costosCfg } : null };
   const orden = dashOrderedTabs();
   DASH = previo;
   return orden;

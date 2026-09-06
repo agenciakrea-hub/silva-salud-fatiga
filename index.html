@@ -6627,7 +6627,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.83';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.84';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -16192,18 +16192,18 @@ function dashTabsFor(rol, hasPvt, vista, costosCfg){
      lo que ve un piloto de verdad — justo lo que alguien quiere mostrar en una demostración.
      El propio archivo ya había aprendido esta lección en otro lado: "El gate es por VISTA, no por
      rol". Acá no se había aplicado.
-     ⚠️ Y va también en `dashOrderedTabs()`, que tiene su PROPIA lista y descarta en silencio lo
-     que no esté ahí. Tocar sólo una de las dos deja la pestaña inexistente sin ningún error. */
+     ✅ P054 · YA NO HAY QUE TOCAR DOS LISTAS. Acá se decide QUÉ pestañas hay y eso es todo;
+     `dashOrderedTabs()` sólo las ORDENA, partiendo de `DASH.tabs`, y lo que no conoce lo manda al
+     final en vez de descartarlo. Una pestaña nueva aparece con tocar esta función sola. */
   if (vista === 'empleado'){
     const emp = ['resumen','evolucion'];
     if (hasPvt) emp.push('pvt');
     return emp;
   }
   // 'gestiones' (registro de acciones del servicio médico) solo para empresa/admin, después de Informe IA.
-  /* ⚠️ Si algún día se le agregan pestañas al médico (I1, hallazgos 4 y 5: horas de jornada y
-     reportes identificados), NO alcanza con tocar esta lista: `dashOrderedTabs()` tiene su PROPIO
-     orden fijo y filtra contra él, así que lo que no esté ahí se descarta en silencio y la
-     pestaña no existe. Hay que tocar las dos. */
+  /* ✅ P054 · Agregar una pestaña acá alcanza: `dashOrderedTabs()` ya no descarta lo que no
+     conoce. Si además se quiere en un lugar concreto del menú, se la nombra en `DASH_ORDEN`; si
+     no, sale al final. */
   const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
   /* ⚠️ A4 · Y4 DEJÓ ESTO A MEDIO CAMINO. El endpoint ya le manda `duty` al servicio médico
      (`acc.vista === "medico"` en la condición), pero no había ninguna pantalla donde verlo: el dato
@@ -16211,8 +16211,8 @@ function dashTabsFor(rol, hasPvt, vista, costosCfg){
      una determinación de aptitud por fatiga, y las horas de servicio son de las variables más
      relevantes que existen para esa firma".
      No hay riesgo de cortafuegos: la pestaña muestra horas y excesos por persona, nada clínico.
-     ⚠️ Y va también en `dashOrderedTabs()`, que tiene su PROPIA lista y descarta en silencio lo que
-     no esté ahí — está advertido cuatro líneas más arriba y es exactamente la trampa que avisa. */
+     ✅ P054 · Esta era una de las tres advertencias sobre la doble lista. Ya no aplica: la pestaña
+     que se agregue acá aparece sola. */
   if (rol !== 'empleado') base.push('jornada');
   if (hasPvt){ const at = (rol==='empleado') ? 2 : 4; base.splice(at, 0, 'pvt'); }   // 'pvt' después de Evolución
   return base;
@@ -16584,25 +16584,40 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
 
 // Orden de secciones en la página única (Informe IA al FINAL de todo). Comparar/Individual se ocultan
 // cuando el alcance es una sola persona o un empleado (no tienen sentido con 1 sujeto).
+/* ⚠️ P054 · ESTA FUNCIÓN ERA UNA MINA, Y EL PROPIO CÓDIGO LO SABÍA. `dashTabsFor()` la advierte
+   TRES veces: «va también en `dashOrderedTabs()`, que tiene su PROPIA lista y descarta en silencio
+   lo que no esté ahí. Hay que tocar las dos». Documentar el cuidado que hay que tener es peor que
+   sacar la necesidad de tenerlo: la advertencia sólo sirve si el que agrega la pestaña la lee.
+
+   Las listas de supervisor y de HSEQ estaban **copiadas letra por letra** de `dashTabsFor`, y las
+   otras dos partían de un orden fijo y filtraban contra él. Reproducido con las dos funciones
+   reales, agregando y quitando pestañas:
+
+     · agregar una pestaña a `dashTabsFor` y olvidarse de acá → **desaparece en silencio en las
+       CUATRO vistas**, porque todas arrancan del orden fijo y lo que no esté ahí no sale nunca;
+     · que el servidor NO mande una que el orden fijo sí lista → **chip sin sección** en supervisor
+       y HSEQ, que eran las dos que ni siquiera filtraban.
+
+   SE INVIERTE LA LÓGICA. Antes: «tomo mi orden y me quedo con lo que exista». Ahora: «tomo lo que
+   EXISTE y lo ordeno». `DASH.tabs` es la única fuente de qué pestañas hay —la llena `dashTabsFor`,
+   que ya decide por vista, por rol y por `hasPvt`— y acá sólo vive el ORDEN de presentación.
+   Lo que el orden no conoce va AL FINAL en vez de descartarse: una pestaña nueva aparece aunque
+   nadie toque este objeto, que es exactamente lo contrario de lo que pasaba. */
+const DASH_ORDEN = {
+  supervisor: ['aptitud','reportes','ciclo'],
+  hseq:       ['idc','mrfo','intervenciones','auditoria','costos','ciclo','jornada'],
+  empleado:   ['resumen','evolucion','pvt'],
+  medico:     ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada']
+};
 function dashOrderedTabs(){
-  if (DASH.vista === 'supervisor') return ['aptitud','reportes','ciclo'];
-  // P097: MISMO criterio que dashTabsFor (ver el comentario largo ahí) — predictivo nunca entra
-  // a la barra y costos entra sólo con datos cargados. Acá SÍ se puede leer `cfg('costos')`
-  // directo (sin parámetro): `dashOrderedTabs()` corre desde `renderDash()`/`buildDashTabs()`,
-  // siempre DESPUÉS de que `DASH._cfg` ya quedó al día con la empresa que se está mirando.
-  if (DASH.vista === 'hseq'){
-    const hseq = ['idc','mrfo','intervenciones','auditoria'];
-    if (hseqTieneCostos()) hseq.push('costos');
-    hseq.push('ciclo','jornada');
-    return hseq;
-  }
-  /* La otra mitad del fix de `dashTabsFor`: acá también manda la VISTA. Sin esto, la vista
-     personal recibía el orden completo del médico y las dos pestañas que sí le tocan quedaban
-     mezcladas en una lista pensada para otra pantalla. */
-  if (DASH.vista === 'empleado') return ['resumen','evolucion','pvt'].filter(t => DASH.tabs.indexOf(t) >= 0);
-  let orden = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada'];
-  if (DASH.rol==='empleado' || DASH.f.per) orden = orden.filter(t => t!=='comparar' && t!=='individual');
-  return orden.filter(t => DASH.tabs.indexOf(t) >= 0);
+  const orden = DASH_ORDEN[DASH.vista] || DASH_ORDEN.medico;
+  let tabs = (DASH.tabs || []).slice();
+  /* Con una persona elegida —o desde una cuenta de empleado— comparar e individual no aplican:
+     la pantalla ya está mirando a una sola persona. Se conserva tal cual estaba. */
+  if (DASH.rol === 'empleado' || DASH.f.per) tabs = tabs.filter(t => t !== 'comparar' && t !== 'individual');
+  const pos = t => { const i = orden.indexOf(t); return i < 0 ? orden.length : i; };
+  /* `sort` es estable desde ES2019, así que dos desconocidas conservan el orden en que llegaron. */
+  return tabs.sort((a, b) => pos(a) - pos(b));
 }
 // En celular, las pestañas + los filtros (período, departamento, empleado) quedan colapsados
 // detrás de un solo botón "Menú y filtros" (menos ruido visual que tenerlo todo siempre a la
