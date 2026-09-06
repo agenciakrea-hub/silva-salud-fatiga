@@ -358,6 +358,84 @@
     return [...new Set(malos)];
   };
 
+  /* ⚠️ A6 · CORTES QUE `scrollHeight` NO VE. Es el agujero más grande que tenía esta herramienta, y
+     lo destapó una sola lámina del splash.
+
+     `AUDITOR.cortes()` compara `scrollHeight` contra `clientHeight`. Eso encuentra el caso simple —
+     un bloque más alto que su caja— pero **no ve el corte de la última línea de un texto**, que es
+     de lejos el más común: un párrafo dentro de un contenedor con altura limitada y `overflow:hidden`
+     tiene su caja recortada al tamaño del padre, la tinta de la última línea se sale de esa caja, y
+     `scrollHeight` devuelve exactamente `clientHeight`. Medido en la lámina «Médicos detrás de cada
+     alerta» a 1366px: la caja termina en y=620, la tinta llega a y=636, `scrollHeight === clientHeight
+     === 111`. Dieciséis píxeles de texto cortados y el instrumento decía cero.
+
+     Acá se mide la TINTA, no la caja: se recorren los nodos de texto y se pide una caja por renglón
+     con un `Range`, que sí devuelve dónde está la tinta aunque el `overflow` la esté tapando.
+
+     ⚠️ El `Range` devuelve las cajas AUNQUE estén recortadas: eso es justamente lo que lo hace
+     servir. Y se compara contra el elemento que RECORTA, no contra el padre inmediato, porque el
+     corte lo hace el ancestro con `overflow`. */
+  AUDITOR.cortesDeTinta = function () {
+    const malos = [];
+    document.querySelectorAll('body *').forEach(el => {
+      if (!visible(el)) return;
+      const cs = getComputedStyle(el);
+      /* ⚠️ POR EJE, NO EN BLOQUE. La primera versión concatenaba los tres valores y buscaba
+         "hidden" en cualquiera: con eso `#dashScroll` (`overflow-x: hidden; overflow-y: auto`)
+         cantaba «corta 13692px de TEXTO abajo» — que es el panel entero, y no está cortado sino
+         DESPLAZABLE. Dieciocho falsos positivos, uno por pantalla y ancho, con números enormes que
+         parecían el hallazgo más grave de la auditoría.
+         Un eje que scrollea no corta: sólo `hidden` y `clip` cortan. `AUDITOR.cortes()`, tres
+         funciones más arriba, ya separaba los ejes; esto lo copió mal. */
+      const cortaY = /hidden|clip/.test(cs.overflowY);
+      const cortaX = /hidden|clip/.test(cs.overflowX);
+      if (!cortaY && !cortaX) return;
+      if (recortaAProposito(el)) return;
+      const caja = el.getBoundingClientRect();
+      if (!caja.width || !caja.height) return;
+
+      let abajo = 0, derecha = 0, muestra = '';
+      const pila = [el];
+      while (pila.length) {
+        const n = pila.pop();
+        for (const h of n.childNodes) {
+          if (h.nodeType === 3) {
+            if (!h.textContent.trim()) continue;
+            const rg = document.createRange();
+            rg.selectNodeContents(h);
+            for (const c of rg.getClientRects()) {
+              if (!c.width) continue;
+              const dy = c.bottom - caja.bottom, dx = c.right - caja.right;
+              if (dy > abajo || dx > derecha) muestra = h.textContent.trim().slice(0, 40);
+              if (dy > abajo)   abajo = dy;
+              if (dx > derecha) derecha = dx;
+            }
+          } else if (h.nodeType === 1) {
+            /* Un descendiente que se posiciona solo no lo recorta este contenedor: lo recorta el
+               suyo, y ese se mide en su propia vuelta. Meterlo acá inventa cortes que no existen. */
+            const ch = getComputedStyle(h);
+            if (ch.position === 'fixed' || ch.position === 'absolute') continue;
+            if (ch.display === 'none' || ch.visibility === 'hidden') continue;
+            /* ⚠️ NO SE ENTRA EN UN SUBÁRBOL QUE YA RECORTA POR SU CUENTA. Si `h` tiene overflow, lo
+               que pase adentro es asunto de `h`, y `h` se mide en su propia vuelta. Sin esto, el
+               abuelo reporta como corte lo que un carrusel interno esconde A PROPÓSITO: medido en
+               el splash, `.splash-wrap` cantaba «corta 3434px de TEXTO a la derecha» — que son las
+               láminas siguientes de la tira, esperando su turno. Seis falsos positivos, uno por
+               ancho, con números distintos que parecían seis defectos diferentes.
+               Además evita el doble reporte padre/hijo del mismo corte. */
+            if (/hidden|clip|auto|scroll/.test(ch.overflowX) ||
+                /hidden|clip|auto|scroll/.test(ch.overflowY)) continue;
+            pila.push(h);
+          }
+        }
+      }
+      /* 2px de tolerancia: el redondeo subpíxel de una línea base no es un corte. */
+      if (cortaY && abajo > 2)   malos.push(nombre(el) + '  corta ' + Math.round(abajo) + 'px de TEXTO abajo  "' + muestra + '"');
+      if (cortaX && derecha > 2) malos.push(nombre(el) + '  corta ' + Math.round(derecha) + 'px de TEXTO a la derecha  "' + muestra + '"');
+    });
+    return [...new Set(malos)];
+  };
+
   /* ── 4 · Solapamientos entre hermanos ───────────────────────────────────────────────────── */
 
   /* ⚠️ SE COMPARA RENGLÓN CONTRA RENGLÓN, NO LA CAJA ENTERA. Un elemento en línea que envuelve
@@ -468,6 +546,7 @@
       superficiesClarasEnOscuro: AUDITOR.superficiesClaras(),
       clarasRevisadasYAceptadas: AUDITOR.ultimasRevisadas || [],
       cortes: AUDITOR.cortes(),
+      cortesDeTinta: AUDITOR.cortesDeTinta(),
       carruseles: AUDITOR.carruseles(),
       solapamientos: AUDITOR.solapamientos(),
       areasDeToque: AUDITOR.areasDeToque()

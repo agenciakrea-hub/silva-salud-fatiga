@@ -2894,6 +2894,16 @@
        El caso de letra al máximo lo sigue cubriendo la regla de `texto-maximo`, que esconde la
        tira entera. */
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  /* ⚠️ A6 · EN LA PANTALLA MÁS ANGOSTA, CINCO. A 320 px la bajada entra en menos caracteres por
+     línea, así que las dos láminas largas —SAFTE y la de telemedicina— seguían perdiendo su última
+     frase incluso después de ensanchar la columna del layout ancho (que a 320 ni siquiera aplica:
+     ese media query arranca en 900). Medido: con `-webkit-line-clamp: 5` entran las dos y la
+     tarjeta NO desborda su lámina; bajar el tamaño de letra en cambio no alcanzaba para SAFTE.
+     Es la misma decisión que ya se tomó una vez al pasar de 3 a 4 líneas, por la misma razón: el
+     contenido está justificado, así que lo que se corrige es el recorte. */
+  @media (max-width: 360px) {
+    .spl-p-tx span { -webkit-line-clamp: 5; }
+  }
   /* ⚠️ SIN PISO. Le había puesto `min-height: 26px` para que el gráfico no desapareciera y
      conseguí lo contrario: ese piso le quitaba justo la capacidad de encogerse que evitaba el
      desborde, y pasaron a salirse CUATRO pantallas en vez de dos. El gráfico es lo primero que
@@ -3598,7 +3608,21 @@
        defecto con otra cara.
        En grilla el chip va DEBAJO del texto, en su misma columna, y el gráfico ocupa la derecha
        entero: el texto pasa a ~230 px y entra completo. */
-    .spl-p { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto;
+    /* ⚠️ A6 · 1.25fr / .75fr, NO 1fr / 1fr, Y LO DECIDIÓ LA MEDICIÓN. Con las columnas iguales la
+       bajada quedaba en ~233 px y DOS láminas perdían su última línea a 1366 y a 1920:
+       · «Modelo predictivo SAFTE» se comía «Con wearable, más precisión.» — justo la parte que el
+         comentario de `.spl-p-tx span` declara obligatoria y que una prueba exige
+         (`m5-coherencia-visual.js`: «y tiene que nombrar el wearable»);
+       · «Médicos detrás de cada alerta» se comía «la persona.», dejando «Siempre decide…».
+         Esa frase truncada dice lo CONTRARIO de lo que quiere decir: sin sujeto se lee como que
+         decide el sistema, cuando el punto es que decide la persona (R2 y R4).
+       El gráfico de la derecha tiene aire de sobra —es un trazo—, así que ceder .25fr no le cuesta
+       nada. Medido en los seis anchos: cierra 1366 y 1920, y de paso el solape del chip sobre la
+       última línea, que salía del mismo apretón.
+       ⚠️ La prueba que debía cazarlo leía `t('spl_safte_d')`, o sea el DICCIONARIO, no lo que entra
+       en pantalla: el texto contenía «wearable» y el caso pasaba en verde mientras nadie lo veía.
+       Ver el caso nuevo en `p046-laminas-que-entran.js`, que mide la tinta. */
+    .spl-p { display: grid; grid-template-columns: 1.25fr .75fr; grid-template-rows: 1fr auto;
       align-items: center; gap: .35rem 1.1rem; }
     .spl-p-tx  { grid-column: 1; grid-row: 1; }
     .spl-p-gr  { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; min-width: 0; }
@@ -6513,7 +6537,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.78';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
