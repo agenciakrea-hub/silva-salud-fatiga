@@ -218,6 +218,15 @@ function __digestHex(bytes) {
     });
   }
   LibroFalso.prototype.getSheetByName = function (n) { return this._hojas[n] || null; };
+  /* ⚠️ FALTABA, y sin esto NINGUNA prueba podía entrar por `accionSupervisor` (P051, 2026-09-06):
+     `leerTurnos` y `leerOperacional` la llaman para formatear en la zona de la operación, así que
+     el pedido moría con "getSpreadsheetTimeZone is not a function" antes de devolver nada. El
+     efecto real era que las pruebas del recorte por rol se escribían llamando a los helpers de
+     adentro (`armarAptitudServer`, `anonimizarHseq`) con datos armados a mano — probando la pieza
+     y no el uso, que es justo lo que R17 vino a prohibir. Devuelve la MISMA zona que
+     `Session.getScriptTimeZone`: son dos cosas distintas en Apps Script (la del libro y la del
+     script) pero acá conviene que coincidan, y `opciones.zona` las mueve a las dos juntas. */
+  LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || 'America/Caracas'; };
   LibroFalso.prototype.getSheets = function () { return Object.keys(this._hojas).map(n => this._hojas[n]); };
   LibroFalso.prototype.insertSheet = function (n) {
     this._hojas[n] = new HojaFalsa(n, []);
@@ -254,7 +263,7 @@ function __digestHex(bytes) {
         getActiveSpreadsheet: function () { return env.__libro; },
         flush: function () {}
       },
-      __libro: new LibroFalso(hojas),
+      __libro: (function (l) { l._zona = opciones.zona || 'America/Caracas'; return l; })(new LibroFalso(hojas)),
 
       /* — Caché: implementación real en memoria, no un stub que devuelve null.
            Importa porque hay lógica que DEPENDE de que la caché funcione (el freno de fuerza

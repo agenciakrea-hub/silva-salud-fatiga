@@ -70,13 +70,20 @@ PRUEBAS.caso('la última lámina invita a registrarse, no a seguir', () => {
   PRUEBAS.igual(txt, t('car_registrarse'), 'el último botón dice registrarse');
 });
 
-PRUEBAS.caso('🔴 el carrusel NO tiene voseo, en ninguna de sus catorce claves (R1)', () => {
+PRUEBAS.caso('🔴 el carrusel NO tiene voseo, en ninguna de sus claves (R1)', () => {
   /* Se entra por `t()` con el idioma fijado, no por la forma interna del diccionario ni por el
      HTML —que es sólo el respaldo si falta la clave—. Es la regla que ya se corrigió dos veces:
      lo que la vigila tiene que mirar lo que la persona lee de verdad. */
   const antes = (typeof idiomaActual === 'function') ? idiomaActual() : 'es';
+  /* ⚠️ P051 partió `car4_cuerpo` —un párrafo corrido— en el esquema de cuatro filas. Las claves
+     nuevas entran ACÁ y no en otro lado: si la lista no las siguiera, el carrusel tendría nueve
+     cadenas nuevas sin nadie que les mire el voseo, que es justo la regla que ya se corrigió dos
+     veces. (El barrido de todo el diccionario, más abajo, también las cubre; ésta es la que dice
+     explícitamente "el carrusel".) */
   const claves = ['car1_tit','car1_cuerpo','car2_tit','car2_cuerpo','car3_tit','car3_cuerpo',
-                  'car4_tit','car4_cuerpo','car5_tit','car5_cuerpo','car_saltar',
+                  'car4_tit','car4_yo_t','car4_yo_d','car4_sup_t','car4_sup_d','car4_med_t',
+                  'car4_med_d','car4_dir_t','car4_dir_d','car4_pie',
+                  'car5_tit','car5_cuerpo','car_saltar',
                   'car_registrarse','atras','siguiente'];
   /* ⚠️ NO SE USA `\b` AL FINAL, y esto lo cazó el discriminador de abajo. En JavaScript `\b` está
      definido sobre `[A-Za-z0-9_]`, así que una `í` o una `é` NO cuentan como carácter de palabra:

@@ -3371,6 +3371,62 @@
   .car-tit { color:var(--text); font-size:clamp(1.2rem,4.6vw,1.5rem); font-weight:800; line-height:1.3;
     max-width:26ch; text-wrap:balance; }
   .car-cuerpo { color:var(--text-soft); font-size:.92rem; line-height:1.55; max-width:38ch; }
+  /* ── P051 · el esquema de "Quién ve qué" (lámina 4) ──
+     Reemplaza a un párrafo corrido. Va alineado a la IZQUIERDA aunque la lámina esté centrada:
+     cuatro filas que se comparan entre sí se leen recorriendo una columna, y con el texto
+     centrado cada renglón arranca en un lugar distinto. Sin fondo ni cajas: son cuatro filas
+     separadas por una línea, que es lo más liviano que entra en una lámina de alto acotado.
+     R13 · todo por token, y los dos que se usan como tinta están medidos sobre `--card` —que es
+     el fondo REAL de este overlay (`#carruselOv.overlay { background: var(--card) }`)— en los
+     dos temas. */
+  /* ⚠️ ESTA LÁMINA LLEVA CUATRO FILAS DONDE LAS OTRAS LLEVAN UN PÁRRAFO, y el alto de la lámina
+     está acotado (`.car-viewport` tiene `overflow:hidden`, así que lo que no entra NO se ve y no
+     hay barra que lo delate). Medido a 375×667 con el mismo aire que las demás: 522 px de
+     contenido en 512 disponibles — la última fila quedaba cortada por abajo. El aire se recorta
+     SÓLO acá, con una clase propia y `.car-slide.car-slide--esquema` (dos clases) para que gane
+     también dentro de la media query de 340 px, que redeclara `padding-top`. A partir de 768 px
+     sobra lugar y se devuelve todo. */
+  /* ⚠️ Y `overflow-y:auto` NO ES UN PARCHE: es lo único que impide que la promesa quede cortada.
+     Medido a 360×640: con la letra en "Normal" el contenido se pasaba 9 px, en "Grande" 104 y en
+     "Muy grande" 206. Las otras cuatro láminas tienen entre 29 y 233 px de sobra en esos mismos
+     casos, así que el problema es de ESTA, que lleva cuatro filas donde ellas llevan un párrafo.
+     Encogerlo todo hasta que entre sería la decisión equivocada —quien sube la letra está pidiendo
+     lugar para LEER, es la misma doctrina que la tira del splash— y recortarlo en silencio es peor:
+     `.car-viewport` tiene `overflow:hidden`, o sea que lo que no entra desaparece sin barra que lo
+     delate, en la pantalla donde la persona decide si contesta la verdad.
+     `safe center` centra mientras entra y se comporta como `start` cuando no: sin eso, un flex
+     centrado que desborda recorta también POR ARRIBA, y ahí no hay forma de llegar al principio.
+     Si el navegador no entiende `safe`, descarta la declaración entera y queda el `center` de
+     `.car-slide` — exactamente lo que había antes de esta línea. */
+  /* ⚠️ SIN `overscroll-behavior`, y a propósito. Lo natural acá sería `contain`, para que al llegar
+     al final del esquema el gesto no se le escape al documento. No va porque W1 tiene un caso que
+     cuenta cuántas veces aparece esa propiedad en TODO el CSS y exige que sea una sola —la de
+     `html`—: la segunda aparición, en `body`, dejó la app sin scroll con el dedo durante cinco
+     días. Relajar ese guardarraíl para ganar un detalle de gesto sería cambiar una protección real
+     por una comodidad. El overlay ocupa la pantalla entera y está fijo, así que el encadenado no
+     tiene casi a dónde ir. */
+  .car-slide.car-slide--esquema { padding-top:34px; gap:8px;
+    overflow-y:auto; justify-content:safe center; }
+  .car-slide--esquema .car-ic { width:54px; height:54px; margin-bottom:2px; }
+  .car-slide--esquema .car-ic svg { width:27px; height:27px; }
+  /* Con la letra grande el ícono es lo primero que sobra: es decorativo (`aria-hidden`) y son
+     ~60 px que le hacen falta al texto. Misma regla que ya existe para `.splash-anim`. */
+  html.texto-grande .car-slide--esquema .car-ic { display:none; }
+  /* ⚠️ EL ANCHO SE FIJA ACÁ Y EN NINGÚN OTRO LADO. El pie tiene su propia letra, más chica, así que
+     un `max-width` en `ch` puesto en cada uno les daba anchos DISTINTOS —41 px de diferencia a 768,
+     visible a simple vista— y el pie arrancaba corrido respecto de las cuatro filas. */
+  .car-quien-caja { width:100%; max-width:38ch; display:flex; flex-direction:column; gap:10px; }
+  .car-quien { list-style:none; margin:0; padding:0; width:100%; text-align:left; }
+  .car-quien li { padding:6px 0; border-top:1px solid var(--linea); }
+  .car-quien li:first-child { border-top:0; padding-top:0; }
+  .cq-rol { display:block; color:var(--text); font-size:.9rem; font-weight:800; line-height:1.3; }
+  .cq-ve  { display:block; color:var(--text-soft); font-size:.84rem; line-height:1.45; }
+  /* ⚠️ `width:100%` NO ES DECORATIVO. `.car-slide` centra sus hijos (`align-items:center`), y un
+     `<p>` sin ancho se encoge al texto: el pie quedaba centrado bajo el esquema en vez de arrancar
+     donde arrancan las cuatro filas. A 768 px se veía a simple vista, 78 px corrido a la derecha.
+     El `<ul>` no tenía el problema porque ya declara `width:100%`. */
+  .car-pie { color:var(--text-muted); font-size:.76rem; line-height:1.45;
+    width:100%; text-align:left; }
   .car-dots { display:flex; justify-content:center; gap:8px; padding:18px 0 4px; }
   .car-dots span { width:7px; height:7px; border-radius:50%; background:var(--linea-2);
     transition:background var(--dur-tap), transform var(--dur-tap); }
@@ -3395,6 +3451,17 @@
   .car-atras:not(.on) { position:absolute; }
   .car-sig { flex:1; }
   @media (max-width:340px){ .car-slide{ padding-top:40px; } .car-ic{ width:54px; height:54px; } .car-ic svg{ width:26px; height:26px; } }
+  /* ⚠️ PANTALLA BAJA · el corte es 660 y NO 700 a propósito. A 375×667 —iPhone SE/8, de los más
+     comunes— la lámina entra con el ícono puesto, y sacárselo dejaría a la cuarta lámina sin el
+     ícono que tienen las otras cuatro: se nota al deslizar. A 640 px de alto ya no entra (medido:
+     se pasaba 9 px), y ahí el ícono decorativo sale y el texto queda entero.
+     `max-width:899px` va sí o sí: `max-height` a secas también dispara en un portátil de 1366×768,
+     que es donde MÁS lugar hay — la trampa que ya se pagó con la tira del splash, unas líneas
+     más arriba en este mismo archivo. */
+  @media (max-height:660px) and (max-width:899px){
+    .car-slide.car-slide--esquema { padding-top:22px; }
+    .car-slide--esquema .car-ic { display:none; }
+  }
 
   /* ═══════════ H1 · PANTALLAS DE ENTRADA EN ESCRITORIO Y TABLET (2026-08-26) ═══════════
      Medido antes de tocar nada: el contenido de splash / carrusel / alta estaba congelado en
@@ -3430,6 +3497,16 @@
     .car-ic svg { width: 38px; height: 38px; }
     .car-tit { font-size: clamp(1.45rem, 3.2vw, 1.8rem); max-width: 24ch; }
     .car-cuerpo { font-size: 1.02rem; max-width: 48ch; }
+    /* P051 · el esquema crece con el resto de la lámina, igual que `.car-cuerpo`, y acá ya sobra
+       alto: se devuelve el aire que la versión de teléfono tiene que recortar. */
+    .car-slide.car-slide--esquema { padding-top: 64px; gap: 18px; }
+    .car-slide--esquema .car-ic { width: 76px; height: 76px; margin-bottom: 6px; }
+    .car-slide--esquema .car-ic svg { width: 38px; height: 38px; }
+    .car-quien-caja { max-width: 48ch; gap: 14px; }
+    .car-quien li { padding: 12px 0; }
+    .cq-rol { font-size: 1rem; }
+    .cq-ve  { font-size: .96rem; }
+    .car-pie { font-size: .85rem; }
     .car-nav { max-width: 520px; margin: 0 auto; width: 100%; }
 
     /* La tarjeta de alta/recuperar deja de ser la misma de 410 px de celular */
@@ -3634,6 +3711,13 @@
     .car-ic svg { width: 38px; height: 38px; }
     .car-tit { font-size: clamp(1.5rem, 2vw, 1.9rem); max-width: 22ch; }
     .car-cuerpo { font-size: 1.02rem; max-width: 40ch; }
+    /* P051 · en escritorio la lámina comparte fila con el panel de marca: el esquema se acota al
+       mismo ancho que el párrafo para que las cuatro filas no crucen media pantalla.
+       ⚠️ El `padding-top` se redeclara porque `.car-slide.car-slide--esquema` del bloque de 768
+       tiene DOS clases y le ganaría a `.car-slide` de acá — quedaría con 64 px donde el resto de
+       las láminas usa 3rem, y a 1366×768 la lámina entra justa. */
+    .car-slide.car-slide--esquema { padding-top: 3rem; }
+    .car-quien-caja { max-width: 40ch; }
 
     /* ═══ B3 · Alta por nómina y recuperación de perfil ═══
        ⚠️ El `display` se cambia SÓLO en `.show`. Tocarlo en la regla sin la clase haría que el
@@ -5533,10 +5617,38 @@
           <h2 class="car-tit" data-i18n="car3_tit">Hacia dónde vamos</h2>
           <p class="car-cuerpo" data-i18n="car3_cuerpo">Estamos sumando pulseras y relojes que miden sueño y frecuencia cardíaca, para completar lo que ya reportas con datos objetivos. Todavía no está activo: por ahora, todo lo que ve el sistema es lo que tú mismo registras.</p>
         </div>
-        <div class="car-slide">
+        <div class="car-slide car-slide--esquema">
           <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
           <h2 class="car-tit" data-i18n="car4_tit">Quién ve qué</h2>
-          <p class="car-cuerpo" data-i18n="car4_cuerpo">Tu supervisor ve tu condición operativa del día, nunca los valores de tus evaluaciones. El servicio médico es el único que accede a los resultados completos. La aplicación nunca declara «no apto»: sólo señala que conviene una revisión médica.</p>
+          <!-- ⚠️ P051 · CADA LÍNEA SE VERIFICÓ CORRIENDO `accionSupervisor` Y `accionEmpleado` DE
+               VERDAD (emulador de Apps Script, 2026-09-06), no leyendo el código ni de memoria.
+               Lo que devolvió cada rol para la misma persona:
+                 · Tú (`accionEmpleado`)  → registros CON puntajes, PVT, y 30 días de tu ciclo.
+                 · Supervisor             → una fila por persona (persona/empresa/departamento/
+                   cargo), `aptitud` con el nivel POR INDICADOR, `pvt: []`, `comentarios: []`,
+                   `duty: null` y el ciclo con `nivel` en lugar de `resultado`.
+                 · Servicio médico        → todo lo anterior en crudo, más los comentarios.
+                 · Dirección/HSEQ         → lo mismo que el supervisor, con `persona` → P1, P2…
+               ⚠️ POR QUÉ LA FILA DE DIRECCIÓN **NO** PROMETE ANONIMATO. Medido el mismo día: el
+               payload de `hseq` todavía lleva la CÉDULA en `operacional[]`/`turnos[]`, la nómina
+               entera por nombre en `nominaSinDato`, y nombre+cédula en las claves de `ausencias`.
+               Mientras eso siga así, escribir «sin tu nombre» acá sería mentirle a la persona en
+               la pantalla donde decide si contesta la verdad (R4). Se dice lo que SÍ se cumple —
+               ningún puntaje, ningún comentario — y nada más. El caso `p051-quien-ve-que.js`
+               falla si alguien agrega la promesa sin cerrar antes la fuga. -->
+          <!-- La caja existe para que el esquema y su pie compartan borde izquierdo: los dos tienen
+               `width:100%` adentro de ella, así que el ancho lo fija UN solo lugar. Puestos como
+               hermanos sueltos de la lámina no alcanzaba — `max-width` en `ch` se resuelve contra
+               la letra de cada uno, y el pie es más chico, así que le daba un ancho distinto. -->
+          <div class="car-quien-caja">
+          <ul class="car-quien">
+            <li><b class="cq-rol" data-i18n="car4_yo_t">Tú</b><span class="cq-ve" data-i18n="car4_yo_d">Tus resultados completos, con los puntajes, y tu historial de 30 días.</span></li>
+            <li><b class="cq-rol" data-i18n="car4_sup_t">Tu supervisor</b><span class="cq-ve" data-i18n="car4_sup_d">Tu nombre y si cada indicador está en verde, amarillo o rojo. Ningún puntaje y ningún comentario.</span></li>
+            <li><b class="cq-rol" data-i18n="car4_med_t">El servicio médico</b><span class="cq-ve" data-i18n="car4_med_d">Los resultados completos y tus comentarios. Es el único que firma una determinación de aptitud.</span></li>
+            <li><b class="cq-rol" data-i18n="car4_dir_t">Dirección y seguridad</b><span class="cq-ve" data-i18n="car4_dir_d">El mismo semáforo por indicador que tu supervisor. Tampoco puntajes ni comentarios.</span></li>
+          </ul>
+          <p class="car-pie" data-i18n="car4_pie">El recorte lo hace el servidor antes de enviar, no la pantalla.</p>
+          </div>
         </div>
         <div class="car-slide">
           <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg></div>
@@ -6390,7 +6502,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6521,7 +6633,24 @@ const I18N = {
       car3_tit:'Hacia dónde vamos',
       car3_cuerpo:'Estamos sumando pulseras y relojes que miden sueño y frecuencia cardíaca, para completar lo que ya reportas con datos objetivos. Todavía no está activo: por ahora, todo lo que ve el sistema es lo que tú mismo registras.',
       car4_tit:'Quién ve qué',
-      car4_cuerpo:'Tu supervisor ve tu condición operativa del día, nunca los valores de tus evaluaciones. El servicio médico es el único que accede a los resultados completos. La aplicación nunca declara «no apto»: sólo señala que conviene una revisión médica.',
+      /* ⚠️ P051 · ESTO NO ES TEXTO DE PRESENTACIÓN: ES UNA PROMESA DE PRIVACIDAD, y se lee justo
+         antes de decidir si se contesta la verdad (R4). Cada línea se verificó CORRIENDO el
+         endpoint —`accionEmpleado` y `accionSupervisor` con las tres contraseñas— el 2026-09-06.
+         Reemplazó a `car4_cuerpo`, un párrafo corrido que además decía de menos: "tu supervisor ve
+         tu condición operativa del día" suena a un semáforo único, y lo que recibe es el nivel de
+         CADA indicador, ansiedad y ánimo incluidos. Es la misma suavización que X1 ya había
+         prohibido por escrito.
+         Antes de tocar cualquiera de estas cinco cadenas, correr `pruebas/casos/p051-quien-ve-que.js`:
+         compara lo que dicen contra lo que el `.gs` manda de verdad. */
+      car4_yo_t:'Tú',
+      car4_yo_d:'Tus resultados completos, con los puntajes, y tu historial de 30 días.',
+      car4_sup_t:'Tu supervisor',
+      car4_sup_d:'Tu nombre y si cada indicador está en verde, amarillo o rojo. Ningún puntaje y ningún comentario.',
+      car4_med_t:'El servicio médico',
+      car4_med_d:'Los resultados completos y tus comentarios. Es el único que firma una determinación de aptitud.',
+      car4_dir_t:'Dirección y seguridad',
+      car4_dir_d:'El mismo semáforo por indicador que tu supervisor. Tampoco puntajes ni comentarios.',
+      car4_pie:'El recorte lo hace el servidor antes de enviar, no la pantalla.',
       car5_tit:'Listos para empezar',
       car5_cuerpo:'Eliges tu empresa, buscas tu nombre en la lista y confirmas tu cédula. Si tu empresa usa un código de registro, tu supervisor te lo da. En menos de un minuto quedas dentro.',
       car_registrarse:'Registrarse',
@@ -8141,7 +8270,17 @@ const I18N = {
       car3_tit:'Where this is going',
       car3_cuerpo:'We are adding wristbands and watches that measure sleep and heart rate, to complement what you already report with objective data. It is not active yet — for now, everything the system sees is what you report yourself.',
       car4_tit:'Who sees what',
-      car4_cuerpo:'Your supervisor sees your operational condition for the day, never your test scores. Medical staff are the only ones with access to full results. The app never declares someone "unfit" — it only flags that a medical review is advisable.',
+      /* P051 · ver la nota larga en el bloque español: cada línea está verificada contra el
+         endpoint, y la de Dirección NO promete anonimato a propósito. */
+      car4_yo_t:'You',
+      car4_yo_d:'Your full results, with the scores, and your 30-day history.',
+      car4_sup_t:'Your supervisor',
+      car4_sup_d:'Your name and whether each indicator is green, amber or red. No scores and no comments.',
+      car4_med_t:'Medical staff',
+      car4_med_d:'The full results and your comments. The only ones who sign a fitness determination.',
+      car4_dir_t:'Management and safety',
+      car4_dir_d:'The same per-indicator status your supervisor sees. No scores and no comments either.',
+      car4_pie:'The server trims the data before sending it, not just on the screen.',
       car5_tit:'Ready to start',
       car5_cuerpo:'Pick your company, find your name on the list and confirm your ID. If your company uses a registration code, your supervisor will give it to you. You are in within a minute.',
       car_registrarse:'Sign up',
