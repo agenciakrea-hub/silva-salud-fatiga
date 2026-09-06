@@ -5780,7 +5780,7 @@
     <button type="button" class="nom-link" id="setupRecLink" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
     <div class="pilot-banner" id="pilotBanner">
       <label for="inEsPiloto">
-        <span class="pbi">✈</span>
+        <span class="pbi" id="rolIcono"></span>
         <span class="pbt">
           <span class="opt-tag" data-i18n="opcional">Opcional</span>
           <strong data-i18n="rol_aviacion">Personal de aviación</strong>
@@ -6380,7 +6380,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.70';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.71';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6487,7 +6487,12 @@ const I18N = {
       spl_p3_chip:'Analizando',
       spl_p3_n:'Normal', spl_p3_e:'Elevado', spl_p3_c:'Crítico',
       spl_p4_t:'Acceso segmentado por rol', spl_p4_d:'El supervisor ve la aptitud operativa; el servicio médico, los resultados clínicos. Cada rol accede sólo a lo que le corresponde.',
-      spl_p5_t:'Funciona sin señal',     spl_p5_d:'En el hangar o en la planta, se registra igual. Se envía solo al volver la señal.',
+      /* R14 · esto decía "En el hangar o en la planta" y vivía ACÁ, en el bloque compartido:
+         o sea que una planta, una cuadrilla de campo y cualquier empresa sin sector cargado
+         leían "hangar" en la pantalla de entrada. La versión con sabor aeronáutico se mudó al
+         bloque `aviacion`, donde no la lee nadie más — y donde el padrón instalado la sigue
+         viendo igual que hasta hoy, porque SECTOR_DEFAULT es `aviacion`. */
+      spl_p5_t:'Funciona sin señal',     spl_p5_d:'Se guarda en el teléfono y se envía solo cuando vuelve la señal.',
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
       splash_otras:'Otras formas de entrar',
@@ -7756,6 +7761,8 @@ const I18N = {
       niv_t_1:'Mínimo', niv_t_2:'Bajo', niv_t_3:'Medio', niv_t_4:'Alto', niv_t_5:'Máximo',
       riesgo_n:'Riesgo {n}',
       demo_com_1:'Dolor de cabeza fuerte desde la mañana.',
+      demo_gest_det1:'Perelli y KSS por encima de lo normal en los últimos tests. Se conversó con la persona sobre calidad de sueño diurno.',
+      demo_gest_t1:'Hablar con la persona',
       demo_com_2:'El taller está muy ruidoso esta semana.',
       sub_determ:'Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión',
       // ── Tareas y notificaciones (D1) ──
@@ -7889,7 +7896,9 @@ const I18N = {
       rol_aviacion:'Personal de aviación',
       f_idpiloto:'Identificador de Piloto',
       f_idpiloto_err:'Por favor ingresa tu identificador de piloto.',
-      f_cargo_ph:'Ej: Piloto'
+      f_cargo_ph:'Ej: Piloto',
+      demo_com_0:'Vuelo largo ayer, dormí muy poco.',
+      spl_p5_d:'En el hangar o en la rampa, se registra igual. Se envía solo al volver la señal.'
     },
     planta: {
       op_lleg_sitio:'Llegando a la planta',
@@ -8054,7 +8063,8 @@ const I18N = {
       rol_aviacion:'Personal operativo',
       f_idpiloto:'Identificador de empleado',
       f_idpiloto_err:'Por favor ingresa tu identificador.',
-      f_cargo_ph:'Ej: Operario'
+      f_cargo_ph:'Ej: Operario',
+      demo_com_0:'Turno largo ayer, dormí muy poco.'
     }
   },
 
@@ -9452,6 +9462,8 @@ const I18N = {
       niv_t_1:'Minimal', niv_t_2:'Low', niv_t_3:'Medium', niv_t_4:'High', niv_t_5:'Maximum',
       riesgo_n:'{n} risk',
       demo_com_1:'Bad headache since this morning.',
+      demo_gest_det1:'Perelli and KSS above normal in the latest tests. We talked with the person about daytime sleep quality.',
+      demo_gest_t1:'Talk with the person',
       demo_com_2:'The workshop is very noisy this week.',
       sub_determ:'Your active determinations · on expiry, the person returns to Pending review',
       // ── Tasks and notifications (D1) ──
@@ -9546,7 +9558,9 @@ const I18N = {
       rol_aviacion:'Aviation personnel',
       f_idpiloto:'Pilot ID',
       f_idpiloto_err:'Please enter your pilot ID.',
-      f_cargo_ph:'e.g. Pilot'
+      f_cargo_ph:'e.g. Pilot',
+      demo_com_0:'Long flight yesterday, I barely slept.',
+      spl_p5_d:'In the hangar or on the ramp, it records just the same. It is sent on its own when the signal is back.'
     },
     planta: {
       op_lleg_sitio:'Arriving at the plant',
@@ -9708,7 +9722,8 @@ const I18N = {
       rol_aviacion:'Operational personnel',
       f_idpiloto:'Employee ID',
       f_idpiloto_err:'Please enter your ID.',
-      f_cargo_ph:'e.g. Operator'
+      f_cargo_ph:'e.g. Operator',
+      demo_com_0:'Long shift yesterday, I barely slept.'
     }
   }
 };
@@ -9832,6 +9847,10 @@ function aplicarIdioma(){
      inglés. Desde J6 ese subtítulo es lo ÚNICO visible cuando el bloque está colapsado, así que
      tiene que estar en el idioma correcto. */
   try { temaPintarControl(); } catch(e){}
+  /* R14 · el ícono del banner de rol depende del SECTOR, y el sector cambia sin recargar
+     (`sectorRefrescar()` al arrancar, `onDashData` al abrir el panel). Si no se repinta acá,
+     la etiqueta pasa a "Personal operativo" y el avión se queda. */
+  try { rolIconoPintar(); } catch(e){}
   /* "Tu actividad" también tiene texto que sale de t() y se pinta desde JS: los meses y los días
      de la grilla, el resumen ("N registros en N días activos") y la racha de J4. No cuelga de
      `renderSections()`, así que sin esto se quedaba en el idioma anterior — con la app en inglés
@@ -9893,6 +9912,40 @@ function idiomaPintarControl(){
   const act = idiomaActual();
   if (lbl){ const o = IDIOMAS.filter(x => x.k === act)[0]; lbl.textContent = o ? o.t : act; }
   document.querySelectorAll('.idioma-opt').forEach(b => b.classList.toggle('active', b.dataset.lang === act));
+}
+
+/* R14 · EL ÍCONO TAMBIÉN ES TERMINOLOGÍA. El banner de rol tenía un ✈ escrito a mano en el
+   marcado, justo encima de una etiqueta que SÍ cambia por sector (`rol_aviacion` resuelve a
+   "Personal de aviación" en una aérea y a "Personal operativo" en una planta). O sea: a una
+   petrolera la app le dibujaba un avión al lado de "Personal operativo". Un barrido por PALABRAS
+   nunca lo encuentra —no es una palabra—, y por eso se anota acá cómo se encontró: mirando el
+   marcado, no grepeando.
+
+   No vive en I18N a propósito: un dibujo no se traduce, así que meterlo ahí obligaría a
+   duplicarlo en los dos idiomas y a mantener sincronizadas dos copias del mismo SVG. Va en un
+   mapa por sector, igual que `CICLO_FORMA_DE_SECTOR`, con la MISMA degradación que el motor de
+   textos: sector desconocido → el neutro, nunca vacío.
+
+   El mapa es local a la función a propósito (R16): así no hay un `const` de nivel superior que el
+   arranque pueda leer en zona muerta. */
+function rolIconoHtml(){
+  const SVG = (d) => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+                     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  const POR_SECTOR = {
+    // avión: el padrón instalado de hoy es aeronáutico, y para ellos NO cambia nada
+    aviacion: SVG('<path d="M12 2.5c-.8 0-1.3.7-1.3 1.5v4.4L3 13v2l7.7-2.2v4.3L8 19v1.9l4-1.1 4 1.1V19l-2.7-1.9v-4.3L21 15v-2l-7.7-4.6V4c0-.8-.5-1.5-1.3-1.5z"/>'),
+    // casco de seguridad: planta y campo
+    planta:   SVG('<path d="M3 18.5h18"/><path d="M5 18.5v-3.2a7 7 0 0 1 14 0v3.2"/><path d="M9.6 8.4V4.8a.8.8 0 0 1 .8-.8h3.2a.8.8 0 0 1 .8.8v3.6"/>'),
+    campo:    SVG('<path d="M3 18.5h18"/><path d="M5 18.5v-3.2a7 7 0 0 1 14 0v3.2"/><path d="M9.6 8.4V4.8a.8.8 0 0 1 .8-.8h3.2a.8.8 0 0 1 .8.8v3.6"/>'),
+    // credencial de personal: neutro, sirve para una oficina igual que para un taller
+    generico: SVG('<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M9.5 2.5h5v3.5h-5z"/>' +
+                  '<circle cx="12" cy="12" r="2.1"/><path d="M8.6 17.2a3.6 3.6 0 0 1 6.8 0"/>')
+  };
+  return POR_SECTOR[sectorActual()] || POR_SECTOR.generico;
+}
+function rolIconoPintar(){
+  const e = document.getElementById('rolIcono');
+  if (e) e.innerHTML = rolIconoHtml();
 }
 
 /* ════════════════ PERFIL DE EMPRESA · sector e identidad (A3, 2026-08-25) ══════════════════════
@@ -15865,6 +15918,13 @@ function cargaConMinimo(promesa, alVencerSinRespuesta){
 
 function onDashData(d, scopeLabel, params, vista){
   if (!d || !d.ok){ showToast(tError(d && d.error)); return; }
+  /* ⚠️ R14 · SE MIDE ANTES DE PISAR `DASH`. `sectorActual()` mira `DASH._cfg.sector` PRIMERO, así
+     que en cuanto este objeto se reemplaza el sector puede cambiar de golpe — y lo que ya estaba
+     pintado afuera del panel (el inicio, sus botones operacionales) se queda con la terminología
+     vieja. Medido: con el perfil en `aviacion` y el CH diciendo `campo`, `t('op_lleg_sitio')`
+     pasaba a "Llegando al sitio de trabajo" mientras `#sections` seguía diciendo "Llegando al
+     aeropuerto". No es la pantalla equivocada: son las DOS a la vez, que es peor. */
+  const _secAntes = sectorActual();
   dashMergeNombres(d.registros, d.pvt || []);                                    // une variantes del mismo nombre
   const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));  // oculta métricas sin datos (ej: KSS vacío)
   const pvt = d.pvt || null;
@@ -15988,6 +16048,10 @@ function onDashData(d, scopeLabel, params, vista){
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
   startDashAutoRefresh();
+  /* R14 · si la empresa que se acaba de abrir tiene OTRO sector, se repinta todo lo que depende de
+     idioma × sector. Va al final y sólo cuando cambió de verdad: `aplicarIdioma()` rehace el panel
+     entero, y hacerlo en cada carga sería pagar un render de más por nada. */
+  if (sectorActual() !== _secAntes) { try { aplicarIdioma(); } catch(e){} }
 }
 
 /* Pide los niveles de riesgo al endpoint cuando no vinieron en el payload principal.
@@ -18143,7 +18207,7 @@ function dashReportesDemo(){
   const ahora = Date.now();
   return [
     { id:'demo_r1', opcion:'no_dormi', identificado:true, persona:'Nicolás Herrera', empresa:'Empresa Demo',
-      departamento:'Tripulación', cargo:'', comentario:'Vuelo largo ayer, dormí muy poco.', creada: ahora - 3600000 },
+      departamento:'Tripulación', cargo:'', comentario:t('demo_com_0'), creada: ahora - 3600000 },
     { id:'demo_r2', opcion:'malestar', identificado:true, persona:'Ana Suárez', empresa:'Empresa Demo',
       departamento:'Administración', cargo:'', comentario:t('demo_com_1'), creada: ahora - 7200000 },
     { id:'demo_r3', opcion:'entorno', identificado:false, empresa:'Empresa Demo',
@@ -23179,9 +23243,14 @@ function gestSembrarDemo(){
   const items = [
     { titulo:'Fatiga elevada — turno noche', personas:[p(0)], departamento: depDe(p(0)) || 'Operaciones',
       estado:'seguimiento', prioridad:'alta', pin:true, creada: ahora - 6*dia,
-      detalle:'Perelli y KSS por encima de lo normal en los últimos tests. Se conversó con el piloto sobre calidad de sueño diurno.',
+      /* R14 · estos dos decían "el piloto". Van por t() y en neutro: el cuaderno de ejemplo lo
+         ve cualquier sector. ⚠️ El RESTO de los textos de esta siembra sigue escrito a mano en
+         español — no es descuido de R14 (no hay término de sector), es una deuda de idioma:
+         `gestUpsert` PERSISTE lo sembrado, así que traducirlo acá lo congela en el idioma que
+         estuviera activo al sembrar. Se anota, no se tapa. */
+      detalle:t('demo_gest_det1'),
       revisa: (new Date(ahora + 2*dia)).toISOString().slice(0,10),
-      tareas: [ {t:'Hablar con el piloto', ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
+      tareas: [ {t:t('demo_gest_t1'), ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
       seguimientos: [ {ts: ahora - dia, texto:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.'},
                        {ts: ahora - 5*dia, texto:'Primer contacto: refiere dificultad para dormir de día.'} ] },
     { titulo:'Ansiedad — evaluación pendiente', personas:[p(1)], departamento: depDe(p(1)) || 'Administración',
