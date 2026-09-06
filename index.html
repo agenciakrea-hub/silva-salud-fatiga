@@ -6151,7 +6151,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.56';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.57';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7340,6 +7340,7 @@ const I18N = {
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_bar_corto:'Demostración · nada se guarda',
       demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
+      rol_quitado:'Tu empresa actualizó tu rol. Ahora ves la aplicación como el resto del personal.',
       nom_sup_tengo:'Tengo un código de supervisor',
       nom_sup_lbl:'Código de supervisor (opcional)',
       nom_sup_ph:'Sólo si te lo dieron',
@@ -8992,6 +8993,7 @@ const I18N = {
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
       demo_aplicado:'Applied in the demo. Everything resets when you leave.',
+      rol_quitado:'Your company updated your role. You now see the app like the rest of the staff.',
       nom_sup_tengo:'I have a supervisor code',
       nom_sup_lbl:'Supervisor code (optional)',
       nom_sup_ph:'Only if you were given one',
@@ -23722,6 +23724,31 @@ function tareasCargar(){
          clínica. Si el endpoint todavía no se actualizó, llega undefined y queda en null: la app
          se comporta igual que antes. */
       TAREAS.determinacion = (d.determinacion && d.determinacion.nivel) ? d.determinacion : null;
+      /* ⚠️ P101 · LA NÓMINA PUEDE QUITAR EL ROL, Y ES LO ÚNICO QUE PUEDE. El ADR 002 lo dejó
+         escrito: la nómina PROPONE (nunca da acceso por sí sola) pero SÍ puede sacar. Si RRHH le
+         quita el rol a alguien en la hoja, esa persona tiene que perder el panel — y hasta hoy no
+         lo perdía nunca, porque nada volvía a leer su fila después del alta.
+         Este canal es el correcto y no hay otro: es el único del endpoint que identifica a una
+         persona sin contraseña (nombre + cédula contra la nómina) y corre en CADA arranque.
+         ⚠️ `rolNomina` viaja SÓLO si el servidor pudo afirmar algo: fila encontrada por nombre y
+         cédula, y celda con un rol escrito. Una celda vacía no llega nunca — decisión de Franco,
+         y la razón es que "vacío" y "Empleado" eran indistinguibles después de normalizar, así
+         que quitar sin distinguirlas le sacaba el panel a todos los supervisores de golpe.
+         ⚠️ Y SE AVISA AL SERVIDOR ANTES DE BORRAR EL TOKEN, igual que hace `saveProfile`: si se
+         borra primero, la sesión queda viva del otro lado sin que nadie pueda cerrarla. */
+      if (d.rolNomina === 'empleado'){
+        const _p = getProfile();
+        if (_p && (_p.esSupervisor || _p.esServicioMedico)){
+          try { sesionAvisarCierre(); } catch(e){}
+          setProfile(Object.assign({}, _p, { esSupervisor:false, esServicioMedico:false, rol:'empleado' }));
+          try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+          try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+          /* Si estaba mirando el panel de la empresa en ese momento, se descarta: los datos que
+             tiene en pantalla ya no le corresponden. */
+          if (DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;
+          try { showToast(t('rol_quitado')); } catch(e){}
+        }
+      }
       tareasCacheGuardar();      // M2: para que el próximo arranque no espere 5 segundos
       tareasPintarBadge();
       try { renderInicio(); } catch(e){}
