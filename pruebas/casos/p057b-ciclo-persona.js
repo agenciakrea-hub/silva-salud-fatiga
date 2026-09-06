@@ -66,7 +66,7 @@ PRUEBAS.caso('⚠️ el mapa de jornadas NO viaja a Dirección/HSEQ (K1b)', () =
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
   const gs = CTX.gs;
   PRUEBAS.alMenos(gs.length, 10000, 'guarda de medibilidad: se leyó el .gs · ' + gs.length);
-  const bloque = (gs.match(/var planPorPersona = \{\};[\s\S]{0,600}/) || [''])[0];
+  const bloque = (gs.match(/var planPorPersona = \{\}[\s\S]{0,700}/) || [''])[0];
   PRUEBAS.alMenos(bloque.length, 50, 'guarda: se encontró el armado del campo');
   PRUEBAS.cierto(/acc\.vista\s*!==\s*"hseq"/.test(bloque),
     '⚠️ el mapa se llena SÓLO si la vista no es hseq · ' + bloque.replace(/\s+/g, ' ').slice(0, 130));
@@ -127,11 +127,21 @@ PRUEBAS.caso('⚠️ un plan con basura NO se guarda a medias', () => {
   const api = GS.cargarGs(CTX.gs, env, ['cipPlanValido']);
   PRUEBAS.igual(api.cipPlanValido(null), null, 'null no es un plan');
   PRUEBAS.igual(api.cipPlanValido({}), null, 'un objeto vacío tampoco');
-  PRUEBAS.igual(api.cipPlanValido({ jornada: -5 }), null, '⚠️ ni minutos negativos');
-  PRUEBAS.igual(api.cipPlanValido({ jornada: 99999 }), null, '⚠️ ni más de un día');
-  PRUEBAS.igual(api.cipPlanValido({ jornada: 'ocho horas' }), null, '⚠️ ni texto');
-  const ok = api.cipPlanValido({ jornada: 480, inventado: 999 });
-  PRUEBAS.igual(ok && ok.jornada, 480, 'un tramo válido sí se acepta');
+  /* ⚠️ ESTE CASO USABA `{ jornada: 480 }` Y PASABA — con la única clave que el defecto H2 no
+     rompía. El servidor validaba contra `DUTY_TRAMOS`, cuyas claves son otras, así que de los
+     cuatro tramos tecleados sólo sobrevivía `jornada`… que es justo la que yo había elegido para
+     probar. Ahora se arma el plan desde la forma vigente, no a mano. */
+  const completo = {};
+  cicloTramos().forEach((tr, i) => { completo[tr.k] = 60 + i * 30; });
+  PRUEBAS.igual(api.cipPlanValido(Object.assign({}, completo, { jornada: -5 })), null, '⚠️ ni minutos negativos');
+  PRUEBAS.igual(api.cipPlanValido(Object.assign({}, completo, { jornada: 99999 })), null, '⚠️ ni más de un día');
+  PRUEBAS.igual(api.cipPlanValido(Object.assign({}, completo, { jornada: 'ocho horas' })), null, '⚠️ ni texto');
+  const ok = api.cipPlanValido(Object.assign({}, completo, { inventado: 999 }));
+  PRUEBAS.cierto(!!ok, 'un plan COMPLETO sí se acepta · ' + JSON.stringify(ok));
+  PRUEBAS.igual(ok && ok.jornada, completo.jornada, 'con su valor');
   PRUEBAS.falso(!!(ok && ok.inventado),
     '⚠️ y un tramo que la forma no declara se descarta, no se cuela a la hoja');
+  PRUEBAS.igual(api.cipPlanValido({ jornada: 480 }), null,
+    '⚠️ y un plan PARCIAL se rechaza entero (H6) · completarlo con el default del sector saltearía ' +
+    'el de la empresa');
 });

@@ -6746,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.90';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.91';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -16482,6 +16482,12 @@ function onDashData(d, scopeLabel, params, vista){
               cliente los tiraba, y dos prompts enteros «funcionaban» en las pruebas y no en
               producción. Dejarlo puesto desde ahora es lo que evita repetirlo en P057b. */
            cicloPlanPersona: d.cicloPlanPersona || null,
+           /* ⚠️ H8 · Y SU CANAL DE ERROR. Lo cazó el contrato de A4, que compara qué manda el
+              servidor contra qué guarda el cliente: agregué el campo en el `.gs` y me olvidé de
+              nombrarlo acá, que es EXACTAMENTE el defecto que ese caso existe para evitar y que yo
+              mismo cité al escribirlo. Sin esta línea, el aviso de «no pude leer las jornadas»
+              viajaba y se tiraba. */
+           cicloPlanPersonaError: d.cicloPlanPersonaError || null,
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
@@ -18114,7 +18120,7 @@ function aptTarjeta(p, opts){
   // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
   // El nombre va con JSON.stringify + &quot; (patrón ya probado en esta función): así un nombre con
   // tilde o apóstrofe no rompe el atributo.
-  const nomAttr = JSON.stringify(p.nombre).replace(/"/g,'&quot;');
+  const nomAttr = argAttr(p.nombre);   // H4 · antes no escapaba `&`
   const puedeSugerirTelem = !p.telem && !p.ultimoPocoConfiable;
   const acciones = (opts && opts.acciones)
     ? '<div class="apt-acciones">' +
@@ -19344,8 +19350,38 @@ function cicloEstadoVacio(plan){
     tramos: cicloTramos().map(tr => Object.assign({}, tr,
       { estado:'futuro', previsto:plan[tr.k], real:null, ini:null, fin:null })) };
 }
-function cicloEstado(c, ahora, plan){
+/* ⚠️ H3 · EL PLAN CON EL QUE SE JUZGA ES EL CONGELADO DEL CICLO, NO EL VIGENTE.
+   Es la misma regla que el servidor aplica desde siempre (`dutyDePersona` mide contra
+   `dutyPlanDeFila(abre.plan)`), y el cliente no la seguía: usaba el plan de HOY.
+   Reproducido: con eventos ya escritos contra 720 min, bajarle la jornada a alguien a 300 hacía
+   que la pestaña Ciclo lo marcara con «7 h de más» en rojo mientras la pestaña Jornada decía
+   `excesoMin: 0`. Dos pantallas de la misma app dando veredictos OPUESTOS sobre un hecho con
+   consecuencia laboral — que es justo lo que el umbral congelado existe para evitar.
+   Bajarle la jornada a alguien no puede marcarlo excedido hacia atrás. */
+function cicloPlanCongelado(c, planVigente){
+  const ev = c && c.ev;
+  const abre = ev && ev[cicloEventoInicial()];
+  if (abre && abre.plan) {
+    try {
+      const p = JSON.parse(abre.plan);
+      if (p && typeof p === 'object') {
+        const out = Object.assign({}, planVigente);
+        let hubo = false;
+        cicloTramos().forEach(tr => {
+          const v = Number(p[tr.k]);
+          if (isFinite(v) && v > 0) { out[tr.k] = Math.round(v); hubo = true; }
+        });
+        if (hubo) return out;
+      }
+    } catch (e) {}
+  }
+  /* Sin plan congelado —filas anteriores a Y4— se usa el vigente, que es lo único que hay. El
+     servidor las marca `umbralCongelado:false` y el panel las muestra aparte por el mismo motivo. */
+  return planVigente;
+}
+function cicloEstado(c, ahora, planVigente){
   if (!c) return { estado:'inactivo', tramos:[], eventos:{}, inicio:null, activo:-1 };
+  const plan = cicloPlanCongelado(c, planVigente);
   const ev = c.ev;
   const evInicial = cicloEventoInicial();
   if (!ev[evInicial]) return { estado:'inactivo', tramos:[], eventos:ev, inicio:null, activo:-1 };
@@ -19444,9 +19480,16 @@ function cicloUbicarAguja(barra){
      ve la aguja en un lugar que no corresponde a su ciclo. La persona no llega por parámetro —esta
      función recibe una barra suelta y la llaman desde tres lugares— así que se lee del DOM, que es
      donde está: la tarjeta chica la pone en `.cic-nom` y la pantalla completa en `.cic-full-nom`. */
-  const cont = barra.closest('.cic-card') || barra.closest('#cicFullCuerpo') || document;
-  const nomEl = cont.querySelector('.cic-nom, .cic-full-nom');
-  const plan = cicloPlan(nomEl ? nomEl.textContent.trim() : '');
+  /* ⚠️ H5 · SIN TARJETA CONTENEDORA, LA BARRA ES LA PROPIA — y caer a `document` fue una
+     regresión que introduje en P057a. El bloque del piloto (`cicloMiBloque`) dibuja su barra sin
+     ancestro `.cic-card` ni `#cicFullCuerpo`, así que `document.querySelector('.cic-nom')`
+     agarraba el PRIMER nombre del documento: la primera tarjeta del panel. Reproducido con un
+     perfil piloto+supervisor: la aguja de Zoe se dibujaba contra la jornada de Ana.
+     Y `cicloTick` reaplica esto cada segundo sobre todo el documento. */
+  const cont = barra.closest('.cic-card') || barra.closest('#cicFullCuerpo');
+  const nomEl = cont && cont.querySelector('.cic-nom, .cic-full-nom');
+  const quien = cont ? (nomEl ? nomEl.textContent.trim() : '') : cicloYo();
+  const plan = cicloPlan(quien);
   let min = (Date.now() - t0) / 60000, acum = 0, x = null;
   const TRAMOS = cicloTramos();
   for (let i = 0; i < TRAMOS.length; i++){
@@ -19586,7 +19629,7 @@ function cicloPerHtml(persona){
   const propio = cicloPlanPersona(persona);
   const plan = cicloPlan(persona);
   const TRAMOS = cicloTramos();
-  const arg = JSON.stringify(persona).replace(/"/g, '&quot;');
+  const arg = argAttr(persona);   // H4 · antes no escapaba `&`
   if (CICLO_PER_ABIERTO !== k){
     /* El botón DICE si esta persona tiene jornada propia. Sin eso habría que abrir el editor de
        cada uno para saber quién está fuera del plan de la empresa, que es justo lo que un
@@ -19627,11 +19670,25 @@ function cicloPuedeEditarPlan(){
 function cicloPerEnviar(btn, persona, cuerpo, msgOk){
   const err = document.getElementById('cicPerErr');
   if (DASH && DASH.demoMode){
-    /* En la demostración se guarda en memoria y se repinta, igual que el plan de empresa: sale un
-       resultado creíble sin tocar el CH. */
+    /* En la demostración se guarda en memoria y se repinta: sale un resultado creíble sin tocar el CH.
+       ⚠️ PERO SE VALIDA IGUAL QUE EN PRODUCCIÓN, y esto costó caro. La demo guardaba
+       `JSON.parse(cuerpo.plan)` crudo mientras el servidor descartaba tres de los cuatro tramos
+       (H2). Yo verifiqué este prompt MIRANDO la demostración: los cuatro números aparecían y todo
+       se veía bien. La verificación se hizo en el único camino donde el defecto no existía.
+       Una demo que valida distinto que producción no es una demo: es una segunda app. */
+    const limpio = {};
+    let malo = false;
+    if (!cuerpo.quitar) {
+      const crudo = JSON.parse(cuerpo.plan);
+      cicloTramos().forEach(tr => {
+        const v = Math.round(Number(crudo[tr.k]));
+        if (!isFinite(v) || v < 5 || v > 1440) malo = true; else limpio[tr.k] = v;
+      });
+    }
+    if (malo){ const e = document.getElementById('cicPerErr'); if (e) e.textContent = t('cic_cfg_err'); return; }
     const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).toLowerCase();
     const mapa = Object.assign({}, DASH.cicloPlanPersona || {});
-    if (cuerpo.quitar) delete mapa[k]; else mapa[k] = JSON.parse(cuerpo.plan);
+    if (cuerpo.quitar) delete mapa[k]; else mapa[k] = limpio;
     DASH.cicloPlanPersona = mapa;
     CICLO_PER_ABIERTO = ''; cicloRepintar(); showToast(t('demo_aplicado'));
     return;
@@ -20507,7 +20564,7 @@ function renderCicloOperativo(){
     const nombres = verGrises
       ? ('<div class="cic-grises-lista">' + grises.map(f =>
           '<button type="button" class="cic-gris" onclick="dashGoPerson(' +
-          JSON.stringify(f.p.persona).replace(/"/g, '&quot;') + ')">' +
+          argAttr(f.p.persona) + ')">' +   // H4 · antes no escapaba `&`
           esc(f.p.persona) + (f.p.departamento ? ' <em>' + esc(f.p.departamento) + '</em>' : '') +
           '</button>').join('') + '</div>')
       : '';
@@ -22671,6 +22728,22 @@ function dashHistory(rows, esOtraPersona, who){
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ⚠️ H4 · UN LITERAL JS DENTRO DE UN ATRIBUTO `onclick` SE ESCAPA CON `esc()`, NO A MANO.
+   Había tres sitios haciendo `JSON.stringify(x).replace(/"/g, '&quot;')`. Eso escapa la comilla
+   pero **no el `&`**, así que un valor que contenga el texto literal `&quot;` rompe el atributo: al
+   parsear el HTML ese `&quot;` se decodifica a una comilla de verdad y cierra el literal antes de
+   tiempo. Reproducido: un nombre `Ana&quot;);window.__XSS__=1;//` ejecutaba código.
+
+   No es teórico. `pe.persona` sale de la columna `Persona` de `Operacional`, que la escribe el
+   propio empleado con el nombre de su perfil — o sea que **cualquier empleado podía ejecutar código
+   en la sesión del supervisor**, que tiene sus credenciales en memoria y acceso a los datos
+   clínicos de toda la empresa. También entra por la `Nómina` o por el Google Form.
+
+   `esc()` reemplaza `& < > "` en UNA sola pasada, así que no hay doble escape: el `&` que introduce
+   al escapar una comilla no se vuelve a tocar. Hacerlo con `.replace()` encadenados sí tendría ese
+   problema si el orden fuera el equivocado. */
+function argAttr(v){ return esc(JSON.stringify(v)); }
 
 /* ⚠️ P053 · LOS ÍCONOS SON SVG, NO EMOJI ——————————————————————
    La app tiene un set de íconos propio —`viewBox="0 0 24 24"`, `stroke="currentColor"`— y en varios

@@ -1,10 +1,21 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    P057c · N11 · LA VENTANA DE AGRUPACIÓN, POR PERSONA                             (2026-09-06)
 
-   Tercer y último tramo. Era el que tenía el dato irreversible, y resultó que ese riesgo **ya se
-   había cerrado en P057a**: `enviarOperacional` pasó a congelar el umbral con `cicloPlan(cicloYo())`
-   y el servidor ya medía cada tramo contra el plan que viajó con el evento de apertura
-   (`dutyDePersona` → `dutyPlanDeFila(abre.plan)`). Se verificó leyendo el `.gs`, no suponiendo.
+   Tercer y último tramo.
+
+   ⚠️ ESTA CABECERA AFIRMABA QUE EL RIESGO IRREVERSIBLE «YA SE HABÍA CERRADO EN P057a». ERA FALSO,
+   y lo encontró una revisión adversarial con los cuatro defectos ya publicados. `enviarOperacional`
+   sí pasó a llamar `cicloPlan(cicloYo())`, pero `cicloPlanPersona` lee `DASH.cicloPlanPersona` y en
+   el teléfono del empleado `DASH` es `null`: el riesgo se movió del lado de ESCRITURA al de
+   LECTURA, no desapareció. Se congelaba la jornada de la empresa igual que antes.
+   Peor, quedó no determinista: para alguien que es piloto y además supervisor, el número dependía
+   de si había abierto el panel antes de marcar.
+   Cerrado de verdad en `p057h-hallazgos.js` (H1), haciendo que `accionTareasMias` —el único canal
+   que llega al teléfono del empleado— mande el plan de esa persona.
+
+   Y el caso que debía cuidarlo comprobaba el TEXTO FUENTE:
+       PRUEBAS.cierto(/plan:\s*JSON\.stringify\(cicloPlan\(cicloYo\(\)\)/.test(env), ...)
+   Verificaba que la línea estuviera escrita, no que el valor resolviera.
 
    ── LO QUE SÍ FALTABA ───────────────────────────────────────────────────────────────────────
    La VENTANA con la que se agrupan los eventos sueltos en ciclos. Decide dónde corta un ciclo y
