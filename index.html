@@ -5021,6 +5021,20 @@
       <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
+    <!-- ⚠️ P100 · LA ENTRADA PERMANENTE DEL OFRECIMIENTO DEL ROL. El ADR 002 lo pide con todas las
+         letras: "la nómina dice que gestiona, pero no tiene la contraseña → entra como empleado, y
+         el ofrecimiento queda disponible en su perfil, no se pierde". Sin esto, "Ahora no" durante
+         el alta sería "nunca más" —el mismo agujero que Z4b tuvo que cerrar para la contraseña
+         propia—, y justo le pegaría a quien el ofrecimiento intenta ayudar: el supervisor que ese
+         día no tenía la contraseña a mano.
+         La fila se ESCONDE sola (`miRolPintar`) para quien no tiene ningún rol propuesto: a un
+         empleado común no se le anuncia que existe un panel de empresa. -->
+    <button type="button" class="rbtn" id="miRolBtn" onclick="miRolTocar()" style="display:none">
+      <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <div class="tx"><span class="tt" id="miRolTt" data-i18n="mi_rol">Mi acceso al panel</span><span class="ds" id="miRolDs"></span></div>
+      <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+    </button>
+
     <div class="mas-sep">Aeroambulancias Silva</div>
     <a class="rbtn" id="webSilvaLink" href="#" target="_blank" rel="noopener">
       <div class="ic" style="background:var(--sem-rojo-bg);color:var(--sem-rojo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
@@ -5465,6 +5479,37 @@
     <div class="portal-err" id="clvErr"></div>
     <button class="save-btn" id="clvBtn" onclick="clvGuardar(this)" data-i18n="clv_guardar">Crear mi contraseña</button>
     <button type="button" class="cancel-btn" onclick="clvPosponer()" data-i18n="clv_luego">Más tarde</button>
+  </div>
+</div>
+
+<!-- ⚠️ P100 · Z4 · EL OFRECIMIENTO DEL ROL (ADR 002). La nómina y el código de supervisor PROPONEN
+     un rol; lo único que AUTORIZA sigue siendo la contraseña de la empresa. Hasta acá el rol
+     llegaba del servidor, se guardaba en el perfil (P093) y no se le ofrecía a nadie: para llegar
+     al panel había que ir a Ajustes, marcar una casilla y escribir una contraseña que alguien te
+     pasó por fuera de la app.
+     ⚠️ Los textos NO se pintan con `data-i18n` solo: el título, la bajada y la guía dependen del
+     ROL propuesto y de su ORIGEN, así que los arma `rolOfrecerPintar()`. Lo que sí es fijo
+     (etiquetas, botones) va con `data-i18n` para que el barrido lo alcance. -->
+<div class="overlay" id="rolOv">
+  <div class="sheet">
+    <h2 id="rolTitulo">Tu empresa te registró como Supervisor</h2>
+    <p class="portal-hint" id="rolLead"></p>
+    <!-- R5 · la guía por rol, cerrada por defecto. Mismo molde que `dashHelp()` en el panel: es un
+         <details> nativo, sin estado en JS, así que no puede quedar abierta de una vez anterior. -->
+    <div id="rolGuia"></div>
+    <!-- R4 · la cultura justa se ve, no se supone. Esta pantalla le pide a alguien que asuma un rol
+         de supervisión; si no dice acá que eso no cambia nada sobre lo que reporta de su PROPIA
+         fatiga, la persona lo deduce sola y lo deduce mal. -->
+    <div class="sup-notice" id="rolJusta" data-i18n="rol_of_justa"></div>
+    <form id="rolForm" onsubmit="rolConfirmar(this.querySelector('.save-btn')); return false;">
+      <div class="field"><label for="rolPass" id="rolPassLbl" data-i18n="rol_of_pass">Contraseña de la empresa</label>
+        <div class="pw-wrap"><input id="rolPass" type="password" autocomplete="current-password" data-i18n-attr="placeholder:rol_of_pass_ph" placeholder="La que te entregó tu empresa">
+          <button type="button" class="pw-eye" onclick="togglePw('rolPass',this)" aria-label="Ver contraseña" data-i18n-attr="aria-label:ver_contrasena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      </div>
+      <div class="portal-err" id="rolErr"></div>
+      <button class="save-btn" type="submit" data-i18n="rol_of_activar">Activar mi acceso</button>
+    </form>
+    <button type="button" class="cancel-btn" onclick="rolPosponer()" data-i18n="rol_of_luego">Ahora no</button>
   </div>
 </div>
 
@@ -6192,7 +6237,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.63';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.64';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6611,6 +6656,41 @@ const I18N = {
       clv_listo:'Listo. Tu contraseña quedó guardada.',
       clv_error:'No se pudo crear la contraseña. Inténtalo de nuevo.',
       clv_sin_red:'Necesitas conexión para crear tu contraseña. Puedes hacerlo más tarde: tus datos ya quedaron guardados.',
+      ver_contrasena:'Ver contraseña',
+      /* ══ P100 · EL OFRECIMIENTO DEL ROL (ADR 002) ═════════════════════════════════════════
+         R1 · español NEUTRO: tú / tienes / puedes / toca. Nunca voseo.
+         R2 · acá no se declara nada sobre nadie ni se promete nada médico. Se dice qué registró
+              la empresa y qué hace falta para ver el panel; ni una palabra sobre aptitud.
+         R14 · ni un término de sector escrito a mano: "tarea", "equipo", "organización". Esta
+              pantalla la va a leer también un jefe de turno de planta. */
+      rol_of_titulo:'Tu empresa te registró como {rol}',
+      /* Origen `codigo`: decir "tu empresa te registró" sería falso — lo que hubo fue un código
+         que alguien le pasó. La diferencia importa: uno lo puso RRHH en la nómina, el otro pudo
+         llegar de cualquier lado. */
+      rol_of_titulo_cod:'El código que usaste corresponde a {rol}',
+      rol_of_lead:'Para ver el panel de tu empresa necesitas la contraseña de la empresa. Si no la tienes ahora, toca "Ahora no": puedes activarlo cuando quieras desde Más → Tu acceso.',
+      rol_of_pass:'Contraseña de la empresa',
+      rol_of_pass_med:'Contraseña médica de tu empresa',
+      rol_of_pass_ph:'La que te entregó tu empresa',
+      rol_of_activar:'Activar mi acceso',
+      rol_of_luego:'Ahora no',
+      rol_of_verificando:'Verificando…',
+      rol_of_falta:'Escribe la contraseña de la empresa.',
+      rol_of_mal:'La contraseña no coincide. Pídesela a quien administra el programa en tu empresa.',
+      rol_of_sin_red:'Necesitas conexión para activar tu acceso. Puedes hacerlo más tarde desde Más → Tu acceso.',
+      rol_of_listo:'Listo. Tu acceso al panel quedó activo.',
+      /* R4 · la cultura justa se ve, no se supone. Quien acepta este rol sigue siendo alguien que
+         reporta su propia fatiga, y tiene que leer que eso no cambia. Sin esta línea, la persona
+         lo deduce sola — y lo deduce mal. */
+      rol_of_justa:'Tener este rol no cambia nada de lo que registras sobre tu propio descanso. Reportar cansancio no tiene consecuencias para el trabajo de nadie, tampoco para el tuyo.',
+      /* R5 · la guía por rol, cerrada por defecto. Tres preguntas, siempre las mismas: qué ve, qué
+         no ve, y qué decide. Es lo que hace que aceptar el rol sea una decisión informada. */
+      rol_of_guia_sup:'<b>Qué vas a ver:</b> los indicadores de descanso y carga de tu equipo, para decidir la asignación del día. <b>Qué no vas a ver:</b> resultados clínicos ni comentarios personales — eso queda en el servicio médico. <b>Qué decides tú:</b> sobre la tarea, nunca sobre la salud de nadie.',
+      rol_of_guia_med:'<b>Qué vas a ver:</b> los resultados de las pruebas, los comentarios y la evolución de cada persona. Es la vista con más detalle y por eso la de mayor responsabilidad. <b>Qué decides tú:</b> las determinaciones médicas, que sólo firma un médico. La aplicación nunca emite una sola.',
+      rol_of_guia_hseq:'<b>Qué vas a ver:</b> indicadores agregados de toda la organización: tendencias, cobertura y costos. <b>Qué no vas a ver:</b> nombres ni resultados individuales — esta vista trabaja sobre grupos. <b>Qué decides tú:</b> sobre el programa, no sobre personas.',
+      mi_rol:'Mi acceso al panel',
+      mi_rol_d:'Tu empresa te registró como {rol}. Actívalo con la contraseña de la empresa.',
+      mi_rol_d_si:'Activo. Toca para abrir el panel de tu empresa.',
       pg_propios_demo:'Vas a ver la pantalla de una persona de ejemplo, tal como la ve ella.',
       pg_ver_ejemplo:'Ver estadísticas de ejemplo',
       pg_demo_error:'No se pudo abrir la demostración.',
@@ -8206,6 +8286,28 @@ const I18N = {
       clv_listo:'Done. Your password has been saved.',
       clv_error:'The password could not be created. Please try again.',
       clv_sin_red:'You need a connection to create your password. You can do it later: your data is already saved.',
+      ver_contrasena:'Show password',
+      // ══ P100 · Role offer (ADR 002) ══
+      rol_of_titulo:'Your company registered you as {rol}',
+      rol_of_titulo_cod:'The code you used corresponds to {rol}',
+      rol_of_lead:'To open your company panel you need the company password. If you do not have it right now, tap "Not now": you can turn it on any time from More → Your access.',
+      rol_of_pass:'Company password',
+      rol_of_pass_med:'Your company medical password',
+      rol_of_pass_ph:'The one your company gave you',
+      rol_of_activar:'Turn on my access',
+      rol_of_luego:'Not now',
+      rol_of_verificando:'Checking…',
+      rol_of_falta:'Enter the company password.',
+      rol_of_mal:'That password does not match. Ask whoever runs the program at your company.',
+      rol_of_sin_red:'You need a connection to turn on your access. You can do it later from More → Your access.',
+      rol_of_listo:'Done. Your panel access is active.',
+      rol_of_justa:'Having this role changes nothing about what you record on your own rest. Reporting fatigue has no consequences for anyone’s job, yours included.',
+      rol_of_guia_sup:'<b>What you will see:</b> your team’s rest and workload indicators, to decide the day’s assignment. <b>What you will not see:</b> clinical results or personal comments — those stay with the medical staff. <b>What you decide:</b> about the task, never about anyone’s health.',
+      rol_of_guia_med:'<b>What you will see:</b> test results, comments and each person’s trend. It is the most detailed view and therefore the one with most responsibility. <b>What you decide:</b> the medical determinations, which only a physician signs. The app never issues one on its own.',
+      rol_of_guia_hseq:'<b>What you will see:</b> aggregate indicators for the whole organisation: trends, coverage and costs. <b>What you will not see:</b> names or individual results — this view works on groups. <b>What you decide:</b> about the program, not about people.',
+      mi_rol:'My panel access',
+      mi_rol_d:'Your company registered you as {rol}. Turn it on with the company password.',
+      mi_rol_d_si:'Active. Tap to open your company panel.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
       pg_ver_ejemplo:'View sample statistics',
       pg_demo_error:'The demo could not be opened.',
@@ -9586,6 +9688,16 @@ function aplicarIdioma(){
   try {
     const ov = document.getElementById('nominaOv');
     if (ov && ov.classList.contains('show') && NOM.paso) nominaPaso(NOM.paso);
+  } catch(e){}
+  /* P100: el título, la bajada y la guía del ofrecimiento del rol NO llevan `data-i18n` (dependen
+     del rol propuesto y de su origen), así que el barrido no los alcanza. Y la fila de la pestaña
+     Más arma su subtítulo con `t()` desde JS, igual que la de la contraseña. Es el mismo defecto
+     que ya apareció tres veces en este archivo: se pinta desde JS, se olvida acá, y cambiar de
+     idioma deja media pantalla en el idioma anterior. */
+  try {
+    const rov = document.getElementById('rolOv');
+    if (rov && rov.classList.contains('show')) rolOfrecerPintar();
+    miRolPintar();
   } catch(e){}
   /* C2: los pasos de Perelli y KSS se arman con textos que dependen de idioma × sector, así que
      hay que rehacerlos cuando cambia cualquiera de los dos. Se reconstruyen enteros en vez de
@@ -12947,7 +13059,9 @@ function mostrarVista(v){
   entrante.classList.add(v === 'mas' ? 'view-in-der' : 'view-in-izq');
   document.getElementById('bnInicio').classList.toggle('active', v === 'inicio');
   document.getElementById('bnMas').classList.toggle('active', v === 'mas');
-  if (v === 'mas'){ navPush(); try { miClavePintar(); } catch(e){} }   // el estado de la contraseña se relee al entrar
+  // El estado de la contraseña y el del acceso al panel se releen al entrar: los dos pueden haber
+  // cambiado desde otra pantalla (P100: la nómina puede haber quitado el rol en el refresco).
+  if (v === 'mas'){ navPush(); try { miClavePintar(); } catch(e){} try { miRolPintar(); } catch(e){} }
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 function marcarStatsActivo(on){
@@ -13202,6 +13316,13 @@ function silvaAtras(){
   if (visible('privOv')){ privCerrar(); return true; }                 // X1: va arriba del test
   if (visible('loginOv')){ lgnCerrar(); return true; }
   if (visible('claveOv')){ clvPosponer(); return true; }
+  /* ⚠️ P100 · SIN ESTA LÍNEA LA PANTALLA NUEVA ERA UN CALLEJÓN SIN SALIDA con el botón físico del
+     teléfono, exactamente el defecto que R1 tuvo que corregir para las cuatro pantallas del alta:
+     este manejador tiene una lista EXPLÍCITA, así que un overlay que no se nombre acá no existe
+     para "atrás" — el toque se consume y no pasa nada, o peor, se sale de la app. Va junto a
+     `claveOv` porque son las dos pantallas finales del alta, y "atrás" hace lo mismo que su botón
+     de descarte: posponer, que no cierra la puerta (la fila de Más queda). */
+  if (visible('rolOv')){ rolPosponer(); return true; }
   if (visible('portalOverlay')){
     /* Atrás del teléfono: primero deshace filtros, igual que la flecha del panel. Antes cerraba
        el panel entero y lo sacaba de supervisor — el reflejo de "volver un paso" terminaba en
@@ -13557,6 +13678,12 @@ function nominaConfirmar(){
            El rol PROPONE, no autoriza: lo único que abre el panel sigue siendo la contraseña de
            empresa (ver `docs/adr/002-como-sabe-la-app-quien-gestiona.md`). */
         rol: q.rol || '',
+        /* ⚠️ P100 · Y EL ORIGEN TAMBIÉN, POR EL MISMO MOTIVO. `accionNominaConfirmar` manda
+           `rolOrigen` ("nomina" | "codigo" | "") justo para que la pantalla del ofrecimiento pueda
+           decir la verdad: "tu empresa te registró como…" no es lo mismo que "el código que usaste
+           corresponde a…". Uno lo escribió RRHH en la hoja; el otro pudo llegar de cualquier lado.
+           Estaba viajando y se tiraba, exactamente igual que `rol` antes de P093. */
+        rolOrigen: q.rolOrigen || '',
         // A3: el sector viene con el perfil y define toda la terminología que verá esta persona
         // (aeropuerto vs. planta). Se guarda con sus datos para no tener que volver a pedirlo.
         sector: q.sector || ''
@@ -23346,7 +23473,24 @@ function avanzarAlta(){
     syncScrollLock();
     return;
   }
-  /* 4 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
+  /* 4 · P100 · El ofrecimiento del rol (ADR 002). Va ACÁ y no en otro lado, por cuatro razones:
+     · el ADR dice "al terminar el alta", y en el paso de la nómina el perfil ya está escrito pero
+       todavía faltan el consentimiento y el tamaño de texto — interrumpir ahí rompería el orden
+       que B4 fijó en un solo lugar;
+     · ésta es la única función que decide qué falta; ponerlo en cualquier otro lado reproduce el
+       bug histórico de `acceptConsent()` → `openSetup()`;
+     · va ANTES de la contraseña propia (paso 5) porque la contraseña de EMPRESA es lo que abre el
+       panel, y la contraseña propia es opcional y se puede posponer indefinidamente;
+     · y sólo se ofrece si hay algo que ofrecer: `rolOfrecerAbrir()` devuelve `false` sin abrir
+       nada cuando la nómina no propuso ningún rol, que es el caso de la mayoría.
+     ⚠️ EL `!_complete` NO ES OPCIONAL, por el mismo motivo exacto que en los pasos 3 y 5:
+     `_complete` se calcula AL ARRANCAR, antes de que este alta escriba nada. Sin él, a las siete
+     personas de Helitec —ya registradas y que nunca pasaron por esta pantalla— les aparecería un
+     formulario de contraseña al abrir la app, sin haber pedido nada. */
+  if (!_complete && !rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando()){
+    if (rolOfrecerAbrir()) return;
+  }
+  /* 5 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
      recorrido, y ponerlo antes del consentimiento o del tamaño de texto sería anteponer algo que se
      puede posponer a algo que no.
      ⚠️ `!_complete` por el mismo motivo que el tamaño de texto: `_complete` se calcula AL ARRANCAR,
@@ -23585,6 +23729,230 @@ function clvPosponer(){
   document.getElementById('claveOv').classList.remove('show');
   syncScrollLock();
   avanzarAlta();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P100 · Z4 · EL OFRECIMIENTO DEL ROL — la pantalla que faltaba del ADR 002
+   ══════════════════════════════════════════════════════════════════════════════════════════════
+   ⚠️ LA REGLA DEL ADR, EN UNA LÍNEA: el rol se PROPONE (nómina o código de supervisor) y se
+   CONFIRMA (contraseña de la empresa). Nunca al revés. Acá no se concede nada: lo único que abre
+   el panel sigue siendo la contraseña, que el servidor valida en cada pedido. Si alguien editara
+   este archivo para saltarse la validación, lo único que conseguiría es una casilla local que el
+   servidor va a ignorar.
+
+   ⚠️ POR QUÉ ESTA PANTALLA EXISTE. Hasta P093 el rol llegaba del servidor y el cliente lo tiraba.
+   Con P093 llega y se guarda, pero nadie se enteraba: para llegar al panel había que ir a editar
+   el perfil, marcar una casilla y escribir una contraseña que alguien te pasó por fuera de la app.
+   O sea que la columna que RRHH llenaba no producía ningún efecto visible para la persona.
+
+   ⚠️ SE REUSA `validarSupervisorCreds` A PROPÓSITO. Es la misma comprobación que hace el
+   formulario de perfil desde siempre (`action:'supervisor'` contra el endpoint). Escribir una
+   segunda validación acá sería tener dos reglas de acceso que pueden discrepar — y la que
+   discrepa es siempre la que nadie mira.
+
+   ⚠️ R8 · NO PUEDE OCURRIR POR UN TOQUE ACCIDENTAL, y por eso NO lleva un `confirm()` encima.
+   La acción exige escribir una contraseña que no está en el dispositivo y tocar un botón: es
+   imposible de disparar sin intención. Poner además un `confirm()` sería una tercera barrera para
+   la misma decisión. Lo que sí lleva es el háptico al activar, que es la otra mitad de R8: la
+   persona siente que algo con consecuencia acaba de pasar.
+
+   ⚠️ R4 · SE PUEDE DECIR QUE NO, Y NO SE PIERDE. "Ahora no" marca la cédula como ofrecida para
+   que el arranque no vuelva a interrumpir, PERO la entrada de la pestaña Más (`miRolBtn`) sigue
+   ahí para siempre. Es exactamente el agujero que Z4b tuvo que cerrar para la contraseña propia:
+   ofrecer una sola vez convierte "más tarde" en "nunca más". */
+
+/* El rol que se está ofreciendo en la pantalla abierta. Se declara SIN asignar (R16): una
+   declaración sin valor no pisa lo que ya haya, y así el orden de este bloque deja de importar. */
+var ROL_OF_ACTUAL;
+
+/* Los tres roles que se pueden ofrecer. Lista CERRADA, y la misma del servidor (`ROL_NOMINA` en
+   el .gs normaliza lo que RRHH escriba a este mismo conjunto). "empleado" no está: no hay nada
+   que ofrecerle a un empleado.
+   ⚠️ ES UNA FUNCIÓN Y NO UNA CONSTANTE, POR R16, Y NO ES ESTILO. Nació como
+   `var ROL_OFRECIBLE = {…}` y `pruebas/orden-declaracion.py` lo puso en la lista al instante: el
+   arranque llama a `aplicarIdioma()` en la línea 23306 → `miRolPintar()` → `rolPropuesto()`, y
+   este bloque vive 400 líneas más abajo. Con `var`, al arrancar valía `undefined` y la lectura
+   tiraba — el caso 2 exacto de la cabecera de ese script. Una función declarada se iza entera y
+   el orden deja de importar. */
+function rolOfrecible(rol){
+  return rol === 'supervisor' || rol === 'medico' || rol === 'hseq';
+}
+
+/* Qué rol hay para ofrecerle a esta persona, o '' si ninguno.
+   Devuelve '' también cuando YA lo tiene activado: quien marcó la casilla en el perfil y escribió
+   la contraseña no necesita que le ofrezcan lo que ya tiene. */
+function rolPropuesto(perfil){
+  const p = perfil || getProfile() || {};
+  const r = String(p.rol || '').trim().toLowerCase();
+  if (!rolOfrecible(r)) return '';
+  if (r === 'medico' && p.esServicioMedico) return '';
+  if (r !== 'medico' && p.esSupervisor) return '';
+  return r;
+}
+/* El nombre del rol tal como se le muestra a la persona. Sale del diccionario (R14): son las
+   mismas etiquetas que ya usan las pestañas del portal y la insignia del encabezado, así que no
+   pueden quedar diciendo dos cosas distintas en dos pantallas. */
+function rolNombre(rol){
+  if (rol === 'medico') return t('rol_medico');
+  if (rol === 'hseq')   return t('vista_hseq');
+  return t('rol_supervisor');
+}
+/* Qué clave del diccionario explica ESTE rol. La guía (R5) no puede ser genérica: lo que ve un
+   supervisor y lo que ve el servicio médico son cortafuegos distintos (K1b), y la persona está
+   por decidir si acepta uno de los dos. */
+function rolGuiaClave(rol){
+  if (rol === 'medico') return 'rol_of_guia_med';
+  if (rol === 'hseq')   return 'rol_of_guia_hseq';
+  return 'rol_of_guia_sup';
+}
+
+/* Marca de "ya se le ofreció", por CÉDULA. Mismo criterio que `clvYaOfrecida`: si el teléfono lo
+   usa otra persona, a ella sí hay que ofrecerle. */
+var K_ROL_OFRECIDO = 'silva_fatiga_rol_ofrecido_v1';
+function rolYaOfrecido(){
+  const p = getProfile() || {};
+  try { return (JSON.parse(localStorage.getItem(K_ROL_OFRECIDO)) || {})[dashNorm(p.cedula || '')] === true; }
+  catch(e){ return false; }
+}
+function rolMarcarOfrecido(){
+  const p = getProfile() || {};
+  try {
+    const o = JSON.parse(localStorage.getItem(K_ROL_OFRECIDO)) || {};
+    o[dashNorm(p.cedula || '')] = true;
+    lsSet(K_ROL_OFRECIDO, JSON.stringify(o));
+  } catch(e){}
+}
+
+/* Pinta lo que depende del rol y de su origen. Va aparte de `rolOfrecerAbrir` porque también lo
+   llama `aplicarIdioma()`: el título y la guía no llevan `data-i18n` (dependen del rol), así que
+   el barrido de traducción no los alcanza — el mismo detalle que ya mordió en el alta y en los
+   tests. */
+function rolOfrecerPintar(){
+  const rol = ROL_OF_ACTUAL;
+  if (!rol) return;
+  const p = getProfile() || {};
+  const nombre = rolNombre(rol);
+  const ti = document.getElementById('rolTitulo');
+  if (ti) ti.textContent = t(p.rolOrigen === 'codigo' ? 'rol_of_titulo_cod' : 'rol_of_titulo', { rol: nombre });
+  const lead = document.getElementById('rolLead');
+  if (lead) lead.textContent = t('rol_of_lead');
+  const guia = document.getElementById('rolGuia');
+  /* `dashHelp()` es el molde vivo de la ayuda contraída del panel: <details> nativo, sin estado en
+     JS, así que SIEMPRE arranca cerrada (R5) y no puede quedar abierta de una apertura anterior. */
+  if (guia) guia.innerHTML = dashHelp(t(rolGuiaClave(rol)));
+  const lbl = document.getElementById('rolPassLbl');
+  /* La contraseña médica de una empresa puede ser distinta de la de supervisor (columna
+     "Contraseña Médica" de `Accesos`). Decirlo en la etiqueta evita el intento fallido. */
+  if (lbl) lbl.textContent = t(rol === 'medico' ? 'rol_of_pass_med' : 'rol_of_pass');
+}
+
+/* Abre la pantalla. Devuelve `false` —sin abrir nada— si no hay rol que ofrecer o falta identidad,
+   para que `avanzarAlta()` pueda seguir de largo con una sola condición. Es la misma forma de
+   `clvAbrir()`. */
+function rolOfrecerAbrir(){
+  const p = getProfile() || {};
+  const rol = rolPropuesto(p);
+  if (!rol) return false;
+  if (!p.cedula || !p.empresa) return false;       // sin identidad no hay a quién ofrecerle nada
+  const ov = document.getElementById('rolOv'); if (!ov) return false;
+  ROL_OF_ACTUAL = rol;
+  rolOfrecerPintar();
+  const campo = document.getElementById('rolPass'); if (campo) campo.value = '';
+  const err = document.getElementById('rolErr'); if (err) err.textContent = '';
+  ov.classList.add('show');
+  syncScrollLock();
+  return true;
+}
+function rolOfrecerCerrar(){
+  const ov = document.getElementById('rolOv'); if (ov) ov.classList.remove('show');
+  syncScrollLock();
+}
+
+/* Guarda el rol ACTIVADO. Es la única parte que escribe algo, y escribe exactamente lo mismo que
+   escribe el formulario de perfil cuando alguien marca la casilla y pone la contraseña
+   (`saveProfile`): las credenciales de empresa en su ranura y el flag en el perfil.
+   ⚠️ POR QUÉ `hseq` VA A LA RANURA DE SUPERVISOR. El cliente sólo tiene dos flags
+   (`esSupervisor` / `esServicioMedico`) y ninguno significa "hseq": la vista de Dirección la
+   decide el SERVIDOR a partir de la contraseña (`acc.vista`), no el navegador. El flag local sólo
+   hace dos cosas — mostrar el selector del portal y elegir qué credencial usar — así que ponerle
+   `esSupervisor` a alguien de Dirección le abre la puerta correcta y no le concede ni un dato de
+   más: lo que vea del otro lado lo sigue decidiendo su contraseña. */
+function rolActivarGuardar(rol, empresa, pass){
+  const p = getProfile() || {};
+  if (rol === 'medico'){
+    dashSaveCredsValuesMed(empresa, pass);
+    setProfile(Object.assign({}, p, { esServicioMedico:true }));
+  } else {
+    dashSaveCredsValues(empresa, pass);
+    setProfile(Object.assign({}, p, { esSupervisor:true }));
+  }
+}
+
+function rolConfirmar(btn){
+  const p = getProfile() || {};
+  const err = document.getElementById('rolErr'); if (err) err.textContent = '';
+  const pass = (document.getElementById('rolPass').value || '').trim();
+  if (!pass){ if (err) err.textContent = t('rol_of_falta'); return; }
+  /* Sin conexión no se puede validar, y NO se encola: guardar la contraseña de la empresa en el
+     dispositivo "para mandarla después" sin haberla verificado dejaría escrita en claro una clave
+     que quizá ni siquiera es la correcta. Se pospone y se vuelve a ofrecer desde Más. */
+  if (!offHayConexion()){ if (err) err.textContent = t('rol_of_sin_red'); return; }
+  const rol = ROL_OF_ACTUAL;
+  btnSpin(btn, true, t('rol_of_verificando'));
+  /* ⚠️ `conBloqueo` NO ES DECORATIVO, misma razón que en `clvGuardar`: mientras el pedido viaja la
+     hoja sigue viva, y se puede tocar "Ahora no" y cerrarla — la respuesta llegaría a una pantalla
+     que ya no está, y el `avanzarAlta()` de abajo se pisaría con el de `rolPosponer`. */
+  conBloqueo('#rolOv .sheet',
+    validarSupervisorCreds(p.empresa || '', pass)
+    .then(res => {
+      btnSpin(btn, false);
+      if (res === 'bad'){ if (err) err.textContent = t('rol_of_mal'); return; }
+      /* 'unknown' = no se pudo hablar con el servidor. NO se activa: activar sin verificar sería
+         guardar una contraseña sin saber si sirve, y la persona se enteraría recién al abrir el
+         panel y ver un error que no puede relacionar con esta pantalla. */
+      if (res !== 'ok'){ if (err) err.textContent = t('rol_of_sin_red'); return; }
+      rolActivarGuardar(rol, p.empresa || '', pass);
+      try { haptic(18); } catch(e){}          // R8 · se siente que algo con consecuencia pasó
+      rolMarcarOfrecido();
+      rolOfrecerCerrar();
+      try { paintProfile(); } catch(e){}      // la insignia del encabezado ya dice otro rango
+      try { miRolPintar(); } catch(e){}
+      showToast(t('rol_of_listo'));
+      avanzarAlta();
+    }));
+}
+
+/* "Ahora no". Marca la cédula para que el arranque no vuelva a interrumpir — y NO cierra la
+   puerta: la fila de la pestaña Más queda disponible para siempre (ver la nota de arriba). */
+function rolPosponer(){
+  rolMarcarOfrecido();
+  rolOfrecerCerrar();
+  try { miRolPintar(); } catch(e){}
+  avanzarAlta();
+}
+
+/* La fila "Mi acceso al panel" de la pestaña Más. Tres estados:
+   · no hay rol propuesto y no hay rol activo → la fila no existe (a un empleado común no se le
+     anuncia que hay un panel de empresa);
+   · hay rol propuesto y no está activo       → invita a activarlo, diciendo cuál;
+   · ya está activo                            → lo dice, y toca para abrir el panel. */
+function miRolPintar(){
+  const btn = document.getElementById('miRolBtn'); if (!btn) return;
+  const p = getProfile() || {};
+  const activo = !!(p.esSupervisor || p.esServicioMedico);
+  const prop = rolPropuesto(p);
+  const hayDonde = !!(p.cedula && p.empresa && SHEETS_DASHBOARD_URL && !simulando());
+  btn.style.display = ((prop || activo) && hayDonde) ? '' : 'none';
+  const ds = document.getElementById('miRolDs');
+  if (ds) ds.textContent = activo ? t('mi_rol_d_si') : t('mi_rol_d', { rol: rolNombre(prop) });
+}
+function miRolTocar(){
+  /* Si ya está activo, lo que necesita no es activarlo otra vez: es entrar. Si no, se le vuelve a
+     ofrecer — acá SÍ, aunque ya lo haya pospuesto: `rolYaOfrecido()` frena el arranque, no esta
+     puerta. Es el mismo reparto que `miClaveTocar` hace con `clvAbrir`. */
+  const p = getProfile() || {};
+  if (p.esSupervisor || p.esServicioMedico){ abrirDestinoEstadisticas(); return; }
+  rolOfrecerAbrir();
 }
 
 function confirmarTamanoTexto(){
@@ -24306,6 +24674,11 @@ function tareasCargar(){
              tiene en pantalla ya no le corresponden. */
           if (DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;
           try { showToast(t('rol_quitado')); } catch(e){}
+          /* ⚠️ P100 · Y SE REPINTA LA FILA DE "Más". `miRolPintar()` sólo corría al ENTRAR a esa
+             pestaña: si la persona está parada ahí justo cuando llega la respuesta que le quitó el
+             rol, la fila seguiría ofreciéndole activar algo que la nómina acaba de sacarle, hasta
+             que cambiara de pestaña. Es chico, pero es una pantalla mintiendo. */
+          try { miRolPintar(); } catch(e){}
         }
       }
       tareasCacheGuardar();      // M2: para que el próximo arranque no espere 5 segundos
