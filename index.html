@@ -3351,10 +3351,18 @@
     font-size:.8rem; font-weight:700; color:var(--text-soft); cursor:pointer;
     padding:.6rem 1rem; min-height:44px; border-radius:var(--radius-sm); }
   .car-saltar:hover { color:var(--text); }
-  .car-nav { display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+  .car-nav { position:relative; display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
   .car-atras { background:none; border:none; color:var(--text-soft); font-family:inherit; font-weight:700;
     font-size:.9rem; cursor:pointer; padding:.6rem .5rem; visibility:hidden; }
   .car-atras.on { visibility:visible; }
+  /* ⚠️ R3 · EN LA PRIMERA LÁMINA "Siguiente" QUEDABA CORRIDO 33 px A LA DERECHA. `visibility:hidden`
+     esconde el botón pero NO lo saca del reparto: "Atrás" seguía ocupando sus 54 px más el hueco de
+     12, así que el único botón visible arrancaba después de un vacío y no quedaba centrado.
+     Con `position:absolute` sale del flujo sin salir del DOM —el foco y el lector de pantalla ya lo
+     ignoran por `visibility:hidden`— y `.car-sig { flex:1 }` ocupa el ancho completo.
+     Va con `:not(.on)` y no con una clase nueva puesta desde JS: el estado ya está en el DOM y
+     agregar un segundo lugar donde decirlo es un lugar más donde puede quedar desincronizado. */
+  .car-atras:not(.on) { position:absolute; }
   .car-sig { flex:1; }
   @media (max-width:340px){ .car-slide{ padding-top:40px; } .car-ic{ width:54px; height:54px; } .car-ic svg{ width:26px; height:26px; } }
 
@@ -5495,7 +5503,7 @@
         <div class="car-slide">
           <div class="car-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg></div>
           <h2 class="car-tit" data-i18n="car5_tit">Listos para empezar</h2>
-          <p class="car-cuerpo" data-i18n="car5_cuerpo">Elige tu empresa, identifícate, y en menos de un minuto quedas dentro.</p>
+          <p class="car-cuerpo" data-i18n="car5_cuerpo">Eliges tu empresa, buscas tu nombre en la lista y confirmas tu cédula. Si tu empresa usa un código de registro, tu supervisor te lo da. En menos de un minuto quedas dentro.</p>
         </div>
       </div>
     </div>
@@ -6344,7 +6352,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.66';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.67';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6471,7 +6479,7 @@ const I18N = {
       car4_tit:'Quién ve qué',
       car4_cuerpo:'Tu supervisor ve tu condición operativa del día, nunca los valores de tus evaluaciones. El servicio médico es el único que accede a los resultados completos. La aplicación nunca declara «no apto»: sólo señala que conviene una revisión médica.',
       car5_tit:'Listos para empezar',
-      car5_cuerpo:'Elige tu empresa, identifícate, y en menos de un minuto quedas dentro.',
+      car5_cuerpo:'Eliges tu empresa, buscas tu nombre en la lista y confirmas tu cédula. Si tu empresa usa un código de registro, tu supervisor te lo da. En menos de un minuto quedas dentro.',
       car_registrarse:'Registrarse',
       // ── Alta por nómina (B3) ──
       nom_elige_empresa:'Elige tu empresa',
@@ -8082,7 +8090,7 @@ const I18N = {
       car4_tit:'Who sees what',
       car4_cuerpo:'Your supervisor sees your operational condition for the day, never your test scores. Medical staff are the only ones with access to full results. The app never declares someone "unfit" — it only flags that a medical review is advisable.',
       car5_tit:'Ready to start',
-      car5_cuerpo:'Pick your company, identify yourself, and you are in within a minute.',
+      car5_cuerpo:'Pick your company, find your name on the list and confirm your ID. If your company uses a registration code, your supervisor will give it to you. You are in within a minute.',
       car_registrarse:'Sign up',
       // ── Roster sign-up (B3) ──
       nom_elige_empresa:'Choose your company',

@@ -201,6 +201,6 @@ PRUEBAS.caso('los dos textos nuevos están en los DOS idiomas (R1, R14)', () => 
   PRUEBAS.falso(textos.es.join('|') === textos.en.join('|'),
     'el inglés está traducido de verdad, no copiado del español');
   /* R1 · español NEUTRO: nada de voseo en lo que se agregó. */
-  PRUEBAS.falso(/\b(vos|podés|tenés|querés|mirá|tocá|sabés|necesitás|elegí|andá)\b/i.test(textos.es.join(' ')),
+  PRUEBAS.falso(/(^|[^a-záéíóúüñ])(vos|podés|tenés|querés|mirá|tocá|sabés|necesitás|elegí|andá|reportás|registrás|hacés|debés|sos|contás|llegás|cambiás|acordate|fijate|dale|registrate|anotá|probá|pedí|vení|entrá|salí)(?![a-záéíóúüñ])/i.test(textos.es.join(' ')),
     'sin voseo · decía «' + textos.es.join(' · ') + '»');
 });
