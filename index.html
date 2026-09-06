@@ -4567,6 +4567,17 @@
   .cic-cfg-no { background:none; border:none; color:var(--text-muted); font-family:inherit;
     font-size:.78rem; font-weight:700; cursor:pointer; padding:.5rem .6rem; }
   .cic-cfg-err { font-size:.73rem; font-weight:700; color:var(--sem-rojo-txt); margin-top:.4rem; }
+  /* P057b · la jornada de una persona. El botón vive dentro de la tarjeta y es discreto a
+     propósito: es una excepción, no la acción principal de la pantalla. */
+  .cic-per-btn { display:block; width:100%; margin-top:.5rem; min-height:44px;
+    background:var(--chip-bg); border:1px solid var(--sup-linea); border-radius:var(--radius-sm);
+    color:var(--text-muted); font-family:inherit; font-size:.72rem; font-weight:800; cursor:pointer; }
+  .cic-per-btn:hover { color:var(--text); background:var(--chip-bg-h); }
+  .cic-per-btn:active { transform:scale(.985); }
+  /* Quien TIENE jornada propia se distingue sin abrir nada: es lo que un supervisor quiere ver de
+     un vistazo cuando mira una lista de veinte personas. */
+  .cic-per-btn--propia { color:var(--orange-legible); border-color:var(--orange-solido); }
+  .cic-per-cfg { margin-top:.55rem; }
 
   /* Y1 · selector de período. Mismo lenguaje visual que las pestañas del portal: chips en una
      fila, el activo con la superficie de tarjeta. Todo por token (R13) para que el modo oscuro
@@ -6735,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.87';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.88';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7247,6 +7258,11 @@ const I18N = {
       cic_horas:'Horas del ciclo', cic_cfg_tit:'Horas del ciclo de esta empresa',
       cic_cfg_ayuda:'Se aplica a todo el personal del alcance actual y la ven todos los supervisores, no sólo este dispositivo. Cuando alguien toca «{evento}», el reloj de jornada corre contra las horas que pongas aquí.',
       cic_guardar_emp:'Guardar para toda la empresa',
+      cic_per_empresa:'Jornada: la de la empresa · Cambiar', cic_per_propia:'Jornada propia · Editar',
+      cic_per_tit:'Jornada de {q}', cic_per_p:'Sólo para esta persona. El resto sigue con la jornada de la empresa.',
+      cic_per_quitar:'Volver a la de la empresa', cic_per_ok:'Jornada guardada',
+      cic_per_quitado:'Vuelve a la jornada de la empresa',
+      cic_per_conf_quitar:'¿Devolver a {q} a la jornada de la empresa? Su ciclo pasa a medirse contra esa.',
       cic_cfg_err:'Revisa los valores: cada tramo va entre 5 y 1440 minutos.',
       cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo-txt)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
@@ -8900,6 +8916,11 @@ const I18N = {
       cic_horas:'Cycle hours', cic_cfg_tit:'Cycle hours for this company',
       cic_cfg_ayuda:'Applies to everyone in the current scope and is seen by every supervisor, not just this device. When someone taps "{evento}", the on-duty clock runs against the hours you set here.',
       cic_guardar_emp:'Save for the whole company',
+      cic_per_empresa:'Duty plan: company default · Change', cic_per_propia:'Own duty plan · Edit',
+      cic_per_tit:'Duty plan for {q}', cic_per_p:'Applies to this person only. Everyone else keeps the company plan.',
+      cic_per_quitar:'Back to company plan', cic_per_ok:'Duty plan saved',
+      cic_per_quitado:'Back to the company plan',
+      cic_per_conf_quitar:'Move {q} back to the company duty plan? Their cycle will be measured against it.',
       cic_cfg_err:'Check the values: each segment must be between 5 and 1440 minutes.',
       cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo-txt)">red</b> with the excess counting up, so you can act on it. Anyone who has not tapped anything still appears, <b>in grey</b>.',
       cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
@@ -19506,6 +19527,125 @@ function cicloCfgGuardar(btn){
     })
     .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; }));
 }
+/* ══ P057b · LA JORNADA DE UNA PERSONA ════════════════════════════════════════════════════════
+   El editor del plan de EMPRESA vive arriba (`cicloCfgHtml`). Éste es el de una persona, y va
+   dentro de su tarjeta porque es donde se está mirando su ciclo: configurar la jornada de alguien
+   desde una pantalla que no lo muestra sería pedirle al supervisor que recuerde de quién habla.
+
+   ⚠️ REUSA EL MISMO GENERADOR DE CAMPOS que el editor de empresa. No es prolijidad: si fueran dos,
+   el día que un sector agregue un tramo el editor de persona quedaría sin ese campo y nadie se
+   enteraría hasta que alguien configurara una jornada incompleta. */
+var CICLO_PER_ABIERTO = '';   // la clave de la persona cuyo editor está abierto, '' si ninguno
+
+function cicloPerToggle(persona){
+  const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).toLowerCase();
+  CICLO_PER_ABIERTO = (CICLO_PER_ABIERTO === k) ? '' : k;
+  cicloRepintar();
+}
+
+/* El botón, o el editor abierto, para UNA persona. Sólo lo ve quien puede escribir: mostrarle a la
+   vista médica un formulario que el servidor va a rechazar es peor que no mostrarlo. */
+function cicloPerHtml(persona){
+  if (!cicloPuedeEditarPlan()) return '';
+  const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).toLowerCase();
+  const propio = cicloPlanPersona(persona);
+  const plan = cicloPlan(persona);
+  const TRAMOS = cicloTramos();
+  const arg = JSON.stringify(persona).replace(/"/g, '&quot;');
+  if (CICLO_PER_ABIERTO !== k){
+    /* El botón DICE si esta persona tiene jornada propia. Sin eso habría que abrir el editor de
+       cada uno para saber quién está fuera del plan de la empresa, que es justo lo que un
+       supervisor quiere ver de un vistazo. */
+    const et = propio ? t('cic_per_propia') : t('cic_per_empresa');
+    return '<button type="button" class="cic-per-btn' + (propio ? ' cic-per-btn--propia' : '') + '"' +
+      ' onclick="cicloPerToggle(' + arg + ')">' + esc(et) + '</button>';
+  }
+  const campo = tr =>
+    '<label class="cic-cfg-f"><span>' + esc(t(tr.corto)) + '</span>' +
+      '<input type="number" min="5" max="1440" step="5" id="cicPer_' + tr.k + '"' +
+      ' value="' + plan[tr.k] + '"> min</label>';
+  return '<div class="cic-cfg cic-per-cfg">' +
+    '<div class="cic-cfg-t">' + esc(t('cic_per_tit', { q: persona })) + '</div>' +
+    '<div class="cic-cfg-p">' + esc(t('cic_per_p')) + '</div>' +
+    '<div class="cic-cfg-g">' + TRAMOS.map(campo).join('') + '</div>' +
+    '<div class="nom-err" id="cicPerErr"></div>' +
+    '<div class="cic-cfg-acc">' +
+      '<button type="button" class="cic-cfg-ok" onclick="cicloPerGuardar(this, ' + arg + ')">' +
+        esc(t('guardar')) + '</button>' +
+      (propio
+        ? '<button type="button" class="cic-cfg-no" onclick="cicloPerQuitar(this, ' + arg + ')">' +
+            esc(t('cic_per_quitar')) + '</button>'
+        : '') +
+      '<button type="button" class="cic-cfg-no" onclick="cicloPerToggle(' + arg + ')">' +
+        esc(t('cancelar')) + '</button>' +
+    '</div></div>';
+}
+
+/* Quién puede cambiar la jornada de alguien. MISMO criterio que el servidor (`depPuedeEscribir`):
+   si acá dijera que sí y allá que no, la persona vería un formulario que siempre falla. */
+function cicloPuedeEditarPlan(){
+  if (!DASH) return false;
+  if (DASH.rol === 'admin') return true;
+  return DASH.vista !== 'medico' || DASH.combinada === true;
+}
+
+function cicloPerEnviar(btn, persona, cuerpo, msgOk){
+  const err = document.getElementById('cicPerErr');
+  if (DASH && DASH.demoMode){
+    /* En la demostración se guarda en memoria y se repinta, igual que el plan de empresa: sale un
+       resultado creíble sin tocar el CH. */
+    const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).toLowerCase();
+    const mapa = Object.assign({}, DASH.cicloPlanPersona || {});
+    if (cuerpo.quitar) delete mapa[k]; else mapa[k] = JSON.parse(cuerpo.plan);
+    DASH.cicloPlanPersona = mapa;
+    CICLO_PER_ABIERTO = ''; cicloRepintar(); showToast(t('demo_aplicado'));
+    return;
+  }
+  btnSpin(btn, true, t('guardando'));
+  conBloqueo('#portalDash', dashRequest(dashAuth(Object.assign(
+      { action:'ciclo_persona_guardar', persona: persona,
+        quien: (getProfile() || {}).nombre || '' }, cuerpo)))
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){ if (err) err.textContent = tError(d && d.error) || t('cic_cfg_err'); return; }
+      /* Se actualiza el mapa local con lo que CONFIRMÓ el servidor, no con lo que se mandó: si el
+         servidor recortó o rechazó un tramo, la pantalla tiene que mostrar lo que quedó guardado. */
+      const k = (typeof dashNorm === 'function') ? dashNorm(persona) : String(persona).toLowerCase();
+      const mapa = Object.assign({}, DASH.cicloPlanPersona || {});
+      if (d.quitado || !d.plan) delete mapa[k]; else mapa[k] = d.plan;
+      DASH.cicloPlanPersona = mapa;
+      /* R3 · queda en la bitácora: cambiar la jornada contra la que se juzga a alguien es una
+         decisión con consecuencia operativa, y dentro de seis meses alguien va a preguntar quién
+         la tomó. */
+      try { bitacoraRegistrar(cuerpo.quitar ? 'ciclo_persona_quitado' : 'ciclo_persona_guardado', '',
+        { persona: persona, empresa: (DASH.f && DASH.f.emp) || '', plan: d.plan || null }); } catch(e){}
+      CICLO_PER_ABIERTO = ''; cicloRepintar();
+      showToast(msgOk);
+    })
+    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; }));
+}
+
+function cicloPerGuardar(btn, persona){
+  const err = document.getElementById('cicPerErr');
+  if (err) err.textContent = '';
+  const plan = {};
+  cicloTramos().forEach(tr => {
+    const el = document.getElementById('cicPer_' + tr.k);
+    plan[tr.k] = el ? Math.round(Number(el.value)) : NaN;
+  });
+  const malo = Object.keys(plan).find(k => !isFinite(plan[k]) || plan[k] < 5 || plan[k] > 1440);
+  if (malo){ if (err) err.textContent = t('cic_cfg_err'); return; }
+  try { haptic(10); } catch(e){}
+  cicloPerEnviar(btn, persona, { plan: JSON.stringify(plan) }, t('cic_per_ok'));
+}
+
+function cicloPerQuitar(btn, persona){
+  /* R8 · confirmación: volver a alguien al plan de la empresa cambia contra qué se lo mide. */
+  if (!confirm(t('cic_per_conf_quitar', { q: persona }))) return;
+  try { haptic(16); } catch(e){}
+  cicloPerEnviar(btn, persona, { quitar: '1' }, t('cic_per_quitado'));
+}
+
 function cicloRepintar(){
   const sec = document.getElementById('dsec-ciclo');
   if (!sec) return;
@@ -20293,6 +20433,8 @@ function renderCicloOperativo(){
          de la empresa para todos, así que no cambia nada; el día que exista un plan por persona,
          la barra de cada uno se mide contra su propia jornada sin tocar esta línea. */
       cicloBarra(st, cicloPlan(pe.persona)) + cicloTramosHtml(st, cicloPlan(pe.persona)) +
+      /* P057b · el editor de SU jornada, en su tarjeta. Sólo aparece para quien puede escribir. */
+      cicloPerHtml(pe.persona) +
       /* Y3 · el promedio DE ESTA PERSONA en el período. Sólo en histórico (en "En curso" hay un
          solo ciclo y su promedio sería ese mismo ciclo, o sea ruido) y sólo para quien puede ver
          promedios individuales: Dirección ve el del grupo pero no el de una persona. */
