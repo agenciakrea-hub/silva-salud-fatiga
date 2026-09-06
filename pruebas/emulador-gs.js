@@ -112,6 +112,7 @@ function __digestHex(bytes) {
     this._nombre = nombre;
     this._datos = (datos || []).map(f => f.slice());
     this._formatos = {};
+    this._notas = {};
   }
   HojaFalsa.prototype.getName = function () { return this._nombre; };
   HojaFalsa.prototype.getLastRow = function () { return this._datos.length; };
@@ -142,6 +143,13 @@ function __digestHex(bytes) {
   /* Espejo de lo que quedó en la hoja, para que un caso pueda comprobar qué se escribió. */
   HojaFalsa.prototype.__volcado = function () { return this._datos.map(f => f.slice()); };
   HojaFalsa.prototype.__formatoDe = function (fila, col) { return this._formatos[fila + ',' + col] || null; };
+  /* ⚠️ NOTAS DE CELDA. Se agregaron para P094: `documentarCH()` pone la explicación de cada hoja y
+     de cada columna como nota, y la parte delicada es que las ubica POR NOMBRE DE ENCABEZADO, no
+     por posición. Sin registrar las notas acá, una prueba de eso daría verde sin comprobar nada —
+     que es exactamente lo que el caso de `setNumberFormat` ya evita para R15. */
+  HojaFalsa.prototype.__notaDe = function (fila, col) { return this._notas[fila + ',' + col] || null; };
+  HojaFalsa.prototype.setColumnWidth = function () { return this; };   // no cambia datos: no-op
+  HojaFalsa.prototype.getIndex = function () { return this._indice || 1; };
 
   function RangoFalso(hoja, fila, col, nFilas, nCols) {
     this._h = hoja; this._f = fila; this._c = col; this._nf = nFilas; this._nc = nCols;
@@ -184,17 +192,45 @@ function __digestHex(bytes) {
   RangoFalso.prototype.setFontWeight = function () { return this; };
   RangoFalso.prototype.setBackground = function () { return this; };
   RangoFalso.prototype.getNumberFormat = function () { return this._h.__formatoDe(this._f, this._c) || 'General'; };
+  RangoFalso.prototype.setNote = function (t) {
+    for (let i = 0; i < this._nf; i++)
+      for (let j = 0; j < this._nc; j++)
+        this._h._notas[(this._f + i) + ',' + (this._c + j)] = String(t == null ? '' : t);
+    return this;
+  };
+  RangoFalso.prototype.getNote = function () { return this._h.__notaDe(this._f, this._c) || ''; };
+  RangoFalso.prototype.setFontSize = function () { return this; };     // presentación: no-op
 
   function LibroFalso(hojas) {
     this._hojas = {};
-    Object.keys(hojas || {}).forEach(n => { this._hojas[n] = new HojaFalsa(n, hojas[n]); });
+    this._orden = [];
+    Object.keys(hojas || {}).forEach((n, i) => {
+      this._hojas[n] = new HojaFalsa(n, hojas[n]);
+      this._hojas[n]._indice = i + 1;
+      this._orden.push(n);
+    });
   }
   LibroFalso.prototype.getSheetByName = function (n) { return this._hojas[n] || null; };
   LibroFalso.prototype.getSheets = function () { return Object.keys(this._hojas).map(n => this._hojas[n]); };
   LibroFalso.prototype.insertSheet = function (n) {
     this._hojas[n] = new HojaFalsa(n, []);
+    this._orden.push(n);
+    this._hojas[n]._indice = this._orden.length;
     return this._hojas[n];
   };
+  /* El ORDEN de las hojas. `documentarCH()` reordena el CH para que las cinco editables queden
+     arriba, y ese reordenamiento es la mitad del valor: sin él, quien abre la planilla sigue sin
+     saber qué puede tocar. Se modela para que un caso pueda comprobarlo. */
+  LibroFalso.prototype.setActiveSheet = function (sh) { this._activa = sh; return sh; };
+  LibroFalso.prototype.moveActiveSheet = function (pos) {
+    const n = this._activa && this._activa.getName();
+    if (!n) return;
+    const i = this._orden.indexOf(n);
+    if (i >= 0) this._orden.splice(i, 1);
+    this._orden.splice(Math.max(0, pos - 1), 0, n);
+    this._orden.forEach((nom, k) => { if (this._hojas[nom]) this._hojas[nom]._indice = k + 1; });
+  };
+  LibroFalso.prototype.__orden = function () { return this._orden.slice(); };
 
   /* ── El entorno completo ────────────────────────────────────────────────────────────────────
      `hojas` es un objeto {nombreDeHoja: [[fila],[fila]]}. Lo arma cada caso con los datos que
