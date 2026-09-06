@@ -1351,6 +1351,40 @@
   .rl-click:hover { opacity: .75; }
   .rl-off { opacity: .32; text-decoration: line-through; }
   .rl-toggle-row { margin-top: .25rem; }
+  /* La leyenda del umbral es una LÍNEA PUNTEADA, no un cuadradito de color. ⚠️ Antes era un punto
+     `var(--sem-azul)` fijo rotulado "Promedio", y las barras se pintan con METRIC_COLORS[m], un
+     color distinto por métrica: ese azul no aparecía en NINGUNA barra del gráfico. La leyenda tiene
+     que mostrar lo que el gráfico dibuja, y lo único que se dibuja siempre igual es la punteada. */
+  .rl-linea { height: 0; background: none; border-radius: 0; border-top: 2px dashed var(--ch-ref); }
+
+  /* ── P098 · "Valor real de cada indicador": las filas que van DEBAJO de las barras ──
+     Las barras de arriba están en VECES LA REFERENCIA (1,0 = el límite), que es la única unidad que
+     deja poner Somnolencia (KSS, 1 a 9) al lado de Depresión (llega a ~90) sin que la altura mienta.
+     Lo que esa unidad NO dice es cuánto vale el indicador: un 1,50 no distingue un KSS de 4 de uno
+     de 7, y el número crudo es justo lo que mira el médico. Estas filas son el otro lado del mismo
+     dato — cada instrumento en su propia escala, con su referencia marcada y el valor escrito. */
+  .mini-esc { width: 100%; margin-top: 1rem; }
+  .me-tit { font-size: .88rem; font-weight: 800; color: var(--text); margin-bottom: .15rem; }
+  .me-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); margin-bottom: .55rem; line-height: 1.4; }
+  .me-fila { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(56px, 1.4fr) auto;
+    gap: .5rem; align-items: center; padding: .42rem 0; border-bottom: 1px solid var(--linea-2); }
+  .me-fila:last-child { border-bottom: 0; }
+  /* Apagar un indicador en la leyenda lo saca del GRÁFICO, no de acá: se apaga para desamontonar
+     las barras, no para dejar de poder leer un número. Se atenúa y se queda. */
+  .me-off { opacity: .45; }
+  .me-nom { font-size: .82rem; font-weight: 700; color: var(--text-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .me-riel { position: relative; height: 12px; border-radius: 6px; background: var(--pista); }
+  /* La barra va ABSOLUTA y no como hijo en flujo: el riel no lleva overflow:hidden porque la marca
+     de la referencia sobresale 3 px arriba y abajo a propósito (si no, se pierde adentro del riel). */
+  .me-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 6px; display: block; }
+  .me-marca { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px;
+    background: var(--ch-ref); opacity: .85; }
+  .me-val { font-size: .82rem; font-weight: 800; color: var(--text); white-space: nowrap;
+    font-variant-numeric: tabular-nums; }
+  .me-val i { font-style: normal; font-weight: 600; color: var(--text-muted); }
+  .me-val.over { color: var(--sem-rojo-alt); }
+  .me-val.me-sin { font-weight: 600; color: var(--text-muted); }
 
   /* Heatmap comparativo */
   .heat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -.2rem; }
@@ -6151,7 +6185,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.59';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.60';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6769,7 +6803,15 @@ const I18N = {
       sub_identificados:'Sabes quién lo mandó. Toca para ver a la persona.',
       sub_anonimos:'Sobre el puesto o el turno. Nadie puede saber quién los mandó.',
       sub_elegi_ajuste:'Elige lo que más se ajuste. Las opciones marcadas ',
-      sub_barra_ref:'Barra de color = promedio del grupo · barra gris = valor de referencia (lo normal). Toca un indicador abajo para aislarlo o volver a mostrarlo.',
+      sub_barra_ref:'Cada barra es el promedio del grupo dividido por su referencia: 1.0 es el límite normal de ese indicador, así los siete entran en la misma escala. Toca un indicador abajo para aislarlo o volver a mostrarlo.',
+      /* P098. Los siete instrumentos miden en escalas distintas y antes compartían un eje crudo, así que la altura de una barra no se podía comparar con la de al lado. */
+      eje_veces_ref:'veces la referencia',
+      lg_ref_uno:'Referencia (1.0)',
+      bars_escalas_t:'Valor real de cada indicador',
+      bars_escalas_s:'El mismo dato en la escala propia de cada instrumento, con su referencia marcada. Arriba se ve cuánto se aleja del límite; aquí, cuánto vale.',
+      bars_sin_ref_corto:'sin referencia',
+      bars_todo_oculto:'Todos los indicadores están ocultos. Toca uno abajo para volver a mostrarlo.',
+      bars_sin_comparar:'Ningún indicador visible tiene a la vez promedio y referencia para comparar. Abajo están los valores que sí hay.',
       sub_radar:'Cada eje ÷ su referencia. Si el polígono sale del anillo punteado, esa métrica está sobre lo normal.',
       sub_tres_reg:'Tres registros cortos: cómo llegas, cómo va la carga, y cómo te vas.',
       sub_avisa_sup:'Si algo te está afectando, avísale a tu supervisor en un toque.',
@@ -7093,7 +7135,7 @@ const I18N = {
       hlp_res_otra:'Detalle de {q}: el promedio de sus tests. Toca <b>‹ Quitar filtro</b> arriba para volver al grupo.',
       hlp_res_propia:'Tus indicadores: el promedio de tus tests comparado con el valor de referencia (lo normal).',
       hlp_res_empleado:'<br><br><b>Arriba de todo</b> vas a ver tu semáforo de hoy: es una guía, nunca una determinación — sólo el <b>servicio médico</b> puede decir "no apto". Debajo, tu <b>turno de hoy</b> (antes / durante / al terminar) y el <b>reporte rápido</b> para avisarle a tu supervisor en un toque. Las opciones marcadas <b>anónimo</b> viajan sin tu nombre: ni tu supervisor ni nadie más puede saber que las enviaste tú.<br><br>Si alguna vez te aparece una <b>telemedicina sugerida</b>, es un ofrecimiento de consulta con el servicio médico: <b>tú decides</b> si la aceptas o no, y rechazarla no tiene ninguna consecuencia para tu trabajo.<br><br><b>Funciona sin internet.</b> Puedes completar tests y registros aunque no tengas señal: quedan guardados en tu teléfono y se envían solos cuando vuelve la conexión. Mientras haya algo esperando, abajo aparece cuántos registros son. <b>No se pierde nada.</b>',
-      hlp_res_grupo:'Promedio de cada indicador comparado con su <b>valor de referencia</b> (lo normal). Lo que está en <b style="color:var(--sem-rojo-alt)">rojo</b> supera la referencia.',
+      hlp_res_grupo:'Promedio de cada indicador <b>dividido por su valor de referencia</b> (lo normal): <b>1.0 es el límite</b>. Los siete instrumentos miden en escalas distintas —la somnolencia va de 1 a 9 y la depresión llega a ~90—, así que sin dividir por la referencia la altura de una barra no se puede comparar con la de al lado. Lo que está en <b style="color:var(--sem-rojo-alt)">rojo</b> supera la referencia. Debajo del gráfico está cada indicador en su escala real, con el valor sin dividir.',
       hlp_heatmap:'Compara los {g} entre sí. Cada celda es el promedio de esa métrica: <b style="color:var(--sem-verde)">verde</b> = bien, <b style="color:var(--sem-rojo-alt)">rojo</b> = sobre lo normal. <b>Toca una fila</b> para entrar a ese {g1}.',
       hlp_cajas:'La <b>caja</b> muestra dónde se concentra el 50% central de los registros (de Q1 a Q3); la <b>línea dentro</b> es la mediana; los <b>bigotes</b> llegan al mínimo y al máximo registrado. Cajas más arriba de la línea punteada (la referencia) indican un grupo más cargado en ese indicador. Se necesitan al menos 3 registros por grupo para dibujar su caja.',
       hlp_dispersion:'Cruza dos indicadores: cada punto es una persona (el promedio de sus tests). Las líneas punteadas marcan la referencia de cada eje. <b style="color:var(--sem-verde)">Verde</b> = los dos están bien · <b>amarillo</b> = uno de los dos está sobre lo normal · <b style="color:var(--sem-rojo-alt)">rojo</b> = los dos están sobre lo normal — ahí vale la pena mirar más de cerca.',
@@ -8376,7 +8418,14 @@ const I18N = {
       sub_identificados:'You know who sent it. Tap to see the person.',
       sub_anonimos:'About the job or the shift. Nobody can know who sent them.',
       sub_elegi_ajuste:'Choose the closest match. The options marked ',
-      sub_barra_ref:'Coloured bar = group average · grey bar = reference value (normal). Tap an indicator below to isolate it or show it again.',
+      sub_barra_ref:'Each bar is the group average divided by its reference: 1.0 is the normal limit of that indicator, so all seven share one scale. Tap an indicator below to isolate it or show it again.',
+      eje_veces_ref:'times the reference',
+      lg_ref_uno:'Reference (1.0)',
+      bars_escalas_t:'Actual value of each indicator',
+      bars_escalas_s:'The same data on the scale of each instrument, with its reference marked. Above you see how far it is from the limit; here, what the value actually is.',
+      bars_sin_ref_corto:'no reference',
+      bars_todo_oculto:'All indicators are hidden. Tap one below to show it again.',
+      bars_sin_comparar:'No visible indicator has both an average and a reference to compare. The values that do exist are listed below.',
       sub_radar:'Each axis ÷ its reference. If the shape goes past the dotted ring, that metric is above normal.',
       sub_tres_reg:'Three short logs: how you arrive, how the workload is going, and how you leave.',
       sub_avisa_sup:'If something is affecting you, tell your supervisor in one tap.',
@@ -8695,7 +8744,7 @@ const I18N = {
       hlp_res_otra:'Detail for {q}: the average of their tests. Tap <b>‹ Remove filter</b> above to go back to the group.',
       hlp_res_propia:'Your indicators: the average of your tests compared with the reference value (normal).',
       hlp_res_empleado:'<br><br><b>At the very top</b> you will see today\u2019s status light: it is a guide, never a determination — only <b>medical staff</b> can say "unfit". Below it, your <b>shift today</b> (before / during / at the end) and the <b>quick report</b> to tell your supervisor in one tap. The options marked <b>anonymous</b> travel without your name: neither your supervisor nor anyone else can know you sent them.<br><br>If a <b>suggested telemedicine</b> ever appears, it is an offer of a consultation with medical staff: <b>you decide</b> whether to accept it, and declining has no consequence for your job.<br><br><b>It works without internet.</b> You can complete tests and records with no signal: they are saved on your phone and sent on their own when the connection returns. While anything is waiting, the count appears below. <b>Nothing is lost.</b>',
-      hlp_res_grupo:'The average of each indicator compared with its <b>reference value</b> (normal). Anything in <b style="color:var(--sem-rojo-alt)">red</b> is above the reference.',
+      hlp_res_grupo:'The average of each indicator <b>divided by its reference value</b> (normal): <b>1.0 is the limit</b>. The seven instruments use different scales —sleepiness runs from 1 to 9 and depression reaches ~90— so without dividing by the reference the height of one bar cannot be compared with the one next to it. Anything in <b style="color:var(--sem-rojo-alt)">red</b> is above the reference. Below the chart, each indicator appears on its own scale with the undivided value.',
       hlp_heatmap:'Compares the {g} against each other. Each cell is the average of that metric: <b style="color:var(--sem-verde)">green</b> = fine, <b style="color:var(--sem-rojo-alt)">red</b> = above normal. <b>Tap a row</b> to go into that {g1}.',
       hlp_cajas:'The <b>box</b> shows where the middle 50% of the records sit (Q1 to Q3); the <b>line inside</b> is the median; the <b>whiskers</b> reach the lowest and highest recorded values. Boxes above the dotted line (the reference) indicate a group more loaded on that indicator. At least 3 records per group are needed to draw its box.',
       hlp_dispersion:'Crosses two indicators: each point is a person (the average of their tests). The dotted lines mark the reference for each axis. <b style="color:var(--sem-verde)">Green</b> = both are fine · <b>amber</b> = one of the two is above normal · <b style="color:var(--sem-rojo-alt)">red</b> = both are above normal — that is where a closer look pays off.',
@@ -19682,42 +19731,140 @@ function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ 
 // Cuántos meses distintos con datos hay en estas filas (para saber si se puede graficar evolución)
 function dashMonthsCount(rows){ const s={}; rows.forEach(r=>{ if(r.fecha) s[String(r.fecha).slice(0,7)]=1; }); return Object.keys(s).length; }
 
-/* ── Barras agrupadas: promedio del grupo vs referencia por métrica ── */
+/* ── Barras agrupadas: el promedio del grupo contra su referencia, NORMALIZADO (P098) ──
+   ⚠️ ACÁ HABÍA UN GRÁFICO QUE MENTÍA CON LA ALTURA, y es el más visible del panel médico.
+   Las siete métricas se dibujaban sobre UN SOLO EJE CRUDO. Medido en la app real: el eje Y llegaba
+   a 48 sin ninguna unidad, la barra de Somnolencia medía 10,4 px y la de Depresión 87 px. Pero
+   Somnolencia es KSS, que va de 1 a 9, y Depresión llega a ~90. O sea que un KSS de 9 —somnolencia
+   severa, el indicador MÁS importante para fatiga— no podía pasar de un quinto de la altura del
+   gráfico ni aunque la persona se estuviera durmiendo parada. La altura no expresaba gravedad:
+   expresaba el rango del instrumento, que es un dato de la escala y no de la persona.
+   Lo que delataba el arreglo es que la app YA sabía hacerlo bien: el radar de al lado —los MISMOS
+   siete datos— divide cada eje por su referencia (`a/ref` clampeado), y `dashEvoMulti` hace lo mismo
+   con la evolución mensual. Dos gráficos correctos y éste, crudo, entre los dos.
+   Ahora la unidad es VECES LA REFERENCIA: 1,0 es el límite de ese indicador y la punteada del 1,0 es
+   la misma para los siete. Un KSS 9 sobre referencia 6 da 1,50; una Depresión 30 sobre referencia 42
+   da 0,71 — el KSS queda MÁS ALTO, que es lo único que tenía que pasar y no pasaba.
+   ⚠️ LO QUE SE PIERDE AL NORMALIZAR es el número crudo: "1,50" no dice si el KSS es 4 o 7, y eso es
+   justo lo que el médico necesita leer. Por eso debajo va `dashBarsEscalas()`, con cada indicador en
+   su escala real. Los dos juntos, no uno u otro: el normalizado compara, el crudo informa. ── */
 function dashGroupedBars(rows){
   const ocultas = chartOcultas('bars');
-  const all = DASH.metrics.map(m => ({ m, label:METRIC_LABELS[m]||m, grupo:dashAvg(rows,m)||0, ref:DASH.ref[m] }));
-  const items = all.filter(it => !ocultas[it.m]);
-  if (!items.length) return '<div class="radar-wrap"><div class="lc-empty">Todos los indicadores están ocultos.</div>' + dashBarsLegend(all, ocultas) + '</div>';
-  const W=340, H=200, padL=26, padR=8, padT=12, padB=52, iw=W-padL-padR, ih=H-padT-padB;
-  // Escala recalculada sólo con lo visible: si se aísla el indicador más alto, los que quedan
-  // vuelven a llenar el gráfico en vez de quedar chiquitos contra la escala vieja.
-  /* I3: era `Math.max(i.grupo, i.ref)`. Con UN indicador sin referencia, ese `undefined`
-     convertía `maxV` en NaN — y como `maxV` es el divisor de `y()`, se caían las barras de
-     TODOS los indicadores, no la del que faltaba. Medido: 29 NaN y el gráfico en blanco. */
-  const conRef = it => (typeof it.ref === 'number') && isFinite(it.ref);
-  const maxV = Math.max.apply(null, items.map(i => conRef(i) ? Math.max(i.grupo, i.ref) : i.grupo).concat([1])) * 1.15;
-  const n = items.length, gw = iw/n, bw = Math.min(16, gw*0.32);
-  const y = v => padT + (1 - v/maxV)*ih, base = padT + ih;
+  /* I3 sigue vigente y ahora pesa más: la referencia pasó de sumando a DIVISOR. Un `undefined` o un
+     cero ahí no arruina una barra, arruina las siete — por eso se exige número finito y > 0. */
+  const numOk = v => (typeof v === 'number') && isFinite(v) && v > 0;
+  const all = DASH.metrics.map(m => {
+    const ref = DASH.ref[m], prom = dashAvg(rows, m);
+    /* Antes acá había `dashAvg(rows,m)||0`: una métrica sin datos dibujaba una barra en cero, y una
+       barra en cero se lee como "midió cero", no como "no midió". Ahora null sigue siendo null y la
+       fila de abajo lo dice con todas las letras. */
+    return { m:m, label:METRIC_LABELS[m]||m, prom:prom, ref:ref,
+             norm: (prom != null && numOk(ref)) ? prom/ref : null };
+  });
+  const visibles = all.filter(it => !ocultas[it.m]);
+  const items = visibles.filter(it => it.norm != null);
+  // Las filas con el valor crudo y la leyenda se muestran SIEMPRE, incluso cuando no hay gráfico:
+  // son las que dejan volver a encender un indicador y las únicas que quedan si no hay referencia.
+  const abajo = dashBarsEscalas(all, ocultas) + dashBarsLegend(all, ocultas);
+  if (!visibles.length)
+    return '<div class="radar-wrap"><div class="lc-empty">' + esc(t('bars_todo_oculto')) + '</div>' + abajo + '</div>';
+  if (!items.length)
+    return '<div class="radar-wrap"><div class="lc-empty">' + esc(t('bars_sin_comparar')) + '</div>' + abajo + '</div>';
+
+  /* Medido en el navegador con getBBox tras el cambio: con padL=36 y padB=54 la etiqueta
+     "Somnolencia" —la mas larga— salia en x=-0,4 y llegaba a y=214,5 con H=214. El <svg>
+     externo recorta por defecto, asi que se comian medio pixel arriba a la izquierda y otro
+     medio abajo. padL=39 y padB=58 le dan el aire que faltaba SIN achicar el area del grafico
+     (ih queda en los mismos 144). */
+  const W=340, H=218, padL=39, padR=10, padT=16, padB=58, iw=W-padL-padR, ih=H-padT-padB;
+  /* La escala se recalcula sólo con lo VISIBLE (si se aísla el más alto, los que quedan vuelven a
+     llenar el gráfico en vez de achatarse contra la escala vieja), pero nunca baja de 1,2: la
+     punteada del 1,0 tiene que entrar SIEMPRE con aire arriba, incluso con todo el grupo por debajo
+     del límite. Si el 1,0 quedara pegado al borde, el gráfico perdería su única referencia. */
+  const maxV = Math.max(1.2, Math.max.apply(null, items.map(i => i.norm)) * 1.18);
+  const n = items.length, gw = iw/n, bw = Math.min(24, gw*0.46);
+  const y = v => padT + (1 - v/maxV)*ih, base = padT + ih, y1 = padT + (1 - 1/maxV)*ih;
   let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
-  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="var(--ch-label)">0</text>';
+  /* El rótulo del eje no es decoración: sin él, el número de arriba se lee como un puntaje —que es
+     exactamente el malentendido que este cambio vino a arreglar— en vez de como un múltiplo. */
+  svg += '<text x="10" y="'+(padT+ih/2).toFixed(1)+'" font-size="8.5" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle" transform="rotate(-90 10 '+(padT+ih/2).toFixed(1)+')">'+esc(t('eje_veces_ref'))+'</text>';
+  svg += '<text x="'+(padL-5)+'" y="'+(padT+6)+'" font-size="9" fill="var(--ch-label)" text-anchor="end">'+maxV.toFixed(1)+'</text>';
+  // El "0" se calla si la punteada del 1,0 le caería encima (sólo con promedios absurdos, más de ~15
+  // veces la referencia). Dos números pisados son ilegibles los dos, y el que importa es el del 1,0.
+  if (base - y1 > 12)
+    svg += '<text x="'+(padL-5)+'" y="'+(base+3)+'" font-size="9" fill="var(--ch-label)" text-anchor="end">0</text>';
   items.forEach((it,i) => {
-    const hay = conRef(it);
-    const cx = padL + gw*i + gw/2, over = hay && it.grupo > it.ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--sem-azul)');
-    svg += '<rect x="'+(cx-bw-1).toFixed(1)+'" y="'+y(it.grupo).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.grupo)).toFixed(1)+'" rx="1.5" fill="'+col+'"/>';
-    // Sin referencia no se dibuja la barra gris: no hay contra qué comparar, y una barra en cero
-    // se leería como "la referencia es cero", que es peor que no mostrar nada.
-    if (hay) svg += '<rect x="'+(cx+1).toFixed(1)+'" y="'+y(it.ref).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(base-y(it.ref)).toFixed(1)+'" rx="1.5" fill="var(--ch-ref-fill)"/>';
-    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(it.label)+'</text>';
+    const cx = padL + gw*i + gw/2, over = it.norm > 1;
+    const col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--ch-neutro)');
+    // Se clampea contra maxV por las dudas: maxV sale del máximo de `items`, así que no debería
+    // pasarse nunca, pero una barra que se sale del viewBox se dibuja igual y tapa el título.
+    const alto = Math.max(1.5, base - y(Math.min(it.norm, maxV)));
+    svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+(base-alto).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+alto.toFixed(1)+'" rx="2" fill="'+col+'"/>';
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base-alto-3.5).toFixed(1)+'" font-size="8.5" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+it.norm.toFixed(2)+'</text>';
+    /* ⚠️ Estas etiquetas estaban en `font-size: 7.5` unidades de viewBox: con el viewBox de 340
+       escalado al ancho real de un teléfono de 375 px se rasterizan a ~5,5 px — ilegibles justo en
+       el dispositivo donde se mira el panel. A 11, el nombre más largo ("Somnolencia") ocupa unas
+       41 unidades de alto rotado a 40° y padB es 54: entra sin recortarse. */
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+10)+'" font-size="11" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-40 '+cx.toFixed(1)+' '+(base+10)+')">'+esc(it.label)+'</text>';
   });
+  /* La punteada del 1,0 se dibuja DESPUÉS de las barras y a opacidad plena: es el umbral, y es lo
+     último que puede perderse de este gráfico. Mismo criterio que hizo invertir --ch-ref en oscuro. */
+  svg += '<line x1="'+padL+'" y1="'+y1.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y1.toFixed(1)+'" stroke="var(--ch-ref)" stroke-width="1.4" stroke-dasharray="5 3"/>';
+  svg += '<text x="'+(padL-5)+'" y="'+(y1+3).toFixed(1)+'" font-size="9" font-weight="700" fill="var(--ch-ref)" text-anchor="end">1.0</text>';
   svg += '</svg>';
-  return '<div class="radar-wrap">' + svg + dashBarsLegend(all, ocultas) + '</div>';
+  return '<div class="radar-wrap">' + svg + abajo + '</div>';
 }
-// Leyenda de dashGroupedBars: los 3 ítems fijos (promedio/referencia/sobre lo normal) + una fila
-// aparte con un chip por indicador para aislarlo/ocultarlo del gráfico (clic = toggle).
+
+/* ── El otro lado del mismo dato: cada indicador en SU escala, con el número sin dividir (P098) ──
+   El gráfico de arriba contesta "¿cuán lejos del límite está?" y por eso puede comparar Somnolencia
+   con Depresión. Lo que no contesta es "¿cuánto vale?": un 1,50 no distingue un KSS de 4 de uno de 7.
+   Una fila por métrica: nombre, barra en su propia escala con la referencia marcada, y el valor con
+   su referencia escritos al lado. El riel se escala contra max(valor, referencia) × 1,25, así la
+   marca del límite y la punta de la barra entran las dos y ninguna queda pegada al borde.
+   ⚠️ Los indicadores APAGADOS en la leyenda no desaparecen de acá, sólo se atenúan: se apaga para
+   desamontonar el gráfico, no para dejar de poder leer un número. ── */
+function dashBarsEscalas(all, ocultas){
+  // Un valor de cero es un valor: dibuja barra de largo cero, no el mínimo visible del 3%.
+  const pct = (v, tope) => { const p = (tope > 0) ? (100*v/tope) : 0; return (p <= 0 ? 0 : Math.min(100, Math.max(3, p))).toFixed(0); };
+  const filas = all.map(it => {
+    const col = METRIC_COLORS[it.m] || 'var(--ch-neutro)';
+    const hayRef = (typeof it.ref === 'number') && isFinite(it.ref) && it.ref > 0;
+    let riel, val;
+    if (it.prom == null){
+      // Sin datos no se dibuja riel lleno: un riel vacío dice "no hay", una barra en cero mentiría.
+      riel = '<div class="me-riel"></div>';
+      val  = '<span class="me-val me-sin">' + esc(t('ct_sin_datos')) + '</span>';
+    } else if (!hayRef){
+      // Hay valor pero no hay contra qué compararlo: se muestra el número y se dice que falta el
+      // límite, en vez de inventar una marca de referencia en cualquier lado.
+      const tope = (it.prom * 1.25) || 1;
+      riel = '<div class="me-riel"><i class="me-fill" style="width:' + pct(it.prom, tope) + '%;background:' + col + '"></i></div>';
+      val  = '<span class="me-val">' + it.prom.toFixed(1) + ' <i>' + esc(t('bars_sin_ref_corto')) + '</i></span>';
+    } else {
+      const over = it.prom > it.ref, tope = Math.max(it.prom, it.ref) * 1.25;
+      riel = '<div class="me-riel"><i class="me-fill" style="width:' + pct(it.prom, tope) + '%;background:' + (over ? 'var(--sem-rojo)' : col) + '"></i>' +
+             '<i class="me-marca" style="left:' + (100*it.ref/tope).toFixed(1) + '%"></i></div>';
+      val  = '<span class="me-val' + (over?' over':'') + '">' + it.prom.toFixed(1) + ' <i>' + esc(t('ct_de_ref', { r: it.ref })) + '</i></span>';
+    }
+    return '<div class="me-fila' + (ocultas[it.m] ? ' me-off' : '') + '">' +
+      '<span class="me-nom">' + esc(it.label) + '</span>' + riel + val + '</div>';
+  }).join('');
+  return '<div class="mini-esc"><div class="me-tit">' + esc(t('bars_escalas_t')) + '</div>' +
+    '<div class="me-sub">' + esc(t('bars_escalas_s')) + '</div>' + filas + '</div>';
+}
+
+/* Leyenda de dashGroupedBars.
+   ⚠️ MOSTRABA UN COLOR QUE NO EXISTE EN EL GRÁFICO: el punto de "Promedio" era `var(--sem-azul)`
+   fijo, mientras que las barras se pintan con `METRIC_COLORS[m]`, un color distinto por métrica.
+   Ese azul no aparecía en ninguna barra. Una leyenda que nombra un color ausente es peor que no
+   tener leyenda: manda a buscar algo que no está. Y la barra gris de "Referencia" también dejó de
+   existir — la referencia ahora es la punteada del 1,0, porque el gráfico está normalizado.
+   Queda entonces sólo lo que el gráfico dibuja igual siempre (la punteada y el rojo de "sobre lo
+   normal"); el color de cada métrica lo da la fila de abajo, que es la misma que sirve para
+   apagarla, y qué son las barras se explica con palabras en el subtítulo del bloque. */
 function dashBarsLegend(all, ocultas){
-  return '<div class="radar-legend"><span class="rl-item"><span class="rl-dot" style="background:var(--sem-azul)"></span>' + esc(t('lg_promedio')) + '</span>' +
-    '<span class="rl-item"><span class="rl-dot" style="background:var(--ch-ref-fill)"></span>' + esc(t('lg_referencia')) + '</span>' +
+  return '<div class="radar-legend"><span class="rl-item"><span class="rl-dot rl-linea"></span>' + esc(t('lg_ref_uno')) + '</span>' +
     '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-rojo)"></span>' + esc(t('med_sobre_normal')) + '</span></div>' +
     '<div class="radar-legend rl-toggle-row">' + all.map(it =>
       '<span class="rl-item rl-click' + (ocultas[it.m]?' rl-off':'') + '" onclick="chartToggle(\'bars\',\'' + it.m + '\')"><span class="rl-dot" style="background:' + (METRIC_COLORS[it.m]||'var(--ch-neutro)') + '"></span>' + esc(it.label) + '</span>'
