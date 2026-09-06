@@ -226,3 +226,80 @@ PRUEBAS.caso('⚠️ la clave del índice de anotaciones lleva la empresa', () =
   PRUEBAS.igual(/anots\[norm\(limpiarPersona\(per\)\)\]/.test(CTX.gs), false,
     'y la clave vieja sin empresa desapareció · con ella, `anot` era siempre undefined');
 });
+
+/* ── A11c · dos ids para el mismo hecho, y una empresa escrita de dos formas ──────────────────── */
+
+PRUEBAS.caso('⚠️ un nombre con apóstrofe NO abre dos casos', () => {
+  /* Los dos productores de `IdCaso` normalizan distinto y no se puede unificar ninguno:
+     · el cron (servidor) usa `norm()`, que convierte la puntuación en espacios;
+     · el panel (cliente) usa `dashNorm()`, que saca acentos pero NO toca la puntuación.
+     Para "Luis O'Brien" y la misma fecha, el cron escribe `caso_luis o brien_…` y el panel
+     `caso_luis o'brien_…`. Antes eran DOS filas para el mismo hecho, y dos tickets en Odoo.
+
+     ⚠️ `dashNorm` NO SE PUEDE CAMBIAR: el propio index.html avisa que es la que genera los ids de
+     upsert del CH, y cambiarla haría que la misma persona dejara de matchear con las filas ya
+     escritas. Por eso el arreglo va en la BÚSQUEDA, no en lo que se escribe. */
+  const api = a11Env({ 'Casos Odoo': [A11_CASOS_CAB.slice()],
+    'Registrados Fatiga': [['A','Fecha y hora','Nombre','Email','Cedula']] },
+    ['upsertCasoOdoo', 'casoIdEquiv_']);
+
+  /* Primero el cron, con la forma del servidor. */
+  api.upsertCasoOdoo({ IdCaso:"caso_luis o brien_2026-09-04", Persona:"Luis O'Brien",
+    Empresa:'Consorcio HELITEC', Severidad:'media', Fecha:'2026-09-04' });
+  /* Y después el panel, con la forma del cliente, para el MISMO hecho. */
+  const r = api.upsertCasoOdoo({ IdCaso:"caso_luis o'brien_2026-09-04", Persona:"Luis O'Brien",
+    Empresa:'Consorcio HELITEC', Severidad:'alta', Fecha:'2026-09-04' });
+
+  PRUEBAS.igual(api.__hoja('Casos Odoo').length, 1,
+    'UNA fila para el mismo hecho · eran dos, y dos tickets en Odoo');
+  PRUEBAS.igual(r, 'actualizado', 'la segunda ACTUALIZA la primera, no appendea');
+  PRUEBAS.igual(String(api.__hoja('Casos Odoo')[0][8]), 'alta', 'con la severidad nueva');
+});
+
+PRUEBAS.caso('el DISCRIMINADOR: dos casos DISTINTOS siguen siendo dos', () => {
+  /* Si la comparación normalizara de más, dos personas o dos fechas distintas caerían en la misma
+     fila y una taparía a la otra — cambiar un bug de duplicado por uno de pérdida. */
+  const api = a11Env({ 'Casos Odoo': [A11_CASOS_CAB.slice()],
+    'Registrados Fatiga': [['A','Fecha y hora','Nombre','Email','Cedula']] },
+    ['upsertCasoOdoo']);
+  api.upsertCasoOdoo({ IdCaso:'caso_ana suarez_2026-09-04', Persona:'Ana Suárez',
+    Empresa:'Consorcio HELITEC', Severidad:'media', Fecha:'2026-09-04' });
+  api.upsertCasoOdoo({ IdCaso:'caso_ana suarez_2026-09-05', Persona:'Ana Suárez',
+    Empresa:'Consorcio HELITEC', Severidad:'alta', Fecha:'2026-09-05' });
+  api.upsertCasoOdoo({ IdCaso:'caso_luis mota_2026-09-04', Persona:'Luis Mota',
+    Empresa:'Consorcio HELITEC', Severidad:'baja', Fecha:'2026-09-04' });
+  PRUEBAS.igual(api.__hoja('Casos Odoo').length, 3,
+    'otra fecha y otra persona siguen siendo filas propias');
+});
+
+PRUEBAS.caso('⚠️ el cron escribe la empresa CANÓNICA, que es por la que filtra el panel', () => {
+  /* `leerDatos()` no canonicaliza —`RES.aplicar()` recién corre en `accionSupervisor`—, así que el
+     cron escribía el texto CRUDO del CH mientras `casos_odoo_resumen` filtra por `acc.canonical`.
+     Con una empresa que tenga más de un nombre, el supervisor no veía los casos que el cron le
+     abrió: los dos escritores de la misma hoja usaban formas distintas del mismo nombre. */
+  const api = a11Env({ 'Casos Odoo': [A11_CASOS_CAB.slice()],
+    'Registrados Fatiga': [['A','Fecha y hora','Nombre','Email','Cedula']] },
+    ['casoDePersona', 'upsertCasoOdoo', 'construirAlias', 'nominaEmpresaCanon']);
+  const alias = api.construirAlias();
+  /* La forma cruda que puede traer `Respuestas de formulario 1`. */
+  const cruda = 'consorcio helitec';
+  /* La determinación del médico con `nivel:'alto'` fuerza severidad roja y saltea el cálculo por
+     indicadores, que depende de la tabla de referencia y del nivel de riesgo. Acá lo que se mide
+     es la EMPRESA que queda escrita, no el criterio para abrir el caso: se le da lo mínimo para
+     que el caso exista. */
+  const caso = api.casoDePersona('Ana Suárez',
+    [{ persona:'Ana Suárez', empresa:cruda, departamento:'Operaciones', cargo:'Piloto',
+       fecha:'2026-09-06', kss:8 }], null, 4, { nivel:'alto' }, { activo:true });
+  /* ⚠️ GUARDA DE MEDIBILIDAD. La primera versión hacía `if (!caso) { cierto(true); return; }` —
+     un verde que sólo decía "no medí nada". Con el `.gs` roto ese caso pasaba igual, o sea que no
+     discriminaba: exactamente el cero sin discriminador que R17 prohíbe aceptar como resultado. */
+  PRUEBAS.cierto(!!caso,
+    '⚠️ con estos datos TIENE que abrirse un caso · si no, este caso no está midiendo nada');
+  if (!caso) return;
+  /* Y se compara contra la constante, no contra `nominaEmpresaCanon(...)`: si se comparara contra
+     la función, los dos lados se moverían juntos y la aserción nunca podría fallar. */
+  PRUEBAS.igual(caso.Empresa, 'Consorcio HELITEC',
+    'la fila lleva la forma canónica, no la cruda · quedó «' + caso.Empresa + '»');
+  PRUEBAS.falso(caso.Empresa === cruda,
+    'y NO la cruda · el panel filtra por la canónica y no la encontraría');
+});
