@@ -6746,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.92';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.93';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7466,6 +7466,7 @@ const I18N = {
       cic_ciclo_de:'Ciclo de {f}', cic_sin_iniciar:'Sin ciclo iniciado',
       cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
+      cic_sin_jornadas:'No se pudieron leer las jornadas configuradas por persona. Se está midiendo a todos contra la jornada de la empresa.',
       cic_full_abrir:'Ver en pantalla completa', cic_full_ant:'Persona anterior', cic_full_sig:'Persona siguiente',
       cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
       cic_mi_ciclo:'Tu ciclo de hoy',
@@ -9147,6 +9148,7 @@ const I18N = {
       cic_ciclo_de:'Cycle of {f}', cic_sin_iniciar:'Cycle not started',
       cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
       cic_e_comp:'Complete', cic_e_sin:'Not started',
+      cic_sin_jornadas:'Per-person work schedules could not be read. Everyone is being measured against the company schedule.',
       cic_full_abrir:'View full screen', cic_full_ant:'Previous person', cic_full_sig:'Next person',
       cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
       cic_mi_ciclo:'Your cycle today',
@@ -18970,6 +18972,22 @@ function cicloTestDe(k){
    persona se veía en hora. La configuración "la cambia un supervisor y la ven todos" (ver la nota
    de CICLO_FORMAS) — compartir el motor no alcanza si no se comparte también la config. */
 const K_CICLO_PLAN = 'silva_fatiga_ciclo_plan_v1';
+/* ⚠️ P059/A7 · CLAVE APARTE PARA EL PLAN PROPIO. Al arreglar H1 hice que la jornada personal
+   viajara por el campo `cicloPlan`, y esto lo guardaba en la clave que lee `cicloPlanEmpresa()`.
+   Como `CFG_DEFAULT` no trae `cicloPlan`, en una empresa que nunca tocó «Guardar para toda la
+   empresa» —el estado por defecto— la jornada propia de quien abría el panel pasaba a usarse como
+   jornada de TODOS, y prellenaba el editor de empresa: un toque en «Guardar para toda la empresa»
+   la escribía para todo el personal. Un escritor y un lector derivando lo mismo distinto, otra
+   vez; la cura es que no compartan canal. */
+const K_CICLO_PLAN_PROPIO = 'silva_fatiga_ciclo_plan_propio_v1';
+function cicloPlanPropioGuardar(plan){
+  try { localStorage.setItem(K_CICLO_PLAN_PROPIO, JSON.stringify(plan)); } catch(e){}
+}
+function cicloPlanPropioGuardado(){
+  try { const g = JSON.parse(localStorage.getItem(K_CICLO_PLAN_PROPIO));
+        if (g && typeof g === 'object') return g; } catch(e){}
+  return null;
+}
 function cicloPlanGuardar(plan){
   if (!plan || typeof plan !== 'object') return;
   try { localStorage.setItem(K_CICLO_PLAN, JSON.stringify(plan)); } catch(e){}
@@ -19018,7 +19036,12 @@ function cicloPlanPersona(persona){
 }
 function cicloPlan(persona){
   /* La persona manda sobre la empresa; sin persona, o sin plan propio, se usa el de la empresa. */
-  const c = cicloPlanPersona(persona) || cicloPlanEmpresa();
+  /* El plan propio sólo aplica a UNO MISMO. En el panel lo resuelve `cicloPlanPersona`, que lee el
+     mapa que manda el servidor; en la app del empleado no hay panel, así que se usa el que dejó
+     `tareas_mias` en su propia clave. Para cualquier OTRA persona no se mira nunca: ése era el
+     defecto. */
+  const mio = !persona || (typeof cicloYo === 'function' && dashNorm(persona) === dashNorm(cicloYo()));
+  const c = cicloPlanPersona(persona) || (mio ? cicloPlanPropioGuardado() : null) || cicloPlanEmpresa();
   const p = Object.assign({}, cicloForma().plan);
   if (c && typeof c === 'object'){
     // Sólo se aceptan los tramos que la forma vigente declara: una config vieja con un tramo que
@@ -19543,7 +19566,14 @@ function cicloTramosHtml(st, plan){
     /* ⚠️ Esta local se llamaba `t` y TAPABA la función t() de traducción en todo este cuerpo:
        cualquier intento de traducir acá adentro llamaba al objeto del tramo. Renombrada a `tra`. */
     const tra = off ? null : st.tramos.find(x => x.k === tr.k);
-    const previsto = plan[tr.k];
+    /* ⚠️ P059/A7 · EL PREVISTO SALE DEL TRAMO, NO DEL PLAN VIGENTE. `st` viene de `cicloEstado`,
+       que desde H3 calcula contra el plan CONGELADO al abrir el ciclo; acá se volvía a derivar del
+       plan de ahora, así que el veredicto y el número que se imprime salían de planes distintos.
+       Medido: con la jornada congelada en 12 h, alguien 8 h adentro y el supervisor bajando la
+       jornada a 5 h desde esa misma tarjeta, se leía «Quedan 0 min de 5 h» en azul y sin marca de
+       excedido. Al revés (subirla) daba «Pasado de tiempo · 0 min de más», que no quiere decir
+       nada. Se usa `tra.previsto` cuando el tramo existe; el plan sólo queda para los futuros. */
+    const previsto = (tra && isFinite(tra.previsto)) ? tra.previsto : plan[tr.k];
     const evIni = cicloEventoLabel(tr.desde);
     let clase = 'futuro', valor = '—', detalle = t('cic_previsto', { d: cicloHM(previsto) }), extra = '';
     if (tra && tra.estado === 'cerrado'){
@@ -20428,7 +20458,16 @@ function renderCicloOperativo(){
   filas.sort((a,b) => (ORD[a.st.estado] - ORD[b.st.estado]) || a.p.persona.localeCompare(b.p.persona));
   const n = { curso:0, excedido:0, descanso:0, completo:0, inactivo:0 };
   filas.forEach(f => { n[f.st.estado]++; });
-  const resumen = '<div class="cic-resumen">' +
+  /* ⚠️ P059/A7 · H8 DEJÓ EL CANAL DE ERROR SIN NADIE QUE LO LEYERA. El `.gs` manda
+     `cicloPlanPersonaError` cuando no puede leer la hoja `Ciclo Persona` —renombrarla, o un
+     permiso— y `onDashData` lo guardaba en `DASH`, donde moría. Sin esto, TODAS las jornadas
+     propias desaparecen de la pantalla sin un solo aviso y cada persona vuelve a medirse contra la
+     de la empresa: se ve exactamente igual que «nadie tiene jornada propia», que es el síntoma que
+     H8 decía haber cerrado. Es el mismo patrón que `nominaError` → `cobAviso`, que este archivo ya
+     tenía resuelto unas dos mil líneas más arriba. */
+  const cicAviso = (DASH && DASH.cicloPlanPersonaError)
+    ? '<div class="db-sub">' + esc(t('cic_sin_jornadas')) + '</div>' : '';
+  const resumen = cicAviso + '<div class="cic-resumen">' +
     '<span class="cic-kpi cic-kpi-curso"><b>' + n.curso + '</b> ' + esc(t('cic_kpi_curso')) + '</span>' +
     '<span class="cic-kpi cic-kpi-venc"><b>' + n.excedido + '</b> ' + esc(t('cic_kpi_exc')) + '</span>' +
     '<span class="cic-kpi cic-kpi-desc"><b>' + n.descanso + '</b> ' + esc(t('cic_kpi_desc')) + '</span>' +
@@ -20463,7 +20502,6 @@ function renderCicloOperativo(){
      exactamente lo mismo que la tarjeta —mismas `cicloBarra()` y `cicloTramosHtml()`—, y para eso
      necesita el MISMO `st` ya calculado. Volver a calcularlo allá sería un segundo derivador del
      mismo dato: el defecto que más veces apareció en este repo. */
-  DASH._cicFilas = filas;
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
 
   /* ══ T1 · LISTAS LARGAS ═══════════════════════════════════════════════════════════════════════
@@ -20488,6 +20526,11 @@ function renderCicloOperativo(){
      ⚠️ NO se toca `dashNorm`: esa arma los identificadores con los que se cruzan las personas
      contra el CH. Aflojarla para que el buscador sea más permisivo cambiaría quién es quién. */
   const visibles = q ? filas.filter(f => buscarCoincide(f.p.persona + ' ' + (f.p.departamento || ''), q)) : filas;
+  /* ⚠️ P059/A7 · SE GUARDAN LAS VISIBLES, NO TODAS. Estaba arriba, antes de aplicar la búsqueda,
+     así que «Ver en pantalla completa» abría a la primera de la lista ENTERA y el contador decía
+     "1 / 8" con una sola tarjeta en pantalla. El comentario del botón promete lo contrario:
+     «abre la MISMA gente que se está viendo, con el mismo filtro y la misma búsqueda». */
+  DASH._cicFilas = visibles;
 
   /* Los que TOCARON algún botón y los que no. Los segundos son los "grises". */
   const activos = visibles.filter(f => f.st.estado !== 'inactivo');
@@ -20546,7 +20589,14 @@ function renderCicloOperativo(){
       : ((misCiclos && misCiclos.length === 1) ? ' · <span class="cic-cuenta">' + esc(t('per_ciclo_1')) + '</span>' : '');
 
     return '<div class="cic-card cic-est-' + st.estado + '">' +
-      '<div class="cic-head" tabindex="0" role="button" onclick="dashGoPerson(DASH._cicNames[' + i + '])">' +
+      /* ⚠️ P059/A7 · ACÁ SE ABRÍA LA FICHA DE OTRA PERSONA. Este `i` es el índice dentro de
+         `activosMostrados` —que es `visibles` sin los inactivos y recortado a `CORTE`— y se usaba
+         para indexar `DASH._cicNames`, que se arma con `filas` COMPLETO. Con una sola persona en
+         gris antes en el orden los dos se desalinean: tocar el nombre de Luis abría la ficha de
+         Ana. No hacía falta buscar ni recortar nada, sólo que alguien no hubiera tocado un botón,
+         que es el caso más común. Se pasa el nombre y se termina la clase entera de defecto:
+         un índice contra otra lista es siempre una bomba de tiempo. */
+      '<div class="cic-head" tabindex="0" role="button" onclick="dashGoPerson(' + argAttr(pe.persona) + ')">' +
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
@@ -25921,7 +25971,15 @@ function dashUpdateNomFab(){
      y era INALCANZABLE, porque este `if` escondía el único botón que la abre.
      Es la misma forma de defecto que `openPortal()` y que el rol de la nómina: código que anda y
      que nadie puede llegar a usar. */
-  btn.style.display = (DASH && DASH.vista !== 'empleado') ? '' : 'none';
+  /* ⚠️ P059/A7 · TAMPOCO A DIRECCIÓN. El corte que vale está en el servidor
+     (`accionNominaListar` rechaza `vista:"hseq"`); esto es para no ofrecer un botón que va a
+     fallar. La app le PROMETE a la persona, en la lámina del carrusel, que Dirección ve un
+     semáforo «sin nombres ni valores» — y este botón devolvía la nómina entera, con nombre,
+     apellido, departamento y cargo de toda la empresa.
+     El de Departamentos SÍ queda: esa respuesta lleva `personas: <número>`, un conteo, que es
+     justo el tipo de agregado que K1b permite. */
+  const nomOculta = !DASH || DASH.vista === 'empleado' || DASH.vista === 'hseq';
+  btn.style.display = nomOculta ? 'none' : '';
 }
 function nominaListAbrir(){
   document.getElementById('nomListTitle').textContent = t('nomlist_titulo') + ' · ' + gestEmpresaActual();
@@ -26454,6 +26512,7 @@ function tareasCargar(){
       // J3: el plan del ciclo de la empresa. Se cachea para que el inicio dibuje el ciclo con los
       // MISMOS tramos que ve el supervisor, y para que siga bien sin conexión.
       if (d.cicloPlan) cicloPlanGuardar(d.cicloPlan);
+      if (d.cicloPlanPropio) cicloPlanPropioGuardar(d.cicloPlanPropio);
       // L1: la zona de la operación. Se cachea para que el día siga bien definido sin conexión.
       if (d.zonaOp) zonaOpGuardar(d.zonaOp);
       /* La determinación médica vigente sobre ESTA persona. Viene por este canal porque es el
