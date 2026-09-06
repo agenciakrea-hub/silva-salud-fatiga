@@ -8,7 +8,17 @@ PRUEBAS.grupo('P110 · las láminas del inicio: que se lean enteras y se sepa d�
      poco serios para algo que se le muestra a un cliente.
    · faltaban puntitos de posición: sin ellos la tira parece que no termina nunca. */
 
-const P110_MAX_LINEAS = 4;   // el `-webkit-line-clamp` de `.spl-p-tx span`
+/* ⚠️ A6b · EL CLAMP YA NO ES UN SOLO NÚMERO. Desde P046 vale 5 a ≤360 px, y desde A6b también en
+   escritorio (≥900). Esta constante declaraba 4 a secas: hoy no falla sólo porque `p110EnSplash`
+   mide a 375×812, el único ancho donde sigue siendo 4 — la prueba se apoyaba justo en el punto
+   donde su propia constante todavía era cierta. Medir a 320, que es el paso siguiente y obvio,
+   la habría puesto roja sobre código correcto.
+   Se LEE del CSS vigente en vez de declararla, que es lo único que no se desincroniza. */
+function p110MaxLineas() {
+  const sp = document.querySelector('.spl-p-tx span');
+  const n = sp && parseInt(getComputedStyle(sp).webkitLineClamp, 10);
+  return (n && !isNaN(n)) ? n : 4;
+}
 
 /* ⚠️ EL ANCHO SALE DE LA TARJETA, NO DEL SPAN. Las láminas que no están a la vista miden 0 de
    ancho (el track está desplazado), así que medir sobre el span da basura: la primera versión de
@@ -51,7 +61,7 @@ PRUEBAS.caso('⚠️ ninguna bajada se corta', () => { p110EnSplash(() => {
   const ref = document.querySelector('.spl-p-tx span');
   const largos = [...document.querySelectorAll('.spl-p-tx span')]
     .map(e => ({ t: e.textContent.trim(), n: p110Lineas(e.textContent.trim(), ancho, ref) }))
-    .filter(x => x.n > P110_MAX_LINEAS + 0.05)
+    .filter(x => x.n > p110MaxLineas() + 0.05)
     .map(x => x.t.slice(0, 40) + '… (' + Math.round(x.n * 10) / 10 + ' líneas)');
   PRUEBAS.igual(largos, [], '⚠️ pasado el tope, el texto se corta a la mitad de una frase');
 }); });
@@ -66,7 +76,7 @@ PRUEBAS.caso('el DISCRIMINADOR: la medición detecta un texto largo', () => { p1
   const viejo = 'Estima la efectividad cruzando tres cosas: lo que la persona siente, sus horas de ' +
                 'sueño y su test de reacción, y un modelo biomatemático. El objetivo es mantenerla ' +
                 'en su franja óptima. Con wearable, la precisión sube.';
-  PRUEBAS.cierto(p110Lineas(viejo, ancho, ref) > P110_MAX_LINEAS,
+  PRUEBAS.cierto(p110Lineas(viejo, ancho, ref) > p110MaxLineas(),
     '⚠️ el texto viejo de SAFTE habría fallado — o sea que la prueba discrimina');
 }); });
 

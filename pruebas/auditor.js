@@ -371,10 +371,18 @@
 
      Acá se mide la TINTA, no la caja: se recorren los nodos de texto y se pide una caja por renglón
      con un `Range`, que sí devuelve dónde está la tinta aunque el `overflow` la esté tapando.
+     Se compara contra el elemento que RECORTA, no contra el padre inmediato.
 
-     ⚠️ El `Range` devuelve las cajas AUNQUE estén recortadas: eso es justamente lo que lo hace
-     servir. Y se compara contra el elemento que RECORTA, no contra el padre inmediato, porque el
-     corte lo hace el ancestro con `overflow`. */
+     ⚠️ EL `line-clamp` SE MIRA, Y LA VERSIÓN ANTERIOR NO PODÍA. Una revisión adversarial encontró
+     que esta función era CIEGA al caso para el que se escribió: `recortaAProposito` descarta todo
+     lo que tenga `-webkit-line-clamp` —con razón, para los otros medidores— y encima el recorrido
+     no entraba en hijos que recortan, así que del bloque del splash no se visitaba un solo nodo de
+     texto. Devolvía `[]` con el defecto puesto, y el párrafo de arriba atribuía a la función una
+     medición (y=620 contra y=636) que en realidad se había hecho A MANO. Un instrumento que se
+     acredita una capacidad que no tiene es peor que no tenerlo.
+     La distinción que faltaba: un clamp que corta y avisa con «…» es recorte deliberado; un clamp
+     que corta contenido que alguien necesita leer es un defecto igual, sólo que silencioso desde
+     afuera. Esta función informa los dos y marca `(line-clamp)` para que quien lea decida. */
   AUDITOR.cortesDeTinta = function () {
     const malos = [];
     document.querySelectorAll('body *').forEach(el => {
@@ -387,14 +395,19 @@
          parecían el hallazgo más grave de la auditoría.
          Un eje que scrollea no corta: sólo `hidden` y `clip` cortan. `AUDITOR.cortes()`, tres
          funciones más arriba, ya separaba los ejes; esto lo copió mal. */
-      const cortaY = /hidden|clip/.test(cs.overflowY);
+      const clamp = !!(cs.webkitLineClamp && cs.webkitLineClamp !== 'none');
+      const cortaY = /hidden|clip/.test(cs.overflowY) || clamp;
       const cortaX = /hidden|clip/.test(cs.overflowX);
       if (!cortaY && !cortaX) return;
-      if (recortaAProposito(el)) return;
+      /* Un elemento clampeado NO se descarta: es justamente el que hay que mirar. Todo lo demás que
+         `recortaAProposito` perdona (marquees, carruseles, decoración) se sigue perdonando. */
+      if (!clamp && recortaAProposito(el)) return;
       const caja = el.getBoundingClientRect();
       if (!caja.width || !caja.height) return;
 
-      let abajo = 0, derecha = 0, muestra = '';
+      /* Una muestra por EJE. Antes había una sola: se asignaba cuando crecía cualquiera de los dos
+         y se imprimía en los DOS mensajes, mandando a buscar el texto equivocado. */
+      let abajo = 0, derecha = 0, arriba = 0, izq = 0, muestraY = '', muestraX = '';
       const pila = [el];
       while (pila.length) {
         const n = pila.pop();
@@ -405,10 +418,15 @@
             rg.selectNodeContents(h);
             for (const c of rg.getClientRects()) {
               if (!c.width) continue;
+              /* Los CUATRO bordes. La versión anterior miraba sólo `bottom` y `right`, así que un
+                 texto empujado fuera por ARRIBA (contenido alineado abajo, margen negativo) o por
+                 la IZQUIERDA era invisible — 40 px y 120 px de texto fuera de la caja, mudos. */
               const dy = c.bottom - caja.bottom, dx = c.right - caja.right;
-              if (dy > abajo || dx > derecha) muestra = h.textContent.trim().slice(0, 40);
-              if (dy > abajo)   abajo = dy;
-              if (dx > derecha) derecha = dx;
+              const uy = caja.top - c.top,       ux = caja.left - c.left;
+              if (dy > abajo)   { abajo = dy;   muestraY = h.textContent.trim().slice(0, 40); }
+              if (dx > derecha) { derecha = dx; muestraX = h.textContent.trim().slice(0, 40); }
+              if (uy > arriba)  { arriba = uy;  if (!muestraY) muestraY = h.textContent.trim().slice(0, 40); }
+              if (ux > izq)     { izq = ux;     if (!muestraX) muestraX = h.textContent.trim().slice(0, 40); }
             }
           } else if (h.nodeType === 1) {
             /* Un descendiente que se posiciona solo no lo recorta este contenedor: lo recorta el
@@ -416,6 +434,16 @@
             const ch = getComputedStyle(h);
             if (ch.position === 'fixed' || ch.position === 'absolute') continue;
             if (ch.display === 'none' || ch.visibility === 'hidden') continue;
+            /* ⚠️ COLAPSADO A PROPÓSITO NO ES CORTADO. Un `<details>` cerrado deja su contenido en el
+               layout, fuera de la caja: adentro de una tarjeta con `overflow:hidden` esto cantaba
+               «corta 38px de TEXTO abajo» sobre algo que la persona eligió cerrar. Las guías ⓘ de
+               R5 son exactamente esa forma, así que iba a aparecer en cuanto una cayera en una
+               tarjeta que recorte. */
+            if (h.tagName === 'DETAILS' && !h.open) continue;
+            /* ⚠️ DESPLAZADO NO ES CORTADO. `recortaAProposito` mira sólo los hijos DIRECTOS, así que
+               un toast o una diapositiva dos niveles abajo se contaba como corte. La forma ya existe
+               en el panel (`.dash-block.anim-target` con `translate` dentro de `.dash-scroll`). */
+            if (ch.transform && ch.transform !== 'none' && !/^matrix\(1, 0, 0, 1, 0, 0\)$/.test(ch.transform)) continue;
             /* ⚠️ NO SE ENTRA EN UN SUBÁRBOL QUE YA RECORTA POR SU CUENTA. Si `h` tiene overflow, lo
                que pase adentro es asunto de `h`, y `h` se mide en su propia vuelta. Sin esto, el
                abuelo reporta como corte lo que un carrusel interno esconde A PROPÓSITO: medido en
@@ -424,14 +452,18 @@
                ancho, con números distintos que parecían seis defectos diferentes.
                Además evita el doble reporte padre/hijo del mismo corte. */
             if (/hidden|clip|auto|scroll/.test(ch.overflowX) ||
-                /hidden|clip|auto|scroll/.test(ch.overflowY)) continue;
+                /hidden|clip|auto|scroll/.test(ch.overflowY) ||
+                (ch.webkitLineClamp && ch.webkitLineClamp !== 'none')) continue;
             pila.push(h);
           }
         }
       }
       /* 2px de tolerancia: el redondeo subpíxel de una línea base no es un corte. */
-      if (cortaY && abajo > 2)   malos.push(nombre(el) + '  corta ' + Math.round(abajo) + 'px de TEXTO abajo  "' + muestra + '"');
-      if (cortaX && derecha > 2) malos.push(nombre(el) + '  corta ' + Math.round(derecha) + 'px de TEXTO a la derecha  "' + muestra + '"');
+      const via = clamp ? ' (line-clamp)' : '';
+      if (cortaY && abajo > 2)   malos.push(nombre(el) + '  corta ' + Math.round(abajo) + 'px de TEXTO abajo' + via + '  "' + muestraY + '"');
+      if (cortaY && arriba > 2)  malos.push(nombre(el) + '  corta ' + Math.round(arriba) + 'px de TEXTO arriba' + via + '  "' + muestraY + '"');
+      if (cortaX && derecha > 2) malos.push(nombre(el) + '  corta ' + Math.round(derecha) + 'px de TEXTO a la derecha' + via + '  "' + muestraX + '"');
+      if (cortaX && izq > 2)     malos.push(nombre(el) + '  corta ' + Math.round(izq) + 'px de TEXTO a la izquierda' + via + '  "' + muestraX + '"');
     });
     return [...new Set(malos)];
   };

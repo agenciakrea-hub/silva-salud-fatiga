@@ -29,8 +29,20 @@
 
 PRUEBAS.grupo('P046 · A6 · las láminas del splash se leen enteras');
 
-/* Los seis anchos del cierre de tanda. El alto acompaña para no inventar una pantalla imposible. */
-const P046_ANCHOS = [[320,800],[375,812],[390,844],[768,1024],[1366,800],[1920,1080]];
+/* ⚠️ A6b · LA REJILLA NO PUEDE SER LA QUE DEFINIÓ EL ARREGLO. La primera versión usaba los seis
+   anchos del cierre de tanda —320/375/390/768/1366/1920— y el arreglo se eligió midiendo en ellos:
+   o sea que se midió el arreglo en los anchos que el arreglo arregla. El primer ancho de escritorio
+   de esa lista es 1366 y el defecto moría en 1074, así que la banda 900–1073 quedó viva y con ella
+   la lámina médica leyéndose «…Siempre decid…» en un iPad apaisado.
+   Lo que se agrega, y por qué cada uno:
+   · 900  → el primer píxel del layout de escritorio, donde el defecto era peor.
+   · 1024 → iPad apaisado y portátil viejo, el caso más común de la banda.
+   · los altos 650 y 768 → el chip pisaba la última línea por debajo de ~700 px de alto útil, y
+     ninguno de los altos anteriores bajaba de 800. Un portátil de 1366×768 deja ~650 útiles.
+   Regla para el que venga: si un arreglo se decide midiendo, la prueba mide MÁS de lo que se midió
+   para decidirlo, no lo mismo. */
+const P046_ANCHOS = [[320,800],[375,667],[375,812],[390,844],[768,1024],
+                     [900,650],[900,800],[1024,650],[1024,768],[1366,650],[1366,768],[1920,1080]];
 
 /* Renglones que quedan FUERA de la caja de su elemento. Devuelve también qué texto se pierde, que
    es lo único que permite decidir si el recorte importa o no. */
@@ -115,22 +127,44 @@ PRUEBAS.caso('⚠️ ninguna lámina del splash pierde texto, en los SEIS anchos
 
 PRUEBAS.caso('⚠️ EL DISCRIMINADOR · con la columna angosta el caso de arriba se pone rojo', () => {
   /* Sin esto, «0 láminas cortadas» podría ser que el medidor no mide. Se vuelve a poner el layout
-     de columnas iguales que tenía el defecto y se comprueba que la medición LO ENCUENTRA. */
+     de columnas iguales que tenía el defecto y se comprueba que la medición LO ENCUENTRA.
+
+     ⚠️ SE MIDE A 900, NO A 1366, y el cambio lo obligó el arreglo mismo. Este discriminador nació
+     midiendo a 1366; cuando A6b sumó el `line-clamp: 5`, revertir SÓLO la columna dejó de perder
+     texto a 1366 y el discriminador se puso rojo sobre código correcto — o sea que dejó de
+     discriminar sin avisar de qué. Medido revirtiendo únicamente la columna: el defecto aparece de
+     900 a 1024 y muere en 1100. A 900 es donde esa mitad del arreglo de verdad manda. */
   const st = document.createElement('style');
   st.textContent = '@media (min-width:900px){ .spl-p { grid-template-columns: 1fr 1fr !important; } }';
   document.head.appendChild(st);
   let con, medibles;
   try {
-    con = p046ConSplash(() => PRUEBAS.enVentana(1366, 800, () => {
+    con = p046ConSplash(() => PRUEBAS.enVentana(900, 800, () => {
       medibles = p046Visibles(document);
       return p046Perdidas(document);
     }));
   } finally { st.remove(); void document.body.offsetWidth; }
   PRUEBAS.alMenos(medibles, 5,
-    '⚠️ guarda de medibilidad DEL discriminador: había láminas visibles a 1366 · vistas: ' + medibles);
+    '⚠️ guarda de medibilidad DEL discriminador: había láminas visibles a 900 · vistas: ' + medibles);
   PRUEBAS.alMenos(con.length, 1,
     '⚠️ con las columnas iguales TIENE que encontrar recorte · si da 0, el medidor no mide y el ' +
     'caso de arriba es decorativo · encontró: ' + JSON.stringify(con));
+});
+
+PRUEBAS.caso('⚠️ EL SEGUNDO DISCRIMINADOR · sin el clamp de 5 el caso también se pone rojo', () => {
+  /* El primer discriminador sólo cubría la mitad del arreglo (el ancho de la columna). Si alguien
+     borraba el `-webkit-line-clamp: 5`, el caso 1 se ponía rojo igual —lo comprobé— pero por
+     accidente: no había nada que lo declarara, así que nadie iba a notar si esa cobertura se
+     perdía. Acá se declara. */
+  const st = document.createElement('style');
+  st.textContent = '.spl-p-tx span { -webkit-line-clamp: 4 !important; }';
+  document.head.appendChild(st);
+  let con;
+  try { con = p046ConSplash(() => PRUEBAS.enVentana(900, 800, () => p046Perdidas(document))); }
+  finally { st.remove(); void document.body.offsetWidth; }
+  PRUEBAS.alMenos(con.length, 1,
+    '⚠️ con el clamp en 4 TIENE que encontrar recorte a 900px · si da 0, esa mitad del arreglo no ' +
+    'la vigila nadie · encontró: ' + JSON.stringify(con));
 });
 
 PRUEBAS.caso('⚠️ el chip no se monta sobre la última línea del texto', () => {

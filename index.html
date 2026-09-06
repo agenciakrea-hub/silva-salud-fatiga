@@ -3622,8 +3622,40 @@
        ⚠️ La prueba que debía cazarlo leía `t('spl_safte_d')`, o sea el DICCIONARIO, no lo que entra
        en pantalla: el texto contenía «wearable» y el caso pasaba en verde mientras nadie lo veía.
        Ver el caso nuevo en `p046-laminas-que-entran.js`, que mide la tinta. */
-    .spl-p { display: grid; grid-template-columns: 1.25fr .75fr; grid-template-rows: 1fr auto;
+    /* ⚠️ A6b · `1.5fr .5fr` Y CINCO LÍNEAS, y el número anterior lo eligió una medición incompleta.
+       P046 puso `1.25fr .75fr` midiendo en 320/375/390/768/1366/1920 — o sea que **midió el arreglo
+       en los anchos que el arreglo arregla**: el primer ancho de escritorio de esa lista es 1366 y
+       el defecto moría en 1074. Entre 900 y 1073 seguía vivo, que es donde cae un iPad apaisado
+       (1024), un portátil de 1024 y cualquier ventana no maximizada en un 1366. A 900 px la lámina
+       médica se leía «…Aeroambulancias Silva. Siempre decid…».
+       Medido de 880 a 1400 de 20 en 20, en los dos idiomas y en los tamaños de letra Normal y
+       Grande: `1.5fr .5fr` sola deja 9 combinaciones rotas y el clamp de 5 solo, otras 9. Juntos,
+       cero. El gráfico es una ilustración y cede sin perder sentido.
+       ⚠️ Y CON LETRA GRANDE (nivel 3 de 4) el texto tampoco entraba, ni siquiera a 1920: la tira
+       sólo se esconde en el nivel 4. Eso también lo cierra el clamp de 5. */
+    .spl-p { display: grid; grid-template-columns: 1.5fr .5fr; grid-template-rows: 1fr auto;
       align-items: center; gap: .35rem 1.1rem; }
+    .spl-p-tx span { -webkit-line-clamp: 5; }
+    /* ⚠️ EL CHIP SE VA CUANDO NO HAY ALTURA PARA ÉL. Es lo único que quedaba pisando la última
+       línea del texto, y no por poco: 10 px a 1366x600 y 5 láminas a la vez a 900x650, con fondo
+       opaco cruzando la base de las letras. Medido: con la altura de un portátil (≈650 px útiles
+       una vez descontado el navegador) el contenido NO ENTRA — probé seis variantes y todas las que
+       conservan el chip o pierden texto o lo pisan. El chip dice «Analizando», «Proyectando»: es
+       decoración de estado, y entre perder una palabra del texto o perder el chip, se pierde el
+       chip. Mismo criterio que `texto-maximo`, que ya esconde la tira entera cuando no entra.
+       Con letra Grande pasa lo mismo a cualquier altura, así que ahí también se va. */
+    @media (max-height: 720px) { .spl-chip { display: none; } }
+    html.texto-grande .spl-chip { display: none; }
+    /* ⚠️ Y EL MONITOR SE AJUSTA, porque ceder ancho al texto se lo QUITA AL GRÁFICO. Con `1.5fr`
+       la fila más apretada de `.spl-mon` —«SOMNOLENCIA» + la píldora «Crítico»— se salía 24 px de
+       la tarjeta, que tiene `overflow:hidden`: la píldora quedaba cortada por la mitad. Lo cazó el
+       auditor recién arreglado, midiendo los cuatro bordes.
+       Se deja que la fila se apile en vez de achicar la letra: `.6rem` ya es el piso legible para
+       un texto de estado, y bajarlo lo dejaba por debajo del contraste que pide su propio
+       comentario. Medido: apilando, cero etiquetas fuera y cero texto perdido en los dos tamaños
+       de letra y en 900/1000/1024/1366/1920. */
+    .spl-mon span { flex-wrap: wrap; }
+    .spl-mon u { padding: .1rem .3rem; }
     .spl-p-tx  { grid-column: 1; grid-row: 1; }
     .spl-p-gr  { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; min-width: 0; }
     .spl-chip  { grid-column: 1; grid-row: 2; justify-self: start; }
@@ -6537,7 +6569,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.79';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.80';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
