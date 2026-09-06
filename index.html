@@ -4226,6 +4226,10 @@
     transition:background .18s, color .18s; }
   .cic-per:hover { color:var(--text); }
   .cic-per.on { background:var(--card); color:var(--text); box-shadow:var(--shadow-sm); }
+  /* P089 · la leyenda de "trayendo N días", arriba del esqueleto. Todo por token (R13): el mismo
+     gris de texto secundario que usa el resto del panel, así sale bien en los dos temas sin una
+     regla extra. */
+  .cic-cargando { font-size:.82rem; font-weight:700; color:var(--text-muted); margin:.2rem 0 .6rem; }
   /* ── Y3 · promedios de duración ────────────────────────────────────────────────────────────
      Mismo lenguaje que las demás rejillas del panel: `auto-fit`, mínimo en `rem`, todo por token. */
   .prm-bloque { background:var(--sup-bg); border:1px solid var(--sup-borde);
@@ -6188,7 +6192,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.62';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.63';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6752,6 +6756,8 @@ const I18N = {
       db_evo_reaccion:'Cómo evolucionó la reacción',
       /* Y1 · períodos del ciclo operativo. Español NEUTRO (R1): "puedes", nunca voseo. */
       per_titulo:'Período', per_hoy:'En curso', per_7dias:'7 días', per_30dias:'30 días', per_90dias:'90 días',
+      /* P089 · el período se le pide al servidor cuando no alcanza lo que ya vino. */
+      per_cargando:'Trayendo {n} días…', per_no_cargo:'No se pudo traer ese período. Se mantiene el anterior.',
       per_sin_datos:'No hay registros en este período',
       per_sin_datos_h:'Prueba con un período más amplio, o revisa los filtros de arriba.',
       per_viendo:'Estás viendo {n} días',
@@ -6783,6 +6789,7 @@ const I18N = {
       // ── F1 · Subtítulos de bloque ──
       sub_resumen_op:'Resumen operativo del grupo que tengas filtrado',
       sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
+      idc_cob_sin_nomina:'⚠️ No se pudo leer la nómina, así que la cobertura se calcula sobre quienes ya tienen mediciones, no sobre todo el personal. El porcentaje queda alto por esa razón, no porque falte menos gente por medir.',
       /* Y5. Se dice el número, no se esconde: una ausencia mal cargada tiene que poder verse. */
       /* ⚠️ A4 · NO DICE "de guardia". El plan lo deja escrito: ese término NO EXISTE en el
          vocabulario del producto, y el propio commit de Y5 dice "se declara la AUSENCIA, no la
@@ -8377,6 +8384,7 @@ const I18N = {
       db_ranking_reaccion:'Ranking by reaction time',
       db_evo_reaccion:'How reaction time evolved',
       per_titulo:'Period', per_hoy:'Current', per_7dias:'7 days', per_30dias:'30 days', per_90dias:'90 days',
+      per_cargando:'Loading {n} days…', per_no_cargo:'That period could not be loaded. The previous one is kept.',
       per_sin_datos:'No records in this period',
       per_sin_datos_h:'Try a wider period, or check the filters above.',
       per_viendo:'You are viewing {n} days',
@@ -8405,6 +8413,7 @@ const I18N = {
       // ── F1 · Block subtitles ──
       sub_resumen_op:'Operational summary of the group you have filtered',
       sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
+      idc_cob_sin_nomina:'⚠️ The roster could not be read, so coverage is calculated over people who already have measurements, not over all staff. The percentage looks high for that reason, not because fewer people are pending.',
       hs_no_tocaba:'{n} people were absent today and are not counted in coverage.',
       hs_no_tocaba_1:'1 person was absent today and is not counted in coverage.',
       ver_nueva:'A new version of the app is available.', ver_nueva_btn:'Update',
@@ -15543,6 +15552,10 @@ function onDashData(d, scopeLabel, params, vista){
               lo que ya se comió `duty` y `ausencias` (A4). */
            nominaTotal: Number(d.nominaTotal) || 0,
            nominaSinDato: Array.isArray(d.nominaSinDato) ? d.nominaSinDato : [],
+           /* A11 · si al servidor se le rompió la lectura de la nómina, el síntoma era un 0 que
+              parecía un dato: la cobertura volvía al denominador viejo y decía "100% medido" sin
+              que nada avisara. Ahora el motivo viaja y la pantalla lo dice. */
+           nominaError: d.nominaError || null,
            rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]) };
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
@@ -15673,18 +15686,33 @@ function dashApplyMarca(marca){
 }
 
 // Re-consulta el endpoint y actualiza en vivo (manual=true muestra avisos)
+/* ⚠️ DEVUELVE UNA PROMESA que resuelve `true` si el servidor contestó bien y `false` si no.
+   Nadie lo usaba hasta P089: el cambio de período necesita saber si el pedido entró para poder
+   volver al período anterior cuando no. Sin eso, un fallo dejaría los botones diciendo "90 días"
+   sobre datos de 7 — que es peor que el defecto que P089 vino a arreglar.
+   ⚠️ `true` también cuando NO hubo cambios: el pedido igual entró. Devolver `undefined` ahí
+   (que es lo que salía antes de este `return true`) haría que el llamador leyera un éxito como
+   un fallo y revirtiera el período por nada. */
 function dashRefresh(manual){
-  if (!DASH || !DASH.params) return;
+  if (!DASH || !DASH.params) return Promise.resolve(false);
   const btn = document.getElementById('dashRefreshBtn');
   if (btn) btn.classList.add('spin');
   const keep = { desde:DASH.f.desde, hasta:DASH.f.hasta, dep:DASH.f.dep, per:DASH.f.per };
   // Refresco manual (botón ↻) → fresh:'1': saltea la cache del endpoint y relee la hoja al instante.
   const params = manual ? Object.assign({}, DASH.params, { fresh:'1' }) : DASH.params;
-  dashRequest(params).then(d => {
+  return dashRequest(params).then(d => {
     if (btn) btn.classList.remove('spin');
-    if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return; }
+    if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return false; }
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
+    /* Y1: el periodo que el servidor sirvio DE VERDAD, que no siempre es el pedido (a un supervisor
+       se le ignora y a cualquiera se le recorta a 365). Se guarda para poder decir en pantalla
+       cuanto se esta viendo, en vez de suponer que dieron lo que se pidio.
+       ⚠️ P089 · VA ANTES DEL CORTE POR `changed`, no después. Pedir 90 días de una empresa que no
+       tuvo un solo evento nuevo devuelve la MISMA lista: la firma no cambia y esta función se iba
+       por el atajo sin anotar que ahora hay 90 días traídos. Con eso `cicloDiasTraidos()` seguía
+       diciendo 7 y cada toque de "90 días" volvía a pedir lo mismo para siempre. */
+    DASH.operacionalPeriodo = d.operacionalPeriodo || null;
     const pvt = d.pvt || null;
     // El ciclo operativo entra en la firma: si no, un evento nuevo (alguien que acaba de llegar al
     // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
@@ -15694,16 +15722,13 @@ function dashRefresh(manual){
        llegado. El auto-refresh se quedaría mostrando una foto vieja hasta recargar la página. */
     const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]);
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
-    if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return; }   // sin cambios → no re-renderiza (no salta el scroll)
+    if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return true; }   // sin cambios → no re-renderiza (no salta el scroll)
     const nuevosRegs = Math.max(0, d.registros.length - (DASH.registros || []).length);
     const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
     DASH.ref = d.referencia; DASH.metrics = metrics; DASH.registros = d.registros;
     DASH.comentarios = d.comentarios || null; DASH.pvt = pvt; DASH.operacional = d.operacional || []; DASH.rawSig = sig;
-    /* Y1: el periodo que el servidor sirvio DE VERDAD, que no siempre es el pedido (a un supervisor
-       se le ignora y a cualquiera se le recorta a 365). Se guarda para poder decir en pantalla
-       cuanto se esta viendo, en vez de suponer que dieron lo que se pidio. */
-    DASH.operacionalPeriodo = d.operacionalPeriodo || null;
+    /* `operacionalPeriodo` ya se anotó arriba, antes del corte por `changed` (ver ahí el porqué). */
     DASH.aptitud = Array.isArray(d.aptitud) ? d.aptitud : null;   // E2a: se refresca junto con lo demás
     DASH.turnos = d.turnos || [];   // E2b: idem
     /* ⚠️ A4 · Y ACÁ TAMBIÉN. Son dos lugares distintos los que copian campos del servidor —la carga
@@ -15719,7 +15744,8 @@ function dashRefresh(manual){
     buildDashFilters();   // DASH.f conserva el estado; reconstruye opciones (deptos/personas nuevos)
     renderDash();
     if (manual) showToast(nuevosRegs > 0 ? t('ts_actualizado_n', { n: nuevosRegs }) : t('ts_actualizado'));
-  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast(t('ts_sin_conexion')); });
+    return true;
+  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast(t('ts_sin_conexion')); return false; });
 }
 function setFilterValues(f){
   const set = (id,v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
@@ -17342,6 +17368,12 @@ function renderHseqIdc(rows){
      una ausencia cargada: a esos tampoco les tocaba. */
   const nuncaMedidos = nomSin.filter(n => !ausenteHoy({ nombre: n }));
 
+  /* A11 · la cobertura contra un denominador que NO es la nómina no es la misma medida, y
+     presentarla igual es afirmar algo que no se midió (R2). Si el servidor avisó que no pudo leer
+     la nómina, se dice. */
+  const cobAviso = DASH.nominaError
+    ? '<div class="db-sub">' + esc(t('idc_cob_sin_nomina')) + '</div>' : '';
+
   const ayuda = dashHelp(t('hlp_idc'));
 
   // Reparto por estado, sin nombres.
@@ -17376,7 +17408,7 @@ function renderHseqIdc(rows){
   const cobFlaca = cobertura < COBERTURA_MINIMA;
   return ayuda +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_disp_cognitiva')) + '</div>' +
-      '<div class="db-sub">' + esc(t('sub_cobertura')) + '</div>' +
+      '<div class="db-sub">' + esc(t('sub_cobertura')) + '</div>' + cobAviso +
       '<div class="hs-duo">' +
         '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-flojo' : '') + '">' +
           '<div class="hs-pct-big">' + (pct == null ? '—' : pct + '%') + '</div>' +
@@ -18725,16 +18757,100 @@ function cicloHseqAgregado(filas, plan, ayuda, resumen){
    `let` leída en zona muerta corta la ejecución del script entero de ahí para abajo — ya mordió
    tres veces en este archivo. Sin valor inicial tampoco pisa nada si algo la escribió antes. */
 var CICLO_PERIODO;
+/* P089 · cuántos días se están pidiendo AHORA (0 o sin asignar = nada en vuelo), y el número de
+   pedido para descartar la respuesta de un botón que ya nadie está esperando.
+   R16: `var` sin asignar, igual que `CICLO_PERIODO`. `renderCicloOperativo()` las lee y esa
+   función se alcanza desde el arranque del panel; una `let` en zona muerta cortaría el script
+   entero de ahí para abajo, que es lo que ya mordió tres veces en este archivo. */
+var CICLO_PIDIENDO;
+var CICLO_PIDE_N;
 
 function cicloPeriodoActual(){ return CICLO_PERIODO || 'hoy'; }
 
-/* Cambiar de período NO vuelve a pedirle nada al servidor: los eventos ya vinieron todos en la
-   carga (30 días al empleado, lo que corresponda a su vista al resto), así que esto es puro
-   recorte en el cliente y se siente instantáneo. Si algún día hiciera falta un rango más largo que
-   el traído, ACÁ va el pedido — y ahí sí hay que bloquear la zona mientras carga (Q1). */
+/* Cuántos días necesita un período para poder mostrarse completo. */
+function cicloPeriodoDias(id){
+  const pe = cicloPeriodos().find(x => x.id === id);
+  return (pe && pe.dias) || 7;
+}
+/* Cuántos días TRAJO el servidor de verdad. Lo dice él en `operacionalPeriodo.dias`; si no lo
+   dijo se asume 7, que es el default del endpoint (`var opDias = 7`).
+   ⚠️ NO SE SUPONE MÁS. Suponer que vinieron 90 porque se pidieron 90 es exactamente el defecto
+   que P089 arregla: mostrar un período recortado como si estuviera completo. Ante la duda, el
+   número más chico — como mucho se paga un pedido de más. */
+function cicloDiasTraidos(){
+  const n = (DASH && DASH.operacionalPeriodo) ? Number(DASH.operacionalPeriodo.dias) : 0;
+  return (isFinite(n) && n > 0) ? n : 7;
+}
+
+/* ── P089 · el período se pide BAJO DEMANDA ───────────────────────────────────────────────────
+   Antes esto era puro recorte en el cliente: la carga inicial bajaba todo y los botones de 30 y
+   90 filtraban sobre los 7 días que el endpoint manda por default. O sea que "90 días" mostraba
+   una semana SIN AVISAR — una pantalla que promete tres meses y muestra siete días miente sin
+   que nadie se entere, que es peor que no ofrecer el botón.
+
+   Ahora: si lo que ya vino alcanza, no se pide nada (volver de 90 a 7 sigue siendo instantáneo);
+   si no alcanza, se pide con `opDias` y se muestra el esqueleto mientras viaja. Efecto de fondo:
+   se pueden ofrecer 90 días sin pagarlos en cada carga, y la carga inicial hasta baja.
+
+   ⚠️ `opDias` SE GUARDA EN `DASH.params` ANTES DE MANDAR, no después de que llegue. Mientras esta
+   sección está en pantalla, `cicloTick` dispara `dashRefresh(false)` cada 60 s con `DASH.params`:
+   si el refresco saliera sin `opDias`, volvería con 7 días y la vista de 90 se encogería sola en
+   silencio — el mismo defecto, por la puerta de atrás y más difícil de ver porque tarda un minuto
+   en aparecer. Poniéndolo antes, cualquier pedido que salga en el medio ya lo lleva.
+
+   ⚠️ Y NO SE BAJA AL VOLVER A 7. Queda en el máximo que la persona pidió en esta sesión: así
+   90 → 7 → 90 no vuelve a pagar el pedido. Lo que P089 abarata es la CARGA INICIAL, que arranca
+   en 7 y sólo sube si alguien lo pide.
+
+   ⚠️ SE ENTRA POR `dashRefresh`, no por una copia nueva de campos. Copiar a mano ya se comió
+   `duty` y `ausencias` una vez (ver el comentario "⚠️ A4" ahí): son campos que el servidor manda
+   y el cliente descarta sin error si nadie los nombra. Un tercer lugar que copie campos sería un
+   tercer lugar donde olvidarse de uno. Tampoco se entra por `onDashData`: ese rehace `DASH`
+   ENTERO y se llevaría puestos los filtros (`DASH.f`), la pestaña, el buscador del ciclo y el
+   scroll — cambiar de período no puede resetear lo que la persona venía mirando. */
 function cicloPeriodoSet(id){
+  const prev = cicloPeriodoActual();
+  const dias = cicloPeriodoDias(id);
+  /* Alcanza con lo traído → recorte en cliente, instantáneo, como siempre.
+     En la demostración tampoco se pide: no hay endpoint del otro lado (`DASH.operacional` es
+     `cicloDemo()`), y sin este corte el botón se quedaría con el esqueleto puesto para siempre. */
+  if (dias <= cicloDiasTraidos() || !DASH || !DASH.params || DASH.demoMode){
+    CICLO_PERIODO = id;
+    CICLO_PIDIENDO = 0;
+    cicloRepintar();
+    return;
+  }
   CICLO_PERIODO = id;
-  cicloRepintar();
+  CICLO_PIDIENDO = dias;
+  const pedido = (CICLO_PIDE_N = (Number(CICLO_PIDE_N) || 0) + 1);
+  const paramsAntes = DASH.params;
+  DASH.params = Object.assign({}, DASH.params, { opDias: String(dias) });
+  cicloRepintar();                    // el botón nuevo ya activo + el esqueleto donde van las tarjetas
+  /* `inert` y no `pointer-events`: saca la zona del alcance del mouse, del teclado y del lector de
+     pantalla a la vez, así nadie llega tabulando a un botón que está cargando. */
+  cargaBloquear(document.getElementById('dsec-ciclo'), true);
+  const soltar = () => cargaBloquear(document.getElementById('dsec-ciclo'), false);
+  const volverAtras = () => {
+    DASH.params = paramsAntes;
+    CICLO_PERIODO = prev;
+    cicloRepintar();
+    showToast(t('per_no_cargo'));
+  };
+  Promise.resolve(dashRefresh(false)).then(ok => {
+    if (pedido !== CICLO_PIDE_N) return;      // llegó tarde: ya se tocó otro botón
+    CICLO_PIDIENDO = 0;
+    soltar();
+    /* El servidor puede contestar bien y NO haber dado el rango: a un supervisor le ignora
+       `opDias` y a cualquiera lo recorta a 365. Se cree lo que dijo que sirvió, no lo que se
+       pidió. */
+    if (!ok || cicloDiasTraidos() < dias){ volverAtras(); return; }
+    cicloRepintar();                          // saca el esqueleto también si dashRefresh no repintó
+  }).catch(() => {
+    if (pedido !== CICLO_PIDE_N) return;
+    CICLO_PIDIENDO = 0;
+    soltar();
+    volverAtras();
+  });
 }
 
 /* El control. Sólo se dibuja para quien puede ver histórico; el resto ni lo ve, porque un control
@@ -18895,8 +19011,30 @@ function renderCicloOperativo(){
     primero: cicloEventoLabel(cicloEventoInicial()),
     jornadaEv: cicloEventoLabel(trJornada.desde)
   }));
-  const sel = cicloDelPeriodo();
   const perHtml = cicloPeriodoHtml();
+  /* ── P089 · mientras el período viaja ────────────────────────────────────────────────────────
+     El esqueleto va ACÁ y no pegándole al DOM desde `cicloPeriodoSet`, por dos razones que ya
+     costaron caro en este archivo: el estado vacío de esta sección no dibuja `#cicCuerpo`, así
+     que escribirle a ese contenedor no habría hecho nada justo cuando el período anterior no
+     tenía datos; y `renderDash()` rehace la sección entera desde cero (`body.innerHTML`), así que
+     cualquier cosa puesta a mano se pierde en el primer repintado y vuelve el contenido viejo.
+     Leyéndolo desde el render, el esqueleto sobrevive a los dos caminos.
+     Se corta ANTES de `cicloDelPeriodo()`: recortar los ciclos de un período que todavía no
+     llegó es trabajo tirado, y peor, dibujaría 7 días bajo un botón que dice 90. */
+  if (CICLO_PIDIENDO){
+    /* K1b · Dirección/HSEQ no ve ni el selector ni el editor del ciclo (más abajo se va por
+       `cicloHseqAgregado`, que no los emite). El esqueleto tiene que respetar el mismo contrato:
+       si acá se colaran, aparecerían un segundo y desaparecerían al llegar los datos. */
+    /* El esqueleto emite lo MISMO que el render normal de cada vista: si el selector apareciera
+       o desapareciera mientras carga, el botón que la persona acaba de tocar se movería de lugar
+       bajo el dedo. Lo único que HSEQ no lleva es el editor del plan. */
+    const soloAgregado = !!(DASH && DASH.vista === 'hseq');
+    return ayuda + perHtml + (soloAgregado ? '' : cicloCfgHtml(plan)) +
+      '<div class="cic-cargando" role="status" aria-live="polite">' +
+        esc(t('per_cargando', { n: CICLO_PIDIENDO })) + '</div>' +
+      skeletonHtml('persona', 4);
+  }
+  const sel = cicloDelPeriodo();
   /* En histórico cada persona trae VARIOS ciclos; `cicloPersonas` espera uno. Se le pasa el más
      reciente de cada una para la lista, y el resto queda disponible en `sel.ciclos` para el
      detalle. Así la vista de siempre no cambia en nada y la histórica reusa el mismo render. */
@@ -18943,8 +19081,20 @@ function renderCicloOperativo(){
      un promedio por persona re-identifica, porque con pocas personas por área el número dice
      quién es aunque el nombre no esté. Por eso la tira general se le pasa acá y las tarjetas por
      persona, que es donde vive el promedio individual, no se arman para esta vista. */
+  /* ⚠️ P089 · EL SELECTOR SÍ VA ACÁ, Y ES LA ÚNICA VISTA DONDE SIRVE. Medido, no deducido:
+     · `supervisor` emite `perHtml`, pero el SERVIDOR no le conceden histórico, así que
+       `cicloPeriodoHtml()` devuelve cadena vacía y no se dibuja nada;
+     · `medico` ni siquiera tiene la pestaña `ciclo` (ver `dashTabsFor`);
+     · `hseq` puede ver histórico y tiene la sección… y era la única que NO lo emitía.
+     O sea que los botones de 30 y 90 días no llegaban a NINGUNA pantalla que alguien pueda abrir,
+     y por eso "filtran sobre 7 sin avisar" nunca se vio: no había con qué filtrar. Viene de Y1, y
+     no se cazó antes porque los casos de Y1 miden `cicloPeriodoHtml()` SUELTA — devuelve los
+     cuatro botones perfectos y nadie comprobaba que ese HTML llegara a alguna parte (R17).
+     ⚠️ NO viola K1b: ese cortafuegos es sobre NOMBRES y valores individuales. Un selector de rango
+     no nombra a nadie. Lo que sigue afuera es `cicloCfgHtml`, el EDITOR del plan de ciclo, que sí
+     es una configuración operativa que Dirección no toca. */
   if (DASH.vista === 'hseq')
-    return cicloHseqAgregado(filas, plan, ayuda,
+    return cicloHseqAgregado(filas, plan, ayuda + cicloPeriodoHtml(),
       resumen + cicloPromediosHtml(sel.ciclos, plan, t('prm_titulo')));
   DASH._cicNames = filas.map(f => f.p.persona);
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin') };
