@@ -1883,7 +1883,13 @@
   .cargando-caja .cargador { --cg: 52px; }
   .cargando-caja span { font-size: .84rem; font-weight: 600; }
 
-  .btn-loading { opacity: .85; cursor: default; }
+  /* P044 · Q2: el cargador quedaba 8-9 px más abajo que el centro del texto (medido en el
+     navegador, a 375 y a 1366: los dos dieron el mismo desfase, porque es un problema de
+     `vertical-align` contra la línea de base, no de layout responsivo). `vertical-align` no
+     depende del ancho de pantalla, así que ajustarlo a mano habría sido frágil ante cualquier
+     cambio de tipografía. Centrando con flex el ícono y el texto quedan alineados por caja, no
+     por línea de base: desfase 0 verificado en los dos anchos. */
+  .btn-loading { opacity: .85; cursor: default; display: inline-flex; align-items: center; justify-content: center; }
 
   /* Portal: botón "Ver demostración" (fuera del login) */
   .portal-demo { margin-top: 1.1rem; }
@@ -6352,7 +6358,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.68';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.69';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -13776,14 +13782,18 @@ function nominaConfirmar(){
   err.textContent = '';
   /* El código va también acá: el servidor lo vuelve a exigir en esta acción (cada acción se
      defiende sola), así que si no se mandara, una empresa con código no podría confirmar nunca. */
-  conBloqueo('#nominaOv .sheet', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+  const peticion = fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
       action:'nomina_confirmar', empresa: NOM.empresa, persona: NOM.persona, cedula: ced,
       codigo: NOM.codigo || '',
       /* P099 · opcional. El servidor lo trata aparte del código de empresa: si está mal, no corta
          el alta — sólo no propone rol. */
       codigoSup: (function(){ const e = document.getElementById('nomCodigoSup'); return e ? e.value.trim() : ''; })(),
-      dispositivoId: dispositivoId() }) })
-    .then(r => r.json())
+      dispositivoId: dispositivoId() }) }).then(r => r.json());
+  /* P044 · Q2 · el mínimo de 2 s sólo retrasa CUÁNDO se pinta el resultado: `peticion` ya se
+     disparó arriba y `cargaConMinimo` nunca la vuelve a pedir, llegue en 300 ms o en 3 s. Sin
+     esqueleto acá a propósito: el piso real de Apps Script (~1,3 s) casi nunca cruza el mínimo, y
+     esta pantalla es un formulario que la persona ya completó, no un panel de datos. */
+  conBloqueo('#nominaOv .sheet', cargaConMinimo(peticion)
     .then(d => {
       btnSpin(btn, false);
       // El código se venció o se rotó mientras la persona estaba en el medio del alta.
@@ -15300,19 +15310,36 @@ function portalLoginSupervisor(btn){
   const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId(),
     pedida:(PORTAL_VISTA==='supervisor'||PORTAL_VISTA==='medico') ? PORTAL_VISTA : '' };  // empresa = compat con endpoint viejo
   btnSpin(btn, true, 'Entrando…');
-  /* M1: mientras esto tarda (medido: 2,5 a 5 s) el formulario queda fuera de alcance y el panel
-     muestra su esqueleto, en vez de aparecer de golpe a los 5 segundos. */
+  /* M1: mientras esto tarda (medido: 2,5 a 5 s) el formulario queda fuera de alcance. */
   const gate = document.getElementById('portalGate');
+  const dash = document.getElementById('portalDash');
   cargaBloquear(gate, true);
-  const cuerpo = document.getElementById('dashBody');
-  if (cuerpo) cuerpo.innerHTML = skeletonHtml('bloque', 2) + skeletonHtml('tarjeta', 4);
   const carga = cargaIniciar({ btn: btn, gate: gate });
-  dashRequest(params)
+  /* P044 · Q2: antes el esqueleto se escribía en `dashBody` en este mismo instante, pero
+     `portalDash` seguía `display:none` hasta que la respuesta llegaba — así que nunca se veía
+     (`onDashData` lo pisa igual al pintar). Ahora se abre el panel con el esqueleto adentro sólo
+     si a los CARGA_MIN_MS todavía no hay respuesta: antes de eso, lo único visible es el botón
+     con el cargador, y si la respuesta ya está lista se abre derecho con el dato real. */
+  let seMostroEsqueleto = false;
+  function rechazar(msg){
+    // Errores de CREDENCIALES (no de red): la persona tiene que corregir el formulario, así que
+    // si ya se había abierto el esqueleto del panel, hay que volver al gate para que lo vea.
+    if (seMostroEsqueleto){ seMostroEsqueleto = false; dash.style.display = 'none'; gate.style.display = ''; }
+    errEl.textContent = msg;
+  }
+  cargaConMinimo(dashRequest(params), function(){
+    if (!cargaVigente(carga)) return;        // se salió mientras cargaba: no abrir nada
+    seMostroEsqueleto = true;
+    gate.style.display = 'none';
+    dash.style.display = '';
+    dashSetMq('dashScope', t('cargando'));
+    dashMostrarEsqueleto();
+  })
     .then(d => {
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba
       btnSpin(btn, false);
       cargaBloquear(gate, false);
-      if (!d || !d.ok){ errEl.textContent = tError(d && d.error); return; }
+      if (!d || !d.ok){ rechazar(tError(d && d.error)); return; }
       const label = d.rol==='admin' ? 'Todas las empresas' : ((d.registros[0] && d.registros[0].empresa) || usuario);
       /* ⚠️ SEGURIDAD. El fallback a PORTAL_VISTA existe sólo por compatibilidad con el endpoint
          viejo, que todavía no manda `vista`. Pero ese fallback NO PUEDE conceder 'hseq': si lo
@@ -15320,9 +15347,9 @@ function portalLoginSupervisor(btn){
          sólo haber elegido esa pestaña. La vista de dirección la tiene que confirmar el servidor,
          siempre. Mientras el endpoint no la mande, se avisa en vez de dejar pasar. */
       if (PORTAL_VISTA === 'hseq' && d.vista !== 'hseq'){
-        errEl.textContent = d.vista
+        rechazar(d.vista
           ? 'Esa contraseña no corresponde al acceso de Dirección / HSEQ.'
-          : 'El servidor todavía no reconoce el acceso de Dirección / HSEQ. Falta publicar la nueva versión del endpoint.';
+          : 'El servidor todavía no reconoce el acceso de Dirección / HSEQ. Falta publicar la nueva versión del endpoint.');
         return;
       }
       /* ⚠️ MISMO PROBLEMA DE SEGURIDAD QUE ARRIBA, encontrado por el usuario probando con una
@@ -15335,17 +15362,27 @@ function portalLoginSupervisor(btn){
          ahí una sola contraseña abre las dos secciones a propósito (vista:'medico' de entrada), y
          ese caso ya pasa sin problema porque d.vista ya viene 'medico'. */
       if (PORTAL_VISTA === 'medico' && d.vista !== 'medico'){
-        errEl.textContent = (d.vista === 'hseq')
+        rechazar((d.vista === 'hseq')
           ? 'Esa contraseña es la de Dirección / HSEQ, no la de servicio médico.'
-          : 'Esa no es la contraseña de servicio médico — es la de supervisor.';
+          : 'Esa no es la contraseña de servicio médico — es la de supervisor.');
         return;
       }
       onDashData(d, label, params, d.vista || PORTAL_VISTA);   // el servidor decide la vista según la contraseña
       offerRemember(usuario, pass);
     })
-    .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false);
+    .catch(err => {
+      if (!cargaVigente(carga)) return;
+      btnSpin(btn, false);
       cargaBloquear(gate, false);            // ⚠️ también al fallar, o la pantalla queda muerta
-      errEl.textContent = t('sin_conexion') + '.'; });
+      // Acá SÍ es de red (rechazo del fetch, no d.ok:false): si ya se veía el esqueleto del panel,
+      // se explica ahí con el mismo cartel de error que usa el resto del panel (con reintentar);
+      // si todavía estaba en el formulario, el aviso va donde la persona está mirando.
+      if (seMostroEsqueleto){
+        dashMostrarError((err && err.name === 'AbortError') ? t('err_d_tardo') : '', function(){ portalLoginSupervisor(btn); });
+      } else {
+        errEl.textContent = t('sin_conexion') + '.';
+      }
+    });
 }
 // Demostración con datos simulados (Empresa Demo), SIN login — botón del portal supervisor.
 function portalVerDemo(btn){
@@ -15767,6 +15804,33 @@ function cargaCancelar(){
   try { cargaBloquear(ui.gate, false); } catch(e){}
 }
 function cargaVigente(n){ return n === _cargaN; }
+
+/* P044 · Q2 · el cargador tiene que verse un mínimo de tiempo antes de reaccionar, para que no
+   parpadee cuando la respuesta llega pegada (la caché de M2 responde en ~556 ms). UNA sola
+   constante: si hay que bajarla, es este número y ningún otro lugar del archivo.
+   ⚠️ El piso real de Apps Script (~1,3 s) y el login (2,5-5 s, medido en P095) casi nunca la
+   necesitan — pero cuando la respuesta es más rápida que esto, SÍ frena a propósito.
+   Se aplica sólo donde lo pide el prompt: confirmar el alta y entrar al panel. No se toca el
+   camino de arranque (R16 aparte: subirlo ahí frenaría una pantalla que hoy aparece a los 556 ms). */
+const CARGA_MIN_MS = 2000;
+/* Envuelve UNA promesa ya disparada (nunca dispara una segunda) para que quien la escuche no
+   reaccione antes de CARGA_MIN_MS. Caso borde del prompt: si `promesa` ya resolvió cuando se
+   cumple el mínimo, se resuelve con ESE dato — no se vuelve a pedir nada.
+   Si el mínimo se cumple y la respuesta todavía no llegó, se avisa una vez con
+   `alVencerSinRespuesta` (para que quien llama pase del botón a un esqueleto) y se sigue
+   esperando la MISMA promesa — la maquinaria de esqueleto es la que ya existe
+   (`skeletonHtml`/`dashMostrarEsqueleto`), esto sólo decide CUÁNDO usarla. */
+function cargaConMinimo(promesa, alVencerSinRespuesta){
+  let listo = false, val, tuvoError = false, error;
+  promesa.then(v => { listo = true; val = v; }, e => { listo = true; tuvoError = true; error = e; });
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (listo){ tuvoError ? reject(error) : resolve(val); return; }
+      if (typeof alVencerSinRespuesta === 'function'){ try { alVencerSinRespuesta(); } catch(e2){} }
+      promesa.then(resolve, reject);
+    }, CARGA_MIN_MS);
+  });
+}
 
 function onDashData(d, scopeLabel, params, vista){
   if (!d || !d.ok){ showToast(tError(d && d.error)); return; }
