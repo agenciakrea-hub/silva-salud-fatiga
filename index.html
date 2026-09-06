@@ -2679,11 +2679,25 @@
      con distinto margen y distinta altura, la cabecera se lee torcida. Franco lo reportó como "no
      es simétrico". Ahora los dos salen de `--splash-lado` y `--splash-logo-top`, así que cambiar
      uno mueve al otro y no pueden volver a separarse. */
-  .splash-lang { position:absolute; top:var(--splash-logo-top); right:var(--splash-lado); left:auto; z-index:5;
+  /* P043 · el botón y su pista van en un envoltorio común, así la pista se acomoda DEBAJO sin
+     medir a mano el alto del botón (que cambia con el tamaño de letra que la persona eligió: es
+     `min-height` en px, pero el padding y la letra son `rem` y pueden superarlo). El envoltorio
+     hereda la posición que tenía el botón; el botón pasa a `position:static` dentro de él. */
+  .splash-lang-wrap { position:absolute; top:var(--splash-logo-top); right:var(--splash-lado); left:auto; z-index:5;
+    display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; }
+  .splash-lang { position:static;
     background:var(--entrada-chip); color:var(--entrada-chip-ink); border:none; border-radius:999px;
     padding:.4rem .9rem; box-shadow:var(--shadow-sm);
     font-family:inherit; font-size:.78rem; font-weight:800; letter-spacing:.03em; cursor:pointer;
     display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
+  /* P043 · "Idioma" / "Language" alternando en bucle: quien no sabe qué hace el botón de arriba
+     tiene, tarde o temprano, la palabra en el idioma que SÍ entiende. Suave a propósito — no puede
+     competir con el botón ni con el titular —, por eso chico y con el token más apagado de esta
+     pantalla. `--entrada-tenue` ya está medido para pasar 4,5:1 sobre el navy del splash (es el
+     mismo que usa la credencial normativa del pie). `pointer-events:none` porque no hace nada al
+     tocarlo: quien quiere cambiar de idioma toca el chip de arriba. */
+  .splash-lang-hint { font-size:.66rem; font-weight:700; letter-spacing:.02em; line-height:1.2;
+    color:var(--entrada-tenue); pointer-events:none; text-align:right; max-width:92px; }
   /* ⚠️ `position:static` con `z-index` a secas, y no `position:relative`. El logo se ancla con
      `position:absolute` a la esquina superior izquierda, y su contenedor es el ancestro POSICIONADO
      más cercano: mientras esto era `relative`, el logo se anclaba al CUERPO, así que al repartir el
@@ -3576,8 +3590,10 @@
        inverso al que J7 arregla. `--chip-bg`/`--text-soft` son theme-aware y resuelven los dos. */
     /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
        arriba sino dentro de la columna izquierda, en el flujo. */
-    .splash-lang { right: var(--splash-lado); left: auto;
-      background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
+    .splash-lang { background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
+    /* P043 · la pista también cae sobre la tarjeta clara acá: mismo criterio que arriba, tokens
+       theme-aware en vez del invariante de navy. */
+    .splash-lang-hint { color: var(--text-muted); }
 
     /* ═══ B2 · Carrusel ═══
        El panel izquierdo queda QUIETO y sólo desliza el derecho: en escritorio el movimiento
@@ -5227,7 +5243,13 @@
     <!-- ⚠️ El idioma va a la DERECHA y el logo a la izquierda (pedido de Franco). El logo es lo que
          identifica, y en lectura de izquierda a derecha lo primero que se ve tiene que ser quién es
          la app, no un control. -->
-    <button type="button" class="splash-lang splash-lang--der" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma">ES</button>
+    <!-- P043: la pista ("Idioma"/"Language" en bucle) es aria-hidden porque no agrega nada que el
+         aria-label del botón no diga ya — es una pista visual para quien lee la pantalla, no para
+         quien la escucha. -->
+    <div class="splash-lang-wrap">
+      <button type="button" class="splash-lang" onclick="splashCambiarIdioma()" id="splashLangBtn" aria-label="Cambiar idioma" data-i18n-attr="aria-label:idioma_cambiar">ES</button>
+      <span class="splash-lang-hint" id="splashLangHint" aria-hidden="true"></span>
+    </div>
     <div class="splash-cuerpo">
       <div class="splash-brand">
         <img class="splash-logo ent-logo-entra" src="escudo360.svg" alt="Escudo 360 · Silva Salud">
@@ -6358,7 +6380,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.69';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.70';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6423,7 +6445,8 @@ const I18N = {
       err_accion:'La aplicación pidió algo que el servidor no reconoce.',
       // ── Ajustes ──
       ajustes:'Ajustes', ajustes_sub:'Dispositivos, datos y accesos',
-      idioma:'Idioma', idioma_nota:'Cambia el idioma de toda la aplicación. Se guarda en este dispositivo.',
+      idioma:'Idioma', idioma_cambiar:'Cambiar idioma',
+      idioma_nota:'Cambia el idioma de toda la aplicación. Se guarda en este dispositivo.',
       tamano_texto:'Tamaño del texto', apariencia:'Apariencia',
       tema_claro:'Claro', tema_oscuro:'Oscuro', tema_auto:'Automático',
       cambiar_datos:'Cambiar mis datos', cambiar_datos_d:'Nombre, empresa, email, teléfono…',
@@ -6535,6 +6558,7 @@ const I18N = {
       car_saltar:'Saltar',
       nom_cedula_lbl:'Confirma tu número de cédula',
       nom_cedula_btn:'Confirmar y entrar',
+      nom_confirmando:'Confirmando…',
       nom_codigo_lbl:'Código de tu empresa',
       nom_codigo_btn:'Continuar',
       nom_codigo_ayuda:'Te lo da tu supervisor o el área de seguridad de tu empresa.',
@@ -6822,6 +6846,7 @@ const I18N = {
       pg_demo_pass_lbl:'Clave de la demostración',
       pg_demo_pass_pide:'Esta demostración pide una clave. Escríbela para continuar.',
       pg_demo_pass_mal:'La clave no es correcta. Verifícala e inténtalo de nuevo.',
+      pg_demo_abriendo:'Abriendo ejemplo…',
       pg_demo:'Ver demostración con datos simulados',
       pg_demo_para:'Ver demostración con datos simulados (para {rol})',
       pg_demo_d:'Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.',
@@ -6830,6 +6855,7 @@ const I18N = {
       adm_ver:'Ver como administrador',
       adm_ver_d:'Simular roles y ver cómo funciona la app por dentro',
       adm_pass:'Contraseña de administrador',
+      adm_verificando:'Verificando…',
       adm_sim:'Simulador de roles',
       adm_sim_d:'Abre la app tal como la ve cada tipo de usuario. <b>Es sólo lectura</b>: mientras simulas, nada se guarda ni se envía.',
       adm_doc:'Cómo funciona la app por dentro',
@@ -8045,7 +8071,8 @@ const I18N = {
       err_faltan_datos:'Some information is missing to complete this.',
       err_accion:'The app asked for something the server does not recognise.',
       ajustes:'Settings', ajustes_sub:'Devices, data and access',
-      idioma:'Language', idioma_nota:'Changes the language of the whole app. Saved on this device.',
+      idioma:'Language', idioma_cambiar:'Change language',
+      idioma_nota:'Changes the language of the whole app. Saved on this device.',
       tamano_texto:'Text size', apariencia:'Appearance',
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
@@ -8146,6 +8173,7 @@ const I18N = {
       car_saltar:'Skip',
       nom_cedula_lbl:'Confirm your ID number',
       nom_cedula_btn:'Confirm and enter',
+      nom_confirmando:'Confirming…',
       nom_codigo_lbl:'Your company code',
       nom_codigo_btn:'Continue',
       nom_codigo_ayuda:'Your supervisor or your company\'s safety team gives it to you.',
@@ -8442,6 +8470,7 @@ const I18N = {
       pg_demo_pass_lbl:'Demo password',
       pg_demo_pass_pide:'This demo requires a password. Enter it to continue.',
       pg_demo_pass_mal:'That password is not correct. Please check it and try again.',
+      pg_demo_abriendo:'Opening example…',
       pg_demo:'See a demo with simulated data',
       pg_demo_para:'See a demo with simulated data (as {rol})',
       pg_demo_d:'Explore the panel with a sample company — no username or password needed.',
@@ -8450,6 +8479,7 @@ const I18N = {
       adm_ver:'View as administrator',
       adm_ver_d:'Simulate roles and see how the app works inside',
       adm_pass:'Administrator password',
+      adm_verificando:'Verifying…',
       adm_sim:'Role simulator',
       adm_sim_d:'Opens the app exactly as each type of user sees it. <b>It is read-only</b>: nothing is saved or sent while you simulate.',
       adm_doc:'How the app works inside',
@@ -9796,6 +9826,7 @@ function aplicarIdioma(){
   document.documentElement.setAttribute('lang', idiomaActual());
   i18nBarrer();
   idiomaPintarControl();
+  try { splashLangHintResync(); } catch(e){}   // P043 · si la pista está quieta, que muestre el idioma nuevo
   /* El bloque de Apariencia también tiene texto que sale de t(): su subtítulo ("Claro"/"Oscuro")
      y su nota. Sin esto se quedaban en el idioma anterior — se veía "Oscuro" con la app en
      inglés. Desde J6 ese subtítulo es lo ÚNICO visible cuando el bloque está colapsado, así que
@@ -13778,7 +13809,7 @@ function nominaConfirmar(){
   const err = nominaEl('nomErr');
   if (!ced){ err.textContent = t('nom_ced_falta'); return; }
   const btn = nominaEl('nomBtnConfirmar');
-  btnSpin(btn, true, 'Confirmando…');
+  btnSpin(btn, true, t('nom_confirmando'));
   err.textContent = '';
   /* El código va también acá: el servidor lo vuelve a exigir en esta acción (cada acción se
      defiende sola), así que si no se mandara, una empresa con código no podría confirmar nunca. */
@@ -14960,7 +14991,7 @@ function admEntrar(btn){
   const pass = document.getElementById('admPass').value.trim();
   const err = document.getElementById('admErr'); err.textContent = '';
   if (!pass){ err.textContent = 'Ingresa la contraseña.'; return; }
-  btnSpin(btn, true, 'Verificando…');
+  btnSpin(btn, true, t('adm_verificando'));
   // Se valida contra el MISMO endpoint que el acceso de administrador del portal (usuario '*').
   // Guardarlo en sessionStorage sólo evita re-escribirla mientras dura la pestaña: no otorga
   // ningún permiso por sí solo, cada pedido de datos al servidor sigue llevando su contraseña.
@@ -15309,7 +15340,7 @@ function portalLoginSupervisor(btn){
   // el servidor no tiene forma de saber cuál de las dos se quiso abrir (ver combinada en el .gs).
   const params = { action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId(),
     pedida:(PORTAL_VISTA==='supervisor'||PORTAL_VISTA==='medico') ? PORTAL_VISTA : '' };  // empresa = compat con endpoint viejo
-  btnSpin(btn, true, 'Entrando…');
+  btnSpin(btn, true, t('lgn_entrando'));
   /* M1: mientras esto tarda (medido: 2,5 a 5 s) el formulario queda fuera de alcance. */
   const gate = document.getElementById('portalGate');
   const dash = document.getElementById('portalDash');
@@ -15393,7 +15424,7 @@ function portalVerDemo(btn){
   const params = { action:'demo', dispositivoId: dispositivoId() };
   if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
-  btnSpin(btn, true, 'Abriendo ejemplo…');
+  btnSpin(btn, true, t('pg_demo_abriendo'));
   conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
       if (!cargaVigente(carga)) return;        // se salió mientras cargaba: no pisar la pantalla
@@ -15664,7 +15695,7 @@ function portalLoginAdmin(btn){
   if (!pass){ errEl.textContent = 'Ingresa la contraseña.'; return; }
   const params = { action:'supervisor', usuario:'*', empresa:'*', pass };
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
-  btnSpin(btn, true, 'Entrando…');
+  btnSpin(btn, true, t('lgn_entrando'));
   conBloqueo('#portalGate', dashRequest(params)
     .then(d => {
       btnSpin(btn, false);
@@ -18790,7 +18821,7 @@ function cicloCfgGuardar(btn){
   }
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ if (err) err.textContent = 'Vuelve a entrar con tu usuario para poder guardar.'; return; }
-  btnSpin(btn, true, 'Guardando…');
+  btnSpin(btn, true, t('guardando'));
   conBloqueo('#portalDash', dashRequest({ action:'ciclo_config_guardar', usuario:cred.usuario, empresa:(DASH.f.emp || cred.empresa || cred.usuario),
                 pass:cred.pass, plan:JSON.stringify(plan) })
     .then(d => {
@@ -24333,6 +24364,10 @@ function appRevelar(ver){
    arrancar). Regla para esta zona: **lo que use el camino de arranque va como función declarada;
    si tiene que ser variable, se declara sin asignar.** */
 var _splAnim;
+/* P043 · misma razón que `_splAnim` de arriba: si esto se declarara con `= null` más abajo,
+   pisaría lo que `splashLangHintArrancar()` ya hubiera guardado si algo entre medio la llamó
+   antes de llegar a esta línea. `var` sin asignar no pisa nada. */
+var _splLangHint;
 /* ⚠️ ES UNA FUNCIÓN Y NO UNA VARIABLE, Y ESO NO ES CAPRICHO.
    Antes era `var SPLASH_ANIM_ACTIVA = true` acá abajo, y el arranque llama a `splashMostrar()`
    VEINTIDÓS LÍNEAS ANTES. `var` iza la declaración pero NO la asignación: al arrancar valía
@@ -24475,6 +24510,90 @@ function splashAnimFrenar(){
   _splAnim = null;
 }
 
+/* ════════════════ P043 · pista del botón de idioma ("Idioma" ⇄ "Language") ═════════════════════
+   El chip de arriba sólo dice "ES"/"EN": quien no reconoce esas siglas no tiene forma de saber
+   qué hace. La pista alterna las dos traducciones de la MISMA clave del diccionario (`idioma`),
+   no un texto propio — si el día de mañana se suma un tercer idioma, alcanza con que su bloque
+   tenga esa clave.
+
+   Movimiento reducido: el del SISTEMA (`prefers-reduced-motion`) o el interruptor propio de la
+   app (`html.sin-animaciones`, que existe además del de arriba — ver pruebas/LEEME.md) dejan la
+   pista QUIETA mostrando la palabra del idioma vigente. Las dos condiciones, no una sola.
+
+   Mismo patrón que `splashAnimArrancar()`, arriba: identidad por objeto contra `_splLangHint`
+   (una cadena vieja no sigue viva por error aunque se llame de nuevo), y un MutationObserver que
+   la retoma sola si el movimiento se habilita mientras estaba quieta — sin esto, abrir el splash
+   con la pestaña oculta (que pone `.sin-animaciones` sola, ver boot arriba del archivo) la dejaría
+   congelada para siempre, aunque el movimiento ya estuviera permitido. */
+function splashLangHintQuieto(){
+  let reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+  return reduce || document.documentElement.classList.contains('sin-animaciones');
+}
+// Palabra que corresponde a `lang`, resuelta con el MISMO motor que t() (fallback incluido) para
+// que un sector que todavía no tradujera 'idioma' no deje la pista vacía.
+function splashLangHintPalabra(lang){
+  const s = _i18nBuscar(lang, sectorActual(), 'idioma');
+  return s != null ? s : (lang === 'en' ? 'Language' : 'Idioma');
+}
+function splashLangHintArrancar(){
+  const el = document.getElementById('splashLangHint');
+  if (!el || _splLangHint) return;
+  const est = { vivo:true, timer:0, parado:false };
+  _splLangHint = est;
+  function pintarFijo(){
+    el.dataset.muestra = idiomaActual();
+    el.textContent = splashLangHintPalabra(idiomaActual());
+  }
+  function ciclo(){
+    if (!est.vivo || _splLangHint !== est) return;
+    if (splashLangHintQuieto()){
+      pintarFijo();
+      est.parado = true;                 // el observer de abajo la retoma si se habilita el movimiento
+      return;
+    }
+    est.parado = false;
+    const sig = el.dataset.muestra === 'es' ? 'en' : 'es';
+    el.dataset.muestra = sig;
+    el.textContent = splashLangHintPalabra(sig);
+    est.timer = setTimeout(ciclo, 2200);   // pausa legible: ni parpadeo ni espera larga
+  }
+  /* ⚠️ EL PRIMER "QUIETO" SE DECIDE ACÁ, NO ADENTRO DE `ciclo()`. Antes `est.parado` arrancaba en
+     `false` y recién pasaba a `true` cuando el PRIMER `ciclo()` corría, 2200 ms después. Si el
+     movimiento ya estaba reducido desde el arranque y alguien cambiaba de idioma en ESE hueco,
+     `splashLangHintResync()` veía `parado:false` y no hacía nada — la pista se quedaba diciendo
+     la palabra vieja hasta que el primer tick, ya inútil, la alcanzara. Lo encontró la suite
+     (p043-idioma-y-etiquetas.js), no la mirada a mano: a mano, entre una llamada y otra pasaban
+     varios segundos reales y el tick ya había corrido, así que el hueco nunca se notaba. */
+  pintarFijo();
+  /* El observer se registra SIEMPRE, incluso si arranca quieta: si no, una carga en segundo plano
+     (que pone `.sin-animaciones` sola) dejaría la pista congelada para siempre aunque después el
+     movimiento se habilitara — nadie quedaría escuchando el cambio. */
+  if (splashLangHintQuieto()) est.parado = true;
+  else est.timer = setTimeout(ciclo, 2200);
+  est.obs = new MutationObserver(() => { if (est.vivo && est.parado && !splashLangHintQuieto()) ciclo(); });
+  est.obs.observe(document.documentElement, { attributes:true, attributeFilter:['class'] });
+}
+function splashLangHintFrenar(){
+  if (!_splLangHint) return;
+  _splLangHint.vivo = false;
+  clearTimeout(_splLangHint.timer);
+  if (_splLangHint.obs) _splLangHint.obs.disconnect();
+  _splLangHint = null;
+}
+/* Se llama desde `aplicarIdioma()` (que corre para CUALQUIER cambio de idioma, no sólo el chip del
+   splash): si la pista está quieta, tiene que reflejar el idioma nuevo enseguida — si no, alguien
+   que cambia de ES a EN con movimiento reducido vería la pista seguir diciendo "Idioma". Mientras
+   alterna sola no hace falta tocar nada: las dos palabras que va mostrando no dependen de cuál sea
+   el idioma vigente. */
+function splashLangHintResync(){
+  if (!_splLangHint || !_splLangHint.parado) return;
+  const el = document.getElementById('splashLangHint');
+  if (!el) return;
+  el.dataset.muestra = idiomaActual();
+  el.textContent = splashLangHintPalabra(idiomaActual());
+}
+
 /* ════════════════ SPLASH (B1, 2026-08-25) ════════════════════════════════════════════════════ */
 function splashMostrar(){
   const g = empresaPerfilGuardado();
@@ -24493,6 +24612,8 @@ function splashMostrar(){
      splash. Antes, dos arranques sin freno en el medio podían dejar dos corriendo a la vez. */
   splashAnimFrenar();
   splashAnimArrancar();
+  splashLangHintFrenar();   // P043 · mismo motivo: una sola cadena viva
+  splashLangHintArrancar();
 }
 function splashCambiarIdioma(){
   fijarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
@@ -24506,6 +24627,7 @@ function splashIngresar(){
 function splashAbrirPortal(){
   portalDemoModo(false);      // por si venía de una demo anterior
   splashAnimFrenar();         // N8: va acá, donde el splash se oculta de verdad, y no en cada botón
+  splashLangHintFrenar();     // P043 · ídem: no dejar la cadena de la pista corriendo de fondo
   document.getElementById('splashOv').classList.remove('show');
   document.getElementById('portalOverlay').classList.add('show');
   document.getElementById('portalGate').style.display = '';
@@ -25271,6 +25393,7 @@ function carruselMostrar(){
     }
   }
   splashAnimFrenar();         // N8: ídem — cualquier camino que oculte el splash frena los videos
+  splashLangHintFrenar();     // P043 · ídem
   document.getElementById('splashOv').classList.remove('show');
   document.getElementById('carruselOv').classList.add('show');
   carruselPintar();
