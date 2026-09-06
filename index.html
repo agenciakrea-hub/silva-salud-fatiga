@@ -316,6 +316,10 @@
        no alcanza —ni al 30% pasa de 2.67:1—, hace falta borde. Medido: 4.28:1 contra la franja 1
        y 3.80:1 contra la 2. */
     --demo-borde:   #7f8694;
+    /* Los puntitos de la tira del splash. Sobre `--card`: apagado 1.9:1 (es decoración, no
+       información — el activo es el que tiene que leerse), activo 4.6:1. */
+    --spl-dot:      #c9ced9;
+    --spl-dot-on:   #6b7484;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
 
     /* ── Pantallas de entrada (A2, 2026-08-25: splash, carrusel, alta) ──
@@ -496,6 +500,10 @@
        no alcanza —ni al 30% pasa de 2.67:1—, hace falta borde. Medido: 4.28:1 contra la franja 1
        y 3.80:1 contra la 2. */
     --demo-borde:   #7f8694;
+    /* Los puntitos de la tira del splash. Sobre `--card`: apagado 1.9:1 (es decoración, no
+       información — el activo es el que tiene que leerse), activo 4.6:1. */
+    --spl-dot:      #c9ced9;
+    --spl-dot-on:   #6b7484;
     --arranque-bg: #0a1f40;   /* = background_color del manifest. NO cambia con el tema, a propósito. */
     --orange-txt:  #b8500a;
     /* Mismo valor que en :root, a propósito: el gradiente naranja es invariante entre temas. */
@@ -2801,7 +2809,14 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .spl-p-tx span { font-size: min(var(--spl-baj), var(--spl-baj-tope)); color: var(--text-soft);
     line-height: 1.4;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    /* ⚠️ 4 LÍNEAS, NO 3, Y ES EL ARREGLO. Con 3 la lámina de SAFTE se cortaba a la mitad de una
+       frase —el dueño la vio terminar en "el objetivo es…"— y acortar ese texto no era una opción:
+       cada parte suya la exige una prueba por una razón médica o legal (tiene que decir "estima" y
+       no "mide", nombrar las tres patas del modelo, la franja óptima y el wearable). Cuando el
+       contenido está justificado, lo que se corrige es el recorte, no el contenido.
+       El caso de letra al máximo lo sigue cubriendo la regla de `texto-maximo`, que esconde la
+       tira entera. */
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   /* ⚠️ SIN PISO. Le había puesto `min-height: 26px` para que el gráfico no desapareciera y
      conseguí lo contrario: ese piso le quitaba justo la capacidad de encogerse que evitaba el
      desborde, y pasaron a salirse CUATRO pantallas en vez de dos. El gráfico es lo primero que
@@ -2813,6 +2828,16 @@
      encoger y el resultado es el mismo. Lo que de verdad impide que el título se aplaste es el
      `flex: 0 0 auto` que lleva el título mismo (arriba): sacándolo, cae de 23 px a entre 0 y 20. */
   .spl-p-gr { flex: 1 1 0; min-height: 0; }
+
+  /* Puntitos de posición: en qué lámina estoy y cuántas hay. Sin ellos la tira parece que no
+     termina nunca, y quien la mira no sabe si vale la pena esperar. */
+  .spl-dots { display:flex; justify-content:center; gap:.32rem; margin-top:.5rem; }
+  .spl-dot { width:5px; height:5px; border-radius:999px; background:var(--spl-dot);
+    transition:width .28s ease, background .28s ease; }
+  /* El activo se ALARGA además de cambiar de color: se distingue sin depender de ver bien el
+     matiz, y se lee de un vistazo desde lejos. */
+  .spl-dot.on { width:16px; background:var(--spl-dot-on); }
+  @media (prefers-reduced-motion: reduce) { .spl-dot { transition:none; } }
   .spl-chip { flex: 0 0 auto; }
 
   /* ⚠️ LA ESPERA DEL DESLIZAMIENTO ES UN `animation-delay`, NO UN TEMPORIZADOR DE JS.
@@ -5237,6 +5262,11 @@
                 </div></div>
               </div>
             </div>
+      <!-- Los puntitos de posición. Se GENERAN desde las láminas que haya (`splashAnimDots`), no
+           escritos a mano: agregar o quitar una lámina no obliga a acordarse de tocar esto.
+           `aria-hidden` porque el contenedor entero ya lo está: es ilustración de portada, y un
+           lector de pantalla anunciando "1 de 9" sobre algo decorativo es ruido. -->
+      <div class="spl-dots" id="splashAnimDots" aria-hidden="true"></div>
 
       <!-- ⚠️ DEBAJO DE LAS LÁMINAS y como cierre de la pantalla (pedido de Franco). Va acá y no
            entre los enlaces porque es el pie de todo lo de arriba: las láminas cuentan qué hace el
@@ -6105,7 +6135,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.52';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.53';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -6188,29 +6218,29 @@ const I18N = {
          · R1: español neutro. */
       spl_m_estres:'ESTRÉS', spl_m_gastro:'GASTRO', spl_m_fatiga:'FATIGA', spl_m_somnol:'SOMNOLENCIA',
       spl_rt_t:'Operación en tiempo real',
-      spl_rt_d:'Cada salida, llegada y descanso queda registrado en el momento. El supervisor ve el turno mientras pasa, no al mes siguiente.',
+      spl_rt_d:'Cada salida, llegada y descanso se registra en el momento. El turno se supervisa mientras ocurre, no al mes siguiente.',
       spl_rt_chip:'En curso',
-      spl_tele_t:'Con médicos detrás',
-      spl_tele_d:'Cuando algo se sale de lo esperable, el servicio médico puede sugerir una consulta por telemedicina con Aeroambulancias Silva. La persona decide si la acepta.',
+      spl_tele_t:'Médicos detrás de cada alerta',
+      spl_tele_d:'Ante un indicador fuera de rango, el servicio médico puede sugerir una consulta de telemedicina con Aeroambulancias Silva. Siempre decide la persona.',
       spl_tele_chip:'Consulta sugerida',
       spl_p1_t:'El factor humano',
-      spl_p1_d:'La mayor parte de los incidentes empieza en una persona cansada, no en una máquina rota. Es lo que este programa vigila todos los días.',
+      spl_p1_d:'La mayoría de los incidentes operacionales empieza en una persona cansada, no en una falla técnica. Es lo que este programa vigila.',
       spl_safte_t:'Modelo predictivo SAFTE',
-      spl_safte_d:'Estima la efectividad cruzando tres cosas: lo que la persona siente, sus horas de sueño y su test de reacción, y un modelo biomatemático. El objetivo es mantenerla en su franja óptima. Con wearable, la precisión sube.',
+      spl_safte_d:'Estima la efectividad cruzando lo que la persona siente, su sueño y su test de reacción en un modelo biomatemático, para mantenerla en su franja óptima. Con wearable, más precisión.',
       spl_safte_chip:'Proyectando',
       spl_justa_t:'Cultura justa',
       spl_justa_chip:'No punitivo',
       spl_justa_d:'Reportar fatiga no tiene consecuencias para tu trabajo. Es el principio que sostiene todo el programa.',
       spl_p1_t_viejo:'Analítica Operativa',
       spl_p1_d_viejo:'Un ecosistema integral para prevenir accidentes, optimizar turnos y garantizar un entorno de trabajo seguro.',
-      spl_p2_t:'Prevención e Impacto',
+      spl_p2_t:'Prevención con impacto medible',
       spl_p2_d:'Menos incidentes, turnos mejor planificados y evidencia lista para una auditoría.',
       spl_p2_chip:'Reportando',
       spl_p3_t:'Escalas validadas, no encuestas',
       spl_p3_d:'KSS, Samn-Perelli y test de reacción. Los mismos instrumentos que usa la investigación en aviación.',
       spl_p3_chip:'Analizando',
       spl_p3_n:'Normal', spl_p3_e:'Elevado', spl_p3_c:'Crítico',
-      spl_p4_t:'Cada quien ve lo suyo',  spl_p4_d:'Tu supervisor ve si estás en condiciones hoy. El servicio médico, tus resultados. Nadie ve de más.',
+      spl_p4_t:'Acceso segmentado por rol', spl_p4_d:'El supervisor ve la aptitud operativa; el servicio médico, los resultados clínicos. Cada rol accede sólo a lo que le corresponde.',
       spl_p5_t:'Funciona sin señal',     spl_p5_d:'En el hangar o en la planta, se registra igual. Se envía solo al volver la señal.',
       splash_sub:'Prevención, detección y acción ante la fatiga operacional.',
       splash_ingresar:'Ingresar',
@@ -7732,27 +7762,27 @@ const I18N = {
       spl_rt_t:'Live operations',
       spl_rt_d:'Every departure, arrival and rest period is logged as it happens. Your supervisor sees the shift while it runs, not next month.',
       spl_rt_chip:'In progress',
-      spl_tele_t:'With doctors behind it',
-      spl_tele_d:'When something falls outside the expected range, occupational health can suggest a telemedicine consultation with Aeroambulancias Silva. The person decides whether to accept.',
+      spl_tele_t:'Doctors behind every alert',
+      spl_tele_d:'When an indicator falls outside range, medical staff can suggest a telemedicine consultation with Aeroambulancias Silva. The person always decides.',
       spl_tele_chip:'Consultation suggested',
       spl_p1_t:'The human factor',
-      spl_p1_d:'Most incidents start with a tired person, not a broken machine. That is what this programme watches, every day.',
+      spl_p1_d:'Most operational incidents start with a tired person, not a technical failure. That is what this programme watches.',
       spl_safte_t:'SAFTE predictive model',
-      spl_safte_d:'It estimates effectiveness by combining three things: what the person feels, their sleep hours and reaction test, and a biomathematical model. The aim is to keep them in their optimal range. With a wearable, accuracy goes up.',
+      spl_safte_d:'Estimates effectiveness by combining what the person feels, their sleep and their reaction test in a biomathematical model, to keep them in their optimal range. A wearable adds precision.',
       spl_safte_chip:'Projecting',
       spl_justa_t:'Just culture',
       spl_justa_chip:'Non-punitive',
       spl_justa_d:'Reporting fatigue has no consequences for your job. It is the principle the whole programme rests on.',
       spl_p1_t_viejo:'Operational Analytics',
       spl_p1_d_viejo:'An integrated system to prevent accidents, optimise shifts and keep the workplace safe.',
-      spl_p2_t:'Prevention and Impact',
+      spl_p2_t:'Prevention with measurable impact',
       spl_p2_d:'Fewer incidents, better planned shifts, and evidence ready for an audit.',
       spl_p2_chip:'Reporting',
       spl_p3_t:'Validated scales, not surveys',
       spl_p3_d:'KSS, Samn-Perelli and a reaction test. The same instruments used in aviation research.',
       spl_p3_chip:'Analysing',
       spl_p3_n:'Normal', spl_p3_e:'Raised', spl_p3_c:'Critical',
-      spl_p4_t:'Everyone sees their own',spl_p4_d:'Your supervisor, the daily status. Occupational health, the results.',
+      spl_p4_t:'Role-based access',      spl_p4_d:'Supervisors see operational fitness; medical staff see clinical results. Each role accesses only what it needs.',
       spl_p5_t:'Works with no signal',   spl_p5_d:'It is saved and sent on its own when you are back online.',
       splash_sub:'Preventing, detecting and acting on operational fatigue.',
       splash_ingresar:'Get started',
@@ -22945,6 +22975,14 @@ function splashAnimArrancar(){
   const est = { i:0, timer:0, vivo:true, parado:false };
   _splAnim = est;
 
+  /* Los puntitos se arman UNA vez, desde las láminas que existan. Si alguien agrega la décima
+     lámina, aparece el décimo punto sin tocar nada — igual que el resto de este motor, que lee
+     del DOM en vez de tener números escritos. */
+  const dots = document.getElementById('splashAnimDots');
+  if (dots && dots.children.length !== slides.length){
+    dots.innerHTML = slides.map(() => '<span class="spl-dot"></span>').join('');
+  }
+
   /* ⚠️ La animación de cada pantalla arranca RECIÉN cuando termina de deslizarse, no antes.
      Estaban todas corriendo en bucle a la vez, así que al llegar una pantalla su animación ya venía
      por la mitad: se veía floja y desincronizada. Ahora la clase `spl-activa` es la que dispara, y
@@ -22969,6 +23007,10 @@ function splashAnimArrancar(){
        después, el primer fotograma usaría el valor de repuesto y se vería un salto. */
     splMedirTrazo();
     slides[i] && slides[i].classList.add('spl-activa');
+    /* Los puntitos siguen a la lámina desde acá, que es el único lugar por donde pasa TODO cambio
+       —el paso automático, el reinicio tras estar frenado y el arranque—. Ponerlo en `paso()`
+       dejaría fuera el caso de volver del modo sin movimiento. */
+    if (dots) [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
   };
 
   /* ⚠️ Se compara por IDENTIDAD contra `_splAnim`, no sólo por `est.vivo`. Apareció una cadena
