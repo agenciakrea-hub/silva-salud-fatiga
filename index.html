@@ -6151,7 +6151,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.57';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7341,6 +7341,8 @@ const I18N = {
       demo_bar_corto:'Demostración · nada se guarda',
       demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
       rol_quitado:'Tu empresa actualizó tu rol. Ahora ves la aplicación como el resto del personal.',
+      hs_nunca_1:'1 persona de la nómina no tiene ninguna medición:',
+      hs_nunca_n:'{n} personas de la nómina no tienen ninguna medición:',
       nom_sup_tengo:'Tengo un código de supervisor',
       nom_sup_lbl:'Código de supervisor (opcional)',
       nom_sup_ph:'Sólo si te lo dieron',
@@ -8994,6 +8996,8 @@ const I18N = {
       demo_bar_corto:'Demo · nothing is saved',
       demo_aplicado:'Applied in the demo. Everything resets when you leave.',
       rol_quitado:'Your company updated your role. You now see the app like the rest of the staff.',
+      hs_nunca_1:'1 person on the roster has no measurements at all:',
+      hs_nunca_n:'{n} people on the roster have no measurements at all:',
       nom_sup_tengo:'I have a supervisor code',
       nom_sup_lbl:'Supervisor code (optional)',
       nom_sup_ph:'Only if you were given one',
@@ -15291,6 +15295,11 @@ function onDashData(d, scopeLabel, params, vista){
            duty: d.duty || null,
            ausencias: (d.ausencias && typeof d.ausencias === 'object') ? d.ausencias : {},
            operacionalPeriodo: d.operacionalPeriodo || null,
+           /* ⚠️ P096 · SE NOMBRAN ACÁ O NO EXISTEN. Este objeto es una lista CERRADA de campos:
+              lo que el servidor mande y no esté escrito acá se descarta sin error. Es exactamente
+              lo que ya se comió `duty` y `ausencias` (A4). */
+           nominaTotal: Number(d.nominaTotal) || 0,
+           nominaSinDato: Array.isArray(d.nominaSinDato) ? d.nominaSinDato : [],
            rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]) };
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
@@ -17057,7 +17066,20 @@ function renderHseqIdc(rows){
   const disp = conDato.filter(p => p.estado === 'ok' || p.estado === 'aptomed').length;
   const sinDato = cuentan.length - conDato.length;
   const pct = conDato.length ? Math.round(disp / conDato.length * 100) : null;
-  const cobertura = cuentan.length ? Math.round(conDato.length / cuentan.length * 100) : null;
+  /* ⚠️ P096 · EL DENOMINADOR ES LA NÓMINA, NO QUIEN YA TENÍA TESTS.
+     `gente` se arma desde `DASH.registros`, así que quien NUNCA se midió no está en esa lista —
+     y la cobertura daba 100% porque medía "100% de los que ya tenían datos". El indicador que
+     existe para detectar a quién no medimos era ciego justo a esa persona.
+     Se usa la nómina cuando el servidor la manda y es al menos tan grande como lo que ya
+     conocemos; si no llegó (endpoint viejo, o empresa sin nómina cargada) se cae al
+     comportamiento anterior, que es peor pero no rompe nada. */
+  const nomTot = Number(DASH.nominaTotal) || 0;
+  const nomSin = Array.isArray(DASH.nominaSinDato) ? DASH.nominaSinDato : [];
+  const baseCob = (nomTot >= cuentan.length && nomTot > 0) ? nomTot : cuentan.length;
+  const cobertura = baseCob ? Math.round(conDato.length / baseCob * 100) : null;
+  /* Los que están en la nómina y no aparecen en ningún registro. Se descuentan los que hoy tienen
+     una ausencia cargada: a esos tampoco les tocaba. */
+  const nuncaMedidos = nomSin.filter(n => !ausenteHoy({ nombre: n }));
 
   const ayuda = dashHelp(t('hlp_idc'));
 
@@ -17100,7 +17122,7 @@ function renderHseqIdc(rows){
           '<div class="hs-cap">' + esc(t('hs_en_condiciones')) + '<br><small>' + esc(t('hs_n_de_m_datos', { n: disp, m: conDato.length })) + '</small></div></div>' +
         '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-alerta' : '') + '">' +
           '<div class="hs-pct-big">' + (cobertura == null ? '—' : cobertura + '%') + '</div>' +
-          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: cuentan.length })) + '</small></div></div>' +
+          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: baseCob })) + '</small></div></div>' +
       '</div>' +
       '<div class="hs-bar"><i style="width:' + (pct || 0) + '%"></i></div>' +
       (sinDato ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: sinDato, u: t(sinDato===1?'n_persona':'n_personas') }) +
@@ -17110,6 +17132,16 @@ function renderHseqIdc(rows){
          sería inflar la cobertura sin que nadie pueda revisarlo, y una ausencia mal cargada se
          volvería invisible: nadie la corregiría nunca. */
       (ausentes.length ? '<div class="hs-nota-aus">' + esc(ausentes.length === 1 ? t('hs_no_tocaba_1') : t('hs_no_tocaba', { n: ausentes.length })) + '</div>' : '') +
+      /* ⚠️ P096 · LA SEGUNDA MITAD DE LA DECISIÓN. El porcentaje corregido dice CUÁNTO falta; esta
+         línea dice A QUIÉNES, que es lo único accionable. Sin ella, alguien que opera sin haberse
+         medido nunca sigue siendo invisible: no está en ninguna lista del panel, porque todas se
+         arman desde los registros y esa persona no tiene ninguno.
+         Se nombran hasta cuatro y después se resume: la lista completa está en la nómina, y un
+         bloque de veinte nombres en el panel de Dirección deja de leerse. */
+      (nuncaMedidos.length
+        ? '<div class="hs-alerta">' + esc(t(nuncaMedidos.length === 1 ? 'hs_nunca_1' : 'hs_nunca_n', { n: nuncaMedidos.length })) +
+          ' <small>' + esc(nuncaMedidos.slice(0, 4).join(' · ') + (nuncaMedidos.length > 4 ? ' …' : '')) + '</small></div>'
+        : '') +
     '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_reparto_estado')) + '</div>' +
       '<div class="db-sub">' + esc(t('hs_sub_reparto', { n: cuentan.length })) + '</div>' + filas + '</div>' +
