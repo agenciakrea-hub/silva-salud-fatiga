@@ -192,6 +192,13 @@ function __digestHex(bytes) {
   RangoFalso.prototype.setFontWeight = function () { return this; };
   RangoFalso.prototype.setBackground = function () { return this; };
   RangoFalso.prototype.getNumberFormat = function () { return this._h.__formatoDe(this._f, this._c) || 'General'; };
+  /* API real de Range que faltaba. Vacía las celdas del rango sin tocar formato ni notas, que es
+     justo la diferencia con `setValue("")` cuando lo que se quiere es dejar la celda en blanco. */
+  RangoFalso.prototype.clearContent = function () {
+    const vacio = [];
+    for (let i = 0; i < this._nf; i++) vacio.push(new Array(this._nc).fill(''));
+    return this.setValues(vacio);
+  };
   RangoFalso.prototype.setNote = function (t) {
     for (let i = 0; i < this._nf; i++)
       for (let j = 0; j < this._nc; j++)
