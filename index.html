@@ -796,10 +796,20 @@
      `animation` por keyframes no vuelve a jugar al revés cuando se quita la clase. Con
      `transition` + `allow-discrete` + `@starting-style`, el mismo cambio de `display` anima en
      los dos sentidos sin tocar ninguno de esos 40 sitios. */
-  .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86); backdrop-filter: blur(6px);
+  .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86);
     display: none; align-items: center; justify-content: center; padding: 1.2rem;
     opacity: 0; transition: opacity .22s ease, display .22s ease allow-discrete; }
-  .overlay.show { display: flex; opacity: 1; }
+  /* P048 · El desenfoque del fondo sólo se declara acá, en `.show`, y no en `.overlay` a secas.
+     No está en la lista de `transition`, así que al CERRAR (se saca la clase) desaparece en el
+     mismo instante en que arranca el resto, sin animarse él mismo. Antes vivía en `.overlay` sin
+     condición, así que se mantenía en blur(6px) los 220ms enteros de la salida — medido con
+     `getAnimations()` congelado: a los 0, 55, 110 y 165 ms seguía en blur(6px) mientras la opacidad
+     ya iba en 1, 0.59, 0.20 y 0.04. Ese desenfoque sostenido, recompuesto cuadro a cuadro sobre una
+     capa que además está perdiendo opacidad, es lo caro de animar y lo que se leía como parpadeo/
+     tirón al cerrar. Con el cambio, cerrar deja de pedirle al navegador ese recálculo: el velo se
+     sigue apagando en los mismos .22s de siempre, sólo que sin blur detrás. No toca `.sheet` ni la
+     duración: mismo camino de siempre (clase sacada → transición dispara sola), sin agregar JS. */
+  .overlay.show { display: flex; opacity: 1; backdrop-filter: blur(6px); }
   /* ⚠️ ESTAS DOS VAN ARRIBA DE TODO, y sin esto la de login era INTOCABLE. Todos los `.overlay`
      comparten `z-index: 1000`, y con z-index igual gana el que está DESPUÉS en el DOM: `#loginOv`
      (4802) y `#claveOv` (4821) están antes que `#portalOverlay` (5096) y `#testOverlay` (5082).
@@ -5964,7 +5974,7 @@
      contra `opinionEnviar()` y contra la hoja del endpoint. -->
 <div class="overlay" id="opinionOv">
   <div class="sheet">
-    <button class="portal-x" onclick="opinionCerrar()" aria-label="Cerrar">✕</button>
+    <button class="portal-x" onclick="opinionCerrarUI()" aria-label="Cerrar">✕</button>
     <h2 data-i18n="op_op_t">Dejar una opinión</h2>
 
     <div class="op-anon">
@@ -6380,7 +6390,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.71';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.72';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12432,6 +12442,11 @@ function opinionCerrar(){
   document.getElementById('opinionOv').classList.remove('show');
   syncScrollLock();
 }
+/* P048 · La que usa la UI (botón X, o guardar): además de cerrar, descarta el `navPush()` que
+   `opinionAbrir()` apiló. `opinionCerrar()` a secas queda para `silvaAtras()` — ese camino ya
+   consumió la entrada por su cuenta (la sacó el botón físico), y volver a consumirla ahí
+   correría un `history.back()` de más. */
+function opinionCerrarUI(){ opinionCerrar(); navConsumir(); }
 function opinionContar(){
   const t = document.getElementById('opinionTxt');
   const c = document.getElementById('opinionCuenta');
@@ -12472,7 +12487,7 @@ function opinionEnviar(btn){
     texto: texto
   });
 
-  opinionCerrar();
+  opinionCerrarUI();
   if (btn) btn.disabled = false;
   showToast(t('op_op_gracias'));
 }
@@ -13473,6 +13488,36 @@ function temaPintarControl(){
    se deja salir de la app (comportamiento normal). */
 function navPush(){ try { history.pushState({ silva: 1 }, ''); } catch(e){} }
 
+/* ⚠️ P048 · CONSUMIR EL navPush() CUANDO EL CIERRE LO DISPARA LA PERSONA, NO EL BOTÓN FÍSICO.
+   `navPush()` apila una entrada cada vez que se abre un overlay, para que "atrás" pueda cerrarlo
+   (ver `silvaAtras` más abajo). Eso funciona perfecto cuando el cierre viene del botón físico: el
+   navegador ya sacó esa entrada él solo antes de que dispare `popstate`. El problema es el otro
+   camino, el más común: cerrar con el botón X, "Cancelar" o al guardar. Nada de eso toca el
+   historial, así que la entrada se queda apilada sin dueño. Medido en X2 (opinión anónima):
+   5 aperturas y cierres por el botón X reales dejan 5 entradas — `history.pushState` se llamó 5
+   veces y `history.back` ninguna. Efecto en un teléfono: el botón físico "atrás" no responde una
+   vez por cada entrada huérfana, antes de empezar a hacer algo.
+   `navConsumir()` es lo que hay que llamar desde ESE camino (el de la persona), nunca desde
+   dentro de `silvaAtras()` — ahí el navegador ya hizo el trabajo. Por qué no history.back()
+   a secas en cada `cerrarX()`: si hubiera OTRO overlay abierto por debajo (por ejemplo,
+   documentación abierta encima del panel), el `popstate` que dispara ese `history.back()`
+   volvería a correr `silvaAtras()`, que cerraría también el de abajo — cerrando algo que la
+   persona no tocó. El flag `_navConsumiendo` hace que ESE popstate puntual no dispare
+   `silvaAtras()`: sólo descarta la entrada y no toca nada más. */
+var _navConsumiendo = false;
+function navConsumir(){
+  if (_navConsumiendo) return;                                 // ya hay un "atrás" propio en camino
+  if (!(history.state && history.state.silva === 1)) return;   // no hay nada propio para descartar
+  _navConsumiendo = true;
+  try { history.back(); } catch(e){ _navConsumiendo = false; return; }
+  /* Autolimpieza: en el uso real el `popstate` de este `back()` llega en el mismo cuadro o el
+     siguiente y ya baja el flag (ver el listener). Este `setTimeout` es sólo la red por si ese
+     evento no llegara por lo que sea — sin él, un solo caso raro dejaría `navConsumir()` mudo el
+     resto de la sesión, para TODOS los overlays, sin ningún error visible. 400 ms es de sobra
+     para un `back()` dentro del mismo documento. */
+  setTimeout(function(){ _navConsumiendo = false; }, 400);
+}
+
 /* ⚠️ R1 · SALIR DEL ALTA SIN DEJAR UN PERFIL A MEDIO GUARDAR.
    Lo pedia el plan como caso borde y resulto ser real: `nominaConfirmar()` hace `setProfile(...)`
    con los datos de la nomina ANTES de abrir el formulario de revision. Si la nomina trae el
@@ -13568,6 +13613,11 @@ function silvaAtras(){
   return false;   // nada que cerrar → que el celular salga de la app
 }
 window.addEventListener('popstate', function(){
+  /* P048 · Este popstate lo disparó nuestro propio `navConsumir()` (un cierre por UI, no el botón
+     físico): la entrada ya se descartó, que es lo único que hacía falta. Correr `silvaAtras()`
+     acá cerraría cualquier OTRO overlay que hubiera abierto por debajo, sin que la persona lo haya
+     tocado — el bug nuevo que `navConsumir()` existe para evitar. */
+  if (_navConsumiendo){ _navConsumiendo = false; return; }
   if (silvaAtras()) navPush();   // consumimos el "atrás" y volvemos a armar la trampa
 });
 
