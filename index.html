@@ -5771,7 +5771,7 @@
     <div id="tareasLista"></div>
     <div class="nom-pie">
       <button type="button" class="nom-link" onclick="tareasRefrescar()" data-i18n="tar_actualizar">Actualizar</button>
-      <button type="button" class="nom-link" onclick="tareasCerrar()" data-i18n="cerrar">Cerrar</button>
+      <button type="button" class="nom-link" onclick="tareasCerrarUI()" data-i18n="cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -6246,7 +6246,7 @@
     <div class="test-options" id="testOptions"></div>
     <div class="test-foot">
       <button class="back-btn" id="testBackBtn" disabled onclick="retrocederTest()" data-i18n="test_atras">← Atrás</button>
-      <button class="cancel-btn" onclick="cerrarTest()" data-i18n="cancelar">Cancelar</button>
+      <button class="cancel-btn" onclick="testCerrarUI()" data-i18n="cancelar">Cancelar</button>
     </div>
     <!-- ⚠️ X1 · QUIÉN VE ESTO, EN EL MOMENTO DE RESPONDERLO. Estaba dicho en una lámina del alta que
          se ve UNA sola vez; después, contestando, no había nada. Y esa duda es lo que hace que
@@ -6746,7 +6746,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.91';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.92';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11451,6 +11451,10 @@ function testCerrarYAvisar(item, msg){
   const itemFinal = Object.assign({}, item, { msg: msg });
   document.getElementById('testOverlay').classList.remove('show');
   window.open(waUrl(itemFinal), '_blank');
+  /* Después del `window.open`, nunca antes: `navConsumir()` hace `history.back()` y meterlo en el
+     medio rompería la cadena de gesto que el navegador exige para no bloquear el popup (está
+     explicado arriba de esta función). */
+  navConsumir();
   mark(item.id);          // mark() ya avisa "Reporte registrado · hh:mm": no repetir el toast
 }
 function waUrl(item){
@@ -12810,6 +12814,12 @@ function testPintarInstrumento(flow){
 
 function abrirTest(it){
   document.getElementById('testOverlay').classList.add('show');
+  /* ⚠️ P059/A7 · SIN ESTE navPush() EL TEST ESTABA FUERA DEL SISTEMA DE "ATRÁS". Medido: con el
+     test abierto, `silvaAtras()` devolvía false — que significa «nada que cerrar, que el celular
+     salga de la app»— así que el PRIMER toque del botón físico sacaba a la persona de la app con
+     el test a medio responder, y con el cronómetro de confiabilidad (`inicioMs`/`tiempos`)
+     perdido entero. P048 arregló trece pantallas; ésta y `tareasOv` quedaron afuera. */
+  navPush();
   testPintarInstrumento(it.testFlow);
   // `inicioMs` arranca el cronómetro de confiabilidad; `tiempos` lo llena confPaso() en cada avance.
   const ahora = Date.now();
@@ -12922,6 +12932,12 @@ function opinionEnviar(btn){
    overlays (Q4c) hace que el test de atrás no se pueda tabular mientras esto está abierto. */
 function privAbrir(){ document.getElementById('privOv').classList.add('show'); syncScrollLock(); navPush(); }
 function privCerrar(){ document.getElementById('privOv').classList.remove('show'); syncScrollLock(); }
+
+/* El par de `cerrarTest()`, igual que `opinionCerrarUI` / `depCerrarUI` / `cicloFullCerrarUI`:
+   cuando el cierre lo decide la persona (botón "Cancelar"), el navegador NO sacó la entrada que
+   `abrirTest()` apiló, así que hay que descartarla a mano. `cerrarTest()` a secas queda para
+   `silvaAtras()`, donde el navegador ya hizo ese trabajo. */
+function testCerrarUI(){ cerrarTest(); navConsumir(); }
 
 function cerrarTest(){
   document.getElementById('testOverlay').classList.remove('show');
@@ -14002,6 +14018,20 @@ function silvaAtras(){
      callejón sin salida que R1 corrigió para las cuatro del alta. */
   if (visible('opinionOv')){ opinionCerrar(); return true; }           // X2
   if (visible('privOv')){ privCerrar(); return true; }                 // X1: va arriba del test
+  /* ⚠️ P059/A7 · EL TEST Y LAS TAREAS FALTABAN EN ESTA LISTA, que es explícita (lo dice tres veces
+     este mismo archivo). El test va DESPUÉS de `privOv` porque el aviso de privacidad se abre
+     ENCIMA del test sin cerrarlo (X1), y ANTES de `tareasOv` porque el test se abre desde la
+     lista de tareas. */
+  if (visible('testOverlay')){
+    /* Mismo criterio que la nómina, unas líneas más abajo: "atrás" retrocede de PREGUNTA y sólo
+       cierra el test si ya está en la primera. Si se puede retroceder ya lo sabe la app —lo
+       refleja en el botón de la pantalla vía `updateBackBtn`—, así que se lee de ahí en vez de
+       duplicar la condición y que las dos se desincronicen. */
+    const atrasTest = document.getElementById('testBackBtn');
+    if (atrasTest && !atrasTest.disabled){ retrocederTest(); return true; }
+    cerrarTest(); return true;
+  }
+  if (visible('tareasOv')){ tareasCerrar(); return true; }
   if (visible('loginOv')){ lgnCerrar(); return true; }
   if (visible('claveOv')){ clvPosponer(); return true; }
   /* ⚠️ P100 · SIN ESTA LÍNEA LA PANTALLA NUEVA ERA UN CALLEJÓN SIN SALIDA con el botón físico del
@@ -26480,6 +26510,10 @@ function tareasAbrir(){
   tareasRefrescar();
 }
 function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('show'); syncScrollLock(); }
+/* Ídem: `tareasAbrir()` apila y el botón X cierra sin que el navegador saque nada. Medido en A7:
+   5 aperturas y cierres por el X dejaban 5 entradas huérfanas, exactamente el número que P048
+   midió en X2 — el botón físico "atrás" no responde una vez por cada una. */
+function tareasCerrarUI(){ tareasCerrar(); navConsumir(); }
 function tareasRefrescar(){
   const cont = document.getElementById('tareasLista');
   /* Esqueleto con la FORMA de lo que va a llegar (filas de persona), no el texto "Cargando…". */
