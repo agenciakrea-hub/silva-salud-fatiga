@@ -150,15 +150,30 @@ PRUEBAS.caso('⚠️ el estado «al día» NO se disfraza de acción', () => {
   } finally { div.remove(); }
 });
 
-PRUEBAS.caso('⚠️ tocar el botón principal se siente IGUAL en las cuatro pantallas', () => {
+PRUEBAS.caso('⚠️ tocar el botón principal se siente IGUAL en las tres pantallas', () => {
   /* Eran `scale(.96)`, `.985` y `.98`: el mismo gesto con tres respuestas distintas y ninguna
-     razón. Se comprueba sobre la regla, porque `:active` no se puede provocar acá (`LEEME.md`). */
-  const f = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
-  PRUEBAS.cierto(f.length > 1000, 'guarda de medibilidad: se leyó el CSS · largo ' + f.length);
-  const escalas = [...new Set((f.match(/\.(?:splash-cta|car-sig|gest-fab-main|ini-ahora|ent-btn--solid|accion-principal)[^{]*:active[^}]*scale\(([^)]+)\)/g) || [])
-    .map(x => (x.match(/scale\(([^)]+)\)/) || [])[1]))];
-  PRUEBAS.alMenos(escalas.length, 1,
-    'guarda de medibilidad: se encontró al menos una regla `:active` con `scale` · ' + JSON.stringify(escalas));
-  PRUEBAS.igual(escalas.length, 1,
-    '⚠️ una sola escala para el mismo gesto · encontré ' + JSON.stringify(escalas));
+     razón.
+
+     ⚠️ ESTE CASO MEDÍA EL TEXTO DEL CSS Y POR ESO NO VIO EL DEFECTO QUE QUEDÓ VIVO. Su regex
+     anclaba en los nombres de las clases, y la regla que de verdad GANABA —`.ent-btn:active`, con
+     la misma especificidad y más abajo en la hoja— no contiene ninguno de esos nombres: quedaba
+     fuera del match y el caso veía una sola escala mientras el botón sólido respondía distinto de
+     los otros dos. Lo encontró la revisión de la tanda 6b, un prompt después.
+     **Una regex sobre el fuente no puede resolver una cascada.** Ahora se le pregunta al navegador
+     qué regla le aplica a cada elemento (`p112EscalaActiva`, en `p112-lenguaje-boton-principal.js`),
+     que además no necesita provocar `:active` — el impedimento que este caso citaba del `LEEME`.
+     El medidor vive en un solo lugar a propósito: dos criterios sobre lo mismo terminan siendo dos
+     criterios distintos. */
+  if (typeof p112EscalaActiva !== 'function') {
+    PRUEBAS.cierto(false, 'falta `p112EscalaActiva`: sin el medidor común esto no mide la cascada');
+    return;
+  }
+  CTX.resetear();
+  const medidas = ['.ent-btn--solid', '.ini-ahora', '.gest-fab-main']
+    .map(sel => ({ sel, escala: p112EscalaActiva(sel) }))
+    .filter(x => x.escala);
+  PRUEBAS.alMenos(medidas.length, 2,
+    'guarda de medibilidad: al menos dos están en el DOM · ' + JSON.stringify(medidas));
+  PRUEBAS.igual([...new Set(medidas.map(x => x.escala))].length, 1,
+    '⚠️ una sola escala para el mismo gesto · ' + JSON.stringify(medidas));
 });

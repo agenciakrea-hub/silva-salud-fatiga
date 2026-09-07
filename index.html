@@ -355,10 +355,12 @@
        El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
     --entrada-tenue:    #a9b4c6;
 
-    /* Radio más grande que --radius, sólo para las tarjetas/círculos de estas pantallas
-       (mockup de referencia: ui.ruman). No es color, no hace falta en el bloque oscuro —
-       mismo criterio que --radius/--radius-sm, que tampoco se repiten ahí. */
-    --radius-lg: 28px;
+    /* ⚠️ P112 · AQUÍ VIVÍA `--radius-lg: 28px`, y se sacó. Estaba declarado desde su prompt y
+       NUNCA tuvo un consumidor; el único commit que lo usó fue P052, que lo enganchó en
+       `.ini-ahora` —una pantalla que no es la que el token decía servir— y de paso le cambió el
+       radio de 16 a 28 px. Un token declarado y sin usar no es neutral: es una invitación a
+       engancharlo en el primer sitio que se cruce. Si vuelve a hacer falta un radio mayor para las
+       tarjetas de la entrada, se declara con su consumidor en el mismo cambio. */
 
     /* ── Sistema de movimiento: UNA curva, TRES duraciones, para toda la app ──
        --ease-app tiene un ligero rebasamiento (~10%, "back-ease-out"): es la diferencia entre
@@ -2648,8 +2650,13 @@
      tocarlo: el comentario de I6 defiende ese degradado porque el naranja anterior daba 2.14:1 con
      blanco. Medido ahora: `--orange-solido` da **5.01:1**, contra 4.64 y 4.62 de los dos extremos
      del degradado. Se gana, no se pierde. */
-  /* Las cuatro que cumplen el rol se nombran ACÁ y no en el HTML, a propósito: así el lenguaje se
-     lee de un vistazo y no hay forma de agregar un botón principal olvidándose de la clase.
+  /* Los selectores que cumplen el rol se nombran ACÁ y no en el HTML, a propósito: así el lenguaje
+     se lee de un vistazo y no hay forma de agregar un botón principal olvidándose de la clase.
+     ⚠️ P112 · DECÍA «las cuatro» Y SON TRES. `.accion-principal` no está aplicada a ningún
+     elemento: no es una cuarta apariencia, es el NOMBRE del rol, disponible para el próximo botón
+     principal que aparezca — un `<button class="accion-principal">` entra al lenguaje sin tocar
+     esta lista. Se deja por eso, pero contarla como una de las que existen hacía creer que el
+     inventario estaba completo cuando faltaba mirar una.
      ⚠️ `.ini-ahora.ini-listo` NO es una acción —es el estado «al día», un `<div>` verde sin
      `cursor:pointer`— y queda afuera sola: su regla tiene dos clases contra una y gana. */
   .accion-principal,
@@ -2679,7 +2686,14 @@
      de las cuatro apariencias que no se podía tokenizar. */
   .ent-btn--solid { }
   .ent-btn--fantasma { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.22); }
-  .ent-btn:active { transform:scale(.96); }
+  /* ⚠️ P112 · `:not(.ent-btn--solid)` NO ES ADORNO. Esta regla y la de `.accion-principal:active`
+     tienen la MISMA especificidad (0,2,0), y ésta va después: le ganaba, así que el botón sólido
+     de la entrada respondía con .96 mientras `.ini-ahora` y `.gest-fab-main` respondían con .97.
+     P052 se propuso «un solo lenguaje para el botón principal» y dejó viva justamente la tercera
+     respuesta al mismo gesto que decía cerrar; su prueba no lo vio porque el regex anclaba en los
+     nombres de las cuatro clases y la regla que gana no está en esa lista.
+     El secundario y el fantasma conservan su .96: no son la acción principal. */
+  .ent-btn:not(.ent-btn--solid):active { transform:scale(.96); }
   .ent-btn:disabled { opacity:.55; cursor:not-allowed; transform:none; }
 
   /* ── Entrada del logo y texto escalonado ──
@@ -5180,8 +5194,15 @@
   .ini-est-nota { font-size: .74rem; color: var(--text-muted); margin-top: .55rem; line-height: 1.4; }
 
   /* ── Lo que te toca ahora ── */
+  /* ⚠️ P112 · `--radius` Y NO `--radius-lg`. P052 unificó el fondo, la tinta y la sombra del botón
+     principal y dijo, en su propio commit, que «la geometría de cada uno se respeta» — pero de
+     paso cambió este radio de 16 px a 28. `--radius-lg` estaba DECLARADO Y SIN USAR desde antes, y
+     su comentario lo reserva para «las tarjetas/círculos de estas pantallas» (splash y entrada);
+     ésta es la tarjeta principal del inicio de la app, otra pantalla. Un token sin consumidores es
+     una invitación a engancharlo en el primer lugar que se cruce, que es justo lo que pasó.
+     18 px es el radio del sistema y lo más cercano a los 16 px originales. */
   .ini-ahora { display: flex; align-items: center; gap: .75rem; width: 100%; text-align: left;
-    border-radius: var(--radius-lg); padding: .9rem 1rem; border: none; cursor: pointer;
+    border-radius: var(--radius); padding: .9rem 1rem; border: none; cursor: pointer;
     font-family: inherit; }
   .ini-ahora .ic { width: 42px; height: 42px; border-radius: var(--radius-sm); flex-shrink: 0; display: flex;
     align-items: center; justify-content: center; background: rgba(255,255,255,.2); }
@@ -6751,7 +6772,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.94';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.95';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
