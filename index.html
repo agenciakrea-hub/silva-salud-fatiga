@@ -5984,7 +5984,7 @@
           <button type="button" class="pw-eye" onclick="togglePw('lgnPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
       </div>
       <div class="portal-err" id="lgnErr"></div>
-      <button class="save-btn" type="submit" data-i18n="lgn_entrar">Entrar</button>
+      <button class="save-btn" type="submit" id="lgnBtn" data-i18n="lgn_entrar">Entrar</button>
     </form>
     <button type="button" class="cancel-btn" onclick="lgnOlvide()" data-i18n="lgn_olvide">Olvidé mi contraseña</button>
     <button type="button" class="cancel-btn" onclick="lgnCerrar()" data-i18n="lgn_luego">Ahora no</button>
@@ -6196,7 +6196,7 @@
            No se saca: es la salida de quien de verdad no figura en la nómina. Se muestra en los
            pasos donde hay una lista de la que faltar. -->
       <button type="button" class="nom-link" id="nomNoEstoy" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
-      <button type="button" class="nom-link" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
+      <button type="button" class="nom-link" id="nomYaReg" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
       <!-- ⚠️ Q4b · LA SALIDA DEL QUE NO VIENE A REGISTRARSE. Reemplaza al enlace "Soy supervisor"
            que estaba en la portada. Va ACÁ, en el primer paso del alta, y no después de completarla:
            el servicio médico de la empresa cliente o un director de HSEQ no son empleados de nadie
@@ -6204,7 +6204,7 @@
            Medido: sin esto, sacar el enlace de la portada les llevaba el recorrido de 4 acciones a
            unas 19 (carrusel + los 9 campos del formulario). Con esto son 5, y una sola vez: desde
            la segunda apertura el arranque los lleva derecho al panel. -->
-      <button type="button" class="nom-link nom-link--panel" onclick="nominaSoyGestor()" data-i18n="nom_soy_gestor">Vengo a ver el panel de mi empresa</button>
+      <button type="button" class="nom-link nom-link--panel" id="nomSoyGestor" onclick="nominaSoyGestor()" data-i18n="nom_soy_gestor">Vengo a ver el panel de mi empresa</button>
     </div>
   </div>
 </div>
@@ -6219,8 +6219,9 @@
     <p class="lead" data-i18n="rec_lead">Si ya usaste la app antes, recupera tu perfil sin cargarlo de nuevo.</p>
 
     <label class="nom-lbl" for="recEmpresa" data-i18n="f_empresa">Empresa</label>
-    <input id="recEmpresa" type="text" list="recEmpresaList" class="restr-input" autocomplete="off" maxlength="60" data-i18n-attr="placeholder:f_empresa_ph" onblur="recuperarEmpresaCambio()">
-    <datalist id="recEmpresaList"></datalist>
+    <!-- ⚠️ SIN `list=`: el desplegable pintaba el padrón de empresas clientes (`action=listas`,
+         11 empresas medidas contra producción) a quien todavía no demostró ser de ninguna. -->
+    <input id="recEmpresa" type="text" class="restr-input" autocomplete="off" maxlength="60" data-i18n-attr="placeholder:f_empresa_ph" onblur="recuperarEmpresaCambio()">
 
     <div id="recPasoCod" style="display:none">
       <label class="nom-lbl" for="recCodigo" data-i18n="nom_codigo_lbl">Código de tu empresa</label>
@@ -6895,7 +6896,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.07';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.08';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7106,6 +7107,7 @@ const I18N = {
       nom_conf_si:'Sí, soy yo',
       nom_conf_no:'No soy yo',
       nom_sin_codigo:'Mi empresa no me dio código',
+      nom_sin_codigo_d:'Pídeselo a tu supervisor o al área de seguridad de tu empresa. Es el mismo código para todos tus compañeros.',
       lgn_otra_empresa:'No es mi empresa',
       nom_conf_rol:'Tu empresa te registró como {r}.',
       nom_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
@@ -8776,6 +8778,7 @@ const I18N = {
       nom_conf_si:'Yes, that is me',
       nom_conf_no:'That is not me',
       nom_sin_codigo:'My company did not give me a code',
+      nom_sin_codigo_d:'Ask your supervisor or your company safety team for it. It is the same code for all your coworkers.',
       lgn_otra_empresa:'This is not my company',
       nom_conf_rol:'Your company registered you as {r}.',
       nom_codigo_ambiguo:'That code does not identify a single company. Please ask your supervisor for it again.',
@@ -14482,9 +14485,32 @@ function nominaPaso(paso){
   nominaEl('nomPasoCed').style.display  = (paso==='cedsola')   ? '' : 'none';
   nominaEl('nomPaso4').style.display    = (paso==='confirmar') ? '' : 'none';
   nominaEl('nomVolver').style.display  = nominaPuedeVolver() ? '' : 'none';   // R1: la misma condicion que usa el boton fisico
-  /* Ver la nota del botón en el HTML: sólo en los pasos donde hay una lista. */
-  const _ne = nominaEl('nomNoEstoy');
-  if (_ne) _ne.style.display = (paso === 'empresa' || paso === 'persona') ? '' : 'none';
+  /* ⚠️ EL PIE, EN UN SOLO LUGAR Y POR PASO. Franco: «tiene muchas opciones para saltarse el
+     código». En la pantalla que EXISTE para pedir el código había cuatro controles y TRES eran
+     salidas para no ponerlo — porque `.nom-pie` vive fuera de los pasos y esta función sólo
+     controlaba dos de sus botones. Los otros dos no tenían ni id: ninguna línea de JS los miraba.
+     · «No estoy en la lista» → `nominaManual()` → formulario libre → escribe en el CH.
+     · «Ya me había registrado» → `recuperarAbrir()`, que pide `action=listas` y pinta el padrón
+       de empresas clientes. Medido contra producción: devuelve 11 empresas y 14 departamentos sin
+       una sola credencial. Es literal lo que marcó el jefe: «alguien se mete y ve empresas».
+     · «Vengo a ver el panel» → el portal con los roles a la vista.
+     Ninguno se BORRA: los tres son salidas que alguien necesita. Se muestran donde tienen sentido.
+     ⚠️ «Ya me había registrado» aparece desde la cédula en adelante y NO en el código: quien
+     reinstala llega igual, un paso después, y sigue teniendo su salida. */
+  const _pie = {
+    nomNoEstoy:   (paso === 'empresa' || paso === 'persona'),
+    nomYaReg:     (paso !== 'codigo'),
+    nomSoyGestor: (paso !== 'codigo')
+  };
+  Object.keys(_pie).forEach(id => {
+    const el = nominaEl(id);
+    if (el) el.style.display = _pie[id] ? '' : 'none';
+  });
+  /* ⚠️ EL GATEO SE (RE)REGISTRA EN CADA PASO. Va acá y no en el `onload` porque estas pantallas
+     se abren y cierran muchas veces por sesión, y porque `nominaPaso` es el único punto por el que
+     pasan TODAS: registrar en cada apertura suelta sería otro lugar donde olvidarse de una. */
+  if (paso === 'codigo')   gatearBoton('nomBtnCodigo', ['nomCodigo']);
+  if (paso === 'cedsola')  gatearBoton('nomBtnCedula', ['nomCedulaSola']);
   nominaEl('nomTitulo').textContent = t('nom_t_' + paso);
   /* El lead del paso del código depende de si YA se eligió una empresa: en el flujo nuevo es el
      primer paso y todavía no hay ninguna que nombrar. */
@@ -14844,8 +14870,19 @@ function nominaSoyYo(){
 
 /* La salida de excepción del código: lleva al camino de siempre, que sigue intacto. */
 function nominaSinCodigo(){
-  NOM.codigo = '';
-  nominaAbrirListaEmpresas();
+  /* ⚠️ ACÁ ESTABA LA PUERTA GRANDE. Esto hacía `nominaAbrirListaEmpresas()`, o sea: la persona que
+     dice NO tener código veía la lista de empresas clientes, elegía una, y como hoy ninguna tiene
+     `codigoRegistro` cargado, seguía derecho a la nómina — los siete nombres. Dos toques desde la
+     primera pantalla hasta el padrón. Es exactamente lo que marcó el jefe.
+     Ahora dice a quién pedírselo. No se saca el botón: quien de verdad no lo tiene necesita saber
+     qué hacer, y dejarlo sin respuesta lo deja golpeando una puerta muda.
+     ⚠️ NO TRABA A NADIE HOY: mientras `codigoRegistro` esté vacío el servidor acepta cualquier
+     código, así que el camino de arriba sigue funcionando para las siete personas. El día que se
+     cargue, este mensaje pasa a ser la respuesta correcta en vez de un atajo. */
+  const err = nominaEl('nomCodErr');
+  if (err) err.textContent = t('nom_sin_codigo_d');
+  const inp = nominaEl('nomCodigo');
+  if (inp) { try { inp.focus(); } catch(e){} }
 }
 /* Y la de la cédula: es la única red de quien la tiene mal cargada en la nómina. Sin ella el
    flujo nuevo le cierra las cuatro puertas y pedir la corrección desde la app es circular. */
@@ -15085,6 +15122,9 @@ function openSetup(isEdit){
   document.getElementById('setup').classList.add('show');
   setupCheckReady();
   navPush();
+  /* ⚠️ AL FINAL, DESPUÉS de que los campos se llenaron: si corre antes, `#inEmp` está vacío y la
+     empresa quedaría editable justo para quien ya la tiene resuelta. */
+  try { setupEmpresaFijar(); } catch(e){}
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
 
@@ -15339,11 +15379,34 @@ function loadSetupLists(){
     })
     .catch(() => { SETUP_LISTS_LOADED = false; SETUP_LISTS_FAILED = true; });
 }
+/* ⚠️ P132 · LA EMPRESA NO SE CAMBIA DESDE EL FORMULARIO cuando ya la resolvió el alta. Quien
+   llegó por el código y la nómina tiene su empresa determinada por el servidor; poder editarla ahí
+   sólo servía para mudarse a otro cliente. Quien se dio de alta a mano SÍ la puede escribir: si no,
+   queda trabado sin poder completar su perfil. */
+function setupEmpresaFijar(){
+  const inp = document.getElementById('inEmp');
+  if (!inp) return;
+  const fija = !!String(inp.value || '').trim();
+  inp.readOnly = fija;
+  inp.classList.toggle('campo-fijo', fija);
+  const panel = document.getElementById('panelEmp');
+  if (fija && panel) panel.classList.remove('show');
+}
+
 function comboBuild(which){
   const inp = document.getElementById('in' + which);
   const panel = document.getElementById('panel' + which);
   const val = inp.value.trim();
-  const list = which === 'Emp' ? SETUP_LISTS.empresas : SETUP_LISTS.departamentos;
+  /* ⚠️ EL DESPLEGABLE DE EMPRESA NO LISTA A LOS CLIENTES. Acá se pintaban las 11 empresas que
+     devuelve `action=listas` —el padrón entero— a cualquiera que abriera el formulario de alta, y
+     encima se podía ELEGIR otra: la validación de `saveProfile` acepta cualquiera de la lista
+     oficial, así que cambiarse de cliente pasaba el control.
+     Se deja escribir a mano (quien se da de alta por «No estoy en la lista» tiene que poder poner
+     su empresa, y sin esto quedaría trabado), pero no se sugiere de quiénes somos proveedores.
+     ⚠️ ESTO NO CIERRA LA ACCIÓN: `?action=listas` sigue respondiendo a cualquiera con la URL, que
+     está en el `index.html` público. El cierre de verdad es del lado del endpoint y necesita
+     auditar a sus consumidores antes — está anotado en PENDIENTES_USUARIO.md. */
+  const list = which === 'Emp' ? [] : SETUP_LISTS.departamentos;
   const low = val.toLowerCase();
   const filtered = list.filter(x => x.toLowerCase().indexOf(low) !== -1);
   let html = '';
@@ -16028,9 +16091,55 @@ function btnSpin(btn, on, labelOn){
     btn.disabled = true; btn.classList.add('btn-loading');
     btn.innerHTML = '<span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(labelOn || t('cargando'));
   } else {
-    btn.disabled = false; btn.classList.remove('btn-loading');
+    /* ⚠️ NO SE REHABILITA A CIEGAS. Esta línea decía `btn.disabled = false` y punto, así que
+       cualquier gateo por campo vacío se perdía en cuanto un pedido volvía con error: el botón
+       quedaba verde con el campo en blanco otra vez, y el gateo mentía. Se le pregunta al gateo
+       si corresponde; el botón que no tiene gateo se comporta igual que antes. */
+    btn.disabled = gateoDice(btn) === false;
+    btn.classList.remove('btn-loading');
     if (btn.dataset.orig != null){ btn.innerHTML = btn.dataset.orig; delete btn.dataset.orig; }
   }
+}
+
+/* ⚠️ EL GATEO DE LOS BOTONES DE ACCIÓN PRINCIPAL. Franco: «tiene botones que no se deberían de
+   poder tocar». Medido: cinco botones del alta y del login —código, cédula, confirmar, recuperar y
+   entrar— nunca recibían `disabled` fuera de `btnSpin`, así que con el campo VACÍO se veían verdes,
+   se podían apretar, y lo único que pasaba era un texto de error debajo. Un botón que se ve
+   disponible y no hace nada es peor que uno gris: promete y no cumple.
+   Vive en un solo lugar y no en cinco `oninput` sueltos porque la parte difícil no es deshabilitar
+   —es que el estado SOBREVIVA a `btnSpin`, que es lo que rompía el intento obvio. */
+var GATEOS = {};
+
+/* Registra la condición y la aplica ya. `campos` son ids; `extra` es opcional y decide además. */
+function gatearBoton(idBtn, campos, extra){
+  GATEOS[idBtn] = function(){
+    for (var i = 0; i < campos.length; i++){
+      var c = document.getElementById(campos[i]);
+      if (!c || !String(c.value || '').trim()) return false;
+    }
+    return extra ? !!extra() : true;
+  };
+  campos.forEach(function(id){
+    var c = document.getElementById(id);
+    if (c && !c.dataset.gateado){
+      c.dataset.gateado = '1';
+      c.addEventListener('input', function(){ gateoAplicar(idBtn); });
+    }
+  });
+  gateoAplicar(idBtn);
+}
+
+/* `undefined` = ese botón no tiene gateo, que es distinto de "no puede". */
+function gateoDice(btn){
+  if (!btn || !btn.id || !GATEOS[btn.id]) return undefined;
+  try { return !!GATEOS[btn.id](); } catch (e) { return undefined; }
+}
+
+function gateoAplicar(idBtn){
+  var b = document.getElementById(idBtn);
+  if (!b || b.classList.contains('btn-loading')) return;   // mientras carga manda btnSpin
+  var v = gateoDice(b);
+  if (v !== undefined) b.disabled = !v;
 }
 
 /* ══════════ ADMIN: simulador de roles + documentación (P8) ══════════
@@ -25629,7 +25738,11 @@ var _lgnPendiente;      // qué hacer cuando el login salga bien
 function lgnAbrir(alEntrar){
   const p = getProfile();
   const emp = (p && p.empresa) || reingresoEmpresa();
-  if (!emp) return false;                       // sin empresa no hay contra qué autenticar
+  if (!emp) return false;
+  /* Los dos campos hacen falta para que «Entrar» sirva de algo: sin gateo el botón se veía verde
+     con los dos vacíos y el servidor contestaba «Usuario o contraseña incorrecta» — un error que
+     suena a que la contraseña está mal cuando en realidad no se escribió nada. */
+  try { gatearBoton('lgnBtn', ['lgnCed', 'lgnPass']); } catch(e){}                       // sin empresa no hay contra qué autenticar
   _lgnPendiente = alEntrar || null;
   lgnPintarEmpresa(emp);
   const ced = document.getElementById('lgnCed');
@@ -27483,17 +27596,20 @@ function recuperarAbrir(){
   document.getElementById('recCedula').value = '';
   document.getElementById('recErr').textContent = '';
   document.getElementById('recPasoCod').style.display = 'none';
-  recuperarPintarDatalist();
-  /* M2: la lista se pinta YA con lo último que se supo y se refresca por detrás. Medido:
-     `action=listas` tarda 2,5–4,3 s para traer 375 bytes que casi nunca cambian. */
-  if (listasCacheAplicar()) recuperarPintarDatalist();
-  if (SHEETS_DASHBOARD_URL){
-    fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
-      .then(r => r.json())
-      .then(d => { if (d && d.ok){ SETUP_LISTS.empresas = d.empresas || []; SETUP_LISTS.departamentos = d.departamentos || [];
-        listasCacheGuardar(); recuperarPintarDatalist(); } })
-      .catch(() => {});
-  }
+  /* ⚠️ ACÁ SE PEDÍA EL PADRÓN DE CLIENTES, Y ES LA QUEJA DEL JEFE. Esta pantalla pintaba un
+     desplegable con `action=listas`, que —medido contra producción el 2026-09-07, sin una sola
+     credencial— devuelve 11 empresas clientes y 14 departamentos. O sea: a UN toque de la primera
+     pantalla de la app, cualquiera veía la cartera entera.
+     Y no le servía a nadie: quien viene a recuperar SU perfil sabe en qué empresa trabaja. El
+     desplegable sólo ayudaba a quien no lo sabe, que es exactamente el que no tiene que verlo.
+     Se prellena con lo que YA sabemos de esta persona —la empresa del código que acaba de resolver,
+     o la del reingreso— y si no sabemos nada, se escribe a mano. Un viaje de red menos. */
+  try {
+    const _e = document.getElementById('recEmpresa');
+    const _emp = (NOM && NOM.empresa) || reingresoEmpresa() || ((getProfile() || {}).empresa) || '';
+    if (_e && _emp) _e.value = _emp;
+  } catch(e){}
+  gatearBoton('recBtn', ['recEmpresa', 'recCedula']);
 }
 /* Las listas de empresas y departamentos cambian muy de vez en cuando, y son lo primero que
    alguien necesita para poder darse de alta o recuperar su cuenta. Guardarlas evita que la
@@ -27519,10 +27635,6 @@ function listasCacheAplicar(){
     SETUP_LISTS.departamentos = c.departamentos || [];
     return true;
   } catch(e){ return false; }
-}
-function recuperarPintarDatalist(){
-  const dl = document.getElementById('recEmpresaList');
-  if (dl) dl.innerHTML = SETUP_LISTS.empresas.map(e => '<option value="' + esc(e) + '">').join('');
 }
 function recuperarCerrar(){
   document.getElementById('recuperarOv').classList.remove('show');
