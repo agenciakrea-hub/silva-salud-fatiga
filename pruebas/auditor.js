@@ -146,9 +146,21 @@
 
   /* ── 1 · Contraste de texto ─────────────────────────────────────────────────────────────── */
 
+  /* Lo que hay que ARREGLAR, sin el contenido que lo ejemplifica. Vive acá y no en cada informe
+     para que no haya dos criterios de agrupación distintos sobre el mismo dato. */
+  AUDITOR.causaDe = function (linea) { return String(linea).split(' ⟨')[0].trim(); };
+
+  /* ⚠️ NO SON TEXTO DE PANTALLA. `body *` incluye los `<script>` que viven en el body, y el
+     `textContent` de un script son sus COMENTARIOS: en este repo, miles de líneas en español que
+     el barrido contaba como «texto que no se pudo medir». El informe llegaba a decir «165 sin
+     medir» y la mayoría era código. Un contador de cobertura que cuenta ruido no informa de menos:
+     informa mal, igual que el «47 hallazgos» que en realidad eran 6. */
+  const NO_ES_TEXTO = { SCRIPT:1, STYLE:1, TEMPLATE:1, NOSCRIPT:1, TITLE:1 };
+
   AUDITOR.contraste = function () {
     const malos = [], sinMedir = [];
     document.querySelectorAll('body *').forEach(el => {
+      if (NO_ES_TEXTO[el.tagName]) return;
       const propio = [...el.childNodes].filter(n => n.nodeType === 3)
         .map(n => n.textContent.trim()).join('');
       if (!propio) return;
@@ -163,8 +175,16 @@
       const grande = px >= 24 || (px >= 18.66 && peso >= 700);
       const minimo = grande ? 3 : 4.5;
       if (r < minimo) {
-        malos.push(nombre(el) + '  ' + r.toFixed(2) + ':1 (mín ' + minimo + ')  "' +
-                   propio.slice(0, 26).replace(/\s+/g, ' ') + '"');
+        /* ⚠️ LA CAUSA VA SEPARADA DEL EJEMPLO, con `⟨…⟩` como delimitador. Antes el texto era
+           parte de la cadena, así que el MISMO color mal contrastado se contaba una vez por cada
+           contenido distinto: en el panel daba «47 hallazgos únicos» donde había SEIS defectos de
+           código, uno por cada `<b>` con un número adentro. Un número inflado no sólo exagera: te
+           esconde la forma del problema, que era «un puñado de tokens», no «una lista larga».
+           Los colores entran en la causa a propósito: mismo selector con dos colores distintos son
+           dos arreglos, no uno. */
+        malos.push(nombre(el) + ' ' + cs.color + ' sobre ' + fondo + ' = ' +
+                   r.toFixed(2) + ':1 (mín ' + minimo + ')' +
+                   ' ⟨' + propio.slice(0, 26).replace(/\s+/g, ' ') + '⟩');
       }
     });
     return { malos: [...new Set(malos)], sinMedir: [...new Set(sinMedir)].length };
@@ -179,8 +199,16 @@
      · `.bn-fab`: el disco del botón de estadísticas. Es el destacado de la barra de navegación, el
        mismo patrón que el chip de idioma. Usa `--entrada-chip` / `--entrada-chip-ink`.
      · `.splash-lang`: el chip ES/EN. Se decidió opaco en J7 justamente para que su legibilidad no
-       dependa de dónde caiga el círculo naranja que tiene detrás. */
-  AUDITOR.CLARAS_A_PROPOSITO = ['bn-fab', 'splash-lang'];
+       dependa de dónde caiga el círculo naranja que tiene detrás.
+     · `.db-v`: el selector de vista (Personal / Supervisor / Médico / Dirección) de la barra de
+       DEMOSTRACIÓN. Verificado en P111 midiendo los cuatro: los tres en reposo usan
+       `--demo-chip: rgba(255,255,255,.12)` y el activo `--demo-chip-on: #f0f4fb`, que está definido
+       con EL MISMO valor en los dos temas a propósito — la barra que lo contiene
+       (`--demo-bar: #16233d`) también es oscura en los dos. Un chip claro ahí no es una superficie
+       sin tematizar: es el destacado sobre una barra que nunca cambia, y su texto
+       (`--demo-chip-on-txt: #16233d`) da contraste de sobra. Era el hallazgo con más apariciones
+       del informe (108) y no había nada que arreglar. */
+  AUDITOR.CLARAS_A_PROPOSITO = ['bn-fab', 'splash-lang', 'db-v'];
 
   AUDITOR.superficiesClaras = function () {
     if (document.documentElement.getAttribute('data-tema') !== 'oscuro') return [];

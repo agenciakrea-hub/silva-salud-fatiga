@@ -137,7 +137,14 @@ async function auditar(){
         });
         /* `sinPoderMedir` es un NÚMERO, no una lista (así lo devuelve `AUDITOR.contraste`). Y es el
            dato que en A1 destapó que la auditoría "limpia" cubría media app: un recuento alto de
-           textos que no se pudieron medir es un resultado, no un cero. Se guarda por pantalla. */
+           textos que no se pudieron medir es un resultado, no un cero. Se guarda por pantalla.
+           ⚠️ PERO NO TODO LO QUE NO SE MIDE ES COBERTURA PERDIDA, y conviene saberlo antes de
+           salir a buscar un problema que no existe. Medido en P111 sobre `hseq/idc`, el peor:
+           de 539 elementos con texto que no se pudieron medir, 537 eran de OTRAS SECCIONES del
+           panel —el panel las pinta todas y muestra una— y sólo 2 eran `<script>`. Cada una de
+           esas secciones se mide cuando le toca su turno en el recorrido de las 18 pantallas.
+           O sea: un número de tres cifras acá es NORMAL. Lo que valdría la pena mirar es que suba
+           mucho en UNA pantalla respecto de las demás. */
         if (r.sinPoderMedir) sinMedir.push({ donde, n: r.sinPoderMedir });
         log('auditando… ' + corridas + '/' + (lista.length * ANCHOS.length * 2) +
             ' · hallazgos: ' + hallazgos.length);
@@ -148,13 +155,23 @@ async function auditar(){
   /* Se agrupa por hallazgo ÚNICO: el mismo defecto aparece en muchas combinaciones y contarlo
      tantas veces exagera el problema. Lo que importa es cuántas cosas distintas hay que arreglar,
      y en qué anchos/temas aparece cada una. */
+  /* ⚠️ POR CAUSA, NO POR CONTENIDO. La agrupación de arriba ya lo decía y no lo cumplía para el
+     contraste: la clave incluía el texto medido, así que un solo color mal contrastado aparecía
+     una vez por cada número que hubiera en pantalla. Informaba 47 donde había 6. */
   const unicos = {};
   hallazgos.forEach(h => {
-    const k = h.tipo + ' :: ' + h.que;
-    (unicos[k] = unicos[k] || { tipo: h.tipo, que: h.que, dondes: [] }).dondes.push(h.donde);
+    const causa = win.AUDITOR.causaDe(h.que);
+    const k = h.tipo + ' :: ' + causa;
+    (unicos[k] = unicos[k] || { tipo: h.tipo, que: causa, textos: new Set(), dondes: [] });
+    unicos[k].dondes.push(h.donde);
+    const m = String(h.que).match(/⟨(.*)⟩$/);
+    if (m) unicos[k].textos.add(m[1]);
   });
   const resumen = Object.values(unicos)
-    .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
+    .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0],
+                 /* Cuántos contenidos distintos tapaba esa causa: si dice 40, ahí está la
+                    diferencia entre el número viejo y el nuevo. */
+                 textos: u.textos.size, muestra: [...u.textos].slice(0, 3) }))
     .sort((a, b) => b.veces - a.veces);
   const picoSinMedir = sinMedir.sort((a, b) => b.n - a.n)[0] || null;
 
