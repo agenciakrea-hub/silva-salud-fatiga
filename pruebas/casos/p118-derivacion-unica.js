@@ -68,7 +68,7 @@ function p118Env(fns, opciones) {
 function p118Json(r) { return JSON.parse(r.getContent ? r.getContent() : r); }
 function p118Recuperar(api, extra) {
   return p118Json(api.accionRecuperarPerfil(Object.assign(
-    { empresa:'Helitec', cedula:'V-111', dispositivoId:'d1' }, extra || {})));
+    { empresa:'Helitec', cedula:'V-111', dispositivoId:'d1', _post:true }, extra || {})));
 }
 
 /* ── 1 · EL MERGE POR CAMPO, que es el corazón del prompt ─────────────────────────────────── */
@@ -159,18 +159,51 @@ PRUEBAS.caso('🔴 `login` repone el perfil TAMBIÉN de quien no está en Nómin
   PRUEBAS.igual(r.persona.esSupervisor, true, 'y su flag de supervisora');
 });
 
-PRUEBAS.caso('🔒 el rol de la CREDENCIAL sigue ganando en login', () => {
-  /* Deliberado y frágil: `perfilDePersona` ahora manda `rol` cuando la columna L está llena, y
-     dejarlo pisar cambiaría en silencio con qué permisos entra alguien. Si alguien invierte el
-     `Object.assign`, este caso lo caza. */
-  const api = p118Env(['accionCredencialCrear','accionLogin'], { rolNom:'Supervisor' });
+PRUEBAS.caso('🔴 el rol se REFRESCA desde la Nómina al entrar con contraseña', () => {
+  /* Decidido por Franco el 2026-09-07. El rol de la credencial era una FOTO del día que se creó la
+     contraseña: `credEnNomina` lee la columna L una vez y la congela. RRHH asciende a alguien y
+     `login` seguía devolviendo lo viejo mientras `recuperar_perfil` devolvía lo nuevo.
+     Se entra por el camino real: la credencial se crea con la columna VACÍA (así queda "empleado"
+     congelado) y recién después RRHH escribe "Supervisor" en la hoja. */
+  const api = p118Env(['accionCredencialCrear','accionLogin'], { rolNom:'' });
   api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
+  const sh = api.__env.__libro.getSheetByName('Nómina');
+  sh.getRange(2, 12, 1, 1).setValues([['Supervisor']]);   // RRHH la asciende DESPUÉS
   const r = p118Json(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'miClave123',
                                        dispositivoId:'d2' }));
   PRUEBAS.igual(r.ok, true, 'entra · ' + (r.error || ''));
+  PRUEBAS.igual(r.persona.rol, 'supervisor',
+    '⚠️ el ascenso se refleja · antes devolvía la foto congelada en `Credenciales`');
+  PRUEBAS.igual(r.persona.rolOrigen, 'nomina', 'y dice de dónde salió');
+});
+
+PRUEBAS.caso('🔒 pero una celda VACÍA no degrada al que ya tenía rol — el discriminador', () => {
+  /* El riesgo de refrescar es que un borrado accidental en la hoja le saque el rol a alguien. Lo
+     contiene la regla de P118: la celda vacía no viaja, así que gana el de la credencial. */
+  const api = p118Env(['accionCredencialCrear','accionLogin'], { rolNom:'Supervisor' });
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+    pass:'miClave123', dispositivoId:'d' });
+  const sh = api.__env.__libro.getSheetByName('Nómina');
+  sh.getRange(2, 12, 1, 1).setValues([['']]);   // alguien vacía la celda sin querer
+  const r = p118Json(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'miClave123',
+                                       dispositivoId:'d2' }));
+  PRUEBAS.igual(r.persona.rol, 'supervisor',
+    '🔒 conserva el de la credencial · un borrado accidental no le saca el panel a nadie');
   PRUEBAS.igual('rolOrigen' in r.persona, false,
-    '⚠️ y NO manda `rolOrigen`: diría "nomina" sobre un rol que no salió de ahí, y `rolOfrecerPintar` lo lee para elegir qué frase escribe');
+    '⚠️ y NO dice "nomina" sobre un rol que no salió de ahí · `rolOfrecerPintar` lo lee para elegir qué frase escribe');
+});
+
+PRUEBAS.caso('🔒 `recuperar_perfil` NO responde por GET', () => {
+  /* Devuelve el perfil completo de una persona real en el cuerpo, y las respuestas GET se cachean:
+     es la misma razón por la que `codigo_empresa` es sólo-POST desde P116. El cliente ya postea. */
+  const api = p118Env(['accionRecuperarPerfil']);
+  const sinPost = p118Json(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
+                                                       dispositivoId:'d1' }));
+  PRUEBAS.igual(sinPost.ok, false, '🔒 sin `_post` no responde');
+  const conPost = p118Recuperar(api, { _post:true });
+  PRUEBAS.igual(conPost.ok, true,
+    'y con POST sí — el discriminador: si cortara siempre, la pantalla real quedaría muerta');
 });
 
 PRUEBAS.caso('🔴 `login` devuelve los consentimientos ya firmados', () => {

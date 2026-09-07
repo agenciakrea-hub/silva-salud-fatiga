@@ -28,7 +28,7 @@ PRUEBAS.caso('⚠️ quien YA estaba registrado recupera su perfil SIN código',
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido se saltea'); return; }
   const api = s5Endpoint(S5_YA, S5_CODIGO);
   const r = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', dispositivoId:'d' }).getContent());
+                        persona:'Ana Suárez', dispositivoId:'d' , _post:true }).getContent());
   PRUEBAS.falso(r.motivo === 'codigo_invalido', '⚠️ no se le puede pedir el código: ya estaba registrada');
   PRUEBAS.cierto(r.ok, 'y tiene que recuperar su perfil');
 });
@@ -39,7 +39,7 @@ PRUEBAS.caso('⚠️ y el caso discrimina: a quien NO estaba, sí se le pide', (
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = s5Endpoint([], S5_CODIGO);        // nadie registrado todavía
   const r = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', dispositivoId:'d' }).getContent());
+                        persona:'Ana Suárez', dispositivoId:'d' , _post:true }).getContent());
   PRUEBAS.falso(r.ok, 'a un alta nueva sí se le pide');
   PRUEBAS.igual(r.motivo, 'codigo_invalido', 'con el motivo correcto');
 });
@@ -51,7 +51,7 @@ PRUEBAS.caso('⚠️ la exención NO alcanza a una cédula ajena', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = s5Endpoint(S5_YA, S5_CODIGO);
   const r = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-999',
-                        persona:'Otro Cualquiera', dispositivoId:'d' }).getContent());
+                        persona:'Otro Cualquiera', dispositivoId:'d' , _post:true }).getContent());
   PRUEBAS.falso(r.ok, 'otra cédula no queda exenta por lo que hizo Ana');
   PRUEBAS.igual(r.motivo, 'codigo_invalido', 'a esa sí se le pide el código');
 });
@@ -63,7 +63,7 @@ PRUEBAS.caso('⚠️ quien ya tiene perfil completo NO ve nada nuevo', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = s5Endpoint(S5_YA, S5_CODIGO);
   const r = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', dispositivoId:'d' }).getContent());
+                        persona:'Ana Suárez', dispositivoId:'d' , _post:true }).getContent());
   PRUEBAS.cierto(r.ok, 'la respuesta es la normal');
   PRUEBAS.cierto(!!r.perfil, 'con su perfil adentro');
   PRUEBAS.falso(!!r.pideCodigo, 'y sin pedirle nada nuevo');
@@ -75,7 +75,7 @@ PRUEBAS.caso('una empresa SIN código configurado sigue abierta para todos', () 
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = s5Endpoint([], []);               // sin fila codigoRegistro
   const r = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', dispositivoId:'d' }).getContent());
+                        persona:'Ana Suárez', dispositivoId:'d' , _post:true }).getContent());
   PRUEBAS.falso(r.motivo === 'codigo_invalido', 'sin código configurado no se pide ninguno');
 });
 
@@ -100,13 +100,13 @@ PRUEBAS.caso('⚠️ el código equivocado se frena, y por empresa+dispositivo',
   const api = s5Endpoint([], S5_CODIGO);
   for (let i = 0; i < 6; i++) {
     api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
-                                codigo:'MAL'+i, dispositivoId:'quemado' });
+                                codigo:'MAL'+i, dispositivoId:'quemado' , _post:true });
   }
   const frenado = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', codigo:'SILVA2026', dispositivoId:'quemado' }).getContent());
+                        persona:'Ana Suárez', codigo:'SILVA2026', dispositivoId:'quemado' , _post:true }).getContent());
   PRUEBAS.igual(frenado.motivo, 'codigo_frenado', 'tras varios intentos se corta, aun con el código bueno');
   const otro = JSON.parse(api.accionRecuperarPerfil({ empresa:'Helitec', cedula:'V-111',
-                        persona:'Ana Suárez', codigo:'SILVA2026', dispositivoId:'limpio' }).getContent());
+                        persona:'Ana Suárez', codigo:'SILVA2026', dispositivoId:'limpio' , _post:true }).getContent());
   PRUEBAS.cierto(otro.ok, '⚠️ y otro dispositivo no queda castigado');
 });
 
