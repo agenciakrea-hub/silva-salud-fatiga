@@ -5962,6 +5962,13 @@
   <div class="sheet">
     <h2 data-i18n="lgn_titulo">Entra con tu contraseña</h2>
     <p class="portal-hint" id="lgnLead" data-i18n="lgn_lead">Pusiste una contraseña propia para tus datos. Escríbela para continuar.</p>
+    <!-- ⚠️ P121 · LA EMPRESA A LA VISTA. En un teléfono compartido, quien vuelve de OTRA empresa
+         recibiría «Usuario o contraseña incorrecta» con la contraseña correcta —el servidor busca
+         su cédula en la empresa equivocada— y a los pocos intentos el freno lo deja diez minutos
+         afuera sin nada que tocar. Verlo y poder cambiarlo lo saca de ahí en un toque. -->
+    <p class="nom-elegido" id="lgnEmpresa"></p>
+    <button type="button" class="nom-link" id="lgnOtraEmpresa" style="display:none"
+            onclick="lgnOtraEmpresa()" data-i18n="lgn_otra_empresa">No es mi empresa</button>
     <form id="lgnForm" onsubmit="lgnEntrar(this.querySelector('.save-btn')); return false;">
       <div class="field"><label for="lgnCed" data-i18n="lgn_ced">Cédula</label>
         <input id="lgnCed" type="text" inputmode="numeric" autocomplete="username" data-i18n-attr="placeholder:lgn_ced_ph" placeholder="Tu número de cédula"></div>
@@ -6864,7 +6871,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.01';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.02';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7075,6 +7082,7 @@ const I18N = {
       nom_conf_si:'Sí, soy yo',
       nom_conf_no:'No soy yo',
       nom_sin_codigo:'Mi empresa no me dio código',
+      lgn_otra_empresa:'No es mi empresa',
       nom_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
       nom_pide_codigo:'Para registrarte necesitas el código de tu empresa. Pídeselo a tu supervisor.',
       nom_codigo_btn:'Continuar',
@@ -8738,6 +8746,7 @@ const I18N = {
       nom_conf_si:'Yes, that is me',
       nom_conf_no:'That is not me',
       nom_sin_codigo:'My company did not give me a code',
+      lgn_otra_empresa:'This is not my company',
       nom_codigo_ambiguo:'That code does not identify a single company. Please ask your supervisor for it again.',
       nom_pide_codigo:'To register you need your company code. Ask your supervisor for it.',
       nom_codigo_btn:'Continue',
@@ -15957,6 +15966,26 @@ function admSalir(){
    abortado — la app no arranca y en la consola no aparece nada útil. Es el mismo tropiezo que ya
    está documentado en la nota de GEST_TIPO_NOTA_CLINICA. Acá corre recién cuando alguien toca el
    botón, con todo ya declarado. */
+/* ⚠️ P121 · LA ÚNICA COSA QUE SOBREVIVE A CERRAR SESIÓN, y hay que decir por qué existe porque
+   su AUSENCIA hasta hoy era una decisión, no un olvido: esta misma función borra `K_CICLO_MIO` y
+   `K_CLV_OFRECIDA` justamente porque el teléfono se comparte.
+   Guarda SÓLO el nombre de la empresa. Ni la cédula, ni el perfil, ni el token, ni nada de la
+   persona: en un teléfono compartido, el siguiente que lo abra ve el nombre de la empresa —que ya
+   está impreso en el uniforme y en la puerta— y nada más.
+   Para qué: sin ella, el reingreso obligaría a que `login` funcione SIN empresa, y eso reabre el
+   barrido global de credenciales (con empresa vacía no filtra) más un canal de tiempo por cada
+   candidata. Una llave con el nombre de la empresa es mucho más barata que eso. */
+const K_REINGRESO = 'silva_fatiga_reingreso_v1';
+function reingresoGuardar(empresa){
+  const e = String(empresa || '').trim();
+  if (!e) return;
+  try { localStorage.setItem(K_REINGRESO, e); } catch(err){}
+}
+function reingresoEmpresa(){
+  try { return String(localStorage.getItem(K_REINGRESO) || '').trim(); } catch(err){ return ''; }
+}
+function reingresoOlvidar(){ try { localStorage.removeItem(K_REINGRESO); } catch(err){} }
+
 function sesionClavesBorrar(){
   return [
     // identidad y consentimiento
@@ -16027,6 +16056,11 @@ function cerrarSesion(){
      ⚠️ `keepalive` es lo que hace que el pedido sobreviva al `location.reload()` de abajo. Sin eso
      el navegador aborta la petición al recargar y la sesión no se cierra nunca del lado del CH. */
   sesionAvisarCierre();
+  /* ⚠️ P121 · SE GUARDA LA EMPRESA ANTES DE BORRAR, y el orden importa: `sesionClavesBorrar`
+     incluye `K_PROFILE`, así que después de esa línea ya no hay de dónde sacarla. Es lo único que
+     sobrevive, y es lo que permite que el reingreso sea cédula + contraseña, sin el código otra
+     vez, que es lo que pidió el dueño. */
+  try { const _p = getProfile(); if (_p && _p.empresa) reingresoGuardar(_p.empresa); } catch(e){}
   sesionClavesBorrar().forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
   try { sessionStorage.removeItem(K_ADM_OK); } catch(e){}
   // Se recarga en vez de repintar: es la única forma de garantizar que no quede en memoria nada
@@ -25484,21 +25518,49 @@ function sesPersonaToken(perfil){
 }
 
 var _lgnPendiente;      // qué hacer cuando el login salga bien
+/* ⚠️ P121 · ABRE TAMBIÉN SIN PERFIL, que es el caso del REINGRESO. Hasta acá moría en la primera
+   línea con un `return false` mudo: después de cerrar sesión no hay perfil, así que la pantalla de
+   entrar no se podía abrir y no había forma de volver. Era la mitad del pedido del dueño y
+   sencillamente no existía.
+   Con perfil (el caso viejo: la sesión se venció estando adentro) la cédula viene puesta. Sin él,
+   la empresa sale de la llave mínima y la cédula la escribe la persona. */
 function lgnAbrir(alEntrar){
   const p = getProfile();
-  if (!p || !p.empresa) return false;
+  const emp = (p && p.empresa) || reingresoEmpresa();
+  if (!emp) return false;                       // sin empresa no hay contra qué autenticar
   _lgnPendiente = alEntrar || null;
+  lgnPintarEmpresa(emp);
   const ced = document.getElementById('lgnCed');
   const pass = document.getElementById('lgnPass');
-  if (ced) ced.value = p.cedula || '';
+  if (ced) ced.value = (p && p.cedula) || '';
   if (pass) pass.value = '';
   document.getElementById('lgnErr').textContent = '';
   document.getElementById('loginOv').classList.add('show');
   syncScrollLock(); navPush();
-  /* El foco va a la contraseña y no a la cédula: la cédula ya viene puesta desde el perfil, y
-     empezar en un campo lleno obliga a la persona a saltarlo. */
-  setTimeout(() => { try { pass.focus(); } catch(e){} }, 60);
+  /* El foco va a la contraseña y no a la cédula CUANDO la cédula ya viene puesta desde el perfil:
+     empezar en un campo lleno obliga a la persona a saltarlo. En el reingreso no hay perfil, así
+     que el campo está vacío y el foco tiene que ir ahí. */
+  setTimeout(() => {
+    try { ((ced && !ced.value) ? ced : pass).focus(); } catch(e){}
+  }, 60);
   return true;
+}
+
+/* ⚠️ P121 · LA EMPRESA VA VISIBLE, Y SE PUEDE CAMBIAR. Sin esto, en un teléfono compartido quien
+   vuelve de OTRA empresa recibe «Usuario o contraseña incorrecta» con la contraseña correcta —el
+   servidor busca su cédula en la empresa equivocada— y a los pocos intentos el freno lo deja diez
+   minutos afuera sin nada que tocar. El enlace lo saca de ahí en un toque. */
+function lgnPintarEmpresa(emp){
+  const el = document.getElementById('lgnEmpresa');
+  if (el) el.textContent = emp || '';
+  const link = document.getElementById('lgnOtraEmpresa');
+  if (link) link.style.display = emp ? '' : 'none';
+}
+function lgnOtraEmpresa(){
+  reingresoOlvidar();
+  lgnCerrar();
+  /* Al paso del código, que es donde empieza el alta de cualquier empresa. */
+  try { nominaAbrir(); } catch(e){}
 }
 function lgnCerrar(){
   document.getElementById('loginOv').classList.remove('show');
@@ -25514,7 +25576,13 @@ function lgnEntrar(btn){
   if (!cedula || !pass){ err.textContent = t('lgn_faltan'); return; }
   if (!offHayConexion()){ err.textContent = t('lgn_sin_red'); return; }
   btnSpin(btn, true, t('lgn_entrando'));
-  const cuerpo = { action:'login', empresa: p.empresa || '', cedula: cedula, pass: pass,
+  /* ⚠️ P121 · LA EMPRESA SALE DE LA LLAVE CUANDO NO HAY PERFIL, que es el caso del reingreso.
+     `accionLogin` corta con «Faltan datos» si no viene empresa, y sin esto el reingreso no podía
+     ni intentar. Relajar `login` para que acepte empresa vacía habría sido la otra salida, y es la
+     que NO se tomó: con empresa vacía la búsqueda de credenciales no filtra y se vuelve un barrido
+     global, más un canal de tiempo por cada candidata. */
+  const empresaLogin = (p && p.empresa) || reingresoEmpresa();
+  const cuerpo = { action:'login', empresa: empresaLogin, cedula: cedula, pass: pass,
                    dispositivoId: dispositivoId(), recordar: '1' };
   conBloqueo('#loginOv .sheet',
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
@@ -25526,11 +25594,30 @@ function lgnEntrar(btn){
          lado — si alguien la agrega "por si el token falla", vuelve el problema que S4 cerró. */
       try { localStorage.setItem(K_SES_PERSONA, JSON.stringify({
         cedula: (d.persona && d.persona.cedula) || cedula, token: d.sesion || '' })); } catch(e){}
-      /* Si la cédula que escribió no es la del perfil, se corrige el perfil: entró con ella, así
-         que es la suya, y era la fuente del desencuentro. */
-      if (String(cedula).replace(/\D/g,'') !== String(p.cedula||'').replace(/\D/g,'')){
-        p.cedula = cedula; setProfile(p);
-      }
+      /* ⚠️ P121 · ACÁ SE RECONSTRUYE EL PERFIL EN EL REINGRESO, y hay una trampa: `p` se capturó
+         ANTES del pedido, así que en el reingreso es `{}`. Hacer `p.cedula = cedula; setProfile(p)`
+         guardaría un perfil de UN SOLO CAMPO y la app quedaría creyendo que la persona no está
+         registrada — con `perfilCompleto()` en false volvería al alta desde cero.
+         Se mergea campo por campo sobre lo que HAYA, y sólo con lo que el servidor mandó de
+         verdad: `accionLogin` devuelve `persona` con sus datos y su rol, y hasta acá el cliente
+         guardaba sólo la cédula y el token y tiraba el resto. Es la misma forma que ya se comió
+         `rol` y `rolOrigen` en el alta. */
+      const q = (d && d.persona) || {};
+      const base = getProfile() || {};
+      const nuevo = Object.assign({}, base);
+      ['nombre','cedula','empresa','departamento','cargo','sexo','edad','telefono','email',
+       'id_piloto','rol','rolOrigen','sector'].forEach(k => {
+        if (k in q && q[k] !== undefined && q[k] !== null && q[k] !== '') nuevo[k] = q[k];
+      });
+      if ('esPiloto' in q) nuevo.esPiloto = !!q.esPiloto;
+      if ('esSupervisor' in q) nuevo.esSupervisor = !!q.esSupervisor;
+      if ('esServicioMedico' in q) nuevo.esServicioMedico = !!q.esServicioMedico;
+      /* La cédula con la que ENTRÓ manda sobre la del perfil: entró con ella, así que es la suya y
+         era la fuente del desencuentro. */
+      if (cedula) nuevo.cedula = cedula;
+      if (!nuevo.empresa) nuevo.empresa = empresaLogin;
+      setProfile(nuevo);
+      try { if (nuevo.sector) sectorRecordar(nuevo.sector); } catch(e){}
       lgnCerrar();
       showToast(t('lgn_listo'));
       const seguir = _lgnPendiente; _lgnPendiente = null;
@@ -26336,7 +26423,21 @@ function splashCambiarIdioma(){
   fijarIdioma(idiomaActual() === 'es' ? 'en' : 'es');
   document.getElementById('splashLangBtn').textContent = idiomaActual().toUpperCase();
 }
+/* ⚠️ P121 · SI ESTE TELÉFONO YA TUVO UNA SESIÓN, «Ingresar» LLEVA A ENTRAR, no a registrarse.
+   Sin esto, quien cerró sesión volvía al alta desde cero —código, cédula, confirmar— habiendo
+   estado registrado, que es exactamente lo que el dueño pidió evitar: «si cierran sesión, al
+   ingresar ponen cédula y contraseña; NO se vuelve a pedir el código».
+   Y si no tiene contraseña, `lgnAbrir` igual se abre y el enlace de «olvidé mi contraseña» está
+   ahí — no se lo manda a un callejón. */
 function splashIngresar(){
+  if (reingresoEmpresa() && !perfilCompleto(getProfile())){
+    /* `splashCerrar` no existe: el splash se cierra sacándole la clase, que es lo que hacen
+       `splashAbrirPortal` y `carruselMostrar`. */
+    try { if (lgnAbrir()) { document.getElementById('splashOv').classList.remove('show'); return; } } catch(e){}
+  }
+  return splashIngresarAlta();
+}
+function splashIngresarAlta(){
   carruselMostrar();
 }
 // Abre el portal de estadísticas por fuera del recorrido normal (sin bottomNav, sin perfil
