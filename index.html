@@ -2063,13 +2063,42 @@
 
   /* Barra de navegación inferior (navy, estilo OSDE) */
   /* Estado de envío offline: franja fina justo encima de la barra inferior */
+  /* ⚠️ P045 · EL `64px` ERA UN NÚMERO A MANO QUE NO COINCIDÍA CON NADA. La barra de navegación no
+     tiene alto fijo —es padding más contenido, y el padding de abajo suma `env(safe-area)`— y
+     medida da 81 px. Encima, el disco de estadísticas tiene `margin-top:-24px` y SOBRESALE de la
+     barra. Resultado medido a 375 y a 768: el cartel se le montaba encima con 1462 px² de solape,
+     y como tiene `z-index:901` contra los 900 de la barra, además de taparlo lo volvía intocable
+     justo en la zona del disco. Con la animación de tres puntos el cartel es más alto todavía.
+     `--nav-alto` la mide de verdad (`navAltoSincronizar`), con el 64 px viejo de respaldo por si
+     algo corriera antes de la primera medición. */
   .off-bar { position: fixed; left: 0; right: 0; z-index: 901;
-    bottom: calc(64px + env(safe-area-inset-bottom));
+    bottom: calc(var(--nav-alto, 64px) + .45rem + env(safe-area-inset-bottom));
     max-width: 560px; margin: 0 auto;
     background: var(--sem-ambar-bg); color: var(--sem-ambar-txt);
     border-top: 1px solid var(--sem-ambar); text-align: center;
     padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
   .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
+  /* ── P045 · «enviando» tiene que MOVERSE ──────────────────────────────────────────────────────
+     Un cartel quieto que dice «Enviando…» es indistinguible de uno colgado — que es exactamente lo
+     que pasó cuando se colgó de verdad. Tres puntos que laten, escalonados: el movimiento es la
+     única parte del mensaje que no se puede fingir.
+     En CSS y no con una librería de animación: la app es un archivo único que tiene que funcionar
+     sin señal (R7), y un `import` desde un CDN es justo lo que no carga cuando no hay red — que es
+     cuándo este cartel se ve. El escalonado va por `animation-delay`, que es lo mismo que hace un
+     `stagger`. */
+  .off-dots { display: inline-flex; align-items: center; gap: .28em; margin-left: .12em;
+    vertical-align: middle; }
+  .off-dot { width: .34em; height: .34em; border-radius: 50%; background: currentColor;
+    /* El reposo es VISIBLE, como todas las animaciones de esta app: sin `from` en 0 y sin
+       `fill:both`. Si la animación no corre —moción reducida, pestaña oculta, `.sin-animaciones`—
+       quedan tres puntos quietos, que siguen leyéndose como «…». */
+    animation: offDotLatido 1.2s var(--ease-app, ease-in-out) infinite; }
+  .off-dot:nth-child(2) { animation-delay: .2s; }
+  .off-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes offDotLatido { 0%, 100% { transform: scale(1); opacity: .55; }
+                            50%      { transform: scale(1.5); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .off-dot { animation: none; opacity: .8; } }
+  .sin-animaciones .off-dot { animation: none; opacity: .8; }
   /* Retenida: usa el rojo del semáforo, que ya está definido en los dos temas (R13). */
   .off-bar.off-bar-trabada { background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); border-top-color: var(--sem-rojo); }
   .off-bar.off-bar-trabada:focus-visible { outline: 2px solid var(--sem-rojo); outline-offset: -3px; }
@@ -6772,7 +6801,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.95';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.96';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11141,8 +11170,17 @@ function colaReintentar(){
   const q = getPending();
   q.forEach(x => { if (x){ x.trabado = false; x.intentos = 0; x.ts = Date.now(); } });
   setPending(q);
+  /* P045 · y la cola del empleado también: el cartel es UNO solo y cuenta las dos, así que si
+     tocarlo destrabara sólo la mitad, la otra mitad se quedaría trabada con el cartel ya apagado
+     — y nadie volvería a mirarla. */
+  try {
+    const c = empColaAll();
+    Object.keys(c).forEach(k => { if (c[k]){ c[k].trabado = false; c[k].intentos = 0; } });
+    empColaSave(c);
+  } catch(e){}
   try { offPintar(); } catch(e){}
   flushPending();
+  try { empFlush(); } catch(e){}
 }
 /* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
    Los envíos van con `keepalive`, o el navegador los aborta al recargar: la app ofrece "toca
@@ -11233,12 +11271,45 @@ function empFlush(){
     const item = c[id];
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(Object.assign({ action:item.accion }, item.payload)) })
       .then(r => r.json())
-      .then(d => { if (d && d.ok){ const c2 = empColaAll(); delete c2[id]; empColaSave(c2); offPintar(); } })
-      .catch(() => {})   // sigue en cola; se reintenta solo (online + cada 1 min, mismo timer que flushPending)
+      /* ⚠️ P045 · UN FALLO TIENE QUE CONTARSE, y antes no se contaba. Este `.then` sólo borraba
+         el item cuando el servidor decía `ok`; cualquier otra respuesta lo dejaba en la cola
+         exactamente igual que antes de intentar, sin marca de nada. Y como el cartel de abajo
+         cuenta `empPendientes()`, la pantalla decía «Enviando 1 registro…» **para siempre**.
+         Reportado con una opinión: se mandó, no llegó, y el cartel se quedó puesto. */
+      .then(d => {
+        const c2 = empColaAll();
+        if (!c2[id]) return;                                   // ya lo borró otro camino
+        if (d && d.ok){ delete c2[id]; empColaSave(c2); offPintar(); return; }
+        empFallo(id, c2);                                      // respondió, pero no que sí
+      })
+      .catch(() => { empFallo(id, empColaAll()); })             // ni siquiera respondió
       .then(() => { delete _empEnVuelo[id]; });   // se libera pase lo que pase, para poder reintentar
   });
 }
+/* El mismo criterio que la otra cola (`COLA_MAX_INTENTOS`): diez oportunidades de pasar solo y
+   después se AVISA. Un registro que no se puede enviar no es un registro que se está enviando, y
+   la diferencia es lo único que le permite a la persona hacer algo al respecto. */
+function empFallo(id, c){
+  const item = c && c[id];
+  if (!item) return;
+  item.intentos = (item.intentos || 0) + 1;
+  if (item.intentos >= COLA_MAX_INTENTOS) item.trabado = true;
+  c[id] = item;
+  empColaSave(c);
+  try { offPintar(); } catch(e){}
+}
+/* Los de ESTA cola que ya no se reintentan. `colaTrabados()` mira la otra (`getPending`); sin
+   esto, un trabado de acá no existía para el cartel. */
+function empTrabados(){
+  try { return Object.keys(empColaAll()).filter(k => empColaAll()[k] && empColaAll()[k].trabado); }
+  catch(e){ return []; }
+}
 window.addEventListener('online', empFlush);
+/* ⚠️ P045 · Y CON SU PROPIO TEMPORIZADOR. El comentario del `.catch` decía que se reintentaba
+   «cada 1 min, mismo timer que flushPending» y era FALSO: ese `setInterval` llama a
+   `flushPending()`, que no toca esta cola. Con conexión estable y una respuesta sin `ok`, nada
+   volvía a intentarlo hasta recargar la app. */
+setInterval(empFlush, 60000);
 
 /* ══════════ ESTADO OFFLINE VISIBLE (P10) ══════════
    La app tiene CINCO colas de envío distintas, cada una con su forma:
@@ -11265,6 +11336,7 @@ function offPendientes(){
 function offHayConexion(){ return navigator.onLine !== false; }
 function offPintar(){
   const el = document.getElementById('offBar'); if (!el) return;
+  navAltoSincronizar();   // P045 · el cartel se posiciona contra el alto REAL de la barra
   // La demo siembra anotaciones/casos de EJEMPLO local solo (gestCanSync() ya los bloquea de
   // salir de verdad), pero gestUpsert los sigue marcando "pendientes" igual — sin este corte,
   // el cartel decía "Enviando N registros…" por mirar la demo sin haber tocado nada, y como
@@ -11285,7 +11357,7 @@ function offPintar(){
   el.style.display = '';
   /* P087 · los que el servidor RECHAZÓ ya no se están reintentando. Decir "Enviando…" de eso sería
      la misma mentira que el `no-cors`, sólo que en la pantalla. Se avisa y se ofrece la salida. */
-  const trabados = colaTrabados().length;
+  const trabados = colaTrabados().length + empTrabados().length;   // P045: las dos colas, no una
   el.className = 'off-bar' + (trabados ? ' off-bar-trabada' : (online ? ' off-bar-sync' : ''));
   el.onclick = trabados ? colaReintentar : null;
   el.style.cursor = trabados ? 'pointer' : '';
@@ -11295,10 +11367,39 @@ function offPintar(){
     el.textContent = t(trabados === 1 ? 'off_trabado_1' : 'off_trabado_n', { n: trabados });
     return;
   }
-  el.textContent = online
-    ? t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n })
-    : (t('ts_sin_conexion') + (n ? (' · ' + t(n === 1 ? 'off_guardado_1' : 'off_guardado_n', { n: n })) : ''));
+  if (online){
+    /* Los puntos reemplazan al «…» del propio texto: la cadena traducida ya lo trae, así que se le
+       saca para no tener dos. Se arma con nodos y no con `innerHTML` porque acá entra `n`, y este
+       cartel es de los pocos sitios que escribe sin pasar por `esc()`. */
+    const txt = t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n }).replace(/[.…]+\s*$/, '');
+    el.textContent = txt;
+    const cont = document.createElement('span');
+    cont.className = 'off-dots';
+    cont.setAttribute('aria-hidden', 'true');   // el texto ya dice lo que pasa: los puntos son adorno
+    for (let i = 0; i < 3; i++) cont.appendChild(document.createElement('i')).className = 'off-dot';
+    el.appendChild(cont);
+  } else {
+    el.textContent = t('ts_sin_conexion') + (n ? (' · ' + t(n === 1 ? 'off_guardado_1' : 'off_guardado_n', { n: n })) : '');
+  }
 }
+/* ⚠️ P045 · R16 · función declarada: el arranque la llama y se iza entera.
+   Mide el alto REAL de la barra de navegación —incluido lo que el disco de estadísticas sobresale
+   por su `margin-top` negativo— y lo publica como `--nav-alto`. Sin esto, el cartel de envíos se
+   posicionaba contra un `64px` escrito a mano que no coincidía con nada y le tapaba el disco. */
+function navAltoSincronizar(){
+  try {
+    const nav = document.getElementById('bottomNav');
+    if (!nav) return;
+    const r = nav.getBoundingClientRect();
+    if (!r.height) return;                       // oculta: no se mide, se deja el respaldo
+    let arriba = r.top;
+    const fab = nav.querySelector('.bn-fab');
+    if (fab){ const rf = fab.getBoundingClientRect(); if (rf.height) arriba = Math.min(arriba, rf.top); }
+    const alto = Math.round(window.innerHeight - arriba);
+    if (alto > 0 && alto < 400) document.documentElement.style.setProperty('--nav-alto', alto + 'px');
+  } catch(e){}
+}
+window.addEventListener('resize', navAltoSincronizar);
 /* Con `role="button"` el lector de pantalla lo anuncia como botón; sin esto, Enter y Espacio no
    harían nada y la promesa sería falsa para quien no usa el dedo. */
 document.addEventListener('keydown', function(e){
@@ -24840,6 +24941,7 @@ appRevelar(perfilCompleto(getProfile()));
    splash), así que la transición no muestra ningún estado intermedio. */
 document.body.classList.add('listo');
 sectorRefrescar();   // A3: si su empresa cambió de sector en el CH, la terminología se actualiza sola
+navAltoSincronizar();   // P045 · antes del primer offPintar, para que el cartel no nazca mal puesto
 flushPending();   // reintenta envíos que hayan quedado pendientes por falta de conexión
 empFlush();       // idem para turnos/reportes/confiabilidad/consentimiento
 offPintar();      // muestra el estado de envío si quedó algo de una sesión anterior
