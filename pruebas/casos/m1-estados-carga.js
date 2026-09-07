@@ -381,6 +381,12 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
     'flushPending',                          // colas que se vacían solas: bloquear sería el bug
     'dashRefresh', 'tareasCargar', 'tareasFichaCargar', 'empresaPerfilCargar',
     'loadSetupLists', 'nominaAbrir', 'recuperarAbrir', 'dashLoadInformes',
+    /* ⚠️ P124 · `nominaAbrirListaEmpresas` es lo que era `nominaAbrir` hasta el cambio de
+       orden del alta: pide la lista de empresas al ABRIR una pantalla, no por una acción con
+       consecuencia. Está acá por el mismo motivo que su antecesora, y aparece en la lista
+       porque renombrar una función la saca de esta lista sin que nadie lo decida — que es
+       exactamente lo que este caso acaba de cazar. */
+    'nominaAbrirListaEmpresas',
     'validarSupervisorCreds', 'simEntrar', 'sectorRefrescar', 'cicloTick',
     /* S4: cambia la contraseña guardada por un token, sola, después de un auto-login que ya
        funcionó. La persona no la pidió ni sabe que existe — congelarle el panel recién abierto por

@@ -6083,12 +6083,59 @@
       <div class="nom-err" id="nomCodErr"></div>
       <button class="save-btn" id="nomBtnCodigo" onclick="nominaCodigoConfirmar()" data-i18n="nom_codigo_btn">Continuar</button>
       <p class="nom-ayuda" data-i18n="nom_codigo_ayuda">Te lo da tu supervisor o el área de seguridad de tu empresa.</p>
+      <!-- ⚠️ P124 · LA SALIDA MIENTRAS NINGUNA EMPRESA TIENE CÓDIGO CARGADO. Hoy `codigoRegistro`
+           de HELITEC está vacío, así que sin esto la primera pantalla del alta sería un campo que
+           no sirve para nada. Lleva al paso «elegir empresa» de siempre, que sigue intacto.
+           Se apaga sola el día que se cierre la ventana de alta: ahí `nomina_empresas` deja de
+           responder y el camino muere sin tocar una línea. -->
+      <button type="button" class="nom-link" onclick="nominaSinCodigo()"
+              data-i18n="nom_sin_codigo">Mi empresa no me dio código</button>
     </div>
 
     <div id="nomPaso2" style="display:none">
       <label class="nom-lbl" for="nomBuscar" data-i18n="nom_buscate">Búscate en la lista</label>
       <input type="text" id="nomBuscar" class="restr-input" placeholder="Escribe tu nombre para filtrar" data-i18n-attr="placeholder:f_buscar_ph" oninput="nominaFiltrar()" autocomplete="off">
       <div class="nom-lista" id="nomPersonas"></div>
+    </div>
+
+    <!-- ⚠️ P124 · LA CÉDULA SOLA, SIN HABER ELEGIDO UN NOMBRE DE UNA LISTA. Es el paso que
+         reemplaza a «búscate en la lista»: la persona escribe SU cédula y el servidor le contesta
+         quién es. Así nadie necesita ver los nombres de sus compañeros para registrarse, que es
+         exactamente la fuga que este bloque cierra.
+         El código de supervisor vive en el paso siguiente, no acá: en este momento todavía no
+         sabemos quién es la persona. -->
+    <div id="nomPasoCed" style="display:none">
+      <label class="nom-lbl" for="nomCedulaSola" data-i18n="nom_ced_lbl">Escribe tu número de cédula</label>
+      <input type="tel" id="nomCedulaSola" class="restr-input" inputmode="numeric"
+             data-i18n-attr="placeholder:f_ced_ph" placeholder="Sólo números" autocomplete="off"
+             onkeydown="if(event.key==='Enter')nominaCedulaBuscar()">
+      <div class="nom-err" id="nomCedErr"></div>
+      <button class="save-btn" id="nomBtnCedula" onclick="nominaCedulaBuscar()" data-i18n="nom_ced_btn">Continuar</button>
+      <!-- ⚠️ LA RED DE QUIEN TIENE LA CÉDULA MAL CARGADA. Sin esto el flujo nuevo le cierra las
+           cuatro puertas: no está en la nómina con ese número, no puede confirmar, no puede crear
+           contraseña, y pedir la corrección desde la app requiere entrar. Es circular. -->
+      <button type="button" class="nom-link" onclick="nominaCedulaNoAparece()"
+              data-i18n="nom_ced_no_aparece">Mi cédula no aparece</button>
+    </div>
+
+    <!-- ⚠️ P124 · «¿ERES TÚ?». El nombre es la RESPUESTA, no la pregunta. Acá recién se muestra un
+         nombre, y sólo el de quien acaba de escribir su propia cédula. -->
+    <div id="nomPaso4" style="display:none">
+      <div class="nom-elegido" id="nomConfNombre"></div>
+      <p class="nom-ayuda" id="nomConfDatos"></p>
+      <div id="nomSupBloque2" style="display:none">
+        <button type="button" class="nom-link" id="nomSupToggle2" onclick="nominaSupToggle2()"
+                data-i18n="nom_sup_tengo">Tengo un código de supervisor</button>
+        <div id="nomSupCampo2" style="display:none">
+          <label class="nom-lbl" for="nomCodigoSup2" data-i18n="nom_sup_lbl">Código de supervisor (opcional)</label>
+          <input type="text" id="nomCodigoSup2" class="restr-input" autocomplete="off"
+                 data-i18n-attr="placeholder:nom_sup_ph" placeholder="Sólo si te lo dieron"
+                 onkeydown="if(event.key==='Enter')nominaSoyYo()">
+        </div>
+      </div>
+      <div class="nom-err" id="nomConfErr"></div>
+      <button class="save-btn" id="nomBtnSoyYo" onclick="nominaSoyYo()" data-i18n="nom_conf_si">Sí, soy yo</button>
+      <button type="button" class="cancel-btn" onclick="nominaVolver()" data-i18n="nom_conf_no">No soy yo</button>
     </div>
 
     <div id="nomPaso3" style="display:none">
@@ -6817,7 +6864,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.00';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.01';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7015,6 +7062,21 @@ const I18N = {
       nom_cedula_btn:'Confirmar y entrar',
       nom_confirmando:'Confirmando…',
       nom_codigo_lbl:'Código de tu empresa',
+      /* ⚠️ P124 · Español NEUTRO (R1): tú/tienes/puedes/toca, nunca voseo. Y sin términos de
+         sector (R14): acá no se dice «piloto» ni «vuelo» — el mismo texto lo lee un operario. */
+      nom_t_cedsola:'Tu cédula', nom_l_cedsola:'Con tu cédula encontramos tus datos.',
+      nom_t_confirmar:'¿Eres tú?', nom_l_confirmar:'Confirma que estos son tus datos.',
+      nom_ced_lbl:'Escribe tu número de cédula',
+      nom_ced_btn:'Continuar',
+      nom_ced_falta:'Escribe tu número de cédula.',
+      nom_ced_no_esta:'No encontramos esa cédula en tu empresa. Revisa el número.',
+      nom_ced_no_aparece:'Mi cédula no aparece',
+      nom_ced_ayuda_no_aparece:'Puede estar cargada distinta. Pídele a tu supervisor que revise tu cédula en la nómina.',
+      nom_conf_si:'Sí, soy yo',
+      nom_conf_no:'No soy yo',
+      nom_sin_codigo:'Mi empresa no me dio código',
+      nom_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
+      nom_pide_codigo:'Para registrarte necesitas el código de tu empresa. Pídeselo a tu supervisor.',
       nom_codigo_btn:'Continuar',
       nom_codigo_ayuda:'Te lo da tu supervisor o el área de seguridad de tu empresa.',
       nom_codigo_falta:'Escribe el código de tu empresa.',
@@ -8665,6 +8727,19 @@ const I18N = {
       nom_cedula_btn:'Confirm and enter',
       nom_confirmando:'Confirming…',
       nom_codigo_lbl:'Your company code',
+      nom_t_cedsola:'Your ID number', nom_l_cedsola:'We will find your details with your ID number.',
+      nom_t_confirmar:'Is this you?', nom_l_confirmar:'Confirm these are your details.',
+      nom_ced_lbl:'Enter your ID number',
+      nom_ced_btn:'Continue',
+      nom_ced_falta:'Enter your ID number.',
+      nom_ced_no_esta:'We could not find that ID number at your company. Please check it.',
+      nom_ced_no_aparece:'My ID number is not there',
+      nom_ced_ayuda_no_aparece:'It may be recorded differently. Ask your supervisor to check your ID number in the roster.',
+      nom_conf_si:'Yes, that is me',
+      nom_conf_no:'That is not me',
+      nom_sin_codigo:'My company did not give me a code',
+      nom_codigo_ambiguo:'That code does not identify a single company. Please ask your supervisor for it again.',
+      nom_pide_codigo:'To register you need your company code. Ask your supervisor for it.',
       nom_codigo_btn:'Continue',
       nom_codigo_ayuda:'Your supervisor or your company\'s safety team gives it to you.',
       nom_codigo_falta:'Enter your company code.',
@@ -14329,6 +14404,11 @@ function nominaPaso(paso){
   nominaEl('nomPasoCod').style.display = (paso==='codigo')  ? '' : 'none';
   nominaEl('nomPaso2').style.display   = (paso==='persona') ? '' : 'none';
   nominaEl('nomPaso3').style.display   = (paso==='cedula')  ? '' : 'none';
+  /* P124 · los dos pasos del orden nuevo. `cedula` (el viejo, con el nombre ya elegido) convive
+     con `cedsola` porque la salida de excepción «Mi empresa no me dio código» sigue usando el
+     camino de siempre — y va a seguir usándolo hasta que se cierre la ventana de alta. */
+  nominaEl('nomPasoCed').style.display  = (paso==='cedsola')   ? '' : 'none';
+  nominaEl('nomPaso4').style.display    = (paso==='confirmar') ? '' : 'none';
   nominaEl('nomVolver').style.display  = nominaPuedeVolver() ? '' : 'none';   // R1: la misma condicion que usa el boton fisico
   nominaEl('nomTitulo').textContent = t('nom_t_' + paso);
   nominaEl('nomLead').textContent   = t('nom_l_' + paso);
@@ -14343,18 +14423,40 @@ function nominaPaso(paso){
 }
 /* Punto de entrada. Si no hay endpoint, o la nómina viene vacía, o falla la red, cae DERECHO al
    formulario manual: nadie puede quedar sin poder darse de alta porque la nómina no cargó. */
+/* ⚠️ P124 · EL ALTA ARRANCA POR EL CÓDIGO. Antes arrancaba mostrando la lista de EMPRESAS
+   CLIENTES a cualquiera que abriera la app, que es lo que vio el dueño del producto y lo que
+   empezó todo este bloque. Ahora la persona escribe su código y el servidor le dice de qué empresa
+   es: nadie ve un padrón para registrarse.
+   El camino viejo NO se borra — vive detrás de «Mi empresa no me dio código» (`nominaSinCodigo`),
+   porque hoy `codigoRegistro` está vacío y sin esa salida la primera pantalla sería un campo que
+   no sirve. Se apaga solo cuando se cierre la ventana de alta. */
 function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
-  NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false; NOM.perfil = null;
-  nominaPaso('empresa');
-  nominaEl('nomEmpresas').innerHTML = cargandoHtml(t('nom_buscando_emp'));
+  NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
+  NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null;
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
+  nominaPasoCodigoInicial();
+}
+
+/* El camino de siempre: elegir la empresa de la lista. Es lo que era `nominaAbrir` hasta P124, sin
+   un solo cambio salvo que ya no abre el overlay (lo abrió quien lo llamó). */
+function nominaAbrirListaEmpresas(){
+  if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
+  nominaPaso('empresa');
+  nominaEl('nomEmpresas').innerHTML = cargandoHtml(t('nom_buscando_emp'));
   fetchConReloj(SHEETS_DASHBOARD_URL + '?action=nomina_empresas&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       const emps = (d && d.ok && Array.isArray(d.empresas)) ? d.empresas : [];
-      if (!emps.length){ nominaManual(); return; }              // todavía no hay nómina cargada
+      /* ⚠️ P124 · YA NO SE CAE AL FORMULARIO LIBRE. Antes esto llamaba a `nominaManual()`, que
+         abre `#setup` y termina escribiendo en el CH sin código ni credencial. Con la ventana de
+         alta cerrada la lista responde `ok:false`, así que ese respaldo se convertía justamente en
+         el agujero que saltea el código — y encima, con `listas` cerrada, la empresa pasaría como
+         TEXTO LIBRE, que es la vuelta de un bug ya conocido.
+         `nominaManual()` queda SÓLO para «no hay endpoint», que es un problema distinto. */
+      if (!emps.length){ nominaEl('nomEmpresas').innerHTML =
+        '<p class="nom-ayuda">' + esc(t('nom_pide_codigo')) + '</p>'; return; }
       /* `perfiles` (A3) llega en el MISMO orden que `empresas`, pero puede no llegar: este
          endpoint se publicó antes que esta app, y una respuesta cacheada de la versión anterior
          no lo trae. Por eso se indexa con un respaldo vacío en vez de asumir que está. */
@@ -14372,7 +14474,8 @@ function nominaAbrir(){
       }).join('');
       nominaRetomar();
     })
-    .catch(() => nominaManual());
+    .catch(() => { nominaEl('nomEmpresas').innerHTML =
+      '<p class="nom-ayuda">' + esc(t('nom_pide_codigo')) + '</p>'; });   // P124 · ídem
 }
 
 /* Retoma un alta a medio hacer. Se llama DESPUÉS de que llegó la lista de empresas: si el alta
@@ -14420,8 +14523,15 @@ function nominaSoyGestor(){
    "‹ Volver" (ver `nominaPaso`): en el primer paso no hay a donde retroceder, y ahi "atras"
    significa salir del alta. Se escribe como funcion para que el boton fisico del telefono y el de
    la pantalla no puedan discrepar — que es justo el caso borde que pide R1. */
-function nominaPuedeVolver(){ return NOM.paso !== 'empresa'; }
+/* ⚠️ P124 · EL PRIMER PASO PASÓ A SER EL CÓDIGO, y esta línea es la que lo dice. Si se olvida, el
+   botón «Volver» de la pantalla y el botón físico del teléfono empiezan a discrepar — que es
+   literalmente lo que esta función existe para impedir, porque `silvaAtras()` la usa. */
+function nominaPuedeVolver(){ return NOM.paso !== 'codigo' && NOM.paso !== 'empresa'; }
 function nominaVolver(){
+  /* Orden nuevo: código → cédula → ¿eres tú? */
+  if (NOM.paso === 'confirmar'){ nominaPaso('cedsola'); return; }
+  if (NOM.paso === 'cedsola'){ nominaPasoCodigoInicial(); return; }
+  /* Y el camino viejo, que sigue vivo detrás de «Mi empresa no me dio código». */
   if (NOM.paso === 'cedula'){ nominaPaso('persona'); return; }
   if (NOM.paso === 'persona' && NOM.pideCodigo){ nominaPasoCodigo(); return; }
   nominaPaso('empresa');
@@ -14457,7 +14567,179 @@ function nominaCodigoConfirmar(){
   const cod = nominaEl('nomCodigo').value.trim();
   if (!cod){ nominaEl('nomCodErr').textContent = t('nom_codigo_falta'); return; }
   NOM.codigo = cod;
-  nominaCargarPersonas();
+  /* P124 · si ya sabemos la empresa venimos del camino viejo (se eligió de la lista): ahí
+     «validar el código» sigue siendo pedir la lista de personas. Si NO la sabemos, el código es lo
+     primero que se escribe y hay que resolver a qué empresa pertenece. */
+  if (NOM.empresa) { nominaCargarPersonas(); return; }
+  nominaResolverCodigo();
+}
+
+/* ⚠️ P124 · EL PRIMER PASO DEL ALTA NUEVA. La persona escribe su código y el servidor le dice de
+   qué empresa es: ya no hay que elegirla de una lista pública, que era la fuga.
+   Va por POST a propósito —las respuestas GET del endpoint se cachean, y un código en una URL
+   queda en ese caché— y reusa entero el manejo de errores que ya existía para el código. */
+function nominaResolverCodigo(){
+  const btn = nominaEl('nomBtnCodigo');
+  btnSpin(btn, true, t('nom_codigo_btn'));
+  nominaEl('nomCodErr').textContent = '';
+  /* ⚠️ `conBloqueo` y no sólo `btnSpin`: lo exige `m1-estados-carga.js`, que recorre el fuente
+     buscando funciones de red que dispara la persona y que no bloqueen su zona. Sin esto, un
+     doble toque manda dos pedidos y el segundo quema un intento del freno del código. */
+  const peticion = fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+    action: 'codigo_empresa', codigo: NOM.codigo, dispositivoId: dispositivoId() }) })
+    .then(r => r.json());
+  conBloqueo('#nominaOv .sheet', peticion
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){
+        /* Los tres motivos del servidor tienen su propia clave acá: nunca se pinta `d.error`
+           crudo, porque el idioma del texto lo decide el cliente (R14). */
+        const k = (d && d.motivo === 'codigo_frenado') ? 'nom_codigo_frenado'
+                : (d && d.motivo === 'codigo_ambiguo') ? 'nom_codigo_ambiguo'
+                : 'nom_codigo_malo';
+        nominaEl('nomCodErr').textContent = t(k);
+        return;
+      }
+      NOM.empresa = d.empresa || '';
+      NOM.perfil  = d.perfil || null;
+      NOM.pideCodigo = true;                       // llegó hasta acá con un código: la empresa lo pide
+      try { empresaPerfilGuardar(NOM.perfil); } catch(e){}
+      try { altaProgresoGuardar(); } catch(e){}
+      nominaPasoCedula();
+    })
+    .catch(() => { btnSpin(btn, false); nominaEl('nomCodErr').textContent = t('sin_conexion_reintenta'); }));
+}
+
+/* El paso del código cuando todavía no hay empresa: mismo div, sin el nombre de la empresa arriba
+   (que en este momento no se conoce) y sin volver, porque es el primero. */
+function nominaPasoCodigoInicial(){
+  nominaPaso('codigo');
+  nominaEl('nomCodEmpresa').textContent = '';
+  nominaEl('nomCodigo').value = NOM.codigo || '';
+  nominaEl('nomCodErr').textContent = '';
+  setTimeout(() => { try { nominaEl('nomCodigo').focus(); } catch(e){} }, 60);
+}
+
+function nominaPasoCedula(){
+  nominaPaso('cedsola');
+  nominaEl('nomCedulaSola').value = '';
+  nominaEl('nomCedErr').textContent = '';
+  setTimeout(() => { try { nominaEl('nomCedulaSola').focus(); } catch(e){} }, 60);
+}
+
+/* ⚠️ P124 · LA CÉDULA ES LA CLAVE DE BÚSQUEDA Y EL NOMBRE ES LA RESPUESTA. Se usa la MISMA acción
+   de siempre (`nomina_confirmar`), que desde P117 acepta que no venga el nombre. No se agregó una
+   acción nueva a propósito: ésta ya tiene su freno por dispositivo, su puerta de código y su
+   cálculo de rol, y duplicarla habría sido duplicar también esas tres defensas. */
+function nominaCedulaBuscar(){
+  const ced = nominaEl('nomCedulaSola').value.trim();
+  if (!ced){ nominaEl('nomCedErr').textContent = t('nom_ced_falta'); return; }
+  const btn = nominaEl('nomBtnCedula');
+  btnSpin(btn, true, t('nom_ced_btn'));
+  nominaEl('nomCedErr').textContent = '';
+  const peticionCed = fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
+    action: 'nomina_confirmar', empresa: NOM.empresa, cedula: ced,
+    codigo: NOM.codigo || '', dispositivoId: dispositivoId() }) })
+    .then(r => r.json());
+  conBloqueo('#nominaOv .sheet', peticionCed
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){
+        const k = (d && d.motivo === 'muchos_intentos') ? 'nom_codigo_frenado'
+                : (d && d.motivo === 'codigo_invalido') ? 'nom_codigo_malo'
+                : 'nom_ced_no_esta';
+        nominaEl('nomCedErr').textContent = t(k);
+        return;
+      }
+      NOM.cedula = ced;
+      NOM.perfilPersona = d.perfil || null;
+      nominaPasoConfirmar();
+    })
+    .catch(() => { btnSpin(btn, false); nominaEl('nomCedErr').textContent = t('sin_conexion_reintenta'); }));
+}
+
+function nominaPasoConfirmar(){
+  const q = NOM.perfilPersona || {};
+  nominaPaso('confirmar');
+  nominaEl('nomConfNombre').textContent = q.nombre || '';
+  /* Se muestran el departamento y el cargo para que la persona pueda decir «no soy yo» con algo
+     más que un nombre — dos personas pueden llamarse parecido. NO se muestran teléfono ni correo:
+     no hacen falta para reconocerse y son datos de contacto. */
+  const partes = [q.departamento, q.cargo].filter(Boolean);
+  nominaEl('nomConfDatos').textContent = partes.join(' · ');
+  nominaEl('nomConfErr').textContent = '';
+  const hay = !!(NOM.perfil && NOM.perfil.tieneCodigoSup);
+  nominaEl('nomSupBloque2').style.display = hay ? '' : 'none';
+  nominaEl('nomSupCampo2').style.display = 'none';
+  if (hay) nominaEl('nomCodigoSup2').value = '';
+}
+function nominaSupToggle2(){
+  const c = nominaEl('nomSupCampo2');
+  const abierto = c.style.display !== 'none';
+  c.style.display = abierto ? 'none' : '';
+  if (!abierto) setTimeout(() => { try { nominaEl('nomCodigoSup2').focus(); } catch(e){} }, 60);
+}
+
+/* ⚠️ P125 · EL CIERRE DEL ALTA. Acá viven las tres pérdidas de datos que el análisis encontró,
+   porque las tres pasan por el mismo punto:
+
+   (a) EL PERFIL SE MERGEA, CAMPO POR CAMPO, sobre lo que ya había. Reemplazarlo entero pisa
+       `esSupervisor` con `undefined` y deja a un supervisor sin panel EN SILENCIO — ya le pasó a
+       HELITEC. La regla es `('campo' in q)`: si el servidor no mandó el campo, se conserva el que
+       estaba; sólo un campo PRESENTE puede cambiar algo.
+   (b) EL ROL SE USA. `nomina_confirmar` ya devuelve `rol` y `rolOrigen`, y la lista CERRADA de
+       campos de `setProfile` ya se comió esos dos antes (y `duty` y `ausencias` un piso más
+       abajo): cada campo nuevo se nombra o se pierde sin un error.
+   (c) LA FILA SE ESCRIBE en `Registrados Fatiga`. Sin ella, el supervisor ve a la persona como NO
+       registrada, el cargo no se encuentra y la cascada del nivel de riesgo cae en silencio, y
+       `yaEstabaRegistrado` no exime a nadie del código nunca. Se llama explícitamente al cerrar,
+       y `sincronizarRegistro` hace return sin cédula Y sin email — por eso va DESPUÉS de que el
+       formulario complete lo que falte. */
+function nominaSoyYo(){
+  const q = NOM.perfilPersona || {};
+  if (!q || !q.nombre){ nominaEl('nomConfErr').textContent = t('nom_ced_no_esta'); return; }
+  const prev = getProfile() || {};
+  altaRecordarPerfil();
+
+  /* El merge: sólo lo que el servidor mandó de verdad. */
+  const nuevo = Object.assign({}, prev);
+  ['nombre','cedula','empresa','departamento','cargo','sexo','edad','telefono','email',
+   'id_piloto','rol','rolOrigen','sector'].forEach(k => {
+    if (k in q && q[k] !== undefined && q[k] !== null && q[k] !== '') nuevo[k] = q[k];
+  });
+  /* Los booleanos, con la regla del `in`: `!!q.esPiloto` sobre un campo ausente da `false` y
+     apagaría una marca que la persona ya tenía. */
+  if ('esPiloto' in q) nuevo.esPiloto = !!q.esPiloto;
+  if ('esSupervisor' in q) nuevo.esSupervisor = !!q.esSupervisor;
+  if ('esServicioMedico' in q) nuevo.esServicioMedico = !!q.esServicioMedico;
+  setProfile(nuevo);
+
+  try { sectorRecordar(q.sector || ''); } catch(e){}
+  try { if (NOM.perfil) empresaPerfilGuardar(NOM.perfil); } catch(e){}
+  try { altaProgresoLimpiar(); } catch(e){}
+
+  /* El código de supervisor, si lo escribió: se manda por el mismo camino de siempre, que ya sabe
+     que PROPONE y no autoriza. */
+  const cs = nominaEl('nomCodigoSup2');
+  if (cs && cs.value.trim()) NOM.codigoSup = cs.value.trim();
+
+  nominaCerrar();
+  /* `openSetup(false)` pide lo que falte. Si no falta nada igual se abre: es donde la persona
+     revisa lo que la nómina dice de ella antes de entrar, y `saveProfile` es quien llama a
+     `sincronizarRegistro` — o sea, quien escribe la fila. */
+  openSetup(false);
+  try { aplicarIdioma(); } catch(e){}
+}
+
+/* La salida de excepción del código: lleva al camino de siempre, que sigue intacto. */
+function nominaSinCodigo(){
+  NOM.codigo = '';
+  nominaAbrirListaEmpresas();
+}
+/* Y la de la cédula: es la única red de quien la tiene mal cargada en la nómina. Sin ella el
+   flujo nuevo le cierra las cuatro puertas y pedir la corrección desde la app es circular. */
+function nominaCedulaNoAparece(){
+  nominaEl('nomCedErr').textContent = t('nom_ced_ayuda_no_aparece');
 }
 function nominaCargarPersonas(){
   const enCodigo = (NOM.paso === 'codigo');
