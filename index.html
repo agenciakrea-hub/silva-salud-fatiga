@@ -5991,6 +5991,22 @@
              onkeydown="if(event.key==='Enter')clvGuardar(document.getElementById('clvBtn'))">
     </div>
     <div class="clv-reglas" id="clvReglas"></div>
+    <!-- ⚠️ L9 · EL CAMPO QUE FALTABA, Y SIN EL CUAL NO SE PODÍA EXIGIR EL CÓDIGO DE EMPRESA.
+         `credencial_crear` pasa por la puerta del código igual que el alta, pero esta pantalla no
+         tenía dónde escribirlo: el cliente lo mandaba SÓLO si lo encontraba en el progreso del
+         alta, que se borra al terminar el alta y vence a las 24 h. Para alguien registrado hace
+         meses eso es `null` siempre, así que recibía «El código de la empresa no es correcto» en
+         una pantalla donde no había nada que corregir. Medido en HELITEC: 0 de 7 tienen contraseña,
+         o sea que las 7 pasan por acá.
+         Nace OCULTO: sólo aparece si la empresa pide código, o si el servidor dice que hace falta.
+         Quien no lo necesita no ve un campo de más. -->
+    <div class="field" id="clvCodigoCampo" hidden>
+      <label for="clvCodigo" data-i18n="nom_codigo_lbl">Código de tu empresa</label>
+      <input type="text" id="clvCodigo" class="restr-input" placeholder="Ej.: ABC-1234"
+             autocomplete="off" autocapitalize="characters" spellcheck="false"
+             onkeydown="if(event.key==='Enter')clvGuardar(document.getElementById('clvBtn'))">
+      <p class="nom-ayuda" data-i18n="nom_codigo_ayuda">Te lo da tu supervisor o el área de seguridad de tu empresa.</p>
+    </div>
     <div class="portal-err" id="clvErr"></div>
     <button class="save-btn" id="clvBtn" onclick="clvGuardar(this)" data-i18n="clv_guardar">Crear mi contraseña</button>
     <button type="button" class="cancel-btn" onclick="clvPosponer()" data-i18n="clv_luego">Más tarde</button>
@@ -6801,7 +6817,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '5.98';                 // ← Subí este número en cada actualización
+const APP_VERSION = '5.99';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -25279,10 +25295,39 @@ function clvAbrir(){
   document.getElementById('clvPass').value = '';
   document.getElementById('clvPass2').value = '';
   document.getElementById('clvErr').textContent = '';
+  clvCodigoPreparar();
   clvValidar();
   ov.classList.add('show');
   syncScrollLock();
   return true;
+}
+
+/* ⚠️ L9 · Decide si esta pantalla tiene que pedir el código, y lo prellena si ya lo sabemos.
+   El perfil de la empresa se lee del guardado (`empresaPerfilGuardado`), que la app ya trae desde
+   el alta: NO se hace un pedido a la red para abrir una hoja — sin señal la pantalla tiene que
+   abrirse igual (R7), y si el servidor termina exigiendo el código, `clvGuardar` revela el campo
+   con el error. O sea: dos caminos para llegar al mismo lugar, y el segundo no depende de nada. */
+function clvCodigoPreparar(){
+  const campo = document.getElementById('clvCodigoCampo');
+  const input = document.getElementById('clvCodigo');
+  if (!campo || !input) return;
+  input.value = '';
+  /* Si el alta de esta persona pasó por el código y todavía está fresco, se prellena: no se le
+     pide dos veces algo que ya escribió. Es el mismo almacén que leía `clvGuardar`, sólo que ahora
+     su ausencia no deja a nadie trabado. */
+  try { const g = altaProgresoCargar(); if (g && g.codigo) input.value = g.codigo; } catch(e){}
+  const perfil = empresaPerfilGuardado();
+  const pide = !!(perfil && perfil.pideCodigo);
+  campo.hidden = !pide;
+}
+/* Lo abre cuando el servidor dice que el código hace falta o está mal. Es la red del camino de
+   arriba: aunque el perfil guardado esté viejo o no exista, la persona termina viendo el campo. */
+function clvCodigoRevelar(){
+  const campo = document.getElementById('clvCodigoCampo');
+  if (!campo) return;
+  campo.hidden = false;
+  const input = document.getElementById('clvCodigo');
+  if (input) { try { input.focus(); } catch(e){} }
 }
 
 /* Marca si esta persona ya decidió (puso clave o la pospuso) para no volver a interrumpirla en cada
@@ -25340,8 +25385,13 @@ function clvGuardar(btn){
                    dispositivoId: dispositivoId() };
   /* El código de empresa, si esta alta pasó por él. El servidor lo vuelve a exigir para CREAR una
      credencial aunque ya se haya validado antes (S5): cada acción se defiende sola. */
-  const g = altaProgresoCargar();
-  if (g && g.codigo) cuerpo.codigo = g.codigo;
+  /* ⚠️ L9 · PRIMERO LO QUE LA PERSONA ESCRIBIÓ. Antes esto era la única fuente y venía de un
+     almacén que se borra al terminar el alta: quien se registró hace meses no tenía forma de
+     mandar un código. Ahora el campo manda, y el progreso del alta queda como respaldo para quien
+     está terminando su alta ahora mismo. */
+  const codManual = (document.getElementById('clvCodigo') || {}).value || '';
+  if (codManual.trim()) cuerpo.codigo = codManual.trim();
+  else { const g = altaProgresoCargar(); if (g && g.codigo) cuerpo.codigo = g.codigo; }
   /* ⚠️ `conBloqueo` NO ES DECORATIVO ACÁ, y me lo encontró la prueba de Q1, no yo. Sin él, mientras
      el pedido viaja la pantalla sigue viva: se puede tocar "Más tarde" y cerrarla, y la respuesta
      llega a una pantalla que ya no está — o peor, se toca "Crear" dos veces y salen dos altas.
@@ -25359,6 +25409,12 @@ function clvGuardar(btn){
         avanzarAlta();
         return;
       }
+      /* ⚠️ L9 · SI FALTA EL CÓDIGO, SE ABRE EL CAMPO. Sin esto, el mensaje del servidor —«El
+         código de la empresa no es correcto»— aparecía en una pantalla donde no había dónde
+         escribirlo: un error verdadero y sin salida, que es peor que no decir nada. Es la red del
+         camino de `clvCodigoPreparar`, que puede no haberlo revelado si el perfil guardado de la
+         empresa está viejo o no existe. */
+      if (d && (d.motivo === 'codigo_invalido' || d.motivo === 'codigo_frenado')) clvCodigoRevelar();
       /* Se muestra el mensaje del SERVIDOR cuando lo hay: es el que sabe por qué —clave débil,
          cédula que no está en la lista, código equivocado— y traducirlo acá sería duplicar reglas
          en dos lugares, que es como terminan discrepando. */
