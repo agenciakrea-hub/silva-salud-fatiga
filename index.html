@@ -6189,7 +6189,13 @@
 
     <div class="nom-pie">
       <button type="button" class="nom-link" id="nomVolver" style="display:none" onclick="nominaVolver()" data-i18n="nom_volver">‹ Volver</button>
-      <button type="button" class="nom-link" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
+      <!-- ⚠️ AUDITORÍA · SÓLO DONDE HAY UNA LISTA. Vive en `.nom-pie`, que está fuera de los pasos
+           y por lo tanto se veía en TODOS, incluido el del código — donde «no estoy en la lista» no
+           quiere decir nada porque no hay ninguna a la vista. Y lleva a `nominaManual()`, que abre
+           el formulario libre y termina escribiendo en el CH sin código ni credencial.
+           No se saca: es la salida de quien de verdad no figura en la nómina. Se muestra en los
+           pasos donde hay una lista de la que faltar. -->
+      <button type="button" class="nom-link" id="nomNoEstoy" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
       <button type="button" class="nom-link" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
       <!-- ⚠️ Q4b · LA SALIDA DEL QUE NO VIENE A REGISTRARSE. Reemplaza al enlace "Soy supervisor"
            que estaba en la portada. Va ACÁ, en el primer paso del alta, y no después de completarla:
@@ -6889,7 +6895,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.05';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.06';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7112,7 +7118,12 @@ const I18N = {
       nom_t_empresa:'¿Quién eres?',
       nom_l_empresa:'Tu empresa ya nos pasó los datos. Búscate en la lista y no tendrás que cargar nada.',
       nom_t_codigo:'Código de tu empresa',
+      /* ⚠️ AUDITORÍA · «ESTA EMPRESA» SÓLO SE PUEDE DECIR CUANDO HAY UNA. En el flujo nuevo el
+         código es el PRIMER paso y todavía no se eligió ninguna, así que el texto se separó en dos
+         y `nominaPaso()` elige según el caso. Decir «esta empresa» delante de una pantalla donde no
+         hay ninguna nombrada deja a la persona buscando cuál. */
       nom_l_codigo:'Para proteger los datos de tu equipo, esta empresa pide un código para darse de alta.',
+      nom_l_codigo_inicial:'Es el código que te dio tu empresa para poder registrarte.',
       nom_t_persona:'Búscate en la lista',
       nom_l_persona:'Toca tu nombre. Si no aparece, avísale a tu supervisor.',
       nom_t_cedula:'Confirma que eres tú',
@@ -8778,6 +8789,7 @@ const I18N = {
       nom_l_empresa:'Your company already sent us your details. Find yourself in the list and you will not have to type anything.',
       nom_t_codigo:'Your company code',
       nom_l_codigo:'To protect your team\'s data, this company requires a code to sign up.',
+      nom_l_codigo_inicial:'It is the code your company gave you so you can register.',
       nom_t_persona:'Find yourself in the list',
       nom_l_persona:'Tap your name. If it is not there, let your supervisor know.',
       nom_t_cedula:'Confirm it is you',
@@ -14439,8 +14451,14 @@ function nominaPaso(paso){
   nominaEl('nomPasoCed').style.display  = (paso==='cedsola')   ? '' : 'none';
   nominaEl('nomPaso4').style.display    = (paso==='confirmar') ? '' : 'none';
   nominaEl('nomVolver').style.display  = nominaPuedeVolver() ? '' : 'none';   // R1: la misma condicion que usa el boton fisico
+  /* Ver la nota del botón en el HTML: sólo en los pasos donde hay una lista. */
+  const _ne = nominaEl('nomNoEstoy');
+  if (_ne) _ne.style.display = (paso === 'empresa' || paso === 'persona') ? '' : 'none';
   nominaEl('nomTitulo').textContent = t('nom_t_' + paso);
-  nominaEl('nomLead').textContent   = t('nom_l_' + paso);
+  /* El lead del paso del código depende de si YA se eligió una empresa: en el flujo nuevo es el
+     primer paso y todavía no hay ninguna que nombrar. */
+  nominaEl('nomLead').textContent = (paso === 'codigo' && !NOM.empresa)
+    ? t('nom_l_codigo_inicial') : t('nom_l_' + paso);
   /* R4 · el aviso de que se retomó un alta a medio hacer, EN LA PANTALLA A LA QUE SE SALTÓ y no
      tres segundos antes en la anterior. Y con el nombre de la empresa: "Retomamos donde ibas" a
      secas no dice DÓNDE, así que quien probó con otra empresa ayer no tenía forma de darse cuenta
@@ -14585,6 +14603,8 @@ function nominaElegirEmpresa(emp){
 }
 function nominaPasoCodigo(){
   nominaPaso('codigo');
+  /* Acá SÍ hay empresa —se eligió de la lista— así que el rótulo vuelve a mostrarse. */
+  nominaEl('nomCodEmpresa').style.display = '';
   nominaEl('nomCodEmpresa').textContent = (NOM.perfil && NOM.perfil.nombre) || NOM.empresa;
   nominaEl('nomCodigo').value = NOM.codigo || '';
   nominaEl('nomCodErr').textContent = '';
@@ -14650,7 +14670,14 @@ function nominaResolverCodigo(){
    (que en este momento no se conoce) y sin volver, porque es el primero. */
 function nominaPasoCodigoInicial(){
   nominaPaso('codigo');
+  /* ⚠️ SE OCULTA, NO SE VACÍA. `#nomCodEmpresa` es el rótulo con el nombre de la empresa del flujo
+     viejo, donde para llegar acá ya se había elegido una. En el flujo nuevo todavía no se sabe
+     cuál es, y un `textContent = ''` deja el div EN PIE: 24 px de alto con su fondo naranja y su
+     borde, o sea una franja de color vacía arriba del campo. La vio Franco en la pantalla; ningún
+     auditor la marca, porque un elemento sin texto no tiene contraste que medir ni nada que
+     cortar. Vaciar no es esconder. */
   nominaEl('nomCodEmpresa').textContent = '';
+  nominaEl('nomCodEmpresa').style.display = 'none';
   nominaEl('nomCodigo').value = NOM.codigo || '';
   nominaEl('nomCodErr').textContent = '';
   setTimeout(() => { try { nominaEl('nomCodigo').focus(); } catch(e){} }, 60);
@@ -25490,7 +25517,7 @@ if (_complete) sincronizarRegistro(_prof);
 
    Se muestra el PRIMER paso pendiente, no todos: cada paso vuelve a llamar acá al cerrarse. */
 function avanzarAlta(){
-  // 1 · Identificarse. nominaAbrir() cae solo al formulario manual si no hay nómina o no hay red.
+  // 1 · Identificarse. nominaAbrir() ya NO cae al formulario manual si no hay nómina o no hay red (P124 quitó los dos respaldos): sólo si no hay endpoint.
   if (!perfilCompleto(getProfile())){ nominaAbrir(); return; }
 
   // 2 · Consentimiento. Se evalúa SIEMPRE, tenga o no el perfil completo: es lo que hace que un

@@ -170,7 +170,14 @@ PRUEBAS.caso('⚠️ los enlaces del pie del alta entran en UNA línea cada uno'
      la regla de CSS que hoy lo consigue. */
   const ov = document.getElementById('nominaOv');
   const tenia = ov.classList.contains('show');
+  const pasoPrevio = (typeof NOM === 'object' && NOM) ? NOM.paso : null;
   ov.classList.add('show');
+  /* ⚠️ EL PASO SE FIJA, NO SE HEREDA. Antes este caso medía el pie en el paso que hubiera quedado
+     de la prueba anterior, y funcionaba de casualidad porque los tres enlaces se veían en todos.
+     Desde 2026-09-07 `#nomNoEstoy` sólo se muestra donde hay una lista de la cual faltar, así que
+     heredar el paso del código dejaba 2 enlaces medibles y el caso fallaba sin que hubiera un bug.
+     `'empresa'` es el paso donde el pie está completo, que es lo que este caso quiere medir. */
+  try { nominaPaso('empresa'); } catch (e) {}
   const malos = [];
   try {
     for (const v of PRUEBAS.VENTANAS) {
@@ -191,7 +198,10 @@ PRUEBAS.caso('⚠️ los enlaces del pie del alta entran en UNA línea cada uno'
         }
       });
     }
-  } finally { if (!tenia) ov.classList.remove('show'); }
+  } finally {
+    if (!tenia) ov.classList.remove('show');
+    if (pasoPrevio) { try { nominaPaso(pasoPrevio); } catch (e) {} }
+  }
   PRUEBAS.igual(malos, [], '⚠️ un enlace por renglón, sin envolver — ' + malos.join(' · '));
 });
 

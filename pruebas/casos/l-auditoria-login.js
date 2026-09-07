@@ -224,3 +224,62 @@ PRUEBAS.caso('⚠️ R13 · un botón deshabilitado se puede leer, en los dos te
     [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')),
     '⚠️ y la regla usa ese token · alcanza a los 22 botones de guardar');
 });
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   La franja naranja y los tres azules · 2026-09-07
+
+   Franco la vio antes que nadie: "arregla esa franja que aparece cuando pongo
+   codigo de empresa". `#nomCodEmpresa` es el rotulo con el nombre de la empresa
+   del flujo VIEJO (el que llega al codigo ya sabiendo de quien es). El flujo
+   nuevo entra al codigo SIN empresa, y le hacia `textContent = ''` — que deja el
+   div en pie: 24 px de alto con su fondo naranja y su borde. Vaciar no es
+   esconder. Se mide por el camino real (`nominaPasoCodigoInicial`), no leyendo
+   el fuente, porque lo que falla es la altura calculada, no el texto.
+   ───────────────────────────────────────────────────────────────────────────── */
+PRUEBAS.caso('P124 · el rotulo de empresa no deja una franja vacia en el paso inicial', () => {
+  const NOMprev = { empresa: NOM.empresa, perfil: NOM.perfil, paso: NOM.paso };
+  /* ⚠️ EL OVERLAY VA ABIERTO. Lo que falla acá es el ALTO calculado de un div, y con `#nominaOv`
+     cerrado todo mide 0 — el caso daría verde sin medir nada, que es como un ancestro en
+     `display:none` me hizo informar "0 defectos" en A4. */
+  const ov = document.getElementById('nominaOv');
+  const teniaShow = ov.classList.contains('show');
+  ov.classList.add('show');
+  try {
+    NOM.empresa = null; NOM.perfil = null;
+    nominaPasoCodigoInicial();
+    const franja = document.getElementById('nomCodEmpresa');
+    PRUEBAS.cierto(!!franja, 'guarda: `#nomCodEmpresa` sigue existiendo (si lo borran, el caso de abajo miente)');
+    PRUEBAS.igual(Math.round(franja.getBoundingClientRect().height), 0,
+      '⚠️ sin empresa elegida el rotulo no ocupa alto · media 24 px de franja naranja vacia');
+
+    /* 🔵 el lead decia "esta empresa" cuando todavia no hay ninguna elegida. */
+    const lead = document.getElementById('nomLead');
+    PRUEBAS.cierto(lead && !/esta empresa/i.test(lead.textContent),
+      '⚠️ el texto de arriba no dice "esta empresa" antes de que haya empresa · ' + (lead ? lead.textContent : '(sin lead)'));
+
+    /* 🔵 "No estoy en la lista" lleva a `nominaManual()`, que escribe sin codigo.
+       En el paso del codigo no hay lista de la cual no estar. */
+    const ne = document.getElementById('nomNoEstoy');
+    PRUEBAS.cierto(!!ne, 'guarda: `#nomNoEstoy` existe');
+    PRUEBAS.cierto(ne && ne.style.display === 'none',
+      '⚠️ "No estoy en la lista" esta oculto en el paso del codigo · era la puerta de atras al alta sin codigo');
+
+    /* Y el camino VIEJO, donde SI hay empresa, tiene que seguir rotulandola:
+       ocultarla de mas dejaria a la persona sin saber a que empresa entra. */
+    NOM.empresa = 'Consorcio HELITEC';
+    NOM.perfil = { nombre: 'Consorcio HELITEC' };
+    nominaPasoCodigo();
+    PRUEBAS.alMenos(Math.round(franja.getBoundingClientRect().height), 20,
+      '⚠️ con empresa elegida el rotulo VUELVE a verse · el `display:none` no puede quedar pegado');
+    PRUEBAS.cierto(/HELITEC/.test(franja.textContent),
+      '⚠️ y dice el nombre de la empresa · ' + franja.textContent);
+
+    nominaPaso('empresa');
+    PRUEBAS.cierto(ne && ne.style.display !== 'none',
+      '⚠️ "No estoy en la lista" SI se ve al elegir empresa · ahi es donde tiene sentido');
+  } finally {
+    NOM.empresa = NOMprev.empresa; NOM.perfil = NOMprev.perfil;
+    try { nominaPaso(NOMprev.paso || 'codigo'); } catch (e) {}
+    if (!teniaShow) ov.classList.remove('show');
+  }
+});
