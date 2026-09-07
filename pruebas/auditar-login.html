@@ -1,0 +1,136 @@
+<!doctype html><meta charset="utf-8">
+<title>Auditar el login · Silva Salud Fatiga</title>
+<!--
+  AUDITAR LAS PANTALLAS NUEVAS DEL LOGIN                                       (2026-09-07)
+
+  Ni `auditar-entrada.html` ni `auditar-panel.html` las ven: el primero cubre splash y portal, el
+  segundo recorre las pestañas del panel. Las cinco pantallas del login nuevo —código, cédula,
+  «¿eres tú?», entrar y crear contraseña— se abrieron y se publicaron SIN QUE NADIE LAS MIDIERA en
+  ningún ancho ni en el tema oscuro.
+
+  ⚠️ `sin-animaciones` SE DEJA PUESTA. Está copiado de `auditar-entrada.html`, donde equivocarse
+  con esto costó 36 corridas «limpias» sobre una pantalla invisible para la herramienta: con la
+  pestaña oculta las animaciones no avanzan, así que sin esa clase los elementos animados se quedan
+  en `opacity: 0` y el auditor saltea lo invisible. La clase hace lo contrario de lo que parece:
+  apaga las animaciones Y fuerza la opacidad final.
+-->
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1rem; }
+  iframe { width: 390px; height: 844px; border: 1px solid #ccc; }
+  pre { background: #f4f4f4; padding: .8rem; overflow: auto; max-height: 70vh; font-size: 12px; }
+</style>
+
+<h1>Auditar el login</h1>
+<p>Las cinco pantallas nuevas · 6 anchos × 2 temas. Resultado en <code>window.RESULTADO</code>.</p>
+<button id="ir">Auditar</button>
+<pre id="out">—</pre>
+<iframe id="app" title="la app, para auditarla"></iframe>
+
+<script>
+const ANCHOS = [[320,800],[375,812],[390,844],[768,1024],[1366,768],[1920,1080]];
+
+/* Cada pantalla se abre llamando a las funciones REALES de la app, no armando el DOM a mano (R17).
+   Lo que se simula es sólo lo que en producción trae el servidor: el perfil de la empresa y el de
+   la persona. Todo lo demás —qué div se muestra, qué texto se pinta, qué se oculta— lo decide la
+   app igual que en el teléfono de alguien. */
+const PANTALLAS = [
+  { nombre: 'codigo',
+    abrir: "localStorage.clear(); nominaAbrir();" },
+  { nombre: 'cedula',
+    abrir: "localStorage.clear(); nominaAbrir(); NOM.empresa='Consorcio HELITEC';" +
+           "NOM.perfil={nombre:'Consorcio HELITEC',tieneCodigoSup:true}; NOM.codigo='ABC';" +
+           "nominaPasoCedula();" },
+  { nombre: 'cedula-con-codigo-sup',   // el bloque desplegado, que es más alto
+    abrir: "localStorage.clear(); nominaAbrir(); NOM.empresa='Consorcio HELITEC';" +
+           "NOM.perfil={nombre:'Consorcio HELITEC',tieneCodigoSup:true}; NOM.codigo='ABC';" +
+           "nominaPasoCedula(); nominaSupToggle2();" },
+  { nombre: 'eres-tu',
+    abrir: "localStorage.clear(); nominaAbrir(); NOM.empresa='Consorcio HELITEC';" +
+           "NOM.perfil={nombre:'Consorcio HELITEC',tieneCodigoSup:true};" +
+           "NOM.perfilPersona={nombre:'Fernando José Guerra Pinto',departamento:'Operaciones'," +
+           "cargo:'Piloto',rol:'supervisor',rolOrigen:'nomina'}; nominaPasoConfirmar();" },
+  { nombre: 'entrar-reingreso',
+    abrir: "localStorage.clear(); reingresoGuardar('Consorcio HELITEC'); lgnAbrir();" },
+  { nombre: 'crear-contrasena-con-codigo',
+    abrir: "localStorage.clear();" +
+           "setProfile({nombre:'Ana Suárez',cedula:'V-1',empresa:'Consorcio HELITEC'," +
+           "departamento:'Operaciones',cargo:'Piloto',sexo:'F',edad:'35',telefono:'+58'," +
+           "email:'a@e.com',esPiloto:true,id_piloto:'X'});" +
+           "empresaPerfilGuardar({empresa:'Consorcio HELITEC',nombre:'Consorcio HELITEC',pideCodigo:true});" +
+           "clvAbrir();" },
+];
+
+const log = s => { document.getElementById('out').textContent = s; };
+const ev = (win, src) => win.eval(src);   // `let`/`const` de nivel superior no viven en `window`
+
+function cargarApp(){
+  return new Promise((res, rej) => {
+    const f = document.getElementById('app');
+    f.onload = () => res(f);
+    f.onerror = () => rej(new Error('no se pudo cargar la app'));
+    f.src = '../index.html?auditoria=' + Date.now();
+  });
+}
+
+async function auditar(){
+  log('cargando la app…');
+  const f = await cargarApp();
+  const win = f.contentWindow, doc = win.document;
+  const src = await (await fetch('auditor.js?v=' + Date.now())).text();
+  win.eval(src);
+
+  const hallazgos = [], sinMedir = [], vacias = [];
+  let corridas = 0;
+
+  for (const p of PANTALLAS){
+    for (const [w, h] of ANCHOS){
+      for (const tema of ['claro','oscuro']){
+        f.style.width = w + 'px'; f.style.height = h + 'px';
+        doc.documentElement.setAttribute('data-tema', tema);
+        doc.documentElement.classList.add('sin-animaciones');   // ver la nota de arriba
+        /* Se cierra todo antes de abrir la siguiente: dos overlays abiertos se miden juntos y el
+           informe diría que el defecto está en la pantalla equivocada. */
+        doc.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+        try { ev(win, p.abrir); } catch(e){}
+        void doc.body.offsetWidth;
+
+        /* ⚠️ GUARDA DE MEDIBILIDAD, y en este repo es obligatoria: cuatro medidores dieron
+           «0 defectos» sin medir nada. Si la pantalla no llegó a abrirse, un cero no significa que
+           esté bien — significa que no había nada delante. */
+        const visible = [...doc.querySelectorAll('.overlay')]
+          .some(o => win.getComputedStyle(o).display !== 'none' && o.getBoundingClientRect().height > 40);
+        if (!visible){ vacias.push(p.nombre + ' · ' + w + 'px · ' + tema); continue; }
+
+        const r = win.AUDITOR.todo();
+        corridas++;
+        const donde = p.nombre + ' · ' + w + 'px · ' + tema;
+        ['contraste','cortes','solapamientos','areasDeToque','superficiesClarasEnOscuro','cortesDeTinta']
+          .forEach(k => (r[k] || []).forEach(x => hallazgos.push({ tipo: k, donde, que: x })));
+        if (r.sinPoderMedir) sinMedir.push({ donde, n: r.sinPoderMedir });
+        log('auditando… ' + corridas + '/' + (PANTALLAS.length * ANCHOS.length * 2) +
+            ' · hallazgos: ' + hallazgos.length);
+      }
+    }
+  }
+
+  /* Agrupado por CAUSA y no por el texto que la ejemplifica — misma corrección que P111, donde el
+     informe decía 47 y eran 6. */
+  const unicos = {};
+  hallazgos.forEach(h => {
+    const causa = win.AUDITOR.causaDe ? win.AUDITOR.causaDe(h.que) : String(h.que);
+    const k = h.tipo + ' :: ' + causa;
+    (unicos[k] = unicos[k] || { tipo: h.tipo, que: causa, dondes: [] }).dondes.push(h.donde);
+  });
+  const resumen = Object.values(unicos)
+    .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
+    .sort((a, b) => b.veces - a.veces);
+
+  window.RESULTADO = { corridas, pantallas: PANTALLAS.length, hallazgos, resumen, sinMedir, vacias };
+  log('LISTO · ' + corridas + ' corridas sobre ' + PANTALLAS.length + ' pantallas\n' +
+      'hallazgos únicos: ' + resumen.length + '  (brutos: ' + hallazgos.length + ')\n' +
+      (vacias.length ? '⚠️ NO SE PUDIERON MEDIR (la pantalla no se abrió): ' + vacias.length + '\n' +
+        vacias.slice(0, 6).join('\n') + '\n' : '') +
+      '\n' + JSON.stringify(resumen, null, 1));
+}
+document.getElementById('ir').onclick = () => auditar().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+</script>

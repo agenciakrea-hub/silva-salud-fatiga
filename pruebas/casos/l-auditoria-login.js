@@ -182,3 +182,45 @@ PRUEBAS.caso('⚠️ el rol propuesto se muestra con el traductor que YA existí
   PRUEBAS.falso(/rol_of_supervisor|rol_of_medico/.test(sup),
     'y nunca una clave cruda del diccionario');
 });
+
+PRUEBAS.caso('⚠️ R13 · un botón deshabilitado se puede leer, en los dos temas', () => {
+  /* La auditoría visual de las pantallas del login (72 corridas: 6 pantallas × 6 anchos × 2 temas)
+     devolvió UN defecto: `#clvBtn` deshabilitado daba 4,22:1 en claro y 4,03:1 en oscuro sobre su
+     propio fondo. WCAG exime a los controles deshabilitados, así que no era una violación — pero el
+     texto de un botón apagado es lo que le dice a la persona QUÉ está esperando la pantalla, y la
+     regla alcanza a los 22 botones de guardar de la app.
+     Se mide el TOKEN y no una pantalla: el defecto vivía en la regla, no en el login. */
+  const r = (tinta, fondo) => {
+    const cs = getComputedStyle(document.documentElement);
+    const lum = css => {
+      const m = String(cs.getPropertyValue(css) || css).trim();
+      let n;
+      if (m[0] === '#') { const h = m.length === 4 ? m.slice(1).split('').map(c=>c+c).join('') : m.slice(1);
+        n = [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+      else { const q = m.match(/[\d.]+/g); if (!q) return null; n = [+q[0], +q[1], +q[2]]; }
+      const g = v => { v /= 255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+      return 0.2126*g(n[0]) + 0.7152*g(n[1]) + 0.0722*g(n[2]);
+    };
+    const a = lum(tinta), b = lum(fondo);
+    if (a == null || b == null) return null;
+    return (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
+  };
+  ['claro', 'oscuro'].forEach(tema => {
+    const previo = document.documentElement.getAttribute('data-tema');
+    document.documentElement.setAttribute('data-tema', tema);
+    try {
+      const v = r('--text-soft', '--chip-bg-h');
+      /* Guarda de medibilidad: un token que no resuelve devuelve null, y sin esto borrarlo dejaría
+         el caso en verde — que es como se cuela un `var()` roto, porque no da error en consola. */
+      PRUEBAS.cierto(v != null, 'guarda: `--text-soft` y `--chip-bg-h` existen en el tema ' + tema);
+      if (v != null) PRUEBAS.alMenos(Math.round(v * 100), 450,
+        '⚠️ el botón deshabilitado se lee en ' + tema + ' · ' + v.toFixed(2) + ':1 · antes 4,22 y 4,03 con `--text-muted`');
+    } finally {
+      if (previo) document.documentElement.setAttribute('data-tema', previo);
+      else document.documentElement.removeAttribute('data-tema');
+    }
+  });
+  PRUEBAS.cierto(/\.save-btn:disabled \{[^}]*var\(--text-soft\)/.test(
+    [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')),
+    '⚠️ y la regla usa ese token · alcanza a los 22 botones de guardar');
+});
