@@ -74,32 +74,41 @@ PRUEBAS.caso('leerNomina() entrega el rol ya normalizado', () => {
 });
 
 PRUEBAS.caso('⚠️ EL CONTRATO: lo que el .gs manda tiene destino en el cliente', () => {
-  /* Este es el caso que habría atrapado el defecto original. No mira si `rol` "anda": mira que la
-     clave que el servidor manda esté NOMBRADA del lado del cliente. */
-  const sinComentarios = p093Fuente();
-  PRUEBAS.cierto(/rol:\s*q\.rol/.test(sinComentarios),
-    '⚠️ `nominaConfirmar` guarda q.rol — sin esto el dato viaja y se tira');
-  PRUEBAS.cierto(/rol:\s*q\.rol\s*\|\|\s*prev\.rol/.test(sinComentarios),
-    'y `recuperarConfirmar` no lo pierde al recuperar el perfil');
+  /* Este es el caso que habría atrapado el defecto original: la clave que el servidor manda tiene
+     que estar NOMBRADA del lado del cliente, o el dato viaja y se tira sin un error.
+     ⚠️ P118 · ANTES SE MEDÍA CON UNA REGEX SOBRE EL FUENTE (`/rol:\s*q\.rol/`), y eso ataba el
+     caso a UNA FORMA de escribirlo: cuando los cuatro merges se unificaron en `perfilMerge`, esa
+     cadena dejó de existir y el caso se puso rojo sin que la propiedad se hubiera roto — de hecho
+     quedó mejor protegida. Una regex sobre el fuente mide cómo está escrito, no qué hace. Ahora se
+     mide el COMPORTAMIENTO, por la función que usan los cuatro caminos. */
+  PRUEBAS.igual(perfilMerge({}, { rol:'supervisor' }).rol, 'supervisor',
+    '⚠️ el `rol` que manda el servidor llega al perfil — sin esto el dato viaja y se tira');
+  PRUEBAS.igual(perfilMerge({ rol:'supervisor' }, { nombre:'Ana' }).rol, 'supervisor',
+    'y no se pierde cuando el servidor no lo manda');
 });
 
 PRUEBAS.caso('⚠️ recuperar el perfil NO le borra el panel a un supervisor', () => {
-  /* El bug vivo. La rama de Nómina no manda `esSupervisor`; que una clave NO venga significa
-     "no tengo ese dato", nunca "es falso". */
-  const sinComentarios = p093Fuente();
-  PRUEBAS.falso(/esSupervisor:\s*!!q\.esSupervisor\s*,/.test(sinComentarios),
-    '⚠️ ya no se pisa a ciegas con `!!q.esSupervisor`');
-  PRUEBAS.cierto(/'esSupervisor'\s+in\s+q/.test(sinComentarios),
-    'se pregunta si el servidor lo mandó de verdad antes de pisarlo');
+  /* El bug vivo, y le pegó a HELITEC. La rama de Nómina no mandaba `esSupervisor`; que una clave
+     NO venga significa "no tengo ese dato", nunca "es falso".
+     ⚠️ P118 · se mide el COMPORTAMIENTO y no la cadena `'esSupervisor' in q`: esa forma vivía
+     inline en `recuperarConfirmar` y ahora vive en `perfilMerge`, que la comparten los cuatro
+     caminos. Medir la forma dejaba el caso en rojo por una mudanza y —peor— lo habría dejado en
+     verde si alguien conservaba la cadena en un merge y la perdía en los otros tres. */
+  PRUEBAS.igual(perfilMerge({ esSupervisor:true }, { nombre:'Ana' }).esSupervisor, true,
+    '⚠️ una clave AUSENTE no apaga el flag · `!!undefined` le sacaba el panel');
+  PRUEBAS.igual(perfilMerge({ esSupervisor:true }, { esSupervisor:false }).esSupervisor, false,
+    'y un "no" explícito del servidor sí manda — el discriminador');
 });
 
 PRUEBAS.caso('el DISCRIMINADOR: estas mediciones se ponen en rojo cuando deben', () => {
   /* R17: un caso que no puede fallar no es una prueba. Se corre la MISMA comprobación contra un
      texto que sí tiene el defecto, y tiene que dar al revés. */
-  const roto = "esSupervisor: !!q.esSupervisor,\n sector: q.sector||''";
-  const sano = p093Fuente();
-  PRUEBAS.cierto(/esSupervisor:\s*!!q\.esSupervisor\s*,/.test(roto),
-    '⚠️ contra el código VIEJO la medición detecta el defecto');
-  PRUEBAS.falso(/esSupervisor:\s*!!q\.esSupervisor\s*,/.test(sano),
-    'y contra el actual no — o sea que discrimina, no da verde siempre');
+  /* ⚠️ P118 · el discriminador acompañó a la medición: ahora que arriba se mide comportamiento,
+     acá se simula el merge VIEJO —el que pisaba a ciegas— y se comprueba que da al revés. Un
+     discriminador que siga midiendo texto no discrimina nada de lo que hoy se mide. */
+  const mergeViejo = (prev, q) => Object.assign({}, prev, { esSupervisor: !!q.esSupervisor });
+  PRUEBAS.igual(mergeViejo({ esSupervisor:true }, { nombre:'Ana' }).esSupervisor, false,
+    '⚠️ el merge VIEJO apaga el flag con una clave ausente — el defecto que se arregló');
+  PRUEBAS.igual(perfilMerge({ esSupervisor:true }, { nombre:'Ana' }).esSupervisor, true,
+    'y el actual no — o sea que la medición discrimina, no da verde siempre');
 });

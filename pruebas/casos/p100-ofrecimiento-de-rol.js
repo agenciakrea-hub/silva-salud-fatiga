@@ -617,10 +617,13 @@ PRUEBAS.caso('⚠️ CONTRATO · el servidor manda `rol` y `rolOrigen`, y el cli
      perfil con una lista CERRADA de campos: una clave que el servidor mande y el cliente no nombre
      se pierde en silencio. Es la forma exacta que ya se comió `duty` y `ausencias` (A4) y que se
      comió `rol` hasta P093. `rolOrigen` era el siguiente de la fila. */
-  const cliente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
-  PRUEBAS.cierto(/rolOrigen:\s*q\.rolOrigen/.test(cliente),
+  /* ⚠️ P118 · medido por COMPORTAMIENTO. Antes era una regex (`/rolOrigen:\s*q\.rolOrigen/`)
+     sobre el fuente, o sea que exigía una forma de escribirlo; los cuatro merges se unificaron en
+     `perfilMerge` y la cadena desapareció sin que la propiedad se rompiera. Lo que hay que
+     garantizar es que la clave LLEGUE al perfil, no cómo está escrita la línea. */
+  PRUEBAS.igual(perfilMerge({}, { rolOrigen:'codigo' }).rolOrigen, 'codigo',
     'el cliente tiene que NOMBRAR `rolOrigen` al armar el perfil, o el dato viaja y se tira');
-  PRUEBAS.cierto(/rol:\s*q\.rol/.test(cliente), 'y `rol` también (P093)');
+  PRUEBAS.igual(perfilMerge({}, { rol:'supervisor' }).rol, 'supervisor', 'y `rol` también (P093)');
   if (!CTX.hayGs){ PRUEBAS.cierto(true, 'la mitad del servidor se saltea: no está servir-gs.py'); return; }
   PRUEBAS.cierto(/rolOrigen:\s*\(/.test(CTX.gs),
     '⚠️ y el servidor tiene que mandarlo de verdad · si lo saca, esta pantalla empieza a mentir ' +

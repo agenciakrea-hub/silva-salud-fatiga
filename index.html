@@ -6895,7 +6895,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.06';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.07';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11037,6 +11037,37 @@ function demoSembrando(fn){
 function getProfile(){ try { return JSON.parse(localStorage.getItem(K_PROFILE)) || null; } catch(e){ return null; } }
 function setProfile(p){ return lsSet(K_PROFILE, JSON.stringify(p)); }
 
+/* ⚠️ P118 · EL ÚNICO MERGE DE PERFIL. Antes había CUATRO, con DOS reglas opuestas, y dos de ellos
+   consumían la MISMA respuesta de la MISMA acción: `nominaSoyYo` y `nominaConfirmar` postean los
+   dos `action:'nomina_confirmar'` y la mergeaban distinto. Los dos caminos del alta están vivos —
+   el nuevo por código+cédula y el viejo detrás de "Mi empresa no me dio código"—, así que la misma
+   persona terminaba con un perfil distinto según por dónde entró.
+
+   LA REGLA, una sola: se pisa SÓLO lo que el servidor mandó DE VERDAD. Que una clave no venga
+   significa "no tengo ese dato", nunca "es falso" ni "es vacío".
+
+   Con la forma vieja (`nombre: q.nombre || ''`, `esPiloto: !!q.esPiloto`) una celda en blanco en la
+   hoja BORRABA el dato que la persona tenía en el teléfono — y una línea después `sincronizarRegistro`
+   lo mandaba de vuelta al CH, así que el borrado no se quedaba en el dispositivo: se escribía.
+   Ese comentario ya estaba escrito para `esSupervisor` en `recuperarConfirmar`, y `esPiloto` tenía
+   el bug exacto que el comentario describe, una línea más abajo. Un solo lugar, un solo criterio. */
+var PERFIL_TEXTO = ['nombre','cedula','empresa','departamento','cargo','sexo','edad','telefono',
+                    'email','id_piloto','rol','rolOrigen','sector'];
+var PERFIL_BOOL  = ['esPiloto','esSupervisor','esServicioMedico'];
+
+function perfilMerge(prev, q){
+  const base = prev || {};
+  const dato = q || {};
+  const nuevo = Object.assign({}, base);
+  PERFIL_TEXTO.forEach(k => {
+    if (k in dato && dato[k] !== undefined && dato[k] !== null && dato[k] !== '') nuevo[k] = dato[k];
+  });
+  /* Los booleanos, con la regla del `in`: `!!q.esPiloto` sobre un campo AUSENTE da `false` y
+     apagaría una marca que la persona ya tenía. */
+  PERFIL_BOOL.forEach(k => { if (k in dato) nuevo[k] = !!dato[k]; });
+  return nuevo;
+}
+
 /* ── Registro de personas en la hoja "Registrados Fatiga" del CH ──
    Manda el perfil + la info del dispositivo que el navegador permite leer (el mail lo escribe
    la persona; el mail del teléfono NO se puede leer desde una web). Deduplica por cédula en el
@@ -14789,17 +14820,9 @@ function nominaSoyYo(){
   const prev = getProfile() || {};
   altaRecordarPerfil();
 
-  /* El merge: sólo lo que el servidor mandó de verdad. */
-  const nuevo = Object.assign({}, prev);
-  ['nombre','cedula','empresa','departamento','cargo','sexo','edad','telefono','email',
-   'id_piloto','rol','rolOrigen','sector'].forEach(k => {
-    if (k in q && q[k] !== undefined && q[k] !== null && q[k] !== '') nuevo[k] = q[k];
-  });
-  /* Los booleanos, con la regla del `in`: `!!q.esPiloto` sobre un campo ausente da `false` y
-     apagaría una marca que la persona ya tenía. */
-  if ('esPiloto' in q) nuevo.esPiloto = !!q.esPiloto;
-  if ('esSupervisor' in q) nuevo.esSupervisor = !!q.esSupervisor;
-  if ('esServicioMedico' in q) nuevo.esServicioMedico = !!q.esServicioMedico;
+  /* El merge: sólo lo que el servidor mandó de verdad. P118 lo mudó a `perfilMerge`, que es el
+     único lugar donde vive esa regla — acá estaba duplicada carácter por carácter con `lgnEntrar`. */
+  const nuevo = perfilMerge(prev, q);
   setProfile(nuevo);
 
   try { sectorRecordar(q.sector || ''); } catch(e){}
@@ -14950,29 +14973,17 @@ function nominaConfirmar(){
          atras desde el formulario de revision, `altaAbandonar()` lo restaura — sin esto quedaria
          registrada con datos que nunca confirmo. */
       altaRecordarPerfil();
-      setProfile(Object.assign({}, prev, {
-        nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
-        cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
-        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'',
-        /* ⚠️ EL SERVIDOR YA MANDABA ESTO Y EL CLIENTE LO TIRABA. La columna L de `Nómina` se llama
-           "Rol en la app", `leerNomina()` la lee y `accionNominaConfirmar` la devuelve como `rol`
-           desde hace tiempo — pero este `setProfile` arma el perfil con una lista CERRADA de
-           campos, así que `rol` llegaba al navegador y se perdía sin un error ni una advertencia.
-           Es la misma forma exacta que ya se comió `duty` y `ausencias` en `onDashData` (R17), un
-           piso más abajo: el dato viaja, nadie lo nombra, nadie se entera.
-           El rol PROPONE, no autoriza: lo único que abre el panel sigue siendo la contraseña de
-           empresa (ver `docs/adr/002-como-sabe-la-app-quien-gestiona.md`). */
-        rol: q.rol || '',
-        /* ⚠️ P100 · Y EL ORIGEN TAMBIÉN, POR EL MISMO MOTIVO. `accionNominaConfirmar` manda
-           `rolOrigen` ("nomina" | "codigo" | "") justo para que la pantalla del ofrecimiento pueda
-           decir la verdad: "tu empresa te registró como…" no es lo mismo que "el código que usaste
-           corresponde a…". Uno lo escribió RRHH en la hoja; el otro pudo llegar de cualquier lado.
-           Estaba viajando y se tiraba, exactamente igual que `rol` antes de P093. */
-        rolOrigen: q.rolOrigen || '',
-        // A3: el sector viene con el perfil y define toda la terminología que verá esta persona
-        // (aeropuerto vs. planta). Se guarda con sus datos para no tener que volver a pedirlo.
-        sector: q.sector || ''
-      }));
+      /* ⚠️ P118 · ESTE MERGE Y EL DE `nominaSoyYo` CONSUMEN LA MISMA RESPUESTA DE LA MISMA ACCIÓN
+         —los dos postean `action:'nomina_confirmar'`— y hasta acá la mergeaban con reglas
+         OPUESTAS: aquél sólo pisaba con lo que venía de verdad, éste escribía `q.X || ''` y
+         `!!q.esPiloto`, así que una celda vacía en la hoja BORRABA el dato. Los dos caminos del
+         alta están vivos (el nuevo por código+cédula y el viejo detrás de "Mi empresa no me dio
+         código"), o sea que la misma persona quedaba con un perfil distinto según por dónde entró.
+         Lo que este bloque explicaba —que `rol` y `rolOrigen` viajaban y el cliente los TIRABA por
+         armar el perfil con una lista cerrada— sigue resuelto: las dos claves están en
+         `PERFIL_TEXTO`, que es ahora la única lista y la comparten los cuatro caminos.
+         El rol PROPONE, no autoriza (ADR 002). */
+      setProfile(perfilMerge(prev, q));
       sectorRecordar(q.sector);
       /* La identidad de la empresa se guarda al confirmar (B3): desde acá en adelante el splash
          puede decir "Nómina de X" con su color, y `sectorRefrescar()` tiene de dónde partir. */
@@ -25694,24 +25705,36 @@ function lgnEntrar(btn){
          guardaba sólo la cédula y el token y tiraba el resto. Es la misma forma que ya se comió
          `rol` y `rolOrigen` en el alta. */
       const q = (d && d.persona) || {};
-      const base = getProfile() || {};
-      const nuevo = Object.assign({}, base);
-      ['nombre','cedula','empresa','departamento','cargo','sexo','edad','telefono','email',
-       'id_piloto','rol','rolOrigen','sector'].forEach(k => {
-        if (k in q && q[k] !== undefined && q[k] !== null && q[k] !== '') nuevo[k] = q[k];
-      });
-      if ('esPiloto' in q) nuevo.esPiloto = !!q.esPiloto;
-      if ('esSupervisor' in q) nuevo.esSupervisor = !!q.esSupervisor;
-      if ('esServicioMedico' in q) nuevo.esServicioMedico = !!q.esServicioMedico;
+      const nuevo = perfilMerge(getProfile() || {}, q);
       /* La cédula con la que ENTRÓ manda sobre la del perfil: entró con ella, así que es la suya y
          era la fuente del desencuentro. */
       if (cedula) nuevo.cedula = cedula;
       if (!nuevo.empresa) nuevo.empresa = empresaLogin;
       setProfile(nuevo);
       try { if (nuevo.sector) sectorRecordar(nuevo.sector); } catch(e){}
+      /* ⚠️ P118 · LOS CONSENTIMIENTOS YA FIRMADOS, que hasta acá sólo reponía `recuperar_perfil`.
+         `cerrarSesion()` borra la clave del teléfono, así que quien volvía con su contraseña
+         correcta se encontraba los cinco bloques otra vez — ya firmados en el CH, con fecha y
+         versión. Se toma el MÁXIMO por bloque, igual que hace la otra puerta: una versión vieja
+         que llegue del servidor no puede bajar una más nueva firmada en este dispositivo. */
+      try {
+        if (d.consentimientos && Object.keys(d.consentimientos).length){
+          const cs = consentStore();
+          const it = Object.assign({}, cs.items);
+          Object.keys(d.consentimientos).forEach(k => {
+            if (it[k] == null || d.consentimientos[k] > it[k]) it[k] = d.consentimientos[k];
+          });
+          cs.items = it; cs.sincronizado = true; consentSave(cs);
+        }
+      } catch(e){}
+      /* ⚠️ P118 · SE CAPTURA ANTES DE CERRAR. `lgnCerrar()` hace `_lgnPendiente = null` en su
+         última línea, así que leerlo DESPUÉS daba `null` SIEMPRE: el callback que trae `lgnAbrir`
+         —lo que la persona estaba intentando hacer cuando se le pidió la contraseña— no corrió
+         nunca, y el `else` mandaba a `misSincronizar()` en todos los casos. Silencioso: nadie ve
+         un error, sólo que la acción no pasa. */
+      const seguir = _lgnPendiente;
       lgnCerrar();
       showToast(t('lgn_listo'));
-      const seguir = _lgnPendiente; _lgnPendiente = null;
       if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
       else { try { misSincronizar(); } catch(e){} }
     })
@@ -27543,24 +27566,21 @@ function recuperarConfirmar(){
       if (!d || !d.ok || !d.perfil){ err.textContent = (d && d.error) || t('rec_no_encontrado'); return; }
       const q = d.perfil;
       const prev = getProfile() || {};
-      const nuevo = Object.assign({}, prev, {
-        nombre:q.nombre||'', cedula:q.cedula||'', empresa:q.empresa||'', departamento:q.departamento||'',
-        cargo:q.cargo||'', sexo:q.sexo||'', edad:q.edad||'', telefono:q.telefono||'', email:q.email||'',
-        esPiloto: !!q.esPiloto, id_piloto:q.id_piloto||'',
-        /* ⚠️ BUG VIVO, Y LE PEGA A HELITEC HOY. `accionRecuperarPerfil` tiene DOS ramas: la de
-           `Registrados Fatiga` manda `esSupervisor`, y la de `Nómina` NO lo manda — devuelve
-           nombre, cédula, cargo, `rol`… y nada más. Con `!!q.esSupervisor` a secas, `undefined`
-           se convertía en `false` y PISABA el flag: cualquier supervisor de una empresa con
-           nómina cargada que recuperara su perfil perdía el panel, en silencio y sin poder
-           deducir por qué.
-           Se pisa SÓLO si el servidor lo mandó de verdad. Que una clave no venga significa "no
-           tengo ese dato", nunca "es falso". */
-        esSupervisor: ('esSupervisor' in q) ? !!q.esSupervisor : !!prev.esSupervisor,
-        rol: q.rol || prev.rol || '',
-        sector: q.sector||''
-      });
+      /* ⚠️ P118 · ACÁ VIVÍA EL COMENTARIO DEL BUG DE HELITEC, y el bug seguía vivo UNA LÍNEA MÁS
+         ABAJO. El comentario explicaba, con razón, que `!!q.esSupervisor` sobre un campo AUSENTE
+         da `false` y le apagaba el panel al supervisor de una empresa con nómina cargada — y
+         parcheaba ESE campo con `('esSupervisor' in q)`. Pegado debajo estaba `esPiloto:
+         !!q.esPiloto`, con el defecto idéntico, y todos los textos con `q.X || ''`, que borran con
+         una celda vacía. Documentar el arreglo de un campo no arregla los otros doce.
+         Ahora la regla vive en `perfilMerge` y la comparten los cuatro caminos. El servidor, del
+         otro lado, dejó de mandar claves que no sabe (P118 en el .gs), que es la mitad que hace
+         que esta regla signifique algo: si el servidor manda `esSupervisor:false` porque la celda
+         estaba vacía, ningún merge del mundo lo puede distinguir de un "no" de verdad.
+         ⚠️ Y esto NO se queda en el teléfono: quince líneas abajo `sincronizarRegistro(nuevo)`
+         manda el perfil entero de vuelta al CH, así que lo que este merge borre se ESCRIBE. */
+      const nuevo = perfilMerge(prev, q);
       setProfile(nuevo);
-      sectorRecordar(q.sector);
+      sectorRecordar(nuevo.sector || q.sector);
       // Mismo cierre que saveProfile(): sin esto el saludo y las tarjetas de "Data Operacional"
       // quedan pintadas con el perfil viejo (vacío) hasta el próximo recargo de la página.
       paintProfile(); renderSections();
