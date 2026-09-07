@@ -143,3 +143,42 @@ PRUEBAS.caso('⚠️ un «Volver» no devuelve la lista de nombres de la nómina
   PRUEBAS.cierto(/empresaPorLista = false/.test(String(nominaResolverCodigo)),
     'y se limpia al resolver por código');
 });
+
+PRUEBAS.caso('🔴 el código de supervisor VIAJA · P099 estaba muerto en el flujo nuevo', () => {
+  /* EL DEFECTO: el campo vivía en la pantalla «¿Eres tú?», que es DESPUÉS del único pedido del
+     flujo. La persona lo escribía, tocaba «Sí, soy yo» y no pasaba absolutamente nada: el valor se
+     guardaba en `NOM.codigoSup`, que nadie leía, y el servidor recibía `undefined` siempre.
+     Ahora el campo está en el paso de la CÉDULA, que es antes del pedido. */
+  const src = String(nominaCedulaBuscar);
+  PRUEBAS.alMenos(src.length, 200, 'guarda de medibilidad: se leyó la función');
+  PRUEBAS.cierto(/codigoSup:/.test(src), '⚠️ el pedido lo manda');
+  PRUEBAS.cierto(/nomCodigoSup2/.test(src), 'y lo lee del campo de esa misma pantalla');
+
+  /* Y que el campo esté DONDE se lo lee: si vuelve a la pantalla siguiente, esto se pone rojo. */
+  const campo = document.getElementById('nomCodigoSup2');
+  PRUEBAS.cierto(!!campo, 'guarda: el campo existe');
+  if (campo) PRUEBAS.cierto(!!campo.closest('#nomPasoCed'),
+    '⚠️ y vive en el paso de la CÉDULA, no en el de confirmar · si no, se manda vacío siempre');
+
+  /* ⚠️ SE MIDE LA ASIGNACIÓN, NO LA PALABRA. Mi primera versión buscaba `NOM.codigoSup` en el
+     fuente y se ponía roja por el COMENTARIO que explica el arreglo — el mismo choque que ya me
+     costó una vuelta con `depPuedeEscribir`. Un regex sobre el fuente mide la prosa además del
+     código, y la prosa cambia sola. */
+  PRUEBAS.falso(/NOM\.codigoSup\s*=/.test(String(nominaSoyYo)),
+    '⚠️ y ya no se ASIGNA a una variable que nadie lee');
+});
+
+PRUEBAS.caso('⚠️ el rol propuesto se muestra con el traductor que YA existía', () => {
+  /* Mi primera versión inventó tres claves de traducción que no existen: `t()` habría devuelto la
+     clave cruda y la línea nunca se habría pintado. `rolNombre()` ya estaba, y la usa Ajustes. */
+  PRUEBAS.cierto(/rolNombre\(/.test(String(nominaRolTexto)),
+    '⚠️ usa `rolNombre()`, no un diccionario propio');
+  PRUEBAS.igual(nominaRolTexto(''), '', 'sin rol no se pinta nada');
+  PRUEBAS.igual(nominaRolTexto('empleado'), '',
+    '⚠️ y «empleado» tampoco · es el default, no un ofrecimiento');
+  const sup = nominaRolTexto('supervisor');
+  PRUEBAS.cierto(!!sup && sup.indexOf('{r}') === -1,
+    '⚠️ y un rol real da un texto ya interpolado · ' + sup);
+  PRUEBAS.falso(/rol_of_supervisor|rol_of_medico/.test(sup),
+    'y nunca una clave cruda del diccionario');
+});

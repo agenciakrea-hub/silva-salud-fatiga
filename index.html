@@ -6116,6 +6116,25 @@
       <input type="tel" id="nomCedulaSola" class="restr-input" inputmode="numeric"
              data-i18n-attr="placeholder:f_ced_ph" placeholder="Sólo números" autocomplete="off"
              onkeydown="if(event.key==='Enter')nominaCedulaBuscar()">
+      <!-- ⚠️ AUDITORÍA · EL CÓDIGO DE SUPERVISOR VA ACÁ, NO EN «¿ERES TÚ?». Estaba en la pantalla
+           siguiente, que es DESPUÉS del único pedido del flujo: la persona lo escribía, tocaba
+           «Sí, soy yo» y no pasaba absolutamente nada — el valor se guardaba en una variable que
+           nadie leía y el servidor recibía `undefined` siempre. P099 estaba muerto en el camino
+           nuevo.
+           Acá viaja junto con la cédula, en el mismo pedido, y el rol que propone vuelve a tiempo
+           para mostrarse en la pantalla de confirmación. Es además donde vivía en el flujo viejo.
+           Sigue plegado y opcional: la enorme mayoría son empleados y no tienen ningún código.
+           Y no bloquea nada — si está mal, el alta sigue igual y sólo no propone el rol. -->
+      <div id="nomSupBloque2" style="display:none">
+        <button type="button" class="nom-link" id="nomSupToggle2" onclick="nominaSupToggle2()"
+                data-i18n="nom_sup_tengo">Tengo un código de supervisor</button>
+        <div id="nomSupCampo2" style="display:none">
+          <label class="nom-lbl" for="nomCodigoSup2" data-i18n="nom_sup_lbl">Código de supervisor (opcional)</label>
+          <input type="text" id="nomCodigoSup2" class="restr-input" autocomplete="off"
+                 data-i18n-attr="placeholder:nom_sup_ph" placeholder="Sólo si te lo dieron"
+                 onkeydown="if(event.key==='Enter')nominaCedulaBuscar()">
+        </div>
+      </div>
       <div class="nom-err" id="nomCedErr"></div>
       <button class="save-btn" id="nomBtnCedula" onclick="nominaCedulaBuscar()" data-i18n="nom_ced_btn">Continuar</button>
       <!-- ⚠️ LA RED DE QUIEN TIENE LA CÉDULA MAL CARGADA. Sin esto el flujo nuevo le cierra las
@@ -6130,16 +6149,8 @@
     <div id="nomPaso4" style="display:none">
       <div class="nom-elegido" id="nomConfNombre"></div>
       <p class="nom-ayuda" id="nomConfDatos"></p>
-      <div id="nomSupBloque2" style="display:none">
-        <button type="button" class="nom-link" id="nomSupToggle2" onclick="nominaSupToggle2()"
-                data-i18n="nom_sup_tengo">Tengo un código de supervisor</button>
-        <div id="nomSupCampo2" style="display:none">
-          <label class="nom-lbl" for="nomCodigoSup2" data-i18n="nom_sup_lbl">Código de supervisor (opcional)</label>
-          <input type="text" id="nomCodigoSup2" class="restr-input" autocomplete="off"
-                 data-i18n-attr="placeholder:nom_sup_ph" placeholder="Sólo si te lo dieron"
-                 onkeydown="if(event.key==='Enter')nominaSoyYo()">
-        </div>
-      </div>
+      <!-- El rol que la empresa propone, si lo hay. Ayuda a decir «no soy yo». -->
+      <p class="nom-ayuda" id="nomConfRol" style="display:none"></p>
       <div class="nom-err" id="nomConfErr"></div>
       <button class="save-btn" id="nomBtnSoyYo" onclick="nominaSoyYo()" data-i18n="nom_conf_si">Sí, soy yo</button>
       <button type="button" class="cancel-btn" onclick="nominaVolver()" data-i18n="nom_conf_no">No soy yo</button>
@@ -6871,7 +6882,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.03';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.04';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7083,6 +7094,7 @@ const I18N = {
       nom_conf_no:'No soy yo',
       nom_sin_codigo:'Mi empresa no me dio código',
       lgn_otra_empresa:'No es mi empresa',
+      nom_conf_rol:'Tu empresa te registró como {r}.',
       nom_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
       nom_pide_codigo:'Para registrarte necesitas el código de tu empresa. Pídeselo a tu supervisor.',
       nom_codigo_btn:'Continuar',
@@ -8747,6 +8759,7 @@ const I18N = {
       nom_conf_no:'That is not me',
       nom_sin_codigo:'My company did not give me a code',
       lgn_otra_empresa:'This is not my company',
+      nom_conf_rol:'Your company registered you as {r}.',
       nom_codigo_ambiguo:'That code does not identify a single company. Please ask your supervisor for it again.',
       nom_pide_codigo:'To register you need your company code. Ask your supervisor for it.',
       nom_codigo_btn:'Continue',
@@ -14640,6 +14653,12 @@ function nominaPasoCedula(){
   nominaPaso('cedsola');
   nominaEl('nomCedulaSola').value = '';
   nominaEl('nomCedErr').textContent = '';
+  /* Sólo si la empresa tiene un código de supervisor cargado. `tieneCodigoSup` viene del perfil
+     público que devolvió `codigo_empresa`: el valor nunca viaja, sólo si existe. */
+  const haySup = !!(NOM.perfil && NOM.perfil.tieneCodigoSup);
+  nominaEl('nomSupBloque2').style.display = haySup ? '' : 'none';
+  nominaEl('nomSupCampo2').style.display = 'none';
+  if (haySup) nominaEl('nomCodigoSup2').value = '';
   setTimeout(() => { try { nominaEl('nomCedulaSola').focus(); } catch(e){} }, 60);
 }
 
@@ -14655,7 +14674,11 @@ function nominaCedulaBuscar(){
   nominaEl('nomCedErr').textContent = '';
   const peticionCed = fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({
     action: 'nomina_confirmar', empresa: NOM.empresa, cedula: ced,
-    codigo: NOM.codigo || '', dispositivoId: dispositivoId() }) })
+    codigo: NOM.codigo || '',
+    /* AUDITORÍA · acá es donde tiene que viajar: el servidor lo trata aparte del código de
+       empresa, así que si está mal no corta el alta — sólo no propone rol. */
+    codigoSup: ((document.getElementById('nomCodigoSup2') || {}).value || '').trim(),
+    dispositivoId: dispositivoId() }) })
     .then(r => r.json());
   conBloqueo('#nominaOv .sheet', peticionCed
     .then(d => {
@@ -14684,10 +14707,25 @@ function nominaPasoConfirmar(){
   const partes = [q.departamento, q.cargo].filter(Boolean);
   nominaEl('nomConfDatos').textContent = partes.join(' · ');
   nominaEl('nomConfErr').textContent = '';
-  const hay = !!(NOM.perfil && NOM.perfil.tieneCodigoSup);
-  nominaEl('nomSupBloque2').style.display = hay ? '' : 'none';
-  nominaEl('nomSupCampo2').style.display = 'none';
-  if (hay) nominaEl('nomCodigoSup2').value = '';
+  /* ⚠️ AUDITORÍA · Y EL ROL QUE LA EMPRESA PROPONE, si vino. Es información que ayuda a decir «no
+     soy yo»: si alguien ve que lo registran como supervisor y no lo es, ahí se detiene. El rol
+     PROPONE y no autoriza —lo único que abre el panel sigue siendo la contraseña de empresa
+     (ADR 002)— así que el texto no promete ningún acceso. */
+  const rolTxt = nominaRolTexto(q.rol);
+  const el = nominaEl('nomConfRol');
+  if (el){ el.textContent = rolTxt; el.style.display = rolTxt ? '' : 'none'; }
+}
+/* ⚠️ USA `rolNombre()`, QUE YA EXISTÍA. Mi primera versión inventaba tres claves de traducción
+   (`rol_of_supervisor` y compañía) que no existen en el diccionario: `t()` habría devuelto la
+   clave cruda y la línea nunca se habría pintado. Antes de escribir un traductor de roles conviene
+   buscar si el archivo ya tiene uno — lo tenía, y lo usa la fila «Tu acceso» de Ajustes. */
+function nominaRolTexto(rol){
+  const r = String(rol || '');
+  if (!r || r === 'empleado') return '';      // «empleado» no es un ofrecimiento: es el default
+  let nombre = '';
+  try { nombre = rolNombre(r) || ''; } catch(e){ return ''; }
+  if (!nombre) return '';
+  try { return t('nom_conf_rol', { r: nombre }); } catch(e){ return ''; }
 }
 function nominaSupToggle2(){
   const c = nominaEl('nomSupCampo2');
@@ -14734,10 +14772,10 @@ function nominaSoyYo(){
   try { if (NOM.perfil) empresaPerfilGuardar(NOM.perfil); } catch(e){}
   try { altaProgresoLimpiar(); } catch(e){}
 
-  /* El código de supervisor, si lo escribió: se manda por el mismo camino de siempre, que ya sabe
-     que PROPONE y no autoriza. */
-  const cs = nominaEl('nomCodigoSup2');
-  if (cs && cs.value.trim()) NOM.codigoSup = cs.value.trim();
+  /* ⚠️ AUDITORÍA · ACÁ ESTABA EL DEFECTO: se guardaba `NOM.codigoSup` y NADIE lo leía nunca. Y
+     aunque se hubiera leído ya era tarde: el único pedido del flujo corre en la pantalla anterior.
+     El código ahora viaja con la cédula, y el rol que propone llega en `NOM.perfilPersona.rol`,
+     que el merge de abajo ya guarda. */
 
   nominaCerrar();
   /* `openSetup(false)` pide lo que falte. Si no falta nada igual se abre: es donde la persona
