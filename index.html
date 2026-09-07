@@ -6871,7 +6871,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.02';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.03';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14442,7 +14442,7 @@ function nominaPaso(paso){
 function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
-  NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null;
+  NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null; NOM.empresaPorLista = false;
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
   nominaPasoCodigoInicial();
@@ -14547,6 +14547,7 @@ function nominaVolver(){
 }
 function nominaElegirEmpresa(emp){
   NOM.empresa = emp;
+  NOM.empresaPorLista = true;      // AUDITORÍA · el origen se marca, no se adivina
   NOM.persona = ''; NOM.codigo = ''; NOM.personas = [];
   /* Se vacía la lista en el DOM, no sólo en memoria: si no, los nombres de la empresa anterior
      se quedan pintados (ocultos, pero presentes) mientras se pide el código de la nueva. No es
@@ -14576,10 +14577,13 @@ function nominaCodigoConfirmar(){
   const cod = nominaEl('nomCodigo').value.trim();
   if (!cod){ nominaEl('nomCodErr').textContent = t('nom_codigo_falta'); return; }
   NOM.codigo = cod;
-  /* P124 · si ya sabemos la empresa venimos del camino viejo (se eligió de la lista): ahí
-     «validar el código» sigue siendo pedir la lista de personas. Si NO la sabemos, el código es lo
-     primero que se escribe y hay que resolver a qué empresa pertenece. */
-  if (NOM.empresa) { nominaCargarPersonas(); return; }
+  /* ⚠️ AUDITORÍA · SE DISTINGUE CON UN FLAG, NO INFIRIENDO DE `NOM.empresa`. La premisa anterior
+     —«si ya sé la empresa, vengo del camino viejo»— era falsa: `nominaResolverCodigo` TAMBIÉN
+     setea `NOM.empresa`. Con cuatro toques (código → Continuar → Volver → Continuar) la persona
+     caía en «Búscate en la lista» con la nómina completa de nombres a la vista, y esa sesión ya no
+     volvía al flujo nuevo nunca. Justo el padrón que este bloque cierra, a cuatro toques del
+     arranque. */
+  if (NOM.empresaPorLista) { nominaCargarPersonas(); return; }
   nominaResolverCodigo();
 }
 
@@ -14610,9 +14614,12 @@ function nominaResolverCodigo(){
         return;
       }
       NOM.empresa = d.empresa || '';
+      NOM.empresaPorLista = false;      // vino por código, no de una lista
       NOM.perfil  = d.perfil || null;
       NOM.pideCodigo = true;                       // llegó hasta acá con un código: la empresa lo pide
-      try { empresaPerfilGuardar(NOM.perfil); } catch(e){}
+      /* AUDITORÍA · la marca de empresa del splash se guarda al CONFIRMAR, no acá: quien escribe
+         un código y abandona no tiene por qué quedar con esa empresa pegada en su pantalla de
+         inicio. El camino viejo ya lo hacía así (B3). */
       try { altaProgresoGuardar(); } catch(e){}
       nominaPasoCedula();
     })
@@ -15107,7 +15114,19 @@ function saveProfile(){
   if (esServicioMedico) fMedPass.querySelector('.err').textContent = t('f_med_pass_falta');
   if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
 
-  const perfil = { nombre, cedula, id_piloto, esPiloto, esSupervisor, esServicioMedico, empresa, departamento, cargo, sexo, edad, telefono, email };
+  /* ⚠️ AUDITORÍA · MERGE, Y ES EL ÚNICO `setProfile` DEL ARCHIVO QUE NO LO HACÍA. Este literal
+     cerrado de 13 campos reemplazaba el perfil ENTERO, y corre tres segundos después de que el
+     alta guardó `rol` y `rolOrigen`: la persona toca «Guardar» y el rol que la nómina había
+     propuesto desaparece. Con `p.rol` en `undefined`, `rolOfrecerAbrir()` devuelve false y la
+     pantalla del ofrecimiento NO SE ABRE NUNCA — o sea que quien figura como supervisor en la
+     columna L tiene que ir a marcar la casilla a mano, que es exactamente lo que P100 existe para
+     eliminar.
+     `sector` se salvaba de casualidad porque tiene respaldo en su propia clave; `rol` no. Es la
+     misma forma que ya se comió `duty` y `ausencias` un piso más abajo: una lista cerrada de
+     campos y un dato que viaja sin que nadie lo nombre. */
+  const perfil = Object.assign({}, getProfile() || {}, {
+                   nombre, cedula, id_piloto, esPiloto, esSupervisor, esServicioMedico,
+                   empresa, departamento, cargo, sexo, edad, telefono, email });
   const finalizar = () => { setProfile(perfil); sincronizarRegistro(perfil); paintProfile(); renderSections(); closeSetup(); showToast(editing ? t('f_datos_act') : t('f_listo_reportar'));
     // B4: recién ahora vienen consentimiento y tamaño. Al EDITAR datos no corresponde: esa
     // persona ya hizo el recorrido y sólo vino a corregir un teléfono.
