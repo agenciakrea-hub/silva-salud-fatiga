@@ -118,3 +118,88 @@ PRUEBAS.caso('⚠️ el freno de verdad corta después de varios intentos fallid
   PRUEBAS.cierto(!!otro.ok,
     '⚠️ el freno es POR DISPOSITIVO · si fuera global, un atacante dejaría a la empresa afuera');
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   L6 y L7 · el resto de la Etapa A: las acciones que no tenían NINGUNA defensa.
+   Auditadas las 23 una por una. Nueve no tenían ni credencial, ni freno, ni código, ni token:
+   ocho de escritura (registro, pvt, reporte_guardar, turno_guardar, operacional_guardar,
+   confiabilidad_guardar, consentimiento_guardar, opinion_guardar) y dos de lectura
+   (nomina_empresas, empresa_perfil).
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Las que SÍ llevan freno. `accionOpinionGuardar` NO está y no es un olvido: es el canal anónimo
+   (X2), y un identificador de dispositivo estable identifica al teléfono —y por lo tanto a la
+   persona— aunque el texto no lleve nombre. El caso de abajo lo comprueba explícitamente para que
+   nadie lo "complete" más adelante creyendo que faltaba. */
+const L_ESCRITURAS = ['accionRegistro', 'accionPvt', 'accionReporteGuardar', 'accionTurnoGuardar',
+  'accionOperacionalGuardar', 'accionConfiabilidadGuardar', 'accionConsentimientoGuardar'];
+
+PRUEBAS.caso('🔴 L6 · las ocho escrituras sin credencial tienen límite de tasa', () => {
+  /* `accFrenado` cuenta FALLOS, y sirve para una contraseña. Una escritura siempre «acierta», así
+     que necesitaba otro mecanismo: contar llamadas por dispositivo en una ventana. Sin esto,
+     cualquiera con la URL —que está en el index.html del repo público— llena las hojas del
+     cliente de filas. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const gs = CTX.gs;
+  L_ESCRITURAS.forEach(fn => {
+    const cuerpo = (gs.match(new RegExp('function ' + fn + '\\(p\\) \\{[\\s\\S]{0,300}')) || [''])[0];
+    PRUEBAS.alMenos(cuerpo.length, 40, 'guarda: se encontró ' + fn);
+    PRUEBAS.cierto(/escrFrenada\(p\.dispositivoId\)/.test(cuerpo),
+      '⚠️ ' + fn + ' corta una inundación');
+  });
+
+  /* ⚠️ Y LA OPINIÓN NO, A PROPÓSITO. Sin esta comprobación, el día que alguien "complete" la lista
+     creyendo que faltaba una, rompería el anonimato sin que nada se ponga en rojo. Es exactamente
+     lo que me pasó a mí en L6: agregué `dispositivoId` a las ocho sin mirar que una era ésta, y me
+     frenó `x2-opinion-anonima.js`. */
+  const op = (gs.match(/function accionOpinionGuardar[\s\S]{0,700}/) || [''])[0];
+  PRUEBAS.alMenos(op.length, 100, 'guarda: se encontró la acción de la opinión');
+  PRUEBAS.falso(/escrFrenada\(p\.dispositivoId\)/.test(op),
+    '⚠️ la opinión ANÓNIMA no lleva freno por dispositivo · el anonimato vale más que el freno');
+  PRUEBAS.cierto(/anónimo|ANÓNIMO/.test(op),
+    'y el porqué está escrito ahí mismo, para que no parezca un olvido');
+});
+
+PRUEBAS.caso('🔴 L6b · el freno NO traba a nadie sin `dispositivoId` ni si falla el caché', () => {
+  /* Las dos reglas importan más que el freno. Hasta la 5.97 estas escrituras no mandaban el campo:
+     sin esta guarda, todas caerían en una clave compartida y al pasar el tope se trabarían TODAS
+     las personas a la vez. Y una PWA cacheada puede tardar días en actualizarse. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = GS.cargarGs(CTX.gs, lEnv(), ['escrFrenada']);
+  PRUEBAS.falso(api.escrFrenada(''), '⚠️ sin id NO se frena · un cliente viejo no queda afuera');
+  PRUEBAS.falso(api.escrFrenada(null), 'ni con null');
+  PRUEBAS.falso(api.escrFrenada(undefined), 'ni con undefined');
+
+  /* Y el DISCRIMINADOR: con un id de verdad SÍ frena al pasar el tope. Sin esto, los tres verdes
+     de arriba podrían estar dando verde porque la función nunca frena nada. */
+  let freno = false;
+  for (let i = 0; i < 60 && !freno; i++) freno = api.escrFrenada('dispositivoDePrueba');
+  PRUEBAS.cierto(freno, '⚠️ con un id real corta en algún momento · si no, no frena nada');
+  PRUEBAS.falso(api.escrFrenada('otroDispositivo'),
+    'y otro dispositivo sigue pudiendo escribir · el freno no es global');
+});
+
+PRUEBAS.caso('🔴 L7 · la nómina ya no dice a quién conviene suplantar', () => {
+  /* `nomina_personas` no pide credencial y devolvía `yaRegistrado` por persona: cuál de los
+     nombres todavía no tiene cuenta. Es el paso 2 de la cadena de alta-como-otra-persona.
+     Servía para un chip informativo. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const gs = CTX.gs;
+  const fn = (gs.match(/function accionNominaPersonas[\s\S]*?\n\}/) || [''])[0];
+  PRUEBAS.alMenos(fn.length, 200, 'guarda de medibilidad: se encontró la acción');
+  PRUEBAS.falso(/out\.push\(\{ nombre: r\.nombre, yaRegistrado/.test(fn),
+    '⚠️ el campo no viaja más en la respuesta');
+  PRUEBAS.cierto(/out\.push\(\{ nombre: r\.nombre \}\)/.test(fn),
+    'y sigue devolviendo el nombre, que es lo que la pantalla necesita');
+});
+
+PRUEBAS.caso('⚠️ el cliente tolera que `yaRegistrado` no venga', () => {
+  /* Publicar un recorte del servidor sin que el cliente lo tolere es como se rompe una app en
+     producción. Acá el campo entra en un ternario, así que `undefined` cae en la otra rama y se
+     dibuja el chevron de siempre — pero eso hay que COMPROBARLO, no suponerlo. */
+  const src = (typeof nominaFiltrar === 'function') ? nominaFiltrar.toString() : '';
+  PRUEBAS.alMenos(src.length, 100, 'guarda: se pudo leer `nominaFiltrar`');
+  PRUEBAS.cierto(/p\.yaRegistrado \?/.test(src),
+    '⚠️ es un ternario: sin el campo cae en la otra rama, no rompe');
+  PRUEBAS.cierto(/nom-op-chev/.test(src), 'y esa otra rama dibuja el chevron');
+});

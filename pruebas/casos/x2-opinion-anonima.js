@@ -142,8 +142,18 @@ PRUEBAS.caso('⚠️ va por la cola offline: sin señal no se pierde', () => {
      por eso la lista blanca de más arriba es la lista completa de lo que sale del teléfono. */
   PRUEBAS.cierto(/empEncolar\(/.test(String(opinionEnviar)),
     '⚠️ tiene que encolarse, no hacer un fetch directo que se pierda sin señal');
-  PRUEBAS.falso(/dispositivoId/.test(String(empFlush)),
-    '⚠️ y la cola no puede agregar el identificador del dispositivo al mandar');
+  /* ⚠️ ESTE CASO ME FRENÓ, Y POR ESO SE AFINA EN VEZ DE AFLOJARSE. En L6 agregué `dispositivoId`
+     a TODAS las escrituras de esta cola para poder frenar una inundación, sin mirar que una de
+     ellas es el canal anónimo. La comprobación de antes era «la palabra `dispositivoId` no aparece
+     en `empFlush`», y eso ya no alcanza: ahora aparece, pero excluyendo a la opinión.
+     Se comprueba lo que de verdad importa —que para `opinion_guardar` NO se agregue— en vez de
+     borrar el caso, que era la salida fácil y la que habría dejado pasar el defecto. */
+  const src = String(empFlush);
+  PRUEBAS.cierto(/opinion_guardar/.test(src),
+    '⚠️ la cola tiene que distinguir la opinión de las demás acciones');
+  PRUEBAS.cierto(/_sinId \? \{\} : \{ dispositivoId/.test(src),
+    '⚠️ y para la opinión NO se agrega el identificador del dispositivo · un id estable identifica ' +
+    'al teléfono, y por lo tanto a la persona, aunque el texto no lleve nombre');
 });
 
 PRUEBAS.caso('los textos están en los dos idiomas y en neutro (R1, R14)', () => {
