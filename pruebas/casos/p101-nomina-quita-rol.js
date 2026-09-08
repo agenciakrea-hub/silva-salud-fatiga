@@ -95,3 +95,46 @@ PRUEBAS.caso('⚠️ sólo se le quita a quien tenía el rol', () => {
   PRUEBAS.cierto(/esSupervisor \|\| _p\.esServicioMedico/.test(f.slice(i, i + 400)),
     '⚠️ se comprueba que tenía rol antes de tocar nada');
 });
+
+
+/* ── P141 · «ESCRITO» NO ALCANZA: TIENE QUE ESTAR RECONOCIDO ───────────────────────────────── */
+
+PRUEBAS.caso('🔴 un rol MAL ESCRITO no le quita el panel a nadie', () => {
+  /* ⚠️ EL COMENTARIO DEL CÓDIGO LO DECÍA Y EL CÓDIGO NO LO HACÍA: «sólo quita una celda con un rol
+     escrito Y RECONOCIDO». La guarda sólo miraba que la celda no estuviera vacía, y
+     `normalizarRolNomina` devuelve "empleado" para CUALQUIER valor que no esté en la tabla. Así
+     que «Superviosr» —o un teléfono que quedó en esa columna por un pegado corrido— viajaba como
+     una degradación deliberada.
+     Y la quita no es cosmética: el cliente apaga `esSupervisor`, borra las DOS credenciales
+     guardadas y `sesionAvisarCierre()` invalida en el servidor los tokens del panel Y el de la
+     sesión personal. Llega solo, porque `tareasCargar()` corre en cada apertura de la app. */
+  const r = p101Pedir(p101Env(['Helitec','Ana Suárez','V-111','Op','P','F','34','','','Sí','','Superviosr','4']));
+  PRUEBAS.igual(r.rolNomina, null,
+    '🔴 un valor que el sistema no entiende NO viaja · antes salía como "empleado" y le sacaba el panel');
+});
+
+PRUEBAS.caso('🔴 ni un teléfono que quedó en la columna del rol por un pegado corrido', () => {
+  /* El caso que el propio comentario de `ROL_NOMINA` describe: en el Excel que se le manda a cada
+     empresa la columna del ID va vacía y la del rol tiene el valor, así que un pegado que saltee
+     la celda vacía corre todo una posición y mete el teléfono donde va el rol. */
+  const r = p101Pedir(p101Env(['Helitec','Ana Suárez','V-111','Op','P','F','34','','','Sí','','04121112233','4']));
+  PRUEBAS.igual(r.rolNomina, null, '🔴 tampoco · eso no es una decisión de RRHH, es un accidente');
+});
+
+PRUEBAS.caso('⚠️ pero «Empleado» escrito a propósito SIGUE quitando — el discriminador', () => {
+  /* Sin esto, el arreglo de arriba podría estar apagando la función entera: si nada quitara nunca,
+     los dos casos anteriores pasarían por la razón equivocada y P101 dejaría de existir. */
+  const r = p101Pedir(p101Env(['Helitec','Ana Suárez','V-111','Op','P','F','34','','','Sí','','Empleado','4']));
+  PRUEBAS.igual(r.rolNomina, 'empleado',
+    '⚠️ una decisión escrita y entendida sí quita · es para lo que P101 existe');
+});
+
+PRUEBAS.caso('⚠️ y los sinónimos que RRHH escribe de verdad se siguen entendiendo', () => {
+  /* `ROL_NOMINA` acepta sinónimos porque RRHH escribe en su idioma, no en el nuestro. Si el
+     reconocimiento fuera más estricto de la cuenta, un «Jefe de turno» legítimo pasaría a ser
+     «no entendido» y dejaría de proponer nada. */
+  const jefe = p101Pedir(p101Env(['Helitec','Ana Suárez','V-111','Op','P','F','34','','','Sí','','Jefe de turno','4']));
+  PRUEBAS.igual(jefe.rolNomina, 'supervisor', '«Jefe de turno» se entiende como supervisor');
+  const medico = p101Pedir(p101Env(['Helitec','Ana Suárez','V-111','Op','P','F','34','','','Sí','','Médico','4']));
+  PRUEBAS.igual(medico.rolNomina, 'medico', 'y «Médico» con acento también · RRHH lo escribe de las dos formas');
+});
