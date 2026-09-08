@@ -190,3 +190,51 @@ PRUEBAS.caso('⚠️ `nominaAbrir()` es quien enciende la marca del recorrido', 
       '⚠️ abrir el alta enciende el recorrido · sin esto el indicador no se pinta en ningún paso');
   } finally { p136Restaurar(previo); }
 });
+
+
+/* ── R12 · LO QUE EL AUDITOR GENÉRICO NO VE ────────────────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 el resumen no CORTA ningún dato, a ningún ancho', () => {
+  /* ⚠️ ESTE DEFECTO PASÓ POR DEBAJO DE 120 CORRIDAS DEL AUDITOR, y vale entender por qué: el
+     auditor mide si un elemento desborda su CONTENEDOR, y las filas del resumen no desbordaban —
+     lo que desbordaba era el contenido DENTRO de cada fila. Es otra medición
+     (`scrollWidth > clientWidth`), y sin ella el correo largo quedaba cortado a 320 y 375 px,
+     justo en la pantalla donde la persona tiene que CONFIRMAR sus datos.
+     Se mide con el correo y el departamento más largos que hay en producción, no con datos cortos
+     de prueba: un dato corto entra en cualquier ancho y el caso pasaría sin medir nada. */
+  const previo = { todo: Object.assign({}, localStorage) };
+  const anchos = PRUEBAS.VENTANAS ? PRUEBAS.VENTANAS.map(v => v.w) : [320, 375, 768, 1366];
+  const cortadas = [];
+  try {
+    localStorage.clear();
+    SETUP_LISTS.empresas = ['Consorcio HELITEC']; SETUP_LISTS_LOADED = true;
+    ALTA_EN_CURSO = true;
+    setProfile({ nombre:'Fernando José Guerra Pinto', cedula:'V-14567832',
+                 empresa:'Consorcio HELITEC', departamento:'Operaciones Aéreas', cargo:'Piloto',
+                 sexo:'Masculino', edad:'41', telefono:'0412-1112233',
+                 email:'fernando@consorciohelitec.com' });
+    openSetup(false);
+    const caja = document.getElementById('setupResumen');
+    PRUEBAS.cierto(!!caja, 'guarda: hay resumen · si no, este caso no mide nada');
+    PRUEBAS.alMenos(caja ? caja.querySelectorAll('div').length : 0, 5, 'guarda: con sus filas');
+    (PRUEBAS.VENTANAS || [{w:320,h:800},{w:375,h:812},{w:768,h:1024},{w:1366,h:768}]).forEach(v => {
+      PRUEBAS.enVentana(v.w, v.h, () => {
+        const c = document.getElementById('setupResumen');
+        if (!c) return;
+        [...c.querySelectorAll('div')].forEach(fila => {
+          if (fila.scrollWidth > fila.clientWidth + 1){
+            cortadas.push(v.w + 'px: «' + fila.textContent.trim().slice(0, 26) + '»');
+          }
+        });
+      });
+    });
+    PRUEBAS.igual(cortadas, [],
+      '⚠️ ningún dato cortado · el correo largo se cortaba a 320 y 375 px — ' + cortadas.join(' · '));
+  } finally {
+    try { closeSetup(); ALTA_EN_CURSO = false; } catch(e){}
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
+  }
+});

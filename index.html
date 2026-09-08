@@ -979,11 +979,19 @@
   /* El resumen de «no falta nada»: los datos que la nómina ya trajo, para confirmar. */
   .setup-resumen { border: 1px solid var(--linea); border-radius: 12px; padding: .2rem .85rem;
     margin: 0 0 1rem; }
-  .setup-resumen div { display: flex; justify-content: space-between; gap: 1rem;
+  .setup-resumen div { display: flex; justify-content: space-between; gap: .75rem;
     padding: .55rem 0; border-bottom: 1px solid var(--linea); font-size: .88rem; }
   .setup-resumen div:last-child { border-bottom: 0; }
-  .setup-resumen b { color: var(--text-soft); font-weight: 700; }
-  .setup-resumen span { text-align: right; font-weight: 800; }
+  /* ⚠️ LA ETIQUETA NO SE ENCOGE Y EL VALOR SÍ PARTE. Medido a 320 y 375 px: sin esto, dos filas se
+     cortaban —el correo («fernando@consorciohelitec.com») y el departamento largo— y el dato
+     quedaba ilegible justo en la pantalla donde la persona lo tiene que CONFIRMAR. El auditor
+     genérico no lo vio porque el `<div>` no desborda su contenedor: lo que desborda es el contenido
+     DENTRO de la fila, que es otra medición (`scrollWidth > clientWidth`).
+     `min-width: 0` es lo que hace falta para que un hijo de flex pueda achicarse por debajo de su
+     contenido; sin eso, `overflow-wrap` no llega a aplicarse nunca. */
+  .setup-resumen b { color: var(--text-soft); font-weight: 700; flex: 0 0 auto; }
+  .setup-resumen span { text-align: right; font-weight: 800;
+    min-width: 0; overflow-wrap: anywhere; }
   .nom-elegido { background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 12px;
     padding: .7rem .85rem; font-size: .9rem; font-weight: 800; color: var(--sem-ambar-txt); }
   .nom-err { color: var(--sem-rojo-alt); font-size: .8rem; font-weight: 700; margin-top: .5rem; min-height: 1.1rem; line-height: 1.4; }
@@ -6924,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.14';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.15';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
