@@ -27,17 +27,33 @@ function p135Reingreso(){
 }
 
 PRUEBAS.caso('🔴 «Ahora no» en el reingreso repone el splash, no deja la pantalla en blanco', () => {
-  p135Reingreso();
-  PRUEBAS.cierto(splashIngresar() !== false || true, 'guarda: se puede invocar');
-  const abrio = lgnAbrir();
-  PRUEBAS.cierto(abrio !== false, 'guarda: el login se abre sin perfil (P121)');
-  PRUEBAS.cierto(document.getElementById('loginOv').classList.contains('show'),
-    'guarda: el overlay del login está abierto');
-  lgnCerrar();
-  PRUEBAS.igual(document.getElementById('app').style.display, 'none',
-    'guarda: sin perfil completo, la app sigue oculta (no hay nada que revelar)');
-  PRUEBAS.cierto(document.getElementById('splashOv').classList.contains('show'),
-    '⚠️ el splash vuelve · antes quedaban splash Y login cerrados, con #app en display:none — nada dibujado');
+  /* ⚠️ CON RESTAURACIÓN. La primera versión hacía `localStorage.clear()` (dentro de
+     `p135Reingreso`) y no devolvía nada: se llevaba puesto el perfil, el consentimiento, el tema,
+     el idioma y el tamaño de letra de los archivos que corren después, y dejaba `K_REINGRESO`
+     puesta. Lo encontró la auditoría, y con un detalle que duele: por esa fuga, un caso de
+     `q4d-cierre-del-inicio.js` empezaba a irse al login en vez del carrusel — y el arreglo de
+     `lgnCerrar` de este mismo prompt lo hacía PASAR igual, o sea que apagó al único detector que
+     avisaba de la fuga. */
+  const previo = { perfil: getProfile(), todo: Object.assign({}, localStorage) };
+  try {
+    p135Reingreso();
+    const abrio = lgnAbrir();
+    PRUEBAS.cierto(abrio !== false, 'guarda: el login se abre sin perfil (P121)');
+    PRUEBAS.cierto(document.getElementById('loginOv').classList.contains('show'),
+      'guarda: el overlay del login está abierto');
+    lgnCerrar();
+    PRUEBAS.igual(document.getElementById('app').style.display, 'none',
+      'guarda: sin perfil completo, la app sigue oculta (no hay nada que revelar)');
+    PRUEBAS.cierto(document.getElementById('splashOv').classList.contains('show'),
+      '⚠️ el splash vuelve · antes quedaban splash Y login cerrados, con #app en display:none — nada dibujado');
+  } finally {
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
+    document.getElementById('splashOv').classList.remove('show');
+    try { syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ pero si YA hay perfil completo, no reabre el splash de arriba — el discriminador', () => {
@@ -84,9 +100,24 @@ PRUEBAS.caso('🔴 un reingreso EXITOSO revela la app — no sólo el que se can
       persona: { nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
                  cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' }
     }) });
+    /* El consentimiento y el tamaño de letra ya resueltos: son pasos legítimos de `avanzarAlta()`
+       y si faltan, la app NO se revela — que es justo lo que mide el caso de abajo. */
+    acceptConsent();
+    localStorage.setItem(K_TEXTO, '1');
+    /* ⚠️ Y la contraseña marcada como ya ofrecida. Sin esto `avanzarAlta()` llega a su paso 5,
+       `clvAbrir()` abre «elige tu contraseña» y no se revela la app — correcto según el diseño de
+       `avanzarAlta`, pero no es lo que este caso mide.
+       ⚠️ SE MARCA CON LA CÉDULA PUESTA, y esto costó una corrida: `clvMarcarOfrecida()` indexa por
+       `getProfile().cedula`, así que llamarla ANTES del login marcaba la cédula VACÍA y después
+       `clvYaOfrecida()` buscaba la real y no la encontraba.
+       ⚠️ Deja anotado un problema aparte, que NO es de este prompt y es real: `cerrarSesion()`
+       borra `K_CLV_OFRECIDA` (a propósito, porque el teléfono se comparte), así que hoy a quien
+       vuelve con su contraseña se le vuelve a ofrecer elegir una. */
+    setProfile({ cedula: '12345678' });
+    clvMarcarOfrecida();
     const btn = document.getElementById('lgnBtn');
     lgnEntrar(btn);
-    await new Promise(r => setTimeout(r, 60));
+    await new Promise(r => setTimeout(r, 80));
     PRUEBAS.igual(perfilCompleto(getProfile()), true, 'guarda: el perfil que llegó está completo');
     PRUEBAS.igual(document.getElementById('app').style.display, '',
       '⚠️ la app se revela · antes quedaba con display:none pese al login correcto');
@@ -105,8 +136,13 @@ PRUEBAS.caso('🔒 «Volver» desde el paso `empresa` — ya no aplica: ese paso
      día alguien reconecta ese llamador, hay que volver a mirar el «Volver». */
   const sinComentarios = x => x.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
   const fuente = sinComentarios([...document.querySelectorAll('script')].map(x => x.textContent).join('\n'));
-  const llamadores = (fuente.match(/(?<!function\s)nominaAbrirListaEmpresas\s*\(\s*\)/g) || []).length;
-  PRUEBAS.igual(llamadores, 0,
+  /* ⚠️ CUENTA CUALQUIER FORMA DE RECONECTARLA, no sólo `nombre()`. La primera versión pedía
+     paréntesis vacíos, así que `nominaAbrirListaEmpresas(algo)` o un
+     `onclick="nominaAbrirListaEmpresas"` la reconectaban y el caso seguía en verde. Lo encontró la
+     auditoría. Se cuentan TODAS las menciones y se resta la declaración. */
+  const menciones = (fuente.match(/nominaAbrirListaEmpresas/g) || []).length;
+  const declara   = (fuente.match(/function\s+nominaAbrirListaEmpresas/g) || []).length;
+  PRUEBAS.igual(menciones - declara, 0,
     '⚠️ sigue sin llamadores · si aparece uno, el paso `empresa` vuelve a ser alcanzable y «Volver» hay que revisarlo');
 });
 
@@ -128,6 +164,7 @@ PRUEBAS.caso('🔴 mientras se verifica la contraseña de supervisor, el formula
   const previo = getProfile();
   const prevFetch = fetchConReloj;
   const prevListas = { empresas: SETUP_LISTS.empresas.slice(), cargadas: SETUP_LISTS_LOADED };
+  const prevCreds = (function(){ try { return localStorage.getItem(K_DASH_CREDS); } catch(e){ return null; } })();
   let resolver;
   try {
     /* Sin esto `saveProfile()` corta ANTES de llegar a la contraseña: con `SETUP_LISTS.empresas`
@@ -155,8 +192,13 @@ PRUEBAS.caso('🔴 mientras se verifica la contraseña de supervisor, el formula
     const sheet = document.querySelector('#setup .sheet');
     PRUEBAS.cierto(sheet.hasAttribute('inert'),
       '⚠️ el panel entero queda bloqueado mientras se verifica · antes sólo el botón, y su guarda estaba muerta');
-    /* Se resuelve con la forma real de `validarSupervisorCreds` sin red: `{json:()=>...}`. */
-    resolver({ json: () => Promise.resolve({ ok:true, valido:false }) });
+    /* ⚠️ `{ok:false}`, NO `{ok:true, valido:false}`. `validarSupervisorCreds` (index.html) hace
+       `.then(d => (d && d.ok) ? 'ok' : 'bad')` — NO mira `valido`. Con `ok:true` este caso corría
+       el camino de ÉXITO completo mientras decía estar probando el rechazo: guardaba
+       `K_DASH_CREDS` con una contraseña de empresa inventada en texto plano, la dejaba puesta (el
+       `finally` no la restauraba) y con eso `portalTieneSesionDeEmpresa()` pasaba a devolver true,
+       cambiando por dónde ARRANCA la app en la corrida siguiente. Lo encontró la auditoría. */
+    resolver({ json: () => Promise.resolve({ ok:false }) });
     await new Promise(r => setTimeout(r, 50));
     PRUEBAS.cierto(!sheet.hasAttribute('inert'),
       'y se libera solo cuando el pedido de verdad terminó · el contador vuelve a cero');
@@ -167,6 +209,129 @@ PRUEBAS.caso('🔴 mientras se verifica la contraseña de supervisor, el formula
     closeSetup();
     SETUP_LISTS.empresas = prevListas.empresas;
     SETUP_LISTS_LOADED = prevListas.cargadas;
+    /* La credencial de empresa: si queda puesta, el arranque siguiente se va a
+       `portalAbrirDirecto()` en vez del splash. */
+    if (prevCreds === null) { try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }
+    else { try { localStorage.setItem(K_DASH_CREDS, prevCreds); } catch(e){} }
+    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
+    try { syncScrollLock(); } catch(e){}
     if (previo) setProfile(previo); else localStorage.removeItem(K_PROFILE);
+  }
+});
+
+
+/* ── LO QUE ENCONTRÓ LA AUDITORÍA DE ESTE MISMO PROMPT ─────────────────────────────────────
+   Tres regresiones que introdujo el primer intento de P135. Cada una tiene su caso porque las
+   tres se veían "bien" leyendo el código y sólo aparecen al seguir el camino completo. */
+
+PRUEBAS.caso('🔴 «No es mi empresa» NO deja el splash tapando el alta', () => {
+  /* `lgnOtraEmpresa()` hace `lgnCerrar()` y acto seguido `nominaAbrir()`. Con el primer intento de
+     P135, `lgnCerrar()` reponía el splash SIEMPRE que el perfil estuviera incompleto — y nada del
+     camino del alta se lo saca: sólo lo hacen `splashIngresar`, `splashAbrirPortal` y
+     `carruselMostrar`. Resultado medido por la auditoría: la persona hacía el alta entera con el
+     splash puesto detrás y al terminar aterrizaba en la portada, con `#app` marcado `inert`. El
+     mismo callejón que este prompt venía a cerrar, producido por el arreglo. */
+  const previo = { perfil: getProfile(), todo: Object.assign({}, localStorage) };
+  try {
+    p135Reingreso();
+    lgnAbrir();
+    lgnOtraEmpresa();
+    PRUEBAS.igual(document.getElementById('splashOv').classList.contains('show'), false,
+      '⚠️ el splash NO queda puesto detrás del alta · si queda, tapa la app al terminar el registro');
+    PRUEBAS.cierto(document.getElementById('nominaOv').classList.contains('show'),
+      'y la nómina sí se abrió — el discriminador: si no abre, el caso de arriba pasa por la razón equivocada');
+  } finally {
+    try { nominaCerrar(); } catch(e){}
+    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
+    try { syncScrollLock(); } catch(e){}
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
+  }
+});
+
+PRUEBAS.caso('🔴 un login correcto NO revela la app con el consentimiento pendiente', async () => {
+  /* El primer intento hacía `appRevelar(true)` directo, salteando los CINCO pasos de
+     `avanzarAlta()`. El paso 2 es el consentimiento, y su propio comentario dice que «se evalúa
+     SIEMPRE… sacarlo de acá sería dar por consentido algo que esa persona no leyó». Medido por la
+     auditoría: subiendo la versión de un bloque, alguien volvía con su contraseña y entraba a la
+     app con los cinco consentimientos pendientes, pudiendo reportar fatiga y hacer tests. */
+  const previo = { perfil: getProfile(), todo: Object.assign({}, localStorage) };
+  const prevFetch = fetchConReloj;
+  try {
+    /* ⚠️ SE ENTRA POR `lgnEntrar()`, no por `avanzarAlta()` directo. La primera versión de este
+       caso llamaba a `avanzarAlta()` — que hace lo correcto y siempre lo hizo—, así que medía una
+       función que nunca estuvo rota y NO discriminaba: con la regresión puesta seguía en verde. Lo
+       que hay que vigilar es que el REINGRESO pase por ahí, y eso vive en `lgnEntrar`. */
+    p135Reingreso();                            // localStorage limpio: sin consentimiento firmado
+    clvMarcarOfrecida();
+    localStorage.setItem(K_TEXTO, '1');
+    lgnAbrir();
+    document.getElementById('lgnCed').value = '12345678';
+    document.getElementById('lgnPass').value = 'unaClave123';
+    fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({
+      ok: true, sesion: 'token-de-prueba',
+      persona: { nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
+                 cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' }
+    }) });
+    PRUEBAS.igual(hasConsent(), false, 'guarda: efectivamente hay consentimiento pendiente');
+    lgnEntrar(document.getElementById('lgnBtn'));
+    await new Promise(r => setTimeout(r, 80));
+    PRUEBAS.igual(perfilCompleto(getProfile()), true, 'guarda: el perfil que llegó está completo');
+    PRUEBAS.igual(document.getElementById('app').style.display, 'none',
+      '⚠️ la app NO se revela con el consentimiento sin firmar · R3');
+    PRUEBAS.cierto(document.getElementById('consent').classList.contains('show'),
+      'y se abre el consentimiento — el discriminador: si no abre nada, la persona queda en blanco');
+  } finally {
+    fetchConReloj = prevFetch;
+    appRevelar(false);
+    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
+    try { syncScrollLock(); } catch(e){}
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
+  }
+});
+
+PRUEBAS.caso('🔴 con la contraseña correcta y datos faltantes, se piden los datos — no se rebota al splash', async () => {
+  /* El bucle que encontró la auditoría: `perfilDePersona` OMITE las claves cuyas celdas están
+     vacías (es la regla de P118), así que a quien le falte `sexo` o `edad` en la hoja le llega un
+     perfil incompleto. Con el primer intento de P135 eso caía en `lgnCerrar()` → splash →
+     «Ingresar» → login → contraseña correcta → splash otra vez. Tres vueltas medidas, sin un solo
+     mensaje. El comentario que lo justificaba («`misSincronizar()` en algún momento pide lo que
+     falte») era falso: esa función sólo puede pedir la cédula. */
+  const previo = { perfil: getProfile(), todo: Object.assign({}, localStorage) };
+  const prevFetch = fetchConReloj;
+  try {
+    p135Reingreso();
+    acceptConsent();
+    localStorage.setItem(K_TEXTO, '1');
+    lgnAbrir();
+    document.getElementById('lgnCed').value = '12345678';
+    document.getElementById('lgnPass').value = 'unaClave123';
+    /* La respuesta REAL de un servidor al que le falta `sexo` y `edad` en la hoja: las omite. */
+    fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({
+      ok: true, sesion: 'token-de-prueba',
+      persona: { nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
+                 cargo:'Piloto', telefono:'0412', email:'a@a.com' }   // sin sexo ni edad
+    }) });
+    lgnEntrar(document.getElementById('lgnBtn'));
+    await new Promise(r => setTimeout(r, 80));
+    PRUEBAS.igual(perfilCompleto(getProfile()), false, 'guarda: el perfil llegó incompleto, como en la hoja real');
+    PRUEBAS.cierto(document.getElementById('setup').classList.contains('show'),
+      '⚠️ se le piden los datos que faltan · antes rebotaba al splash y volvía a empezar, en bucle');
+    PRUEBAS.igual(document.getElementById('splashOv').classList.contains('show'), false,
+      '⚠️ y NO vuelve al splash · ese era el bucle');
+  } finally {
+    fetchConReloj = prevFetch;
+    closeSetup();
+    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
+    try { syncScrollLock(); } catch(e){}
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
   }
 });

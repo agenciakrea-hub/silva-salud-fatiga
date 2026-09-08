@@ -6896,7 +6896,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.09';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.10';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14534,10 +14534,17 @@ function nominaPaso(paso){
    ⚠️ P132 · EL CAMINO VIEJO YA NO ESTÁ DETRÁS DE NADA. Este comentario decía que vivía detrás de
    «Mi empresa no me dio código» — y era cierto hasta que P132 cambió `nominaSinCodigo()` para que
    deje de llamar a `nominaAbrirListaEmpresas()` (esa función devolvía el padrón de 11 empresas sin
-   ninguna credencial). Con eso, `nominaElegirEmpresa`, `nominaPasoCodigo` y los pasos 'empresa' y
-   'persona' quedaron sin un solo llamador: es código muerto, a propósito, no un olvido. Se deja
-   escrito por si hace falta reabrirlo el día que haya código de verdad y convenga un camino de
-   respaldo, pero hoy no corre. */
+   ninguna credencial). Sin ese llamador, la cadena entera quedó sin forma de alcanzarse:
+   `nominaAbrirListaEmpresas` → paso 'empresa' → `nominaElegirEmpresa` → `nominaCargarPersonas` →
+   paso 'persona' → `nominaFiltrar` → `nominaElegirPersona` → paso 'cedula' → `nominaConfirmar`.
+   ⚠️ OJO CON LA FORMA DE VERIFICARLO, porque una auditoría se equivocó justo acá: `nominaPasoCodigo`
+   y `nominaConfirmar` SÍ tienen llamadores escritos —`nominaConfirmar` la llama en la rama
+   `codigo_invalido`, y el botón «Confirmar y entrar» la llama a ella—, así que un grep dice que
+   están vivas. Lo que no están es ALCANZABLES: esos llamadores viven todos dentro de `#nomPaso3`,
+   que sólo se muestra en el paso 'cedula', al que no se llega. Un grep encuentra la llamada; la
+   pregunta es si alguien puede llegar a ejecutarla.
+   Se deja escrito por si hace falta reabrirlo el día que haya código de verdad y convenga un
+   camino de respaldo, pero hoy no corre. */
 function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
@@ -25788,21 +25795,29 @@ function lgnPintarEmpresa(emp){
 }
 function lgnOtraEmpresa(){
   reingresoOlvidar();
-  lgnCerrar();
+  /* `true` = no repongas el splash: acá abajo se abre la nómina, y el splash quedaría tapándola
+     y, peor, seguiría puesto al terminar el alta. */
+  lgnCerrar(true);
   /* Al paso del código, que es donde empieza el alta de cualquier empresa. */
   try { nominaAbrir(); } catch(e){}
 }
-function lgnCerrar(){
+function lgnCerrar(sinReponer){
   document.getElementById('loginOv').classList.remove('show');
   syncScrollLock();
   _lgnPendiente = null;
   /* ⚠️ P135 · SIN ESTO LA PANTALLA QUEDA EN BLANCO. `splashIngresar()` abre este login QUITÁNDOLE
-     la clase al splash (no hay `splashCerrar`), y `#app` arranca oculto y sólo se revela cuando el
-     login sale bien (`appRevelar(true)` en `lgnEntrar`). Si la persona toca «Ahora no» en el
-     reingreso, ni el splash vuelve ni la app se muestra: los dos overlays quedan cerrados y no hay
-     nada dibujado en la pantalla. Se repone el splash sólo si el perfil sigue incompleto — si ya
-     hay perfil (por ejemplo, cerró este login después de haber entrado por otro camino), no hay
-     nada que reponer. */
+     la clase al splash (no hay `splashCerrar`), y `#app` arranca oculto. Si la persona toca
+     «Ahora no» en el reingreso, ni el splash vuelve ni la app se muestra: los dos overlays quedan
+     cerrados y no hay nada dibujado en la pantalla.
+     ⚠️ `sinReponer` NO ES UN LUJO — lo pide `lgnOtraEmpresa()`, y la auditoría de este mismo
+     arreglo lo encontró: esa función hace `lgnCerrar()` y ACTO SEGUIDO `nominaAbrir()`, y nada del
+     camino del alta le saca `.show` al splash (sólo lo hacen `splashIngresar`, `splashAbrirPortal`
+     y `carruselMostrar`). Sin la bandera, la persona hacía el alta entera con el splash puesto
+     detrás y al terminar aterrizaba en la portada, con `#app` marcado `inert` por
+     `sincronizarInert()`: el mismo callejón que este prompt venía a cerrar, producido por el
+     arreglo. Medido con discriminador: con la línea, `elementFromPoint` del centro devuelve
+     `splashOv`; sin ella, ninguno. */
+  if (sinReponer) return;
   try { if (!perfilCompleto(getProfile())) splashMostrar(); } catch(e){}
 }
 function lgnEntrar(btn){
@@ -25869,16 +25884,29 @@ function lgnEntrar(btn){
          nunca, y el `else` mandaba a `misSincronizar()` en todos los casos. Silencioso: nadie ve
          un error, sólo que la acción no pasa. */
       const seguir = _lgnPendiente;
-      lgnCerrar();
+      /* `true` = no repongas el splash: el login SALIÓ BIEN, así que acá abajo se decide a dónde
+         va la persona (seguir el alta o completar sus datos). Sin la bandera, el splash aparecía
+         debajo de la pantalla que abre `avanzarAlta()`/`openSetup()` y quedaba puesto. */
+      lgnCerrar(true);
       /* ⚠️ P135 · SIN ESTO LA APP QUEDA OCULTA DESPUÉS DE UN LOGIN EXITOSO. `#app` arranca con
-         `display:none` y sólo `appRevelar(true)` lo muestra — eso corre al arrancar (línea ~25507,
-         con el perfil que había ANTES de este login) y al final de `avanzarAlta()`. Ninguna de las
-         dos pasa por el reingreso: `lgnCerrar()` sólo abre el splash si el perfil sigue
-         incompleto, así que con un perfil YA completo no pasaba nada — ni splash ni app, la
-         pantalla quedaba en blanco con el login recién cerrado con éxito.
-         Se revela sólo si el perfil quedó completo: si faltan datos, `misSincronizar()` de abajo
-         sigue su curso normal y en algún momento pide lo que falte antes de mostrar la app. */
-      if (perfilCompleto(getProfile())) appRevelar(true);
+         `display:none` y sólo se revela al final de `avanzarAlta()`, que en el reingreso no corría.
+         ⚠️ Y VA POR `avanzarAlta()`, NO POR `appRevelar(true)` — la auditoría de este mismo arreglo
+         encontró por qué. `appRevelar(true)` salteaba los CINCO pasos de `avanzarAlta()`, y el
+         paso 2 es el consentimiento, que su propio comentario dice que «se evalúa SIEMPRE… sacarlo
+         de acá sería dar por consentido algo que esa persona no leyó». Medido: subiendo la versión
+         de un bloque, alguien volvía con su contraseña y entraba a la app con los cinco
+         consentimientos pendientes, pudiendo reportar fatiga y hacer tests. Se perdían también el
+         tamaño de letra y el ofrecimiento de rol del ADR 002.
+         ⚠️ Y EL PERFIL INCOMPLETO VA AL FORMULARIO, no al camino del alta: `avanzarAlta()` en su
+         paso 1 manda a `nominaAbrir()`, que pide el CÓDIGO otra vez — y el dueño fue explícito en
+         que el reingreso no lo vuelve a pedir. Se abre `openSetup(false)`, que pide lo que falta y
+         termina en `finalizar()` → `avanzarAlta()`, cerrando el recorrido igual.
+         El comentario anterior decía que «`misSincronizar()` en algún momento pide lo que falte»:
+         era falso. Esa función sólo puede pedir la cédula, y con el perfil incompleto la persona
+         quedaba en un BUCLE — splash → Ingresar → login → contraseña correcta → splash otra vez,
+         sin un solo mensaje. Medido tres veces seguidas. */
+      if (perfilCompleto(getProfile())) avanzarAlta();
+      else openSetup(false);
       showToast(t('lgn_listo'));
       if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
       else { try { misSincronizar(); } catch(e){} }
