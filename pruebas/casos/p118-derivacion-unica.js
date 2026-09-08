@@ -48,7 +48,13 @@ function p118Env(fns, opciones) {
   if (o.enRegistrados !== false) {
     const f = new Array(P118_CAB_REG.length).fill('');
     f[2] = 'Ana Suárez'; f[3] = 'ana@ejemplo.com'; f[4] = 'V-111';
-    f[6] = 'Sí'; f[7] = o.supReg === undefined ? 'Sí' : o.supReg;
+    /* ⚠️ EL ID DE PILOTO SE CARGA, Y ESO NO ES DECORACIÓN. Esta fila lo dejaba VACÍO, y por eso
+       ninguna prueba cazó el bug de `col("piloto")`: con la celda en blanco el error no se ve. Un
+       piloto real SIEMPRE tiene ID —el cliente lo exige (`if (esPiloto && !id_piloto) ok=false`)—
+       así que la fila de prueba sin ID era una fila que no existe en producción. */
+    f[5] = o.idPilotoReg === undefined ? 'PIL-004' : o.idPilotoReg;
+    f[6] = o.pilotoReg === undefined ? 'Sí' : o.pilotoReg;
+    f[7] = o.supReg === undefined ? 'Sí' : o.supReg;
     f[8] = 'Helitec'; f[9] = 'Operaciones'; f[10] = 'Piloto'; f[11] = 'F'; f[12] = '34';
     f[13] = o.telReg === undefined ? '0412-1112233' : o.telReg;
     reg.push(f);
@@ -336,4 +342,39 @@ PRUEBAS.caso('⚠️ el callback del login se captura ANTES de que `lgnCerrar` l
     try { lgnCerrar(); } catch(e){}
     if (previo) setProfile(previo);
   }
+});
+
+
+/* ── EL BUG DEL PILOTO, QUE ENCONTRÓ LA AUDITORÍA DE P136 ──────────────────────────────────── */
+
+PRUEBAS.caso('🔴 un piloto con ID cargado NO pierde su marca de piloto', () => {
+  /* ⚠️ ESTE BUG LO INTRODUJO P118 Y VIVIÓ DOS DÍAS EN PRODUCCIÓN. `col(txt)` devolvía la PRIMERA
+     columna cuyo encabezado normalizado CONTIENE el texto, y `norm("ID Piloto")` es "id piloto",
+     que contiene "piloto". Como esa columna está ANTES que «¿Piloto?» en la hoja, `col("piloto")`
+     devolvía la del ID: `esPilotoCrudo` leía "PIL-004", `perfilSiNo` veía algo no vacío que no
+     empieza con "s" y devolvía `false`.
+     Lo que ve la persona: al reinstalar o cambiar de teléfono desaparece la sección Data
+     Operacional entera, el botón deja de decir «Registrar» y la insignia dice «Personal» en vez de
+     «Piloto». Y quince líneas después `sincronizarRegistro` manda el perfil al CH, que escribe
+     «No» en la columna «¿Piloto?»: el borrado no se queda en el teléfono, se propaga a la hoja.
+     ⚠️ POR ESO EL ARREGLO DE CÓDIGO NO ALCANZA: a quien ya pasó por acá, la columna quedó en «No»
+     y después del fix se lee como un «no» legítimo. Hay que reparar esas filas en el CH. */
+  const api = p118Env(['accionRecuperarPerfil'], { pilotoNom: '' });   // la Nómina no lo corrige
+  const r = p118Recuperar(api);
+  PRUEBAS.igual(r.ok, true, 'guarda: responde · ' + (r.error || ''));
+  PRUEBAS.igual(r.perfil.esPiloto, true,
+    '🔴 sigue siendo piloto · antes leía "PIL-004" de la columna del ID y devolvía false');
+  PRUEBAS.igual(r.perfil.id_piloto, 'PIL-004',
+    'y su identificador viaja bien — el discriminador: si las dos columnas se leyeran igual, una de las dos estaría mal');
+});
+
+PRUEBAS.caso('🔴 y un "No" explícito con ID cargado sigue siendo NO', () => {
+  /* El otro lado del mismo error: con `indexOf`, un ID que empezara con "s" ("SILVA-01") daba
+     `esPiloto:true` aunque la celda dijera "No". Se mide con la celda en "No" y un ID que empieza
+     con "s": si se leyera la columna equivocada, esto daría true. */
+  const api = p118Env(['accionRecuperarPerfil'],
+    { pilotoNom: '', pilotoReg: 'No', idPilotoReg: 'SILVA-01' });
+  const r = p118Recuperar(api);
+  PRUEBAS.igual(r.perfil.esPiloto, false,
+    '🔴 el "No" de la columna correcta manda · antes un ID que empezaba con "s" lo daba vuelta');
 });

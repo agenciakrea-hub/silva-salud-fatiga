@@ -967,6 +967,23 @@
     border: 1px solid var(--linea); }
   .nom-op-marca + span { flex: 1; min-width: 0; }
   .nom-ayuda { font-size: .78rem; color: var(--text-muted); line-height: 1.5; margin-top: .7rem; }
+  /* ⚠️ P136 · EL INDICADOR DE PASO. Sin colores a mano (R13): todo por token, y los dos temas
+     salen solos porque los tokens ya están definidos en los dos bloques. */
+  .paso-ind { display: flex; align-items: center; gap: .5rem; font-size: .78rem; font-weight: 800;
+    color: var(--text-soft); letter-spacing: .02em; margin: 0 0 .75rem; }
+  .paso-ind .paso-barra { flex: 1; height: 4px; border-radius: 999px; background: var(--linea);
+    overflow: hidden; }
+  .paso-ind .paso-barra i { display: block; height: 100%; border-radius: 999px;
+    background: var(--orange); transition: width .25s ease; }
+  @media (prefers-reduced-motion: reduce) { .paso-ind .paso-barra i { transition: none; } }
+  /* El resumen de «no falta nada»: los datos que la nómina ya trajo, para confirmar. */
+  .setup-resumen { border: 1px solid var(--linea); border-radius: 12px; padding: .2rem .85rem;
+    margin: 0 0 1rem; }
+  .setup-resumen div { display: flex; justify-content: space-between; gap: 1rem;
+    padding: .55rem 0; border-bottom: 1px solid var(--linea); font-size: .88rem; }
+  .setup-resumen div:last-child { border-bottom: 0; }
+  .setup-resumen b { color: var(--text-soft); font-weight: 700; }
+  .setup-resumen span { text-align: right; font-weight: 800; }
   .nom-elegido { background: var(--orange-bg); border: 1px solid var(--orange); border-radius: 12px;
     padding: .7rem .85rem; font-size: .9rem; font-weight: 800; color: var(--sem-ambar-txt); }
   .nom-err { color: var(--sem-rojo-alt); font-size: .8rem; font-weight: 700; margin-top: .5rem; min-height: 1.1rem; line-height: 1.4; }
@@ -6353,11 +6370,6 @@
       <div class="err" data-i18n="f_med_pass_err">Ingresa la contraseña de servicio médico.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()" data-i18n="guardar_continuar">Guardar y continuar</button>
-    <!-- ⚠️ P122 · LA SALIDA. «Un dato mal cargado no puede encerrar a nadie afuera de su app»: si
-         RRHH escribió mal el cargo o el departamento, la persona no tiene cómo arreglarlo desde
-         acá y quedaría trabada en la puerta. NO aparece siempre — ver `setupPosponerPintar()`. -->
-    <button type="button" class="cancel-btn" id="setupPosponerBtn" style="display:none"
-            onclick="datosPosponer()" data-i18n="setup_posponer">Continuar, lo corrijo después</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;" data-i18n="cancelar">Cancelar</button>
   </div>
 </div>
@@ -6901,7 +6913,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.11';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.12';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7148,9 +7160,14 @@ const I18N = {
       rol_medico:'Servicio médico',
       setup_titulo:'Bienvenido',
       setup_titulo_faltantes:'Falta muy poco',
+      setup_titulo_confirmar:'Confirma tus datos',
+      setup_lead_confirmar:'Esto es lo que tu empresa cargó de ti. Si algo no está bien, puedes corregirlo desde Más › Editar mis datos.',
+      paso_de:'paso {n} de {total}',
+      paso_fase_ident:'Identificación',
+      paso_fase_datos:'Tus datos',
+      paso_fase_permisos:'Permisos',
+      paso_fase_ajustes:'Ajustes',
       setup_lead_faltantes:'Tu empresa ya cargó tus datos. Sólo necesitamos esto para terminar:',
-      setup_posponer:'Continuar, lo corrijo después',
-      setup_pospuesto:'Puedes completarlo cuando quieras desde Más › Mis datos.',
       setup_lead:'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.',
       f_nombre:'Nombre y apellido', f_nombre_ph:'Ej: Juan Pérez',
       f_nombre_err:'Por favor ingresa tu nombre y apellido.',
@@ -8819,9 +8836,14 @@ const I18N = {
       rol_medico:'Medical staff',
       setup_titulo:'Welcome',
       setup_titulo_faltantes:'Almost done',
+      setup_titulo_confirmar:'Confirm your details',
+      setup_lead_confirmar:'This is what your company loaded about you. If something is wrong, you can fix it from More › Edit my details.',
+      paso_de:'step {n} of {total}',
+      paso_fase_ident:'Identification',
+      paso_fase_datos:'Your details',
+      paso_fase_permisos:'Permissions',
+      paso_fase_ajustes:'Settings',
       setup_lead_faltantes:'Your company already loaded your details. We only need this to finish:',
-      setup_posponer:'Continue, I will fix it later',
-      setup_pospuesto:'You can complete it whenever you want from More › My details.',
       setup_lead:'Before you start, fill in your details. They stay on this device and are used to identify you to EVA in every report.',
       f_nombre:'Full name', f_nombre_ph:'e.g. John Smith',
       f_nombre_err:'Please enter your full name.',
@@ -14312,6 +14334,10 @@ function altaOlvidarPerfil(){ _altaPerfilPrevio = undefined; }   // el alta term
    escrito. Es la salida que faltaba: hasta R1, ni el formulario, ni el consentimiento, ni el tamano
    de texto tenian forma de volver — habia que recargar la pagina. */
 function altaAbandonar(){
+  /* P136 · quien abandona el alta sale del recorrido: el indicador no puede sobrevivirle. Sin
+     esto, la marca quedaba encendida y el «paso N de 6» reaparecía la próxima vez que se abriera
+     el consentimiento o el tamaño de letra fuera del alta. */
+  ALTA_EN_CURSO = false;
   if (_altaPerfilPrevio !== undefined){
     if (_altaPerfilPrevio) setProfile(_altaPerfilPrevio);
     else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
@@ -14524,6 +14550,11 @@ function nominaPaso(paso){
      pasan TODAS: registrar en cada apertura suelta sería otro lugar donde olvidarse de una. */
   if (paso === 'codigo')   gatearBoton('nomBtnCodigo', ['nomCodigo']);
   if (paso === 'cedsola')  gatearBoton('nomBtnCedula', ['nomCedulaSola']);
+  /* P136 · los tres primeros pasos del recorrido. Los pasos del camino viejo ('empresa',
+     'persona', 'cedula') no se numeran: ese camino ya no es alcanzable y numerarlo sería
+     prometer un recorrido que nadie hace. */
+  const _n = { codigo: 1, cedsola: 2, confirmar: 3 }[paso] || 0;
+  pasoPintar('#nominaOv .sheet', _n);
   nominaEl('nomTitulo').textContent = t('nom_t_' + paso);
   /* El lead del paso del código depende de si YA se eligió una empresa: en el flujo nuevo es el
      primer paso y todavía no hay ninguna que nombrar. */
@@ -14562,6 +14593,7 @@ function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
   NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null; NOM.empresaPorLista = false;
+  ALTA_EN_CURSO = true;   // P136 · el indicador de paso sólo se pinta durante el alta
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
   nominaPasoCodigoInicial();
@@ -14760,6 +14792,12 @@ function nominaPasoCodigoInicial(){
   nominaEl('nomCodEmpresa').textContent = '';
   nominaEl('nomCodEmpresa').style.display = 'none';
   nominaEl('nomCodigo').value = NOM.codigo || '';
+  /* ⚠️ EL GATEO SE REAPLICA ACÁ, y el orden es todo el problema: `nominaPaso()` —la primera línea
+     de esta función— registra el gateo y lo evalúa con el valor que hubiera ANTES, y recién
+     después se asigna el de verdad. Medido: al volver a esta pantalla con un código escrito antes,
+     el campo aparecía vacío y «Continuar» VERDE — exactamente lo que P132 vino a cerrar. Y al
+     revés, retomando un alta con el código guardado, el campo salía lleno y el botón gris. */
+  gateoAplicar('nomBtnCodigo');
   nominaEl('nomCodErr').textContent = '';
   setTimeout(() => { try { nominaEl('nomCodigo').focus(); } catch(e){} }, 60);
 }
@@ -14767,6 +14805,7 @@ function nominaPasoCodigoInicial(){
 function nominaPasoCedula(){
   nominaPaso('cedsola');
   nominaEl('nomCedulaSola').value = '';
+  gateoAplicar('nomBtnCedula');   // mismo motivo que arriba: el valor se asigna después del gateo
   nominaEl('nomCedErr').textContent = '';
   /* Sólo si la empresa tiene un código de supervisor cargado. `tieneCodigoSup` viene del perfil
      público que devolvió `codigo_empresa`: el valor nunca viaja, sólo si existe. */
@@ -15160,7 +15199,7 @@ function openSetup(isEdit){
     const _p = getProfile() || {};
     const _porNomina = !!(_p.nombre && _p.cedula && _p.empresa);
     setupModoFaltantes(!editing && _porNomina);
-    setupPosponerPintar(!editing && _porNomina);
+    pasoPintar('#setup .sheet', editing ? 0 : 4);
   } catch(e){}
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
@@ -15220,6 +15259,65 @@ function setupCamposFaltantes(){
 // ¿Están TODOS los datos completos y bien puestos? Es el mismo cálculo de arriba, contado.
 function setupFormOk(){ return setupCamposFaltantes().length === 0; }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P136 · EL INDICADOR DE PASO
+
+   Lo pidió la segunda opinión que trajo Franco: «que sea un asistente paso a paso con indicadores
+   visuales claros, para que el usuario no sienta que está rellenando un formulario infinito».
+
+   ⚠️ QUÉ CUENTA COMO PASO, que era la pregunta y se contestó midiendo el recorrido real:
+   son SEIS pantallas obligatorias — código, cédula, «¿eres tú?», tus datos, consentimiento y
+   tamaño de letra. NO cuentan el splash ni las cinco láminas del carrusel: el carrusel ya tiene su
+   propio indicador (sus cinco puntitos) y su botón «Saltar», así que numerarlo dos veces sería
+   contarle a la persona un recorrido que ya puede saltear.
+   Y NO cuentan los dos ofrecimientos del final —el rol y la contraseña propia— porque no le
+   aparecen a todo el mundo: el rol sólo si la nómina propuso uno, y la contraseña es opcional.
+   Un total que a veces se cumple y a veces no es peor que no poner ninguno: los dos ya se
+   presentan como lo que son, con su «Ahora no» y su «Más tarde».
+
+   ⚠️ SÓLO DURANTE EL ALTA. Estas seis pantallas también se abren fuera del alta —el consentimiento
+   cuando sube de versión, el tamaño de letra desde Más, los datos desde «Editar mis datos»— y ahí
+   un «paso 5 de 6» sería mentira. Por eso hay una marca explícita en vez de deducirlo del perfil.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+var PASO_TOTAL = 6;
+/* ⚠️ `var` sin valor (R16): el arranque llama a `avanzarAlta()`, que la lee, y este archivo declara
+   mucho más abajo de donde arranca. Una declaración sin asignar no pisa lo que ya haya. */
+var ALTA_EN_CURSO;
+
+function pasoFase(n){
+  if (n <= 3) return t('paso_fase_ident');
+  if (n === 4) return t('paso_fase_datos');
+  if (n === 5) return t('paso_fase_permisos');
+  return t('paso_fase_ajustes');
+}
+
+/* Pinta (o saca) el indicador arriba de todo del panel que se le pase. */
+function pasoPintar(selSheet, n){
+  const sheet = document.querySelector(selSheet);
+  if (!sheet) return;
+  let el = sheet.querySelector(':scope > .paso-ind');
+  if (!ALTA_EN_CURSO || !n){ if (el) el.remove(); return; }
+  if (!el){
+    el = document.createElement('div');
+    el.className = 'paso-ind';
+    /* `polite` y no `assertive`: es información de contexto, no una alerta. */
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    sheet.insertBefore(el, sheet.firstChild);
+  }
+  const pct = Math.round((n / PASO_TOTAL) * 100);
+  el.innerHTML = '';
+  const txt = document.createElement('span');
+  txt.textContent = pasoFase(n) + ' · ' + t('paso_de', { n: n, total: PASO_TOTAL });
+  const barra = document.createElement('div');
+  barra.className = 'paso-barra';
+  const relleno = document.createElement('i');
+  relleno.style.width = pct + '%';
+  barra.appendChild(relleno);
+  el.appendChild(txt);
+  el.appendChild(barra);
+}
+
 /* Los doce `.field` del formulario, en el orden en que están en la pantalla. Se listan acá y no se
    buscan con `querySelectorAll('.field')` porque el modo «faltantes» tiene que poder DEVOLVERLOS a
    como estaban, y tres de ellos (`fPiloto`, `fSupPass`, `fMedPass`) los esconde `openSetup()` por
@@ -15265,66 +15363,74 @@ function setupModoFaltantes(activo){
     el.style.display = 'none';
     el.setAttribute('data-oculto-faltantes', '1');       // marca de quién lo escondió
   });
-  /* El encabezado explica por qué se ve medio formulario: sin esto la pantalla parece rota. */
+  /* ⚠️ CUANDO NO FALTA NADA, ESTA PANTALLA QUEDABA VACÍA — y lo encontré mirándola, no midiendo.
+     Si la nómina trae los nueve campos, el modo los esconde a los nueve: quedaba un panel que
+     decía «Falta muy poco · Sólo necesitamos esto para terminar:» y abajo NADA, con un botón
+     «Guardar y continuar» flotando. Parece rota, y encima miente.
+     Pero la pantalla no se puede saltear: `saveProfile()` es el ÚNICO camino que llama a
+     `sincronizarRegistro()`, o sea el único que escribe la fila en `Registrados Fatiga`. Sin pasar
+     por acá, la persona no existe para el panel.
+     Así que cuando no falta nada deja de ser un formulario y pasa a ser lo que de verdad es: una
+     CONFIRMACIÓN de lo que la empresa cargó, con los datos a la vista. */
+  const nada = activo && !faltan.length;
+  setupResumenPintar(nada);
   const lead = document.getElementById('setupLead');
-  if (lead) lead.textContent = activo ? t('setup_lead_faltantes') : t('setup_lead');
-  const tit = document.getElementById('setupTitle');
-  if (tit) tit.textContent = activo ? t('setup_titulo_faltantes') : t('setup_titulo');
+  const tit  = document.getElementById('setupTitle');
+  if (lead) lead.textContent = !activo ? t('setup_lead')
+                             : nada    ? t('setup_lead_confirmar') : t('setup_lead_faltantes');
+  if (tit)  tit.textContent  = !activo ? t('setup_titulo')
+                             : nada    ? t('setup_titulo_confirmar') : t('setup_titulo_faltantes');
   return faltan.length;
 }
 
-/* ⚠️ P122 · LA SALIDA TIENE UN LÍMITE, y no estaba en el plan: lo puso la medición.
-   El plan pedía «Continuar, lo corrijo después» SIEMPRE, con un motivo bueno: un dato que RRHH
-   cargó mal no puede dejar a nadie afuera de su propia app.
-   Pero `sincronizarRegistro()` arranca con `if (!perfil.cedula || !perfil.email) return;` — sin
-   esos dos NO se escribe la fila en `Registrados Fatiga`. Y esa fila es lo que hace que la persona
-   exista para el panel: sin ella el supervisor la ve como no registrada, `mapaPerfil` no le
-   encuentra cargo y la cascada de nivel de riesgo cae en silencio. Dejar posponer el correo no es
-   «entrar con un dato menos»: es entrar sin existir, y sin que nadie se entere.
-   Así que la salida se ofrece para todo lo demás —departamento, cargo, sexo, edad, teléfono, ID de
-   piloto— y no para esos dos. Quien tenga el correo vacío lo escribe: es un campo que la persona
-   sabe de memoria, no un dato que dependa de que RRHH lo haya cargado bien. */
-var SETUP_NO_POSPONIBLES = ['inCed', 'inEmail'];
-
-function setupPuedePosponer(){
-  const faltan = setupCamposFaltantes();
-  if (!faltan.length) return false;                                   // no falta nada que posponer
-  return !faltan.some(f => SETUP_NO_POSPONIBLES.indexOf(f.campo) >= 0);
+/* Los datos que la empresa ya cargó, en lectura. No es un formulario: es lo que la persona
+   confirma antes de entrar. Se arma con nodos y no con `innerHTML` porque acá entran datos de
+   persona —nombre, cargo, correo— y este archivo tiene la regla de no escribir sin `esc()`. */
+function setupResumenPintar(mostrar){
+  const sheet = document.querySelector('#setup .sheet');
+  if (!sheet) return;
+  let caja = document.getElementById('setupResumen');
+  if (!mostrar){ if (caja) caja.remove(); return; }
+  if (!caja){
+    caja = document.createElement('div');
+    caja.className = 'setup-resumen';
+    caja.id = 'setupResumen';
+    const lead = document.getElementById('setupLead');
+    if (lead && lead.nextSibling) sheet.insertBefore(caja, lead.nextSibling);
+    else sheet.insertBefore(caja, sheet.firstChild);
+  }
+  caja.innerHTML = '';
+  /* Se leen de los CAMPOS y no del perfil: es lo que se va a guardar, no lo que había antes. */
+  [['f_nombre', 'inName'], ['f_cedula', 'inCed'], ['f_empresa', 'inEmp'],
+   ['f_depto', 'inDep'], ['f_cargo', 'inCargo'], ['f_telefono', 'inTelefono'],
+   ['f_email', 'inEmail']].forEach(([clave, campo]) => {
+    const val = _sv(campo);
+    if (!val) return;
+    const fila = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = t(clave);
+    const v = document.createElement('span'); v.textContent = val;
+    fila.appendChild(b); fila.appendChild(v);
+    caja.appendChild(fila);
+  });
 }
 
-function setupPosponerPintar(enModoFaltantes){
-  const b = document.getElementById('setupPosponerBtn');
-  if (!b) return;
-  b.style.display = (enModoFaltantes && setupPuedePosponer()) ? '' : 'none';
-}
-
-/* La marca de «lo completo después», por cédula: el teléfono se comparte, igual que con
-   `K_CLV_OFRECIDA`. Que la haya puesto una persona no puede saltearle la puerta a la siguiente. */
-const K_DATOS_POSP = 'silva_fatiga_datos_pospuestos_v1';
-
-function datosPospuestos(){
-  const p = getProfile() || {};
-  /* ⚠️ SIN IDENTIDAD NO HAY NADA QUE POSPONER. Sin esta guarda, una marca vieja le saltearía el
-     alta ENTERA a quien todavía no se identificó — `avanzarAlta()` la consulta en su paso 1, que
-     es justamente el que sostiene la puerta. */
-  if (!p.nombre || !p.cedula || !p.empresa) return false;
-  try { return (JSON.parse(localStorage.getItem(K_DATOS_POSP)) || {})[dashNorm(p.cedula)] === true; }
-  catch(e){ return false; }
-}
-
-function datosPosponer(){
-  const p = getProfile() || {};
-  try {
-    const o = JSON.parse(localStorage.getItem(K_DATOS_POSP)) || {};
-    o[dashNorm(p.cedula || '')] = true;
-    lsSet(K_DATOS_POSP, JSON.stringify(o));
-  } catch(e){}
-  closeSetup();
-  try { showToast(t('setup_pospuesto')); } catch(e){}
-  /* Sigue el mismo recorrido que si hubiera guardado: consentimiento, tamaño de letra y lo que
-     corresponda. No se llama a `saveProfile()` porque no hay nada válido que guardar. */
-  try { avanzarAlta(); } catch(e){}
-}
+/* ⚠️ P136 · ACÁ VIVÍA «CONTINUAR, LO CORRIJO DESPUÉS», Y SE SACÓ. La auditoría de P122 midió lo
+   que pasaba después de tocarlo, y eran dos cosas graves:
+   · La fila NUNCA se escribía en `Registrados Fatiga`. `saveProfile()` es el único camino que
+     llama a `sincronizarRegistro()`, y posponer no pasaba por ahí: la persona entraba a la app,
+     reportaba fatiga y hacía tests, pero para el panel NO EXISTÍA. En una app de gestión de
+     fatiga, alguien invisible para el supervisor y para el médico no es un dato faltante: es un
+     agujero de seguridad operativa.
+   · Y cada vez que abría la app volvía al splash. El arranque decide con `_complete`, que es
+     `perfilCompleto()` calculado al cargar: con el perfil incompleto la mandaba a la portada, y de
+     ahí al carrusel de cinco láminas y al alta otra vez. Todos los días.
+   ⚠️ Y EL MOTIVO POR EL QUE SE PUSO YA NO EXISTE. El plan la pedía porque «un dato mal cargado no
+   puede encerrar a nadie afuera de su app» — pero eso era cierto cuando el formulario mostraba los
+   nueve campos y algunos venían de la nómina. En el modo «faltantes» lo que se muestra es
+   exactamente lo que falta, y esos campos son EDITABLES: la persona escribe su teléfono o corrige
+   su cargo y sigue. No hay nadie encerrado, así que no hay de qué escapar.
+   Si algún día vuelve a hacer falta, tiene que traer las dos mitades: escribir la fila igual, y
+   que el arranque sepa que esa persona ya entró. */
 // Habilita/inhabilita (gris) el botón Guardar según el estado del formulario.
 function setupCheckReady(){
   const btn = document.querySelector('#setup .save-btn');
@@ -16297,7 +16403,13 @@ function gatearBoton(idBtn, campos, extra){
     var c = document.getElementById(id);
     if (c && !c.dataset.gateado){
       c.dataset.gateado = '1';
+      /* ⚠️ `change` ADEMÁS de `input`, y no es por las dudas: los dos campos del login tienen
+         `autocomplete` puesto justamente para invitar al gestor de contraseñas del teléfono, y no
+         todos los gestores disparan `input` al rellenar. Con un solo escucha, la persona veía los
+         dos campos llenos y «Entrar» gris, sin nada que tocar para destrabarlo. También cubre el
+         autocompletado del navegador y los `<select>`, que emiten `change` y no `input`. */
       c.addEventListener('input', function(){ gateoAplicar(idBtn); });
+      c.addEventListener('change', function(){ gateoAplicar(idBtn); });
     }
   });
   gateoAplicar(idBtn);
@@ -25812,13 +25924,7 @@ if (_complete) sincronizarRegistro(_prof);
    Se muestra el PRIMER paso pendiente, no todos: cada paso vuelve a llamar acá al cerrarse. */
 function avanzarAlta(){
   // 1 · Identificarse. nominaAbrir() ya NO cae al formulario manual si no hay nómina o no hay red (P124 quitó los dos respaldos): sólo si no hay endpoint.
-  /* ⚠️ P122 · `datosPospuestos()` ES LO QUE HACE QUE LA SALIDA SIRVA. Sin esto, quien toca
-     «Continuar, lo corrijo después» sale del formulario con el perfil incompleto, este paso lo ve
-     y lo manda a `nominaAbrir()` — o sea de vuelta al código: el mismo bucle que P135b tuvo que
-     cerrar en el reingreso, por la misma causa (una salida que no le avisa a la puerta).
-     La marca sólo vale para quien YA tiene identidad resuelta: `datosPospuestos()` devuelve false
-     si falta nombre, cédula o empresa, así que no le abre la puerta a nadie sin identificar. */
-  if (!perfilCompleto(getProfile()) && !datosPospuestos()){ nominaAbrir(); return; }
+  if (!perfilCompleto(getProfile())){ nominaAbrir(); return; }
 
   // 2 · Consentimiento. Se evalúa SIEMPRE, tenga o no el perfil completo: es lo que hace que un
   //     texto actualizado se le vuelva a mostrar a quien ya estaba registrado. Sacarlo de acá
@@ -25826,6 +25932,7 @@ function avanzarAlta(){
   if (!hasConsent()){
     consentRender();
     document.getElementById('consent').classList.add('show');
+    pasoPintar('#consent .sheet', 5);
     syncScrollLock();
     return;
   }
@@ -25836,6 +25943,7 @@ function avanzarAlta(){
      este paso— les aparecería una pantalla nueva al abrir la app, sin haber pedido nada. */
   if (!textoYaElegido() && !_complete){
     document.getElementById('textoOverlay').classList.add('show');
+    pasoPintar('#textoOverlay .sheet', 6);
     syncScrollLock();
     return;
   }
@@ -25866,6 +25974,12 @@ function avanzarAlta(){
     if (clvAbrir()) return;
   }
   // Nada pendiente: recién ACÁ la app queda a la vista.
+  /* ⚠️ P136 · SE APAGA ACÁ Y NO EN CADA PANTALLA. Éste es el único punto por el que se sale del
+     recorrido con todo resuelto; apagarla en cada paso obligaría a acordarse en seis lugares, que
+     es exactamente cómo se pierde uno. Si queda encendida, el indicador aparecería la próxima vez
+     que se abra el consentimiento o el tamaño de letra fuera del alta — diciendo «paso 5 de 6» a
+     alguien que sólo vino a cambiar el tamaño de la letra. */
+  ALTA_EN_CURSO = false;
   appRevelar(true);
 }
 /* ══════════════════════════════════════════════════════════════════════════════════════════════

@@ -139,83 +139,40 @@ PRUEBAS.caso('⚠️ a quien se da de alta a MANO se le muestra el formulario en
   } finally { p122Cerrar(previo); }
 });
 
-/* ── LA SALIDA, Y SU LÍMITE ────────────────────────────────────────────────────────────────── */
+/* ── LA SALIDA QUE SE SACÓ, Y POR QUÉ NO PUEDE VOLVER SOLA ─────────────────────────────────── */
 
-PRUEBAS.caso('⚠️ «Continuar, lo corrijo después» aparece para un dato que RRHH puede haber cargado mal', () => {
+PRUEBAS.caso('🔒 «Continuar, lo corrijo después» NO existe · dejaba gente invisible para el panel', () => {
+  /* P122 la puso porque el plan la pedía: «un dato mal cargado no puede encerrar a nadie afuera de
+     su app». La auditoría de P136 midió qué pasaba DESPUÉS de tocarla, y eran dos cosas graves:
+
+     · La fila NUNCA se escribía en `Registrados Fatiga`. `saveProfile()` es el único camino que
+       llama a `sincronizarRegistro()`, y posponer no pasaba por ahí. La persona entraba a la app,
+       reportaba fatiga y hacía tests, pero para el supervisor y para el médico NO EXISTÍA. En una
+       app de gestión de fatiga eso no es un dato faltante: es un agujero operativo.
+     · Y cada vez que abría la app volvía al splash, porque el arranque decide con `_complete`
+       (`perfilCompleto()` calculado al cargar). Con el perfil incompleto la mandaba a la portada,
+       al carrusel de cinco láminas y al alta otra vez. Todos los días.
+
+     ⚠️ Y EL MOTIVO POR EL QUE SE PUSO YA NO EXISTE: en el modo «faltantes» lo que se muestra es
+     exactamente lo que falta, y esos campos son EDITABLES. La persona escribe su teléfono o
+     corrige su cargo y sigue. No hay nadie encerrado, así que no hay de qué escapar.
+
+     Este caso no vigila el botón: vigila que no vuelva SIN SUS DOS MITADES. Si alguien lo reabre,
+     tiene que escribir la fila igual y avisarle al arranque que esa persona ya entró. */
   const previo = { todo: Object.assign({}, localStorage) };
   try {
     const sinCargo = Object.assign({}, P122_COMPLETO); delete sinCargo.cargo;
     p122Abrir(sinCargo);
-    PRUEBAS.igual(p122Visible('setupPosponerBtn'), true,
-      '⚠️ se ofrece la salida · un dato mal cargado no puede encerrar a nadie afuera de su app');
-  } finally { p122Cerrar(previo); }
-});
-
-PRUEBAS.caso('🔴 pero NO se puede posponer el correo ni la cédula', () => {
-  /* ⚠️ ESTE LÍMITE NO ESTABA EN EL PLAN: lo puso la medición. `sincronizarRegistro()` arranca con
-     `if (!perfil.cedula || !perfil.email) return;`, así que sin esos dos NO se escribe la fila en
-     `Registrados Fatiga` — y esa fila es lo que hace que la persona exista para el panel. Posponer
-     el correo no es «entrar con un dato menos»: es entrar sin existir, y sin que nadie se entere. */
-  const previo = { todo: Object.assign({}, localStorage) };
-  try {
-    const sinEmail = Object.assign({}, P122_COMPLETO); delete sinEmail.email;
-    p122Abrir(sinEmail);
     PRUEBAS.igual(p122Visible('setupPosponerBtn'), false,
-      '🔴 sin correo no se ofrece posponer · sin él la fila no se escribe y la persona no existe para el panel');
-    const sinCed = Object.assign({}, P122_COMPLETO); delete sinCed.cedula;
-    p122Abrir(sinCed);
-    PRUEBAS.igual(p122Visible('setupPosponerBtn'), false, '🔴 ni sin cédula, por lo mismo');
+      '🔒 no hay salida que saltee el guardado · quien la reabra tiene que escribir la fila igual');
+    PRUEBAS.igual(typeof window.datosPosponer, 'undefined',
+      '🔒 y la función tampoco está · si vuelve, este caso avisa antes de que llegue a producción');
+    /* El discriminador de que el caso mide algo: el campo que falta SÍ está a la vista y se puede
+       completar, que es lo que hace innecesaria la salida. */
+    PRUEBAS.igual(p122Visible('fCargo'), true,
+      '⚠️ y el campo que falta está a la vista y es editable · por eso nadie queda encerrado');
+    const inp = document.getElementById('inCargo');
+    PRUEBAS.igual(!!inp && !inp.readOnly && !inp.disabled, true,
+      'editable de verdad, no sólo visible');
   } finally { p122Cerrar(previo); }
-});
-
-PRUEBAS.caso('🔒 la marca de pospuesto NO le abre la puerta a quien no se identificó', () => {
-  /* `avanzarAlta()` consulta `datosPospuestos()` en su PASO 1, que es el que sostiene la puerta.
-     Una marca vieja de otra persona en un teléfono compartido no puede saltear el alta entera. */
-  const previo = { todo: Object.assign({}, localStorage) };
-  try {
-    localStorage.clear();
-    setProfile(P122_COMPLETO);
-    datosPosponer();                                   // queda la marca para esta cédula
-    PRUEBAS.igual(datosPospuestos(), true, 'guarda: con identidad completa, la marca vale');
-    setProfile({ cedula: '12345678' });                // el siguiente: misma cédula, sin identidad
-    PRUEBAS.igual(datosPospuestos(), false,
-      '🔒 sin nombre ni empresa la marca NO vale · si no, saltearía el alta entera');
-  } finally { p122Cerrar(previo); }
-});
-
-PRUEBAS.caso('🔴 quien pospone NO queda en el bucle de vuelta al código', () => {
-  /* Es el mismo defecto que P135b cerró en el reingreso, por la misma causa: una salida que no le
-     avisa a la puerta. Sin la marca, `avanzarAlta()` ve el perfil incompleto y manda a
-     `nominaAbrir()` — o sea al código, otra vez. */
-  const previo = { todo: Object.assign({}, localStorage) };
-  try {
-    localStorage.clear();
-    const sinCargo = Object.assign({}, P122_COMPLETO); delete sinCargo.cargo;
-    setProfile(sinCargo);
-    /* ⚠️ `acceptConsent()` NO ES INERTE: termina llamando a `avanzarAlta()`, y en ese momento el
-       perfil está incompleto y la marca todavía no existe, así que abre la nómina. Este caso
-       fallaba por eso —medía el overlay que abrió la PREPARACIÓN, no el que abre (o no) lo que se
-       está probando—. Por eso los overlays se cierran DESPUÉS de preparar y justo antes de medir. */
-    acceptConsent();
-    localStorage.setItem(K_TEXTO, '1');
-    clvMarcarOfrecida();
-    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
-    datosPosponer();
-    PRUEBAS.igual(perfilCompleto(getProfile()), false, 'guarda: el perfil sigue incompleto');
-    PRUEBAS.igual(document.getElementById('nominaOv').classList.contains('show'), false,
-      '⚠️ NO se abre el alta otra vez · ése era el bucle');
-    /* El discriminador: SIN la marca, el mismo perfil incompleto sí manda de vuelta al alta. Sin
-       esto, un `avanzarAlta()` que nunca abriera nada daría verde arriba. */
-    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
-    try { localStorage.removeItem(K_DATOS_POSP); } catch(e){}
-    PRUEBAS.igual(datosPospuestos(), false, 'guarda: la marca se borró');
-    avanzarAlta();
-    PRUEBAS.igual(document.getElementById('nominaOv').classList.contains('show'), true,
-      '⚠️ sin la marca SÍ vuelve al alta · o sea que la marca es lo que cambia el resultado');
-  } finally {
-    [...document.querySelectorAll('.overlay.show')].forEach(o => o.classList.remove('show'));
-    try { syncScrollLock(); } catch(e){}
-    try { appRevelar(false); } catch(e){}
-    p122Cerrar(previo);
-  }
 });

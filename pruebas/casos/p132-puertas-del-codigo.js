@@ -200,3 +200,75 @@ PRUEBAS.caso('🔴 la empresa ya resuelta no se puede cambiar desde el formulari
       '⚠️ y sin empresa se puede escribir · si no, «No estoy en la lista» queda sin salida');
   } finally { inp.value = ''; try { setupEmpresaFijar(); } catch(e){} }
 });
+
+
+/* ── LO QUE ENCONTRÓ LA AUDITORÍA DE P136 SOBRE EL GATEO ───────────────────────────────────── */
+
+PRUEBAS.caso('🔴 el gateo se reaplica DESPUÉS de que la pantalla asigna el valor', () => {
+  /* ⚠️ EL ORDEN ERA EL BUG, y lo encontró la auditoría. `nominaPasoCodigoInicial()` hace dos cosas
+     en este orden: (1) `nominaPaso('codigo')`, que registra el gateo y lo evalúa con el valor que
+     hubiera ANTES, y (2) `nomCodigo.value = NOM.codigo || ''`, que asigna el de verdad.
+     Resultado medido: al volver a esta pantalla después de haber escrito un código, el campo
+     aparecía VACÍO y «Continuar» VERDE — exactamente el defecto que P132 vino a cerrar, reabierto
+     por el propio arreglo. Y al revés: retomando un alta con el código guardado, el campo salía
+     lleno y el botón gris.
+     Se entra por `nominaPasoCodigoInicial()`, que es la función real que ordena las dos cosas. */
+  const previo = { todo: Object.assign({}, localStorage) };
+  try {
+    localStorage.clear();
+    document.getElementById('nominaOv').classList.add('show');
+    /* Se deja un valor viejo en el campo, como queda al volver de la pantalla siguiente. */
+    document.getElementById('nomCodigo').value = 'ABC-1234';
+    NOM.codigo = '';                          // pero el alta ya no tiene código guardado
+    nominaPasoCodigoInicial();
+    PRUEBAS.igual(document.getElementById('nomCodigo').value, '',
+      'guarda: la pantalla limpió el campo, que es lo que hace de verdad');
+    PRUEBAS.igual(document.getElementById('nomBtnCodigo').disabled, true,
+      '⚠️ y el botón quedó BLOQUEADO · antes se evaluaba antes de limpiar y quedaba verde con el campo vacío');
+
+    /* El caso inverso, que es el que deja a alguien afuera: se retoma con código guardado y el
+       botón tiene que quedar habilitado sin tocar nada. */
+    NOM.codigo = 'XYZ-9999';
+    nominaPasoCodigoInicial();
+    PRUEBAS.igual(document.getElementById('nomCodigo').value, 'XYZ-9999', 'guarda: se prellenó');
+    PRUEBAS.igual(document.getElementById('nomBtnCodigo').disabled, false,
+      '⚠️ y el botón está habilitado sin tocar nada · si no, la persona ve su código escrito y no puede seguir');
+  } finally {
+    NOM.codigo = '';
+    document.getElementById('nomCodigo').value = '';
+    document.getElementById('nominaOv').classList.remove('show');
+    try { syncScrollLock(); } catch(e){}
+    try {
+      localStorage.clear();
+      Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k]));
+    } catch(e){}
+  }
+});
+
+PRUEBAS.caso('⚠️ el gateo escucha `change` además de `input` · los gestores de contraseñas', () => {
+  /* Los dos campos del login tienen `autocomplete` puesto justamente para invitar al gestor del
+     teléfono, y no todos disparan `input` al rellenar. Con un solo escucha la persona veía los dos
+     campos llenos y «Entrar» gris, sin nada que tocar. */
+  const previo = getProfile();
+  try {
+    setProfile({ empresa:'Consorcio HELITEC', cedula:'12345678', nombre:'Prueba' });
+    PRUEBAS.cierto(lgnAbrir() !== false, 'guarda: el login abre');
+    const btn = document.getElementById('lgnBtn');
+    const ced = document.getElementById('lgnCed'), pass = document.getElementById('lgnPass');
+    /* ⚠️ SE LIMPIAN A MANO: `lgnAbrir()` prellena la cédula desde el perfil y la contraseña puede
+       traer el valor que dejó otro archivo de pruebas — la suite no recarga la app entre casos.
+       Sin esto el botón arrancaba habilitado y la guarda de abajo fallaba por el estado heredado,
+       no por el código. */
+    ced.value = ''; pass.value = '';
+    gateoAplicar('lgnBtn');
+    PRUEBAS.igual(btn.disabled, true, 'guarda: con los dos campos vacíos, bloqueado');
+    /* Se rellenan los dos y se dispara SÓLO `change`, como hace un gestor que no emite `input`. */
+    ced.value = '12345678'; pass.value = 'unaClave';
+    ced.dispatchEvent(new Event('change', { bubbles:true }));
+    PRUEBAS.igual(btn.disabled, false,
+      '⚠️ con `change` alcanza · antes quedaba gris con los dos campos llenos y sin nada que tocar');
+  } finally {
+    try { lgnCerrar(true); } catch(e){ try { lgnCerrar(); } catch(_){} }
+    if (previo) setProfile(previo); else localStorage.removeItem(K_PROFILE);
+  }
+});
