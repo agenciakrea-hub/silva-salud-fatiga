@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.15';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.16';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -26165,9 +26165,30 @@ function lgnPintarEmpresa(emp){
   const el = document.getElementById('lgnEmpresa');
   if (el) el.textContent = emp || '';
   const link = document.getElementById('lgnOtraEmpresa');
-  if (link) link.style.display = emp ? '' : 'none';
+  if (link) link.style.display = (emp && lgnOtraEmpresaSePuede()) ? '' : 'none';
+}
+/* ⚠️ P142 · EL ENLACE SE OFRECE SÓLO A QUIEN LO NECESITA, Y ES UNA PUERTA DE UNA SOLA MANO.
+   `lgnOtraEmpresa()` borra la llave de reingreso, cierra el login y abre el alta en el paso del
+   código. Eso es exactamente lo que necesita el reingreso en un teléfono compartido —el caso para
+   el que P121 lo creó: sin perfil, la empresa la puso la llave y puede ser la de otra persona.
+
+   Pero el login TAMBIÉN se abre encima de alguien que está usando su app, con su perfil completo,
+   cuando la sesión propia se vence (`misSincronizar` recibe `necesita_clave`, línea ~12815). Para
+   ESE, el enlace no es una salida: le borra la llave, lo saca de su app y lo deja en el paso del
+   código sin ningún camino de vuelta en pantalla —el alta por nómina es la única continuación, y
+   su empresa nunca estuvo en duda—. Un toque accidental al lado de «Entrar» le cuesta el acceso.
+
+   La condición es la MISMA que usa el splash para decidir que esto es un reingreso
+   (`splashIngresar`, ~27094): perfil incompleto. Quien tiene perfil completo y de verdad se cambió
+   de empresa sigue teniendo camino: Ajustes → «Cerrar sesión», que borra el perfil y guarda la
+   empresa en la llave de reingreso; al volver, el login se abre sin perfil y el enlace está ahí. */
+function lgnOtraEmpresaSePuede(){
+  try { return !perfilCompleto(getProfile()); } catch(e){ return false; }
 }
 function lgnOtraEmpresa(){
+  /* Cinturón: aunque el botón quede visible por otro camino, la acción no se ejecuta para quien
+     no puede volver. El pintor decide qué se ve; esto decide qué pasa. */
+  if (!lgnOtraEmpresaSePuede()) return;
   reingresoOlvidar();
   /* `true` = no repongas el splash: acá abajo se abre la nómina, y el splash quedaría tapándola
      y, peor, seguiría puesto al terminar el alta. */
