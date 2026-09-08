@@ -387,3 +387,67 @@ PRUEBAS.caso('🔴 y un "No" explícito con ID cargado sigue siendo NO', () => {
   PRUEBAS.igual(r.perfil.esPiloto, false,
     '🔴 el "No" de la columna correcta manda · antes un ID que empezaba con "s" lo daba vuelta');
 });
+
+
+/* ── P140 · LA CUARTA DERIVACIÓN, QUE P118 NO UNIFICÓ ──────────────────────────────────────── */
+
+function p140Confirmar(api, extra){
+  return p118Json(api.accionNominaConfirmar(Object.assign(
+    { empresa:'Helitec', persona:'Ana Suárez', cedula:'V-111', dispositivoId:'d1' }, extra || {})));
+}
+
+PRUEBAS.caso('🔴 con «¿Es piloto?» VACÍA, `nomina_confirmar` no manda la marca', () => {
+  /* Era la única de las cuatro puertas del perfil que seguía mandando el valor COCIDO. `r.esPiloto`
+     es `/^s/i.test(celda)`: la celda en blanco daba `false`, la clave viajaba igual, y el merge del
+     cliente —que pisa los booleanos con la regla del `in`— APAGABA la marca de alguien que ya la
+     tenía. Después `sincronizarRegistro` lo escribía de vuelta al CH. */
+  const api = p118Env(['accionNominaConfirmar'], { pilotoNom: '' });
+  const r = p140Confirmar(api);
+  PRUEBAS.igual(r.ok, true, 'guarda: confirma · ' + (r.error || ''));
+  PRUEBAS.igual('esPiloto' in r.perfil, false,
+    '🔴 la clave está AUSENTE, no en `false` · ausente el cliente la conserva, `false` la apaga');
+});
+
+PRUEBAS.caso('⚠️ y con la celda cargada SÍ viaja — el discriminador', () => {
+  const api = p118Env(['accionNominaConfirmar'], { pilotoNom: 'Sí' });
+  const r = p140Confirmar(api);
+  PRUEBAS.igual(r.perfil.esPiloto, true, 'un «Sí» escrito viaja como true');
+  const api2 = p118Env(['accionNominaConfirmar'], { pilotoNom: 'No' });
+  PRUEBAS.igual(p140Confirmar(api2).perfil.esPiloto, false, 'y un «No» escrito, como false');
+});
+
+PRUEBAS.caso('🔴 con «Rol en la app» VACÍA no se manda `rol` ni `rolOrigen`', () => {
+  /* `normalizarRolNomina` convierte la celda en blanco en "empleado", que es una cadena no vacía y
+     por lo tanto el merge la escribe. Con `rol:"empleado"` guardado, `rolPropuesto()` devuelve ''
+     y el ofrecimiento del ADR 002 no se abre nunca: quien figura como supervisor en la columna L
+     tendría que ir a marcar la casilla a mano — justo lo que P100 existe para eliminar. */
+  const api = p118Env(['accionNominaConfirmar'], { rolNom: '' });
+  const r = p140Confirmar(api);
+  PRUEBAS.igual('rol' in r.perfil, false, '🔴 sin rol escrito, la clave no viaja');
+  PRUEBAS.igual('rolOrigen' in r.perfil, false,
+    '⚠️ y `rolOrigen` tampoco · nombrar una fuente de la que no salió nada es peor que no decir nada');
+});
+
+PRUEBAS.caso('⚠️ con la columna llena, el rol viaja y dice que salió de la nómina', () => {
+  const api = p118Env(['accionNominaConfirmar'], { rolNom: 'Supervisor' });
+  const r = p140Confirmar(api);
+  PRUEBAS.igual(r.perfil.rol, 'supervisor', 'normalizado desde lo que escribió RRHH');
+  PRUEBAS.igual(r.perfil.rolOrigen, 'nomina', 'y el origen es la nómina');
+});
+
+PRUEBAS.caso('🔒 el rol por CÓDIGO de supervisor sigue funcionando · es de esta acción y de ninguna otra', () => {
+  /* La razón por la que esta acción NO se reemplaza por `perfilDePersona()`: ahí no existe el rol
+     por código, y acá es el atajo para cuando RRHH todavía no llenó la columna. Si alguien
+     "unifica" las dos derivaciones sin mirar, esto se pierde en silencio. */
+  const api = p118Env(['accionNominaConfirmar'], {
+    rolNom: '',
+    hojas: { 'Config Empresa': [['Empresa','Clave','Valor'],
+                                ['Helitec','codigoSupervisor','SUP-777']] }
+  });
+  const r = p140Confirmar(api, { codigoSup: 'SUP-777' });
+  PRUEBAS.igual(r.ok, true, 'guarda: confirma · ' + (r.error || ''));
+  PRUEBAS.igual(r.perfil.rol, 'supervisor',
+    '🔒 con la columna vacía, el código de supervisor sigue proponiendo el rol');
+  PRUEBAS.igual(r.perfil.rolOrigen, 'codigo',
+    '⚠️ y el origen dice CÓDIGO, no nómina · la pantalla escribe una frase distinta según cuál sea');
+});

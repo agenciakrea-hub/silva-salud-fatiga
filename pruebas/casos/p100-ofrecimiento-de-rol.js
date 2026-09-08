@@ -625,10 +625,28 @@ PRUEBAS.caso('⚠️ CONTRATO · el servidor manda `rol` y `rolOrigen`, y el cli
     'el cliente tiene que NOMBRAR `rolOrigen` al armar el perfil, o el dato viaja y se tira');
   PRUEBAS.igual(perfilMerge({}, { rol:'supervisor' }).rol, 'supervisor', 'y `rol` también (P093)');
   if (!CTX.hayGs){ PRUEBAS.cierto(true, 'la mitad del servidor se saltea: no está servir-gs.py'); return; }
-  PRUEBAS.cierto(/rolOrigen:\s*\(/.test(CTX.gs),
-    '⚠️ y el servidor tiene que mandarlo de verdad · si lo saca, esta pantalla empieza a mentir ' +
+  /* ⚠️ P140 · ESTA MITAD SE MIDE POR COMPORTAMIENTO, no con una regex sobre el fuente. Antes decía
+     `/rolOrigen:\s*\(/` y `/rol:\s*rolFinal/`, o sea que exigía una FORMA de escribirlo: cuando
+     P140 cambió el armado del perfil —para que la celda vacía deje de mandar «empleado»— las dos
+     cadenas desaparecieron y el caso se puso rojo sin que la propiedad se hubiera roto. Una regex
+     sobre el fuente mide cómo está escrito, no qué hace. Se llama a la acción REAL. */
+  const envRol = GS.crearEntorno({
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad',
+                'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
+               ['Helitec','Ana Suárez','V-111','Op','Piloto','F','34','','','Sí','','Supervisor','4']],
+    'Registrados Fatiga': [['Fecha de registro','Última actualización','Nombre']],
+    'Identidades': [['Variante','Empresa','Cedula','ResueltoPor','Como','Registros','PrimeraVez','UltimaVez']],
+    'Accesos': [['Usuario','Contraseña','Rol','Empresas']]
+  });
+  const apiRol = GS.cargarGs(CTX.gs, envRol, ['accionNominaConfirmar']);
+  const rr = JSON.parse(apiRol.accionNominaConfirmar({
+    empresa:'Helitec', persona:'Ana Suárez', cedula:'V-111', dispositivoId:'dRol' }).getContent());
+  PRUEBAS.igual(rr.ok, true, 'guarda: la acción responde · ' + (rr.error || ''));
+  PRUEBAS.igual(rr.perfil.rolOrigen, 'nomina',
+    '⚠️ y el servidor manda el ORIGEN de verdad · si lo saca, esta pantalla empieza a mentir ' +
     'sobre de dónde salió el rol y nadie se entera');
-  PRUEBAS.cierto(/rol:\s*rolFinal/.test(CTX.gs), 'y el rol normalizado sigue viajando en el perfil del alta');
+  PRUEBAS.igual(rr.perfil.rol, 'supervisor', 'y el rol normalizado sigue viajando en el perfil del alta');
 });
 
 PRUEBAS.caso('cuando la nómina QUITA el rol, la fila de Más se repinta sola', () => {

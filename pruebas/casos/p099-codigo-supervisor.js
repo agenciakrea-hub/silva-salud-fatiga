@@ -47,7 +47,12 @@ PRUEBAS.caso('⚠️ con el código EQUIVOCADO, el alta sigue funcionando igual'
     codigoSup:'CUALQUIER-COSA', dispositivoId:'d2' }).getContent());
   PRUEBAS.cierto(r.ok, '⚠️ el alta NO se bloquea por un código de supervisor mal escrito');
   PRUEBAS.falso(r.perfil.rol === 'supervisor', 'y no se propone nada');
-  PRUEBAS.igual(r.perfil.rolOrigen, '', 'ni se dice que vino de un código');
+  /* ⚠️ P140 · ANTES SE ESPERABA `rolOrigen === ''` Y AHORA LA CLAVE NO VIAJA. No es un cambio de
+     estilo: `rolOrigen` nombra la fuente del rol, y mandarlo vacío junto a un rol que tampoco
+     existe deja al cliente pisando un valor viejo con nada. La regla de P118 —lo que no se sabe no
+     se manda— llegó también acá. Lo que este caso vigila es lo mismo de siempre: que un código mal
+     escrito NO proponga rol ni invente un origen. */
+  PRUEBAS.igual('rolOrigen' in r.perfil, false, 'ni se dice que vino de un código');
 });
 
 PRUEBAS.caso('sin código, el alta es exactamente la de siempre', () => {
@@ -57,7 +62,7 @@ PRUEBAS.caso('sin código, el alta es exactamente la de siempre', () => {
   const r = JSON.parse(api.accionNominaConfirmar({
     empresa:'Helitec', persona:'Ana Suárez', cedula:'V-111', dispositivoId:'d3' }).getContent());
   PRUEBAS.cierto(r.ok, 'entra igual');
-  PRUEBAS.igual(r.perfil.rolOrigen, '', 'sin proponer nada');
+  PRUEBAS.igual('rolOrigen' in r.perfil, false, 'sin proponer nada · la clave no viaja (P140)');
 });
 
 PRUEBAS.caso('⚠️ la NÓMINA le gana al código', () => {
@@ -94,7 +99,7 @@ PRUEBAS.caso('una empresa sin código de supervisor no propone nada', () => {
     empresa:'Helitec', persona:'Ana Suárez', cedula:'V-111',
     codigoSup:'LO-QUE-SEA', dispositivoId:'d5' }).getContent());
   PRUEBAS.cierto(r.ok, 'y aunque manden cualquier cosa, el alta funciona');
-  PRUEBAS.igual(r.perfil.rolOrigen, '', 'sin proponer nada');
+  PRUEBAS.igual('rolOrigen' in r.perfil, false, 'sin proponer nada · la clave no viaja (P140)');
 });
 
 PRUEBAS.caso('⚠️ el freno del código de supervisor NO quema el del alta', () => {
