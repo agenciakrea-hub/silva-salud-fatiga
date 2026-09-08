@@ -159,3 +159,85 @@ PRUEBAS.caso('🔴 el par cerrado: lo que el servidor manda, el cliente lo aplic
   PRUEBAS.igual(sinClave.esServicioMedico, true,
     '⚠️ y una respuesta SIN la clave no lo apaga · las dos puntas usan la misma regla');
 });
+
+/* ── (b) · EL ROL QUE CARGA LA NÓMINA, Y LA CONTRASEÑA UNA SOLA VEZ ────────────────────────── */
+
+PRUEBAS.caso('🔴 aceptar el rol propuesto por la Nómina SINCRONIZA la marca al CH', async () => {
+  /* La decisión de Franco: «se carga en la nómina, y debe poner la contraseña médica una vez».
+     El flujo ya existía; lo que faltaba es que la marca sobreviva. `saveProfile` —el otro camino
+     que enciende el flag— sincroniza desde siempre; `rolActivarGuardar` no, y hasta P131 daba
+     igual porque el servidor tiraba el dato. Ahora quien acepta y cierra sesión antes de volver a
+     abrir la app perdería la marca.
+     ⚠️ SE ENTRA POR `rolConfirmar()`, que es el botón que toca la persona, y se mide QUÉ SALE POR
+     EL CABLE — no que la función interna se haya llamado. */
+  const previo = Object.assign({}, localStorage);
+  const prevFetch = fetchConReloj, prevVal = window.validarSupervisorCreds,
+        prevConn = window.offHayConexion, prevAv = window.avanzarAlta, prevToast = window.showToast;
+  const enviados = [];
+  try {
+    setProfile({ nombre:'Ana Suárez', cedula:'12345678', empresa:'Consorcio HELITEC',
+                 departamento:'Ops', cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412',
+                 email:'ana@a.com', rol:'medico', rolOrigen:'nomina' });
+    try { localStorage.removeItem(K_REG_SIG); } catch(e){}
+    window.validarSupervisorCreds = () => Promise.resolve('ok');
+    window.offHayConexion = () => true;
+    window.avanzarAlta = () => {};
+    window.showToast = () => {};
+    fetchConReloj = (u, o) => {
+      try { enviados.push(JSON.parse(o.body)); } catch(e){}
+      return Promise.resolve({ json: () => Promise.resolve({ ok:true }) });
+    };
+    PRUEBAS.igual(rolPropuesto(getProfile()), 'medico',
+      'guarda: con «medico» en la Nómina y sin la marca puesta, hay algo que ofrecer');
+    PRUEBAS.igual(rolOfrecerAbrir(), true, 'guarda: el ofrecimiento se abre');
+    document.getElementById('rolPass').value = 'clave-medica';
+    rolConfirmar(document.querySelector('#rolForm .save-btn'));
+    await new Promise(r => setTimeout(r, 120));
+    PRUEBAS.igual(!!(getProfile() || {}).esServicioMedico, true, 'guarda: la marca queda puesta');
+    const reg = enviados.filter(e => e && e.action === 'registro');
+    PRUEBAS.alMenos(reg.length, 1,
+      '⚠️ el registro VIAJA al aceptar · antes esperaba al próximo arranque y cerrar sesión lo perdía');
+    PRUEBAS.igual(reg[reg.length - 1].esServicioMedico, true,
+      'y lleva la marca adentro, que es lo que el CH guarda desde P131');
+  } finally {
+    fetchConReloj = prevFetch;
+    window.validarSupervisorCreds = prevVal; window.offHayConexion = prevConn;
+    window.avanzarAlta = prevAv; window.showToast = prevToast;
+    try { rolOfrecerCerrar(); } catch(e){}
+    try { localStorage.clear(); Object.keys(previo).forEach(k => localStorage.setItem(k, previo[k])); } catch(e){}
+    try { syncScrollLock(); } catch(e){}
+  }
+});
+
+PRUEBAS.caso('🔒 y con la contraseña MAL no se guarda nada — el discriminador', async () => {
+  /* «Una vez» no es «sin verificar»: si el servidor rechaza la contraseña, ni la marca ni el POST.
+     Sin este caso, un arreglo que sincronizara antes de validar daría verde arriba. */
+  const previo = Object.assign({}, localStorage);
+  const prevFetch = fetchConReloj, prevVal = window.validarSupervisorCreds,
+        prevConn = window.offHayConexion, prevToast = window.showToast;
+  const enviados = [];
+  try {
+    setProfile({ nombre:'Ana Suárez', cedula:'12345678', empresa:'Consorcio HELITEC',
+                 departamento:'Ops', cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412',
+                 email:'ana@a.com', rol:'medico', rolOrigen:'nomina' });
+    window.validarSupervisorCreds = () => Promise.resolve('bad');
+    window.offHayConexion = () => true;
+    window.showToast = () => {};
+    fetchConReloj = (u, o) => { try { enviados.push(JSON.parse(o.body)); } catch(e){}
+      return Promise.resolve({ json: () => Promise.resolve({ ok:true }) }); };
+    rolOfrecerAbrir();
+    document.getElementById('rolPass').value = 'la-que-no-es';
+    rolConfirmar(document.querySelector('#rolForm .save-btn'));
+    await new Promise(r => setTimeout(r, 120));
+    PRUEBAS.igual(!!(getProfile() || {}).esServicioMedico, false,
+      '🔒 la contraseña equivocada no enciende la marca');
+    PRUEBAS.igual(enviados.filter(e => e && e.action === 'registro').length, 0,
+      '🔒 y no se manda nada al CH');
+  } finally {
+    fetchConReloj = prevFetch;
+    window.validarSupervisorCreds = prevVal; window.offHayConexion = prevConn; window.showToast = prevToast;
+    try { rolOfrecerCerrar(); } catch(e){}
+    try { localStorage.clear(); Object.keys(previo).forEach(k => localStorage.setItem(k, previo[k])); } catch(e){}
+    try { syncScrollLock(); } catch(e){}
+  }
+});

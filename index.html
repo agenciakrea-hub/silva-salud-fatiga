@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.18';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.19';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -26680,13 +26680,21 @@ function rolOfrecerCerrar(){
    más: lo que vea del otro lado lo sigue decidiendo su contraseña. */
 function rolActivarGuardar(rol, empresa, pass){
   const p = getProfile() || {};
-  if (rol === 'medico'){
-    dashSaveCredsValuesMed(empresa, pass);
-    setProfile(Object.assign({}, p, { esServicioMedico:true }));
-  } else {
-    dashSaveCredsValues(empresa, pass);
-    setProfile(Object.assign({}, p, { esSupervisor:true }));
-  }
+  const nuevo = (rol === 'medico')
+    ? Object.assign({}, p, { esServicioMedico:true })
+    : Object.assign({}, p, { esSupervisor:true });
+  if (rol === 'medico') dashSaveCredsValuesMed(empresa, pass);
+  else                  dashSaveCredsValues(empresa, pass);
+  setProfile(nuevo);
+  /* ⚠️ P131 (b) · SE SINCRONIZA ACÁ, no en el próximo arranque. `saveProfile` —el otro camino que
+     enciende estos flags, la casilla de «Editar mis datos»— llama a `sincronizarRegistro` desde
+     siempre; éste no, y hasta hoy daba igual porque el servidor tiraba el dato. Ahora que P131 lo
+     guarda en el CH, la diferencia es real: quien acepta el rol que le propuso la Nómina, escribe
+     su contraseña una vez y cierra sesión antes de volver a abrir la app, perdía la marca y volvía
+     a quedar sin panel — que es exactamente el agujero que este prompt vino a tapar.
+     No hace falta esperar la respuesta: si el POST falla, `sincronizarRegistro` no guarda la firma
+     y el próximo arranque lo reintenta solo (R7). */
+  try { sincronizarRegistro(nuevo); } catch(e){}
 }
 
 function rolConfirmar(btn){
