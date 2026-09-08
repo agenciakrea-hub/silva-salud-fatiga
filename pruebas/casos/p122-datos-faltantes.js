@@ -176,3 +176,86 @@ PRUEBAS.caso('🔒 «Continuar, lo corrijo después» NO existe · dejaba gente 
       'editable de verdad, no sólo visible');
   } finally { p122Cerrar(previo); }
 });
+
+
+/* ── EL ALTA MUERTA · lo encontró la refutación de P138 ────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 el alta por NÓMINA se puede guardar aunque la empresa no esté en `action=listas`', () => {
+  /* ⚠️ ESTO TENÍA EL ALTA MUERTA PARA EL ÚNICO CLIENTE EN PRODUCCIÓN, y son dos derivaciones
+     distintas del nombre de empresa — el bug más repetido de este repo:
+     · `action=listas` devuelve la columna A de `Accesos` → «Helitec».
+     · el alta guarda la CANÓNICA (primer alias de la columna D) → «Consorcio HELITEC».
+     Medido en vivo el 2026-09-08. `dashNorm` de las dos no coincide, así que la validación fallaba
+     SIEMPRE, y el rechazo se escribía en `#fEmp`, que el modo «faltantes» tiene escondido: se
+     tocaba «Guardar y continuar» y no pasaba nada, sin un solo mensaje. Y `saveProfile()` es el
+     único camino que escribe la fila en `Registrados Fatiga`.
+     La regla: lo que no tipeó la persona no se valida contra la lista. */
+  const previo = { todo: Object.assign({}, localStorage) };
+  try {
+    localStorage.clear();
+    /* La lista oficial dice «Helitec»; el perfil trae la canónica, como la manda el servidor. */
+    SETUP_LISTS.empresas = ['Helitec'];
+    SETUP_LISTS_LOADED = true;
+    setProfile(Object.assign({}, P122_COMPLETO, { empresa: 'Consorcio HELITEC' }));
+    openSetup(false);
+    PRUEBAS.igual(document.getElementById('inEmp').readOnly, true,
+      'guarda: la empresa vino resuelta por la nómina, así que está de sólo lectura');
+    PRUEBAS.igual(setupCamposFaltantes().length, 0, 'guarda: no falta ningún dato');
+    /* El camino real: el botón que toca la persona. */
+    document.querySelector('#setup .save-btn').click();
+    PRUEBAS.igual(document.getElementById('setup').classList.contains('show'), false,
+      '⚠️ el formulario se cierra · antes el botón no hacía NADA y no decía nada');
+    PRUEBAS.igual(document.getElementById('fEmp').classList.contains('invalid'), false,
+      'y la empresa no se marca inválida · no la escribió la persona y no la puede corregir');
+  } finally { p122Cerrar(previo); }
+});
+
+PRUEBAS.caso('⚠️ pero lo que SÍ tipeó la persona se sigue validando — el discriminador', () => {
+  /* Sin esto, el arreglo de arriba dejaría pasar cualquier texto libre como empresa, que es el
+     bug que la validación existe para evitar («Aer. silva», «Silva C.A.®» ensuciando el CH). */
+  const previo = { todo: Object.assign({}, localStorage) };
+  try {
+    localStorage.clear();
+    SETUP_LISTS.empresas = ['Helitec'];
+    SETUP_LISTS_LOADED = true;
+    setProfile({});                                  // alta a mano: sin identidad previa
+    openSetup(false);
+    PRUEBAS.igual(document.getElementById('inEmp').readOnly, false,
+      'guarda: sin empresa resuelta, el campo es editable');
+    document.getElementById('inName').value = 'Ana Suárez';
+    document.getElementById('inCed').value = '12345678';
+    document.getElementById('inEmp').value = 'Empresa Inventada S.A.';
+    document.getElementById('inDep').value = 'Operaciones';
+    document.getElementById('inCargo').value = 'Piloto';
+    document.getElementById('inSexo').value = 'Femenino';
+    document.getElementById('inEdad').value = '34';
+    document.getElementById('inTelefono').value = '04121112233';
+    document.getElementById('inEmail').value = 'ana@ejemplo.com';
+    saveProfile();
+    PRUEBAS.igual(document.getElementById('fEmp').classList.contains('invalid'), true,
+      '⚠️ una empresa tipeada que no está en la lista SÍ se rechaza');
+    PRUEBAS.igual(document.getElementById('setup').classList.contains('show'), true,
+      'y el formulario NO se cierra');
+  } finally { p122Cerrar(previo); }
+});
+
+PRUEBAS.caso('🔴 un error sobre un campo escondido lo REVELA · el botón no puede quedar mudo', () => {
+  /* La regla general que faltaba: el modo «faltantes» esconde los campos válidos, así que un
+     rechazo sobre uno de ellos dejaba el mensaje escrito donde nadie lo ve, y el
+     `scrollIntoView` sobre un `display:none` no hace nada. */
+  const previo = { todo: Object.assign({}, localStorage) };
+  try {
+    localStorage.clear();
+    SETUP_LISTS.empresas = []; SETUP_LISTS_LOADED = true;
+    setProfile(P122_COMPLETO);
+    openSetup(false);
+    const fTel = document.getElementById('fTelefono');
+    PRUEBAS.igual(fTel.style.display, 'none', 'guarda: el teléfono está escondido por ser válido');
+    PRUEBAS.igual(fTel.getAttribute('data-oculto-faltantes'), '1', 'guarda: con la marca del modo');
+    /* Se lo invalida a mano —como haría cualquier rama de rechazo— y se guarda. */
+    document.getElementById('inTelefono').value = '123';      // deja de ser válido
+    saveProfile();
+    PRUEBAS.igual(document.getElementById('fTelefono').style.display, '',
+      '⚠️ el campo que falla se REVELA · antes el error quedaba escrito en un div invisible');
+  } finally { p122Cerrar(previo); }
+});

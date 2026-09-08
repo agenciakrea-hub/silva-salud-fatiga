@@ -6924,7 +6924,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.13';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.14';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15203,10 +15203,17 @@ function openSetup(isEdit){
   const _crMed = dashGetCredsMed();
   document.getElementById('inMedPass').value = (em && _crMed && _crMed.pass) ? _crMed.pass : '';
   loadSetupLists();                                                             // trae empresas (Accesos) y departamentos existentes
-  document.getElementById('inName').value     = p.nombre;
+  /* ⚠️ `|| ''` — eran las DOS únicas líneas del bloque que no lo tenían, y desde P118 muerden.
+     `el.value = undefined` escribe la palabra literal «undefined» en el campo. Antes daba igual
+     porque los merges viejos hacían `nombre: q.nombre || ''` y la clave siempre existía; ahora el
+     servidor OMITE lo que no sabe, así que un perfil sin nombre deja «undefined» a la vista. Y en
+     `#inEmp` es peor: `setupEmpresaFijar()` mira si el campo tiene valor para decidir si va de
+     sólo lectura, así que «undefined» lo trababa — quien se da de alta a mano no podía escribir su
+     empresa. Lo encontró una prueba de P138 que fallaba por esto y no por lo que medía. */
+  document.getElementById('inName').value     = p.nombre       || '';
   document.getElementById('inCed').value      = p.cedula      || '';
   document.getElementById('inPiloto').value   = p.id_piloto   || '';
-  document.getElementById('inEmp').value      = p.empresa;
+  document.getElementById('inEmp').value      = p.empresa      || '';
   document.getElementById('inDep').value      = p.departamento|| '';
   document.getElementById('inCargo').value    = p.cargo       || '';
   document.getElementById('inSexo').value     = sexoOpcion(p.sexo);
@@ -15517,7 +15524,28 @@ function saveProfile(){
   // "Silva C.A.®", etc.) que después ensucian el CH y hacen que registros no matcheen. Si la lista se
   // pudo cargar del endpoint, exigimos que la empresa esté en ella; y la normalizamos a la escritura
   // oficial. Si no hay conexión (lista vacía), no bloqueamos para no dejar a nadie sin poder guardar.
-  if (empresa && SETUP_LISTS.empresas && SETUP_LISTS.empresas.length){
+  /* ⚠️ LA VALIDACIÓN CONTRA LA LISTA ES SÓLO PARA LO QUE LA PERSONA TIPEÓ, y sin esta guarda el
+     alta por nómina está MUERTA. Son dos derivaciones distintas del nombre de empresa, el bug más
+     repetido de este repo:
+     · `action=listas` devuelve la columna A de `Accesos` → «Helitec».
+     · el alta guarda la CANÓNICA que arma `nominaEmpresaCanon` (primer alias de la columna D) →
+       «Consorcio HELITEC». Medido en vivo contra producción el 2026-09-08.
+     `dashNorm` de las dos no coincide, así que el `find()` de abajo falla SIEMPRE, y el rechazo se
+     escribe en `#fEmp` — que el modo «datos faltantes» tiene en `display:none`. Resultado: se toca
+     «Guardar y continuar» y no pasa nada, sin un solo mensaje. Y `saveProfile()` es el único camino
+     que escribe la fila en `Registrados Fatiga`: la persona no llega a existir para el panel.
+     La regla: si el valor no lo escribió la persona —vino resuelto por la nómina, y el campo está
+     de sólo lectura o escondido— no se valida contra la lista. Validarlo sólo puede dejar afuera a
+     alguien que no tiene cómo corregirlo.
+     ⚠️ ESTO ES UN CINTURÓN, NO LA CAUSA. La causa es que `listas` y el alta derivan el nombre por
+     caminos distintos, y eso se arregla del lado del servidor — anotado en PENDIENTES_USUARIO.md,
+     porque `listas` tiene otros consumidores y no se toca de paso. */
+  const _empDelServidor = (function(){
+    const el = document.getElementById('inEmp');
+    if (!el) return false;
+    return !!el.readOnly || el.getAttribute('data-oculto-faltantes') === '1';
+  })();
+  if (empresa && !_empDelServidor && SETUP_LISTS.empresas && SETUP_LISTS.empresas.length){
     const oficial = SETUP_LISTS.empresas.find(e => dashNorm(e) === dashNorm(empresa));
     if (oficial){ empresa = oficial; }                    // corrige a la escritura oficial
     else {
@@ -15526,7 +15554,7 @@ function saveProfile(){
       if (errEmp) errEmp.textContent = t('f_emp_no_lista');
       ok = false;
     }
-  } else if (empresa && SHEETS_DASHBOARD_URL && !SETUP_LISTS_FAILED){
+  } else if (empresa && !_empDelServidor && SHEETS_DASHBOARD_URL && !SETUP_LISTS_FAILED){
     /* ⚠️ 2026-08-17: BUG REAL, así se coló "Consorcio Helitec" junto a "Helitec" en una prueba en
        vivo con varias personas guardando casi al mismo tiempo. loadSetupLists() es async; si
        alguien tocaba "Guardar" antes de que la lista llegara, SETUP_LISTS.empresas todavía estaba
@@ -15556,7 +15584,21 @@ function saveProfile(){
   const fMedPass = document.getElementById('fMedPass');
   fMedPass.classList.toggle('invalid', esServicioMedico && !medPass); if (esServicioMedico && !medPass) ok=false;
   if (esServicioMedico) fMedPass.querySelector('.err').textContent = t('f_med_pass_falta');
-  if (!ok){ const first = document.querySelector('.sheet .field.invalid'); if (first) first.scrollIntoView({behavior:'smooth', block:'center'}); return; }
+  if (!ok){
+    /* ⚠️ UN ERROR NO PUEDE QUEDAR ESCRITO EN UN CAMPO QUE NO SE VE. El modo «datos faltantes»
+       esconde los campos válidos, así que un rechazo sobre uno de ellos dejaba el botón mudo: el
+       `scrollIntoView` sobre un nodo con `display:none` no hace nada, y no había ni toast ni
+       mensaje al lado del botón. La persona tocaba «Guardar» tres veces y no pasaba nada.
+       Si el campo que falla está escondido POR ESTE MODO, se revela: el modo existe para no pedir
+       lo que ya está bien, no para ocultar lo que está mal. */
+    document.querySelectorAll('.sheet .field.invalid[data-oculto-faltantes]').forEach(el => {
+      el.style.display = '';
+      el.removeAttribute('data-oculto-faltantes');
+    });
+    const first = document.querySelector('.sheet .field.invalid');
+    if (first) first.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   /* ⚠️ AUDITORÍA · MERGE, Y ES EL ÚNICO `setProfile` DEL ARCHIVO QUE NO LO HACÍA. Este literal
      cerrado de 13 campos reemplazaba el perfil ENTERO, y corre tres segundos después de que el

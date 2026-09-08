@@ -24,9 +24,18 @@ PRUEBAS.grupo('P118 · una sola derivación del perfil');
 
 const P118_CAB_NOM = ['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad',
   'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'];
-const P118_CAB_REG = ['Fecha de registro','Última actualización','Nombre','Email','Cédula','ID Piloto',
-  '¿Piloto?','¿Supervisor?','Empresa','Departamento','Cargo','Sexo','Edad','Teléfono',
-  'Dispositivo','Modelo','Sistema','Navegador','App instalada','Idioma','Zona horaria','Pantalla','User-Agent'];
+/* ⚠️ ESTOS SON LOS ENCABEZADOS REALES DEL CH, LEÍDOS DE LA HOJA, y la diferencia importa.
+   Antes acá estaba el array que escribe `accionRegistro` —«¿Piloto?», «¿Supervisor?», «Fecha de
+   registro»— y la hoja NO se llama así: la creó una persona antes de que el endpoint la tocara una
+   sola vez, y sus títulos nunca fueron ésos. La columna de la marca se llama **«Es piloto»**.
+   Esa diferencia dejó pasar un arreglo entero: el primer intento de cerrar el bug de `col("piloto")`
+   fue «probar la coincidencia exacta primero», que contra estos encabezados NO encuentra nada
+   —`norm("Es piloto")` es "es piloto", no "piloto"— así que seguía cayendo en la columna del
+   identificador. La prueba daba verde porque medía contra encabezados que no existen.
+   Si alguien renombra las columnas del CH, esta constante tiene que cambiar con ellas. */
+const P118_CAB_REG = ['Nota de la hoja','Fecha y hora','Nombre','Email','Cédula','ID Piloto',
+  'Es piloto','Es supervisor','Empresa','Departamento','Cargo','Sexo','Edad','Teléfono',
+  'Dispositivo','Modelo','Sistema','Navegador','Está instalado','Idioma','Zona','Pantalla','UA'];
 const P118_CAB_CRED = ['Empresa','Cedula','Usuario','Hash','Sal','Iteraciones','Algoritmo',
   'Rol','Estado','Creada','UltimoAcceso'];
 const P118_ACCESOS = [
