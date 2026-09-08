@@ -6121,6 +6121,17 @@
            responder y el camino muere sin tocar una línea. -->
       <button type="button" class="nom-link" onclick="nominaSinCodigo()"
               data-i18n="nom_sin_codigo">Mi empresa no me dio código</button>
+      <!-- ⚠️ P137 · LA SALIDA DE QUIEN YA ESTABA REGISTRADO, y arranca OCULTA. Quien reinstala la
+           app o cambia de teléfono llega a esta pantalla y nunca le dieron un código: se lo dan
+           una vez, al entrar. P132 sacó «Ya me había registrado» de acá —con razón: eran tres
+           puertas para saltear el código en la pantalla que existe para pedirlo— y con eso lo dejó
+           sin salida, porque el reingreso de P121 se apoya en una llave que la reinstalación borra.
+           No vuelve como control permanente: se revela cuando la persona toca «Mi empresa no me dio
+           código», que es el momento en que dice que no lo tiene. Una puerta, dos salidas. -->
+      <div id="nomCodSalidas" style="display:none">
+        <button type="button" class="nom-link" onclick="recuperarAbrir()"
+                data-i18n="rec_link">Ya me había registrado</button>
+      </div>
     </div>
 
     <div id="nomPaso2" style="display:none">
@@ -6913,7 +6924,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.12';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.13';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14536,15 +14547,7 @@ function nominaPaso(paso){
      Ninguno se BORRA: los tres son salidas que alguien necesita. Se muestran donde tienen sentido.
      ⚠️ «Ya me había registrado» aparece desde la cédula en adelante y NO en el código: quien
      reinstala llega igual, un paso después, y sigue teniendo su salida. */
-  const _pie = {
-    nomNoEstoy:   (paso === 'empresa' || paso === 'persona'),
-    nomYaReg:     (paso !== 'codigo'),
-    nomSoyGestor: (paso !== 'codigo')
-  };
-  Object.keys(_pie).forEach(id => {
-    const el = nominaEl(id);
-    if (el) el.style.display = _pie[id] ? '' : 'none';
-  });
+  nominaPiePintar(paso);
   /* ⚠️ EL GATEO SE (RE)REGISTRA EN CADA PASO. Va acá y no en el `onload` porque estas pantallas
      se abren y cierran muchas veces por sesión, y porque `nominaPaso` es el único punto por el que
      pasan TODAS: registrar en cada apertura suelta sería otro lugar donde olvidarse de una. */
@@ -14594,6 +14597,7 @@ function nominaAbrir(){
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
   NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null; NOM.empresaPorLista = false;
   ALTA_EN_CURSO = true;   // P136 · el indicador de paso sólo se pinta durante el alta
+  NOM.noFigura = false;   // P137 · la salida del que no figura se gana en cada intento, no se hereda
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
   nominaPasoCodigoInicial();
@@ -14686,6 +14690,28 @@ function nominaSoyGestor(){
 /* ⚠️ P124 · EL PRIMER PASO PASÓ A SER EL CÓDIGO, y esta línea es la que lo dice. Si se olvida, el
    botón «Volver» de la pantalla y el botón físico del teléfono empiezan a discrepar — que es
    literalmente lo que esta función existe para impedir, porque `silvaAtras()` la usa. */
+/* ⚠️ P137 · EL PIE SE REPINTA SIN CAMBIAR DE PASO, y por eso es función aparte. Antes esto vivía
+   dentro de `nominaPaso()` y sólo dependía del paso — que era suficiente hasta que P137 agregó una
+   segunda condición: hay salidas que aparecen cuando la persona DEMUESTRA que las necesita, no
+   antes. «No estoy en la lista» sale cuando el servidor confirma que su cédula no figura; hasta
+   ese momento no hay ninguna lista de la cual faltar.
+   ⚠️ SI ESTÁS BUSCANDO POR QUÉ APARECE O NO UN ENLACE DEL PIE, ES ACÁ Y NO EN `nominaPaso()`.
+   La llaman dos: `nominaPaso()` en cada cambio de pantalla, y `nominaCedulaBuscar()` cuando el
+   servidor contesta que esa cédula no está. */
+function nominaPiePintar(paso){
+  const p = paso || NOM.paso;
+  const _pie = {
+    /* En los pasos con lista, y además cuando el servidor ya dijo que no figura. */
+    nomNoEstoy:   (p === 'empresa' || p === 'persona' || (p === 'cedsola' && !!NOM.noFigura)),
+    nomYaReg:     (p !== 'codigo'),
+    nomSoyGestor: (p !== 'codigo')
+  };
+  Object.keys(_pie).forEach(id => {
+    const el = nominaEl(id);
+    if (el) el.style.display = _pie[id] ? '' : 'none';
+  });
+}
+
 function nominaPuedeVolver(){ return NOM.paso !== 'codigo' && NOM.paso !== 'empresa'; }
 function nominaVolver(){
   /* Orden nuevo: código → cédula → ¿eres tú? */
@@ -14791,6 +14817,10 @@ function nominaPasoCodigoInicial(){
      cortar. Vaciar no es esconder. */
   nominaEl('nomCodEmpresa').textContent = '';
   nominaEl('nomCodEmpresa').style.display = 'none';
+  /* P137 · las salidas de esta pantalla arrancan cerradas en cada visita: se ganan tocando
+     «Mi empresa no me dio código», no se heredan de un intento anterior. */
+  const _sal = nominaEl('nomCodSalidas');
+  if (_sal) _sal.style.display = 'none';
   nominaEl('nomCodigo').value = NOM.codigo || '';
   /* ⚠️ EL GATEO SE REAPLICA ACÁ, y el orden es todo el problema: `nominaPaso()` —la primera línea
      de esta función— registra el gateo y lo evalúa con el valor que hubiera ANTES, y recién
@@ -14842,6 +14872,21 @@ function nominaCedulaBuscar(){
                 : (d && d.motivo === 'codigo_invalido') ? 'nom_codigo_malo'
                 : 'nom_ced_no_esta';
         nominaEl('nomCedErr').textContent = t(k);
+        /* ⚠️ P137 · ACÁ SE ABRE LA SALIDA DEL QUE NO FIGURA, y en ningún momento antes. Hasta este
+           punto no hay ninguna lista de la cual faltar: ofrecer «No estoy en la lista» en la
+           primera pantalla era una de las tres puertas que Franco pidió cerrar («muchas opciones
+           para saltarse el código»). Pero cerrarlas dejó SIN SALIDA a quien de verdad no está
+           cargado —un ingreso nuevo que RRHH todavía no pegó en la hoja— porque los pasos donde
+           ese enlace vivía quedaron inalcanzables cuando P132 cerró la lista de empresas.
+           La regla que resuelve las dos cosas: la salida aparece cuando la persona DEMUESTRA que
+           la necesita. El servidor acaba de decir que esa cédula no figura; recién ahí tiene
+           sentido, y para llegar hasta acá ya pasó por el código.
+           ⚠️ NO se abre con `codigo_invalido` ni con `muchos_intentos`: ésos no dicen nada sobre si
+           la persona está en la nómina, y abrirla ahí sería otra vez una puerta para saltear. */
+        if (k === 'nom_ced_no_esta'){
+          NOM.noFigura = true;
+          nominaPiePintar('cedsola');
+        }
         return;
       }
       NOM.cedula = ced;
@@ -14944,6 +14989,13 @@ function nominaSinCodigo(){
      cargue, este mensaje pasa a ser la respuesta correcta en vez de un atajo. */
   const err = nominaEl('nomCodErr');
   if (err) err.textContent = t('nom_sin_codigo_d');
+  /* ⚠️ P137 · Y ACÁ SE ABRE LA OTRA SALIDA. «No tengo código» son dos personas distintas: la que
+     nunca lo tuvo (le decimos a quién pedírselo, arriba) y la que YA ESTABA REGISTRADA y reinstaló
+     —a ésa no se le da nunca un código, se lo dan una vez al entrar—. P132 le sacó su enlace de
+     esta pantalla y la dejó sin salida. Vuelve acá adentro y no afuera: la primera pantalla sigue
+     teniendo dos controles, y esto se abre sólo cuando la persona dice que no tiene el código. */
+  const sal = nominaEl('nomCodSalidas');
+  if (sal) sal.style.display = '';
   const inp = nominaEl('nomCodigo');
   if (inp) { try { inp.focus(); } catch(e){} }
 }
