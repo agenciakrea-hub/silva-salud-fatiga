@@ -6353,6 +6353,11 @@
       <div class="err" data-i18n="f_med_pass_err">Ingresa la contraseña de servicio médico.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()" data-i18n="guardar_continuar">Guardar y continuar</button>
+    <!-- ⚠️ P122 · LA SALIDA. «Un dato mal cargado no puede encerrar a nadie afuera de su app»: si
+         RRHH escribió mal el cargo o el departamento, la persona no tiene cómo arreglarlo desde
+         acá y quedaría trabada en la puerta. NO aparece siempre — ver `setupPosponerPintar()`. -->
+    <button type="button" class="cancel-btn" id="setupPosponerBtn" style="display:none"
+            onclick="datosPosponer()" data-i18n="setup_posponer">Continuar, lo corrijo después</button>
     <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;" data-i18n="cancelar">Cancelar</button>
   </div>
 </div>
@@ -6896,7 +6901,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.10';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.11';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7142,6 +7147,10 @@ const I18N = {
       rol_supervisor:'Supervisor',
       rol_medico:'Servicio médico',
       setup_titulo:'Bienvenido',
+      setup_titulo_faltantes:'Falta muy poco',
+      setup_lead_faltantes:'Tu empresa ya cargó tus datos. Sólo necesitamos esto para terminar:',
+      setup_posponer:'Continuar, lo corrijo después',
+      setup_pospuesto:'Puedes completarlo cuando quieras desde Más › Mis datos.',
       setup_lead:'Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.',
       f_nombre:'Nombre y apellido', f_nombre_ph:'Ej: Juan Pérez',
       f_nombre_err:'Por favor ingresa tu nombre y apellido.',
@@ -8809,6 +8818,10 @@ const I18N = {
       rol_supervisor:'Supervisor',
       rol_medico:'Medical staff',
       setup_titulo:'Welcome',
+      setup_titulo_faltantes:'Almost done',
+      setup_lead_faltantes:'Your company already loaded your details. We only need this to finish:',
+      setup_posponer:'Continue, I will fix it later',
+      setup_pospuesto:'You can complete it whenever you want from More › My details.',
       setup_lead:'Before you start, fill in your details. They stay on this device and are used to identify you to EVA in every report.',
       f_nombre:'Full name', f_nombre_ph:'e.g. John Smith',
       f_nombre_err:'Please enter your full name.',
@@ -15136,6 +15149,19 @@ function openSetup(isEdit){
   /* ⚠️ AL FINAL, DESPUÉS de que los campos se llenaron: si corre antes, `#inEmp` está vacío y la
      empresa quedaría editable justo para quien ya la tiene resuelta. */
   try { setupEmpresaFijar(); } catch(e){}
+  /* ⚠️ P122 · MODO «DATOS FALTANTES», y sólo cuando hay algo que respetar. Se activa si NO es una
+     edición y la persona ya trae identidad resuelta —nombre, cédula y empresa—, que es el caso de
+     quien llegó por la nómina. A quien se da de alta a mano no le falta «parte»: le falta todo, y
+     el modo no tendría nada que esconder, así que se le muestra el formulario entero de siempre.
+     ⚠️ VA AL FINAL DE TODO, después de `setupEmpresaFijar()`: necesita los campos ya llenos para
+     poder distinguir lo que falta de lo que está, y necesita que las decisiones de visibilidad de
+     `fPiloto`/`fSupPass`/`fMedPass` ya estén tomadas para no pisarlas. */
+  try {
+    const _p = getProfile() || {};
+    const _porNomina = !!(_p.nombre && _p.cedula && _p.empresa);
+    setupModoFaltantes(!editing && _porNomina);
+    setupPosponerPintar(!editing && _porNomina);
+  } catch(e){}
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
 
@@ -15148,20 +15174,37 @@ function setupCedulaValida(c){ const d = String(c||'').replace(/\D/g,''); return
 function setupEdadValida(e){ const n = parseInt(e,10); return !isNaN(n) && n >= 18 && n <= 99; }
 function _sv(id){ const el = document.getElementById(id); return el ? (el.value||'').trim() : ''; }
 // ¿Están TODOS los datos completos y bien puestos? (sin tocar el DOM: sirve para habilitar el botón)
-function setupFormOk(){
+/* ⚠️ P122 · UNA SOLA DERIVACIÓN DE QUÉ FALTA, DOS CONSUMIDORES. El pedido del dueño fue: «de la
+   nómina que cargamos, si faltan datos, los pide como datos faltantes, porque hay que tener todo
+   sin falta, mail número, etc».
+   Para pedir SÓLO lo que falta hace falta saber QUÉ falta, y eso ya lo sabía `setupFormOk()` — pero
+   en forma de once `return false` seguidos, que contestan «no» sin decir de qué. Escribir una
+   segunda lista al lado habría sido el bug de siempre en este repo: dos derivaciones del mismo
+   dato que se separan con el primer cambio. Así que la lista se calcula una vez acá y
+   `setupFormOk()` pasa a ser su consumidor.
+   ⚠️ LAS REGLAS SON EXACTAMENTE LAS DE ANTES, campo por campo, incluidas las dos excepciones que
+   ya estaban: el ID de piloto sólo se exige si la casilla está marcada, y las contraseñas de
+   supervisor/médico son opcionales cuando ya hay sesión recordada (si no, todo supervisor migrado
+   a token abría «Editar mis datos» y el botón quedaba en gris sin motivo — pasó, y está
+   documentado abajo).
+   Devuelve `{campo, contenedor}` porque los dos consumidores necesitan cosas distintas: el botón
+   sólo cuenta cuántos hay, y el modo «faltantes» necesita el `.field` que envuelve a cada uno. */
+function setupCamposFaltantes(){
   const esPiloto = document.getElementById('inEsPiloto').checked;
   const esSup    = document.getElementById('inEsSupervisor').checked;
   const esMed    = document.getElementById('inEsMedico').checked;
-  if (!_sv('inName')) return false;
-  if (!setupCedulaValida(_sv('inCed'))) return false;
-  if (esPiloto && !_sv('inPiloto')) return false;
-  if (!_sv('inEmp')) return false;
-  if (!_sv('inDep')) return false;
-  if (!_sv('inCargo')) return false;
-  if (!_sv('inSexo')) return false;
-  if (!setupEdadValida(_sv('inEdad'))) return false;
-  if (!setupTelValido(_sv('inTelefono'))) return false;
-  if (!setupEmailValido(_sv('inEmail'))) return false;
+  const falta = [];
+  const pide = (campo, contenedor, ok) => { if (!ok) falta.push({ campo: campo, contenedor: contenedor }); };
+  pide('inName',     'fName',     !!_sv('inName'));
+  pide('inCed',      'fCed',      setupCedulaValida(_sv('inCed')));
+  if (esPiloto) pide('inPiloto', 'fPiloto', !!_sv('inPiloto'));
+  pide('inEmp',      'fEmp',      !!_sv('inEmp'));
+  pide('inDep',      'fDep',      !!_sv('inDep'));
+  pide('inCargo',    'fCargo',    !!_sv('inCargo'));
+  pide('inSexo',     'fSexo',     !!_sv('inSexo'));
+  pide('inEdad',     'fEdad',     setupEdadValida(_sv('inEdad')));
+  pide('inTelefono', 'fTelefono', setupTelValido(_sv('inTelefono')));
+  pide('inEmail',    'fEmail',    setupEmailValido(_sv('inEmail')));
   /* ⚠️ CON SESIÓN RECORDADA NO SE VUELVE A PEDIR LA CONTRASEÑA (2026-09-03, auditoría). S4 cambió
      lo guardado de `{usuario, pass}` a `{usuario, token}`, y este formulario seguía exigiendo el
      campo lleno mientras el prefill leía `_cr.pass`, que ya no existe. Efecto: todo supervisor o
@@ -15169,9 +15212,118 @@ function setupFormOk(){
      Guardar quedaba EN GRIS, sin ningún mensaje — la pantalla se veía normal y estaba muerta. Y si
      volvía a tipear la contraseña, se guardaba en texto plano otra vez, deshaciendo S4 entero.
      Ahora: si ya hay sesión recordada, el campo es opcional. Si lo llena, vale lo que escriba. */
-  if (esSup && !_sv('inSupPass') && !dashTieneSesion(K_DASH_CREDS)) return false;
-  if (esMed && !_sv('inMedPass') && !dashTieneSesion(K_DASH_CREDS_MED)) return false;
-  return true;
+  if (esSup) pide('inSupPass', 'fSupPass', !!_sv('inSupPass') || dashTieneSesion(K_DASH_CREDS));
+  if (esMed) pide('inMedPass', 'fMedPass', !!_sv('inMedPass') || dashTieneSesion(K_DASH_CREDS_MED));
+  return falta;
+}
+
+// ¿Están TODOS los datos completos y bien puestos? Es el mismo cálculo de arriba, contado.
+function setupFormOk(){ return setupCamposFaltantes().length === 0; }
+
+/* Los doce `.field` del formulario, en el orden en que están en la pantalla. Se listan acá y no se
+   buscan con `querySelectorAll('.field')` porque el modo «faltantes» tiene que poder DEVOLVERLOS a
+   como estaban, y tres de ellos (`fPiloto`, `fSupPass`, `fMedPass`) los esconde `openSetup()` por
+   su cuenta según las casillas: un barrido a ciegas se los mostraría a quien no corresponde. */
+var SETUP_CAMPOS = ['fName','fCed','fPiloto','fEmp','fDep','fCargo','fSexo','fEdad',
+                    'fTelefono','fEmail','fSupPass','fMedPass'];
+
+/* ⚠️ P122 · EL MODO «DATOS FALTANTES». No es una pantalla nueva: es el mismo `#setup`, con los
+   campos ya válidos ESCONDIDOS y no removidos.
+   La diferencia importa y está medida: `_sv()` lee `el.value`, así que un campo removido del DOM
+   devuelve cadena vacía y `setupFormOk()` cortaría con el botón en gris y sin decir por qué —
+   justo el defecto que ya pasó con las contraseñas de supervisor. Escondido con `display:none`, el
+   valor sigue ahí, `saveProfile()` lo lee igual y la fila que se escribe en `Registrados Fatiga`
+   sale completa.
+   ⚠️ SÓLO ESCONDE, NUNCA MUESTRA. `openSetup()` ya decidió antes cuáles de los tres campos
+   condicionales corresponden; si esta función «mostrara lo que falta» le pondría el campo de
+   contraseña de supervisor a un empleado común. */
+function setupModoFaltantes(activo){
+  /* ⚠️ PRIMERO SE DEVUELVE LO QUE ESCONDIÓ ESTA MISMA FUNCIÓN, y no es prolijidad: sin este
+     bloque, la función sólo sabía esconder. El `#setup` es UNO solo y vive todo el tiempo en el
+     DOM, así que lo escondido en una apertura seguía escondido en la siguiente. Dos formas de
+     morderlo, las dos medidas:
+     · «Editar mis datos» (`editing = true`) desactiva el modo, pero el campo escondido en el alta
+       seguía con `display:none`: la persona abría a corregir su teléfono y le faltaban ocho campos.
+     · Y dentro del alta: un campo válido en la primera apertura y vacío en la segunda quedaba
+       escondido justo cuando había que pedirlo.
+     Sólo se devuelven los que tienen la MARCA — los que escondió `openSetup()` por su cuenta
+     (`fPiloto`, `fSupPass`, `fMedPass`) no se tocan, o se le mostraría a un empleado común el
+     campo de la contraseña de supervisor. */
+  SETUP_CAMPOS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.getAttribute('data-oculto-faltantes')){
+      el.style.display = '';
+      el.removeAttribute('data-oculto-faltantes');
+    }
+  });
+  const faltan = activo ? setupCamposFaltantes().map(f => f.contenedor) : [];
+  if (activo) SETUP_CAMPOS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (faltan.indexOf(id) >= 0) return;                 // falta: se deja a la vista
+    if (el.style.display === 'none') return;             // ya estaba escondido por otra razón
+    el.style.display = 'none';
+    el.setAttribute('data-oculto-faltantes', '1');       // marca de quién lo escondió
+  });
+  /* El encabezado explica por qué se ve medio formulario: sin esto la pantalla parece rota. */
+  const lead = document.getElementById('setupLead');
+  if (lead) lead.textContent = activo ? t('setup_lead_faltantes') : t('setup_lead');
+  const tit = document.getElementById('setupTitle');
+  if (tit) tit.textContent = activo ? t('setup_titulo_faltantes') : t('setup_titulo');
+  return faltan.length;
+}
+
+/* ⚠️ P122 · LA SALIDA TIENE UN LÍMITE, y no estaba en el plan: lo puso la medición.
+   El plan pedía «Continuar, lo corrijo después» SIEMPRE, con un motivo bueno: un dato que RRHH
+   cargó mal no puede dejar a nadie afuera de su propia app.
+   Pero `sincronizarRegistro()` arranca con `if (!perfil.cedula || !perfil.email) return;` — sin
+   esos dos NO se escribe la fila en `Registrados Fatiga`. Y esa fila es lo que hace que la persona
+   exista para el panel: sin ella el supervisor la ve como no registrada, `mapaPerfil` no le
+   encuentra cargo y la cascada de nivel de riesgo cae en silencio. Dejar posponer el correo no es
+   «entrar con un dato menos»: es entrar sin existir, y sin que nadie se entere.
+   Así que la salida se ofrece para todo lo demás —departamento, cargo, sexo, edad, teléfono, ID de
+   piloto— y no para esos dos. Quien tenga el correo vacío lo escribe: es un campo que la persona
+   sabe de memoria, no un dato que dependa de que RRHH lo haya cargado bien. */
+var SETUP_NO_POSPONIBLES = ['inCed', 'inEmail'];
+
+function setupPuedePosponer(){
+  const faltan = setupCamposFaltantes();
+  if (!faltan.length) return false;                                   // no falta nada que posponer
+  return !faltan.some(f => SETUP_NO_POSPONIBLES.indexOf(f.campo) >= 0);
+}
+
+function setupPosponerPintar(enModoFaltantes){
+  const b = document.getElementById('setupPosponerBtn');
+  if (!b) return;
+  b.style.display = (enModoFaltantes && setupPuedePosponer()) ? '' : 'none';
+}
+
+/* La marca de «lo completo después», por cédula: el teléfono se comparte, igual que con
+   `K_CLV_OFRECIDA`. Que la haya puesto una persona no puede saltearle la puerta a la siguiente. */
+const K_DATOS_POSP = 'silva_fatiga_datos_pospuestos_v1';
+
+function datosPospuestos(){
+  const p = getProfile() || {};
+  /* ⚠️ SIN IDENTIDAD NO HAY NADA QUE POSPONER. Sin esta guarda, una marca vieja le saltearía el
+     alta ENTERA a quien todavía no se identificó — `avanzarAlta()` la consulta en su paso 1, que
+     es justamente el que sostiene la puerta. */
+  if (!p.nombre || !p.cedula || !p.empresa) return false;
+  try { return (JSON.parse(localStorage.getItem(K_DATOS_POSP)) || {})[dashNorm(p.cedula)] === true; }
+  catch(e){ return false; }
+}
+
+function datosPosponer(){
+  const p = getProfile() || {};
+  try {
+    const o = JSON.parse(localStorage.getItem(K_DATOS_POSP)) || {};
+    o[dashNorm(p.cedula || '')] = true;
+    lsSet(K_DATOS_POSP, JSON.stringify(o));
+  } catch(e){}
+  closeSetup();
+  try { showToast(t('setup_pospuesto')); } catch(e){}
+  /* Sigue el mismo recorrido que si hubiera guardado: consentimiento, tamaño de letra y lo que
+     corresponda. No se llama a `saveProfile()` porque no hay nada válido que guardar. */
+  try { avanzarAlta(); } catch(e){}
 }
 // Habilita/inhabilita (gris) el botón Guardar según el estado del formulario.
 function setupCheckReady(){
@@ -25660,7 +25812,13 @@ if (_complete) sincronizarRegistro(_prof);
    Se muestra el PRIMER paso pendiente, no todos: cada paso vuelve a llamar acá al cerrarse. */
 function avanzarAlta(){
   // 1 · Identificarse. nominaAbrir() ya NO cae al formulario manual si no hay nómina o no hay red (P124 quitó los dos respaldos): sólo si no hay endpoint.
-  if (!perfilCompleto(getProfile())){ nominaAbrir(); return; }
+  /* ⚠️ P122 · `datosPospuestos()` ES LO QUE HACE QUE LA SALIDA SIRVA. Sin esto, quien toca
+     «Continuar, lo corrijo después» sale del formulario con el perfil incompleto, este paso lo ve
+     y lo manda a `nominaAbrir()` — o sea de vuelta al código: el mismo bucle que P135b tuvo que
+     cerrar en el reingreso, por la misma causa (una salida que no le avisa a la puerta).
+     La marca sólo vale para quien YA tiene identidad resuelta: `datosPospuestos()` devuelve false
+     si falta nombre, cédula o empresa, así que no le abre la puerta a nadie sin identificar. */
+  if (!perfilCompleto(getProfile()) && !datosPospuestos()){ nominaAbrir(); return; }
 
   // 2 · Consentimiento. Se evalúa SIEMPRE, tenga o no el perfil completo: es lo que hace que un
   //     texto actualizado se le vuelva a mostrar a quien ya estaba registrado. Sacarlo de acá
