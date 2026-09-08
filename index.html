@@ -6896,7 +6896,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.08';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.09';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14531,9 +14531,13 @@ function nominaPaso(paso){
    CLIENTES a cualquiera que abriera la app, que es lo que vio el dueño del producto y lo que
    empezó todo este bloque. Ahora la persona escribe su código y el servidor le dice de qué empresa
    es: nadie ve un padrón para registrarse.
-   El camino viejo NO se borra — vive detrás de «Mi empresa no me dio código» (`nominaSinCodigo`),
-   porque hoy `codigoRegistro` está vacío y sin esa salida la primera pantalla sería un campo que
-   no sirve. Se apaga solo cuando se cierre la ventana de alta. */
+   ⚠️ P132 · EL CAMINO VIEJO YA NO ESTÁ DETRÁS DE NADA. Este comentario decía que vivía detrás de
+   «Mi empresa no me dio código» — y era cierto hasta que P132 cambió `nominaSinCodigo()` para que
+   deje de llamar a `nominaAbrirListaEmpresas()` (esa función devolvía el padrón de 11 empresas sin
+   ninguna credencial). Con eso, `nominaElegirEmpresa`, `nominaPasoCodigo` y los pasos 'empresa' y
+   'persona' quedaron sin un solo llamador: es código muerto, a propósito, no un olvido. Se deja
+   escrito por si hace falta reabrirlo el día que haya código de verdad y convenga un camino de
+   respaldo, pero hoy no corre. */
 function nominaAbrir(){
   if (!SHEETS_DASHBOARD_URL){ openSetup(false); return; }
   NOM.empresa = ''; NOM.persona = ''; NOM.personas = []; NOM.codigo = ''; NOM.pideCodigo = false;
@@ -15263,10 +15267,21 @@ function saveProfile(){
   if ((esSupervisor && supPass) || (esServicioMedico && medPass)){
     const btn = document.querySelector('#setup .save-btn');
     if (btn){ btn.disabled = true; btn.textContent = t('f_verificando'); }
-    Promise.all([
+    /* ⚠️ P135 · CONBLOQUEO, NO SÓLO EL BOTÓN. `saveProfile` era la única acción de red del bloque
+       de identidad sin `conBloqueo`, y la guarda que debía cubrir el hueco estaba muerta:
+       `setupCheckReady()` (arriba) sólo toca `disabled` si `!btn.dataset.busy`, pero nada en todo
+       el archivo escribía `dataset.busy`. Resultado: mientras `validarSupervisorCreds` estaba en
+       vuelo, tocar CUALQUIER campo del formulario disparaba `setupCheckReady` por el listener de
+       `input`/`change` de más arriba, y como el formulario seguía siendo válido, REHABILITABA el
+       botón —con el texto todavía diciendo «Verificando…»— y un segundo toque disparaba una
+       segunda verificación de contraseña en paralelo.
+       `conBloqueo` usa el mismo mecanismo que ya protege nómina, login y recuperar: `inert` en el
+       panel entero, que bloquea la entrada de TODOS los campos, no sólo el botón — cierra el hueco
+       de raíz en vez de parchear la guarda que quedó sin escribir. */
+    conBloqueo('#setup .sheet', Promise.all([
       (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass) : Promise.resolve(null),
       (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass) : Promise.resolve(null)
-    ]).then(([resSup, resMed]) => {
+    ])).then(([resSup, resMed]) => {
       if (btn){ btn.disabled = false; btn.textContent = t('f_guardar_cont'); }
       let bad = false;
       if (resSup === 'bad'){
@@ -25781,6 +25796,14 @@ function lgnCerrar(){
   document.getElementById('loginOv').classList.remove('show');
   syncScrollLock();
   _lgnPendiente = null;
+  /* ⚠️ P135 · SIN ESTO LA PANTALLA QUEDA EN BLANCO. `splashIngresar()` abre este login QUITÁNDOLE
+     la clase al splash (no hay `splashCerrar`), y `#app` arranca oculto y sólo se revela cuando el
+     login sale bien (`appRevelar(true)` en `lgnEntrar`). Si la persona toca «Ahora no» en el
+     reingreso, ni el splash vuelve ni la app se muestra: los dos overlays quedan cerrados y no hay
+     nada dibujado en la pantalla. Se repone el splash sólo si el perfil sigue incompleto — si ya
+     hay perfil (por ejemplo, cerró este login después de haber entrado por otro camino), no hay
+     nada que reponer. */
+  try { if (!perfilCompleto(getProfile())) splashMostrar(); } catch(e){}
 }
 function lgnEntrar(btn){
   const p = getProfile() || {};
@@ -25847,6 +25870,15 @@ function lgnEntrar(btn){
          un error, sólo que la acción no pasa. */
       const seguir = _lgnPendiente;
       lgnCerrar();
+      /* ⚠️ P135 · SIN ESTO LA APP QUEDA OCULTA DESPUÉS DE UN LOGIN EXITOSO. `#app` arranca con
+         `display:none` y sólo `appRevelar(true)` lo muestra — eso corre al arrancar (línea ~25507,
+         con el perfil que había ANTES de este login) y al final de `avanzarAlta()`. Ninguna de las
+         dos pasa por el reingreso: `lgnCerrar()` sólo abre el splash si el perfil sigue
+         incompleto, así que con un perfil YA completo no pasaba nada — ni splash ni app, la
+         pantalla quedaba en blanco con el login recién cerrado con éxito.
+         Se revela sólo si el perfil quedó completo: si faltan datos, `misSincronizar()` de abajo
+         sigue su curso normal y en algún momento pide lo que falte antes de mostrar la app. */
+      if (perfilCompleto(getProfile())) appRevelar(true);
       showToast(t('lgn_listo'));
       if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
       else { try { misSincronizar(); } catch(e){} }
