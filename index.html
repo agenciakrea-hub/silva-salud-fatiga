@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.16';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.17';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14575,7 +14575,9 @@ function nominaPaso(paso){
      tres segundos antes en la anterior. Y con el nombre de la empresa: "Retomamos donde ibas" a
      secas no dice DÓNDE, así que quien probó con otra empresa ayer no tenía forma de darse cuenta
      de que estaba en la lista equivocada. */
-  if (NOM._retomando && (paso === 'persona' || paso === 'codigo')){
+  /* ⚠️ P143 · `cedsola` ES EL PASO AL QUE SE RETOMA HOY. Sin él en esta lista el aviso no salía
+     nunca: los otros dos son los pasos del camino viejo, que ya nadie alcanza. */
+  if (NOM._retomando && (paso === 'cedsola' || paso === 'persona' || paso === 'codigo')){
     const _e = NOM._retomando; NOM._retomando = '';
     try { showToast(t('nom_retomamos', { e: _e })); } catch(e){}
   }
@@ -14608,6 +14610,10 @@ function nominaAbrir(){
   NOM.noFigura = false;   // P137 · la salida del que no figura se gana en cada intento, no se hereda
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
+  /* ⚠️ P143 · EL RETOME VA ACÁ, y tiene que ir DESPUÉS del reset de arriba: las cinco líneas que
+     vacían `NOM` se llevarían puesto lo que el retome acaba de poner. Si no hay nada que retomar
+     devuelve `false` y el alta arranca por el código, como siempre. */
+  if (nominaRetomar()) return;
   nominaPasoCodigoInicial();
 }
 
@@ -14650,31 +14656,50 @@ function nominaAbrirListaEmpresas(){
       '<p class="nom-ayuda">' + esc(t('nom_pide_codigo')) + '</p>'; });   // P124 · ídem
 }
 
-/* Retoma un alta a medio hacer. Se llama DESPUÉS de que llegó la lista de empresas: si el alta
-   guardada apunta a una empresa que ya no está en la nómina, se descarta en vez de dejar a la
-   persona atrapada en un paso de una empresa que no existe. */
+/* ⚠️ P143 · REESCRITA PARA EL CAMINO QUE EXISTE. La versión anterior se llamaba desde
+   `nominaAbrirListaEmpresas()`, validaba la empresa guardada contra `NOM.perfiles` (la lista de
+   empresas clientes) y terminaba en `nominaCargarPersonas()`. P132 dejó esa cadena entera sin
+   llamador, así que el retome quedó inalcanzable **por daño colateral**: nadie decidió sacarlo.
+
+   Y el almacén siguió vivo. `altaProgresoGuardar()` se llama en CUATRO puntos del camino nuevo
+   —código resuelto, código aceptado, persona elegida, código vencido a mitad del alta— o sea que
+   la app venía guardando empresa, código y perfil en cada paso, y de esos tres campos sólo se leía
+   el código, para prellenar el de la contraseña. Escritura sin lector, que es lo que R15 prohíbe.
+
+   Hoy el alta viva tiene dos pasos: código → cédula. Así que retomar es UN salto, no un recorrido.
+
+   ⚠️ ESTO NO ES UNA PUERTA PARA SALTEAR EL CÓDIGO, que es la queja que abrió este bloque. El
+   código guardado no se da por bueno: viaja otra vez en `nomina_confirmar` —la misma acción que lo
+   valida cuando se escribe a mano— y si el servidor lo rechaza, la rama `codigo_invalido` de
+   `nominaCedulaBuscar()` devuelve a la persona al paso del código con el campo vacío. Lo que se
+   ahorra es tipear de nuevo un código que el servidor va a revisar igual.
+
+   ⚠️ NO SE RESTAURA `NOM.persona`. En el camino nuevo la persona se identifica por cédula y esa no
+   se guarda nunca; el nombre elegido era del camino viejo. Además de no hacer falta, dejarlo
+   afuera evita pegar el nombre de alguien de la nómina en la pantalla de un teléfono prestado —el
+   vencimiento a las 24 h era la única defensa que había para ese caso.
+
+   Devuelve `true` si retomó, para que `nominaAbrir()` sepa si tiene que pintar el primer paso. */
 function nominaRetomar(){
   const g = altaProgresoCargar();
-  if (!g || !NOM.perfiles || !(g.empresa in NOM.perfiles)){ if (g) altaProgresoLimpiar(); return; }
-  /* ⚠️ SI LA PERSONA YA ELIGIÓ, MANDA LO QUE ELIGIÓ. Esto corre DESPUÉS del pedido de la lista de
-     empresas —6,5 segundos medidos en el recorrido real—, y en ese rato la pantalla de empresas
-     está a la vista y se puede tocar. Sin esta línea, alguien que eligiera otra empresa en esos
-     seis segundos veía cómo la app se la cambiaba sola por la de ayer. */
-  if (NOM.empresa) return;
+  if (!g) return false;
+  /* Sin código no hay nada que ahorrar: el primer paso del alta ES el código, y saltar a la cédula
+     sin él deja a la persona en una pantalla que el servidor va a rechazar. Pasa de verdad — el
+     guardado de `nominaCedulaBuscar` cuando el código se venció a mitad del alta escribe
+     justamente eso. Se limpia en vez de dejarlo colgando hasta que venza. */
+  if (!g.empresa || !g.codigo){ altaProgresoLimpiar(); return false; }
   NOM.empresa = g.empresa;
-  NOM.codigo = g.codigo || '';
-  NOM.persona = g.persona || '';
-  NOM.pideCodigo = !!g.pideCodigo;
-  NOM.perfil = g.perfil || NOM.perfiles[g.empresa] || null;
-  /* ⚠️ R4 · EL AVISO SE GUARDA, NO SE MUESTRA ACÁ. Medido en el recorrido real: la lista de
-     empresas se pinta a los 0 ms, el toast salía a los 3.353 ms —todavía EN EL PASO DE EMPRESA,
-     hablando de algo que no había pasado— y el salto a la lista de personas recién a los 6.524.
-     O sea: tres segundos anunciando un cambio que no ocurrió, y en la pantalla equivocada.
-     Ahora lo consume `nominaPaso()` cuando la pantalla ya cambió de verdad. */
+  NOM.codigo = g.codigo;
+  NOM.pideCodigo = true;              // llegó a guardar un código: esta empresa lo pide
+  NOM.perfil = g.perfil || null;
+  NOM.empresaPorLista = false;        // el origen se marca, no se adivina (auditoría de P132)
+  /* ⚠️ R4 · EL AVISO SE GUARDA, NO SE MUESTRA ACÁ. Lo consume `nominaPaso()` cuando la pantalla ya
+     cambió: el defecto que P042 midió era un toast que salía tres segundos antes del salto y en la
+     pantalla anterior. Acá ya no puede pasar —no hay pedido de red en el medio— pero el mecanismo
+     se conserva porque es el que pone el nombre de la empresa adentro del mensaje. */
   NOM._retomando = (NOM.perfil && NOM.perfil.nombre) || g.empresa;
-  // Con el código ya validado se salta derecho a la lista; si no, al paso del código.
-  if (NOM.pideCodigo && !NOM.codigo){ nominaPasoCodigo(); return; }
-  nominaCargarPersonas();
+  nominaPasoCedula();
+  return true;
 }
 function nominaCerrar(){ nominaEl('nominaOv').classList.remove('show'); syncScrollLock(); }
 // "No estoy en la lista" y todos los caminos de error terminan acá: el formulario de siempre.
@@ -14879,6 +14904,23 @@ function nominaCedulaBuscar(){
         const k = (d && d.motivo === 'muchos_intentos') ? 'nom_codigo_frenado'
                 : (d && d.motivo === 'codigo_invalido') ? 'nom_codigo_malo'
                 : 'nom_ced_no_esta';
+        /* ⚠️ P143 · UN CÓDIGO RECHAZADO DEVUELVE AL PASO DEL CÓDIGO. Antes el mensaje «el código
+           no es correcto» se pintaba acá, en una pantalla que NO tiene campo de código: la persona
+           leía que su código está mal y no tenía dónde corregirlo. Hoy casi no pasa porque el
+           código se validó segundos antes; con el retome de este mismo prompt puede tener veinte
+           horas y haber sido rotado en el medio, así que deja de ser teórico.
+           El campo sale VACÍO (`NOM.codigo = ''`): reofrecer el que el servidor acaba de rechazar
+           sólo sirve para que lo reenvíe igual. `gateoAplicar` deja «Continuar» gris hasta que
+           escriba uno nuevo.
+           ⚠️ `muchos_intentos` NO vuelve: ése es el freno por dispositivo y no dice nada sobre el
+           código. Mandarla al paso del código sería invitarla a gastar los intentos que quedan. */
+        if (d && d.motivo === 'codigo_invalido'){
+          NOM.codigo = '';
+          try { altaProgresoGuardar(); } catch(e){}   // que el próximo arranque no lo vuelva a intentar
+          nominaPasoCodigoInicial();
+          nominaEl('nomCodErr').textContent = t(k);
+          return;
+        }
         nominaEl('nomCedErr').textContent = t(k);
         /* ⚠️ P137 · ACÁ SE ABRE LA SALIDA DEL QUE NO FIGURA, y en ningún momento antes. Hasta este
            punto no hay ninguna lista de la cual faltar: ofrecer «No estoy en la lista» en la
