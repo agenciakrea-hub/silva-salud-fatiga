@@ -5877,7 +5877,7 @@
       <h2 class="ent-brand-h1" data-i18n="splash_h1">Tu bienestar y seguridad, en un solo lugar</h2>
       <p class="ent-brand-sub" data-i18n="splash_sub">Prevención, detección y acción ante la fatiga operacional.</p>
     </div>
-    <button type="button" class="car-cerrar" onclick="carruselCerrar()" aria-label="Cerrar">✕</button>
+    <button type="button" class="car-cerrar" onclick="carruselCerrarUI()" aria-label="Cerrar">✕</button>
     <div class="car-viewport" id="carViewport">
       <div class="car-track" id="carTrack">
         <div class="car-slide">
@@ -6389,7 +6389,7 @@
       <div class="err" data-i18n="f_med_pass_err">Ingresa la contraseña de servicio médico.</div>
     </div>
     <button class="save-btn" onclick="saveProfile()" data-i18n="guardar_continuar">Guardar y continuar</button>
-    <button class="cancel-btn" id="cancelBtn" onclick="closeSetup()" style="display:none;" data-i18n="cancelar">Cancelar</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="closeSetupUI()" style="display:none;" data-i18n="cancelar">Cancelar</button>
   </div>
 </div>
 
@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.22';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.23';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15320,6 +15320,19 @@ function openSetup(isEdit){
   } catch(e){}
 }
 function closeSetup(){ document.getElementById('setup').classList.remove('show'); }
+/* ⚠️ P153b · SÓLO PARA EL BOTÓN «Cancelar». `closeSetup()` tiene cinco llamadores y sólo UNO es un
+   toque de la persona sobre esta pantalla:
+   · el botón «Cancelar» (el `onclick` de abajo) → cierra y no encadena nada: consume;
+   · `silvaAtras()` → el navegador ya sacó la entrada: NO consume;
+   · `altaAbandonar()` → cierra HASTA SEIS overlays de un saque, y `navConsumir()` descarta uno solo
+     (su flag `_navConsumiendo` bloquea los siguientes 400 ms). Consumir una sola ahí dejaría las
+     otras cinco colgadas, y consumir N con `history.go(-n)` es exactamente donde una cuenta
+     desincronizada saca a la persona de la app. Queda afuera, anotado en PENDIENTES;
+   · `finalizar()` (el guardado con éxito) → encadena el resto del alta, que apila su propia
+     entrada; un `back()` pendiente contra un `pushState` sincrónico deja el conteo peor que no
+     hacer nada (medido en P150, nota de `simSalir`);
+   · la recuperación de perfil → cierra en bloque, mismo caso que `altaAbandonar`. */
+function closeSetupUI(){ closeSetup(); navConsumir(); }
 
 /* ── Validación de datos del setup ──
    El teléfono y la cédula se validan por cantidad de dígitos (no "cualquier cosa"), el email por
@@ -26601,6 +26614,14 @@ function clvGuardar(btn){
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
+/* ⚠️ P153b · ESTE NO CONSUME SU ENTRADA, Y ES A PROPÓSITO. Cierra la pantalla y ACTO SEGUIDO
+   llama a `avanzarAlta()`, que abre la siguiente y apila la suya. `navConsumir()` hace un
+   `history.back()` que llega de forma asíncrona: si en el medio corre un `pushState` sincrónico, el
+   `back()` pendiente termina deshaciendo la entrada NUEVA en vez de la vieja, y el conteo queda
+   peor que sin tocar nada. Está medido en P150 (ver la nota de `simSalir`).
+   Lo mismo vale para `rolPosponer()` y para el `finalizar()` de `saveProfile`. Cerrarlo bien pide
+   consumir DESPUÉS de que la siguiente pantalla apiló, o un mecanismo que ordene las dos cosas —
+   está anotado en PENDIENTES_USUARIO.md y no se hace a ojo. */
 function clvPosponer(){
   clvMarcarOfrecida();
   document.getElementById('claveOv').classList.remove('show');
@@ -28375,6 +28396,14 @@ function carruselCerrar(){
   document.getElementById('carruselOv').classList.remove('show');
   document.getElementById('splashOv').classList.add('show');
 }
+/* ⚠️ P153b · EL CIERRE POR PANTALLA DESCARTA SU ENTRADA; EL DEL BOTÓN FÍSICO NO. Mismo patrón que
+   P048 y P150: cuando el cierre viene del botón físico el navegador ya sacó la entrada antes de
+   disparar `popstate`, así que `silvaAtras()` llama a `carruselCerrar()` PELADO. La ✕ no toca el
+   historial, y sin esto la entrada que P153 le dio al carrusel quedaba huérfana.
+   Éste se puede consumir sin vueltas porque NO encadena otra pantalla: vuelve al splash, que es el
+   estado base y no apila nada. Los que encadenan `avanzarAlta()` quedaron afuera a propósito — ver
+   la nota de `clvPosponer`. */
+function carruselCerrarUI(){ carruselCerrar(); navConsumir(); }
 /* H1: el panel de presentación de escritorio en las pantallas de entrada que son una tarjeta
    sobre el overlay. Se inyecta en vez de repetir el bloque en el HTML de cada una. En celular
    la regla `.ent-brand { display:none }` lo deja fuera, así que no cuesta nada estar en el DOM.

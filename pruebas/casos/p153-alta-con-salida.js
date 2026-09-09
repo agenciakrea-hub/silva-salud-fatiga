@@ -94,3 +94,76 @@ PRUEBAS.caso('🔒 las seis están en `silvaAtras` · estar en la lista y apilar
   PRUEBAS.cierto(/navPush\(\)/.test(abridor),
     '🔒 el camino que abre el consentimiento y el tamaño de texto también apila');
 });
+
+/* ── P153b · EL CIERRE POR PANTALLA DESCARTA SU ENTRADA ────────────────────────────────────── */
+
+/* Balance de un ciclo abrir/cerrar completo, entrando por la función real y por el control real
+   del DOM. Mismo instrumento que `p048-overlays.js`. */
+async function p153Ciclo(n, abrir, id, selCierre){
+  const origPush = history.pushState.bind(history);
+  const origBack = history.back.bind(history);
+  let pushes = 0, backs = 0, medibleOk = true, porQue = '';
+  history.pushState = function(){ pushes++; return origPush.apply(history, arguments); };
+  history.back = function(){ backs++; return origBack.apply(history, arguments); };
+  try {
+    for (let i = 0; i < n; i++){
+      try { abrir(); } catch(e){ medibleOk = false; porQue = 'abrir(): ' + e.message; break; }
+      const ov = document.getElementById(id);
+      void ov.offsetWidth;
+      if (!ov.classList.contains('show')){ medibleOk = false; porQue = '#' + id + ' no se abrió'; break; }
+      const x = document.querySelector(selCierre);
+      if (!x){ medibleOk = false; porQue = 'no existe ' + selCierre; break; }
+      x.click();
+      await p048EsperarTurno(60);
+    }
+  } finally {
+    history.pushState = origPush;
+    history.back = origBack;
+    p048LimpiarOverlays();
+    try { syncScrollLock(); } catch(e){}
+  }
+  return { pushes, backs, medibleOk, porQue };
+}
+
+PRUEBAS.caso('🔴 abrir y cerrar el carrusel 4 veces por su ✕ no deja historial huérfano', async () => {
+  const r = await p153Ciclo(4, () => carruselMostrar(), 'carruselOv', '#carruselOv .car-cerrar');
+  PRUEBAS.cierto(r.medibleOk, 'guarda de medibilidad: ' + (r.porQue || 'el carrusel se abre y la ✕ existe'));
+  if (!r.medibleOk) return;
+  PRUEBAS.igual(r.pushes, 4, 'cada apertura apila la suya (P153)');
+  PRUEBAS.igual(r.backs, 4, '⚠️ y cada cierre por la ✕ la descarta · antes quedaban las cuatro colgadas');
+  PRUEBAS.igual(r.pushes - r.backs, 0, 'balance neto en cero');
+});
+
+PRUEBAS.caso('⚠️ el DISCRIMINADOR: sin navConsumir el balance se rompe', async () => {
+  const orig = window.navConsumir;
+  let seLlamo = false;
+  try {
+    window.navConsumir = function(){ seLlamo = true; };   // así estaba antes: no hace nada
+    const r = await p153Ciclo(3, () => carruselMostrar(), 'carruselOv', '#carruselOv .car-cerrar');
+    PRUEBAS.cierto(seLlamo, 'guarda: la ✕ SÍ pasa por navConsumir · si no, no se mide nada');
+    PRUEBAS.igual(r.backs, 0, '⚠️ con navConsumir anulado no se descarta ninguna');
+    PRUEBAS.igual(r.pushes, 3, 'y las tres quedaron apiladas');
+  } finally { window.navConsumir = orig; }
+});
+
+PRUEBAS.caso('⚠️ `silvaAtras` sigue cerrando el carrusel SIN consumir · ahí ya lo hizo el navegador', () => {
+  /* La otra mitad de la regla, y la que se rompe más fácil: si `silvaAtras` empezara a consumir,
+     el botón físico descartaría dos entradas de un toque — la que el navegador ya sacó y una ajena. */
+  const fuente = silvaAtras.toString().replace(/\/\*[\s\S]*?\*\//g, ' ');
+  PRUEBAS.cierto(/carruselCerrar\(\)/.test(fuente), '⚠️ el botón físico llama a `carruselCerrar()` pelado');
+  PRUEBAS.falso(/carruselCerrarUI\(\)/.test(fuente), '⚠️ y NO a la versión que consume');
+});
+
+PRUEBAS.caso('🔒 los cierres que ENCADENAN siguen sin consumir, a propósito', () => {
+  /* `clvPosponer` y `rolPosponer` cierran y llaman a `avanzarAlta()`, que abre la siguiente pantalla
+     y apila. `navConsumir()` hace un `history.back()` asíncrono: contra un `pushState` sincrónico
+     inmediato, el back termina deshaciendo la entrada NUEVA. Está medido en P150.
+     Este caso existe para que nadie los «complete» por simetría sin resolver antes el orden. */
+  const sin = ['clvPosponer','rolPosponer'].filter(n => {
+    const f = window[n];
+    if (typeof f !== 'function') return false;
+    return /navConsumir\(\)/.test(f.toString().replace(/\/\*[\s\S]*?\*\//g, ' '));
+  });
+  PRUEBAS.igual(sin.join(', '), '',
+    '🔒 ninguno consume · agregarlo sin ordenar el back contra el push deja el conteo peor');
+});
