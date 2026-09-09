@@ -249,7 +249,12 @@ PRUEBAS.caso('⚠️ y no se devuelven en el orden en que se escribieron', () =>
   const i = CTX.gs.indexOf('function accionOpiniones');
   PRUEBAS.alMenos(i, 0, 'guarda: tiene que existir la función');
   if (i < 0) return;
-  const cuerpo = CTX.gs.slice(i, i + 1400);
+  /* ⚠️ SE CORTA EN EL CIERRE DE LA FUNCIÓN, no a los 1400 caracteres. Con la ventana fija, el
+     caso se puso rojo el día que la función ganó siete líneas de comentario (P162, 2026-09-09):
+     el barajado seguía ahí, sólo que más abajo. Un caso que depende de cuánto se comenta arriba
+     no mide lo que dice medir. `\n}` en columna cero es el cierre: adentro todo va indentado. */
+  const fin = CTX.gs.indexOf('\n}', i);
+  const cuerpo = CTX.gs.slice(i, fin > 0 ? fin + 2 : i + 3000);
   PRUEBAS.cierto(/Math\.random\(\)/.test(cuerpo),
     '⚠️ tiene que barajarlas antes de devolverlas');
 });

@@ -169,7 +169,10 @@ PRUEBAS.caso('⚠️ Z2 · los textos de la demostración están en los dos idio
     ['es','en'].forEach(l => {
       localStorage.setItem(K_LANG, l);
       ['pg_desc_emp','pg_desc_sup','pg_desc_med','pg_desc_hseq','pg_desc_inicio',
-       'pg_ver_ejemplo','pg_demo_para','ts_sim_demo_pass'].forEach(k => {
+       'pg_ver_ejemplo','pg_demo_para','ts_sim_demo_pass',
+       /* Las pistas del login REAL. Vivían a mano dentro de `portalMode()` y no se traducían:
+          con la app en inglés, un supervisor de verdad las leía en español. */
+       'pg_hint_sup','pg_hint_med','pg_hint_hseq','pg_hint_emp'].forEach(k => {
         const v = t(k, { rol:'x' });
         if (!v || v === k) faltan.push(l + '/' + k);
       });
@@ -178,4 +181,22 @@ PRUEBAS.caso('⚠️ Z2 · los textos de la demostración están en los dos idio
   } finally {
     if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes);
   }
+});
+
+PRUEBAS.caso('⚠️ el login REAL ya no tiene textos escritos a mano en portalMode (R14)', () => {
+  /* R17 · se mira el código real. Las tres pistas estaban en un objeto `HINTS` literal dentro de
+     la función; un caso que sólo comprobara «el texto aparece» habría dado verde igual. */
+  const js = [...document.querySelectorAll('script')].map(s => s.textContent).join('');
+  const i = js.indexOf('function portalMode');
+  const cuerpo = i >= 0 ? js.slice(i, js.indexOf('\n}', i) + 2) : '';
+  PRUEBAS.cierto(cuerpo.length > 0, 'tiene que encontrarse la función');
+  PRUEBAS.falso(/const HINTS/.test(cuerpo), '⚠️ el objeto `HINTS` a mano ya no está');
+  PRUEBAS.falso(/Vista operativa:/.test(cuerpo), '⚠️ ni su texto literal en español');
+  PRUEBAS.cierto(/pg_hint_/.test(cuerpo), 'y las pistas salen de `t()`');
+  const antes = localStorage.getItem(K_LANG);
+  try {
+    localStorage.setItem(K_LANG, 'en');
+    PRUEBAS.falso(/quiénes están/.test(t('pg_hint_sup')),
+      '⚠️ EL DISCRIMINADOR: en inglés la pista de supervisor NO puede seguir en español');
+  } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
 });

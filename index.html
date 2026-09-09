@@ -6990,7 +6990,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.27';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.28';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7505,6 +7505,12 @@ const I18N = {
          estadísticas trae y qué se puede accionar desde ahí; `pg_desc_inicio` va en los cuatro y
          aclara que el inicio es otra pantalla, para que nadie confunda el panel con la app. */
       ts_sim_demo_pass:'La demostración pide una clave y esta sesión no la trae. Vuelve a entrar como administrador.',
+      /* Las pistas del login REAL (no la demostración): cortas, sólo confirman qué vista se
+         eligió. Antes vivían a mano dentro de `portalMode()` y no se traducían. */
+      pg_hint_sup:'Vista operativa: quiénes están en condiciones de trabajar. No muestra datos médicos ni resultados de los tests.',
+      pg_hint_med:'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.',
+      pg_hint_hseq:'Vista de dirección: indicadores agregados de la organización, trazabilidad y costos. No muestra datos clínicos ni valores individuales.',
+      pg_hint_emp:'Vas a ver tus propios registros.',
       pg_desc_emp:'Panel personal: aquí cada persona ve sus propios registros, la evolución de sus indicadores y las recomendaciones que recibe. Es la vista de quien responde el registro diario.',
       pg_desc_sup:'Panel del supervisor: estadísticas del equipo y acciones sobre el trabajo del día — quiénes están en condiciones de trabajar, a quién conviene revisar y qué medida tomar. No muestra datos médicos ni resultados de los tests.',
       pg_desc_med:'Panel del servicio médico: estadísticas clínicas y acciones sobre cada persona — indicadores, evolución, comentarios, informes y gestiones. Es la única vista que muestra valores individuales.',
@@ -9208,6 +9214,10 @@ const I18N = {
       mi_rol_d_si:'Active. Tap to open your company panel.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
       ts_sim_demo_pass:'The demo requires a password and this session does not carry one. Sign in as administrator again.',
+      pg_hint_sup:'Operational view: who is fit to work. It shows no medical data and no test results.',
+      pg_hint_med:'Full medical service view: indicators, evolution, comments, reports and case management.',
+      pg_hint_hseq:'Management view: aggregated indicators for the organization, traceability and costs. It shows no clinical data and no individual values.',
+      pg_hint_emp:'You will see your own entries.',
       pg_desc_emp:'Personal panel: here each person sees their own entries, how their indicators evolve and the recommendations they get. It is the view of whoever fills in the daily check-in.',
       pg_desc_sup:'Supervisor panel: team statistics and actions on the day\u2019s work \u2014 who is fit to work, who is worth reviewing and what measure to take. It shows no medical data and no test results.',
       pg_desc_med:'Medical service panel: clinical statistics and actions on each person \u2014 indicators, evolution, comments, reports and case management. It is the only view that shows individual values.',
@@ -16531,17 +16541,15 @@ function portalMode(m){
   // Dirección no da acceso a Dirección.
   PORTAL_VISTA = (m === 'sup') ? 'supervisor' : (m === 'hseq') ? 'hseq' : 'medico';
   const hint = document.getElementById('portalSupHint');
-  const HINTS = {
-    sup:  'Vista operativa: quiénes están en condiciones de trabajar. No muestra datos médicos ni resultados de los tests.',
-    med:  'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.',
-    hseq: 'Vista de dirección: indicadores agregados de la organización, trazabilidad y costos. No muestra datos clínicos ni valores individuales.'
-  };
   /* ⚠️ Z2 · EN LA DEMOSTRACIÓN LA DESCRIPCIÓN ES OTRA, y más larga: quien entra con credenciales
      ya sabe a qué panel viene y sólo necesita la pista de qué vista eligió; quien mira la
-     demostración desde afuera necesita que le digan QUÉ HACE el panel. Los textos de demo pasan
-     por `t()` (R14). `HINTS` sigue a mano y sigue estando mal — es deuda de antes de este cambio,
-     anotada en PENDIENTES; no se toca acá para no cambiarle la pantalla a quien ya la usa. */
-  if (hint) hint.textContent = PORTAL_SOLO_DEMO ? t(demoDescClave(m)) : (HINTS[m] || HINTS.med);
+     demostración desde afuera necesita que le digan QUÉ HACE el panel.
+     ⚠️ LAS TRES PISTAS DEL LOGIN REAL ESTABAN ESCRITAS A MANO ACÁ, en un objeto `HINTS` dentro de
+     esta función, fuera de `t()`: con la app en inglés un supervisor real las leía en español.
+     Violaba R14 desde antes de este cambio y se arregló el 2026-09-09 por decisión de Franco.
+     El respaldo cuando la clave no existe es `pg_hint_med`, no una cadena literal: si mañana
+     alguien agrega una pestaña, ve una pista de otra vista y no un hueco. */
+  if (hint) hint.textContent = t(PORTAL_SOLO_DEMO ? demoDescClave(m) : ('pg_hint_' + m));
 }
 
 // Pide datos al endpoint (o responde con el mock si no hay URL configurada).
@@ -17760,7 +17768,11 @@ function dashTabsFor(rol, hasPvt, vista, costosCfg){
   if (vista === 'hseq'){
     const hseq = ['idc','mrfo','intervenciones','auditoria'];
     if (hseqTieneCostos(costosCfg)) hseq.push('costos');   // mismo lugar donde vivía en la lista vieja
-    hseq.push('ciclo','jornada');
+    /* P162 · el buzón anónimo también acá, por decisión de Franco (2026-09-09): la dirección tiene
+       un motivo legítimo para saber qué piensa el equipo. El servicio médico NO lo tiene — su
+       vista trabaja con nombres al lado, que es justo lo que este canal existe para no tener. El
+       servidor hace cumplir lo mismo (ver `accionOpiniones`); esto sólo pone la pestaña. */
+    hseq.push('ciclo','jornada','opiniones');
     return hseq;
   }
   /* ⚠️ VISTA PERSONAL: MANDA LA VISTA, NO EL ROL — y faltaba, mientras las dos ramas de arriba sí
@@ -17985,7 +17997,7 @@ function onDashData(d, scopeLabel, params, vista){
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
   if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
-  if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarOpiniones();
+  if (!DASH.demoMode && (vista === 'supervisor' || vista === 'hseq') && gestCanSync()) dashCargarOpiniones();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
@@ -18247,7 +18259,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
    nadie toque este objeto, que es exactamente lo contrario de lo que pasaba. */
 const DASH_ORDEN = {
   supervisor: ['aptitud','reportes','ciclo','opiniones'],
-  hseq:       ['idc','mrfo','intervenciones','auditoria','costos','ciclo','jornada'],
+  hseq:       ['idc','mrfo','intervenciones','auditoria','costos','ciclo','jornada','opiniones'],
   empleado:   ['resumen','evolucion','pvt'],
   medico:     ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada']
 };

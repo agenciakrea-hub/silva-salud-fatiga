@@ -165,9 +165,9 @@ PRUEBAS.caso('cada vista trae SUS pestañas, no las de otra', () => {
   demoVerVista('hseq');
   PRUEBAS.cierto(DASH.tabs.indexOf('idc') >= 0, 'dirección tiene su IDC');
   PRUEBAS.falso(DASH.tabs.indexOf('comentarios') >= 0, 'y NO los comentarios, que son clínicos');
-  PRUEBAS.falso(DASH.tabs.indexOf('opiniones') >= 0,
-    '⚠️ ni el buzón anónimo: la promesa que se le hizo a quien escribe fue «esto lo lee tu ' +
-    'supervisor», no la dirección');
+  PRUEBAS.cierto(DASH.tabs.indexOf('opiniones') >= 0,
+    '⚠️ y el buzón anónimo SÍ (decisión de Franco, 2026-09-09): la dirección tiene un motivo ' +
+    'legítimo para saber qué piensa el equipo. El servicio médico es el que no lo ve');
 });
 
 PRUEBAS.caso('⚠️ la VISTA personal manda sobre el rol', () => {

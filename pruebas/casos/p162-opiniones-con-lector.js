@@ -116,15 +116,20 @@ PRUEBAS.caso('🔴 EL CLIENTE NO PUEDE REORDENAR, NUMERAR NI MARCAR «NUEVAS»',
     '🔒 y nada que cruce con quién es quién');
 });
 
-PRUEBAS.caso('⚠️ la pestaña existe para el supervisor, y sólo para él', () => {
-  /* Entra por `dashTabsFor`, que es lo que arma la barra de verdad. Si apareciera en la vista de
-     Dirección/HSEQ, el buzón anónimo llegaría a quien decide presupuestos: no es que sea secreto,
-     es que la promesa que se le hizo a la persona fue «esto lo lee tu supervisor». */
+PRUEBAS.caso('⚠️ la pestaña la tienen supervisor y dirección · nunca el servicio médico', () => {
+  /* Entra por `dashTabsFor`, que es lo que arma la barra de verdad.
+     ⚠️ DECISIÓN DE FRANCO (2026-09-09): la dirección SÍ lo ve — tiene un motivo legítimo para
+     saber qué piensa el equipo. El servicio médico NO, y ésa es la línea que importa: su vista
+     trabaja con nombres al lado de cada dato, que es exactamente lo que este canal existe para
+     no tener. Poner el buzón ahí sería juntar, en una sola pantalla, textos anónimos y la lista
+     de quién es quién. */
   PRUEBAS.cierto(dashTabsFor('supervisor', false, 'supervisor').indexOf('opiniones') >= 0,
     'el supervisor la tiene');
-  ['medico','hseq','empleado'].forEach(v =>
+  PRUEBAS.cierto(dashTabsFor('supervisor', true, 'hseq', { activo:true }).indexOf('opiniones') >= 0,
+    'y la dirección también');
+  ['medico','empleado'].forEach(v =>
     PRUEBAS.falso(dashTabsFor('supervisor', true, v, { activo:true }).indexOf('opiniones') >= 0,
-      '⚠️ la vista ' + v + ' no'));
+      '🔒 la vista ' + v + ' no'));
   PRUEBAS.cierto(TAB_KEYS.indexOf('opiniones') >= 0,
     '⚠️ y está en TAB_KEYS · sin eso la pestaña aparece sin etiqueta traducida');
   ['es','en'].forEach(l => {
@@ -142,7 +147,10 @@ PRUEBAS.caso('⚠️ el contrato: lo que manda el servidor es lo que consume el 
      que lee `renderOpiniones` en el cliente. */
   const gs = CTX.gs;
   const i = gs.indexOf('function accionOpiniones');
-  const cuerpoGs = i >= 0 ? gs.slice(i, i + 1400) : '';
+  /* Se corta en el cierre de la función, no a los N caracteres: una ventana fija se rompe sola
+     el día que alguien agrega un comentario arriba (le pasó a `x2-opinion-anonima.js`). */
+  const finGs = gs.indexOf('\n}', i);
+  const cuerpoGs = i >= 0 ? gs.slice(i, finGs > 0 ? finGs + 2 : i + 3000) : '';
   PRUEBAS.cierto(/opiniones:\s*out/.test(cuerpoGs), 'el servidor manda la lista en `opiniones`');
   PRUEBAS.cierto(/mes:\s*String/.test(cuerpoGs) && /texto:\s*String/.test(cuerpoGs),
     'con `mes` y `texto` en cada elemento');
