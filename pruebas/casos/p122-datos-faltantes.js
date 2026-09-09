@@ -210,9 +210,18 @@ PRUEBAS.caso('🔴 el alta por NÓMINA se puede guardar aunque la empresa no est
   } finally { p122Cerrar(previo); }
 });
 
-PRUEBAS.caso('⚠️ pero lo que SÍ tipeó la persona se sigue validando — el discriminador', () => {
-  /* Sin esto, el arreglo de arriba dejaría pasar cualquier texto libre como empresa, que es el
-     bug que la validación existe para evitar («Aer. silva», «Silva C.A.®» ensuciando el CH). */
+PRUEBAS.caso('⚠️ lo que SÍ tipeó la persona ya no se rechaza acá — lo canoniza el servidor (P134)', () => {
+  /* ⚠️ ESTE CASO AFIRMABA LO CONTRARIO, Y EL CAMBIO FUE DELIBERADO. Decía «una empresa tipeada que
+     no está en la lista SÍ se rechaza», y era el discriminador de P138: sin él, el arreglo de
+     arriba dejaría pasar cualquier texto libre.
+     P134 quitó esa validación del cliente, porque para hacerla había que publicarle a cualquiera
+     con la URL los 11 nombres de nuestros clientes —`action=listas`, sin credencial— más la columna
+     A de `Accesos`, que es el usuario del panel de cada uno. La limpieza del nombre se mudó a donde
+     correspondía: `accionRegistro` canoniza con `nominaEmpresaCanon` al escribir.
+     ⚠️ LO QUE SE PIERDE, dicho explícito y anotado en PENDIENTES: una variante que el alias no
+     conoce («Helitec S.A.») ya no se rechaza en el momento — entra como cliente nuevo. Sólo lo
+     puede tocar quien llega por «No estoy en la lista»; en el camino normal el campo va de sólo
+     lectura con lo que resolvió el código. */
   const previo = { todo: Object.assign({}, localStorage) };
   try {
     localStorage.clear();
@@ -232,10 +241,10 @@ PRUEBAS.caso('⚠️ pero lo que SÍ tipeó la persona se sigue validando — el
     document.getElementById('inTelefono').value = '04121112233';
     document.getElementById('inEmail').value = 'ana@ejemplo.com';
     saveProfile();
-    PRUEBAS.igual(document.getElementById('fEmp').classList.contains('invalid'), true,
-      '⚠️ una empresa tipeada que no está en la lista SÍ se rechaza');
-    PRUEBAS.igual(document.getElementById('setup').classList.contains('show'), true,
-      'y el formulario NO se cierra');
+    PRUEBAS.igual(document.getElementById('fEmp').classList.contains('invalid'), false,
+      '⚠️ el campo ya NO se marca inválido · la lista contra la que se comparaba era el padrón');
+    PRUEBAS.igual((getProfile() || {}).empresa, 'Empresa Inventada S.A.',
+      'el nombre queda guardado tal cual · el servidor lo canoniza si conoce el alias');
   } finally { p122Cerrar(previo); }
 });
 

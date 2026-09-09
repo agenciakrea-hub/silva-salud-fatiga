@@ -50,17 +50,26 @@ PRUEBAS.caso('⚠️ la caché de OTRA persona no se muestra', () => {
     'y menos todavía una determinación médica, que es lo más sensible que viaja por este canal');
 });
 
-PRUEBAS.caso('la lista de empresas del ALTA sale al instante', () => {
-  /* Medido aparte: `action=listas` tarda 2,5–4,3 s para 375 bytes que casi nunca cambian. */
+PRUEBAS.caso('las áreas del ALTA salen al instante', () => {
+  /* Medido aparte: `action=listas` tarda 2,5–4,3 s para 375 bytes que casi nunca cambian.
+     ⚠️ P134 · ESTE CASO MEDÍA LA LISTA DE EMPRESAS, y esa lista ya no existe: `action=listas`
+     dejó de publicar el padrón de clientes. Lo que la caché adelanta ahora son los DEPARTAMENTOS
+     de la empresa de esta persona, que es lo único que el combo del alta necesita. La caché pasó a
+     llevar de quién son: aplicar las áreas de otra empresa en un teléfono compartido ofrecería
+     opciones que no existen. */
+  const prevEmp = SETUP_LISTS_EMP;
+  setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
+               cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
   localStorage.setItem(K_LC, JSON.stringify({
-    empresas: ['Aeroambulancias Silva', 'Helitec'], departamentos: ['Operaciones']
+    empresa: 'Consorcio HELITEC', empresas: [], departamentos: ['Operaciones', 'Mantenimiento']
   }));
-  SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = []; SETUP_LISTS_LOADED = false;
+  SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = [];
+  SETUP_LISTS_LOADED = false; SETUP_LISTS_EMP = undefined;
   const oFetch = window.fetch;
   window.fetch = () => new Promise(() => {});
-  try { loadSetupLists(); } finally { window.fetch = oFetch; }
-  PRUEBAS.igual(SETUP_LISTS.empresas.length, 2,
-    'el desplegable tiene que estar lleno antes de que conteste el servidor');
+  try { loadSetupLists(); } finally { window.fetch = oFetch; SETUP_LISTS_EMP = prevEmp; }
+  PRUEBAS.igual(SETUP_LISTS.departamentos.length, 2,
+    'el combo tiene que estar lleno antes de que conteste el servidor');
 });
 
 PRUEBAS.caso('⚠️ con la lista cacheada, la validación queda PERMISIVA', () => {
@@ -69,13 +78,18 @@ PRUEBAS.caso('⚠️ con la lista cacheada, la validación queda PERMISIVA', () 
      empresa dada de alta HOY —que todavía no está en la caché— sería RECHAZADO durante esos
      segundos, con un mensaje diciéndole que su empresa no existe. Sería cambiar una espera por un
      rechazo falso. Por eso queda permisiva hasta que conteste el servidor de verdad. */
-  localStorage.setItem(K_LC, JSON.stringify({ empresas: ['Helitec'], departamentos: [] }));
-  SETUP_LISTS.empresas = []; SETUP_LISTS_LOADED = false; SETUP_LISTS_FAILED = false;
+  const prevEmp2 = SETUP_LISTS_EMP;
+  setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
+               cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
+  localStorage.setItem(K_LC, JSON.stringify(
+    { empresa:'Consorcio HELITEC', empresas: [], departamentos: ['Operaciones'] }));
+  SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = [];
+  SETUP_LISTS_LOADED = false; SETUP_LISTS_EMP = undefined; SETUP_LISTS_FAILED = false;
   const oFetch = window.fetch;
   window.fetch = () => new Promise(() => {});
-  try { loadSetupLists(); } finally { window.fetch = oFetch; }
+  try { loadSetupLists(); } finally { window.fetch = oFetch; SETUP_LISTS_EMP = prevEmp2; }
   PRUEBAS.cierto(SETUP_LISTS_FAILED,
-    'mientras lo mostrado sea de la caché, nadie puede quedar bloqueado por no estar en una lista vieja');
+    'la bandera marca que lo mostrado es de la caché · hoy sólo decide si se vuelve a cachear');
 });
 
 PRUEBAS.caso('sin caché se comporta como antes, no rompe', () => {

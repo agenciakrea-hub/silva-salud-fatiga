@@ -150,19 +150,26 @@ PRUEBAS.caso('🔴 la caché de listas se ESCRIBE · el trío tenía dos patas',
   const prevLoaded = SETUP_LISTS_LOADED;
   try {
     localStorage.removeItem(K_LISTAS_CACHE);
-    SETUP_LISTS_LOADED = false;
-    SETUP_LISTS.empresas = [];
+    /* ⚠️ UNA EMPRESA QUE NO EXISTE EN PRODUCCIÓN, a propósito. La suite no recarga la página y la
+       app real ya cacheó las áreas de «Consorcio HELITEC» al arrancar: con esa empresa,
+       `listasCacheAplicar()` traía las de verdad y el caso medía lo que dejó otro. */
+    setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Empresa De Prueba P144', departamento:'Ops',
+                 cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
+    SETUP_LISTS_LOADED = false; SETUP_LISTS_EMP = undefined;
+    SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = [];
+    /* P134 · `listas` ya no devuelve `empresas`, y la caché guarda de QUÉ empresa son las áreas. */
     fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(
-      { ok:true, empresas:['Consorcio HELITEC'], departamentos:['Operaciones','Mantenimiento'] }) });
+      { ok:true, departamentos:['Operaciones','Mantenimiento'] }) });
     loadSetupLists();
     await new Promise(r => setTimeout(r, 80));
     const c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE) || 'null');
     PRUEBAS.cierto(!!c, '⚠️ la caché quedó escrita · antes la clave no se creaba nunca');
     PRUEBAS.igual((c && c.departamentos || []).join(','), 'Operaciones,Mantenimiento',
       'con los departamentos adentro, que es lo que el alta necesita sin señal');
+    PRUEBAS.igual(c && c.empresa, 'Empresa De Prueba P144', 'y de quién son (P134)');
   } finally {
     fetchConReloj = prevFetch;
-    SETUP_LISTS_LOADED = prevLoaded;
+    SETUP_LISTS_LOADED = prevLoaded; SETUP_LISTS_EMP = undefined;
     try { localStorage.clear(); Object.keys(previo).forEach(k => localStorage.setItem(k, previo[k])); } catch(e){}
   }
 });
@@ -175,16 +182,27 @@ PRUEBAS.caso('🔒 pero una lista VACÍA no se cachea — el discriminador', asy
   const prevLoaded = SETUP_LISTS_LOADED;
   try {
     localStorage.removeItem(K_LISTAS_CACHE);
-    SETUP_LISTS_LOADED = false;
-    SETUP_LISTS.empresas = [];
-    fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok:true, empresas:[], departamentos:[] }) });
+    /* ⚠️ UNA EMPRESA QUE NO EXISTE EN PRODUCCIÓN, a propósito. La suite no recarga la página y la
+       app real ya cacheó las áreas de «Consorcio HELITEC» al arrancar: con esa empresa,
+       `listasCacheAplicar()` traía las de verdad y el caso medía lo que dejó otro. */
+    setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Empresa De Prueba P144', departamento:'Ops',
+                 cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
+    SETUP_LISTS_LOADED = false; SETUP_LISTS_EMP = undefined;
+    SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = [];
+    localStorage.setItem(K_LISTAS_CACHE, JSON.stringify(
+      { empresa:'Empresa De Prueba P144', empresas:[], departamentos:['CENTINELA'] }));
+    fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok:true, departamentos:[] }) });
     loadSetupLists();
     await new Promise(r => setTimeout(r, 80));
-    PRUEBAS.igual(localStorage.getItem(K_LISTAS_CACHE), null,
+    /* ⚠️ SE MIDE CON CENTINELA, no con `null`. La suite no recarga la página y la app real ya
+       corrió su propio `loadSetupLists` al arrancar, así que exigir que la clave NO EXISTA mide
+       también lo que dejó otro. Lo que este caso vigila es que la respuesta VACÍA no la pise. */
+    const dejado = JSON.parse(localStorage.getItem(K_LISTAS_CACHE) || 'null');
+    PRUEBAS.igual(!!(dejado && dejado.departamentos && dejado.departamentos.length === 0), false,
       '🔒 la lista vacía NO se guarda · cachearla sería dejar pegado el peor estado');
   } finally {
     fetchConReloj = prevFetch;
-    SETUP_LISTS_LOADED = prevLoaded;
+    SETUP_LISTS_LOADED = prevLoaded; SETUP_LISTS_EMP = undefined;
     try { localStorage.clear(); Object.keys(previo).forEach(k => localStorage.setItem(k, previo[k])); } catch(e){}
   }
 });

@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.19';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.20';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -15590,33 +15590,22 @@ function saveProfile(){
      ⚠️ ESTO ES UN CINTURÓN, NO LA CAUSA. La causa es que `listas` y el alta derivan el nombre por
      caminos distintos, y eso se arregla del lado del servidor — anotado en PENDIENTES_USUARIO.md,
      porque `listas` tiene otros consumidores y no se toca de paso. */
-  const _empDelServidor = (function(){
-    const el = document.getElementById('inEmp');
-    if (!el) return false;
-    return !!el.readOnly || el.getAttribute('data-oculto-faltantes') === '1';
-  })();
-  if (empresa && !_empDelServidor && SETUP_LISTS.empresas && SETUP_LISTS.empresas.length){
-    const oficial = SETUP_LISTS.empresas.find(e => dashNorm(e) === dashNorm(empresa));
-    if (oficial){ empresa = oficial; }                    // corrige a la escritura oficial
-    else {
-      document.getElementById('fEmp').classList.add('invalid');
-      const errEmp = document.getElementById('fEmp').querySelector('.err');
-      if (errEmp) errEmp.textContent = t('f_emp_no_lista');
-      ok = false;
-    }
-  } else if (empresa && !_empDelServidor && SHEETS_DASHBOARD_URL && !SETUP_LISTS_FAILED){
-    /* ⚠️ 2026-08-17: BUG REAL, así se coló "Consorcio Helitec" junto a "Helitec" en una prueba en
-       vivo con varias personas guardando casi al mismo tiempo. loadSetupLists() es async; si
-       alguien tocaba "Guardar" antes de que la lista llegara, SETUP_LISTS.empresas todavía estaba
-       vacía y el bloque de arriba se saltaba ENTERO — dejando pasar cualquier texto libre sin
-       chequear contra la lista oficial. La distinción con SETUP_LISTS_FAILED es a propósito: a
-       alguien SIN CONEXIÓN de verdad no hay que bloquearlo (ese era el motivo original de no
-       validar acá), pero "todavía no llegó" no es lo mismo que "no va a llegar". */
-    document.getElementById('fEmp').classList.add('invalid');
-    const errEmp = document.getElementById('fEmp').querySelector('.err');
-    if (errEmp) errEmp.textContent = t('f_emp_cargando');
-    ok = false;
-  }
+  /* ⚠️ P134 · LA VALIDACIÓN CONTRA LA LISTA OFICIAL SE FUE, Y EL MOTIVO NO ES QUE SOBRARA.
+     Existía porque `accionRegistro` guardaba la empresa CRUDA: así se coló «Consorcio Helitec»
+     junto a «Helitec» en una prueba en vivo, con varias personas guardando casi a la vez. El
+     arreglo de entonces fue que el navegador corrigiera la escritura contra una lista — y para eso
+     había que publicarle a cualquiera con la URL los 11 nombres de nuestros clientes, más la
+     columna A de `Accesos`, que es el USUARIO del panel de cada uno.
+
+     Ahora el servidor canoniza al escribir (`nominaEmpresaCanon` en `accionRegistro`), que es donde
+     correspondía: el nombre queda unificado sin que nadie tenga que ver el padrón. `listas` ya no
+     devuelve `empresas`.
+
+     ⚠️ LO QUE SE PIERDE, dicho explícito: el aviso «esa empresa no está en la lista» ya no aparece
+     en el formulario. Quien escriba un nombre que no existe queda guardado como cliente nuevo en
+     vez de recibir un error en el momento. Es el precio de no publicar la cartera, y sólo lo puede
+     tocar quien llega por «No estoy en la lista» — en el camino normal la empresa la resuelve el
+     código y el campo va de sólo lectura. */
   document.getElementById('fDep').classList.toggle('invalid', !departamento); if(!departamento) ok=false;
   document.getElementById('fCargo').classList.toggle('invalid', !cargo); if(!cargo) ok=false;
   document.getElementById('fSexo').classList.toggle('invalid', !sexo); if(!sexo) ok=false;
@@ -15771,9 +15760,26 @@ let SETUP_LISTS_LOADED = false;
 // alguien sin conexión real no hay que bloquearlo, pero a alguien que guardó más rápido de lo que
 // tardó la lista en llegar, sí — o pasa cualquier texto libre sin chequear contra la oficial.
 let SETUP_LISTS_FAILED = false;
+/* La empresa de la que se pidieron las listas. `listas` ahora devuelve los departamentos de UNA
+   empresa (P134), así que la caché y el `ya lo pedí` dejan de ser globales: en un teléfono que hace
+   un alta de otra empresa, los del alta anterior no sirven. */
+var SETUP_LISTS_EMP;
+function setupListasEmpresa(){
+  try {
+    return (typeof NOM !== 'undefined' && NOM && NOM.empresa)
+        || ((getProfile() || {}).empresa)
+        || reingresoEmpresa() || '';
+  } catch(e){ return ''; }
+}
 function loadSetupLists(){
-  if (SETUP_LISTS_LOADED || !SHEETS_DASHBOARD_URL) return;   // sin endpoint no hay listas (queda como texto libre)
+  if (!SHEETS_DASHBOARD_URL) return;                         // sin endpoint no hay listas (queda como texto libre)
+  const _emp = setupListasEmpresa();
+  /* ⚠️ P134 · SE RECARGA SI CAMBIÓ LA EMPRESA. Antes `SETUP_LISTS_LOADED` alcanzaba porque la
+     respuesta era la misma para todos; ahora depende de quién pregunta, y un teléfono compartido
+     pasa por dos empresas en la misma sesión. */
+  if (SETUP_LISTS_LOADED && SETUP_LISTS_EMP === _emp) return;
   SETUP_LISTS_LOADED = true;
+  SETUP_LISTS_EMP = _emp;
   /* M2: el desplegable se llena YA con lo último que se supo, en vez de quedarse vacío 2 a 4
      segundos (medido). ⚠️ `SETUP_LISTS_FAILED` se deja en `true` a propósito hasta que conteste
      el servidor: con la lista cacheada y la bandera en `false`, alguien de una empresa dada de
@@ -15782,7 +15788,8 @@ function loadSetupLists(){
   /* No hace falta repintar nada: el desplegable del alta se arma al vuelo con `comboBuild()`,
      que lee `SETUP_LISTS` en el momento en que la persona lo abre. Con llenar el arreglo alcanza. */
   if (listasCacheAplicar()) SETUP_LISTS_FAILED = true;
-  fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas&_=' + Date.now(), { cache:'no-store' })
+  fetchConReloj(SHEETS_DASHBOARD_URL + '?action=listas'
+      + '&empresa=' + encodeURIComponent(_emp) + '&_=' + Date.now(), { cache:'no-store' })
     .then(r => r.json())
     /* ⚠️ `SETUP_LISTS_FAILED` tiene que quedar en `true` en TODO caso que deje la lista vacía, no
        sólo cuando falla la red. saveProfile() usa esa bandera para distinguir "no hay lista porque
@@ -15793,9 +15800,12 @@ function loadSetupLists(){
        contra qué validar, así que valen lo mismo que no tener conexión. */
     .then(d => {
       if (d && d.ok){
+        /* `empresas` ya no viaja (P134). Se deja el campo por si una respuesta CACHEADA de la
+           versión anterior del endpoint todavía lo trae: leerlo no cuesta nada y no publicarlo es
+           trabajo del servidor, no de acá. */
         SETUP_LISTS.empresas = d.empresas || [];
         SETUP_LISTS.departamentos = d.departamentos || [];
-        SETUP_LISTS_FAILED = !SETUP_LISTS.empresas.length;      // llegó, pero vacía = no hay con qué validar
+        SETUP_LISTS_FAILED = !SETUP_LISTS.departamentos.length;  // lo único que esta lista aporta ya
         /* ⚠️ P144 · LA LÍNEA QUE FALTABA, y la encontró el barrido de alcanzabilidad.
            `listasCacheGuardar()` estaba escrita, con su comentario explicando que evita que la
            pantalla se quede vacía varios segundos, y NO LA LLAMABA NADIE. Del trío sólo corrían
@@ -28130,7 +28140,10 @@ function recuperarAbrir(){
    pantalla se quede vacía varios segundos cada vez. */
 const K_LISTAS_CACHE = 'silva_fatiga_listas_cache_v1';
 function listasCacheGuardar(){
+  /* P134 · se guarda DE QUIÉN son. Los departamentos ahora son de una empresa, y aplicar los de la
+     anterior en un teléfono compartido ofrecería áreas que no existen en la nueva. */
   try { localStorage.setItem(K_LISTAS_CACHE, JSON.stringify({
+    empresa: SETUP_LISTS_EMP || '',
     empresas: SETUP_LISTS.empresas || [], departamentos: SETUP_LISTS.departamentos || [] })); } catch(e){}
 }
 /* P039 · la caché de `listas` se limpia cuando un departamento cambia de estado. Sin esto, un
@@ -28141,12 +28154,15 @@ function listasCacheLimpiar(){
   SETUP_LISTS_LOADED = false;   // que el próximo `loadSetupLists()` vuelva a pedirla
 }
 function listasCacheAplicar(){
-  if (SETUP_LISTS.empresas.length) return false;      // ya hay algo más fresco en memoria
+  if (SETUP_LISTS.departamentos.length) return false;   // ya hay algo más fresco en memoria
   try {
     const c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE));
-    if (!c || !Array.isArray(c.empresas) || !c.empresas.length) return false;
-    SETUP_LISTS.empresas = c.empresas;
-    SETUP_LISTS.departamentos = c.departamentos || [];
+    if (!c || !Array.isArray(c.departamentos) || !c.departamentos.length) return false;
+    /* De otra empresa no sirve: son SUS áreas. Sin empresa guardada es una caché vieja, de cuando
+       la lista era global — tampoco se aplica. */
+    if (!c.empresa || c.empresa !== (SETUP_LISTS_EMP || '')) return false;
+    SETUP_LISTS.empresas = c.empresas || [];
+    SETUP_LISTS.departamentos = c.departamentos;
     return true;
   } catch(e){ return false; }
 }

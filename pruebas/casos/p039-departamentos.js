@@ -49,6 +49,16 @@ function p039Fila(persona, dep, empresa, kss) {
   return f;
 }
 
+/* ⚠️ P134 · ESTAS LLAMADAS AHORA MANDAN LA EMPRESA, y no es un ajuste de forma: cambió lo que la
+   acción promete. `action=listas` devolvía la unión de las áreas de TODOS los clientes —el padrón—
+   a cualquiera con la URL. Desde P134 filtra por la empresa que pregunta y sin empresa no devuelve
+   nada, así que estos casos, que llamaban `{action:'listas'}` a secas, pasaron a medir una lista
+   vacía.
+   Lo que vigilan sigue valiendo y de hecho queda MÁS fuerte: «la baja de Cardón no le saca
+   Mantenimiento a Consorcio HELITEC» era antes una consecuencia de colapsar todas las empresas en
+   una lista; ahora es directamente que cada una ve la suya. */
+const P039_EMP = 'Consorcio HELITEC';
+
 function p039Hojas(extra) {
   const h = {
     'Accesos': [['Usuario', 'Clave', 'Rol', 'Empresas', 'ClaveMedica', 'ClaveHseq'],
@@ -334,7 +344,7 @@ PRUEBAS.caso('⚠️ un departamento de baja deja de ofrecerse en el alta (actio
      alta, y no por `listaDepartamentos()` a secas. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = p039Api();
-  const listas = () => p039Json(api.manejar({ action: 'listas' })).departamentos || [];
+  const listas = () => p039Json(api.manejar({ action: 'listas', empresa: P039_EMP })).departamentos || [];
   PRUEBAS.cierto(listas().indexOf('Operaciones') >= 0,
     '⚠️ DISCRIMINADOR: antes de la baja, Operaciones TIENE que estar en el combo · ' + JSON.stringify(listas()));
   p039Baja(api, P039_SUP, 'Operaciones', { forzar: '1' });
@@ -355,7 +365,7 @@ PRUEBAS.caso('⚠️ `action=listas` NO escribe en el CH ni crea la hoja (la lla
   PRUEBAS.igual(api.__env.__libro.getSheetByName('Departamentos'), null,
     '⚠️ GUARDA DE MEDIBILIDAD: el CH de prueba tiene que arrancar SIN la hoja, o el caso no ' +
     'comprueba el camino del día 1');
-  const lista = p039Json(api.manejar({ action: 'listas' })).departamentos || [];
+  const lista = p039Json(api.manejar({ action: 'listas', empresa: P039_EMP })).departamentos || [];
   PRUEBAS.igual(api.__env.__libro.getSheetByName('Departamentos'), null,
     '⚠️ y después de `listas` la hoja SIGUE sin existir: una acción pública no crea hojas');
   PRUEBAS.cierto(lista.indexOf('Operaciones') >= 0,
@@ -366,7 +376,7 @@ PRUEBAS.caso('⚠️ un departamento nuevo y VACÍO sí aparece en el combo del 
   /* Si no apareciera, dar de alta un área vacía no serviría para nada — nadie podría elegirla. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = p039Api();
-  const listas = () => p039Json(api.manejar({ action: 'listas' })).departamentos || [];
+  const listas = () => p039Json(api.manejar({ action: 'listas', empresa: P039_EMP })).departamentos || [];
   PRUEBAS.igual(listas().indexOf('Seguridad Operacional'), -1, 'DISCRIMINADOR: todavía no existe');
   p039Alta(api, P039_SUP, 'Seguridad Operacional');
   PRUEBAS.cierto(listas().indexOf('Seguridad Operacional') >= 0,
@@ -450,7 +460,7 @@ PRUEBAS.caso('⚠️ VOLVER A DARLO DE ALTA: la misma fila, sin duplicar y sin p
 PRUEBAS.caso('⚠️ reactivar lo vuelve a poner en el combo del alta', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = p039Api();
-  const listas = () => p039Json(api.manejar({ action: 'listas' })).departamentos || [];
+  const listas = () => p039Json(api.manejar({ action: 'listas', empresa: P039_EMP })).departamentos || [];
   p039Baja(api, P039_SUP, 'Mantenimiento', { forzar: '1' });
   PRUEBAS.igual(listas().indexOf('Mantenimiento'), -1, 'DISCRIMINADOR: de baja, no está');
   p039Alta(api, P039_SUP, 'Mantenimiento');
@@ -997,7 +1007,7 @@ PRUEBAS.caso('⚠️ A4 · el botón sólo aparece para quien puede gestionar, y
 function p039Listas(hojas){
   const env = GS.crearEntorno(hojas);
   const api = GS.cargarGs(CTX.gs, env, ['manejar']);
-  return JSON.parse(api.manejar({ action:'listas' }).getContent());
+  return JSON.parse(api.manejar({ action:'listas', empresa: P039_EMP }).getContent());
 }
 const P039_DEP_CAB = ['Empresa','Departamento','Estado','Creado','CreadoPor','Baja','BajaPor'];
 /* ⚠️ `parseRegistros` arranca en la fila 3 y lee por POSICIÓN FIJA (persona=2, depto=3,
