@@ -144,39 +144,40 @@ PRUEBAS.caso('🔴 la caché de listas se ESCRIBE · el trío tenía dos patas',
   /* Lo encontró el barrido: `listasCacheAplicar()` leía y `listasCacheLimpiar()` borraba, pero
      `listasCacheGuardar()` no la llamaba nadie. La clave nunca se escribía, así que el lector
      devolvía false siempre y el alta pedía los departamentos a la red en cada intento, también
-     sin señal (R7). Se entra por `loadSetupLists()`, que es quien recibe la respuesta. */
+     sin señal (R7). Se entra por `loadSetupLists()`, que es quien recibe la respuesta.
+
+     ⚠️ SE ESPÍA `listasCacheGuardar` EN VEZ DE LEER `localStorage` AL FINAL, y el motivo es una
+     carrera real que hizo fallar este caso tres veces. La suite no recarga la página y hay otros
+     `loadSetupLists()` en vuelo —de la app y de otros casos— cuyo fetch REAL resuelve tarde y pisa
+     tanto `SETUP_LISTS` como la clave de la caché. Leer el resultado global mide lo que dejó el
+     último en llegar; espiar la llamada mide lo que ESTE camino guardó, que es lo que se vigila. */
   const previo = Object.assign({}, localStorage);
-  const prevFetch = fetchConReloj;
-  const prevLoaded = SETUP_LISTS_LOADED;
+  const prevFetch = fetchConReloj, prevLoaded = SETUP_LISTS_LOADED, prevEmp = SETUP_LISTS_EMP;
+  const prevGuardar = window.listasCacheGuardar;
+  const guardados = [];
   try {
     localStorage.removeItem(K_LISTAS_CACHE);
-    /* ⚠️ UNA EMPRESA QUE NO EXISTE EN PRODUCCIÓN, a propósito. La suite no recarga la página y la
-       app real ya cacheó las áreas de «Consorcio HELITEC» al arrancar: con esa empresa,
-       `listasCacheAplicar()` traía las de verdad y el caso medía lo que dejó otro. */
     setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Empresa De Prueba P144', departamento:'Ops',
                  cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
     SETUP_LISTS_LOADED = false; SETUP_LISTS_EMP = undefined;
     SETUP_LISTS.empresas = []; SETUP_LISTS.departamentos = [];
-    /* P134 · `listas` ya no devuelve `empresas`, y la caché guarda de QUÉ empresa son las áreas. */
+    window.listasCacheGuardar = function(){
+      guardados.push({ emp: SETUP_LISTS_EMP, deps: (SETUP_LISTS.departamentos || []).join(',') });
+      return prevGuardar.apply(this, arguments);
+    };
     fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(
       { ok:true, departamentos:['Operaciones','Mantenimiento'] }) });
     loadSetupLists();
-    /* ⚠️ SE ESPERA A QUE APAREZCA LA CACHÉ DE ESTA EMPRESA, no un tiempo fijo. La suite no recarga
-       la página y hay otros casos que disparan `loadSetupLists`: con un `setTimeout` fijo, lo que
-       se leía podía ser la caché real de la app, y el caso fallaba de forma intermitente por una
-       carrera, no por el defecto que mide. */
-    let c = null;
-    for (let intento = 0; intento < 20 && !(c && c.empresa === 'Empresa De Prueba P144'); intento++){
-      await new Promise(r => setTimeout(r, 25));
-      try { c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE) || 'null'); } catch(e){ c = null; }
-    }
-    PRUEBAS.cierto(!!c, '⚠️ la caché quedó escrita · antes la clave no se creaba nunca');
-    PRUEBAS.igual((c && c.departamentos || []).join(','), 'Operaciones,Mantenimiento',
-      'con los departamentos adentro, que es lo que el alta necesita sin señal');
-    PRUEBAS.igual(c && c.empresa, 'Empresa De Prueba P144', 'y de quién son (P134)');
+    for (let i = 0; i < 20 && !guardados.length; i++) await new Promise(r => setTimeout(r, 25));
+    PRUEBAS.alMenos(guardados.length, 1,
+      '⚠️ `loadSetupLists` llama a `listasCacheGuardar` · antes no la llamaba nadie y la clave no se creaba nunca');
+    const g = guardados[0];
+    PRUEBAS.igual(g.deps, 'Operaciones,Mantenimiento',
+      'con los departamentos de la respuesta adentro, que es lo que el alta necesita sin señal');
+    PRUEBAS.igual(g.emp, 'Empresa De Prueba P144', 'y de quién son (P134)');
   } finally {
-    fetchConReloj = prevFetch;
-    SETUP_LISTS_LOADED = prevLoaded; SETUP_LISTS_EMP = undefined;
+    fetchConReloj = prevFetch; SETUP_LISTS_LOADED = prevLoaded; SETUP_LISTS_EMP = prevEmp;
+    window.listasCacheGuardar = prevGuardar;
     try { localStorage.clear(); Object.keys(previo).forEach(k => localStorage.setItem(k, previo[k])); } catch(e){}
   }
 });
