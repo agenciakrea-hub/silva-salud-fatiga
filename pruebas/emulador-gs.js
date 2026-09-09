@@ -218,6 +218,24 @@ function __digestHex(bytes) {
     });
   }
   LibroFalso.prototype.getSheetByName = function (n) { return this._hojas[n] || null; };
+/* ⚠️ P161 · LA ZONA POR DEFECTO ES LA DEL SCRIPT REAL, y no es un detalle de configuración.
+
+   Antes era `America/Caracas` (UTC-4) mientras `appsscript.json` pone el proyecto en
+   `America/Argentina/Buenos_Aires` (UTC-3). Eso hacía que el emulador MINTIERA sobre las fechas:
+   `Utilities.formatDate` respeta la zona configurada, pero `new Date(a, m, d, h, …)` es JavaScript
+   puro y usa la del navegador que corre la suite — que acá es la del sistema, UTC-3.
+
+   Resultado medido en `P160`: un instante escrito con `formatoIsoLocal_` y releído con
+   `parsearIsoAEpoch_` volvía con **exactamente una hora** de diferencia. En producción eso NO pasa,
+   porque en Apps Script las dos corren en la zona del script y coinciden. O sea que el emulador
+   inventaba un defecto que no existe — y en el sentido contrario podría tapar uno que sí.
+
+   Con la zona real, las dos funciones vuelven a coincidir como en producción.
+   ⚠️ `opciones.zona` sigue disponible para probar una zona distinta a propósito, pero hay que saber
+   que en ese caso `new Date(componentes)` NO la respeta: sólo se puede confiar en lo que pase por
+   `Utilities.formatDate`. */
+var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/appsscript.json
+
   /* ⚠️ FALTABA, y sin esto NINGUNA prueba podía entrar por `accionSupervisor` (P051, 2026-09-06):
      `leerTurnos` y `leerOperacional` la llaman para formatear en la zona de la operación, así que
      el pedido moría con "getSpreadsheetTimeZone is not a function" antes de devolver nada. El
@@ -226,7 +244,7 @@ function __digestHex(bytes) {
      y no el uso, que es justo lo que R17 vino a prohibir. Devuelve la MISMA zona que
      `Session.getScriptTimeZone`: son dos cosas distintas en Apps Script (la del libro y la del
      script) pero acá conviene que coincidan, y `opciones.zona` las mueve a las dos juntas. */
-  LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || 'America/Caracas'; };
+  LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || ZONA_DEL_SCRIPT; };
   LibroFalso.prototype.getSheets = function () { return Object.keys(this._hojas).map(n => this._hojas[n]); };
   LibroFalso.prototype.insertSheet = function (n) {
     this._hojas[n] = new HojaFalsa(n, []);
@@ -263,7 +281,7 @@ function __digestHex(bytes) {
         getActiveSpreadsheet: function () { return env.__libro; },
         flush: function () {}
       },
-      __libro: (function (l) { l._zona = opciones.zona || 'America/Caracas'; return l; })(new LibroFalso(hojas)),
+      __libro: (function (l) { l._zona = opciones.zona || ZONA_DEL_SCRIPT; return l; })(new LibroFalso(hojas)),
 
       /* — Caché: implementación real en memoria, no un stub que devuelve null.
            Importa porque hay lógica que DEPENDE de que la caché funcione (el freno de fuerza
@@ -318,7 +336,7 @@ function __digestHex(bytes) {
       __uuid: 0,
 
       Session: {
-        getScriptTimeZone: function () { return opciones.zona || 'America/Caracas'; },
+        getScriptTimeZone: function () { return opciones.zona || ZONA_DEL_SCRIPT; },   // P161
         getActiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; }
       },
 
