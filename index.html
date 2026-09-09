@@ -6543,7 +6543,7 @@
 
     <!-- GATE (login) -->
     <div id="portalGate">
-      <button class="portal-x" onclick="closePortal()">✕</button>
+      <button class="portal-x" onclick="closePortalUI()">✕</button>
       <div class="portal-gate-card">
       <img class="pg-logo" src="escudo360.svg" alt="Escudo 360 · Silva Salud">
       <h2 data-i18n="pg_titulo">Panel de estadísticas</h2>
@@ -6656,7 +6656,7 @@
         <div class="db-fila">
           <span class="sim-ico"><svg class="ico-svg" aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
           <span class="sim-txt"><span class="db-corto" data-i18n="demo_bar_corto">Demostración · nada se guarda</span><span class="db-largo" data-i18n="demo_bar_txt">Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.</span></span>
-          <button type="button" class="sim-salir" onclick="closePortal()" data-i18n="salir">Salir</button>
+          <button type="button" class="sim-salir" onclick="closePortalUI()" data-i18n="salir">Salir</button>
         </div>
         <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
       </div>
@@ -6676,7 +6676,7 @@
         <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
-        <button class="portal-x" onclick="closePortal()">✕</button>
+        <button class="portal-x" onclick="closePortalUI()">✕</button>
       </div>
       <div class="dfm-wrap">
         <div class="dfm-row">
@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.20';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.21';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14133,7 +14133,7 @@ function abrirDestinoEstadisticas(){
   document.getElementById('portalOverlay').classList.add('show');
   syncScrollLock();                         // bloquea el scroll del fondo (evita la 2da barra)
   marcarStatsActivo(true);
-  navPush();
+  navPush(); _portalApilo = true;                // P150 · esta apertura SÍ apiló
   // Si dejó de ser supervisor/servicio médico, no puede reaparecer una vista de empresa cacheada: se descarta.
   if (DASH && DASH.vista && DASH.vista !== 'empleado'){
     const pp = getProfile() || {};
@@ -16188,7 +16188,39 @@ function portalAutoLoginSupervisor(c, credKey){
    el mismo que usa `EMPRESA_DEMO` en el endpoint. */
 const EMPRESA_DEMO_NOMBRE = 'Empresa Demo';
 
+/* ⚠️ P150 · EL CIERRE POR PANTALLA CONSUME SU ENTRADA; EL DEL BOTÓN FÍSICO NO.
+   Mismo patrón que P048 estableció para la opinión, el test, el ciclo, los departamentos y las
+   tareas — al panel nunca se le aplicó, y es la pantalla más usada de la app.
+
+   `navPush()` apila una entrada cada vez que se abre el panel (`abrirDestinoEstadisticas`,
+   `simEntrar`, `splashAbrirPortal`), para que el botón físico «atrás» pueda cerrarlo. Cuando el
+   cierre viene de ese botón, el navegador ya sacó la entrada antes de disparar `popstate`, y por
+   eso `silvaAtras()` llama a `closePortal()` PELADO. Pero cuando la persona cierra con la ✕, con
+   «Salir» o con la flecha ←, nada toca el historial: la entrada queda apilada sin dueño, y el
+   botón físico deja de responder una vez por cada entrada huérfana.
+
+   ⚠️ HAY UN CAMINO QUE ABRE EL PANEL SIN APILAR, y por eso esto no puede ser un `history.back()` a
+   secas: `portalAbrirDirecto()` corre en el ARRANQUE (index.html, cerca del final) cuando el
+   dispositivo tiene credenciales de empresa guardadas, y abre el panel sin `navPush()`. En ese caso
+   no hay ninguna entrada propia que descartar. Lo cubre la guarda de `navConsumir()`, que sólo
+   consume si el estado actual es el suyo (`history.state.silva === 1`); si no lo es, no toca nada.
+   Ése es exactamente el caso para el que esa guarda existe. */
+/* ⚠️ NO ALCANZA CON LA GUARDA DE `navConsumir()`, y lo encontró la prueba de este mismo prompt.
+   Esa guarda mira si el estado ACTUAL del historial es suyo (`history.state.silva === 1`), no si
+   ESTE overlay fue el que apiló. Si el panel se abrió sin `navPush()` pero hay una entrada de OTRO
+   overlay debajo, se come la ajena — y «atrás» salta dos pantallas. Medido: el caso del arranque
+   directo descartaba una entrada que no era suya.
+   Por eso el panel se acuerda de si apiló. `var` sin asignar por R16: el arranque llama a
+   `portalAbrirDirecto()` y una asignación declarada más abajo pisaría lo que ya se guardó. */
+var _portalApilo;
+function closePortalUI(){
+  var apilo = !!_portalApilo;      // se lee ANTES: `closePortal()` la baja
+  closePortal();
+  if (apilo) navConsumir();
+}
+
 function closePortal(){
+  _portalApilo = false;                         // P150 · la entrada, si la hubo, deja de ser suya
   const _eraDemo = !!(DASH && DASH.demoMode);   // se lee ANTES de perder DASH
   DASH = null;
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
@@ -16281,7 +16313,10 @@ function portalBackToGate(){
     document.getElementById('portalDash').style.display = 'none';
     openPortalGate();
   } else {
-    closePortal();
+    /* P150 · esta rama CIERRA el panel (quien no gestiona no tiene selector al que volver), y el
+       toque vino de la flecha ← de la pantalla. La rama de arriba no cierra nada, así que ahí no
+       hay entrada que descartar. */
+    closePortalUI();
   }
 }
 // Muestra/oculta la flecha "atrás" según el perfil ACTUAL (no el de cuando se cargó el
@@ -16789,7 +16824,7 @@ function simEntrar(vista){
   simPintarBarra();
   mostrarVista('inicio');
   document.getElementById('portalOverlay').classList.add('show');
-  syncScrollLock(); navPush();
+  syncScrollLock(); navPush(); _portalApilo = true;   // P150
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
   dashSetMq('dashScope', t('cargando'));
@@ -16817,7 +16852,10 @@ function simEntrar(vista){
     .catch(() => { showToast(t('sin_conexion')); simSalir(); });
 }
 function simSalir(){
-  try { closePortal(); } catch(e){}   // closePortal ya limpia SIMUL y repinta la barra
+  /* P150 · `closePortalUI` y no `closePortal`: entrar a la simulación apiló una entrada
+     (`simEntrar` hace `navPush`), así que salir —aunque sea por un error de red— tiene que
+     descartarla. No viene del botón físico. */
+  try { closePortalUI(); } catch(e){}   // closePortal ya limpia SIMUL y repinta la barra
   SIMUL = null; simPintarBarra();     // por si closePortal fallara, no quedar simulando
   mostrarVista('mas');
   showToast(t('ts_sim_salida'));
@@ -27202,7 +27240,7 @@ function splashAbrirPortal(){
   document.getElementById('portalGate').style.display = '';
   document.getElementById('portalDash').style.display = 'none';
   const err = document.getElementById('portalErr'); if (err) err.textContent = '';
-  syncScrollLock(); navPush();
+  syncScrollLock(); navPush(); _portalApilo = true;   // P150 · esta apertura SÍ apiló
 }
 function splashVerDemo(){
   portalReponerLoDeEmpresa();   // ⚠️ si se viene de Administrador, las pestañas están escondidas
