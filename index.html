@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.21';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.22';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14608,8 +14608,16 @@ function nominaAbrir(){
   NOM.perfil = null; NOM.cedula = ''; NOM.perfilPersona = null; NOM.empresaPorLista = false;
   ALTA_EN_CURSO = true;   // P136 · el indicador de paso sólo se pinta durante el alta
   NOM.noFigura = false;   // P137 · la salida del que no figura se gana en cada intento, no se hereda
+  /* ⚠️ P153 · ESTA PANTALLA NO TENÍA ENTRADA PROPIA EN EL HISTORIAL. Figuraba en `silvaAtras()`
+     —o sea, el botón físico «atrás» dice saber cerrarla— pero nunca apilaba nada. Sobrevivía
+     prestándose la entrada que `openSetup()` dejaba huérfana, y eso es una coincidencia, no un
+     diseño: al carrusel y a la nómina se llega ANTES que a `openSetup`, así que en un arranque
+     limpio no hay ninguna entrada y el botón físico SALE DE LA APP en medio del registro — el
+     `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
+     Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
   nominaEl('nominaOv').classList.add('show');
   syncScrollLock();
+  navPush();   // P153
   /* ⚠️ P143 · EL RETOME VA ACÁ, y tiene que ir DESPUÉS del reset de arriba: las cinco líneas que
      vacían `NOM` se llevarían puesto lo que el retome acaba de poner. Si no hay nada que retomar
      devuelve `false` y el alta arranca por el código, como siempre. */
@@ -26132,7 +26140,15 @@ function avanzarAlta(){
   //     sería dar por consentido algo que esa persona no leyó.
   if (!hasConsent()){
     consentRender();
+  /* ⚠️ P153 · ESTA PANTALLA NO TENÍA ENTRADA PROPIA EN EL HISTORIAL. Figuraba en `silvaAtras()`
+     —o sea, el botón físico «atrás» dice saber cerrarla— pero nunca apilaba nada. Sobrevivía
+     prestándose la entrada que `openSetup()` dejaba huérfana, y eso es una coincidencia, no un
+     diseño: al carrusel y a la nómina se llega ANTES que a `openSetup`, así que en un arranque
+     limpio no hay ninguna entrada y el botón físico SALE DE LA APP en medio del registro — el
+     `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
+     Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
     document.getElementById('consent').classList.add('show');
+    navPush();   // P153
     pasoPintar('#consent .sheet', 5);
     syncScrollLock();
     return;
@@ -26143,7 +26159,15 @@ function avanzarAlta(){
      escriba nada. Sin él, a los pilotos de Helitec —que ya están registrados y nunca pasaron por
      este paso— les aparecería una pantalla nueva al abrir la app, sin haber pedido nada. */
   if (!textoYaElegido() && !_complete){
+  /* ⚠️ P153 · ESTA PANTALLA NO TENÍA ENTRADA PROPIA EN EL HISTORIAL. Figuraba en `silvaAtras()`
+     —o sea, el botón físico «atrás» dice saber cerrarla— pero nunca apilaba nada. Sobrevivía
+     prestándose la entrada que `openSetup()` dejaba huérfana, y eso es una coincidencia, no un
+     diseño: al carrusel y a la nómina se llega ANTES que a `openSetup`, así que en un arranque
+     limpio no hay ninguna entrada y el botón físico SALE DE LA APP en medio del registro — el
+     `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
+     Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
     document.getElementById('textoOverlay').classList.add('show');
+    navPush();   // P153
     pasoPintar('#textoOverlay .sheet', 6);
     syncScrollLock();
     return;
@@ -26447,7 +26471,11 @@ function clvAbrir(){
   document.getElementById('clvErr').textContent = '';
   clvCodigoPreparar();
   clvValidar();
+  /* ⚠️ P153 · ídem: estaba en `silvaAtras()` sin entrada propia. Ver la nota de `nominaAbrir`.
+     Ésta se abre ENCIMA del alta, así que sin entrada propia el «atrás» se llevaba la de
+     abajo — cerraba dos pantallas de un toque o salía de la app, según lo que hubiera. */
   ov.classList.add('show');
+  navPush();   // P153
   syncScrollLock();
   return true;
 }
@@ -26708,7 +26736,11 @@ function rolOfrecerAbrir(){
   rolOfrecerPintar();
   const campo = document.getElementById('rolPass'); if (campo) campo.value = '';
   const err = document.getElementById('rolErr'); if (err) err.textContent = '';
+  /* ⚠️ P153 · ídem: estaba en `silvaAtras()` sin entrada propia. Ver la nota de `nominaAbrir`.
+     Ésta se abre ENCIMA del alta, así que sin entrada propia el «atrás» se llevaba la de
+     abajo — cerraba dos pantallas de un toque o salía de la app, según lo que hubiera. */
   ov.classList.add('show');
+  navPush();   // P153
   syncScrollLock();
   return true;
 }
@@ -28309,7 +28341,15 @@ function carruselMostrar(){
   splashAnimFrenar();         // N8: ídem — cualquier camino que oculte el splash frena los videos
   splashLangHintFrenar();     // P043 · ídem
   document.getElementById('splashOv').classList.remove('show');
+  /* ⚠️ P153 · ESTA PANTALLA NO TENÍA ENTRADA PROPIA EN EL HISTORIAL. Figuraba en `silvaAtras()`
+     —o sea, el botón físico «atrás» dice saber cerrarla— pero nunca apilaba nada. Sobrevivía
+     prestándose la entrada que `openSetup()` dejaba huérfana, y eso es una coincidencia, no un
+     diseño: al carrusel y a la nómina se llega ANTES que a `openSetup`, así que en un arranque
+     limpio no hay ninguna entrada y el botón físico SALE DE LA APP en medio del registro — el
+     `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
+     Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
   document.getElementById('carruselOv').classList.add('show');
+  navPush();   // P153
   carruselPintar();
 }
 function carruselPintar(){
