@@ -91,7 +91,9 @@ PRUEBAS.caso('🔒 las seis están en `silvaAtras` · estar en la lista y apilar
      `consent` y `textoOverlay` los abre `avanzarAlta()`, que encadena varias pantallas y no se
      puede aislar sin armar el estado a mano — se verifican por el fuente de su abridor. */
   const abridor = avanzarAlta.toString().replace(/\/\*[\s\S]*?\*\//g, ' ');
-  PRUEBAS.cierto(/navPush\(\)/.test(abridor),
+  /* P153c · pasó a `navPushAlta()`, que apila igual salvo cuando la entrada viene traspasada de la
+     pantalla anterior. Lo que se vigila sigue siendo lo mismo: que este camino apile. */
+  PRUEBAS.cierto(/navPushAlta\(\)/.test(abridor),
     '🔒 el camino que abre el consentimiento y el tamaño de texto también apila');
 });
 
@@ -154,16 +156,54 @@ PRUEBAS.caso('⚠️ `silvaAtras` sigue cerrando el carrusel SIN consumir · ah�
   PRUEBAS.falso(/carruselCerrarUI\(\)/.test(fuente), '⚠️ y NO a la versión que consume');
 });
 
-PRUEBAS.caso('🔒 los cierres que ENCADENAN siguen sin consumir, a propósito', () => {
-  /* `clvPosponer` y `rolPosponer` cierran y llaman a `avanzarAlta()`, que abre la siguiente pantalla
-     y apila. `navConsumir()` hace un `history.back()` asíncrono: contra un `pushState` sincrónico
-     inmediato, el back termina deshaciendo la entrada NUEVA. Está medido en P150.
-     Este caso existe para que nadie los «complete» por simetría sin resolver antes el orden. */
-  const sin = ['clvPosponer','rolPosponer'].filter(n => {
+PRUEBAS.caso('🔴 los cierres que ENCADENAN traspasan su entrada · ni consumen ni apilan de más', () => {
+  /* P153b los dejó sin consumir a propósito: `navConsumir()` hace un `history.back()` asíncrono y
+     contra el `pushState` sincrónico de la pantalla siguiente terminaba deshaciendo la entrada
+     NUEVA. P153c lo resolvió sin tocar el historial: la pantalla que se abre REUSA la entrada de la
+     que se cerró. Cero `back()` nuevos, que es lo que hace seguro el arreglo.
+     Se mide sobre el fuente porque lo que se vigila es cuál de las dos rutas se usa. */
+  const enc = ['clvPosponer','rolPosponer'].filter(n => {
     const f = window[n];
     if (typeof f !== 'function') return false;
-    return /navConsumir\(\)/.test(f.toString().replace(/\/\*[\s\S]*?\*\//g, ' '));
+    return !/altaEncadenar\(/.test(f.toString());
   });
-  PRUEBAS.igual(sin.join(', '), '',
-    '🔒 ninguno consume · agregarlo sin ordenar el back contra el push deja el conteo peor');
+  PRUEBAS.igual(enc.join(', '), '', '🔴 los dos encadenan por `altaEncadenar()`');
+  const conBack = ['clvPosponer','rolPosponer'].filter(n =>
+    /navConsumir\(\)/.test(String(window[n] || '').replace(/\/\*[\s\S]*?\*\//g, ' ')));
+  PRUEBAS.igual(conBack.join(', '), '',
+    '🔒 y ninguno hace un `back()` propio · el riesgo del arreglo era agregar backs, no quitarlos');
+});
+PRUEBAS.caso('🔴 el recorrido encadenado no acumula entradas · una por pantalla visible', async () => {
+  /* El invariante que P153c protege: al pasar de una pantalla del alta a la siguiente, el total de
+     entradas propias NO crece. Se mide sobre el camino real —`clvPosponer()`, que es el botón «Más
+     tarde»— contando pushState y back de verdad. */
+  const previo = { todo: Object.assign({}, localStorage) };
+  const origPush = history.pushState.bind(history);
+  const origBack = history.back.bind(history);
+  let pushes = 0, backs = 0;
+  history.pushState = function(){ pushes++; return origPush.apply(history, arguments); };
+  history.back = function(){ backs++; return origBack.apply(history, arguments); };
+  try {
+    setProfile({ nombre:'Ana', cedula:'12345678', empresa:'Consorcio HELITEC', departamento:'Ops',
+                 cargo:'Piloto', sexo:'F', edad:'34', telefono:'0412', email:'a@a.com' });
+    p048LimpiarOverlays();
+    /* Se abre la pantalla de la contraseña como la abre el alta, y se toca «Más tarde». */
+    const abrio = clvAbrir();
+    PRUEBAS.cierto(abrio !== false, 'guarda de medibilidad: la pantalla de contraseña se abrió');
+    if (abrio === false) return;
+    const trasAbrir = pushes;
+    PRUEBAS.igual(trasAbrir, 1, 'guarda: apiló su entrada (P153)');
+    clvPosponer();
+    await p048EsperarTurno(80);
+    const abiertos = document.querySelectorAll('.overlay.show').length;
+    const netas = pushes - backs;
+    PRUEBAS.alMenos(1, netas, '⚠️ el encadenamiento NO acumula · quedaron ' + netas +
+      ' entradas para ' + abiertos + ' overlays abiertos');
+  } finally {
+    history.pushState = origPush;
+    history.back = origBack;
+    p048LimpiarOverlays();
+    try { localStorage.clear(); Object.keys(previo.todo).forEach(k => localStorage.setItem(k, previo.todo[k])); } catch(e){}
+    try { syncScrollLock(); } catch(e){}
+  }
 });

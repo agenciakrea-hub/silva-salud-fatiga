@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.24';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -26144,6 +26144,44 @@ if (_complete) sincronizarRegistro(_prof);
    terminar, sólo vuelve a preguntar. Mover un paso es reordenar estas tres líneas.
 
    Se muestra el PRIMER paso pendiente, no todos: cada paso vuelve a llamar acá al cerrarse. */
+/* ⚠️ P153c · EN UN ENCADENAMIENTO LA ENTRADA SE TRASPASA; NO SE CONSUME NI SE APILA DE NUEVO.
+
+   El problema. `clvPosponer()`, `rolPosponer()` y el `finalizar()` de `saveProfile` cierran su
+   pantalla y llaman a `avanzarAlta()` ACTO SEGUIDO, que abre la siguiente y apila la suya. Si el
+   cierre consumiera la vieja, ese `history.back()` —que llega de forma asíncrona— competiría con el
+   `pushState` sincrónico de la apertura y terminaría deshaciendo la entrada NUEVA en vez de la
+   vieja. Está medido desde P150 (ver la nota de `simSalir`). Y si no consume nada, cada paso del
+   alta deja una entrada colgada.
+
+   La salida es no tocar el historial en absoluto: **la pantalla que se abre reusa la entrada de la
+   que se acaba de cerrar.** Una entrada, una pantalla visible, cero `back()` nuevos — y eso último
+   importa: un `back()` de más en este archivo saca a la persona de la app, que es como salió mal el
+   primer intento de P153.
+
+   Sólo queda un `navConsumir()`, y en un caso donde la entrada es con seguridad propia: cuando
+   `avanzarAlta()` no abre NADA (el alta terminó) la entrada de la pantalla que se cerró sobra, y la
+   acaba de apilar esa misma pantalla. */
+var _altaReusaEntrada;
+function navPushAlta(){
+  if (_altaReusaEntrada){ _altaReusaEntrada = false; return; }   // la de la anterior sirve
+  navPush();
+}
+/* Cierra la pantalla actual del alta y sigue al paso siguiente, traspasándole la entrada. */
+function altaEncadenar(cerrar){
+  try { cerrar(); } catch(e){}
+  _altaReusaEntrada = true;
+  try { avanzarAlta(); } finally { _altaReusaEntrada = false; }
+  /* ⚠️ ACÁ NO VA UN `navConsumir()`, Y ESO SE MIDIÓ. La versión anterior descartaba la entrada
+     cuando `avanzarAlta()` no abría nada (el alta terminó). Parecía correcto y rompió `P048`: el
+     `history.back()` deja `_navConsumiendo` en `true` durante 400 ms, y el siguiente cierre por
+     interfaz que caiga en esa ventana NO descarta la suya. Medido: la opinión pasó de 5 descartes
+     a 4, de forma reproducible.
+     Así que cuando el alta termina queda UNA entrada huérfana — lo mismo que había antes de este
+     prompt, ni mejor ni peor. Lo que sí se arregló es que el recorrido no las ACUMULE: cada paso
+     traspasa la suya en vez de apilar una nueva. Cerrar esa última pide ordenar el `back()` contra
+     el flag, y no se hace a ojo: está en PENDIENTES. */
+}
+
 function avanzarAlta(){
   // 1 · Identificarse. nominaAbrir() ya NO cae al formulario manual si no hay nómina o no hay red (P124 quitó los dos respaldos): sólo si no hay endpoint.
   if (!perfilCompleto(getProfile())){ nominaAbrir(); return; }
@@ -26161,7 +26199,7 @@ function avanzarAlta(){
      `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
      Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
     document.getElementById('consent').classList.add('show');
-    navPush();   // P153
+    navPushAlta();   // P153c · reusa la entrada de la pantalla anterior si vino encadenada
     pasoPintar('#consent .sheet', 5);
     syncScrollLock();
     return;
@@ -26180,7 +26218,7 @@ function avanzarAlta(){
      `popstate` ni se dispara. Medido: `carruselMostrar()` y `nominaAbrir()` apilaban cero.
      Es el «callejón sin salida» que R1 creyó cerrar con sólo nombrarlas en `silvaAtras()`. */
     document.getElementById('textoOverlay').classList.add('show');
-    navPush();   // P153
+    navPushAlta();   // P153c · reusa la entrada de la pantalla anterior si vino encadenada
     pasoPintar('#textoOverlay .sheet', 6);
     syncScrollLock();
     return;
@@ -26488,7 +26526,7 @@ function clvAbrir(){
      Ésta se abre ENCIMA del alta, así que sin entrada propia el «atrás» se llevaba la de
      abajo — cerraba dos pantallas de un toque o salía de la app, según lo que hubiera. */
   ov.classList.add('show');
-  navPush();   // P153
+  navPushAlta();   // P153c
   syncScrollLock();
   return true;
 }
@@ -26614,19 +26652,13 @@ function clvGuardar(btn){
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
-/* ⚠️ P153b · ESTE NO CONSUME SU ENTRADA, Y ES A PROPÓSITO. Cierra la pantalla y ACTO SEGUIDO
-   llama a `avanzarAlta()`, que abre la siguiente y apila la suya. `navConsumir()` hace un
-   `history.back()` que llega de forma asíncrona: si en el medio corre un `pushState` sincrónico, el
-   `back()` pendiente termina deshaciendo la entrada NUEVA en vez de la vieja, y el conteo queda
-   peor que sin tocar nada. Está medido en P150 (ver la nota de `simSalir`).
-   Lo mismo vale para `rolPosponer()` y para el `finalizar()` de `saveProfile`. Cerrarlo bien pide
-   consumir DESPUÉS de que la siguiente pantalla apiló, o un mecanismo que ordene las dos cosas —
-   está anotado en PENDIENTES_USUARIO.md y no se hace a ojo. */
 function clvPosponer(){
   clvMarcarOfrecida();
-  document.getElementById('claveOv').classList.remove('show');
-  syncScrollLock();
-  avanzarAlta();
+  /* P153c · el cierre y el paso siguiente van juntos, traspasando la entrada del historial. */
+  altaEncadenar(function(){
+    document.getElementById('claveOv').classList.remove('show');
+    syncScrollLock();
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -26761,7 +26793,7 @@ function rolOfrecerAbrir(){
      Ésta se abre ENCIMA del alta, así que sin entrada propia el «atrás» se llevaba la de
      abajo — cerraba dos pantallas de un toque o salía de la app, según lo que hubiera. */
   ov.classList.add('show');
-  navPush();   // P153
+  navPushAlta();   // P153c
   syncScrollLock();
   return true;
 }
@@ -26836,9 +26868,11 @@ function rolConfirmar(btn){
    puerta: la fila de la pestaña Más queda disponible para siempre (ver la nota de arriba). */
 function rolPosponer(){
   rolMarcarOfrecido();
-  rolOfrecerCerrar();
-  try { miRolPintar(); } catch(e){}
-  avanzarAlta();
+  /* P153c · ídem: se traspasa la entrada en vez de consumirla y volver a apilar. */
+  altaEncadenar(function(){
+    rolOfrecerCerrar();
+    try { miRolPintar(); } catch(e){}
+  });
 }
 
 /* La fila "Mi acceso al panel" de la pestaña Más. Tres estados:
