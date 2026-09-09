@@ -1954,16 +1954,48 @@
 
   /* Portal: botón "Ver demostración" (fuera del login) */
   .portal-demo { margin-top: 1.1rem; }
-  .pd-sep { display: flex; align-items: center; gap: .7rem; color: var(--text-muted); font-size: .78rem; font-weight: 700; margin-bottom: .8rem; }
-  .pd-sep::before, .pd-sep::after { content: ''; flex: 1; height: 1px; background: var(--sup-borde); }
   .portal-demo-btn { width: 100%; padding: .82rem; border: 1.5px solid var(--orange); border-radius: 13px;
     background: var(--card); color: var(--orange-legible); font-family: inherit; font-weight: 800; font-size: .96rem; cursor: pointer; transition: background .14s; }
   .portal-demo-btn:hover { background: var(--orange-bg); }
   .portal-demo-btn:disabled { opacity: .8; cursor: default; }
   .portal-demo-hint { font-size: .78rem; color: var(--text-muted); line-height: 1.45; margin: .5rem .2rem 0; text-align: center; }
+  /* ⚠️ Z2 · EL BOTÓN DE LA DEMOSTRACIÓN, PEGADO AL PIE. Con el bloque colgando del flujo
+     normal, el botón subía y bajaba según cuánto ocupara la descripción de cada panel: cuatro
+     pestañas, cuatro alturas. `min-height` le da al `margin-top:auto` contra qué empujar, así que
+     cae siempre en el mismo lugar. Sólo en modo demostración: en el portal real, abajo de los
+     paneles va el acceso de administrador y el hueco quedaría en el medio. */
+  #portalCuerpo { display: block; }
+  .portal-demo-modo #portalCuerpo { display: flex; flex-direction: column; min-height: 24rem; }
+  .portal-demo-modo #portalDemoBloque { margin-top: auto; }
+  /* La aclaración de que el inicio es otra pantalla: se lee, no compite con la descripción. */
+  .portal-nota { font-size: .78rem; color: var(--text-muted); border-left: 2px solid var(--linea-2);
+                 padding-left: .6rem; margin: -.5rem 0 1rem; }
 
   /* Caja de ayuda por sección (legacy) */
   .dash-help b { color: var(--text); }
+
+  /* P162 · el buzón anónimo. Sobrio a propósito: sin avatar, sin insignia, sin nada que sugiera
+     que hay alguien detrás de cada tarjeta — es justo lo que no hay que sugerir.
+     R13 · --card, --linea, --text, --text-muted y --sobre-card están en los dos temas. */
+  .opi-nota { font-size: .8rem; line-height: 1.5; color: var(--text-muted); margin: 0 0 .9rem; }
+  .opi-lista { display: flex; flex-direction: column; gap: .6rem; }
+  .opi-item { background: var(--card); border: 1px solid var(--linea); border-radius: 12px;
+              padding: .85rem .95rem; }
+  .opi-txt { font-size: .9rem; line-height: 1.6; color: var(--text); white-space: pre-wrap;
+             overflow-wrap: anywhere; }
+  .opi-mes { font-size: .75rem; color: var(--text-muted); margin-top: .45rem;
+             font-variant-numeric: tabular-nums; }
+
+  /* ⚠️ Z2 · LA DESCRIPCIÓN DEL PANEL EN LA DEMOSTRACIÓN. Abierta y arriba de todo, y sólo en
+     demostración, así que no le come una línea a nadie que esté trabajando.
+     R13 · ni un color a mano: --sem-azul, --sem-azul-bg, --text-soft y --linea están definidos en
+     los DOS temas. (`--sem-azul-txt` NO existe — no usarlo, aunque el nombre suene lógico.) */
+  .demo-desc { background: var(--sem-azul-bg); border: 1px solid var(--sem-azul); border-radius: 12px;
+               padding: .8rem .95rem; margin-bottom: 1rem; }
+  .demo-desc .dd-t { font-size: .92rem; font-weight: 800; color: var(--text); line-height: 1.35; }
+  .demo-desc .dd-d { font-size: .85rem; line-height: 1.55; color: var(--text-soft); margin-top: .28rem; }
+  .demo-desc .dd-n { font-size: .8rem; line-height: 1.5; color: var(--text-soft); margin-top: .5rem;
+                     padding-top: .5rem; border-top: 1px solid var(--linea); }
 
   /* Aviso "faltan estadísticas" */
   .dash-warn { background: var(--sem-ambar-bg); border: 1px solid var(--sem-ambar); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
@@ -2421,9 +2453,9 @@
     #portalSup .save-btn { padding: 1.05rem; font-size: 1rem; }
     /* "Ver demostración" SÍ tiene su propia caja acá (a diferencia del resto, que ya no tiene
        marco): así se nota que es una acción alternativa aparte, no un paso más del login. */
-    #portalSup .portal-demo { border: 1.5px solid var(--orange); border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; background: var(--orange-bg); }
-    #portalSup .portal-demo .pd-sep { display: none; }
-    #portalSup .portal-demo-btn { padding: .95rem; }
+    #portalDemoBloque { border: 1.5px solid var(--orange); border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; background: var(--orange-bg); }
+    #portalDemoBloque .portal-demo-btn { padding: .95rem; }
+    .portal-demo-modo #portalCuerpo { min-height: 30rem; }
     /* Administrador queda FIJO al pie de la tarjeta, sin importar la pestaña elegida. */
     #adminSep { margin-top: 1.8rem; }
   }
@@ -6557,8 +6589,16 @@
         <button type="button" class="ptab" id="ptabHseq" onclick="portalMode('hseq')" data-i18n="pg_hseq">Dirección / HSEQ</button>
       </div>
 
+      <!-- ⚠️ Z2 · EL CUERPO DEL GATE ES UNA COLUMNA, y existe sólo para que el bloque de la
+           demostración pueda pegarse al PIE (`margin-top:auto` necesita un contenedor contra el
+           cual empujar). Envuelve los paneles y el bloque de la demo — no el logo ni el título —
+           para no volver flex-items a los elementos cuyo espaciado ya estaba resuelto con
+           márgenes. -->
+      <div id="portalCuerpo">
+
       <div id="portalEmp" class="portal-pane">
         <p class="portal-hint" id="portalEmpHint" data-i18n="pg_propios">Vas a ver tus propios registros.</p>
+        <p class="portal-hint portal-nota" data-i18n="pg_desc_inicio"></p>
         <button class="save-btn" id="portalEmpBtn" onclick="portalLoginEmpleado(this)" data-i18n="pg_ver_mis">Ver mis estadísticas</button>
       </div>
 
@@ -6568,6 +6608,7 @@
            apilados en ese orden (no en columnas separadas). -->
       <div id="portalSup" class="portal-pane" style="display:none">
         <p class="portal-hint" id="portalSupHint"></p>
+        <p class="portal-hint portal-nota" data-i18n="pg_desc_inicio"></p>
         <!-- Auditoría de login (2026-08-26): tenían autocomplete="off". Con "off" el gestor de
              contraseñas del navegador/SO nunca ofrece guardarla ni completarla — la única forma de
              "recordar" quedaba en el localStorage propio de la app (texto plano). "username" /
@@ -6603,22 +6644,39 @@
                   data-i18n="pg_olvidar">Cerrar sesión en este dispositivo</button>
         </div>
 
-        <div class="portal-demo" id="portalDemoBloque">
-          <div class="pd-sep"><span>o</span></div>
-          <button type="button" class="portal-demo-btn" id="portalDemoBtn" onclick="portalVerDemo(this)" data-i18n="pg_demo">Ver demostración con datos simulados</button>
-          <p class="portal-demo-hint" id="portalDemoHint" data-i18n="pg_demo_d">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
-          <!-- ⚠️ Z1: nace oculto y sólo aparece si el SERVIDOR contesta que la demostración pide
-               clave. Así, con un endpoint que todavía no la exige, nadie ve un campo de más — y no
-               hace falta que el cliente sepa de antemano en qué versión está el servidor. -->
-          <div class="field" id="portalDemoPass" style="display:none">
-            <label for="pDemoPass" data-i18n="pg_demo_pass_lbl">Clave de la demostración</label>
-            <div class="pw-wrap"><input id="pDemoPass" type="password" autocomplete="off"
-                   onkeydown="if(event.key==='Enter')portalVerDemo(document.getElementById('portalDemoBtn'))">
-              <button type="button" class="pw-eye" onclick="togglePw('pDemoPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            </div>
+      </div><!-- /#portalSup -->
+
+      <!-- ⚠️ Z2 · EL BLOQUE DE LA DEMOSTRACIÓN VIVE FUERA DE LOS PANELES, y es a propósito.
+           Estaba adentro de `#portalSup`, o sea que en la pestaña "Mis estadísticas" quedaba bajo
+           un ancestro con `display:none`: el campo de la clave y el aviso existían, y NADIE los
+           veía. El día que la demostración pasó a pedir clave —2026-09-09, `demo_pass` en
+           `Config Empresa`— esa pestaña quedó muerta: el botón giraba, volvía, y no pasaba nada.
+           Acá afuera sirve a las cuatro pestañas por igual, y de paso el botón cae SIEMPRE en el
+           mismo lugar del pie, alineado por construcción, sin depender de cuánto ocupe la
+           descripción de cada panel.
+           Un solo botón para las cuatro: su texto y su acción los fija `portalMode()`. Antes eran
+           dos con estilos distintos (`.save-btn` en Personal, `.portal-demo-btn` en el resto) y
+           se veía. -->
+      <div class="portal-demo" id="portalDemoBloque" style="display:none">
+        <!-- ⚠️ Z1: nace oculto y sólo aparece si el SERVIDOR contesta que la demostración pide
+             clave. Así, con un endpoint que todavía no la exige, nadie ve un campo de más — y no
+             hace falta que el cliente sepa de antemano en qué versión está el servidor.
+             Va ARRIBA del botón: primero se escribe, después se entra. -->
+        <div class="field" id="portalDemoPass" style="display:none">
+          <label for="pDemoPass" data-i18n="pg_demo_pass_lbl">Clave de la demostración</label>
+          <div class="pw-wrap"><input id="pDemoPass" type="password" autocomplete="off"
+                 onkeydown="if(event.key==='Enter')portalDemoEntrar()">
+            <button type="button" class="pw-eye" onclick="togglePw('pDemoPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
         </div>
+        <!-- ⚠️ El aviso de la demostración es SUYO, no el de las credenciales: `#portalErr` vive
+             dentro de `#portalCreds` y en modo demostración eso está oculto. -->
+        <div class="portal-err" id="portalDemoErr"></div>
+        <button type="button" class="portal-demo-btn" id="portalDemoBtn" onclick="portalVerDemo(this)" data-i18n="pg_demo">Ver demostración con datos simulados</button>
+        <p class="portal-demo-hint" id="portalDemoHint" data-i18n="pg_demo_d">Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.</p>
       </div>
+
+      </div><!-- /#portalCuerpo -->
 
       <!-- Administrador: FIJO abajo de todo, visible sin importar la pestaña elegida (Personal/
            Supervisor/Servicio médico) — acceso total, no depende de en qué pestaña se esté. -->
@@ -6932,7 +6990,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.25';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.27';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7442,7 +7500,22 @@ const I18N = {
       mi_rol_d:'Tu empresa te registró como {rol}. Actívalo con la contraseña de la empresa.',
       mi_rol_d_si:'Activo. Toca para abrir el panel de tu empresa.',
       pg_propios_demo:'Vas a ver la pantalla de una persona de ejemplo, tal como la ve ella.',
-      pg_ver_ejemplo:'Ver estadísticas de ejemplo',
+      /* ⚠️ Z2 · LAS DESCRIPCIONES DE LOS CUATRO PANELES DE LA DEMOSTRACIÓN. Se muestran SÓLO en
+         demostración: quien entra con credenciales ya sabe a qué panel viene. Cada una dice qué
+         estadísticas trae y qué se puede accionar desde ahí; `pg_desc_inicio` va en los cuatro y
+         aclara que el inicio es otra pantalla, para que nadie confunda el panel con la app. */
+      ts_sim_demo_pass:'La demostración pide una clave y esta sesión no la trae. Vuelve a entrar como administrador.',
+      pg_desc_emp:'Panel personal: aquí cada persona ve sus propios registros, la evolución de sus indicadores y las recomendaciones que recibe. Es la vista de quien responde el registro diario.',
+      pg_desc_sup:'Panel del supervisor: estadísticas del equipo y acciones sobre el trabajo del día — quiénes están en condiciones de trabajar, a quién conviene revisar y qué medida tomar. No muestra datos médicos ni resultados de los tests.',
+      pg_desc_med:'Panel del servicio médico: estadísticas clínicas y acciones sobre cada persona — indicadores, evolución, comentarios, informes y gestiones. Es la única vista que muestra valores individuales.',
+      pg_desc_hseq:'Panel de dirección: estadísticas de toda la organización y decisiones de gestión — indicadores agregados, trazabilidad y costos. No muestra datos clínicos ni valores individuales.',
+      pg_desc_inicio:'Esta es la parte de estadísticas y de acción. Aparte existe un panel de inicio, que es lo que cada persona usa todos los días: el registro diario, los tests y sus avisos.',
+      /* ⚠️ Z2 · CORTOS A PROPÓSITO. "Ver demostración con datos simulados (para dirección /
+         HSEQ)" partía el botón en dos líneas a 375 px, y como los cuatro paneles comparten un
+         solo botón pegado al pie, una etiqueta de dos líneas le mueve el borde superior a tres de
+         cada cuatro. Lo que decían de más —"con datos simulados"— ya lo dice la barra de arriba
+         del panel y la descripción del propio panel. */
+      pg_ver_ejemplo:'Ver el panel personal',
       pg_demo_error:'No se pudo abrir la demostración.',
       pg_demo_sin_persona:'La demostración todavía no tiene registros de ninguna persona.',
       pg_demo_pass_lbl:'Clave de la demostración',
@@ -7450,7 +7523,7 @@ const I18N = {
       pg_demo_pass_mal:'La clave no es correcta. Verifícala e inténtalo de nuevo.',
       pg_demo_abriendo:'Abriendo ejemplo…',
       pg_demo:'Ver demostración con datos simulados',
-      pg_demo_para:'Ver demostración con datos simulados (para {rol})',
+      pg_demo_para:'Ver el panel de {rol}',
       pg_demo_d:'Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.',
       consent_titulo:'Cómo se usan tus datos', consent_aceptar:'Aceptar y continuar',
       // ── Administración (herramienta interna) ──
@@ -7506,7 +7579,7 @@ const I18N = {
       jor_c_persona:'Persona', jor_c_dias:'Días', jor_c_prom:'Jornada promedio',
       jor_c_exceso:'Por encima', jor_c_fecha:'Fecha', jor_c_jornada:'Jornada',
       jor_abierto:'en curso',
-      tab_reportes:'Reportes', tab_ciclo:'Ciclo operativo', tab_jornada:'Jornada', tab_idc:'Disponibilidad',
+      tab_opiniones:'Opiniones', tab_reportes:'Reportes', tab_ciclo:'Ciclo operativo', tab_jornada:'Jornada', tab_idc:'Disponibilidad',
       tab_mrfo:'Mapa de riesgo', tab_intervenciones:'Intervenciones',
       tab_auditoria:'Trazabilidad', tab_costos:'Costos', tab_predictivo:'Predictivo',
       // ── F1 · Períodos ──
@@ -7722,6 +7795,10 @@ const I18N = {
       vac_acciones_d:'Acá se cuentan las tareas reasignadas, las consultas ofrecidas y las determinaciones médicas. Que esté vacío es normal al empezar.',
       vac_personal_t:'Todavía no hay personal en este alcance',
       vac_personal_d:'Aparece cada persona con su semáforo en cuanto complete un test. Si esperabas ver a alguien, revisa los filtros de arriba.',
+      /* ── P162 · el buzón anónimo ─────────────────────────────────────────────────────────
+         R1 · neutro. R14 · nada de términos de sector: se habla de personas y de equipo. */
+      vac_opiniones_t:'Sin opiniones por ahora',
+      vac_opiniones_d:'Aquí llega lo que tu equipo escribe en <b>Dejar una opinión</b>, sin nombre. No hace falta que hagas nada para recibirlas.',
       vac_reportes_t:'Sin reportes por ahora',
       vac_reportes_d:'Acá llega lo que tu equipo manda con <b>Reporte rápido</b> desde su app. No hace falta que hagas nada para recibirlos.',
       vac_personas_t:'Todavía no hay con quién comparar',
@@ -7761,6 +7838,9 @@ const I18N = {
       mot_empeoro:'empeoró', mot_ya_revisado:'ya revisado antes',
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
       dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
+      dw_opiniones_reintentar:'Todavía no se pudo conectar con el buzón de opiniones. Se va a reintentar solo.',
+      opi_nota_orden:'Aparecen en orden aleatorio, y cambia cada vez que abres esta pantalla. Es a propósito: en un equipo pequeño, el orden de llegada indicaría quién escribió cada una.',
+      hlp_opiniones:'Lo que tu equipo escribe en <b>Dejar una opinión</b>. Son <b>anónimas de verdad</b>: no llevan nombre, ni departamento, ni fecha exacta en ningún punto del circuito, y ni tú ni nadie puede saber quién escribió cada una. Solo se guarda el mes. El orden en que las ves es al azar y cambia en cada carga, porque el orden de llegada sería una forma de adivinarlo. Si algo de lo que leas necesita una respuesta, la respuesta va para todo el equipo, nunca para una persona.',
       sin_referencia:'sin referencia cargada',
       ct_sin_referencia:'Este indicador todavía no tiene un límite cargado para comparar.',
       apt_sin_dato:'Sin ningún test todavía (sí entran en el total de arriba)',
@@ -9127,7 +9207,13 @@ const I18N = {
       mi_rol_d:'Your company registered you as {rol}. Turn it on with the company password.',
       mi_rol_d_si:'Active. Tap to open your company panel.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
-      pg_ver_ejemplo:'View sample statistics',
+      ts_sim_demo_pass:'The demo requires a password and this session does not carry one. Sign in as administrator again.',
+      pg_desc_emp:'Personal panel: here each person sees their own entries, how their indicators evolve and the recommendations they get. It is the view of whoever fills in the daily check-in.',
+      pg_desc_sup:'Supervisor panel: team statistics and actions on the day\u2019s work \u2014 who is fit to work, who is worth reviewing and what measure to take. It shows no medical data and no test results.',
+      pg_desc_med:'Medical service panel: clinical statistics and actions on each person \u2014 indicators, evolution, comments, reports and case management. It is the only view that shows individual values.',
+      pg_desc_hseq:'Management panel: statistics for the whole organization and management decisions \u2014 aggregated indicators, traceability and costs. It shows no clinical data and no individual values.',
+      pg_desc_inicio:'This is the statistics and action side. There is also a separate home panel, the one each person uses every day: the daily check-in, the tests and their notices.',
+      pg_ver_ejemplo:'Open the personal panel',
       pg_demo_error:'The demo could not be opened.',
       pg_demo_sin_persona:'The demo does not have any records for a person yet.',
       pg_demo_pass_lbl:'Demo password',
@@ -9135,7 +9221,7 @@ const I18N = {
       pg_demo_pass_mal:'That password is not correct. Please check it and try again.',
       pg_demo_abriendo:'Opening example…',
       pg_demo:'See a demo with simulated data',
-      pg_demo_para:'See a demo with simulated data (as {rol})',
+      pg_demo_para:'Open the {rol} panel',
       pg_demo_d:'Explore the panel with a sample company — no username or password needed.',
       consent_titulo:'How your data is used', consent_aceptar:'Accept and continue',
       // ── Administration (internal tool) ──
@@ -9225,7 +9311,7 @@ const I18N = {
       jor_c_persona:'Person', jor_c_dias:'Days', jor_c_prom:'Average shift',
       jor_c_exceso:'Above plan', jor_c_fecha:'Date', jor_c_jornada:'Shift',
       jor_abierto:'ongoing',
-      tab_reportes:'Reports', tab_ciclo:'Operational cycle', tab_jornada:'Duty time', tab_idc:'Availability',
+      tab_opiniones:'Feedback', tab_reportes:'Reports', tab_ciclo:'Operational cycle', tab_jornada:'Duty time', tab_idc:'Availability',
       tab_mrfo:'Risk map', tab_intervenciones:'Interventions',
       tab_auditoria:'Traceability', tab_costos:'Costs', tab_predictivo:'Predictive',
       // ── F1 · Periods ──
@@ -9428,6 +9514,8 @@ const I18N = {
       vac_acciones_d:'This counts reassigned tasks, consultations offered and medical determinations. Being empty is normal at the start.',
       vac_personal_t:'No staff in this scope yet',
       vac_personal_d:'Each person appears with their status light as soon as they complete a test. If you expected to see someone, check the filters above.',
+      vac_opiniones_t:'No feedback for now',
+      vac_opiniones_d:'This is where what your team writes in <b>Leave feedback</b> arrives, with no name attached. You do not have to do anything to receive it.',
       vac_reportes_t:'No reports for now',
       vac_reportes_d:'This is where what your team sends with <b>Quick report</b> arrives. You do not have to do anything to receive them.',
       vac_personas_t:'Nothing to compare yet',
@@ -9467,6 +9555,9 @@ const I18N = {
       mot_empeoro:'got worse', mot_ya_revisado:'reviewed before',
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
       dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
+      dw_opiniones_reintentar:'Could not connect to the feedback inbox yet. It will retry automatically.',
+      opi_nota_orden:'These appear in random order, and it changes every time you open this screen. That is on purpose: in a small team, the order they arrived in would point to who wrote each one.',
+      hlp_opiniones:'What your team writes in <b>Leave feedback</b>. It is <b>truly anonymous</b>: no name, no department and no exact date at any point in the chain, and neither you nor anyone else can find out who wrote what. Only the month is stored. The order you see is random and changes on every load, because the order of arrival would be a way to guess it. If something you read needs an answer, the answer goes to the whole team, never to one person.',
       sin_referencia:'no reference set',
       ct_sin_referencia:'This indicator does not have a limit set to compare against yet.',
       apt_sin_dato:'No test at all yet (they do count in the total above)',
@@ -16397,13 +16488,37 @@ function portalMode(m){
      ahí justamente lo que hay que enseñar es cómo se ve la pantalla de una persona. Se muestra una
      de ejemplo (ver `portalVerDemoEmpleado`). */
   if (tabEmp) tabEmp.style.display = (hayPerfil || PORTAL_SOLO_DEMO) ? '' : 'none';
-  /* El texto y el botón cambian: en demo no son "tus" registros sino los de alguien de ejemplo. */
+  /* El texto cambia: en demo no son "tus" registros sino los de alguien de ejemplo. */
   const empHint = document.getElementById('portalEmpHint');
-  if (empHint) empHint.textContent = t(PORTAL_SOLO_DEMO ? 'pg_propios_demo' : 'pg_propios');
+  if (empHint) empHint.textContent = t(PORTAL_SOLO_DEMO ? demoDescClave('emp') : 'pg_propios');
+  /* ⚠️ Z2 · EN DEMOSTRACIÓN EL BOTÓN DE PERSONAL NO VA. Era un `.save-btn` naranja sólido al
+     lado de un `.portal-demo-btn` de contorno: "distinto color y formato" en dos pestañas que
+     hacen lo mismo. Ahora las cuatro entran por el ÚNICO botón del bloque de la demostración,
+     que además está al pie y por eso queda a la misma altura en todas. */
   const empBtn = document.getElementById('portalEmpBtn');
   if (empBtn){
-    empBtn.textContent = t(PORTAL_SOLO_DEMO ? 'pg_ver_ejemplo' : 'pg_ver_mis');
-    empBtn.setAttribute('onclick', PORTAL_SOLO_DEMO ? 'portalVerDemoEmpleado(this)' : 'portalLoginEmpleado(this)');
+    empBtn.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
+    empBtn.textContent = t('pg_ver_mis');
+    empBtn.setAttribute('onclick', 'portalLoginEmpleado(this)');
+  }
+  /* La aclaración de que esto es la parte de estadísticas y de acción —y que el inicio es otra
+     pantalla— sólo tiene sentido para quien mira la demostración desde afuera. Adentro, quien
+     entra con credenciales ya conoce la app. */
+  document.querySelectorAll('#portalCuerpo .portal-nota').forEach(el => {
+    el.textContent = t('pg_desc_inicio');
+    el.style.display = PORTAL_SOLO_DEMO ? '' : 'none';
+  });
+  const demoErr = document.getElementById('portalDemoErr');
+  if (demoErr) demoErr.textContent = '';        // cambiar de pestaña no arrastra el aviso anterior
+  /* ⚠️ Z2 · EL BOTÓN DE LA DEMOSTRACIÓN SIRVE A LAS CUATRO PESTAÑAS, así que se decide ACÁ
+     ARRIBA — abajo del `if (!esLogin) return` no llegaba nunca para "Mis estadísticas", que es
+     justo la que cambia de acción. */
+  const LBL = { sup:'supervisor', med:'servicio médico', hseq:'dirección / HSEQ' };
+  const demoBtn = document.getElementById('portalDemoBtn');
+  if (demoBtn){
+    const esEmp = (m === 'emp');
+    demoBtn.textContent = esEmp ? t('pg_ver_ejemplo') : t('pg_demo_para', { rol: (LBL[m] || LBL.med) });
+    demoBtn.setAttribute('onclick', esEmp ? 'portalVerDemoEmpleado(this)' : 'portalVerDemo(this)');
   }
   const admSep = document.getElementById('adminSep');
   if (admSep) admSep.style.display = PORTAL_SOLO_DEMO ? 'none' : '';
@@ -16421,12 +16536,12 @@ function portalMode(m){
     med:  'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.',
     hseq: 'Vista de dirección: indicadores agregados de la organización, trazabilidad y costos. No muestra datos clínicos ni valores individuales.'
   };
-  if (hint) hint.textContent = HINTS[m] || HINTS.med;
-  // La demo aclara para qué vista es (no siempre es obvio que "Ver demostración" respeta la
-  // pestaña elegida en vez de abrir siempre la vista completa).
-  const LBL = { sup:'supervisor', med:'servicio médico', hseq:'dirección / HSEQ' };
-  const demoBtn = document.getElementById('portalDemoBtn');
-  if (demoBtn) demoBtn.textContent = t('pg_demo_para', { rol: (LBL[m] || LBL.med) });
+  /* ⚠️ Z2 · EN LA DEMOSTRACIÓN LA DESCRIPCIÓN ES OTRA, y más larga: quien entra con credenciales
+     ya sabe a qué panel viene y sólo necesita la pista de qué vista eligió; quien mira la
+     demostración desde afuera necesita que le digan QUÉ HACE el panel. Los textos de demo pasan
+     por `t()` (R14). `HINTS` sigue a mano y sigue estando mal — es deuda de antes de este cambio,
+     anotada en PENDIENTES; no se toca acá para no cambiarle la pantalla a quien ya la usa. */
+  if (hint) hint.textContent = PORTAL_SOLO_DEMO ? t(demoDescClave(m)) : (HINTS[m] || HINTS.med);
 }
 
 // Pide datos al endpoint (o responde con el mock si no hay URL configurada).
@@ -16850,24 +16965,36 @@ function simEntrar(vista){
   document.getElementById('portalDash').style.display = '';
   dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
-  dashRequest({ action:'demo' })
+  /* ⚠️ A15 · POR SEXTA VEZ: LOS PARAMS SE ARMAN CON `dashAuth()`, NUNCA A MANO. Este `{action:'demo'}`
+     escrito a pulso viajaba sin usuario y sin token, y mientras la demostración fue abierta no se
+     notó. El 2026-09-09 se cargó `demo_pass` en `Config Empresa` y la simulación de rol del
+     administrador —Ajustes → Administrador → ver como…— dejó de abrir para todo el mundo, con un
+     "No se pudo abrir la simulación" que no dice nada. Con la credencial adentro, el servidor
+     reconoce la sesión y no le pide la clave de los de afuera (ver `accionDemo` en el `.gs`). */
+  const paramsSim = dashAuth({ action:'demo' });
+  dashRequest(paramsSim)
     .then(d => {
+      /* Endpoint viejo, o sesión que el servidor no reconoce: se dice QUÉ pasó, no un aviso
+         genérico que manda a nadie a ningún lado. */
+      if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
+        showToast(t('ts_sim_demo_pass')); simSalir(); return;
+      }
       if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(); return; }
       /* ⚠️ S7 · SIN ESTO, QUIEN ENTRA POR ACÁ NO TIENE EL SELECTOR. Es la otra puerta al mismo
          payload, y es la que usa la Dirección para revisar cómo se ve cada rol. Sin guardarlo,
          `demoPintarBarra()` calculaba que no hay demo y escondía la barra: la misma pantalla se
          comportaba distinto según por dónde se hubiera entrado, y por acá seguía costando 4 toques
          y hasta 12 segundos. */
-      DEMO_PAYLOAD = { d: d, params: { action:'demo' }, scope: 'Empresa Demo' };
+      DEMO_PAYLOAD = { d: d, params: paramsSim, scope: 'Empresa Demo' };
       if (vista === 'empleado'){
         /* Se reusa el recorte de S7 en vez de repetirlo. La copia que había acá elegía
            `registros[0].persona` —la primera fila que viniera—, mientras `demoPersonaEjemplo`
            elige la que MÁS registros tiene: la misma siempre, sin caer en alguien con un solo dato
            que dejaría la pantalla casi vacía. Dos formas distintas de elegir según la puerta. */
         const quien = demoPersonaEjemplo(d) || '';
-        onDashData(demoRecortarAPersona(d, quien), quien || 'Personal (ejemplo)', { action:'demo' }, 'empleado');
+        onDashData(demoRecortarAPersona(d, quien), quien || 'Personal (ejemplo)', paramsSim, 'empleado');
       } else {
-        onDashData(d, 'Empresa Demo', { action:'demo' }, vista);
+        onDashData(d, 'Empresa Demo', paramsSim, vista);
       }
     })
     .catch(() => { showToast(t('sin_conexion')); simSalir(); });
@@ -17234,7 +17361,7 @@ function portalLoginSupervisor(btn){
 }
 // Demostración con datos simulados (Empresa Demo), SIN login — botón del portal supervisor.
 function portalVerDemo(btn){
-  const errEl = document.getElementById('portalErr'); if (errEl) errEl.textContent = '';
+  const errEl = document.getElementById('portalDemoErr'); if (errEl) errEl.textContent = '';
   /* Z1: la clave viaja SIEMPRE que la persona haya escrito una. Quién decide si hace falta es el
      servidor — acá no hay ninguna comparación, y no puede haberla: este archivo es público. */
   const passEl = document.getElementById('pDemoPass');
@@ -17271,7 +17398,7 @@ function portalVerDemo(btn){
    De paso: pasa por la misma clave y el mismo freno que el otro botón de la demo (Z1), sin
    duplicar nada. */
 function portalVerDemoEmpleado(btn){
-  const errEl = document.getElementById('portalErr'); if (errEl) errEl.textContent = '';
+  const errEl = document.getElementById('portalDemoErr'); if (errEl) errEl.textContent = '';
   const passEl = document.getElementById('pDemoPass');
   const params = { action:'demo', dispositivoId: dispositivoId() };
   if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
@@ -17429,12 +17556,44 @@ function demoPersonaEjemplo(d){
 function portalDemoPedirClave(motivo){
   const caja = document.getElementById('portalDemoPass');
   const hint = document.getElementById('portalDemoHint');
-  const errEl = document.getElementById('portalErr');
+  const errEl = document.getElementById('portalDemoErr');
   const passEl = document.getElementById('pDemoPass');
   if (caja) caja.style.display = '';
   if (hint) hint.style.display = 'none';
   if (errEl) errEl.textContent = t(motivo === 'demo_pass_mal' ? 'pg_demo_pass_mal' : 'pg_demo_pass_pide');
   if (passEl){ passEl.value = ''; try { passEl.focus(); } catch(e){} }
+}
+
+/* ⚠️ Z2 · LA CLAVE SE PIDE AL TOCAR EL BOTÓN, NO TRES TOQUES DESPUÉS. Franco: "la contraseña es
+   al darle al botón". Antes la persona tocaba "Ver una demostración", elegía una vista, tocaba
+   Entrar, esperaba el viaje al servidor y RECIÉN AHÍ le aparecía un campo de contraseña: un falso
+   arranque, y encima con el aviso invisible. Ahora, al abrir el portal, una sonda le pregunta al
+   servidor si la demostración pide clave; si pide, el campo ya está puesto antes de elegir nada.
+   ⚠️ LA SONDA NO CAMBIA DE PANTALLA, y esto no es un detalle: la versión vieja disparaba el pedido
+   al abrir y entraba sola con la respuesta, así que nadie llegaba a elegir vista ("le doy y me abre
+   sí o sí dirección, no me deja seleccionar"). Acá lo único que puede hacer es mostrar un campo.
+   Va SIN clave a propósito: `accAnotarFallo` sólo corre cuando llega una clave y no coincide, así
+   que sondear no consume intentos del freno.
+   Si falla la red, silencio: el botón vuelve a intentar y ahí sí avisa. */
+function demoSondearClave(){
+  if (!PORTAL_SOLO_DEMO) return;
+  const caja = document.getElementById('portalDemoPass');
+  if (caja && caja.style.display !== 'none') return;   // ya está pedida: no repreguntar
+  dashRequest({ action:'demo', dispositivoId: dispositivoId(), sonda:'1' })
+    .then(d => {
+      if (!PORTAL_SOLO_DEMO) return;                   // se fue mientras viajaba
+      if (d && !d.ok && d.motivo === 'demo_pass') portalDemoPedirClave('demo_pass');
+    })
+    .catch(() => {});
+}
+
+/* ⚠️ Z2 · EL ENTER DEL CAMPO DE CLAVE NO PUEDE LLAMAR A `portalVerDemo` A MANO: en la pestaña
+   "Mis estadísticas" la acción es `portalVerDemoEmpleado`, y llamar a la otra abriría el panel
+   de empresa en vez de la pantalla de la persona. Se dispara el botón, que es quien sabe cuál
+   de las dos toca — `portalMode()` le reasigna el `onclick` en cada cambio de pestaña. */
+function portalDemoEntrar(){
+  const b = document.getElementById('portalDemoBtn');
+  if (b && !b.disabled) b.click();
 }
 
 function togglePw(id, btn){ const el = document.getElementById(id); if (!el) return; const show = el.type==='password'; el.type = show?'text':'password'; if (btn) btn.classList.toggle('on', show); }
@@ -17527,7 +17686,8 @@ function portalLoginAdmin(btn){
    constante, porque una constante se congelaría en el idioma que hubiera al cargar el archivo y
    cambiar de idioma no la tocaría. */
 const TAB_KEYS = ['resumen','comparar','individual','evolucion','pvt','comentarios','informe',
-  'gestiones','aptitud','reportes','ciclo','jornada','idc','mrfo','intervenciones','auditoria','costos','predictivo'];
+  'gestiones','aptitud','reportes','ciclo','jornada','idc','mrfo','intervenciones','auditoria','costos','predictivo',
+  'opiniones'];
 function tabLabel(k){ return t('tab_' + k); }
 
 // Arma la lista de pestañas según el rol, la vista y si hay datos de PVT en el alcance
@@ -17537,6 +17697,31 @@ function tabLabel(k){ return t('tab_' + k); }
 const DASH_VISTA_LABEL_DEF = { empleado:'vista_personal', supervisor:'vista_supervisor', medico:'vista_medico', hseq:'vista_hseq' };
 // La etiqueta de la vista, ya traducida. También la usa la barra de simulación.
 function vistaLabel(v){ const k = DASH_VISTA_LABEL_DEF[v]; return k ? t(k) : ''; }
+/* ⚠️ Z2 · UNA SOLA DESCRIPCIÓN POR PANEL, PARA LOS DOS LUGARES QUE LA MUESTRAN. La misma cadena
+   la lee el gate (antes de entrar, en `portalMode`) y el panel (ya adentro, acá). Dos juegos de
+   textos que dicen lo mismo es el defecto que este proyecto viene persiguiendo desde hace un mes:
+   se corrige uno, el otro queda viejo, y nadie los compara.
+   Las dos capas nombran las vistas distinto —el gate por pestaña (`emp`/`sup`/`med`/`hseq`), el
+   panel por vista (`empleado`/`supervisor`/`medico`/`hseq`)—, así que el puente está ACÁ y no
+   repetido en cada llamador. */
+function demoDescClave(v){
+  const M = { emp:'emp', empleado:'emp', sup:'sup', supervisor:'sup', med:'med', medico:'med', hseq:'hseq' };
+  return 'pg_desc_' + (M[String(v || '')] || 'med');
+}
+/* El bloque que encabeza cada panel de la demostración. Devuelve '' fuera de la demostración: a
+   quien está trabajando de verdad no se le come una pantalla explicándole dónde está parado.
+   No es un `details` plegado como `.dash-help` — quien mira una demostración no va a tocar un ⓘ
+   para enterarse de qué está viendo. */
+function demoDescBloque(){
+  if (!(typeof DASH !== 'undefined' && DASH && DASH.demoMode)) return '';
+  const v = (DASH && DASH.vista) || PORTAL_VISTA;
+  const titulo = vistaLabel(v) || '';
+  return '<div class="demo-desc">' +
+           (titulo ? '<div class="dd-t">' + esc(titulo) + '</div>' : '') +
+           '<div class="dd-d">' + esc(t(demoDescClave(v))) + '</div>' +
+           '<div class="dd-n">' + esc(t('pg_desc_inicio')) + '</div>' +
+         '</div>';
+}
 function dashPintarVista(vista){
   const el = document.getElementById('dashVista');
   if (el) el.textContent = vistaLabel(vista);
@@ -17569,7 +17754,7 @@ function hseqTieneCostos(costosCfg){
 function dashTabsFor(rol, hasPvt, vista, costosCfg){
   // Vista de SUPERVISOR: aptitud operativa + su bandeja de reportes + el ciclo operativo del día.
   // Nada de indicadores, comentarios ni informes: eso es del servicio médico.
-  if (vista === 'supervisor') return ['aptitud','reportes','ciclo'];
+  if (vista === 'supervisor') return ['aptitud','reportes','ciclo','opiniones'];
   // Vista de DIRECCIÓN / HSEQ: agregados de la organización. Nada individual, nada clínico.
   // El ciclo operativo es el MISMO que ve el supervisor (pedido explícito): una sola verdad.
   if (vista === 'hseq'){
@@ -17726,6 +17911,7 @@ function onDashData(d, scopeLabel, params, vista){
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
+           _opiniones:null, _opinionesPedidas:false,   // P162 · el buzón anónimo
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
            params:params, updated:Date.now(),
@@ -17799,6 +17985,7 @@ function onDashData(d, scopeLabel, params, vista){
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
   if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
+  if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarOpiniones();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
@@ -17863,6 +18050,56 @@ function dashCargarReportes(){
     DASH._reportes = d.reportes;
     if (DASH.tab === 'reportes') dashRepintar();   // P049 · idem: llega tarde, no re-anima
   }).catch(()=>{});
+}
+
+/* ══ P162 · EL BUZÓN ANÓNIMO, LEÍDO DESDE LA APP ══════════════════════════════════════════════
+   `accionOpiniones` existía en el endpoint desde el principio y NADIE la llamaba. O sea que la
+   única forma de leer las opiniones era abrir la pestaña del CH a mano — donde están en orden de
+   llegada, porque el barajado que protege el anonimato vive en la acción que nadie usaba. El
+   circuito quedaba: la app promete anonimato al escribir, y la lectura real lo rompe.
+
+   ⚠️ LO QUE ESTA PANTALLA TIENE PROHIBIDO HACER, y no es una lista de buenas intenciones: cada
+   punto es una forma concreta de reconstruir la marca de tiempo que el barajado destruye.
+   · NO ordenarlas. El servidor las baraja en CADA pedido a propósito; cualquier `sort()` estable
+     —por texto, por largo, por lo que sea— vuelve a fijar un orden entre dos cargas, y dos cargas
+     con el mismo orden dicen cuál llegó después.
+   · NO numerarlas. "Opinión #3" es una posición, y una posición es un reloj.
+   · NO marcar "nuevas desde tu última visita". Ésta es la más traicionera y la más fácil de
+     agregar sin pensar: la diferencia entre dos cargas es una marca de tiempo con la resolución
+     de cada cuánto entra el supervisor. Con siete personas, eso es un nombre. Un "hay 3 nuevas"
+     también. La bandeja de reportes SÍ tiene ese distintivo, y está bien ahí: los reportes llevan
+     nombre. Acá no.
+   · NO cruzarlas con nada — ni departamento, ni nómina, ni conteo por persona.
+   · NO mandarlas al Informe IA: ese informe lleva la lista de quién es quién en el mismo prompt.
+   El servidor tampoco manda `IdOpinion`, que es lo único que permitiría seguir una opinión entre
+   dos cargas. */
+function dashCargarOpiniones(){
+  if (!DASH || DASH._opinionesPedidas) return;
+  DASH._opinionesPedidas = true;
+  gestPost(gestAuth({ action:'opiniones' })).then(d => {
+    if (!d || !d.ok || !Array.isArray(d.opiniones) || !DASH) return;
+    DASH._opiniones = d.opiniones;
+    if (DASH.tab === 'opiniones') dashRepintar();   // P049 · llega tarde, no re-anima el panel
+  }).catch(()=>{});
+}
+function renderOpiniones(){
+  const ayuda = dashHelp(t('hlp_opiniones'));
+  if (!DASH._opinionesPedidas && !DASH.demoMode) return ayuda + dashWarn(t('dw_opiniones_reintentar'));
+  /* El orden es EL QUE MANDÓ EL SERVIDOR, tal cual. No se copia el array para ordenarlo ni se
+     filtra por mes: agrupar por mes con pocas opiniones es otra forma de estrechar el cuándo. */
+  const ops = (DASH._opiniones || []).filter(o => o && String(o.texto || '').trim());
+  if (!ops.length) return ayuda + dashVacio('opiniones', 'buzon');
+  const filas = ops.map(o =>
+    '<div class="opi-item">' +
+      '<div class="opi-txt">' + esc(String(o.texto)) + '</div>' +
+      /* El mes va porque es el único dato de tiempo que la propia hoja guarda a propósito
+         —grueso, no una fecha— y sirve para saber si algo es de este período o de hace medio año.
+         La fecha exacta no existe en ningún lado del circuito, ni acá ni en el CH. */
+      (o.mes ? '<div class="opi-mes">' + esc(String(o.mes)) + '</div>' : '') +
+    '</div>').join('');
+  return ayuda +
+    '<div class="opi-nota">' + esc(t('opi_nota_orden')) + '</div>' +
+    '<div class="opi-lista">' + filas + '</div>';
 }
 
 // ── Empresa Demo: ahora se entra desde el PORTAL (botón "Ver demostración", antes de loguearse),
@@ -18009,7 +18246,7 @@ function stopDashAutoRefresh(){ if (DASH_TIMER){ clearInterval(DASH_TIMER); DASH
    Lo que el orden no conoce va AL FINAL en vez de descartarse: una pestaña nueva aparece aunque
    nadie toque este objeto, que es exactamente lo contrario de lo que pasaba. */
 const DASH_ORDEN = {
-  supervisor: ['aptitud','reportes','ciclo'],
+  supervisor: ['aptitud','reportes','ciclo','opiniones'],
   hseq:       ['idc','mrfo','intervenciones','auditoria','costos','ciclo','jornada'],
   empleado:   ['resumen','evolucion','pvt'],
   medico:     ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada']
@@ -18487,6 +18724,7 @@ function renderDash(){
     else if (tb === 'aptitud') html = renderAptitud(rows);            // vista de supervisor (sin datos médicos)
     else if (tb === 'reportes') html = renderReportesSupervisor();    // bandeja del supervisor (dataset propio)
     else if (tb === 'ciclo') html = renderCicloOperativo();           // ciclo operativo del día (dataset propio)
+    else if (tb === 'opiniones') html = renderOpiniones();            // P162 · el buzón anónimo (dataset propio)
     else if (tb === 'jornada') html = renderJornada();                // Y4: duty time y excesos
     else if (tb === 'idc') html = renderHseqIdc(rows);                // ── Dirección / HSEQ ──
     else if (tb === 'mrfo') html = renderHseqMrfo(rows);
@@ -18570,7 +18808,7 @@ function renderDash(){
   // afuera de `seccionesOrdenadas` — no es una sección más: no tiene chip en la barra, no entra
   // al scrollspy y no compite con lo que el director sí necesita mirar hoy. Plegado por defecto.
   const queViene = (DASH.vista === 'hseq') ? renderHseqQueViene() : '';
-  body.innerHTML = dashContext() + anotBloque + aviso + seccionesOrdenadas + queViene;
+  body.innerHTML = demoDescBloque() + dashContext() + anotBloque + aviso + seccionesOrdenadas + queViene;
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -27341,7 +27579,8 @@ function splashVerDemo(){
      No se dispara el pedido acá — eso era lo que impedía elegir. */
   splashAbrirPortal();
   portalDemoModo(true);
-  portalMode('sup');   // la vista más natural para alguien de afuera; se puede cambiar de pestaña
+  portalMode('sup');   // la vista más natural para alguien de afuera
+  demoSondearClave();  // pedido de Franco: "la contraseña es al darle al botón"; se puede cambiar de pestaña
 }
 /* ⚠️ NO usa openPortalGate(): esa función oculta las pestañas de Supervisor/Servicio médico
    salvo que el PERFIL DE EMPLEADO ya tenga esPiloto/esSupervisor marcado — correcto para quien

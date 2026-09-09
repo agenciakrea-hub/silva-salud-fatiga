@@ -24,19 +24,104 @@ PRUEBAS.caso('⚠️ en la demo SÍ está "Mis estadísticas", y con otro texto'
   /* Estaba oculta porque sin perfil no hay datos propios. Cierto para el portal de credenciales y
      equivocado para la demo: ahí justamente lo que hay que enseñar es cómo se ve la pantalla de una
      persona — es la pregunta que hace cualquiera que mira el producto. */
+  /* ⚠️ QUÉ CAMBIÓ EN Z2 (2026-09-09) y por qué este caso mide OTRO botón según el modo.
+     Antes había DOS botones: `#portalEmpBtn` (un `.save-btn` naranja sólido) en la pestaña
+     personal y `#portalDemoBtn` (de contorno) en las otras tres. Franco lo vio: "el botón de mis
+     estadísticas y el del resto tienen distinto color y formato". Ahora, en demostración, las
+     CUATRO pestañas entran por el único botón del bloque de la demostración, y `#portalEmpBtn`
+     se esconde. En el portal real no cambió nada: ahí sigue siendo `#portalEmpBtn`.
+     Lo que este caso afirma sigue siendo lo mismo — la pestaña está, y lleva a la persona de
+     EJEMPLO — sólo que ahora lo pregunta donde vive la respuesta. */
   const tab = () => { const e = document.getElementById('ptabEmp'); return !!e && getComputedStyle(e).display !== 'none'; };
-  const btn = () => document.getElementById('portalEmpBtn');
-  const enDemo = s1EnPortal(true, () => ({ visible: tab(), onclick: btn().getAttribute('onclick') }));
+  const vivo = () => { const e = document.getElementById('portalEmpBtn');
+                       return (e && getComputedStyle(e).display !== 'none') ? e : document.getElementById('portalDemoBtn'); };
+  const enDemo = s1EnPortal(true, () => ({ visible: tab(), onclick: vivo().getAttribute('onclick'),
+                                           id: vivo().id, clase: vivo().className }));
   PRUEBAS.cierto(enDemo.visible, 'en la demostración la pestaña tiene que estar');
   PRUEBAS.cierto(/portalVerDemoEmpleado/.test(enDemo.onclick || ''),
     'y llevar a la persona de EJEMPLO, no al camino que pide los datos propios');
   const hayPerfil = perfilCompleto(getProfile());
-  const conCred = s1EnPortal(false, () => ({ visible: tab(), onclick: btn().getAttribute('onclick') }));
+  const conCred = s1EnPortal(false, () => ({ visible: tab(), onclick: vivo().getAttribute('onclick') }));
   PRUEBAS.igual(conCred.visible, hayPerfil,
     'con credenciales sigue dependiendo de que HAYA perfil: sin perfil no hay datos propios que mostrar');
   PRUEBAS.cierto(/portalLoginEmpleado/.test(conCred.onclick || ''),
     '⚠️ y ahí tiene que volver al camino real — si quedara en el de ejemplo, alguien vería datos ' +
     'de demostración creyendo que son los suyos');
+});
+
+PRUEBAS.caso('⚠️ Z2 · en la demostración las CUATRO pestañas entran por el mismo botón', () => {
+  /* Franco: "el botón de mis estadísticas y el del resto tienen distinto color y formato, pone el
+     de personal como el resto". La forma de que no puedan diferir NO es copiar la clase: es que
+     sea UN SOLO botón. Este caso entra por `portalMode()` de verdad y mide con getComputedStyle
+     (R11: las capturas se cuelgan). */
+  const antes = PORTAL_SOLO_DEMO;
+  const css = e => { const c = getComputedStyle(e);
+                     return c.backgroundColor + '|' + c.color + '|' + c.borderTopWidth + '|' + c.borderRadius; };
+  try {
+    portalDemoModo(true);
+    const visto = ['emp','sup','med','hseq'].map(m => {
+      portalMode(m);
+      const emp = document.getElementById('portalEmpBtn');
+      const demo = document.getElementById('portalDemoBtn');
+      return { m: m,
+               empVisible: !!emp && getComputedStyle(emp).display !== 'none',
+               demoVisible: !!demo && getComputedStyle(demo).display !== 'none',
+               pinta: css(demo), onclick: demo.getAttribute('onclick'), txt: (demo.textContent || '').trim() };
+    });
+    PRUEBAS.igual(visto.filter(v => v.empVisible).length, 0,
+      '⚠️ el `.save-btn` de la pestaña personal no puede aparecer en demostración: es el que se veía distinto');
+    PRUEBAS.igual(visto.filter(v => v.demoVisible).length, 4,
+      'el botón de la demostración tiene que estar en las cuatro');
+    PRUEBAS.igual(new Set(visto.map(v => v.pinta)).size, 1,
+      '⚠️ mismo color, mismo borde y mismo radio en las cuatro — es literalmente el mismo elemento');
+    PRUEBAS.cierto(/portalVerDemoEmpleado/.test(visto[0].onclick || ''),
+      'en personal lleva a la persona de ejemplo');
+    visto.slice(1).forEach(v => PRUEBAS.cierto(/portalVerDemo\(/.test(v.onclick || ''),
+      'y en ' + v.m + ' al panel de la empresa de ejemplo'));
+    PRUEBAS.igual(new Set(visto.map(v => v.txt)).size, 4,
+      'pero el TEXTO sí cambia: cada pestaña dice a qué vista entra');
+  } finally { portalDemoModo(antes); portalMode('emp'); }
+});
+
+PRUEBAS.caso('🔴 Z2 · la clave de la demostración se VE en las cuatro pestañas', () => {
+  /* EL DEFECTO QUE ESTE CASO EXISTE PARA QUE NO VUELVA. `#portalDemoPass` y su aviso vivían dentro
+     de `#portalSup`; en la pestaña "Mis estadísticas" ese ancestro está en display:none, así que el
+     campo existía en el DOM y NADIE lo veía. El día que la demostración pasó a pedir clave
+     (`demo_pass` en Config Empresa, 2026-09-09) esa pestaña quedó muerta: el botón giraba, volvía,
+     y no pasaba nada. Se entra por `portalDemoPedirClave()`, que es lo que llama el camino real
+     cuando el servidor contesta que falta la clave — no se toca ningún estilo a mano (R17). */
+  const antes = PORTAL_SOLO_DEMO;
+  const caja = document.getElementById('portalDemoPass');
+  const visto = { display: caja && caja.style.display };
+  /* ⚠️ R11 · SE MIDE CON EL PORTAL ABIERTO. `getBoundingClientRect` de un elemento cuyo ancestro
+     está oculto da 0×0 SIEMPRE, así que sin esto el caso daba rojo aunque el arreglo estuviera
+     bien — y, peor, habría dado verde el día que el arreglo se rompiera. */
+  const ov = document.getElementById('portalOverlay');
+  const teniaOv = ov.classList.contains('show');
+  const gate = document.getElementById('portalGate');
+  const gateAntes = gate.style.display;
+  try {
+    ov.classList.add('show'); gate.style.display = '';
+    portalDemoModo(true);
+    const medido = ['emp','sup','med','hseq'].map(m => {
+      portalMode(m);
+      portalDemoPedirClave('demo_pass');
+      const c = document.getElementById('portalDemoPass');
+      const e = document.getElementById('portalDemoErr');
+      const r = c.getBoundingClientRect();
+      return { m: m, campo: r.width > 0 && r.height > 0, aviso: ((e && e.textContent) || '').trim().length > 0 };
+    });
+    medido.forEach(x => {
+      PRUEBAS.cierto(x.campo, '🔴 en «' + x.m + '» el campo de la clave tiene que VERSE, no sólo existir');
+      PRUEBAS.cierto(x.aviso, 'y el aviso que explica por qué se pide, también');
+    });
+  } finally {
+    portalDemoModo(antes); portalMode('emp');
+    if (caja) caja.style.display = visto.display;
+    const e = document.getElementById('portalDemoErr'); if (e) e.textContent = '';
+    gate.style.display = gateAntes;
+    if (!teniaOv) ov.classList.remove('show');
+  }
 });
 
 PRUEBAS.caso('⚠️ la persona de ejemplo sale de la DEMO, nunca de una empresa real', () => {

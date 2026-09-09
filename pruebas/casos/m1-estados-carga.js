@@ -396,6 +396,13 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        pantalla se está yendo igual (`cerrarSesion` recarga), y no espera respuesta a propósito
        para que cerrar sesión funcione también sin señal. */
     'dashMigrarCredsAToken',
+    /* ⚠️ Z2 · `demoSondearClave` PREGUNTA, no hace. Al abrir la demostración averigua si el
+       servidor pide clave, para poner el campo antes de que la persona elija vista en vez de
+       después de un falso arranque. Bloquear el gate mientras eso viaja sería justo el defecto
+       que este caso persigue al revés: congelar una pantalla recién abierta por una consulta que
+       nadie pidió. Si tarda o falla, no pasa nada — el botón vuelve a preguntar y ese sí bloquea
+       (`portalVerDemo` va con `conBloqueo`). */
+    'demoSondearClave',
     /* Aparecieron al incluir `async function` en el barrido: corren solas, no las dispara nadie. */
     'sincronizarRegistro',
     /* ⚠️ Y5 · `ausTocar` SÍ la dispara la persona, y aun así no bloquea — es la única de la lista

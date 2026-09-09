@@ -158,10 +158,16 @@ PRUEBAS.caso('⚠️ cambiar de vista NO pide nada a la red', () => {
 
 PRUEBAS.caso('cada vista trae SUS pestañas, no las de otra', () => {
   p106Entrar('supervisor');
-  PRUEBAS.igual(DASH.tabs, ['aptitud','reportes','ciclo'], 'supervisor');
+  /* ⚠️ QUÉ CAMBIÓ: P162 (2026-09-09) le sumó al supervisor la pestaña «opiniones» — el buzón
+     anónimo, que hasta entonces se escribía y no lo leía nadie. La lista crece a propósito. Lo
+     que este caso afirma sigue siendo lo mismo: cada vista trae LO SUYO. */
+  PRUEBAS.igual(DASH.tabs, ['aptitud','reportes','ciclo','opiniones'], 'supervisor');
   demoVerVista('hseq');
   PRUEBAS.cierto(DASH.tabs.indexOf('idc') >= 0, 'dirección tiene su IDC');
   PRUEBAS.falso(DASH.tabs.indexOf('comentarios') >= 0, 'y NO los comentarios, que son clínicos');
+  PRUEBAS.falso(DASH.tabs.indexOf('opiniones') >= 0,
+    '⚠️ ni el buzón anónimo: la promesa que se le hizo a quien escribe fue «esto lo lee tu ' +
+    'supervisor», no la dirección');
 });
 
 PRUEBAS.caso('⚠️ la VISTA personal manda sobre el rol', () => {

@@ -113,3 +113,50 @@ PRUEBAS.caso('⚠️ `construirAlias` y `listaEmpresas` también leen por encabe
   PRUEBAS.cierto(emps.indexOf('Consorcio HELITEC') >= 0,
     'y la lista de empresas sale bien · quedó [' + emps.join(', ') + ']');
 });
+
+PRUEBAS.caso('🔒 una fila con SÓLO la contraseña no abre nada · las 13 huérfanas del CH', () => {
+  /* LO QUE HAY HOY EN LA HOJA REAL (volcado del 2026-09-09): 101 filas, 11 accesos de verdad
+     (2 a 12), 76 vacías, y **13 filas con la columna Contraseña llena y todo lo demás vacío**
+     (88 a 91, 93 a 101). Son contraseñas sin dueño, escritas en claro, y las iniciales sugieren
+     que pertenecen a empresas que sí existen.
+
+     Este caso comprueba lo único que importa mientras esas filas sigan ahí: que ninguna abra
+     nada. `validarAcceso` compara el usuario recibido contra la columna Usuario, y esas filas la
+     tienen vacía — pero eso hay que MEDIRLO, no suponerlo: alcanzaría con que alguna función
+     recorriera la hoja mirando sólo la contraseña para que trece llaves sueltas empezaran a
+     funcionar. Va con discriminador: la misma hoja abre bien para el acceso legítimo. */
+  const cab = P157_CAB.slice();
+  const env = GS.crearEntorno({
+    'Accesos': [cab,
+      ['helitec','clave-sup','supervisor','Consorcio HELITEC','clave-med','clave-hseq'],
+      ['', 'clave-huerfana-1', '', '', '', ''],
+      ['', 'clave-huerfana-2', '', '', '', ''],
+      ['', '.', '.', '.', '', ''],
+      ['', '', '', '', '', '']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula'], ['Consorcio HELITEC','Ana Suárez','1']],
+    'Config Empresa': [['Empresa','Clave','Valor']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['validarAcceso','construirAlias','listaEmpresas']);
+  PRUEBAS.cierto(!!api.validarAcceso('helitec','clave-sup','d1'),
+    'discriminador: con la misma hoja, el acceso legítimo SÍ entra');
+  ['clave-huerfana-1','clave-huerfana-2','.'].forEach(p => {
+    PRUEBAS.falso(!!api.validarAcceso('', p, 'd1'), '🔒 sin usuario no entra con «' + p + '»');
+    PRUEBAS.falso(!!api.validarAcceso('helitec', p, 'd1'),
+      '🔒 ni prestándole el usuario de otro: «' + p + '» no es la contraseña de nadie');
+    PRUEBAS.falso(!!api.validarAcceso(p, p, 'd1'), '🔒 ni usándola como usuario y contraseña a la vez');
+  });
+  /* 🔴 ESTO ES LO QUE EL CASO ENCONTRÓ, y no era lo que venía a comprobar. `norm()` convierte la
+     puntuación en espacio y trima, así que `norm('.')`, `norm('-')` y `norm('!!!')` valen todos
+     '' — igual que `norm('')`. La comparación `norm(u) !== norm(key)` daba IGUALES para una fila
+     sin usuario y un `key` de pura puntuación, y la fila se evaluaba: con la contraseña de esa
+     fila, `validarAcceso` devolvía una sesión válida (`vista:'medico'`, `combinada:true`).
+     Con las 13 filas huérfanas que hay hoy en el CH, eso es una llave abierta por cada una. */
+  ['.','-','!!!','   .   ','··'].forEach(p =>
+    PRUEBAS.falso(!!api.validarAcceso(p, 'clave-huerfana-1', 'd1'),
+      '🔴 «' + p + '» normaliza a vacío y NO puede hacer de usuario de una fila sin usuario'));
+  /* Y no pueden ensuciar lo que la hoja publica: una empresa fantasma en el alias haría que un
+     nombre de empresa mal escrito «resuelva» a la nada. */
+  const emps = api.listaEmpresas ? api.listaEmpresas() : null;
+  if (emps) PRUEBAS.falso(JSON.stringify(emps).indexOf('huerfana') >= 0,
+    '🔒 ni aparecen en la lista de empresas');
+});
