@@ -161,8 +161,15 @@ PRUEBAS.caso('🔴 la caché de listas se ESCRIBE · el trío tenía dos patas',
     fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(
       { ok:true, departamentos:['Operaciones','Mantenimiento'] }) });
     loadSetupLists();
-    await new Promise(r => setTimeout(r, 80));
-    const c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE) || 'null');
+    /* ⚠️ SE ESPERA A QUE APAREZCA LA CACHÉ DE ESTA EMPRESA, no un tiempo fijo. La suite no recarga
+       la página y hay otros casos que disparan `loadSetupLists`: con un `setTimeout` fijo, lo que
+       se leía podía ser la caché real de la app, y el caso fallaba de forma intermitente por una
+       carrera, no por el defecto que mide. */
+    let c = null;
+    for (let intento = 0; intento < 20 && !(c && c.empresa === 'Empresa De Prueba P144'); intento++){
+      await new Promise(r => setTimeout(r, 25));
+      try { c = JSON.parse(localStorage.getItem(K_LISTAS_CACHE) || 'null'); } catch(e){ c = null; }
+    }
     PRUEBAS.cierto(!!c, '⚠️ la caché quedó escrita · antes la clave no se creaba nunca');
     PRUEBAS.igual((c && c.departamentos || []).join(','), 'Operaciones,Mantenimiento',
       'con los departamentos adentro, que es lo que el alta necesita sin señal');
