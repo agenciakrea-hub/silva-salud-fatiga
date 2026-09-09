@@ -6932,7 +6932,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.24';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.25';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -21231,7 +21231,13 @@ function cicloTurnoDe(persona){
   const corte = Date.now() - TURNO_VENTANA_MS;
   rows.forEach(r => {
     if (porTipo[r.tipo] || r.fecha !== ayerStr) return;
-    const cuando = Date.parse(r.fecha + 'T' + (r.hora || '00:00'));
+    /* ⚠️ P160 · EL INSTANTE REAL PRIMERO, igual que `turnosHoy()` en el teléfono. Reconstruirlo con
+       `fecha + hora` mezcla TRES relojes: `fecha` sale de la zona de la operación, `hora` del reloj
+       del dispositivo, y este `Date.parse` los interpreta en la zona del navegador que abre el
+       panel. Un check-in de las 23:30 corría horas y el chip desaparecía de la tarjeta del
+       supervisor mientras la persona lo veía marcado en su propio teléfono.
+       El respaldo queda para las filas viejas, escritas antes de que la columna existiera. */
+    const cuando = r.creada || Date.parse(r.fecha + 'T' + (r.hora || '00:00'));
     if (isFinite(cuando) && cuando >= corte) porTipo[r.tipo] = r;
   });
   return porTipo;
