@@ -460,20 +460,41 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      `.gs`, la prueba prueba lo editado.
      `nombres` es la lista de funciones que el caso quiere usar. Si una no existe en el `.gs`, el
      error dice cuál — que es la señal de que la renombraron y la prueba quedó vieja. */
+  /* ⚠️ P168 · CADA LLAMADA DESDE UN CASO ES UNA EJECUCIÓN NUEVA, como en Apps Script. Desde P168
+     el `.gs` cachea por ejecución (`_nominaPorEjecucion`, `_aliasPorEjecucion`, `_hojaValores`,
+     `_hojaFormateada`, `_maestroAbierto`): en producción cada pedido HTTP arranca con globales
+     frescas, así que la caché nunca sobrevive de un pedido al siguiente. Acá el `new Function` se
+     arma UNA vez por caso y sus globales viven mientras viva `api` — un caso que escribe en la hoja
+     entre dos llamadas (P118: crear la credencial, ascender en `Nómina`, entrar) leía la nómina
+     vieja de la caché y fallaba por un comportamiento que en producción NO existe. Lo cazó la suite
+     el mismo día. Por eso cada función exportada se envuelve: antes de correr, vacía las cachés.
+     Las llamadas INTERNAS (una acción que llama a `leerNomina` tres veces) no pasan por acá y
+     siguen compartiendo la caché, que es exactamente lo que pasa dentro de un pedido real. */
+  const REINICIO = '\nfunction __nuevaEjecucion(){' +
+    ['_maestroAbierto', '_nominaPorEjecucion', '_aliasPorEjecucion'].map(v =>
+      ' if (typeof ' + v + ' !== "undefined") ' + v + ' = undefined;').join('') +
+    ['_hojaValores', '_hojaFormateada'].map(v =>
+      ' if (typeof ' + v + ' !== "undefined") ' + v + ' = {};').join('') + ' }';
   function cargarGs(fuente, env, nombres) {
     const claves = Object.keys(env).filter(k => k.indexOf('__') !== 0);
-    const cola = '\nreturn {' + nombres.map(n => n + ': (typeof ' + n + ' === "function" ? ' + n + ' : undefined)').join(', ') + '};';
+    const cola = REINICIO + '\nreturn {__nuevaEjecucion: __nuevaEjecucion, ' +
+      nombres.map(n => n + ': (typeof ' + n + ' === "function" ? ' + n + ' : undefined)').join(', ') + '};';
     let fabrica;
     try {
       fabrica = new Function(claves.join(','), fuente + cola);
     } catch (e) {
       throw new Error('el .gs no compila: ' + e.message);
     }
-    const api = fabrica.apply(null, claves.map(k => env[k]));
-    const faltan = nombres.filter(n => typeof api[n] !== 'function');
+    const crudo = fabrica.apply(null, claves.map(k => env[k]));
+    const faltan = nombres.filter(n => typeof crudo[n] !== 'function');
     if (faltan.length) {
       throw new Error('el .gs no tiene estas funciones (¿las renombraron?): ' + faltan.join(', '));
     }
+    const api = {};
+    nombres.forEach(n => {
+      api[n] = function () { crudo.__nuevaEjecucion(); return crudo[n].apply(null, arguments); };
+    });
+    api.__nuevaEjecucion = crudo.__nuevaEjecucion;
     return api;
   }
 

@@ -296,6 +296,12 @@ PRUEBAS.caso('⚠️ el ÍCONO del banner de rol también cambia por sector', ()
     const ov = document.getElementById('setup');
     const tenia = ov && ov.classList.contains('show');
     if (ov && !tenia) ov.classList.add('show');
+    /* P170 / ADR 003 · los banners de rol quedaron OCULTOS en el formulario (el rol lo dice la
+       nómina; `openSetup` los apaga). Para medir el ícono se muestra el banner sólo acá: lo que
+       este caso vigila —que el dibujo dependa del sector— sigue valiendo para el día que se reuse. */
+    const ban = document.getElementById('pilotBanner');
+    const banDisp = ban ? ban.style.display : '';
+    if (ban) ban.style.display = '';
     try {
       ['aviacion','planta','campo','generico','sector_que_no_existe'].forEach(s => {
         p040Fijar('es', s);
@@ -306,7 +312,7 @@ PRUEBAS.caso('⚠️ el ÍCONO del banner de rol también cambia por sector', ()
                    w: r ? Math.round(r.width) : 0, h: r ? Math.round(r.height) : 0,
                    formas: svg ? svg.querySelectorAll('path,rect,circle').length : 0 };
       });
-    } finally { if (ov && !tenia) ov.classList.remove('show'); }
+    } finally { if (ban) ban.style.display = banDisp; if (ov && !tenia) ov.classList.remove('show'); }
   } finally { p040Restaurar(g); }
 
   PRUEBAS.alMenos(med.aviacion.w, 16, 'el ícono se está midiendo · con el overlay cerrado mide 0 y el caso no diría nada');

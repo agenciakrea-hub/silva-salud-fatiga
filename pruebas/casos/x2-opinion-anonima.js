@@ -274,6 +274,11 @@ PRUEBAS.caso('⚠️ R15 · la hoja se fuerza a TEXTO en cada acceso', () => {
   const i = CTX.gs.indexOf('function obtenerHojaOpiniones');
   PRUEBAS.alMenos(i, 0, 'guarda: tiene que existir');
   if (i < 0) return;
-  PRUEBAS.cierto(/setNumberFormat\("@"\)/.test(CTX.gs.slice(i, i + 900)),
+  /* P168 · el formato se aplica por `formatoTextoUnaVez_` (una escritura por hoja y por ejecución,
+     en vez de `setNumberFormat("@")` sobre todas las filas en cada acceso, que costaba ~400 ms por
+     hoja). Lo que se vigila es lo mismo: que la hoja se fuerce a texto. */
+  PRUEBAS.cierto(/setNumberFormat\("@"\)|formatoTextoUnaVez_\(/.test(CTX.gs.slice(i, i + 900)),
     '⚠️ falta el formato texto — es el defecto que ya rompió los teléfonos con "+" y las fechas');
+  PRUEBAS.cierto(/function formatoTextoUnaVez_[\s\S]{0,400}setNumberFormat\("@"\)/.test(CTX.gs),
+    'y `formatoTextoUnaVez_` de verdad escribe el formato');
 });

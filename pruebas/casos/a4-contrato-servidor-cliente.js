@@ -121,7 +121,10 @@ PRUEBAS.caso('⚠️ y tampoco se pierden en el REFRESCO, que es otro lugar dist
   const i = fuente.indexOf('DASH.turnos = d.turnos || [];   // E2b: idem');
   PRUEBAS.alMenos(i, 0, 'tiene que existir el bloque de refresco');
   if (i < 0) return;
-  const bloque = fuente.slice(i, i + 900);
+  /* P169 · `duty` se copia ANTES del corte por `changed` (junto a `operacionalPeriodo`), así que
+     está unas líneas ARRIBA de este ancla, no abajo. Se mira la función entera de `dashRefresh`. */
+  const ini = fuente.lastIndexOf('function dashRefresh(', i);
+  const bloque = fuente.slice(ini >= 0 ? ini : i, i + 900);
   PRUEBAS.cierto(/DASH\.duty\s*=\s*d\.duty/.test(bloque),
     '⚠️ el refresco tiene que traer `duty`, o la pestaña Jornada se vacía sola al actualizar');
   PRUEBAS.cierto(/d\.ausencias/.test(bloque),

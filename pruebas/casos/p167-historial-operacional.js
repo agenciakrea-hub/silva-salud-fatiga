@@ -15,7 +15,12 @@ PRUEBAS.grupo('P167 · el historial de mis ciclos, y el histórico de EVA en Ope
 function p167Con(eventos, fn){
   const oPerfil = localStorage.getItem(K_PROFILE), oSrv = localStorage.getItem(K_CICLO_SRV), oMio = localStorage.getItem(K_CICLO_MIO);
   const oDias = _cicloHistDias;
+  /* P169 · las horas se muestran en la zona de la OPERACIÓN (`horaOpDe`). Los ISO de este archivo
+     se arman con la hora del DISPOSITIVO (`setHours`), así que acá se quita la zona guardada para
+     que las dos coincidan; la zona en sí la mide p169-*.js. */
+  const oZona = localStorage.getItem(K_ZONA_OP), oDash = DASH;
   try {
+    localStorage.removeItem(K_ZONA_OP); DASH = null; _hopZona = null; _fopZona = null;
     setProfile({ nombre:'Persona De Prueba', cedula:'99999999', empresa:'Empresa Demo', departamento:'Op', cargo:'Piloto',
                  sexo:'F', edad:'30', telefono:'0412', email:'p@e.com', esPiloto:true, id_piloto:'X' });
     localStorage.setItem(K_CICLO_SRV, JSON.stringify(eventos)); localStorage.removeItem(K_CICLO_MIO);
@@ -26,6 +31,8 @@ function p167Con(eventos, fn){
     if (oPerfil == null) localStorage.removeItem(K_PROFILE); else localStorage.setItem(K_PROFILE, oPerfil);
     if (oSrv == null) localStorage.removeItem(K_CICLO_SRV); else localStorage.setItem(K_CICLO_SRV, oSrv);
     if (oMio == null) localStorage.removeItem(K_CICLO_MIO); else localStorage.setItem(K_CICLO_MIO, oMio);
+    if (oZona == null) localStorage.removeItem(K_ZONA_OP); else localStorage.setItem(K_ZONA_OP, oZona);
+    DASH = oDash; _hopZona = null; _fopZona = null;
     _cicloHistDias = oDias;
     try { renderSections(); } catch (e) {}
   }

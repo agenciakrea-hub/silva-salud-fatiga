@@ -1761,6 +1761,9 @@
   .jor-tabla td { padding: .38rem .45rem; border-bottom: 1px solid var(--linea-2); color: var(--text);
     font-variant-numeric: tabular-nums; }
   .jor-tabla tr.jor-mal td { background: var(--sem-rojo-bg); }
+  .jor-evs { min-width: 12rem; }
+  .jor-ev { display: flex; justify-content: space-between; gap: .6rem; white-space: nowrap; font-size: .74rem; color: var(--text-soft); }
+  .jor-ev-h { color: var(--text); font-variant-numeric: tabular-nums; }
   .jor-chip { display: inline-block; font-size: .64rem; font-weight: 700; padding: .05rem .3rem;
     border-radius: 6px; background: var(--chip-bg); color: var(--text-muted); }
   .jor-hist { display: flex; align-items: flex-end; gap: 3px; height: 76px; margin: .4rem 0 .2rem; overflow-x: auto; }
@@ -4907,6 +4910,8 @@
   .cic-hist-ev { display: flex; justify-content: space-between; font-size: .82rem; color: var(--text-soft); padding: .12rem 0; }
   .cic-hist-h { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
   .cic-hist-dur { font-size: .76rem; color: var(--text-muted); margin-top: .3rem; }
+  .cic-hist-panel { margin-top: .6rem; padding: 0 .6rem .4rem; }
+  .cic-hist-panel .cic-hist-sum { font-size: .8rem; }
   .cic-hist-mas { margin-top: .8rem; width: 100%; min-height: 44px; padding: .8rem; border: 1.5px solid var(--linea); border-radius: 12px; background: var(--card); color: var(--text); font-family: inherit; font-weight: 700; font-size: .84rem; cursor: pointer; }
   .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: var(--radius);   /* M5: era 14px a mano */
     padding: .85rem .9rem; }
@@ -6150,7 +6155,8 @@
       <div class="portal-err" id="rolErr"></div>
       <button class="save-btn" type="submit" data-i18n="rol_of_activar">Activar mi acceso</button>
     </form>
-    <button type="button" class="cancel-btn" onclick="rolPosponer()" data-i18n="rol_of_luego">Ahora no</button>
+    <!-- P170 · sin data-i18n: el texto y la acción dependen del modo (ver `rolOfrecerPintar`). -->
+    <button type="button" class="cancel-btn" id="rolSalirBtn" onclick="rolSalir()">Ahora no</button>
   </div>
 </div>
 
@@ -7051,7 +7057,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.33';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.34';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7546,6 +7552,8 @@ const I18N = {
       rol_of_pass_ph:'La que te entregó tu empresa',
       rol_of_activar:'Activar mi acceso',
       rol_of_luego:'Ahora no',
+      rol_of_lead_alta:'Para entrar como {rol} escribe la contraseña que te entregó tu empresa para ese acceso. Después vas a poder crear tu propia contraseña para volver a entrar.',
+      rol_of_salir:'Salir del registro',
       rol_of_verificando:'Verificando…',
       rol_of_falta:'Escribe la contraseña de la empresa.',
       rol_of_mal:'La contraseña no coincide. Pídesela a quien administra el programa en tu empresa.',
@@ -7653,6 +7661,8 @@ const I18N = {
       jor_ahora_1:'1 persona sigue en jornada y ya pasó lo previsto',
       jor_n_dias:'{n} días', jor_n_dias_1:'1 día',
       jor_por_persona:'Por persona', jor_historico:'Día por día', jor_diario:'Detalle',
+      jor_diario_lead:'Cada jornada con los botones que se tocaron y a qué hora, en el horario de la operación.',
+      jor_c_botones:'Qué se tocó y cuándo',
       jor_c_persona:'Persona', jor_c_dias:'Días', jor_c_prom:'Jornada promedio',
       jor_c_exceso:'Por encima', jor_c_fecha:'Fecha', jor_c_jornada:'Jornada',
       jor_abierto:'en curso',
@@ -7844,6 +7854,7 @@ const I18N = {
       cic_hist_vacio:'Todavía no hay ciclos guardados. Aparecen aquí cuando tocas los botones de arriba.',
       cic_hist_hoy:'hoy', cic_hist_dur:'Duración del ciclo: {h} h {m} min',
       cic_hist_todo:'Ver todo el historial',
+      cic_hist_ver:'Ver los {n} ciclos del período: qué botón tocó y a qué hora',
       cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando acá.',
       rep_grupo_agregado:'Empresa (grupo agregado)',
       // ── F1 · Aptitud: panel de equipo, ficha y leyenda ──
@@ -9279,6 +9290,8 @@ const I18N = {
       rol_of_pass_ph:'The one your company gave you',
       rol_of_activar:'Turn on my access',
       rol_of_luego:'Not now',
+      rol_of_lead_alta:'To sign in as {rol}, enter the password your company gave you for that access. Afterwards you will be able to create your own password to sign in again.',
+      rol_of_salir:'Leave sign-up',
       rol_of_verificando:'Checking…',
       rol_of_falta:'Enter the company password.',
       rol_of_mal:'That password does not match. Ask whoever runs the program at your company.',
@@ -9403,6 +9416,8 @@ const I18N = {
       jor_ahora_1:'1 person is still on duty and already past plan',
       jor_n_dias:'{n} days', jor_n_dias_1:'1 day',
       jor_por_persona:'By person', jor_historico:'Day by day', jor_diario:'Detail',
+      jor_diario_lead:'Each shift with the buttons that were tapped and when, in the operation\'s local time.',
+      jor_c_botones:'What was tapped and when',
       jor_c_persona:'Person', jor_c_dias:'Days', jor_c_prom:'Average shift',
       jor_c_exceso:'Above plan', jor_c_fecha:'Date', jor_c_jornada:'Shift',
       jor_abierto:'ongoing',
@@ -9582,6 +9597,7 @@ const I18N = {
       cic_hist_vacio:'No cycles saved yet. They show up here when you tap the buttons above.',
       cic_hist_hoy:'today', cic_hist_dur:'Cycle length: {h} h {m} min',
       cic_hist_todo:'See the full history',
+      cic_hist_ver:'See the {n} cycles in the period: which button was tapped and when',
       cic_mi_vacio:'You have not logged anything today. As you tap the buttons above, each stage fills in here.',
       rep_grupo_agregado:'Company (aggregated group)',
       // ── F1 · Fitness: team panel, record and legend ──
@@ -11463,6 +11479,25 @@ function fechaMasDias(str, n){
   return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
 }
 function todayStr(){ return fechaOpDe(new Date()); }
+/* P169 · LA HORA, CON EL MISMO CRITERIO QUE LA FECHA. Un ciclo importado de EVA o registrado por un
+   piloto en Venezuela lo mira el médico desde donde esté: si la hora saliera en la zona del
+   dispositivo, la misma «llegada 07:02» se leería 08:02 un huso más al este, y el que compara con
+   la planilla creería que hay un error. Se cachea el formateador por la misma razón que arriba. */
+let _hopFmt = null, _hopZona = null;
+function horaOpDe(d){
+  const z = zonaOperacion();
+  if (z){
+    if (_hopZona !== z){
+      try { _hopFmt = new Intl.DateTimeFormat('en-GB', { timeZone:z, hour:'2-digit', minute:'2-digit', hourCycle:'h23' }); }
+      catch(e){ _hopFmt = null; }
+      _hopZona = z;
+    }
+    if (_hopFmt){
+      try { return _hopFmt.format(d); } catch(e){}
+    }
+  }
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
 
 function getReports(){
   let r; try { r = JSON.parse(localStorage.getItem(K_REPORTS)) || {}; } catch(e){ r = {}; }
@@ -12740,14 +12775,18 @@ function cicloMiBloque(){
    (`cicloAgruparTodos`), así que un turno cuenta la misma historia en las dos pantallas.
    Plegado por defecto (R6): abierto, con semanas de ciclos, taparía los botones de hoy.
    Los primeros 30 días ya vienen con el arranque; «Ver todo el historial» pide el año entero. */
-function cicloMiHistorialBloque(){
-  const ventana = cicloTotalMin(cicloPlan(cicloYo())) * 60000;
-  const ciclos = cicloAgruparTodos(cicloMioAll(), ventana) || [];
-  const hoyF = new Date().toISOString().slice(0, 10);
+/* ⚠️ P167b · UNA SOLA LISTA DE CICLOS PARA LAS DOS PANTALLAS. Franco: «era sobre todo para
+   médico y HSEQ que vean el historial operativo». El panel en histórico mostraba por persona SÓLO
+   su ciclo más reciente —el propio comentario decía «los otros veintipico quedan invisibles»—, y
+   el inicio del piloto no mostraba ninguno. Esto dibuja lo mismo en los dos lugares: por cada
+   ciclo, el día y cada botón con la hora en que se tocó, en el orden del ciclo, más la duración
+   si está completo. Si un día se corrige un borde, se corrige para las dos pantallas. */
+function cicloCiclosListaHtml(ciclos){
+  const hoyF = todayStr();
   const orden = cicloEventos().map(e => e.k);
-  const fmtHora = iso => { const d = new Date(iso); const p2 = n => String(n).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()); };
-  const fmtDia = t0 => { const d = new Date(t0); const p2 = n => String(n).padStart(2, '0'); return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(); };
-  const tarjetas = ciclos.map(c => {
+  const fmtHora = iso => horaOpDe(new Date(iso));
+  const fmtDia = t0 => { const f = fechaOpDe(new Date(t0)).split('-'); return f[2] + '/' + f[1] + '/' + f[0]; };
+  return (ciclos || []).map(c => {
     const filas = orden.map(k => {
       const o = c.ev[k]; if (!o) return '';
       return '<div class="cic-hist-ev"><span class="cic-hist-k">' + esc(cicloEventoLabel(k)) + '</span>' +
@@ -12759,11 +12798,16 @@ function cicloMiHistorialBloque(){
       const min = Math.round((new Date(fin.iso) - new Date(ini.iso)) / 60000);
       if (min > 0) dur = '<div class="cic-hist-dur">' + esc(t('cic_hist_dur', { h: Math.floor(min / 60), m: min % 60 })) + '</div>';
     }
-    const esHoy = new Date(c.t0).toISOString().slice(0, 10) === hoyF;
+    const esHoy = fechaOpDe(new Date(c.t0)) === hoyF;
     return '<div class="cic-hist-dia' + (esHoy ? ' cic-hist-hoy' : '') + '">' +
              '<div class="cic-hist-f">' + fmtDia(c.t0) + (esHoy ? ' · ' + esc(t('cic_hist_hoy')) : '') + '</div>' +
              filas + dur + '</div>';
   }).join('');
+}
+function cicloMiHistorialBloque(){
+  const ventana = cicloTotalMin(cicloPlan(cicloYo())) * 60000;
+  const ciclos = cicloAgruparTodos(cicloMioAll(), ventana) || [];
+  const tarjetas = cicloCiclosListaHtml(ciclos);
   const periodo = (typeof DASH !== 'undefined' && DASH && DASH.operacionalPeriodo) || null;
   const completo = !!(_cicloHistDias && _cicloHistDias > 30);
   return '<details class="cic-hist" id="cicHist">' +
@@ -14674,7 +14718,7 @@ function silvaAtras(){
      para "atrás" — el toque se consume y no pasa nada, o peor, se sale de la app. Va junto a
      `claveOv` porque son las dos pantallas finales del alta, y "atrás" hace lo mismo que su botón
      de descarte: posponer, que no cierra la puerta (la fila de Más queda). */
-  if (visible('rolOv')){ rolPosponer(); return true; }
+  if (visible('rolOv')){ rolSalir(); return true; }   // P170 · en el alta, salir; fuera, posponer
   if (visible('portalOverlay')){
     /* Atrás del teléfono: primero deshace filtros, igual que la flecha del panel. Antes cerraba
        el panel entero y lo sacaba de supervisor — el reflejo de "volver un paso" terminaba en
@@ -15286,7 +15330,7 @@ function nominaSoyYo(){
      alta entera y terminaba en «Crear mi contraseña», que le contestaba «ya tienes» sin ningún
      botón para entrar. Se abre el login con la empresa y la cédula ya puestas; el perfil lo repone
      `login` (P118), así que acá no se guarda nada: si toca «Ahora no» vuelve a esta pantalla. */
-  if (q.tieneClave){ lgnAbrir(null, NOM.empresa, NOM.cedula); return; }
+  if (q.tieneClave){ tieneClaveMarcar(true); lgnAbrir(null, NOM.empresa, NOM.cedula); return; }
   const prev = getProfile() || {};
   altaRecordarPerfil();
 
@@ -15542,6 +15586,18 @@ function openSetup(isEdit){
   document.getElementById('fMedPass').style.display = em ? '' : 'none';
   const _cr = dashGetCreds();
   document.getElementById('inSupPass').value = (es && _cr && _cr.pass) ? _cr.pass : '';   // prefill si ya está guardada
+  /* ⚠️ ADR 003 (2026-09-10) · LOS TRES BANNERS DE ROL NO SE MUESTRAN MÁS. «Personal de aviación /
+     Supervisor / Servicio médico» con casilla eran el mecanismo VIEJO de elegir rol, anterior al
+     ADR 002 (el rol se propone y se confirma con la contraseña de empresa, en `rolOv`) y al ADR
+     003 (todo por nómina: roles, niveles, «¿es piloto?»). Franco, al probar: «si mi empresa me
+     registró como supervisor, ¿por qué me pregunta si soy piloto, supervisor, médico?». Tenía
+     razón: la nómina ya lo dijo, y la casilla encima abría un campo de contraseña de empresa que
+     duplicaba al de `rolOv`. El estado interno (`inEsPiloto`, `inEsSupervisor`, `inEsMedico`) se
+     sigue cargando desde el perfil como hasta acá —`saveProfile` lo lee—, sólo que nadie lo toca a
+     mano. Los banners quedan en el HTML, ocultos, con este motivo. */
+  ['pilotBanner','supBanner','medBanner','supNotice','fSupPass','medNotice','fMedPass'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.display = 'none';
+  });
   const _crMed = dashGetCredsMed();
   document.getElementById('inMedPass').value = (em && _crMed && _crMed.pass) ? _crMed.pass : '';
   loadSetupLists();                                                             // trae empresas (Accesos) y departamentos existentes
@@ -16998,6 +17054,15 @@ function admSalir(){
    barrido global de credenciales (con empresa vacía no filtra) más un canal de tiempo por cada
    candidata. Una llave con el nombre de la empresa es mucho más barata que eso. */
 const K_REINGRESO = 'silva_fatiga_reingreso_v1';
+/* ⚠️ P166c · SI LA PERSONA TIENE CONTRASEÑA PROPIA, y sobrevive a cerrar sesión igual que la llave
+   de reingreso. Franco, al probar: «no puse contraseña, me llevó al inicio, cerré sesión y cuando
+   doy a Ingresar me dice "entra con tu contraseña", pero yo nunca la puse». `cerrarSesion` guardaba
+   la empresa sin mirar si había contraseña, y `splashIngresar` abría el login igual. Con esta
+   marca, quien no la creó vuelve por el código; quien sí, por el login. Se pone cuando se crea la
+   contraseña, cuando se entra con ella, o cuando el servidor dice `tieneClave` en el «¿eres tú?». */
+const K_TIENE_CLAVE = 'silva_fatiga_tiene_clave_v1';
+function tieneClaveMarcar(v){ try { if (v) localStorage.setItem(K_TIENE_CLAVE, '1'); else localStorage.removeItem(K_TIENE_CLAVE); } catch(e){} }
+function tieneClaveGuardada(){ try { return localStorage.getItem(K_TIENE_CLAVE) === '1'; } catch(e){ return false; } }
 function reingresoGuardar(empresa){
   const e = String(empresa || '').trim();
   if (!e) return;
@@ -18360,6 +18425,10 @@ function dashRefresh(manual){
        por el atajo sin anotar que ahora hay 90 días traídos. Con eso `cicloDiasTraidos()` seguía
        diciendo 7 y cada toque de "90 días" volvía a pedir lo mismo para siempre. */
     DASH.operacionalPeriodo = d.operacionalPeriodo || null;
+    /* P169 · `duty` va con el período, por la misma razón: pedir 30 días de una operación que no
+       tuvo eventos nuevos en los 23 anteriores devuelve la MISMA lista de eventos, la firma no
+       cambia, y Jornada quedaría diciendo «últimos 7 días» con el botón de 30 encendido. */
+    DASH.duty = d.duty || null;
     const pvt = d.pvt || null;
     // El ciclo operativo entra en la firma: si no, un evento nuevo (alguien que acaba de llegar al
     // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
@@ -18380,8 +18449,8 @@ function dashRefresh(manual){
     DASH.turnos = d.turnos || [];   // E2b: idem
     /* ⚠️ A4 · Y ACÁ TAMBIÉN. Son dos lugares distintos los que copian campos del servidor —la carga
        inicial y este refresco— y `duty`/`ausencias` faltaban en LOS DOS. Si sólo se arreglara arriba,
-       marcar una ausencia y esperar al refresco la borraría de la pantalla. */
-    DASH.duty = d.duty || null;
+       marcar una ausencia y esperar al refresco la borraría de la pantalla. (`duty` se copia más
+       arriba, antes del corte por `changed`: P169.) */
     if (d.ausencias && typeof d.ausencias === 'object') DASH.ausencias = d.ausencias;
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
@@ -21509,9 +21578,20 @@ function cicloPerQuitar(btn, persona){
 
 function cicloRepintar(){
   const sec = document.getElementById('dsec-ciclo');
-  if (!sec) return;
-  sec.innerHTML = renderCicloOperativo();
-  requestAnimationFrame(() => cicloUbicarAgujas(sec));
+  if (sec){
+    sec.innerHTML = renderCicloOperativo();
+    requestAnimationFrame(() => cicloUbicarAgujas(sec));
+  }
+  /* P169 · Jornada comparte el período con el ciclo (mismo `CICLO_PERIODO`, mismo pedido al
+     servidor), así que se repinta con él. El servicio médico no tiene pestaña de ciclo: para esa
+     vista, ésta es la ÚNICA que se repinta acá. */
+  const jor = document.getElementById('dsec-jornada');
+  if (jor) jor.innerHTML = renderJornada();
+}
+/* Las zonas que se bloquean mientras el período viaja: las dos pestañas que lo muestran, las que
+   existan en esta vista. */
+function cicloZonasPeriodo(){
+  return ['dsec-ciclo', 'dsec-jornada'].map(id => document.getElementById(id)).filter(Boolean);
 }
 
 /* Ejemplo: se ancla a la hora ACTUAL para que siempre se vea vivo, y cubre los estados que hay que
@@ -21584,13 +21664,25 @@ function demoCedDe(nombre){
 function dutyDemo(){
   const hoy = todayStr(), ayer = fechaMasDias(hoy, -1), antes = fechaMasDias(hoy, -2);
   const P = 'Empresa Demo';
+  /* P169 · Los botones con su hora, como los manda el servidor real (`leerDuty` → `eventos`):
+     salida de casa a las 06:10, llegada 55 min después, salida al cumplir la jornada, y la
+     llegada a casa 50 min más tarde. Una jornada abierta no tiene salida ni vuelta todavía. */
+  const evs = (fecha, jornada, abierto) => {
+    const ev = cicloEventos().map(e => e.k);
+    const t0 = new Date(fecha + 'T06:10:00').getTime();
+    const iso = min => new Date(t0 + min * 60000).toISOString();
+    const lista = [{ evento: ev[0], iso: iso(0) }, { evento: ev[1], iso: iso(55) }];
+    if (!abierto) lista.push({ evento: ev[2], iso: iso(55 + jornada) }, { evento: ev[3], iso: iso(55 + jornada + 50) });
+    return lista;
+  };
   const fila = (persona, fecha, jornada, previsto, abierto) => ({
     persona: persona, empresa: P, departamento: demoDepDe(persona), fecha: fecha,
     jornadaMin: jornada, previstoMin: previsto, excesoMin: Math.max(0, jornada - previsto),
     abierto: !!abierto, umbralCongelado: true,
     tramos: [{ tramo:'jornada', previsto: previsto, real: jornada,
                exceso: Math.max(0, jornada - previsto), abierto: !!abierto,
-               abandonado: false, umbralCongelado: true }]
+               abandonado: false, umbralCongelado: true }],
+    eventos: evs(fecha, jornada, abierto)
   });
   const A = DEMO_ACTIVOS[0], B = DEMO_ACTIVOS[1], C = DEMO_ACTIVOS[2];
   const diario = [
@@ -21879,13 +21971,18 @@ function cicloDiasTraidos(){
    tercer lugar donde olvidarse de uno. Tampoco se entra por `onDashData`: ese rehace `DASH`
    ENTERO y se llevaría puestos los filtros (`DASH.f`), la pestaña, el buscador del ciclo y el
    scroll — cambiar de período no puede resetear lo que la persona venía mirando. */
-function cicloPeriodoSet(id){
+function cicloPeriodoSet(id, exacto){
   const prev = cicloPeriodoActual();
   const dias = cicloPeriodoDias(id);
   /* Alcanza con lo traído → recorte en cliente, instantáneo, como siempre.
      En la demostración tampoco se pide: no hay endpoint del otro lado (`DASH.operacional` es
-     `cicloDemo()`), y sin este corte el botón se quedaría con el esqueleto puesto para siempre. */
-  if (dias <= cicloDiasTraidos() || !DASH || !DASH.params || DASH.demoMode){
+     `cicloDemo()`), y sin este corte el botón se quedaría con el esqueleto puesto para siempre.
+     P169 · `exacto` lo pide Jornada: su cálculo vive ENTERO en el servidor (`leerDuty`, y acá no
+     se recalcula nada, ver `renderJornada`), así que no puede recortar 90 días a 30 en cliente
+     como hace el ciclo. Con `exacto`, sólo se ahorra el pedido si el servidor ya sirvió
+     exactamente ese período. */
+  const alcanza = exacto ? (dias === cicloDiasTraidos()) : (dias <= cicloDiasTraidos());
+  if (alcanza || !DASH || !DASH.params || DASH.demoMode){
     CICLO_PERIODO = id;
     CICLO_PIDIENDO = 0;
     cicloRepintar();
@@ -21899,8 +21996,8 @@ function cicloPeriodoSet(id){
   cicloRepintar();                    // el botón nuevo ya activo + el esqueleto donde van las tarjetas
   /* `inert` y no `pointer-events`: saca la zona del alcance del mouse, del teclado y del lector de
      pantalla a la vez, así nadie llega tabulando a un botón que está cargando. */
-  cargaBloquear(document.getElementById('dsec-ciclo'), true);
-  const soltar = () => cargaBloquear(document.getElementById('dsec-ciclo'), false);
+  cicloZonasPeriodo().forEach(z => cargaBloquear(z, true));
+  const soltar = () => cicloZonasPeriodo().forEach(z => cargaBloquear(z, false));
   const volverAtras = () => {
     DASH.params = paramsAntes;
     CICLO_PERIODO = prev;
@@ -21972,7 +22069,16 @@ function renderJornada(){
      "no hubo excesos". No se pueden confundir. */
   if (!d) return dashHelp(t('jor_sin_permiso'));
   const filas = d.diario || [], personas = d.personas || [], hist = d.historico || [];
-  if (!filas.length) return dashHelp(t('jor_vacio'));
+  /* P169 · EL PERÍODO SE ELIGE ACÁ TAMBIÉN. Los botones de 7/30/90 vivían sólo en la pestaña de
+     ciclo, que el servicio médico NO tiene (`dashTabsFor`): el médico veía siempre 7 días y no
+     había forma de pedir más. Franco: «era sobre todo para médico y HSEQ que vean el historial
+     operativo». Va arriba de los vacíos: una semana sin jornadas no dice nada de los tres meses.
+     En la demostración no se ofrece: `DASH.duty` es de ejemplo y no hay a quién pedirle más. */
+  const perHtml = (cicloPuedeHistorico() && !DASH.demoMode) ? jorPeriodoHtml() : '';
+  const cargando = CICLO_PIDIENDO
+    ? '<div class="cic-cargando" role="status" aria-live="polite">' + esc(t('per_cargando', { n: CICLO_PIDIENDO })) + '</div>'
+    : '';
+  if (!filas.length) return perHtml + cargando + dashHelp(t('jor_vacio'));
 
   const conExceso = filas.filter(f => f.excesoMin > 0);
   const totalExceso = filas.reduce((a, f) => a + f.excesoMin, 0);
@@ -21987,6 +22093,7 @@ function renderJornada(){
   let h = '<div class="dash-block">';
   h += '<div class="db-title">' + esc(t('jor_titulo')) + '</div>';
   h += '<div class="db-sub">' + esc(t('jor_lead', { dias: d.dias })) + '</div>';
+  h += perHtml + cargando;
 
   /* ⚠️ ESTE AVISO NO ES OPCIONAL. Las filas anteriores a que el umbral viajara con el evento no
      tienen contra qué juzgarse, y no se les inventa uno. Presentarlas como "sin exceso" sin decir
@@ -22053,20 +22160,50 @@ function renderJornada(){
   }
 
   // ── Corte 5 · el detalle diario, al final porque es lo más largo
+  /* P169 · CADA BOTÓN CON SU HORA. La fila decía «Jornada 9 h 40 min» y nada más: el médico no
+     podía saber a qué hora salió de casa, llegó, se fue ni volvió — que es lo que pidió Franco
+     («no se entiende cuándo le dio a cada botón en el histórico»). Los eventos vienen en la MISMA
+     fila que el servidor armó para medir esa jornada (`leerDuty` → `eventos`), en su orden, con
+     el rótulo del sector (R14) y la hora en la zona de la operación. Las filas anteriores a este
+     cambio del servidor no traen `eventos` y muestran un guion, no se inventan. */
   h += '<h4 class="jor-h4">' + esc(t('jor_diario')) + '</h4>';
+  h += '<div class="db-sub">' + esc(t('jor_diario_lead')) + '</div>';
   h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
        '<th>' + esc(t('jor_c_fecha')) + '</th><th>' + esc(t('jor_c_persona')) + '</th>' +
+       '<th>' + esc(t('jor_c_botones')) + '</th>' +
        '<th>' + esc(t('jor_c_jornada')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
        '</tr></thead><tbody>';
   filas.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).forEach(f => {
     h += '<tr' + (f.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
          '<td>' + esc(f.fecha) + '</td><td>' + esc(f.persona) + '</td>' +
+         '<td class="jor-evs">' + jorEventosHtml(f.eventos) + '</td>' +
          '<td>' + esc(jorMin(f.jornadaMin)) + (f.abierto ? ' <span class="jor-chip">' + esc(t('jor_abierto')) + '</span>' : '') + '</td>' +
          '<td>' + (f.excesoMin > 0 ? '<b>+' + esc(jorMin(f.excesoMin)) + '</b>' : '—') +
          (f.umbralCongelado ? '' : ' <span class="jor-chip" title="' + esc(t('jor_sin_umbral_1')) + '">?</span>') + '</td></tr>';
   });
   h += '</tbody></table></div></div>';
   return h;
+}
+/* Los botones de una jornada, uno por línea: rótulo del sector y hora de la operación. */
+function jorEventosHtml(eventos){
+  if (!Array.isArray(eventos) || !eventos.length) return '—';
+  return eventos.map(ev => {
+    const d = new Date(ev.iso);
+    const hora = isFinite(d.getTime()) ? horaOpDe(d) : '';
+    return '<div class="jor-ev"><span class="jor-ev-k">' + esc(cicloEventoLabel(ev.evento)) + '</span> ' +
+           '<b class="jor-ev-h">' + esc(hora) + '</b></div>';
+  }).join('');
+}
+/* El selector de período de Jornada: los mismos botones que el ciclo, sin «En curso» (acá no hay
+   un ciclo abierto que mirar: son jornadas ya medidas), y con `exacto` (ver `cicloPeriodoSet`).
+   El período activo se lee por DÍAS y no por id: el default `hoy` también son 7 días. */
+function jorPeriodoHtml(){
+  const diasAct = cicloPeriodoDias(cicloPeriodoActual());
+  const botones = cicloPeriodos().filter(pe => !pe.soloHoy).map(pe =>
+    '<button type="button" class="cic-per' + (pe.dias === diasAct ? ' on' : '') + '"' +
+    ' aria-pressed="' + (pe.dias === diasAct ? 'true' : 'false') + '"' +
+    ' onclick="cicloPeriodoSet(\'' + pe.id + '\', true)">' + esc(pe.etiqueta) + '</button>').join('');
+  return '<div class="cic-pers" role="group" aria-label="' + esc(t('per_titulo')) + '">' + botones + '</div>';
 }
 
 /* ⚠️ P056 · CUÁNTAS COLUMNAS ENTRAN, LEÍDO DEL MISMO TOKEN QUE USA EL CSS.
@@ -22327,6 +22464,14 @@ function renderCicloOperativo(){
          promedios individuales: Dirección ve el del grupo pero no el de una persona. */
       ((sel.historico && misCiclos && misCiclos.length > 1 && cicloVePromedioPersona())
         ? cicloPromediosHtml({ x: misCiclos }, plan, t('prm_persona', { q: pe.persona }))
+        : '') +
+      /* P167b · EN HISTÓRICO, TODOS SUS CICLOS DEL PERÍODO, con cada botón y su hora. Antes sólo se
+         dibujaba el más reciente y el contador decía «N ciclos» sin forma de verlos. Plegado (R6):
+         abierto, con semanas, la lista de gente se vuelve un rollo. Misma lista que ve el piloto. */
+      ((sel.historico && misCiclos && misCiclos.length)
+        ? '<details class="cic-hist cic-hist-panel"><summary class="cic-hist-sum">' +
+            esc(t('cic_hist_ver', { n: misCiclos.length })) + '</summary>' +
+            cicloCiclosListaHtml(misCiclos) + '</details>'
         : '') +
       '</div>';
   }).join('');
@@ -26750,7 +26895,7 @@ function avanzarAlta(){
      personas de Helitec —ya registradas y que nunca pasaron por esta pantalla— les aparecería un
      formulario de contraseña al abrir la app, sin haber pedido nada. */
   if (!_complete && !rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando()){
-    if (rolOfrecerAbrir()) return;
+    if (rolOfrecerAbrir(true)) return;   // P170 · en el alta, sin «Ahora no»
   }
   /* 5 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
      recorrido, y ponerlo antes del consentimiento o del tamaño de texto sería anteponer algo que se
@@ -27023,6 +27168,7 @@ function lgnEntrar(btn){
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
+      tieneClaveMarcar(true);                        // P166c · entró con ella: la tiene
       lgnAplicarEntrada(d, cedula, empresaLogin);   // P166b · lo mismo que aplica el atajo del admin
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
@@ -27218,6 +27364,7 @@ function clvGuardar(btn){
       btnSpin(btn, false);
       if (d && d.ok){
         clvMarcarOfrecida();
+        tieneClaveMarcar(true);   // P166c · la creó
         document.getElementById('claveOv').classList.remove('show');
         syncScrollLock();
         showToast(t('clv_listo'));
@@ -27233,6 +27380,7 @@ function clvGuardar(btn){
       /* P166 · «ya tienes contraseña» no puede ser un callejón: se abre el login con lo que ya se
          sabe. Antes sólo se pintaba el texto y no había dónde entrar. */
       if (d && d.motivo === 'ya_tiene'){
+        tieneClaveMarcar(true);
         const pc = getProfile() || {};
         lgnAbrir(null, pc.empresa, pc.cedula);
         return;
@@ -27287,6 +27435,13 @@ function clvPosponer(){
 /* El rol que se está ofreciendo en la pantalla abierta. Se declara SIN asignar (R16): una
    declaración sin valor no pisa lo que ya haya, y así el orden de este bloque deja de importar. */
 var ROL_OF_ACTUAL;
+/* P170 · SI LA CONTRASEÑA DE EMPRESA ES OBLIGATORIA EN ESTA APERTURA. Franco (2026-09-10): «¿qué es
+   eso de que no ponen contraseña de supervisor e igual pueden acceder? Soy supervisor, entro,
+   tengo que tener código de empresa, mi cédula y contraseña de supervisor, y ahí entro». En el
+   ALTA (`avanzarAlta`, paso 4) no hay «Ahora no»: quien la nómina registró como supervisor, médico
+   o Dirección entra con esa contraseña o no entra. Desde Más → Tu acceso sigue siendo opcional,
+   porque ahí la persona ya está adentro y sólo vino a activar el panel. R16: sin asignar. */
+var ROL_OF_OBLIGATORIO;
 
 /* Los tres roles que se pueden ofrecer. Lista CERRADA, y la misma del servidor (`ROL_NOMINA` en
    el .gs normaliza lo que RRHH escriba a este mismo conjunto). "empleado" no está: no hay nada
@@ -27358,7 +27513,11 @@ function rolOfrecerPintar(){
   const ti = document.getElementById('rolTitulo');
   if (ti) ti.textContent = t(p.rolOrigen === 'codigo' ? 'rol_of_titulo_cod' : 'rol_of_titulo', { rol: nombre });
   const lead = document.getElementById('rolLead');
-  if (lead) lead.textContent = t('rol_of_lead');
+  if (lead) lead.textContent = t(ROL_OF_OBLIGATORIO ? 'rol_of_lead_alta' : 'rol_of_lead', { rol: nombre });
+  /* P170 · en el alta el botón de abajo no pospone: sale del registro (cierra la sesión, con la
+     confirmación de siempre, R8). Lo que no existe es entrar sin la contraseña. */
+  const salir = document.getElementById('rolSalirBtn');
+  if (salir) salir.textContent = t(ROL_OF_OBLIGATORIO ? 'rol_of_salir' : 'rol_of_luego');
   const guia = document.getElementById('rolGuia');
   /* `dashHelp()` es el molde vivo de la ayuda contraída del panel: <details> nativo, sin estado en
      JS, así que SIEMPRE arranca cerrada (R5) y no puede quedar abierta de una apertura anterior. */
@@ -27372,13 +27531,14 @@ function rolOfrecerPintar(){
 /* Abre la pantalla. Devuelve `false` —sin abrir nada— si no hay rol que ofrecer o falta identidad,
    para que `avanzarAlta()` pueda seguir de largo con una sola condición. Es la misma forma de
    `clvAbrir()`. */
-function rolOfrecerAbrir(){
+function rolOfrecerAbrir(obligatorio){
   const p = getProfile() || {};
   const rol = rolPropuesto(p);
   if (!rol) return false;
   if (!p.cedula || !p.empresa) return false;       // sin identidad no hay a quién ofrecerle nada
   const ov = document.getElementById('rolOv'); if (!ov) return false;
   ROL_OF_ACTUAL = rol;
+  ROL_OF_OBLIGATORIO = !!obligatorio;   // P170
   rolOfrecerPintar();
   const campo = document.getElementById('rolPass'); if (campo) campo.value = '';
   const err = document.getElementById('rolErr'); if (err) err.textContent = '';
@@ -27457,6 +27617,13 @@ function rolConfirmar(btn){
     }));
 }
 
+/* P170 · El botón de abajo y el «atrás» del teléfono. En el alta (obligatorio) no hay posponer:
+   se sale del registro cerrando la sesión —con su confirmación (R8)— y la próxima vez se vuelve a
+   entrar por el código. Fuera del alta, pospone como siempre. */
+function rolSalir(){
+  if (ROL_OF_OBLIGATORIO){ cerrarSesionPedir(); return; }
+  rolPosponer();
+}
 /* "Ahora no". Marca la cédula para que el arranque no vuelva a interrumpir — y NO cierra la
    puerta: la fila de la pestaña Más queda disponible para siempre (ver la nota de arriba). */
 function rolPosponer(){
@@ -27900,6 +28067,14 @@ function splashCambiarIdioma(){
    ahí — no se lo manda a un callejón. */
 function splashIngresar(){
   if (reingresoEmpresa() && !perfilCompleto(getProfile())){
+    /* P166c · quien cerró sesión SIN haber creado contraseña no tiene nada que escribir en el login:
+       vuelve por el código de su empresa, sin el carrusel (ya lo vio). El login queda para quien
+       sí la tiene. Si la marca estuviera mal, el login tiene «No tengo contraseña» igual. */
+    if (!tieneClaveGuardada()){
+      try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+      nominaAbrir();
+      return;
+    }
     /* `splashCerrar` no existe: el splash se cierra sacándole la clase, que es lo que hacen
        `splashAbrirPortal` y `carruselMostrar`. */
     try { if (lgnAbrir()) { document.getElementById('splashOv').classList.remove('show'); return; } } catch(e){}

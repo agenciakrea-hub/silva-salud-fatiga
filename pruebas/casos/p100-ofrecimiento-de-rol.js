@@ -344,11 +344,17 @@ PRUEBAS.caso('🔴 R4 · "Ahora no" no cierra la puerta: la entrada queda en Má
      contraseña → entra como empleado, y el ofrecimiento queda disponible en su perfil, no se
      pierde". Es el mismo agujero que Z4b tuvo que cerrar para la contraseña propia: ofrecer una
      sola vez convierte "más tarde" en "nunca más", y le pega justo a quien se quiere ayudar. */
+  /* ⚠️ P170 (2026-09-10) · EN EL ALTA YA NO HAY «AHORA NO». Franco: «soy supervisor, entro,
+     tengo que tener código de empresa, mi cédula y contraseña de supervisor, y ahí entro». Desde
+     `avanzarAlta()` la pantalla es obligatoria (ver p170-*.js). Lo que este caso vigila sigue
+     valiendo para la puerta de Más → Tu acceso: ahí posponer no cierra nada. Se entra por
+     `miRolTocar()`, que es el camino real de esa fila. */
   const prev = p100Preparar({ rol:'supervisor' });
   try {
-    avanzarAlta();
-    PRUEBAS.cierto(p100Abierto(), 'precondición · abierta');
-    rolPosponer();
+    miRolPintar(); miRolTocar();
+    PRUEBAS.cierto(p100Abierto(), 'precondición · abierta desde Más');
+    PRUEBAS.igual(document.getElementById('rolSalirBtn').textContent, t('rol_of_luego'), 'y desde Más el botón dice «Ahora no»');
+    rolSalir();
     PRUEBAS.falso(p100Abierto(), 'al posponer se cierra');
     PRUEBAS.cierto(rolYaOfrecido(), 'y la cédula queda marcada, para no interrumpir en cada arranque');
 
@@ -373,10 +379,12 @@ PRUEBAS.caso('🔴 el botón "atrás" del teléfono conoce esta pantalla', () =>
      callejón sin salida — el toque se consumía y no pasaba nada. Es el mismo defecto que R1 tuvo
      que corregir para las cuatro pantallas del alta, y la misma forma de siempre: una lista a mano
      que alguien tiene que acordarse de actualizar. */
+  /* P170 · desde Más → Tu acceso, «atrás» pospone (como siempre). En el alta hace lo que el botón
+     de abajo: salir del registro, con confirmación — eso se mide en p170-*.js. */
   const prev = p100Preparar({ rol:'supervisor' });
   try {
-    avanzarAlta();
-    PRUEBAS.cierto(p100Abierto(), 'precondición · abierta');
+    miRolPintar(); miRolTocar();
+    PRUEBAS.cierto(p100Abierto(), 'precondición · abierta desde Más');
     PRUEBAS.cierto(silvaAtras(), '"atrás" tiene que decir que SÍ se ocupó de algo');
     PRUEBAS.falso(p100Abierto(), 'y la pantalla se cierra');
     miRolPintar();
@@ -482,9 +490,17 @@ PRUEBAS.caso('⚠️ R4 · dice que reportar fatiga no tiene consecuencias, EN e
     PRUEBAS.cierto(getComputedStyle(caja).display !== 'none', 'el bloque tiene que estar A LA VISTA, no plegado');
     PRUEBAS.cierto(txt.indexOf('no tiene consecuencias') >= 0,
       'y decirlo con esas palabras · es el principio que sostiene el programa entero');
+    /* P170 · en el ALTA la bajada ya no promete «Ahora no» (la contraseña de empresa es obligatoria
+       ahí, por pedido de Franco). Lo del ADR 002 —poder activarlo después desde Más— se dice en la
+       bajada de la apertura DESDE Más, que sigue siendo opcional. */
+    const leadAlta = (document.getElementById('rolLead').textContent || '').toLowerCase();
+    PRUEBAS.cierto(leadAlta.indexOf('contraseña') >= 0 || leadAlta.indexOf('password') >= 0,
+      'en el alta la bajada dice que se entra con la contraseña de la empresa');
+    rolOfrecerCerrar();
+    miRolPintar(); miRolTocar();
     const lead = (document.getElementById('rolLead').textContent || '').toLowerCase();
     PRUEBAS.cierto(lead.indexOf('ahora no') >= 0 || lead.indexOf('más') >= 0,
-      'y la bajada tiene que decir que puede decir que no ahora y activarlo después (ADR 002)');
+      'y desde Más la bajada dice que puede decir que no ahora y activarlo después (ADR 002)');
   } finally { p100Restaurar(prev); }
 });
 
