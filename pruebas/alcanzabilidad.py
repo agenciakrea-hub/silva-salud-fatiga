@@ -107,6 +107,8 @@ ESPERADAS = {
     "dashImprimirPie":          "idem",
     # ── sueltas, ya conocidas o benignas ────────────────────────────────────────
     "bitPull":                  "el propio codigo lo documenta: «bitPull() hoy no lo llama nadie — esta definida y sin uso» (index.html:24529)",
+    "recuperarAbrir":           "P166 (2026-09-10) · «Recuperar mis datos» —empresa + cedula sin contraseña— quedo fuera de la logica de Franco («se ingresa con codigo; la contraseña es para volver»). Sus tres onclick pasaron a lgnAbrirDesdeAlta. El servidor responde camino_cerrado. Se conserva inactiva, como el camino viejo del alta",
+    "recuperarConfirmar":       "idem · solo se alcanza desde la pantalla que abre recuperarAbrir",
     "splashPortal":             "Q4d la dejo sin llamador a proposito: destapaba las tres pestanas de credencial desde «Administrador». `q4d-cierre-del-inicio.js` ya la vigila en su lista de muertas. ⚠️ pero `m5-coherencia-visual.js` la USA para armar una pantalla — prueba un camino que la persona no tiene",
     "dashSetTab":               "el propio codigo la marca «compat con llamadas viejas»",
     "seguirTrasTamanoTexto":    "alias de una linea (`avanzarAlta()`), sin llamador",

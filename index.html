@@ -5188,6 +5188,23 @@
   .dep-aviso { font-size:.78rem; color:var(--text-muted); background:var(--chip-bg);
     border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; line-height:1.45; }
   .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
+  /* ⚠️ P166 · EL FLOTANTE CHICO DEL ADMINISTRADOR: «Ir al inicio». Vive en la esquina de abajo a la
+     IZQUIERDA para no chocar con el de gestiones, que a 375 px ocupa todo el ancho — por eso,
+     cuando el de admin está, el de gestiones le deja 56 px. Sólo se muestra con sesión de
+     administrador y fuera de la demostración (`dashUpdateAdmFab`). Mismo estilo que el botón
+     principal; ni un color a mano (R13). */
+  .adm-fab { position: absolute; left: 1.1rem; bottom: 1.1rem; z-index: 31; width: 46px; height: 46px;
+             border: none; border-radius: 13px; background: var(--orange-solido); color: var(--sobre-marca);
+             box-shadow: var(--shadow-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .adm-fab:active { transform: scale(.96); }
+  #portalDash.con-adm-fab .gest-fab { width: min(360px, calc(100% - 2.2rem - 56px)); }
+  .adm-atajos-sheet h2 { margin-top: 0; }
+  .adm-atajos-lead { font-size: .85rem; color: var(--text-soft); line-height: 1.5; margin: .2rem 0 1rem; }
+  .adm-atajo { display: block; width: 100%; text-align: left; margin-top: .55rem; padding: .95rem 1rem;
+               border: 1.5px solid var(--linea); border-radius: 13px; background: var(--card); color: var(--text);
+               font-family: inherit; font-weight: 800; font-size: .95rem; cursor: pointer; }
+  .adm-atajo small { display: block; font-weight: 500; color: var(--text-soft); margin-top: .15rem; }
+  .adm-atajo:active { transform: scale(.98); }
   .gest-fab-row { display: flex; gap: .5rem; }
   .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: var(--radius-sm);
     padding: .85rem 1.1rem; font-family: inherit;
@@ -6044,6 +6061,10 @@
       <button class="save-btn" type="submit" id="lgnBtn" data-i18n="lgn_entrar">Entrar</button>
     </form>
     <button type="button" class="cancel-btn" onclick="lgnOlvide()" data-i18n="lgn_olvide">Olvidé mi contraseña</button>
+    <!-- P166 · la salida de quien nunca creó contraseña: vuelve por el código de su empresa, que es
+         el mismo para todos sus compañeros y con su cédula en la nómina le devuelve todo. Aparece
+         sólo cuando el login se abrió desde el alta o el reingreso (sin perfil completo). -->
+    <button type="button" class="nom-link" id="lgnSinClave" style="display:none" onclick="lgnSinClave()" data-i18n="lgn_sin_clave">No tengo contraseña: entrar con el código de mi empresa</button>
     <button type="button" class="cancel-btn" onclick="lgnCerrar()" data-i18n="lgn_luego">Ahora no</button>
   </div>
 </div>
@@ -6169,7 +6190,10 @@
            No vuelve como control permanente: se revela cuando la persona toca «Mi empresa no me dio
            código», que es el momento en que dice que no lo tiene. Una puerta, dos salidas. -->
       <div id="nomCodSalidas" style="display:none">
-        <button type="button" class="nom-link" onclick="recuperarAbrir()"
+        <!-- P166 · al LOGIN, no a «Recuperar mis datos» (que devolvía el perfil sin contraseña).
+             Acá no hay empresa todavía: `lgnAbrirDesdeAlta` la busca y, si no la tiene, dice que
+             escriba primero el código. -->
+        <button type="button" class="nom-link" onclick="lgnAbrirDesdeAlta()"
                 data-i18n="rec_link">Ya me había registrado</button>
       </div>
     </div>
@@ -6264,7 +6288,7 @@
            No se saca: es la salida de quien de verdad no figura en la nómina. Se muestra en los
            pasos donde hay una lista de la que faltar. -->
       <button type="button" class="nom-link" id="nomNoEstoy" onclick="nominaManual()" data-i18n="nom_no_estoy">No estoy en la lista</button>
-      <button type="button" class="nom-link" id="nomYaReg" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
+      <button type="button" class="nom-link" id="nomYaReg" onclick="lgnAbrirDesdeAlta()" data-i18n="rec_link">Ya me había registrado</button>
       <!-- ⚠️ Q4b · LA SALIDA DEL QUE NO VIENE A REGISTRARSE. Reemplaza al enlace "Soy supervisor"
            que estaba en la portada. Va ACÁ, en el primer paso del alta, y no después de completarla:
            el servicio médico de la empresa cliente o un director de HSEQ no son empleados de nadie
@@ -6312,7 +6336,7 @@
   <div class="sheet">
     <h2 id="setupTitle" data-i18n="setup_titulo">Bienvenido</h2>
     <p class="lead" id="setupLead" data-i18n="setup_lead">Antes de empezar, completa tus datos. Quedan guardados en este dispositivo y se usan para identificarte ante EVA en cada reporte.</p>
-    <button type="button" class="nom-link" id="setupRecLink" onclick="recuperarAbrir()" data-i18n="rec_link">Ya me había registrado</button>
+    <button type="button" class="nom-link" id="setupRecLink" onclick="lgnAbrirDesdeAlta()" data-i18n="rec_link">Ya me había registrado</button>
     <div class="pilot-banner" id="pilotBanner">
       <label for="inEsPiloto">
         <span class="pbi" id="rolIcono"></span>
@@ -6775,6 +6799,9 @@
       <!-- Acceso fijo a Gestiones: queda siempre a la vista aunque se scrollee el panel (antes
            había que bajar hasta el final de Informe IA para encontrarlo). El cuadradito de info
            despliega hacia arriba la explicación, sin abrir nada más. -->
+      <!-- P166 · el flotante chico del administrador. Su onclick estático es raíz para
+           `pruebas/alcanzabilidad.py`; el resto cuelga de `admAtajosPintar`. -->
+      <button class="adm-fab" id="admFab" style="display:none" onclick="admAtajosAbrir()" aria-label="Ir al inicio" data-i18n-attr="aria-label:adm_ir_inicio"><svg class="ico-svg" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
       <div class="gest-fab" id="gestFab" style="display:none">
         <div class="gest-fab-info-panel" id="gestFabInfoPanel">
           <div class="gest-fab-info-card">
@@ -6924,6 +6951,17 @@
   </div>
 </div>
 
+<!-- P166 · la hoja del flotante de administrador: «Entrar como…». Los nombres y las cédulas llegan
+     del servidor SÓLO a una sesión de administrador (`DASH.atajosAdmin`); acá no vive ninguno. -->
+<div class="overlay" id="admAtajosOv">
+  <div class="sheet adm-atajos-sheet">
+    <h2 data-i18n="adm_ir_inicio">Ir al inicio</h2>
+    <p class="adm-atajos-lead" data-i18n="adm_atajos_lead">Abre la app de inicio como una de estas personas. Se pide su contraseña; la primera vez, entra con el código de la empresa y créala.</p>
+    <div id="admAtajosLista"></div>
+    <button type="button" class="cancel-btn" onclick="admAtajosCerrar()" data-i18n="cancelar">Cancelar</button>
+  </div>
+</div>
+
 <div class="overlay" id="pvtOverlay">
   <div class="sheet pvt-sheet">
 
@@ -6990,7 +7028,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.31';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.32';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7203,6 +7241,9 @@ const I18N = {
       nom_sin_codigo:'Mi empresa no me dio código',
       nom_sin_codigo_d:'Pídeselo a tu supervisor o al área de seguridad de tu empresa. Es el mismo código para todos tus compañeros.',
       lgn_otra_empresa:'No es mi empresa',
+      /* P166 · el reingreso */
+      lgn_sin_clave:'No tengo contraseña: entrar con el código de mi empresa',
+      lgn_sin_empresa:'Escribe primero el código de tu empresa: con él sabemos dónde buscarte.',
       nom_conf_rol:'Tu empresa te registró como {r}.',
       nom_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
       nom_pide_codigo:'Para registrarte necesitas el código de tu empresa. Pídeselo a tu supervisor.',
@@ -7543,6 +7584,11 @@ const I18N = {
       adm_doc:'Cómo funciona la app por dentro',
       adm_doc_d:'La lógica de cada decisión, explicada. Las tablas se generan con los valores que la app usa de verdad, así que no pueden quedar desactualizadas.',
       adm_abrir_doc:'Abrir documentación', adm_salir:'Cerrar sesión de administrador',
+      /* P166 · el flotante del administrador */
+      adm_ir_inicio:'Ir al inicio',
+      adm_atajos_lead:'Abre la app de inicio como una de estas personas. Se pide su contraseña; la primera vez, entra con el código de la empresa y créala.',
+      adm_entrar_como:'Entrar como {nombre}',
+      adm_atajo_otra:'Ahora mismo estás como {nombre}. Cierra esa sesión primero y vuelve a tocar el atajo.',
       pie_sms:'Sistema SMS de Gestión de Fatiga & IA EVA Virtual',
       pvt_resultado:'Resultado', listo:'Listo', recomendado:'(recomendado)', editar:'Editar',
       // ── Ciclo operativo (C1). Los tramos, no los eventos: los eventos van por sector. ──
@@ -8912,6 +8958,8 @@ const I18N = {
       nom_sin_codigo:'My company did not give me a code',
       nom_sin_codigo_d:'Ask your supervisor or your company safety team for it. It is the same code for all your coworkers.',
       lgn_otra_empresa:'This is not my company',
+      lgn_sin_clave:'I have no password: sign in with my company code',
+      lgn_sin_empresa:'Enter your company code first: it tells us where to look for you.',
       nom_conf_rol:'Your company registered you as {r}.',
       nom_codigo_ambiguo:'That code does not identify a single company. Please ask your supervisor for it again.',
       nom_pide_codigo:'To register you need your company code. Ask your supervisor for it.',
@@ -9246,6 +9294,10 @@ const I18N = {
       adm_doc:'How the app works inside',
       adm_doc_d:'The logic behind every decision, explained. The tables are generated from the values the app actually uses, so they cannot go out of date.',
       adm_abrir_doc:'Open documentation', adm_salir:'Sign out of administrator',
+      adm_ir_inicio:'Go to home',
+      adm_atajos_lead:'Open the home app as one of these people. Their password is required; the first time, sign in with the company code and create it.',
+      adm_entrar_como:'Sign in as {nombre}',
+      adm_atajo_otra:'You are currently signed in as {nombre}. Sign out first, then tap the shortcut again.',
       pie_sms:'Fatigue Management SMS & EVA Virtual AI',
       pvt_resultado:'Result', listo:'Done', recomendado:'(recommended)', editar:'Edit',
       // ── Operational cycle (C1) ──
@@ -10682,6 +10734,7 @@ function aplicarIdioma(){
      Dirección"; ahora "Personal / Supervisor / Medical / Management". */
   try { if (typeof demoPintarBarra === 'function') demoPintarBarra(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateGestFab === 'function') dashUpdateGestFab(); } catch(e){}
+  try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateAdmFab === 'function') dashUpdateAdmFab(); } catch(e){}   // P166
 }
 function fijarIdioma(k){
   try { localStorage.setItem(K_LANG, k); } catch(e){}
@@ -14486,6 +14539,7 @@ function silvaAtras(){
   const visible = id => { const e = document.getElementById(id); return e && e.classList.contains('show'); };
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
+  if (visible('admAtajosOv')){ admAtajosCerrar(); return true; }        // P166 · la hoja del flotante de admin
   if (visible('gestionesOverlay')){ closeGestiones(); return true; }   // gestiones va por encima de estadísticas
   /* ⚠️ P055 · EL CICLO A PANTALLA COMPLETA VA ACÁ, y esta línea no es opcional: este manejador
      tiene una lista EXPLÍCITA, así que un overlay que no se nombre no existe para «atrás» — el
@@ -15132,6 +15186,12 @@ function nominaSupToggle2(){
 function nominaSoyYo(){
   const q = NOM.perfilPersona || {};
   if (!q || !q.nombre){ nominaEl('nomConfErr').textContent = t('nom_ced_no_esta'); return; }
+  /* ⚠️ P166 · SI ESTA CÉDULA YA TIENE CONTRASEÑA, ESTO ES UN REINGRESO, NO UN ALTA. Lo dice el
+     servidor en `nomina_confirmar` (`tieneClave`). Hasta acá, quien cambiaba de celular rehacía el
+     alta entera y terminaba en «Crear mi contraseña», que le contestaba «ya tienes» sin ningún
+     botón para entrar. Se abre el login con la empresa y la cédula ya puestas; el perfil lo repone
+     `login` (P118), así que acá no se guarda nada: si toca «Ahora no» vuelve a esta pantalla. */
+  if (q.tieneClave){ lgnAbrir(null, NOM.empresa, NOM.cedula); return; }
   const prev = getProfile() || {};
   altaRecordarPerfil();
 
@@ -15361,7 +15421,10 @@ function openSetup(isEdit){
   // El enlace "Ya me había registrado" sólo tiene sentido para un alta nueva: quien ya tiene
   // perfil completo y abrió esto para EDITAR sus datos no necesita "recuperar" nada.
   const recLink = document.getElementById('setupRecLink');
-  if (recLink) recLink.style.display = editing ? 'none' : '';
+  /* P166 · no se reofrece a quien YA entró con contraseña — sería setup → login → setup. Se mira
+     la sesión DE ESTE perfil (`sesPersonaToken`), no cualquier sesión que haya quedado en el
+     teléfono: en uno compartido, la de otra persona no puede esconderle el enlace a la nueva. */
+  if (recLink) recLink.style.display = (editing || !!sesPersonaToken(getProfile())) ? 'none' : '';
   // Alta nueva: los dos toggles arrancan DESACTIVADOS (antes "piloto" venía marcado por defecto)
   const p = getProfile() || {nombre:'',empresa:'',cedula:'',id_piloto:'',esPiloto:false,esSupervisor:false,esServicioMedico:false,departamento:'',cargo:'',sexo:'',edad:'',telefono:'',email:''};
   const ep = !!p.esPiloto, es = !!p.esSupervisor, em = !!p.esServicioMedico;
@@ -17948,6 +18011,9 @@ function onDashData(d, scopeLabel, params, vista){
            demoMode: !!(d.demo), marca: d.marca || null,
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
            _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
+           /* P166 · los atajos del administrador. Sólo llegan con rol admin, y acá se vuelve a
+              exigir: si un payload los trajera con otro rol, no se guardan. */
+           atajosAdmin: (d.rol === 'admin' && Array.isArray(d.atajosAdmin)) ? d.atajosAdmin : null,
            _opiniones:null, _opinionesPedidas:false,   // P162 · el buzón anónimo
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
@@ -18856,6 +18922,7 @@ function renderDash(){
   dashWireScrollspy();
   dashWireAnimaciones();
   dashUpdateGestFab();
+  dashUpdateAdmFab();   // P166
   dashUpdateNomFab();
   depActualizarBoton();                       // P039: el botón de departamentos vive dentro de la nómina
   // La flecha "atrás" ahora también depende de si hay un filtro puesto, así que hay que
@@ -18960,6 +19027,65 @@ window.addEventListener('resize', dashRemedirMarquees);
    despachan `resize` al girar. Medir de más es barato: son dos `querySelectorAll`. */
 window.addEventListener('orientationchange', dashRemedirMarquees);
 // Muestra/actualiza el acceso FIJO a Gestiones (sólo si el rol lo tiene entre sus pestañas).
+/* ══ P166 · EL FLOTANTE DEL ADMINISTRADOR ═══════════════════════════════════════════════════════
+   Franco: «que en administrador exista un flotante chico, que sea ir a panel de inicio… que cuando
+   toque dé 2 opciones, iniciar como Franco o como Rafael». Se muestra sólo con sesión de
+   administrador (`DASH.rol === 'admin'`) y fuera de la demostración. Cada atajo abre el LOGIN con
+   la empresa y la cédula ya puestas: la contraseña la escribe él. Sin puerta trasera —la
+   contraseña de administrador no abre la app de ningún piloto (decisión de Franco). */
+function dashUpdateAdmFab(){
+  const fab = document.getElementById('admFab'); if (!fab) return;
+  const dash = document.getElementById('portalDash');
+  const va = !!(DASH && DASH.rol === 'admin' && !DASH.demoMode && Array.isArray(DASH.atajosAdmin) && DASH.atajosAdmin.length);
+  fab.style.display = va ? '' : 'none';
+  if (dash) dash.classList.toggle('con-adm-fab', va);
+}
+function admAtajosPintar(){
+  const lista = document.getElementById('admAtajosLista'); if (!lista) return;
+  const atajos = (DASH && DASH.atajosAdmin) || [];
+  /* Los nombres van por ÍNDICE en el onclick, nunca inline: un apóstrofo rompería el atributo
+     (mismo patrón que `DASH._repNames`). */
+  lista.innerHTML = atajos.map((a, i) =>
+    '<button type="button" class="adm-atajo" onclick="admAtajoIr(' + i + ')">' +
+      esc(t('adm_entrar_como', { nombre: a.nombre })) +
+      '<small>' + esc(a.empresa) + '</small>' +
+    '</button>').join('');
+}
+function admAtajosAbrir(){
+  admAtajosPintar();
+  document.getElementById('admAtajosOv').classList.add('show');
+  syncScrollLock(); navPush();
+}
+function admAtajosCerrar(){
+  document.getElementById('admAtajosOv').classList.remove('show');
+  syncScrollLock();
+}
+function admAtajoIr(i){
+  const a = (DASH && DASH.atajosAdmin || [])[i]; if (!a) return;
+  const p = getProfile();
+  const dig = c => String(c || '').replace(/\D/g, '');
+  admAtajosCerrar(); navConsumir();
+  /* Ya está adentro como esa persona: al inicio, sin pedir nada. */
+  if (perfilCompleto(p) && dig(p.cedula) === dig(a.cedula)){
+    closePortalUI(); mostrarVista('inicio'); return;
+  }
+  /* Adentro como OTRA persona: no se mezclan dos perfiles (token, consentimientos, colas). Primero
+     cierra sesión —con su confirmación (R8)— y después vuelve a tocar el atajo. */
+  if (perfilCompleto(p)){
+    showToast(t('adm_atajo_otra', { nombre: p.nombre || '' }));
+    try { cerrarSesionPedir(); } catch(e){}
+    return;
+  }
+  /* Sin perfil: el login con la empresa y la cédula ya puestas. `closePortalUI` repone el splash
+     (no hay perfil completo); se abre el login encima y se le saca el splash, igual que hace
+     `splashIngresar`. Si esta cédula todavía no tiene contraseña, «No tengo contraseña» lo manda
+     al alta por el código, donde la crea. */
+  closePortalUI();
+  if (lgnAbrir(null, a.empresa, a.cedula)){
+    try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+  }
+}
+
 function dashUpdateGestFab(){
   const fab = document.getElementById('gestFab'); if (!fab) return;
   if (!DASH || DASH.tabs.indexOf('gestiones') < 0){ fab.style.display = 'none'; return; }
@@ -26580,15 +26706,20 @@ function sesPersonaToken(perfil){
 }
 
 var _lgnPendiente;      // qué hacer cuando el login salga bien
+/* P166 · la empresa con la que se ABRIÓ el login. `lgnEntrar` la manda tal cual: en un dispositivo
+   nuevo no hay perfil del que recalcularla. `var` sin valor (R16). */
+var _lgnEmpresa;
 /* ⚠️ P121 · ABRE TAMBIÉN SIN PERFIL, que es el caso del REINGRESO. Hasta acá moría en la primera
    línea con un `return false` mudo: después de cerrar sesión no hay perfil, así que la pantalla de
    entrar no se podía abrir y no había forma de volver. Era la mitad del pedido del dueño y
    sencillamente no existía.
    Con perfil (el caso viejo: la sesión se venció estando adentro) la cédula viene puesta. Sin él,
    la empresa sale de la llave mínima y la cédula la escribe la persona. */
-function lgnAbrir(alEntrar){
+function lgnAbrir(alEntrar, empresa, cedula){
   const p = getProfile();
-  const emp = (p && p.empresa) || reingresoEmpresa();
+  /* P166 · la empresa EXPLÍCITA manda: viene del código del alta o del atajo de administrador, y
+     en un teléfono compartido vale más que el perfil incompleto de otra persona. */
+  const emp = (empresa && String(empresa).trim()) || (p && p.empresa) || reingresoEmpresa();
   if (!emp) return false;
   /* Los dos campos hacen falta para que «Entrar» sirva de algo: sin gateo el botón se veía verde
      con los dos vacíos y el servidor contestaba «Usuario o contraseña incorrecta» — un error que
@@ -26598,9 +26729,14 @@ function lgnAbrir(alEntrar){
   lgnPintarEmpresa(emp);
   const ced = document.getElementById('lgnCed');
   const pass = document.getElementById('lgnPass');
-  if (ced) ced.value = (p && p.cedula) || '';
+  if (ced) ced.value = (cedula && String(cedula).trim()) || (p && p.cedula) || '';
   if (pass) pass.value = '';
   document.getElementById('lgnErr').textContent = '';
+  _lgnEmpresa = emp;
+  /* P166 · «No tengo contraseña» sólo para quien viene del alta o del reingreso: con perfil
+     completo y sesión vencida, el código no es la salida (`miClaveTocar` ya la tiene). */
+  const sinClave = document.getElementById('lgnSinClave');
+  if (sinClave) sinClave.style.display = perfilCompleto(p) ? 'none' : '';
   document.getElementById('loginOv').classList.add('show');
   syncScrollLock(); navPush();
   /* El foco va a la contraseña y no a la cédula CUANDO la cédula ya viene puesta desde el perfil:
@@ -26668,6 +26804,13 @@ function lgnCerrar(sinReponer){
      arreglo. Medido con discriminador: con la línea, `elementFromPoint` del centro devuelve
      `splashOv`; sin ella, ninguno. */
   if (sinReponer) return;
+  /* P166 · si el login se abrió ENCIMA del alta o del formulario de datos —«Ya me había
+     registrado», o el «¿eres tú?» de alguien que ya tiene contraseña—, «Ahora no» vuelve a esa
+     pantalla, que sigue ahí debajo. Reponer el splash la taparía: P135 al revés. */
+  try {
+    const debajo = ['nominaOv','setup'].some(id => { const e = document.getElementById(id); return e && e.classList.contains('show'); });
+    if (debajo) return;
+  } catch(e){}
   try { if (!perfilCompleto(getProfile())) splashMostrar(); } catch(e){}
 }
 function lgnEntrar(btn){
@@ -26684,7 +26827,7 @@ function lgnEntrar(btn){
      ni intentar. Relajar `login` para que acepte empresa vacía habría sido la otra salida, y es la
      que NO se tomó: con empresa vacía la búsqueda de credenciales no filtra y se vuelve un barrido
      global, más un canal de tiempo por cada candidata. */
-  const empresaLogin = (p && p.empresa) || reingresoEmpresa();
+  const empresaLogin = _lgnEmpresa || (p && p.empresa) || reingresoEmpresa();   // P166 · la del login abierto
   const cuerpo = { action:'login', empresa: empresaLogin, cedula: cedula, pass: pass,
                    dispositivoId: dispositivoId(), recordar: '1' };
   conBloqueo('#loginOv .sheet',
@@ -26755,7 +26898,16 @@ function lgnEntrar(btn){
          era falso. Esa función sólo puede pedir la cédula, y con el perfil incompleto la persona
          quedaba en un BUCLE — splash → Ingresar → login → contraseña correcta → splash otra vez,
          sin un solo mensaje. Medido tres veces seguidas. */
-      if (perfilCompleto(getProfile())) avanzarAlta();
+      /* P166 · entró con contraseña desde el alta o el reingreso: lo que quedó debajo (la nómina,
+         el formulario) se cierra, y el progreso del alta se limpia — ya entró. */
+      try { nominaCerrar(); } catch(e){}
+      try { altaProgresoLimpiar(); } catch(e){}
+      /* Y la pantalla «Crear mi contraseña», si el login se abrió desde su «ya tienes»: entró con
+         la que tiene, así que se cierra y no se le vuelve a ofrecer crearla. */
+      try { document.getElementById('claveOv').classList.remove('show'); clvMarcarOfrecida(); } catch(e){}
+      /* `closeSetup` sólo en la rama que NO lo va a reabrir: en la otra, `openSetup(false)` lo
+         repinta con lo que falta. */
+      if (perfilCompleto(getProfile())){ try { closeSetup(); } catch(e){} avanzarAlta(); }
       else openSetup(false);
       showToast(t('lgn_listo'));
       if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
@@ -26766,6 +26918,33 @@ function lgnEntrar(btn){
 /* Olvidó la contraseña. No hay recuperación automática y no puede haberla: el servidor guarda un
    hash, así que nadie —tampoco nosotros— puede devolverle la que tenía. Lo honesto es decirlo y
    dar el camino real, que es que su supervisor o el servicio médico se la reinicie. */
+/* ══ P166 · EL REINGRESO CON LA LÓGICA DE FRANCO: «se ingresa con código; la contraseña es para volver
+   a entrar». «Ya me había registrado» abre el LOGIN (cédula + contraseña) y no «Recuperar mis
+   datos», que devolvía nombre, teléfono y correo con sólo la cédula. La empresa sale de donde ya
+   se sabe —el código que la persona escribió (`NOM.empresa`), el perfil, o la llave de reingreso—;
+   si no se sabe, se le dice que escriba primero el código: sin empresa el servidor no puede
+   buscar la credencial. */
+function lgnAbrirDesdeAlta(){
+  const p = getProfile();
+  const emp = (typeof NOM !== 'undefined' && NOM && NOM.empresa) || (p && p.empresa) || reingresoEmpresa();
+  const ced = (typeof NOM !== 'undefined' && NOM && NOM.cedula) || (p && p.cedula) || '';
+  if (!emp){
+    const err = nominaEl('nomCodErr') || nominaEl('nomCedErr');
+    if (err) err.textContent = t('lgn_sin_empresa');
+    return false;
+  }
+  return lgnAbrir(null, emp, ced);
+}
+/* Quien nunca creó contraseña no tiene nada que escribir acá: vuelve por el código de su empresa,
+   que es el mismo para todos y con su cédula en la nómina le repone todo. Si el alta está abierta
+   debajo se vuelve a su primer paso; si no, se abre desde el principio. */
+function lgnSinClave(){
+  lgnCerrar(true);
+  const nom = document.getElementById('nominaOv');
+  if (nom && nom.classList.contains('show')){ nominaPasoCodigoInicial(); return; }
+  try { closeSetup(); } catch(e){}
+  nominaAbrir();
+}
 function lgnOlvide(){
   const err = document.getElementById('lgnErr');
   if (err) err.textContent = t('lgn_olvide_d');
@@ -26939,6 +27118,13 @@ function clvGuardar(btn){
          camino de `clvCodigoPreparar`, que puede no haberlo revelado si el perfil guardado de la
          empresa está viejo o no existe. */
       if (d && (d.motivo === 'codigo_invalido' || d.motivo === 'codigo_frenado')) clvCodigoRevelar();
+      /* P166 · «ya tienes contraseña» no puede ser un callejón: se abre el login con lo que ya se
+         sabe. Antes sólo se pintaba el texto y no había dónde entrar. */
+      if (d && d.motivo === 'ya_tiene'){
+        const pc = getProfile() || {};
+        lgnAbrir(null, pc.empresa, pc.cedula);
+        return;
+      }
       /* Se muestra el mensaje del SERVIDOR cuando lo hay: es el que sabe por qué —clave débil,
          cédula que no está en la lista, código equivocado— y traducirlo acá sería duplicar reglas
          en dos lugares, que es como terminan discrepando. */
@@ -28626,6 +28812,8 @@ function recuperarConfirmar(){
         err.textContent = t(d.motivo === 'codigo_frenado' ? 'nom_codigo_frenado' : 'nom_codigo_malo');
         return;
       }
+      /* P166 · el servidor ya no responde a esta acción: se abre el login con lo que hay. */
+      if (d && d.motivo === 'camino_cerrado'){ recuperarCerrar(); lgnAbrir(null, empresa, cedula); return; }
       if (!d || !d.ok || !d.perfil){ err.textContent = (d && d.error) || t('rec_no_encontrado'); return; }
       const q = d.perfil;
       const prev = getProfile() || {};
