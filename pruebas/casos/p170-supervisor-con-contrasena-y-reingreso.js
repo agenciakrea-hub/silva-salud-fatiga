@@ -211,3 +211,29 @@ PRUEBAS.caso('⚠️ los textos nuevos están en los dos idiomas (R14)', () => {
     PRUEBAS.falso(/\bvos\b|\bvení\b|\btenés\b/i.test(t('rol_of_lead_alta', { rol:'x' })), 'R1 · español neutro');
   } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
 });
+
+/* ── P170b · el rol sin responder se vuelve a pedir; el atajo del admin no ─────────────────── */
+
+PRUEBAS.caso('🔴 P170b · entrar con contraseña propia (login normal) con rol propuesto sin responder SÍ pide la de empresa · el atajo del admin no', () => {
+  /* Las dos puertas aplican la misma entrada (`lgnAplicarEntrada`); la diferencia es la bandera
+     `desdeAdmin`. Se prueba el contrato de la función con las dos banderas, y que el atajo real
+     pasa `true` (por el fuente: el camino entero lo mide p166). */
+  const prev = p170Guardar();
+  try {
+    const d = { ok:true, sesion:'tok', persona: Object.assign({}, P170_PERFIL, { rol:'supervisor', rolOrigen:'nomina' }), consentimientos:{} };
+    const cons = { items:{} }; CONSENTIMIENTOS.forEach(c => { cons.items[c.k] = c.v; });
+    const base = () => { localStorage.clear(); localStorage.setItem(K_CONSENT, JSON.stringify(cons)); localStorage.setItem(K_TEXTO, '1'); };
+    base();
+    lgnAplicarEntrada(d, P170_PERFIL.cedula, P170_PERFIL.empresa);            // login normal
+    PRUEBAS.cierto(p170Abierto('rolOv'), '🔴 por el login normal, con rol propuesto y sin responder, se pide la contraseña de empresa');
+    PRUEBAS.cierto(ROL_OF_OBLIGATORIO === true, 'obligatoria');
+    rolOfrecerCerrar();
+    base();
+    lgnAplicarEntrada(d, P170_PERFIL.cedula, P170_PERFIL.empresa, true);      // desde admin
+    PRUEBAS.falso(p170Abierto('rolOv'), '🔴 EL DISCRIMINADOR · desde el atajo del administrador no se pide');
+    PRUEBAS.cierto(rolYaOfrecido(), 'y queda marcada en este dispositivo');
+    const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+    const i = fuente.indexOf('function admAtajoIr(');
+    PRUEBAS.cierto(i > 0 && /lgnAplicarEntrada\([^;]*,\s*true\)/.test(fuente.slice(i, i + 6000)), '⚠️ y `admAtajoIr` de verdad pasa la bandera');
+  } finally { p170Restaurar(prev); try { closeSetup(); } catch(e){} }
+});

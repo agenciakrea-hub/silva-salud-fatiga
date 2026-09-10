@@ -300,6 +300,7 @@ PRUEBAS.caso('🔴 sin perfil, el atajo entra DIRECTO con la credencial de admin
      escribe el perfil en el `.then` del fetch, 120 ms después — un `finally` que corre antes deja
      a «Rafael Prueba» en el localStorage de TODA la suite (pasó: 11 casos de P100 en rojo). */
   const oPerfil = localStorage.getItem(K_PROFILE), oSes = localStorage.getItem(K_SES_PERSONA);
+  const oRolOf = localStorage.getItem(K_ROL_OFRECIDO), oObl = ROL_OF_OBLIGATORIO;
   const splash = document.getElementById('splashOv'), sTenia = splash.classList.contains('show');
   const oFetch = window.fetch; let cuerpo = null;
   const restaurar = () => {
@@ -308,13 +309,18 @@ PRUEBAS.caso('🔴 sin perfil, el atajo entra DIRECTO con la credencial de admin
     ['consent','textoOverlay','claveOv','rolOv','setup','nominaOv','portalOverlay','admAtajosOv'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.remove('show'); });
     if (oPerfil == null) localStorage.removeItem(K_PROFILE); else localStorage.setItem(K_PROFILE, oPerfil);
     if (oSes == null) localStorage.removeItem(K_SES_PERSONA); else localStorage.setItem(K_SES_PERSONA, oSes);
+    if (oRolOf == null) localStorage.removeItem(K_ROL_OFRECIDO); else localStorage.setItem(K_ROL_OFRECIDO, oRolOf);
+    ROL_OF_OBLIGATORIO = oObl;
     try { ALTA_EN_CURSO = false; _misSincronizando = false; syncScrollLock(); } catch (e) {}
   };
+  /* P170b · la persona viene con rol propuesto por la nómina (Rafael es supervisor en la de Silva):
+     por el atajo del admin NO se le pide la contraseña de empresa, y la cédula queda marcada en
+     este dispositivo para que el arranque tampoco la pida. */
   window.fetch = function (u, o) { try { const b = JSON.parse(o.body); if (b.action === 'admin_entrar_como') cuerpo = b; } catch (e) {}
     return Promise.resolve({ json: () => Promise.resolve(cuerpo && cuerpo.action === 'admin_entrar_como'
-      ? { ok:true, sesion:'sst_prueba', persona:{ nombre:'Rafael Prueba', cedula:'87654321', empresa:'Aeroambulancias Silva', departamento:'Op', cargo:'Presidente', sexo:'M', edad:'50', telefono:'0414', email:'r@s.com', esPiloto:true, id_piloto:'R1' }, consentimientos:{} }
+      ? { ok:true, sesion:'sst_prueba', persona:{ nombre:'Rafael Prueba', cedula:'87654321', empresa:'Aeroambulancias Silva', departamento:'Op', cargo:'Presidente', sexo:'M', edad:'50', telefono:'0414', email:'r@s.com', esPiloto:true, id_piloto:'R1', rol:'supervisor', rolOrigen:'nomina' }, consentimientos:{} }
       : { ok:false }) }); };
-  localStorage.removeItem(K_PROFILE); localStorage.removeItem(K_SES_PERSONA);
+  localStorage.removeItem(K_PROFILE); localStorage.removeItem(K_SES_PERSONA); localStorage.removeItem(K_ROL_OFRECIDO);
   p166ConDash('admin', () => { admAtajosAbrir(); admAtajoIr(1); });
   return new Promise(r => setTimeout(r, 150)).then(() => {
     PRUEBAS.cierto(!!cuerpo && cuerpo.action === 'admin_entrar_como', '🔴 sale `admin_entrar_como`, no `login`');
@@ -323,6 +329,9 @@ PRUEBAS.caso('🔴 sin perfil, el atajo entra DIRECTO con la credencial de admin
     PRUEBAS.falso(document.getElementById('loginOv').classList.contains('show'), '🔴 no abre el login');
     PRUEBAS.igual((getProfile() || {}).nombre, 'Rafael Prueba', '🔴 y aplicó la persona que devolvió el servidor');
     PRUEBAS.cierto(!!localStorage.getItem(K_SES_PERSONA), 'con su sesión guardada');
+    PRUEBAS.igual((getProfile() || {}).rol, 'supervisor', 'precondición · el perfil trae el rol propuesto');
+    PRUEBAS.falso(document.getElementById('rolOv').classList.contains('show'), '🔴 P170b · y NO le pide la contraseña de empresa de Rafael: ya es admin');
+    PRUEBAS.cierto(rolYaOfrecido(), '⚠️ con la cédula marcada en este dispositivo, así el arranque tampoco la pide');
   }).finally(restaurar);
 });
 

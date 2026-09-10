@@ -7057,7 +7057,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.34';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.35';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -19255,7 +19255,7 @@ function admAtajoIr(i){
       if (!d || !d.ok){ showToast(tError(d && d.error) || t('lgn_mal')); return; }
       closePortalUI();
       try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
-      lgnAplicarEntrada(d, String(a.cedula || ''), a.empresa);
+      lgnAplicarEntrada(d, String(a.cedula || ''), a.empresa, true);   // P170b · desde admin
     })
     .catch(() => { showToast(t('sin_conexion_reintenta')); }));
 }
@@ -26894,7 +26894,15 @@ function avanzarAlta(){
      `_complete` se calcula AL ARRANCAR, antes de que este alta escriba nada. Sin él, a las siete
      personas de Helitec —ya registradas y que nunca pasaron por esta pantalla— les aparecería un
      formulario de contraseña al abrir la app, sin haber pedido nada. */
-  if (!_complete && !rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando()){
+  /* P170b · SIN `!_complete`, a propósito, y con decisión de Franco (2026-09-10): si la nómina
+     propuso un rol y la persona nunca lo respondió (ni activó ni pospuso), el arranque lo vuelve a
+     pedir aunque el perfil esté completo. Antes, quien cerraba la app en la pantalla obligatoria
+     volvía como empleado, con el panel sin activar — el agujero que dejaba P170. La guarda de las
+     siete personas de Helitec sigue valiendo por otra vía: su fila de la Nómina dice «Empleado»
+     (verificado con `volcar` el 2026-09-10), así que `rolPropuesto()` da vacío y `rolOfrecerAbrir`
+     no abre nada. Y quien entró por el atajo del administrador lleva la marca puesta desde
+     `lgnAplicarEntrada(…, desdeAdmin)`. */
+  if (!rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando()){
     if (rolOfrecerAbrir(true)) return;   // P170 · en el alta, sin «Ahora no»
   }
   /* 5 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
@@ -27066,7 +27074,7 @@ function lgnCerrar(sinReponer){
 /* ══ P166b · APLICAR UNA ENTRADA: lo que `login` y `admin_entrar_como` devuelven es lo mismo (sesión,
    persona, consentimientos), y lo que el cliente hace con eso también tiene que ser lo mismo. Un
    solo lugar. Antes vivía adentro de `lgnEntrar`; el atajo del administrador lo necesita igual. */
-function lgnAplicarEntrada(d, cedula, empresaLogin){
+function lgnAplicarEntrada(d, cedula, empresaLogin, desdeAdmin){
       /* Lo que se guarda es el TOKEN. La contraseña se usó acá una vez y no se guarda en ningún
          lado — si alguien la agrega "por si el token falla", vuelve el problema que S4 cerró. */
       try { localStorage.setItem(K_SES_PERSONA, JSON.stringify({
@@ -27136,6 +27144,11 @@ function lgnAplicarEntrada(d, cedula, empresaLogin){
       /* Y la pantalla «Crear mi contraseña», si el login se abrió desde su «ya tienes»: entró con
          la que tiene, así que se cierra y no se le vuelve a ofrecer crearla. */
       try { document.getElementById('claveOv').classList.remove('show'); clvMarcarOfrecida(); } catch(e){}
+      /* P170b · el ADMINISTRADOR que entra «como» alguien no pasa por la contraseña de empresa de
+         esa persona: Franco, «desde admin no hay necesidad de poner contraseña, pues ya es admin».
+         La marca es por cédula y vive en ESTE dispositivo (el del admin); el teléfono de la persona
+         no la tiene y a ella sí se le pide. */
+      if (desdeAdmin){ try { rolMarcarOfrecido(); } catch(e){} }
       /* `closeSetup` sólo en la rama que NO lo va a reabrir: en la otra, `openSetup(false)` lo
          repinta con lo que falta. */
       if (perfilCompleto(getProfile())){ try { closeSetup(); } catch(e){} avanzarAlta(); }

@@ -181,11 +181,18 @@ PRUEBAS.caso('⚠️ a quien YA tiene el rol activado no se le vuelve a ofrecer'
   } finally { p100Restaurar(prev3); }
 });
 
-PRUEBAS.caso('🔴 LA GUARDA !_complete · quien ya estaba registrado NO ve la pantalla', async () => {
-  /* ⚠️ ESTE CASO ARRANCA LA APP DE NUEVO, DOS VECES, EN UN IFRAME ANIDADO. Es la única forma
+PRUEBAS.caso('🔴 AL ARRANCAR · el rol propuesto y nunca respondido se vuelve a pedir; sin rol propuesto (Helitec) no aparece nada', async () => {
+  /* ⚠️ P170b (2026-09-10, decisión de Franco) · ESTE CASO CAMBIÓ DE SENTIDO. Antes vigilaba la
+     guarda `!_complete`: «a quien ya estaba registrado no le aparece nada». Esa guarda dejaba un
+     agujero: quien cerraba la app en la pantalla obligatoria de la contraseña de empresa volvía
+     como empleado, con el panel sin activar. Ahora el arranque vuelve a pedirla si la nómina
+     propuso un rol y nunca se respondió. La protección de las siete personas de Helitec sigue,
+     por otra vía: su fila de la Nómina dice «Empleado», así que su perfil no trae rol propuesto
+     y `rolOfrecerAbrir` no abre nada — es el discriminador 2 de acá abajo.
+
+     ⚠️ ESTE CASO ARRANCA LA APP DE NUEVO, TRES VECES, EN UN IFRAME ANIDADO. Es la única forma
      honesta de probarlo: `_complete` es `const` y se calcula UNA vez, al arrancar, así que dentro
-     de la app viva no se puede cambiar. Las dos corridas son idénticas salvo en una cosa —si el
-     perfil ya estaba completo AL ARRANCAR— y eso las convierte en su propio discriminador.
+     de la app viva no se puede cambiar. Las corridas son idénticas salvo en el perfil guardado.
 
      ⚠️ SE LE CAMBIAN DOS COSAS AL HTML, Y NINGUNA ES LA LÓGICA QUE SE PRUEBA:
      · el endpoint apunta a una ruta local muerta en vez de a producción. Sin esto, arrancar con un
@@ -233,41 +240,44 @@ PRUEBAS.caso('🔴 LA GUARDA !_complete · quien ya estaba registrado NO ve la p
   const leerComplete = cw => cw.eval('_complete');
 
   const prev = p100Guardar();
-  let yaRegistrado = null, recienDadoDeAlta = null;
+  let sinResponder = null, comoHelitec = null, yaRespondido = null;
+  const mirar = w => ({ complete: leerComplete(w),
+                        abierto: w.document.getElementById('rolOv').classList.contains('show'),
+                        obligatorio: w.eval('ROL_OF_OBLIGATORIO') === true,
+                        boton: (w.document.getElementById('rolSalirBtn') || {}).textContent });
   try {
-    /* 1 · YA REGISTRADO: el perfil está completo ANTES de arrancar, como en los teléfonos de
-           Helitec. `_complete` sale en true y el paso del rol no puede correr. */
+    /* 1 · YA REGISTRADO, con rol propuesto por la nómina y NUNCA respondido (cerró la app en la
+           pantalla obligatoria). `_complete` sale en true y aun así se le pide. */
     const lsA = Object.assign({}, base); lsA[K_PROFILE] = JSON.stringify(perfil);
     const a = await arrancar(lsA);
-    try {
-      const w = a.contentWindow;
-      yaRegistrado = { complete: leerComplete(w),
-                       abierto: w.document.getElementById('rolOv').classList.contains('show') };
-    } finally { a.remove(); }
+    try { sinResponder = mirar(a.contentWindow); } finally { a.remove(); }
 
-    /* 2 · RECIÉN DADO DE ALTA: arranca SIN perfil, así que `_complete` es false; el alta escribe el
-           perfil y vuelve a preguntar. Es la secuencia real, y el discriminador del caso 1. */
-    const b = await arrancar(Object.assign({}, base));
-    try {
-      const w = b.contentWindow;
-      w.setProfile(perfil);
-      w.avanzarAlta();
-      await p100Tick(12);
-      recienDadoDeAlta = { complete: leerComplete(w),
-                           abierto: w.document.getElementById('rolOv').classList.contains('show') };
-    } finally { b.remove(); }
+    /* 2 · COMO LOS DE HELITEC: perfil completo SIN rol propuesto (su fila de la Nómina dice
+           «Empleado»). Es la guarda que importa: no les puede aparecer nada. */
+    const lsB = Object.assign({}, base); lsB[K_PROFILE] = JSON.stringify(P100_PERFIL);
+    const b = await arrancar(lsB);
+    try { comoHelitec = mirar(b.contentWindow); } finally { b.remove(); }
+
+    /* 3 · YA RESPONDIDO: rol propuesto pero la cédula está marcada como ofrecida (pospuso desde
+           Más, o entró por el atajo del administrador). Tampoco se interrumpe. */
+    const marcado = {}; marcado[dashNorm(P100_CED)] = true;
+    const lsC = Object.assign({}, base); lsC[K_PROFILE] = JSON.stringify(perfil);
+    lsC[K_ROL_OFRECIDO] = JSON.stringify(marcado);
+    const c = await arrancar(lsC);
+    try { yaRespondido = mirar(c.contentWindow); } finally { c.remove(); }
   } finally { p100Restaurar(prev); }
 
-  PRUEBAS.cierto(yaRegistrado.complete,
-    'precondición · arrancando con el perfil ya completo, `_complete` tiene que ser true');
-  PRUEBAS.falso(yaRegistrado.abierto,
-    '🔴 A QUIEN YA ESTABA REGISTRADO NO LE APARECE NADA · sin esta guarda, a las siete personas ' +
-    'de Helitec les saldría un formulario de contraseña al abrir la app sin haber pedido nada');
-  PRUEBAS.falso(recienDadoDeAlta.complete,
-    'precondición del discriminador · arrancando sin perfil, `_complete` es false');
-  PRUEBAS.cierto(recienDadoDeAlta.abierto,
-    '🔴 EL DISCRIMINADOR · el mismo arranque, el mismo perfil y el mismo rol: lo único distinto es ' +
-    'si ya estaba registrado. Si este no abriera, el de arriba estaría pasando por nada');
+  PRUEBAS.cierto(sinResponder.complete, 'precondición · arrancando con el perfil ya completo, `_complete` es true');
+  PRUEBAS.cierto(sinResponder.abierto,
+    '🔴 P170b · con rol propuesto y sin respuesta, el arranque VUELVE A PEDIR la contraseña de empresa · ' +
+    'antes entraba como empleado con el panel sin activar');
+  PRUEBAS.cierto(sinResponder.obligatorio, 'y es la pantalla obligatoria (sin «Ahora no»)');
+  PRUEBAS.cierto(comoHelitec.complete, 'precondición · el perfil sin rol también está completo');
+  PRUEBAS.falso(comoHelitec.abierto,
+    '🔴 EL DISCRIMINADOR · sin rol propuesto NO aparece nada · es lo que protege a las siete personas de Helitec ' +
+    '(su fila de la Nómina dice «Empleado», verificado el 2026-09-10)');
+  PRUEBAS.falso(yaRespondido.abierto,
+    '⚠️ y con la cédula marcada como ofrecida tampoco: quien pospuso desde Más o entró por el atajo del admin no se interrumpe');
 });
 
 PRUEBAS.caso('🔴 activar guarda la credencial y el flag · y el rol lo AUTORIZA la contraseña', async () => {
