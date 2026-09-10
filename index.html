@@ -6990,7 +6990,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.29';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.30';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -26792,15 +26792,29 @@ function clvAbrir(){
    el alta: NO se hace un pedido a la red para abrir una hoja — sin señal la pantalla tiene que
    abrirse igual (R7), y si el servidor termina exigiendo el código, `clvGuardar` revela el campo
    con el error. O sea: dos caminos para llegar al mismo lugar, y el segundo no depende de nada. */
+/* ⚠️ P164 · EL CÓDIGO QUE LA PERSONA YA ESCRIBIÓ, DE DONDE ESTÉ. Lo encontró el alta de prueba
+   contra producción: la persona escribía su código en la primera pantalla y, cuatro pantallas
+   después, «Crear mi contraseña» se lo pedía OTRA VEZ, vacío — y si seguía sin reescribirlo, el
+   servidor contestaba «El código de la empresa no es correcto», que es falso: no lo mandó.
+   La causa: `clvCodigoPreparar` y `clvGuardar` leían SOLAMENTE `altaProgresoCargar()`, y ese
+   almacén lo borra `nominaConfirmar()` al confirmar la identidad («el alta terminó: no queda
+   código guardado»). Mientras tanto `NOM.codigo` lo tenía en memoria todo el tiempo y nadie lo
+   miraba. Dos funciones que asumen un estado compartido con vidas distintas.
+   Medido en HELITEC: 0 de 7 tienen contraseña, o sea que las 7 iban a pasar por acá.
+   Orden: lo que hay en memoria de ESTA alta manda; el progreso guardado es el respaldo para
+   quien cerró la app y volvió. */
+function altaCodigoVigente(){
+  try { if (typeof NOM !== 'undefined' && NOM && NOM.codigo) return String(NOM.codigo).trim(); } catch(e){}
+  try { const g = altaProgresoCargar(); if (g && g.codigo) return String(g.codigo).trim(); } catch(e){}
+  return '';
+}
 function clvCodigoPreparar(){
   const campo = document.getElementById('clvCodigoCampo');
   const input = document.getElementById('clvCodigo');
   if (!campo || !input) return;
-  input.value = '';
-  /* Si el alta de esta persona pasó por el código y todavía está fresco, se prellena: no se le
-     pide dos veces algo que ya escribió. Es el mismo almacén que leía `clvGuardar`, sólo que ahora
-     su ausencia no deja a nadie trabado. */
-  try { const g = altaProgresoCargar(); if (g && g.codigo) input.value = g.codigo; } catch(e){}
+  /* Se prellena con el código que la persona ya escribió, venga de donde venga: no se le pide dos
+     veces algo que acaba de escribir. */
+  input.value = altaCodigoVigente();
   const perfil = empresaPerfilGuardado();
   const pide = !!(perfil && perfil.pideCodigo);
   campo.hidden = !pide;
@@ -26876,7 +26890,7 @@ function clvGuardar(btn){
      está terminando su alta ahora mismo. */
   const codManual = (document.getElementById('clvCodigo') || {}).value || '';
   if (codManual.trim()) cuerpo.codigo = codManual.trim();
-  else { const g = altaProgresoCargar(); if (g && g.codigo) cuerpo.codigo = g.codigo; }
+  else { const cv = altaCodigoVigente(); if (cv) cuerpo.codigo = cv; }   // P164 · memoria del alta, después el progreso
   /* ⚠️ `conBloqueo` NO ES DECORATIVO ACÁ, y me lo encontró la prueba de Q1, no yo. Sin él, mientras
      el pedido viaja la pantalla sigue viva: se puede tocar "Más tarde" y cerrarla, y la respuesta
      llega a una pantalla que ya no está — o peor, se toca "Crear" dos veces y salen dos altas.

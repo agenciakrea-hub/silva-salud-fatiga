@@ -73,11 +73,20 @@ PRUEBAS.caso('⚠️ el envío usa lo que la persona escribió, no sólo el prog
   const src = String(clvGuardar);
   PRUEBAS.alMenos(src.length, 200, 'guarda de medibilidad: se leyó la función');
   PRUEBAS.cierto(/clvCodigo/.test(src), '⚠️ lee el campo de la pantalla');
-  PRUEBAS.cierto(/codManual/.test(src) && /altaProgresoCargar/.test(src),
-    'y el progreso del alta queda de respaldo para quien está terminando su alta ahora');
-  const iManual = src.indexOf('codManual'), iProg = src.indexOf('altaProgresoCargar');
+  /* ⚠️ QUÉ CAMBIÓ EN P164 (2026-09-10): el respaldo ya no es `altaProgresoCargar()` a secas sino
+     `altaCodigoVigente()`, que mira PRIMERO la memoria del alta en curso (`NOM.codigo`) y después
+     el progreso guardado. El alta de prueba contra producción encontró que el progreso se borra
+     en `nominaConfirmar` —cuatro pantallas antes— así que el respaldo de L9 nunca llegaba a
+     esta pantalla durante un alta normal. Lo que este caso afirma es lo mismo: el campo manda y
+     hay un respaldo detrás. */
+  PRUEBAS.cierto(/codManual/.test(src) && /altaCodigoVigente/.test(src),
+    'y el código del alta queda de respaldo para quien está terminando su alta ahora');
+  const iManual = src.indexOf('codManual'), iProg = src.indexOf('altaCodigoVigente');
   PRUEBAS.cierto(iManual >= 0 && iProg > iManual,
-    '⚠️ y el campo tiene PRIORIDAD sobre el progreso · si no, un código viejo taparía al nuevo');
+    '⚠️ y el campo tiene PRIORIDAD sobre el respaldo · si no, un código viejo taparía al nuevo');
+  const srcV = String(altaCodigoVigente);
+  PRUEBAS.cierto(/altaProgresoCargar/.test(srcV) && srcV.indexOf('NOM') < srcV.indexOf('altaProgresoCargar'),
+    'y dentro del respaldo, la memoria de ESTA alta va antes que lo guardado de una anterior');
 });
 
 PRUEBAS.caso('⚠️ la respuesta de código inválido abre el campo · por el camino real', () => {

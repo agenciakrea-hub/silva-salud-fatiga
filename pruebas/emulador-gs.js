@@ -125,8 +125,21 @@ function __digestHex(bytes) {
   HojaFalsa.prototype.getRange = function (fila, col, nFilas, nCols) {
     return new RangoFalso(this, fila, col, nFilas || 1, nCols || 1);
   };
+  /* ⚠️ P164 · `appendRow` INTERPRETA LOS VALORES COMO SI SE TIPEARAN, y el emulador tiene que
+     mentir lo menos posible sobre eso. Verificado en producción el 2026-09-10: con toda la hoja en
+     formato `@`, el alta de prueba escribió el teléfono «+58 412 0000000» por `appendRow` y la
+     celda quedó en `#ERROR!`. Un texto que empieza con `=` o con `+` es una fórmula para Sheets, y
+     el formato de la celda NO lo detiene por este camino (por `setValues` sobre un rango con `@`
+     sí se respeta — así funciona el camino de actualización, y por eso nunca se había visto).
+     Sin modelarlo, la suite daba verde a un `appendRow` que en producción pierde el dato. Se
+     modela el mínimo que reproduce el defecto: `=` y `+` iniciales. Sheets también convierte
+     números y fechas, pero eso ya lo cubre R15 desde otro lado y modelarlo acá cambiaría el
+     comportamiento de decenas de casos que no tienen nada que ver. */
   HojaFalsa.prototype.appendRow = function (fila) {
-    this._datos.push(fila.slice());
+    this._datos.push(fila.map(v => {
+      const s = (typeof v === 'string') ? v : '';
+      return (/^\s*[=+]/.test(s)) ? '#ERROR!' : v;
+    }));
     return this;
   };
   /* Sheets siempre tiene filas de sobra debajo de los datos, y el endpoint las usa: aplica
