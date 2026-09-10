@@ -53,9 +53,14 @@ PRUEBAS.caso('⚠️ pero SÍ están donde tienen sentido — el discriminador',
   nominaPaso('cedsola');
   PRUEBAS.cierto(document.getElementById('nomYaReg').style.display !== 'none',
     '⚠️ «Ya me había registrado» aparece en la cédula · quien reinstala llega igual, un paso después');
+  /* ⚠️ QUÉ CAMBIÓ EN P165 (2026-09-10): «No estoy en la lista» ya no se muestra en NINGÚN paso.
+     Recorrido contra producción, llevaba al formulario libre y el servidor guardaba cualquier
+     empresa («Persona Ajena Prueba» en «Empresa Inventada SA»). Decisión de Franco: todo por
+     nómina (ADR 003). Lo que este caso sigue afirmando es lo que importa: los otros dos enlaces
+     no se esconden de más. */
   nominaPaso('empresa');
-  PRUEBAS.cierto(document.getElementById('nomNoEstoy').style.display !== 'none',
-    '⚠️ «No estoy en la lista» aparece donde hay una lista de la cual faltar');
+  PRUEBAS.cierto(document.getElementById('nomNoEstoy').style.display === 'none',
+    '⚠️ «No estoy en la lista» ya no aparece ni en el camino viejo · P165');
 });
 
 PRUEBAS.caso('🔴 «Mi empresa no me dio código» ya NO abre la lista de empresas', () => {

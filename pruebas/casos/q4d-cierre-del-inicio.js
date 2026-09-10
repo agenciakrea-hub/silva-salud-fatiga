@@ -185,7 +185,9 @@ PRUEBAS.caso('⚠️ los enlaces del pie del alta entran en UNA línea cada uno'
         const pie = document.querySelector('#nominaOv .nom-pie');
         if (!pie) return;
         const links = [...pie.querySelectorAll('.nom-link')].filter(e => e.getBoundingClientRect().height > 0);
-        if (links.length < 3) { malos.push(v.w + 'px: sólo ' + links.length + ' enlaces medibles'); return; }
+        /* P165 · «No estoy en la lista» ya no se muestra nunca: el pie de la cédula tiene DOS
+           enlaces, no tres. La guarda de medibilidad baja con él. */
+        if (links.length < 2) { malos.push(v.w + 'px: sólo ' + links.length + ' enlaces medibles'); return; }
         links.forEach(e => {
           const r = e.getBoundingClientRect();
           /* Más de 56 px de alto = el texto envolvió dentro de un control de 44. */

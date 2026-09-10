@@ -6990,7 +6990,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.30';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.31';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7507,6 +7507,7 @@ const I18N = {
       ts_sim_demo_pass:'La demostración pide una clave y esta sesión no la trae. Vuelve a entrar como administrador.',
       /* Las pistas del login REAL (no la demostración): cortas, sólo confirman qué vista se
          eligió. Antes vivían a mano dentro de `portalMode()` y no se traducían. */
+      reg_no_en_nomina:'Tu cédula todavía no está en la nómina de tu empresa. Pide a tu supervisor que te cargue; mientras tanto, lo que registres se guarda en este dispositivo.',
       pg_hint_sup:'Vista operativa: quiénes están en condiciones de trabajar. No muestra datos médicos ni resultados de los tests.',
       pg_hint_med:'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.',
       pg_hint_hseq:'Vista de dirección: indicadores agregados de la organización, trazabilidad y costos. No muestra datos clínicos ni valores individuales.',
@@ -9214,6 +9215,7 @@ const I18N = {
       mi_rol_d_si:'Active. Tap to open your company panel.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
       ts_sim_demo_pass:'The demo requires a password and this session does not carry one. Sign in as administrator again.',
+      reg_no_en_nomina:'Your ID is not in your company\u2019s roster yet. Ask your supervisor to add you; meanwhile, what you record is kept on this device.',
       pg_hint_sup:'Operational view: who is fit to work. It shows no medical data and no test results.',
       pg_hint_med:'Full medical service view: indicators, evolution, comments, reports and case management.',
       pg_hint_hseq:'Management view: aggregated indicators for the organization, traceability and costs. It shows no clinical data and no individual values.',
@@ -11279,7 +11281,14 @@ async function sincronizarRegistro(perfil){
                                   { dispositivo: dispositivo });   // L6 · ver la nota en empFlush
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })
       .then(r => r.json())
-      .then(d => { if (d && d.ok){ try { localStorage.setItem(K_REG_SIG, sig); } catch(e){} } })
+      .then(d => {
+        if (d && d.ok){ try { localStorage.setItem(K_REG_SIG, sig); } catch(e){} return; }
+        /* P165 · el servidor sólo acepta filas nuevas que estén en la nómina. Si esta persona no
+           está, se le dice — antes el rechazo era mudo y se reintentaba en cada apertura, y ella
+           usaba la app creyendo que estaba registrada. No se guarda la firma: cuando RRHH la
+           cargue, la próxima apertura la registra sola. */
+        if (d && d.motivo === 'no_en_nomina'){ try { showToast(t('reg_no_en_nomina')); } catch(e){} }
+      })
       .catch(() => {});   // si falla, se reintenta en la próxima apertura (la firma no se guarda)
   } catch(e){}
 }
@@ -14813,6 +14822,11 @@ function nominaRetomar(){
 function nominaCerrar(){ nominaEl('nominaOv').classList.remove('show'); syncScrollLock(); }
 // "No estoy en la lista" y todos los caminos de error terminan acá: el formulario de siempre.
 // Se limpia el progreso: quien elige cargar a mano ya no va a volver a este recorrido.
+/* ⚠️ P165 · INACTIVA. Era el destino de «No estoy en la lista»: el formulario de perfil con los
+   nueve campos libres. Se conserva por la misma regla que el camino viejo del alta (ADR 003: el
+   código se guarda, no se borra). Su único llamador es el botón `#nomNoEstoy`, que
+   `nominaPiePintar()` ya no muestra. Si alguien la vuelve a conectar, el servidor rechaza la fila
+   con `motivo:"no_en_nomina"` — la guarda de verdad está allá. */
 function nominaManual(){ altaProgresoLimpiar(); nominaCerrar(); openSetup(false); }
 /* Q4b · Del alta directo al gate del panel. No se limpia el progreso del alta a propósito: alguien
    puede tocar esto por curiosidad y querer volver a registrarse donde estaba. */
@@ -14843,8 +14857,16 @@ function nominaSoyGestor(){
 function nominaPiePintar(paso){
   const p = paso || NOM.paso;
   const _pie = {
-    /* En los pasos con lista, y además cuando el servidor ya dijo que no figura. */
-    nomNoEstoy:   (p === 'empresa' || p === 'persona' || (p === 'cedsola' && !!NOM.noFigura)),
+    /* ⚠️ P165 · «NO ESTOY EN LA LISTA» YA NO SE MUESTRA NUNCA. Decisión de Franco (2026-09-10),
+       con esta evidencia en la mano: recorrido contra producción, el enlace abría un formulario
+       con los nueve campos vacíos, la persona escribía la empresa que quisiera y el servidor lo
+       guardaba — quedó registrada «Persona Ajena Prueba» en «Empresa Inventada SA». Es el alta
+       libre que ADR 003 dice que no existe: «todo por nómina cargada». Quien de verdad no figura
+       ya tiene su respuesta en «Mi cédula no aparece»: pídele a tu supervisor que te cargue.
+       El botón y `nominaManual()` se conservan inactivos, con su motivo, igual que el camino
+       viejo del alta — no se borran. Y el servidor ya no acepta una fila nueva fuera de la nómina,
+       así que aunque alguien reviva este enlace, no entra. */
+    nomNoEstoy:   false,
     nomYaReg:     (p !== 'codigo'),
     nomSoyGestor: (p !== 'codigo')
   };
@@ -15143,9 +15165,12 @@ function nominaSinCodigo(){
      primera pantalla hasta el padrón. Es exactamente lo que marcó el jefe.
      Ahora dice a quién pedírselo. No se saca el botón: quien de verdad no lo tiene necesita saber
      qué hacer, y dejarlo sin respuesta lo deja golpeando una puerta muda.
-     ⚠️ NO TRABA A NADIE HOY: mientras `codigoRegistro` esté vacío el servidor acepta cualquier
-     código, así que el camino de arriba sigue funcionando para las siete personas. El día que se
-     cargue, este mensaje pasa a ser la respuesta correcta en vez de un atajo. */
+     ⚠️ (P165, 2026-09-10) EL PÁRRAFO QUE HABÍA ACÁ ERA FALSO desde P124: decía que «mientras
+     `codigoRegistro` esté vacío el servidor acepta cualquier código». Ya no: el primer paso del
+     alta es `codigo_empresa`, que sólo resuelve por `codigoRegistro`, y sin uno cargado rechaza
+     TODO código — verificado contra producción en P164. Hoy este mensaje es la respuesta correcta
+     y la única: sin código no hay alta (ADR 003), y quien ya estaba vuelve por «Ya me había
+     registrado». */
   const err = nominaEl('nomCodErr');
   if (err) err.textContent = t('nom_sin_codigo_d');
   /* ⚠️ P137 · Y ACÁ SE ABRE LA OTRA SALIDA. «No tengo código» son dos personas distintas: la que

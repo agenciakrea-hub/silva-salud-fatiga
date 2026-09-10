@@ -110,10 +110,18 @@ PRUEBAS.caso('🔴 cuando el servidor dice que la cédula no figura, aparece «N
     fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok:false }) });
     nominaCedulaBuscar();
     await new Promise(r => setTimeout(r, 60));
-    PRUEBAS.igual(p137Vis('nomNoEstoy'), true,
-      '⚠️ recién ahí aparece la salida · antes quedaba sin ninguna, con el enlace vivo pero inalcanzable');
+    /* ⚠️ QUÉ CAMBIÓ EN P165 (2026-09-10). Este caso afirmaba que, cuando el servidor decía que la
+       cédula no figura, aparecía «No estoy en la lista». Recorrido contra producción, ese enlace
+       abría el formulario libre y el servidor guardaba cualquier empresa. Decisión de Franco:
+       todo por nómina (ADR 003). La salida de quien no figura sigue existiendo y es OTRA: el texto
+       de «Mi cédula no aparece» (pídele a tu supervisor que te cargue), que se pinta acá mismo.
+       Lo que P137 defendía —que quien demuestra que necesita una salida la tenga— sigue en pie;
+       lo que cambió es que la salida no puede ser un alta sin nómina. */
+    PRUEBAS.cierto(NOM.noFigura === true, 'el servidor dijo que no figura y el estado lo registra');
+    PRUEBAS.igual(p137Vis('nomNoEstoy'), false,
+      '⚠️ y AUN ASÍ «No estoy en la lista» no aparece · P165: ese enlace era un alta sin nómina');
     PRUEBAS.cierto(document.getElementById('nomCedErr').textContent.length > 20,
-      'y con el motivo escrito, no sólo un enlace suelto');
+      'la salida es el motivo escrito: a quién pedirle que la cargue');
   } finally { fetchConReloj = prevFetch; p137Restaurar(previo); }
 });
 

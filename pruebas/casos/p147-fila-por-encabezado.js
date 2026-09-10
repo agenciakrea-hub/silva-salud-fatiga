@@ -29,7 +29,9 @@ function p147Env(fns, cab){
     'Accesos': [['Usuario','Contraseña','Rol','Empresas','Contraseña Médica','Contraseña HSEQ'],
                 ['helitec','claveA','supervisor','Consorcio HELITEC, Helitec','','']],
     'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad',
-                'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo']],
+                'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
+               /* P165 · una fila nueva de Registrados sólo entra por la nómina: Ana tiene que estar. */
+               ['Consorcio HELITEC','Ana Suárez','V-111','Operaciones','Piloto','F','34','','','Sí','','','4']],
     'Registrados Fatiga': [(cab || P147_CAB).slice()],
     'Credenciales': [['Empresa','Cedula','Usuario','Hash','Sal','Iteraciones','Algoritmo','Rol','Estado','Creada','UltimoAcceso']],
     'Config Empresa': [['Empresa','Clave','Valor']],

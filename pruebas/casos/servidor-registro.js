@@ -22,7 +22,15 @@ const CAB_REG = ['Fecha de registro', 'Última actualización', 'Nombre', 'Email
   'Pantalla', 'User-Agent'];
 
 function entornoRegistro(filas) {
-  return GS.crearEntorno({ 'Registrados Fatiga': [CAB_REG].concat(filas || []) });
+  /* ⚠️ P165 (2026-09-10) · UNA FILA NUEVA DE `Registrados Fatiga` SÓLO ENTRA POR LA NÓMINA.
+     Hasta hoy `accionRegistro` aceptaba cualquier cédula; este entorno no tenía Nómina porque no
+     hacía falta. Las cédulas que registran los casos van acá para que sigan midiendo lo que
+     miden — dedup, fechas, formato—, que no cambió. */
+  return GS.crearEntorno({
+    'Registrados Fatiga': [CAB_REG].concat(filas || []),
+    'Nómina': [['Empresa','Nombre y apellido','Cédula'],
+               ['Helitec','Persona Uno','11111111'], ['Helitec','Persona Dos','12345678'], ['Helitec','Persona Tres','22222222']]
+  });
 }
 function apiRegistro(env) {
   return GS.cargarGs(CTX.gs, env, ['accionRegistro']);

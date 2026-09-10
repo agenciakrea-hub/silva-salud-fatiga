@@ -275,8 +275,9 @@ PRUEBAS.caso('P124 · el rotulo de empresa no deja una franja vacia en el paso i
       '⚠️ y dice el nombre de la empresa · ' + franja.textContent);
 
     nominaPaso('empresa');
-    PRUEBAS.cierto(ne && ne.style.display !== 'none',
-      '⚠️ "No estoy en la lista" SI se ve al elegir empresa · ahi es donde tiene sentido');
+    /* P165 (2026-09-10) · ya no se ve en NINGÚN paso: era un alta sin nómina (ADR 003). */
+    PRUEBAS.cierto(ne && ne.style.display === 'none',
+      '⚠️ "No estoy en la lista" tampoco se ve al elegir empresa · P165 lo apagó del todo');
   } finally {
     NOM.empresa = NOMprev.empresa; NOM.perfil = NOMprev.perfil;
     try { nominaPaso(NOMprev.paso || 'codigo'); } catch (e) {}

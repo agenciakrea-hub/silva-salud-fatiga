@@ -34,7 +34,10 @@ function p134Env(fns, o){
                 ['cardon','claveB','supervisor','Cardón','','']],
     'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad',
                 'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
-               ['Consorcio HELITEC','Ana Suárez','V-111','Operaciones','Piloto','F','34','','','Sí','','','4']],
+               ['Consorcio HELITEC','Ana Suárez','V-111','Operaciones','Piloto','F','34','','','Sí','','','4'],
+               /* P165 · las otras cédulas que registran los casos de este archivo, para que sigan
+                  midiendo la canonización y no el rechazo por nómina. */
+               ['Consorcio HELITEC','Persona Registro','12345678','Operaciones','Piloto','M','40','','','Sí','','','3']],
     'Registrados Fatiga': [['Nota de la hoja','Fecha y hora','Nombre','Email','Cédula','ID Piloto',
       'Es piloto','Es supervisor','Empresa','Departamento','Cargo','Sexo','Edad','Teléfono',
       'Dispositivo','Modelo','Sistema','Navegador','Está instalado','Idioma','Zona','Pantalla','UA']],
@@ -108,14 +111,20 @@ PRUEBAS.caso('🔴 el REEMPLAZO: `accionRegistro` canoniza la empresa · es lo q
     '⚠️ se guarda la canónica · antes «helitec» y «Consorcio HELITEC» convivían como dos empresas');
 });
 
-PRUEBAS.caso('🔒 pero una empresa DESCONOCIDA entra igual — el discriminador', () => {
-  /* `nominaEmpresaCanon` devuelve el nombre tal cual si no conoce el alias. Si canonizar se
-     convirtiera en rechazar, un cliente nuevo no podría darse de alta. */
+PRUEBAS.caso('🔒 una empresa DESCONOCIDA ya NO entra como fila nueva · lo cambió P165', () => {
+  /* ⚠️ QUÉ CAMBIÓ, Y POR QUÉ ESTE CASO AFIRMA LO CONTRARIO DE LO QUE AFIRMABA. Decía: «si
+     canonizar se convirtiera en rechazar, un cliente nuevo no podría darse de alta». Y era cierto
+     para la CANONIZACIÓN, que sigue igual: `nominaEmpresaCanon` devuelve el nombre tal cual si no
+     lo conoce. Lo que cambió es la puerta de al lado: P165 (2026-09-10) recorrió el alta contra
+     producción y registró a «Persona Ajena Prueba» en «Empresa Inventada SA» — ese era el precio
+     de «lo desconocido entra». Decisión de Franco: todo por nómina (ADR 003). Un cliente nuevo
+     se da de alta cargando su nómina, no escribiendo su nombre en un formulario. */
   const api = p134Env(['accionRegistro']);
-  api.accionRegistro({ nombre:'Nueva Persona', cedula:'V-777', email:'n@n.com',
-                       empresa:'Empresa Que Recién Llega', dispositivoId:'d1' });
+  const r = JSON.parse(api.accionRegistro({ nombre:'Nueva Persona', cedula:'V-777', email:'n@n.com',
+                       empresa:'Empresa Que Recién Llega', dispositivoId:'d1' }).getContent());
+  PRUEBAS.igual(r.motivo, 'no_en_nomina', '🔒 sin nómina no hay fila nueva, se escriba lo que se escriba');
   const v = api.__env.__libro.getSheetByName('Registrados Fatiga').getDataRange().getValues();
-  PRUEBAS.igual(String(v[1][8]), 'Empresa Que Recién Llega', '🔒 el cliente nuevo se guarda como escribió');
+  PRUEBAS.falso(v.some(f => String(f[8]) === 'Empresa Que Recién Llega'), 'y nada quedó escrito');
 });
 
 /* ── EL CLIENTE ────────────────────────────────────────────────────────────────────────────── */

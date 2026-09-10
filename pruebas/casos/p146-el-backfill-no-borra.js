@@ -38,7 +38,10 @@ function p146Env(fns, filas){
     'Accesos': [['Usuario','Contraseña','Rol','Empresas','Contraseña Médica','Contraseña HSEQ'],
                 ['helitec','claveA','supervisor','Helitec','','']],
     'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad',
-                'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo']],
+                'Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
+               /* P165 · una fila nueva de Registrados sólo entra por la nómina: Ana tiene que estar. */
+               ['Helitec','Ana Suárez','V-111','Operaciones','Piloto','F','34','','','Sí','','','4'],
+               ['Helitec','Persona Nueva','V-999','Operaciones','Piloto','M','30','','','Sí','','','3']],
     'Registrados Fatiga': reg,
     'Credenciales': [['Empresa','Cedula','Usuario','Hash','Sal','Iteraciones','Algoritmo','Rol','Estado','Creada','UltimoAcceso']],
     'Config Empresa': [['Empresa','Clave','Valor']]

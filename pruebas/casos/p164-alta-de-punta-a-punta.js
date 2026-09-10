@@ -130,7 +130,7 @@ function p164EnvReg(){
   const env = GS.crearEntorno({
     'Registrados Fatiga': [CAB],
     'Accesos': [['Usuario','Contraseña','Rol','Empresas'], ['demo','x','supervisor','Empresa Demo']],
-    'Nómina': [['Empresa','Nombre y apellido','Cédula']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula'], ['Empresa Demo','Ana Prueba','77777777']],   // P165 · sin nómina no hay fila nueva
     'Config Empresa': [['Empresa','Clave','Valor']],
     'Opiniones': [['IdOpinion','Empresa','Mes','Texto']]
   });
