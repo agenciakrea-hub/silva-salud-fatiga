@@ -45,9 +45,15 @@ PRUEBAS.caso('🔒 la pantalla del código sigue teniendo DOS controles, no cinc
     ALTA_EN_CURSO = true;
     document.getElementById('nominaOv').classList.add('show');
     nominaPasoCodigoInicial();
-    const vistos = [...document.querySelectorAll('#nominaOv button')]
-      .filter(e => e.getBoundingClientRect().height > 0).length;
-    PRUEBAS.igual(vistos, 2,
+    /* ⚠️ QUÉ CAMBIÓ EN P166b (2026-09-10): Franco pidió una ✕ para volver al splash desde
+       cualquier paso del alta («en todo el proceso no hay un botón de cerrar»). No es una salida
+       del alta ni un atajo al padrón: cierra y vuelve a la portada (`altaAbandonar`). Se cuenta
+       aparte para que lo que este caso vigila —que no vuelvan las salidas como controles
+       permanentes— siga midiendo lo mismo. */
+    const botones = [...document.querySelectorAll('#nominaOv button')].filter(e => e.getBoundingClientRect().height > 0);
+    const cerrar = botones.filter(b => /altaAbandonar/.test(b.getAttribute('onclick') || '')).length;
+    PRUEBAS.igual(cerrar, 1, 'la ✕ de cerrar, una sola');
+    PRUEBAS.igual(botones.length - cerrar, 2,
       '🔒 «Continuar» y «Mi empresa no me dio código», nada más · antes eran cuatro');
     PRUEBAS.igual(p137Vis('nomCodSalidas'), false,
       '🔒 y la salida del que ya estaba registrado arranca CERRADA');

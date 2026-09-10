@@ -291,26 +291,39 @@ PRUEBAS.caso('⚠️ la hoja lista a cada persona, y un apóstrofo en el nombre 
   });
 });
 
-PRUEBAS.caso('🔴 sin perfil, el atajo abre el LOGIN con empresa y cédula puestas · nunca entra solo', () => {
-  const oPerfil = localStorage.getItem(K_PROFILE);
+PRUEBAS.caso('🔴 sin perfil, el atajo entra DIRECTO con la credencial de administrador · sin pedirle contraseña a la persona', () => {
+  /* ⚠️ QUÉ CAMBIÓ (P166b, 2026-09-10). La primera versión abría el login y le pedía la contraseña
+     a Rafael, que nunca creó una. Franco: «desde admin no hay necesidad de poner contraseña, pues
+     ya es admin». Ahora el atajo manda `admin_entrar_como` con la credencial de admin (dashAuth)
+     y aplica lo que vuelve con lo mismo que usa el login normal. R17: se espía el POST real.
+     ⚠️ LA RESTAURACIÓN VA AL FINAL DE LA PROMESA, no en un `finally` sincrónico: `lgnAplicarEntrada`
+     escribe el perfil en el `.then` del fetch, 120 ms después — un `finally` que corre antes deja
+     a «Rafael Prueba» en el localStorage de TODA la suite (pasó: 11 casos de P100 en rojo). */
+  const oPerfil = localStorage.getItem(K_PROFILE), oSes = localStorage.getItem(K_SES_PERSONA);
   const splash = document.getElementById('splashOv'), sTenia = splash.classList.contains('show');
-  try {
-    localStorage.removeItem(K_PROFILE);
-    p166ConDash('admin', () => {
-      admAtajosAbrir(); admAtajoIr(1);
-      PRUEBAS.cierto(document.getElementById('loginOv').classList.contains('show'), '🔴 abre el login');
-      PRUEBAS.igual(document.getElementById('lgnEmpresa').textContent, 'Aeroambulancias Silva', 'con la empresa del atajo');
-      PRUEBAS.igual(document.getElementById('lgnCed').value, '87654321', 'y la cédula del atajo');
-      PRUEBAS.igual(document.getElementById('lgnPass').value, '', '🔒 la contraseña la escribe él: sin puerta trasera');
-      PRUEBAS.falso(splash.classList.contains('show'), 'y el splash no queda encima');
-      PRUEBAS.falso(document.getElementById('portalOverlay').classList.contains('show'), 'el panel se cerró');
-    });
-  } finally {
-    document.getElementById('loginOv').classList.remove('show');
-    splash.classList.toggle('show', sTenia);
+  const oFetch = window.fetch; let cuerpo = null;
+  const restaurar = () => {
+    window.fetch = oFetch;
+    document.getElementById('loginOv').classList.remove('show'); splash.classList.toggle('show', sTenia);
+    ['consent','textoOverlay','claveOv','rolOv','setup','nominaOv','portalOverlay','admAtajosOv'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.remove('show'); });
     if (oPerfil == null) localStorage.removeItem(K_PROFILE); else localStorage.setItem(K_PROFILE, oPerfil);
-    try { syncScrollLock(); } catch (e) {}
-  }
+    if (oSes == null) localStorage.removeItem(K_SES_PERSONA); else localStorage.setItem(K_SES_PERSONA, oSes);
+    try { ALTA_EN_CURSO = false; _misSincronizando = false; syncScrollLock(); } catch (e) {}
+  };
+  window.fetch = function (u, o) { try { const b = JSON.parse(o.body); if (b.action === 'admin_entrar_como') cuerpo = b; } catch (e) {}
+    return Promise.resolve({ json: () => Promise.resolve(cuerpo && cuerpo.action === 'admin_entrar_como'
+      ? { ok:true, sesion:'sst_prueba', persona:{ nombre:'Rafael Prueba', cedula:'87654321', empresa:'Aeroambulancias Silva', departamento:'Op', cargo:'Presidente', sexo:'M', edad:'50', telefono:'0414', email:'r@s.com', esPiloto:true, id_piloto:'R1' }, consentimientos:{} }
+      : { ok:false }) }); };
+  localStorage.removeItem(K_PROFILE); localStorage.removeItem(K_SES_PERSONA);
+  p166ConDash('admin', () => { admAtajosAbrir(); admAtajoIr(1); });
+  return new Promise(r => setTimeout(r, 150)).then(() => {
+    PRUEBAS.cierto(!!cuerpo && cuerpo.action === 'admin_entrar_como', '🔴 sale `admin_entrar_como`, no `login`');
+    PRUEBAS.igual(cuerpo && cuerpo.cedula, '87654321', 'con la cédula del atajo');
+    PRUEBAS.cierto(!!(cuerpo && cuerpo.usuario === '*' && cuerpo.pass), '🔒 y con la credencial de ADMIN (dashAuth), no una contraseña de la persona');
+    PRUEBAS.falso(document.getElementById('loginOv').classList.contains('show'), '🔴 no abre el login');
+    PRUEBAS.igual((getProfile() || {}).nombre, 'Rafael Prueba', '🔴 y aplicó la persona que devolvió el servidor');
+    PRUEBAS.cierto(!!localStorage.getItem(K_SES_PERSONA), 'con su sesión guardada');
+  }).finally(restaurar);
 });
 
 PRUEBAS.caso('🔒 adentro como OTRA persona, el atajo no mezcla perfiles: pide cerrar sesión', () => {

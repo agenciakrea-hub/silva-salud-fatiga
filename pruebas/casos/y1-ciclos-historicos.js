@@ -208,8 +208,11 @@ PRUEBAS.caso('⚠️ el endpoint le manda al empleado SUS eventos del ciclo', ()
   const fuente = CTX.gs || '';
   if (!fuente) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
   const cuerpo = (fuente.match(/function accionEmpleado\(p\)[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.cierto(/leerOperacional\(\s*30\s*\)/.test(cuerpo),
-    'la respuesta del empleado tiene que traer sus eventos operacionales');
+  /* ⚠️ QUÉ CAMBIÓ EN P167 (2026-09-10): el 30 dejó de estar escrito a mano — `dias` viene del
+     cliente cuando la persona pide su historial completo, con tope 400 y 30 por defecto. Lo que
+     este caso afirma es lo mismo: la respuesta trae sus eventos operacionales. */
+  PRUEBAS.cierto(/leerOperacional\(\s*diasOp\s*\)/.test(cuerpo) && /\|\| 30/.test(cuerpo),
+    'la respuesta del empleado tiene que traer sus eventos operacionales (30 días por defecto)');
   PRUEBAS.cierto(/leerOperacional\(30\)\.filter\(esMio\)/.test(cuerpo.replace(/\s/g, '')
       .replace('leerOperacional(30).filter(esMio)', 'leerOperacional(30).filter(esMio)')) ||
     /\.filter\(esMio\)/.test(cuerpo),

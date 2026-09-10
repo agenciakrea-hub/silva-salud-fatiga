@@ -1114,6 +1114,10 @@
      Regla general: no agrandar áreas táctiles con un `::after` absoluto si el host puede quedar
      estático por otra regla. */
   .portal-x { position: absolute; top: 1rem; right: 1rem; width: 44px; height: 44px; border: none; border-radius: 50%; background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; z-index: 3; font-size: .85rem; }
+  /* P166b · la ✕ del alta: `.sheet` a secas no es `position:relative` (sólo `.sheet.portal`), y sin
+     esto la ✕ se posicionaría contra el overlay entero. El título deja lugar a la derecha. */
+  #nominaOv .sheet { position: relative; }
+  #nominaOv .sheet > h2 { padding-right: 3.2rem; }
   .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
   .stats-entry .ic { width: 42px; height: 42px; border-radius: 12px; background: var(--sem-azul-bg); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
@@ -4890,6 +4894,20 @@
      que mantener en los dos temas (R13). */
   .cic-mio-off { opacity: .62; }
   .cic-mio-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .5rem; }
+  /* P167 · el historial de mis ciclos. Sobrio, plegado; ni un color a mano (R13). */
+  .cic-hist { margin-top: .9rem; border: 1px solid var(--linea); border-radius: 14px; padding: .2rem .9rem .8rem; background: var(--card); }
+  .cic-hist-sum { cursor: pointer; font-weight: 800; font-size: .88rem; color: var(--text); padding: .7rem 0; list-style: none; }
+  .cic-hist-sum::-webkit-details-marker { display: none; }
+  .cic-hist-sum::before { content: '›'; display: inline-block; margin-right: .5rem; transition: transform .2s; color: var(--text-muted); }
+  .cic-hist[open] > .cic-hist-sum::before { transform: rotate(90deg); }
+  .cic-hist-lead { font-size: .76rem; color: var(--text-muted); line-height: 1.45; margin: 0 0 .7rem; }
+  .cic-hist-dia { border-top: 1px solid var(--linea-2); padding: .6rem 0; }
+  .cic-hist-hoy { background: var(--chip-bg); margin: 0 -.9rem; padding: .6rem .9rem; border-radius: 10px; border-top: none; }
+  .cic-hist-f { font-weight: 800; font-size: .82rem; color: var(--text); margin-bottom: .3rem; font-variant-numeric: tabular-nums; }
+  .cic-hist-ev { display: flex; justify-content: space-between; font-size: .82rem; color: var(--text-soft); padding: .12rem 0; }
+  .cic-hist-h { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
+  .cic-hist-dur { font-size: .76rem; color: var(--text-muted); margin-top: .3rem; }
+  .cic-hist-mas { margin-top: .8rem; width: 100%; min-height: 44px; padding: .8rem; border: 1.5px solid var(--linea); border-radius: 12px; background: var(--card); color: var(--text); font-family: inherit; font-weight: 700; font-size: .84rem; cursor: pointer; }
   .cic-mio-linea { background: var(--card); border: 1px solid var(--sup-borde); border-radius: var(--radius);   /* M5: era 14px a mano */
     padding: .85rem .9rem; }
   .cic-mio-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; }
@@ -6156,6 +6174,11 @@
      quien no esté cargado, y también es lo que se ve después, ya completo, para revisar y guardar. -->
 <div class="overlay" id="nominaOv">
   <div class="sheet">
+    <!-- P166b · Franco: «en paso 1 de 6 y en todo el proceso no hay un botón de cerrar para ir al
+         splash inicio». Es la misma ✕ del portal; `altaAbandonar()` ya sabe cerrar cada pantalla
+         del alta, restaurar el perfil que había y reponer el splash. No es una puerta para saltear
+         el código: cierra y vuelve a la portada, nada más. -->
+    <button class="portal-x" onclick="altaAbandonar()" aria-label="Cerrar" data-i18n-attr="aria-label:cerrar">✕</button>
     <h2 id="nomTitulo"></h2>
     <p class="lead" id="nomLead"></p>
 
@@ -6956,7 +6979,7 @@
 <div class="overlay" id="admAtajosOv">
   <div class="sheet adm-atajos-sheet">
     <h2 data-i18n="adm_ir_inicio">Ir al inicio</h2>
-    <p class="adm-atajos-lead" data-i18n="adm_atajos_lead">Abre la app de inicio como una de estas personas. Se pide su contraseña; la primera vez, entra con el código de la empresa y créala.</p>
+    <p class="adm-atajos-lead" data-i18n="adm_atajos_lead">Abre la app de inicio como una de estas personas, con tu sesión de administrador. No se pide su contraseña.</p>
     <div id="admAtajosLista"></div>
     <button type="button" class="cancel-btn" onclick="admAtajosCerrar()" data-i18n="cancelar">Cancelar</button>
   </div>
@@ -7028,7 +7051,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.32';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.33';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7586,9 +7609,10 @@ const I18N = {
       adm_abrir_doc:'Abrir documentación', adm_salir:'Cerrar sesión de administrador',
       /* P166 · el flotante del administrador */
       adm_ir_inicio:'Ir al inicio',
-      adm_atajos_lead:'Abre la app de inicio como una de estas personas. Se pide su contraseña; la primera vez, entra con el código de la empresa y créala.',
+      adm_atajos_lead:'Abre la app de inicio como una de estas personas, con tu sesión de administrador. No se pide su contraseña.',
       adm_entrar_como:'Entrar como {nombre}',
       adm_atajo_otra:'Ahora mismo estás como {nombre}. Cierra esa sesión primero y vuelve a tocar el atajo.',
+      adm_atajo_entrando:'Entrando como {nombre}…',
       pie_sms:'Sistema SMS de Gestión de Fatiga & IA EVA Virtual',
       pvt_resultado:'Resultado', listo:'Listo', recomendado:'(recomendado)', editar:'Editar',
       // ── Ciclo operativo (C1). Los tramos, no los eventos: los eventos van por sector. ──
@@ -7814,6 +7838,12 @@ const I18N = {
       cic_full_abrir:'Ver en pantalla completa', cic_full_ant:'Persona anterior', cic_full_sig:'Persona siguiente',
       cic_no_inicio:'Todavía no inició su ciclo', cic_cerrado:'Ciclo cerrado', cic_ciclo_lbl:'ciclo',
       cic_mi_ciclo:'Tu ciclo de hoy',
+      /* P167 · el historial */
+      cic_hist_titulo:'Historial de tus ciclos ({n})',
+      cic_hist_lead:'Cada día, los botones que tocaste y a qué hora. El más reciente arriba.',
+      cic_hist_vacio:'Todavía no hay ciclos guardados. Aparecen aquí cuando tocas los botones de arriba.',
+      cic_hist_hoy:'hoy', cic_hist_dur:'Duración del ciclo: {h} h {m} min',
+      cic_hist_todo:'Ver todo el historial',
       cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando acá.',
       rep_grupo_agregado:'Empresa (grupo agregado)',
       // ── F1 · Aptitud: panel de equipo, ficha y leyenda ──
@@ -9295,9 +9325,10 @@ const I18N = {
       adm_doc_d:'The logic behind every decision, explained. The tables are generated from the values the app actually uses, so they cannot go out of date.',
       adm_abrir_doc:'Open documentation', adm_salir:'Sign out of administrator',
       adm_ir_inicio:'Go to home',
-      adm_atajos_lead:'Open the home app as one of these people. Their password is required; the first time, sign in with the company code and create it.',
+      adm_atajos_lead:'Open the home app as one of these people, using your administrator session. Their password is not required.',
       adm_entrar_como:'Sign in as {nombre}',
       adm_atajo_otra:'You are currently signed in as {nombre}. Sign out first, then tap the shortcut again.',
+      adm_atajo_entrando:'Signing in as {nombre}…',
       pie_sms:'Fatigue Management SMS & EVA Virtual AI',
       pvt_resultado:'Result', listo:'Done', recomendado:'(recommended)', editar:'Edit',
       // ── Operational cycle (C1) ──
@@ -9546,6 +9577,11 @@ const I18N = {
       cic_full_abrir:'View full screen', cic_full_ant:'Previous person', cic_full_sig:'Next person',
       cic_no_inicio:'Has not started their cycle yet', cic_cerrado:'Cycle closed', cic_ciclo_lbl:'cycle',
       cic_mi_ciclo:'Your cycle today',
+      cic_hist_titulo:'Your cycle history ({n})',
+      cic_hist_lead:'For each day, the buttons you tapped and at what time. Most recent first.',
+      cic_hist_vacio:'No cycles saved yet. They show up here when you tap the buttons above.',
+      cic_hist_hoy:'today', cic_hist_dur:'Cycle length: {h} h {m} min',
+      cic_hist_todo:'See the full history',
       cic_mi_vacio:'You have not logged anything today. As you tap the buttons above, each stage fills in here.',
       rep_grupo_agregado:'Company (aggregated group)',
       // ── F1 · Fitness: team panel, record and legend ──
@@ -12694,6 +12730,63 @@ function cicloMiBloque(){
   '</div>';
   return html + '</div>';
 }
+/* ══ P167 · EL HISTORIAL DE MIS CICLOS ══════════════════════════════════════════════════════════
+   Franco: «uno no sólo podría ver la data operacional actual y el gráfico, sino ver además las
+   viejas datas operacionales… no se entiende cuándo le dio a cada botón en el histórico». Hasta
+   acá el inicio mostraba SÓLO el ciclo de hoy; los ciclos anteriores estaban en el teléfono y en
+   el servidor y no se veían en ninguna pantalla de la persona.
+   Un ciclo por tarjeta, el más reciente primero: el día, y cada botón que tocó con su hora, en
+   el orden en que se tocan. Es el MISMO motor que agrupa los ciclos en el panel
+   (`cicloAgruparTodos`), así que un turno cuenta la misma historia en las dos pantallas.
+   Plegado por defecto (R6): abierto, con semanas de ciclos, taparía los botones de hoy.
+   Los primeros 30 días ya vienen con el arranque; «Ver todo el historial» pide el año entero. */
+function cicloMiHistorialBloque(){
+  const ventana = cicloTotalMin(cicloPlan(cicloYo())) * 60000;
+  const ciclos = cicloAgruparTodos(cicloMioAll(), ventana) || [];
+  const hoyF = new Date().toISOString().slice(0, 10);
+  const orden = cicloEventos().map(e => e.k);
+  const fmtHora = iso => { const d = new Date(iso); const p2 = n => String(n).padStart(2, '0'); return p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+  const fmtDia = t0 => { const d = new Date(t0); const p2 = n => String(n).padStart(2, '0'); return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(); };
+  const tarjetas = ciclos.map(c => {
+    const filas = orden.map(k => {
+      const o = c.ev[k]; if (!o) return '';
+      return '<div class="cic-hist-ev"><span class="cic-hist-k">' + esc(cicloEventoLabel(k)) + '</span>' +
+             '<span class="cic-hist-h">' + fmtHora(o.iso) + '</span></div>';
+    }).join('');
+    const ini = c.ev[orden[0]], fin = c.ev[orden[orden.length - 1]];
+    let dur = '';
+    if (ini && fin){
+      const min = Math.round((new Date(fin.iso) - new Date(ini.iso)) / 60000);
+      if (min > 0) dur = '<div class="cic-hist-dur">' + esc(t('cic_hist_dur', { h: Math.floor(min / 60), m: min % 60 })) + '</div>';
+    }
+    const esHoy = new Date(c.t0).toISOString().slice(0, 10) === hoyF;
+    return '<div class="cic-hist-dia' + (esHoy ? ' cic-hist-hoy' : '') + '">' +
+             '<div class="cic-hist-f">' + fmtDia(c.t0) + (esHoy ? ' · ' + esc(t('cic_hist_hoy')) : '') + '</div>' +
+             filas + dur + '</div>';
+  }).join('');
+  const periodo = (typeof DASH !== 'undefined' && DASH && DASH.operacionalPeriodo) || null;
+  const completo = !!(_cicloHistDias && _cicloHistDias > 30);
+  return '<details class="cic-hist" id="cicHist">' +
+    '<summary class="cic-hist-sum">' + esc(t('cic_hist_titulo', { n: ciclos.length })) + '</summary>' +
+    '<div class="cic-hist-lead">' + esc(t('cic_hist_lead')) + '</div>' +
+    (ciclos.length ? tarjetas : '<div class="cic-hist-lead">' + esc(t('cic_hist_vacio')) + '</div>') +
+    (completo ? '' : '<button type="button" class="cic-hist-mas" onclick="cicloMiHistorialTodo(this)">' + esc(t('cic_hist_todo')) + '</button>') +
+  '</details>';
+}
+/* Cuántos días pidió la persona la última vez (30 en el arranque). `var` sin valor (R16). */
+var _cicloHistDias;
+function cicloMiHistorialTodo(btn){
+  if (!offHayConexion()){ showToast(t('sin_conexion')); return; }
+  btnSpin(btn, true, t('cargando'));
+  _cicloHistDias = 400;
+  misSincronizar(400).then(ok => {
+    btnSpin(btn, false);
+    if (!ok){ showToast(t('sin_conexion_reintenta')); _cicloHistDias = 0; return; }
+    const abierto = !!(document.getElementById('cicHist') || {}).open;
+    renderSections();
+    const det = document.getElementById('cicHist'); if (det && abierto) det.open = true;
+  }).catch(() => { btnSpin(btn, false); _cicloHistDias = 0; });
+}
 function renderSections(){
   const root = document.getElementById('sections');
   const _p = getProfile();
@@ -12720,7 +12813,7 @@ function renderSections(){
     // J3: al final de Data Operacional, "lo que te toca ahora" + la línea de tiempo del ciclo.
     if (sec.id === 'operacional'){
       const extra = document.createElement('div');
-      extra.innerHTML = cicloMiBloque();
+      extra.innerHTML = cicloMiBloque() + cicloMiHistorialBloque();   // P167 · y el historial
       while (extra.firstChild) s.appendChild(extra.firstChild);
     }
     root.appendChild(s);
@@ -12941,7 +13034,7 @@ function misPedirCedula(motivo){
 }
 
 let _misSincronizando = false;
-function misSincronizar(){
+function misSincronizar(dias){
   if (_misSincronizando || !SHEETS_DASHBOARD_URL) return Promise.resolve(false);
   if (simulando()) return Promise.resolve(false);          // en simulación no se toca nada real
   const p = getProfile();
@@ -12953,6 +13046,8 @@ function misSincronizar(){
   const qs = new URLSearchParams({ action:'empleado', empresa:p.empresa, persona:p.nombre,
                                    cedula:p.cedula||'', pass: sesPersonaToken(p),
                                    dispositivoId:dispositivoId(), _:Date.now() });
+  /* P167 · el historial completo se pide con `dias`; el arranque sigue trayendo 30. */
+  if (dias) qs.set('dias', String(dias));
   return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
@@ -19076,14 +19171,24 @@ function admAtajoIr(i){
     try { cerrarSesionPedir(); } catch(e){}
     return;
   }
-  /* Sin perfil: el login con la empresa y la cédula ya puestas. `closePortalUI` repone el splash
-     (no hay perfil completo); se abre el login encima y se le saca el splash, igual que hace
-     `splashIngresar`. Si esta cédula todavía no tiene contraseña, «No tengo contraseña» lo manda
-     al alta por el código, donde la crea. */
-  closePortalUI();
-  if (lgnAbrir(null, a.empresa, a.cedula)){
-    try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
-  }
+  /* ⚠️ P166b · SIN PERFIL: ENTRA DIRECTO, SIN CONTRASEÑA DE LA PERSONA. Decisión de Franco
+     (2026-09-10): «desde admin no hay necesidad de poner contraseña, pues ya es admin». La primera
+     versión abría el login y le pedía la contraseña a Rafael, que nunca creó una. Ahora el pedido
+     va con la credencial de ADMINISTRADOR (`dashAuth()`, A15) y el servidor emite la sesión de esa
+     persona — sólo si su cédula está en los atajos y en la nómina. Lo que vuelve se aplica con lo
+     mismo que usa el login normal (`lgnAplicarEntrada`): sesión, perfil, consentimientos. */
+  const cuerpo = dashAuth({ action:'admin_entrar_como', cedula: a.cedula, recordar:'1' });
+  showToast(t('adm_atajo_entrando', { nombre: a.nombre }));
+  conBloqueo('#portalDash',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.ok){ showToast(tError(d && d.error) || t('lgn_mal')); return; }
+      closePortalUI();
+      try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+      lgnAplicarEntrada(d, String(a.cedula || ''), a.empresa);
+    })
+    .catch(() => { showToast(t('sin_conexion_reintenta')); }));
 }
 
 function dashUpdateGestFab(){
@@ -26813,29 +26918,10 @@ function lgnCerrar(sinReponer){
   } catch(e){}
   try { if (!perfilCompleto(getProfile())) splashMostrar(); } catch(e){}
 }
-function lgnEntrar(btn){
-  const p = getProfile() || {};
-  const err = document.getElementById('lgnErr');
-  const cedula = document.getElementById('lgnCed').value.trim();
-  const pass = document.getElementById('lgnPass').value;
-  err.textContent = '';
-  if (!cedula || !pass){ err.textContent = t('lgn_faltan'); return; }
-  if (!offHayConexion()){ err.textContent = t('lgn_sin_red'); return; }
-  btnSpin(btn, true, t('lgn_entrando'));
-  /* ⚠️ P121 · LA EMPRESA SALE DE LA LLAVE CUANDO NO HAY PERFIL, que es el caso del reingreso.
-     `accionLogin` corta con «Faltan datos» si no viene empresa, y sin esto el reingreso no podía
-     ni intentar. Relajar `login` para que acepte empresa vacía habría sido la otra salida, y es la
-     que NO se tomó: con empresa vacía la búsqueda de credenciales no filtra y se vuelve un barrido
-     global, más un canal de tiempo por cada candidata. */
-  const empresaLogin = _lgnEmpresa || (p && p.empresa) || reingresoEmpresa();   // P166 · la del login abierto
-  const cuerpo = { action:'login', empresa: empresaLogin, cedula: cedula, pass: pass,
-                   dispositivoId: dispositivoId(), recordar: '1' };
-  conBloqueo('#loginOv .sheet',
-    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
-    .then(r => r.json())
-    .then(d => {
-      btnSpin(btn, false);
-      if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
+/* ══ P166b · APLICAR UNA ENTRADA: lo que `login` y `admin_entrar_como` devuelven es lo mismo (sesión,
+   persona, consentimientos), y lo que el cliente hace con eso también tiene que ser lo mismo. Un
+   solo lugar. Antes vivía adentro de `lgnEntrar`; el atajo del administrador lo necesita igual. */
+function lgnAplicarEntrada(d, cedula, empresaLogin){
       /* Lo que se guarda es el TOKEN. La contraseña se usó acá una vez y no se guarda en ningún
          lado — si alguien la agrega "por si el token falla", vuelve el problema que S4 cerró. */
       try { localStorage.setItem(K_SES_PERSONA, JSON.stringify({
@@ -26912,6 +26998,32 @@ function lgnEntrar(btn){
       showToast(t('lgn_listo'));
       if (typeof seguir === 'function'){ try { seguir(); } catch(e){} }
       else { try { misSincronizar(); } catch(e){} }
+}
+
+function lgnEntrar(btn){
+  const p = getProfile() || {};
+  const err = document.getElementById('lgnErr');
+  const cedula = document.getElementById('lgnCed').value.trim();
+  const pass = document.getElementById('lgnPass').value;
+  err.textContent = '';
+  if (!cedula || !pass){ err.textContent = t('lgn_faltan'); return; }
+  if (!offHayConexion()){ err.textContent = t('lgn_sin_red'); return; }
+  btnSpin(btn, true, t('lgn_entrando'));
+  /* ⚠️ P121 · LA EMPRESA SALE DE LA LLAVE CUANDO NO HAY PERFIL, que es el caso del reingreso.
+     `accionLogin` corta con «Faltan datos» si no viene empresa, y sin esto el reingreso no podía
+     ni intentar. Relajar `login` para que acepte empresa vacía habría sido la otra salida, y es la
+     que NO se tomó: con empresa vacía la búsqueda de credenciales no filtra y se vuelve un barrido
+     global, más un canal de tiempo por cada candidata. */
+  const empresaLogin = _lgnEmpresa || (p && p.empresa) || reingresoEmpresa();   // P166 · la del login abierto
+  const cuerpo = { action:'login', empresa: empresaLogin, cedula: cedula, pass: pass,
+                   dispositivoId: dispositivoId(), recordar: '1' };
+  conBloqueo('#loginOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
+      lgnAplicarEntrada(d, cedula, empresaLogin);   // P166b · lo mismo que aplica el atajo del admin
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
