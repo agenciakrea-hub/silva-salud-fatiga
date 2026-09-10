@@ -396,7 +396,7 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        pantalla se está yendo igual (`cerrarSesion` recarga), y no espera respuesta a propósito
        para que cerrar sesión funcione también sin señal. */
     'dashMigrarCredsAToken',
-    /* ⚠️ Z2 · `demoSondearClave` PREGUNTA, no hace. Al abrir la demostración averigua si el
+    /* ⚠️ ZD · `demoSondearClave` PREGUNTA, no hace. Al abrir la demostración averigua si el
        servidor pide clave, para poner el campo antes de que la persona elija vista en vez de
        después de un falso arranque. Bloquear el gate mientras eso viaja sería justo el defecto
        que este caso persigue al revés: congelar una pantalla recién abierta por una consulta que

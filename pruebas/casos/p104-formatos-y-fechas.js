@@ -111,21 +111,43 @@ PRUEBAS.caso('⚠️ la columna dice lo que de verdad guarda', () => {
      miente ahí es peor que en cualquier otra. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const fuente = CTX.gs.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  /* ⚠️ Esto mide el ENCABEZADO que el código escribe, no todo uso del nombre viejo. Desde P163
+     `IDENT_COLS_DEF` lo lleva como alias en minúscula (`"nombrecanonico"`) para poder leer una
+     hoja que haya quedado con el título anterior — el regex pide las mayúsculas exactas
+     justamente para no confundir una cosa con la otra. */
   PRUEBAS.falso(/["']NombreCanonico["']/.test(fuente),
-    '⚠️ ya no se llama NombreCanonico: nunca guardó un nombre');
+    '⚠️ ya no se ESCRIBE NombreCanonico como encabezado: nunca guardó un nombre');
   PRUEBAS.cierto(/["']ResueltoPor["']/.test(fuente), 'ahora dice cómo se resolvió, que es lo que hay ahí');
 });
 
-PRUEBAS.caso('⚠️ y el encabezado se corrige en la hoja que YA existe', () => {
-  /* La rama `if (!sh)` no corre para una hoja existente, así que sin esto el renombre no llegaría
-     nunca a la planilla de producción — que es la única que un humano abre. */
+PRUEBAS.caso('⚠️ el encabezado de una hoja CON DATOS ya no se reescribe · lo cambió P163', () => {
+  /* ⚠️ QUÉ CAMBIÓ, Y POR QUÉ ESTE CASO AFIRMA AHORA LO CONTRARIO DE LO QUE AFIRMABA.
+
+     Este caso vigilaba que `obtenerHojaIdentidades` reescribiera la fila 1 cuando difería de
+     `IDENT_HEAD`. El motivo era bueno: hacer llegar a producción el renombre de `NombreCanonico`
+     a `ResueltoPor`, porque la rama `if (!sh)` no corre para una hoja que ya existe.
+
+     P163 (2026-09-09) encontró el precio de esa reescritura. `Identidades` la mantiene gente que
+     no es del equipo. Si alguien inserta una columna, la fila 1 se reescribía con los nombres
+     viejos sobre las columnas CORRIDAS: la planilla volvía a decir «Cedula» encima de la columna
+     equivocada y no quedaba ni rastro de que algo se movió. El arreglo automático borraba la
+     única pista de un problema que, por lo demás, es invisible — nadie ve una corrección de
+     identidad que no se aplicó.
+
+     El renombre ya llegó: el CH real dice `ResueltoPor` desde antes (`encabezados-ch.json`,
+     2026-09-09). Y ya no hace falta esta vía: `IDENT_COLS_DEF` reconoce los DOS nombres, así que
+     una hoja que quedó con el viejo se sigue leyendo — lo comprueba
+     `p163-identidades-por-encabezado.js`. Lo que se conserva de este caso es su otra mitad, que
+     sigue valiendo igual: ningún dato se mueve. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const env = p104Env();
-  const api = GS.cargarGs(CTX.gs, env, ['obtenerHojaIdentidades']);
+  const api = GS.cargarGs(CTX.gs, env, ['obtenerHojaIdentidades','identCols','identColsOk',
+                                        'identAnotarProblema','identLimpiarProblema']);
+  const antes = env.__libro.getSheetByName('Identidades').getDataRange().getValues()[0].map(String);
   api.obtenerHojaIdentidades();
-  const cab = env.__libro.getSheetByName('Identidades').getDataRange().getValues()[0];
-  PRUEBAS.igual(cab[3], 'ResueltoPor', '⚠️ el encabezado viejo se reemplazó');
-  const fila = env.__libro.getSheetByName('Identidades').getDataRange().getValues()[1];
-  PRUEBAS.igual(fila[0], 'ana suarez', 'y ningún dato se movió');
-  PRUEBAS.igual(fila[2], 'V-1', 'la cédula sigue en su lugar');
+  const v = env.__libro.getSheetByName('Identidades').getDataRange().getValues();
+  PRUEBAS.igual(v[0].map(String), antes,
+    '⚠️ con datos en la hoja, la fila 1 queda EXACTAMENTE como la dejó quien la editó');
+  PRUEBAS.igual(v[1][0], 'ana suarez', 'y ningún dato se movió');
+  PRUEBAS.igual(v[1][2], 'V-1', 'la cédula sigue en su lugar');
 });

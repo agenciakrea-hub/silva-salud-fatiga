@@ -24,7 +24,7 @@ PRUEBAS.caso('⚠️ en la demo SÍ está "Mis estadísticas", y con otro texto'
   /* Estaba oculta porque sin perfil no hay datos propios. Cierto para el portal de credenciales y
      equivocado para la demo: ahí justamente lo que hay que enseñar es cómo se ve la pantalla de una
      persona — es la pregunta que hace cualquiera que mira el producto. */
-  /* ⚠️ QUÉ CAMBIÓ EN Z2 (2026-09-09) y por qué este caso mide OTRO botón según el modo.
+  /* ⚠️ QUÉ CAMBIÓ EN ZD (2026-09-09) y por qué este caso mide OTRO botón según el modo.
      Antes había DOS botones: `#portalEmpBtn` (un `.save-btn` naranja sólido) en la pestaña
      personal y `#portalDemoBtn` (de contorno) en las otras tres. Franco lo vio: "el botón de mis
      estadísticas y el del resto tienen distinto color y formato". Ahora, en demostración, las
@@ -49,7 +49,7 @@ PRUEBAS.caso('⚠️ en la demo SÍ está "Mis estadísticas", y con otro texto'
     'de demostración creyendo que son los suyos');
 });
 
-PRUEBAS.caso('⚠️ Z2 · en la demostración las CUATRO pestañas entran por el mismo botón', () => {
+PRUEBAS.caso('⚠️ ZD · en la demostración las CUATRO pestañas entran por el mismo botón', () => {
   /* Franco: "el botón de mis estadísticas y el del resto tienen distinto color y formato, pone el
      de personal como el resto". La forma de que no puedan diferir NO es copiar la clase: es que
      sea UN SOLO botón. Este caso entra por `portalMode()` de verdad y mide con getComputedStyle
@@ -83,7 +83,7 @@ PRUEBAS.caso('⚠️ Z2 · en la demostración las CUATRO pestañas entran por e
   } finally { portalDemoModo(antes); portalMode('emp'); }
 });
 
-PRUEBAS.caso('🔴 Z2 · la clave de la demostración se VE en las cuatro pestañas', () => {
+PRUEBAS.caso('🔴 ZD · la clave de la demostración se VE en las cuatro pestañas', () => {
   /* EL DEFECTO QUE ESTE CASO EXISTE PARA QUE NO VUELVA. `#portalDemoPass` y su aviso vivían dentro
      de `#portalSup`; en la pestaña "Mis estadísticas" ese ancestro está en display:none, así que el
      campo existía en el DOM y NADIE lo veía. El día que la demostración pasó a pedir clave

@@ -99,3 +99,23 @@ PRUEBAS.caso('🔒 el DISCRIMINADOR: con un encabezado renombrado, el código lo
   PRUEBAS.igual(api.accColsOk(api.accCols(cab)), false,
     '🔒 no resuelve · y por eso `validarAcceso` devuelve null en vez de tratarla como vacía');
 });
+
+PRUEBAS.caso('🔴 `Identidades`: las ocho columnas resuelven con los títulos REALES', async () => {
+  /* P163 · es la hoja que un humano abre para corregir identidades a mano, y la mantiene gente
+     que no es del equipo. Si alguien renombra una columna allá, las correcciones manuales dejan
+     de aplicarse — en silencio, porque nadie ve una corrección que no ocurrió. Este caso es el
+     que avisa. */
+  const ch = await p158Encabezados();
+  const cab = ch['Identidades'];
+  PRUEBAS.alMenos(cab.length, 8, 'guarda de medibilidad: el JSON trae las ocho columnas del CH');
+  const api = p158Env(['identCols','identColsOk'], { 'Identidades': [cab.slice()] });
+  const m = api.identCols(cab);
+  PRUEBAS.cierto(api.identColsOk(m),
+    '🔴 sin `Variante` y `Cedula` el endpoint no aplica NINGUNA corrección manual (falla cerrado)');
+  ['variante','empresa','cedula','resueltoPor','como','registros','primeraVez','ultimaVez']
+    .forEach(k => PRUEBAS.cierto(m[k] !== undefined,
+      'la columna «' + k + '» resuelve · ' + JSON.stringify(cab)));
+  const usados = Object.keys(m).map(k => m[k]);
+  PRUEBAS.igual(new Set(usados).size, usados.length,
+    '⚠️ y ninguna columna queda asignada a dos campos a la vez');
+});
