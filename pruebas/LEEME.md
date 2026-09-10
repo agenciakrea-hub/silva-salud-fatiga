@@ -254,3 +254,20 @@ tema— y el que corre después lo hereda. Sin la recarga, el resultado depende 
 
 **Usá siempre el botón.** Y si vas a medir dos veces seguidas (por ejemplo para un discriminador),
 recargá el panel entre una y otra.
+
+## ⚠️ Una corrida por pestaña: con `history.length` en 50 la suite se cuelga y navega (2026-09-10)
+
+Cada corrida deja entradas de historial apiladas (los casos restauran quitando `.show`, no
+cerrando por el camino que consume). Chrome corta el historial de sesión en **50 entradas**. A
+la tercera corrida en la misma pestaña, un `history.back()` del iframe —el cierre de un overlay—
+ya no encuentra su propia entrada y se lleva la pestaña de arriba: el panel se recarga por
+`back_forward`, la corrida queda en «corriendo…» para siempre y `#crudo` muestra la corrida
+anterior. Se ve así: `performance.getEntriesByType('navigation')[0].type === 'back_forward'`.
+
+Qué hacer: **una corrida por pestaña nueva** cuando se va a dar la suite por verde. En pestaña
+nueva tardó 88 s; en la saturada, 109–117 s — probablemente ése era el «de 65 a 109 s» que nadie
+explicaba.
+
+Y las `const` de un archivo de casos NO se ven desde otro archivo (`(0, eval)` las deja en el
+ámbito léxico de su propio eval); las `function` sí. Si un caso nuevo quiere reusar datos de otro
+(`P089_EMP`, `P089_RED`), los lee por una función de ese archivo o se arma los suyos.
