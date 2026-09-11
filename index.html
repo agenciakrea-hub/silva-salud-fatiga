@@ -1126,7 +1126,14 @@
   .stats-entry .ds { display: block; font-size: .77rem; font-weight: 600; color: var(--text-muted); margin-top: .05rem; }
   .stats-entry .chev { color: var(--text-muted); }
 
-  .portal-tabs { display: flex; gap: .4rem; background: var(--chip-bg); padding: .28rem; border-radius: 12px; margin: 1.2rem 0 1rem; }
+  /* ⚠️ P177 · `overflow-x: auto` PORQUE AHORA PUEDEN SER CUATRO. Con dos o tres entraban siempre;
+     con las cuatro —quien tiene los tres roles de la nómina— a 320 px el contenedor desbordaba
+     (medido: contenido más ancho que la caja, y la cuarta pestaña dibujándose fuera). A 375 px y
+     para arriba no cambia nada: el scroll no aparece si no hace falta. `flex-shrink` acotado
+     mantiene legibles las etiquetas largas («Dirección / HSEQ») en vez de exprimirlas a la mitad. */
+  .portal-tabs { display: flex; gap: .4rem; background: var(--chip-bg); padding: .28rem; border-radius: 12px; margin: 1.2rem 0 1rem;
+                 overflow-x: auto; scrollbar-width: none; }
+  .portal-tabs::-webkit-scrollbar { display: none; }
   /* ⚠️ A1 (2026-08-29): medían 34 px de alto. Se ven en TABLET, que se toca con el dedo igual que
      un teléfono — no es una pantalla de mouse sólo porque sea ancha. Es el mismo criterio de I2
      (los enlaces del splash) y del `.admin-toggle`: 44 px de alto mínimo.
@@ -7144,7 +7151,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.43';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.44';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

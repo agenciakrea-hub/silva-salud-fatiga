@@ -61,6 +61,21 @@ function p048EsperarTurno(ms){
     setTimeout(h, ms || 60);
   });
 }
+/* ⚠️ P177 · Y ADEMÁS SE ESPERA A QUE BAJE `_navConsumiendo`, que es lo que este caso medía sin
+   saberlo. `navConsumir()` deja ese flag en `true` durante 400 ms y, mientras está puesto, el
+   siguiente cierre por interfaz NO descarta su entrada — a propósito, es la red que documenta
+   `navConsumir`. El caso esperaba 60 ms entre ciclos y aun así pasaba, porque la pestaña de pruebas
+   estaba oculta y Chrome estrangulaba los timers a ~1 s: esos «60 ms» eran mil.
+   Cuando el entorno dejó de estrangularlos, los 60 ms pasaron a ser 60 de verdad, el segundo ciclo
+   empezó dentro de la ventana del primero, y el balance dio 6 pushes contra 5 backs — un rojo que
+   no es de la app. Ahora se espera al flag real con un tope, así el caso mide lo mismo con los
+   timers estrangulados y sin estrangular. */
+async function p048EsperarLibre(tope){
+  const t0 = Date.now();
+  while (typeof _navConsumiendo !== 'undefined' && _navConsumiendo && Date.now() - t0 < (tope || 900)){
+    await new Promise(r => setTimeout(r, 30));
+  }
+}
 
 function p048LimpiarOverlays(){
   document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
@@ -87,6 +102,7 @@ async function p048CicloOpinion(n){
       if (!ov.classList.contains('show') || rect.width === 0 || !x){ medibleOk = false; break; }
       x.click();
       await p048EsperarTurno(60);
+      await p048EsperarLibre();      // P177 · el flag de 400 ms de `navConsumir` tiene que haber bajado
     }
   } finally {
     history.pushState = origPush;
