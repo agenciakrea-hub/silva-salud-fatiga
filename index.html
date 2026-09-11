@@ -7161,7 +7161,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.45';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.46';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -16374,6 +16374,10 @@ function saveProfile(){
   if (!esSupervisor || !esServicioMedico){ try { sesionAvisarCierre(); } catch(e){} }
   if (!esSupervisor){ try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }             // dejó de ser supervisor → no auto-login
   if (!esServicioMedico){ try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
+  /* P179 · la de Dirección va con la de supervisor: el formulario de perfil no tiene casilla propia
+     para Dirección —ese rol sólo llega por la nómina— así que si acá se apaga «Supervisor», el
+     acceso de empresa se apaga entero. Sin esto quedaba un auto-login vivo por la ranura nueva. */
+  if (!esSupervisor){ try { localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){} }
   if (!esSupervisor && !esServicioMedico && DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;   // se descarta la vista de empresa cargada
   finalizar();
 }
@@ -16451,14 +16455,20 @@ function rolActivado(rol, perfil){
   if (rol === 'hseq')   return !!p.esDireccion;
   return !!p.esSupervisor;
 }
-/* Los paneles de empresa que esta persona puede abrir HOY: los que la nómina propone, más los que
-   ya tenía activados de antes aunque la nómina ya no los nombre —esos los saca la nómina por su
-   camino (`tareasCargar`), no una lista que se arma para pintar botones—. */
+/* Los paneles de empresa que esta persona puede abrir HOY.
+   ⚠️ P179 · SI LA NÓMINA DICE ALGO, ESO ES LA LISTA — y punto. La primera versión sumaba además los
+   roles «activados», y eso mostraba pestañas que no corresponden: `rolActivarGuardar('hseq')` deja
+   `esSupervisor:true` por compatibilidad con los 84 lugares del archivo que leen ese flag, así que
+   alguien de DIRECCIÓN quedaba con `rolActivado('supervisor')` en true y veía la pestaña de
+   supervisión. Medido con el perfil de Dirección: pestañas [Personal, Supervisor, Dirección] cuando
+   la nómina sólo decía Dirección.
+   Los flags activados sólo cuentan cuando la nómina NO dice nada —un perfil viejo, sin lista y sin
+   `rol`—, que es el caso de quien usa el panel sin haber pasado nunca por la nómina. */
 function rolesConPanel(perfil){
   const p = perfil || getProfile() || {};
-  const out = rolesDeNomina(p).slice();
-  ['supervisor','medico','hseq'].forEach(r => { if (out.indexOf(r) < 0 && rolActivado(r, p)) out.push(r); });
-  return out;
+  const dice = rolesDeNomina(p);
+  if (dice.length) return dice.slice();
+  return ['supervisor','medico','hseq'].filter(r => rolActivado(r, p));
 }
 
 /* ════════════════ SETUP: toggles + combobox empresa/departamento ════════════════ */
@@ -16804,8 +16814,11 @@ function portalOlvidarDispositivo(btn){
    use en ese camino se iza entero o corta el script de ahí para abajo. */
 function portalTieneSesionDeEmpresa(){
   try {
-    const c = dashGetCreds() || {}, m = dashGetCredsMed() || {};
-    return !!((c.usuario && (c.token || c.pass)) || (m.usuario && (m.token || m.pass)));
+    /* P179 · las TRES ranuras. Sin la de Dirección, quien sólo tiene ese panel abría la portada en
+       vez de su panel al arrancar: esta función es la que decide ese desvío. */
+    const c = dashGetCreds() || {}, m = dashGetCredsMed() || {}, h = dashGetCredsHseq() || {};
+    const sirve = x => !!(x.usuario && (x.token || x.pass));
+    return sirve(c) || sirve(m) || sirve(h);
   } catch(e){ return false; }
 }
 /* Abre el panel sin pasar por la portada. `openPortal()` ya decide sola si autologuea o cae al
@@ -17550,7 +17563,12 @@ function sesionClavesBorrar(){
     // lo que la persona registró en este dispositivo
     K_REPORTS, K_TURNOS, K_MIS_DATOS, K_ACTIVIDAD, K_CONFIABILIDAD, K_PVT_NOINFO,
     // accesos guardados (lo más sensible: contraseñas en texto plano)
-    K_DASH_CREDS, K_DASH_CREDS_MED, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
+    /* ⚠️ P179 · `K_DASH_CREDS_HSEQ` FALTABA, y es una fuga en el caso para el que existe esta lista:
+       el teléfono compartido. P177 le dio a Dirección su propia ranura (antes usaba la de
+       supervisor, que sí estaba acá) y esta línea no se actualizó, así que «cerrar sesión» dejaba
+       viva la credencial del panel de Dirección para la persona siguiente. Es la misma clase de
+       olvido que P175 tuvo que corregir con `K_CICLO_PLAN_PROPIO` y `K_ROL_OFRECIDO`. */
+    K_DASH_CREDS, K_DASH_CREDS_MED, K_DASH_CREDS_HSEQ, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
     /* ⚠️ EL CICLO OPERATIVO FALTABA, y es dato de salud (2026-09-03, auditoría). `K_CICLO_MIO`
        guarda cada evento con su `test` y su `resultado`; `K_CICLO_SRV`, el histórico que manda el
        servidor. `cicloMioAll()` las une SIN ninguna guarda de dueño, así que en un teléfono
@@ -17582,7 +17600,7 @@ function sesionClavesBorrar(){
 }
 function cerrarSesionPedir(){
   const pend = (function(){ try { return offPendientes(); } catch(e){ return 0; } })();
-  const hayCred = !!(dashGetCreds() || dashGetCredsMed());
+  const hayCred = !!(dashGetCreds() || dashGetCredsMed() || dashGetCredsHseq());   // P179 · y la de Dirección
   // Se enumera lo que se borra. El detalle de las credenciales sólo aparece si de verdad hay
   // alguna guardada: para un empleado común nombrarlas sería ruido.
   let msg = t('salir_confirmar');
@@ -17605,7 +17623,9 @@ function cerrarSesionPedir(){
    en una sola línea, y el orden es lo único que hace que esto funcione. */
 function sesionAvisarCierre(){
   try {
-    [dashGetCreds(), dashGetCredsMed(), sesPersonaGuardada()].forEach(c => {
+    /* P179 · la de Dirección también: su token no caduca solo, así que si no se avisa acá queda
+       vivo en el CH para siempre y sin nadie que pueda cerrarlo. */
+    [dashGetCreds(), dashGetCredsMed(), dashGetCredsHseq(), sesPersonaGuardada()].forEach(c => {
       if (!c || !c.token || !SHEETS_DASHBOARD_URL) return;
       fetch(SHEETS_DASHBOARD_URL, { method:'POST', keepalive:true,
         body: JSON.stringify({ action:'sesion_cerrar', token:c.token, dispositivoId: dispositivoId() }) })
@@ -29645,9 +29665,10 @@ function tareasCargar(){
         const _p = getProfile();
         if (_p && (_p.esSupervisor || _p.esServicioMedico)){
           try { sesionAvisarCierre(); } catch(e){}
-          setProfile(Object.assign({}, _p, { esSupervisor:false, esServicioMedico:false, rol:'empleado' }));
+          setProfile(Object.assign({}, _p, { esSupervisor:false, esServicioMedico:false, esDireccion:false, rol:'empleado' }));
           try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
           try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+          try { localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}   // P179 · y la de Dirección
           /* Si estaba mirando el panel de la empresa en ese momento, se descarta: los datos que
              tiene en pantalla ya no le corresponden. */
           if (DASH && DASH.vista && DASH.vista !== 'empleado') DASH = null;

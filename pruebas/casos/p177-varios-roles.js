@@ -291,3 +291,77 @@ PRUEBAS.caso('⚠️ la explicación está en los dos idiomas y en español NEUT
     PRUEBAS.falso(/\bvos\b|\btenés\b|\bpodés\b|\bestás puesto\b/i.test(t('pg_porque_clave')), 'R1 · español neutro');
   } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
 });
+
+/* ── P179 · lo que encontró la auditoría del propio P177 ──────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 quien tiene SÓLO Dirección no ve la pestaña de Supervisor', () => {
+  const prev = p177Guardar();
+  try {
+    /* ⚠️ EL DEFECTO: `rolActivarGuardar('hseq')` deja `esSupervisor:true` por compatibilidad —84
+       lugares del archivo leen ese flag— así que `rolActivado('supervisor')` daba true y la lista
+       de paneles sumaba «supervisor» a alguien que en la nómina sólo tiene Dirección.
+       Medido antes del arreglo: pestañas [Personal, Supervisor, Dirección]. */
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['hseq'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}
+    rolActivarGuardar('hseq', 'Aeroambulancias Silva', 'clave-hseq');   // R17 · el camino real
+    PRUEBAS.igual(rolesConPanel(), ['hseq'], '🔴 un solo panel: el que dice la nómina');
+    DASH = null; openPortalGate();
+    PRUEBAS.igual(p177Tabs(), { emp:true, sup:false, med:false, hseq:true },
+      '🔴 Personal y Dirección · la de Supervisor NO le corresponde');
+    PRUEBAS.cierto(!!(getProfile() || {}).esSupervisor,
+      '⚠️ y el flag viejo sigue encendido a propósito: lo leen 84 lugares y apagarlo es otro prompt');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('🔒 EL DISCRIMINADOR · quien SÍ tiene los dos los ve a los dos', () => {
+  const prev = p177Guardar();
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['supervisor','hseq'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}
+    rolActivarGuardar('supervisor', 'Aeroambulancias Silva', 'k1');
+    rolActivarGuardar('hseq', 'Aeroambulancias Silva', 'k2');
+    PRUEBAS.igual(rolesConPanel(), ['supervisor','hseq'], '🔒 los dos · si el arreglo fuera demasiado amplio, acá perdería uno');
+    DASH = null; openPortalGate();
+    PRUEBAS.igual(p177Tabs(), { emp:true, sup:true, med:false, hseq:true }, 'y las dos pestañas');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('⚠️ un perfil VIEJO sin lista de nómina sigue entrando por sus flags', () => {
+  const prev = p177Guardar();
+  try {
+    /* Quien usa el panel y nunca pasó por la nómina: no tiene `rolesNomina` ni `rol`. Sus flags son
+       lo único que hay, y tienen que seguir valiendo — si no, se queda sin panel de un día al otro. */
+    setProfile(Object.assign({}, P177_PERFIL, { esSupervisor:true, rol:'', rolesNomina:undefined }));
+    PRUEBAS.igual(rolesConPanel(), ['supervisor'], '⚠️ sin lista, manda el flag');
+    DASH = null; openPortalGate();
+    PRUEBAS.igual(p177Tabs().sup, true, 'y ve su pestaña');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('🔒 «cerrar sesión» se lleva las TRES credenciales de empresa', () => {
+  const l = sesionClavesBorrar();
+  PRUEBAS.cierto(l.indexOf(K_DASH_CREDS) >= 0 && l.indexOf(K_DASH_CREDS_MED) >= 0,
+    'las dos de siempre siguen');
+  PRUEBAS.cierto(l.indexOf(K_DASH_CREDS_HSEQ) >= 0,
+    '🔒 y la de Dirección, que P177 creó y esta lista no conocía · en un teléfono compartido le quedaba viva a la persona siguiente');
+});
+
+PRUEBAS.caso('🔒 y al servidor se le avisa de las tres, para que ningún token quede vivo', () => {
+  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+  const i = f.indexOf('function sesionAvisarCierre(');
+  const tramo = f.slice(i, i + 900);
+  PRUEBAS.cierto(/dashGetCredsHseq\(\)/.test(tramo),
+    '🔒 las sesiones no caducan solas: sin avisar, el token de Dirección quedaba vivo en el CH para siempre');
+  PRUEBAS.cierto(/dashGetCreds\(\)/.test(tramo) && /dashGetCredsMed\(\)/.test(tramo), 'y las otras dos siguen');
+});
+
+PRUEBAS.caso('⚠️ «¿hay sesión de empresa en este teléfono?» cuenta también la de Dirección', () => {
+  const prev = p177Guardar();
+  try {
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_MED); localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}
+    PRUEBAS.falso(portalTieneSesionDeEmpresa(), 'precondición · sin ninguna guardada');
+    dashSaveCredsValuesHseq('Aeroambulancias Silva', 'k');
+    PRUEBAS.cierto(portalTieneSesionDeEmpresa(),
+      '⚠️ quien sólo tiene el panel de Dirección arrancaba en la portada en vez de su panel: esta función es la que decide ese desvío');
+  } finally { p177Restaurar(prev); }
+});
