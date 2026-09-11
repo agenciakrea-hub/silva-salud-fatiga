@@ -526,6 +526,25 @@ PRUEBAS.caso('⚠️ `nomina_hoja_compartir` vuelve a compartir una hoja existen
   PRUEBAS.igual(api.__mant('nomina_hoja_compartir', { empresa:'Silva' }).ok, false, 'sin hoja, se niega');
 });
 
+PRUEBAS.caso('🔴 P173 · el reloj NO abre la hoja si no cambió desde el último sync (la cola de Apps Script frenaba la app)', () => {
+  if (p172Sin()) return;
+  const api = p172Env();
+  api.__crear();
+  const id = api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId');
+  const libro = api.__env.__libros[id];
+  libro.__tocar(1000);
+  PRUEBAS.igual(api.nominaSincronizarTodas().empresas[0].omitido, null, 'la primera corrida sí mira la hoja');
+  const r2 = api.nominaSincronizarTodas().empresas[0];
+  PRUEBAS.cierto(/no cambio/.test(r2.omitido || ''), '🔴 la segunda, sin tocar nada, se saltea · medido en producción: 95 s de cola por corrida completa');
+  PRUEBAS.igual(r2.agregadas.length + r2.actualizadas.length + r2.bajas.length, 0, 'y no toca el CH');
+  libro.getSheetByName('Nómina').appendRow(P172_DORA);
+  libro.__tocar();
+  const r3 = api.nominaSincronizarTodas().empresas[0];
+  PRUEBAS.igual(r3.agregadas, ['Dora Gil'], '🔴 EL DISCRIMINADOR · si la hoja SÍ cambió, sincroniza igual');
+  const r4 = api.__mant('nomina_sync', { empresa:'Helitec' });
+  PRUEBAS.igual(r4.r.empresas[0].omitido, null, '⚠️ y la tarea a mano nunca se saltea: informa siempre');
+});
+
 PRUEBAS.caso('🔒 la tarea exige el token, como todas', () => {
   if (p172Sin()) return;
   const api = p172Env();

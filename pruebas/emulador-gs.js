@@ -286,6 +286,8 @@ function __digestHex(bytes) {
   LibroFalso.prototype.getUrl = function () { return 'https://docs.google.com/spreadsheets/d/' + this.getId() + '/edit'; };
   LibroFalso.prototype.getName = function () { return this._nombre || 'CH de prueba'; };
   LibroFalso.prototype.rename = function (n) { this._nombre = n; return this; };
+  /* P173 · mueve la marca de modificación del archivo (la mira `getLastUpdated`). */
+  LibroFalso.prototype.__tocar = function (ms) { this._tocado = ms || ((this._tocado || 1) + 60000); return this; };
   LibroFalso.prototype.deleteSheet = function (sh) {
     const n = sh && sh.getName ? sh.getName() : String(sh);
     delete this._hojas[n]; this._orden = this._orden.filter(x => x !== n);
@@ -495,6 +497,9 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
             getSharingAccess: function () { return libro._acceso || 'PRIVATE'; },
             getSharingPermission: function () { return libro._permiso || 'NONE'; },
             getOwner: function () { return { getEmail: () => (opciones.email || 'dueno@prueba.com') }; },
+            /* P173 · el sync se saltea la hoja que no cambió: su marca de tiempo. Un caso la mueve
+               con `libro.__tocar()`. */
+            getLastUpdated: function () { return new Date(libro._tocado || 1); },
             setShareableByEditors: function (v) { registro.compartidos.push({ id, email: '', rol: v ? 'editores-pueden-compartir' : 'editores-no-comparten' }); return f; },
             setTrashed: function (v) { if (v) { delete env.__libros[id]; registro.libros = registro.libros.filter(l => l.id !== id); registro.papelera = (registro.papelera || []).concat([id]); } return f; },
             isTrashed: function () { return !env.__libros[id]; }

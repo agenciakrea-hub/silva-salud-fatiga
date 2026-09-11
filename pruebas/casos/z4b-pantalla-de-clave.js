@@ -167,3 +167,90 @@ PRUEBAS.caso('los textos de la pantalla pasan por t(), en los dos idiomas (R14)'
   PRUEBAS.falso(/\b(tenés|podés|elegí|repetí|vas a entrar con tu)\b/i.test(
     t('clv_titulo') + ' ' + t('clv_lead') + ' ' + t('clv_luego')), 'sin voseo: español neutro (R1)');
 });
+
+/* ── P173 · el POST se corta en la red pero el servidor SÍ creó la contraseña ────────────────
+   Reportado por Franco (Victoria, 2026-09-11): «pongo mi contraseña, da error, reintentá; y la
+   que supuestamente no se pudo guardar me dejó entrar». Medido contra producción:
+   `credencial_crear` tarda ~9 s, y en un celular la conexión se cae antes de que llegue la
+   respuesta. Ahora el cliente reintenta, y si el reintento dice `ya_tiene`, entra con la
+   contraseña recién tipeada (transparente).
+
+   ⚠️ EL ARNÉS RESTAURA EN `.finally()` DE LA PROMESA, no en un `try/finally` sincrónico. La
+   primera versión de estos tres casos restauraba los stubs antes de que corriera el reintento
+   —que espera 1,2 s— y los tres daban rojo por el caso, no por el código. Es la misma trampa
+   anotada en MISTAKES el 2026-09-10. */
+
+function z4bAsync(fn){
+  const previo = getProfile();
+  const of = window.offHayConexion, oc = window.fetchConReloj;
+  const ol = window.lgnAplicarEntrada, oa = window.lgnAbrir, ot = window.showToast;
+  const marca = localStorage.getItem(K_TIENE_CLAVE);
+  setProfile(Z4B_PERFIL);
+  clvAbrir();
+  document.getElementById('clvPass').value = 'ClaveLarga1';
+  document.getElementById('clvPass2').value = 'ClaveLarga1';
+  clvValidar();
+  window.offHayConexion = () => true;
+  window.showToast = () => {};
+  return Promise.resolve(fn()).finally(() => {
+    window.offHayConexion = of; window.fetchConReloj = oc;
+    window.lgnAplicarEntrada = ol; window.lgnAbrir = oa; window.showToast = ot;
+    const ov = document.getElementById('claveOv'); if (ov) ov.classList.remove('show');
+    const lo = document.getElementById('loginOv'); if (lo) lo.classList.remove('show');
+    if (marca == null) { try { localStorage.removeItem(K_TIENE_CLAVE); } catch(e){} } else localStorage.setItem(K_TIENE_CLAVE, marca);
+    if (previo) setProfile(previo); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    try { syncScrollLock(); } catch(e){}
+  });
+}
+const z4bEsperar = ms => new Promise(r => setTimeout(r, ms));
+
+PRUEBAS.caso('🔴 P173 · el primer POST falla en la red, el reintento crea y la persona entra', () => {
+  return z4bAsync(() => {
+    let intentos = 0;
+    window.fetchConReloj = () => { intentos++;
+      if (intentos === 1) return Promise.reject(new TypeError('Failed to fetch'));   // la red se cae
+      return Promise.resolve({ json: () => Promise.resolve({ ok:true, creada:true }) });   // el reintento sí llega
+    };
+    clvGuardar(document.getElementById('clvBtn'));
+    return z4bEsperar(1800).then(() => {   // más que el delay de 1200 ms del reintento
+      PRUEBAS.igual(intentos, 2, '🔴 reintentó una vez tras el fallo de red · antes mostraba «reintentá» y la contraseña ya estaba creada');
+      PRUEBAS.igual(document.getElementById('clvErr').textContent || '', '', 'y NO mostró error: el segundo intento entró');
+      PRUEBAS.falso(document.getElementById('claveOv').classList.contains('show'), 'la pantalla se cerró');
+      PRUEBAS.cierto(tieneClaveGuardada(), 'y quedó marcado que tiene contraseña');
+    });
+  });
+});
+
+PRUEBAS.caso('🔴 P173 · con `ya_tiene` entra con la contraseña recién tipeada, sin abrir el login', () => {
+  return z4bAsync(() => {
+    const acciones = [];
+    window.fetchConReloj = (url, opts) => { let b = {}; try { b = JSON.parse(opts.body); } catch(e){}
+      acciones.push(b.action);
+      if (b.action === 'credencial_crear') return Promise.resolve({ json: () => Promise.resolve({ ok:false, motivo:'ya_tiene', error:'ya tiene' }) });
+      if (b.action === 'login') return Promise.resolve({ json: () => Promise.resolve({ ok:true, sesion:'tok', persona: Z4B_PERFIL, consentimientos:{} }) });
+      return Promise.resolve({ json: () => Promise.resolve({ ok:false }) });
+    };
+    let aplico = false, abrioLogin = false;
+    window.lgnAplicarEntrada = () => { aplico = true; };
+    window.lgnAbrir = () => { abrioLogin = true; return true; };
+    clvGuardar(document.getElementById('clvBtn'));
+    return z4bEsperar(400).then(() => {
+      PRUEBAS.igual(acciones, ['credencial_crear', 'login'], '🔴 tras `ya_tiene` intentó `login` con la clave que acaba de tipear');
+      PRUEBAS.cierto(aplico, 'entró: aplicó la sesión');
+      PRUEBAS.falso(abrioLogin, '⚠️ y NO abrió el login manual · fue transparente, que es el punto');
+    });
+  });
+});
+
+PRUEBAS.caso('⚠️ P173 · EL DISCRIMINADOR · si esa contraseña NO entra (la de antes era otra), se abre el login', () => {
+  return z4bAsync(() => {
+    window.fetchConReloj = (url, opts) => { let b = {}; try { b = JSON.parse(opts.body); } catch(e){}
+      if (b.action === 'credencial_crear') return Promise.resolve({ json: () => Promise.resolve({ ok:false, motivo:'ya_tiene' }) });
+      return Promise.resolve({ json: () => Promise.resolve({ ok:false, motivo:'credenciales' }) });   // la que existía era otra
+    };
+    let abrioLogin = false;
+    window.lgnAbrir = () => { abrioLogin = true; return true; };
+    clvGuardar(document.getElementById('clvBtn'));
+    return z4bEsperar(400).then(() => PRUEBAS.cierto(abrioLogin, '⚠️ el login manual, para que escriba la que sí es'));
+  });
+});

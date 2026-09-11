@@ -5604,7 +5604,7 @@
          volvía a tener forma de ponerse una contraseña nunca. Justo la persona que el comentario
          del alta dice querer proteger. Acá hay una entrada permanente. -->
     <div class="mas-sep" data-i18n="mas_sep_acceso">Tu acceso</div>
-    <button type="button" class="rbtn" id="miClaveBtn" onclick="miClaveTocar()">
+    <button type="button" class="rbtn mas-item" id="miClaveBtn" onclick="miClaveTocar()">
       <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
       <div class="tx"><span class="tt" id="miClaveTt" data-i18n="mi_clave">Mi contraseña</span><span class="ds" id="miClaveDs" data-i18n="mi_clave_d">Protege tus datos con una contraseña propia</span></div>
       <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
@@ -5618,7 +5618,7 @@
          día no tenía la contraseña a mano.
          La fila se ESCONDE sola (`miRolPintar`) para quien no tiene ningún rol propuesto: a un
          empleado común no se le anuncia que existe un panel de empresa. -->
-    <button type="button" class="rbtn" id="miRolBtn" onclick="miRolTocar()" style="display:none">
+    <button type="button" class="rbtn mas-item" id="miRolBtn" onclick="miRolTocar()" style="display:none">
       <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul-int)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
       <div class="tx"><span class="tt" id="miRolTt" data-i18n="mi_rol">Mi acceso al panel</span><span class="ds" id="miRolDs"></span></div>
       <div class="st"><svg class="chev" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
@@ -7125,7 +7125,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.38';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.39';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -27526,8 +27526,15 @@ function clvGuardar(btn){
     return;
   }
   btnSpin(btn, true, t('guardando'));
+  /* P173 · se guarda la contraseña recién tipeada: si el POST se corta en la red PERO el servidor
+     ya la creó (crear la credencial tarda varios segundos y en un celular la conexión se cae
+     antes de que llegue la respuesta), el reintento del servidor contesta `ya_tiene` y con esta
+     misma contraseña se entra sin que la persona vea un falso error. Es EXACTO lo que le pasó a
+     Victoria: «da error, reintentá; y la contraseña que supuestamente no se pudo guardar me dejó
+     entrar». */
+  const claveTipeada = document.getElementById('clvPass').value;
   const cuerpo = { action:'credencial_crear', empresa:p.empresa||'', cedula:p.cedula||'',
-                   usuario:p.nombre||'', pass:document.getElementById('clvPass').value,
+                   usuario:p.nombre||'', pass: claveTipeada,
                    dispositivoId: dispositivoId() };
   /* El código de empresa, si esta alta pasó por él. El servidor lo vuelve a exigir para CREAR una
      credencial aunque ya se haya validado antes (S5): cada acción se defiende sola. */
@@ -27542,9 +27549,11 @@ function clvGuardar(btn){
      el pedido viaja la pantalla sigue viva: se puede tocar "Más tarde" y cerrarla, y la respuesta
      llega a una pantalla que ya no está — o peor, se toca "Crear" dos veces y salen dos altas.
      `btnSpin` sólo apaga el botón; el resto de la hoja, incluido el teclado, queda tocable. */
-  conBloqueo('#claveOv .sheet',
-    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+  const enviar = (intentosRestantes) => fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
     .then(r => r.json())
+    .catch(e => { if (intentosRestantes > 0) return new Promise(res => setTimeout(res, 1200)).then(() => enviar(intentosRestantes - 1)); throw e; });
+  conBloqueo('#claveOv .sheet',
+    enviar(1)
     .then(d => {
       btnSpin(btn, false);
       if (d && d.ok){
@@ -27567,7 +27576,10 @@ function clvGuardar(btn){
       if (d && d.motivo === 'ya_tiene'){
         tieneClaveMarcar(true);
         const pc = getProfile() || {};
-        lgnAbrir(null, pc.empresa, pc.cedula);
+        /* P173 · «ya tiene contraseña» justo después de que la persona la tipeó acá casi siempre
+           significa que el PRIMER intento SÍ la creó y la respuesta se perdió en la red. Se prueba
+           entrar con la que acaba de escribir: si es la suya, entra sin ver nada raro. */
+        clvEntrarConClaveRecien(pc.empresa || '', pc.cedula || '', claveTipeada, btn);
         return;
       }
       /* Se muestra el mensaje del SERVIDOR cuando lo hay: es el que sabe por qué —clave débil,
@@ -27578,6 +27590,29 @@ function clvGuardar(btn){
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
+/* P173 · intenta el login con la contraseña que la persona acaba de tipear en «Crear contraseña».
+   Si entra, aplica la sesión y cierra el alta (transparente). Si no, abre el login manual —la
+   contraseña vieja era otra— con la empresa y la cédula ya puestas. */
+function clvEntrarConClaveRecien(empresa, cedula, clave, btn){
+  if (!empresa || !cedula || !clave){ lgnAbrir(null, empresa, cedula); return; }
+  btnSpin(btn, true, t('lgn_entrando'));
+  conBloqueo('#claveOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST',
+      body: JSON.stringify({ action:'login', empresa: empresa, cedula: cedula, pass: clave, dispositivoId: dispositivoId(), recordar: '1' }) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && d.ok){
+        tieneClaveMarcar(true);
+        try { document.getElementById('claveOv').classList.remove('show'); syncScrollLock(); } catch(e){}
+        showToast(t('clv_listo'));
+        lgnAplicarEntrada(d, cedula, empresa);
+        return;
+      }
+      lgnAbrir(null, empresa, cedula);   // la de antes no era ésta: que la escriba
+    })
+    .catch(() => { btnSpin(btn, false); lgnAbrir(null, empresa, cedula); }));
+}
 function clvPosponer(){
   clvMarcarOfrecida();
   /* P153c · el cierre y el paso siguiente van juntos, traspasando la entrada del historial. */
