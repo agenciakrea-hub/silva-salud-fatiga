@@ -1,5 +1,37 @@
 # Pruebas
 
+
+## ⚠️ 2026-09-11 · LA PESTAÑA YA NO ESTÁ OCULTA, y ocho casos dependían de que lo estuviera
+
+Todo lo que sigue más abajo sobre «la pestaña está oculta de forma permanente» **dejó de ser cierto
+en este entorno**. Medido: `document.hidden === false` y `document.visibilityState === 'visible'`
+incluso en una pestaña creada en segundo plano.
+
+**Cómo se nota, antes de mirar ningún caso:** la corrida entera pasó de 50–110 s a **17 s**, de
+forma estable. Los `setTimeout` ya no se estrangulan a 1 s, así que la suite no espera nada.
+
+**Qué se rompe con eso —ocho casos, y NINGUNO es un defecto de la app.** Verificado con el
+discriminador correcto: `git stash` al commit anterior (P174, que había dado 1490/1490 una hora
+antes) y volver a correr → **los mismos ocho rojos**.
+
+| Caso | Por qué depende de la visibilidad |
+|---|---|
+| `se apaga con la app en segundo plano` | Mide `document.hidden`. Con la pestaña visible, la respuesta correcta es la contraria |
+| `J2 · el desplegable no corta contenido` | Mide alto de contenido contra alto visible; con las animaciones corriendo, mide a mitad de la transición |
+| `no quedan superficies claras en tema oscuro` | Ídem: lee color computado durante el cambio de tema |
+| `la flecha del desplegable sigue al tema` | Ídem |
+| `el logo y el botón de idioma a la MISMA distancia` | Layout de la portada medido antes de estabilizar |
+| `la tira queda pegada al bloque de texto` | Ídem |
+| `lo que queda TAPADO sale del orden de tabulación` | Cuenta enfocables con overlays a medio abrir |
+| `P048 · abrir y cerrar la opinión 5 veces` | `navConsumir()` usa un `history.back()` con ventana de 400 ms; sin estrangulamiento, la cuenta de `pushState`/`back` se corre |
+
+**Qué NO hacer:** «arreglar» la app para que estos ocho pasen. Lo que hay que recalibrar es la
+MEDICIÓN — o esperar el layout de verdad (no 350 ms fijos), o forzar el estado que cada caso
+necesita en vez de suponerlo del entorno. Está anotado como **P176**.
+
+**Y cómo distinguir un rojo nuevo de estos ocho:** son exactamente los de la tabla. Cualquier otro
+sí es del cambio que estés haciendo.
+
 ## Cómo correrlas
 
 **Doble clic en `PRUEBAS.bat`, desde el Explorador de Windows.**

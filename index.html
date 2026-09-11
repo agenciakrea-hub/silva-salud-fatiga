@@ -6123,9 +6123,25 @@
 
 <div class="overlay" id="claveOv">
   <div class="sheet">
-    <h2 data-i18n="clv_titulo">Elige tu contraseña</h2>
-    <p class="portal-hint" data-i18n="clv_lead">Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.</p>
-    <div class="field"><label for="clvPass" data-i18n="clv_pass">Contraseña</label>
+    <!-- ⚠️ P175 · SIN `data-i18n`, y no es un olvido: estos tres textos dependen del MODO (crear o
+         cambiar), así que los escribe `clvPintarModo()`. Con `data-i18n` el barrido de idioma los
+         pisaría con el texto de «crear» aunque la hoja esté cambiando una contraseña — es el mismo
+         defecto que este archivo ya documenta para la barra de simulación y para el rol. Por eso
+         `aplicarIdioma()` vuelve a llamar a `clvPintarModo(CLV_MODO)`. -->
+    <h2 id="clvTitulo">Elige tu contraseña</h2>
+    <p class="portal-hint" id="clvLead">Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.</p>
+    <!-- ⚠️ P175 · LA MISMA HOJA SIRVE PARA CREAR Y PARA CAMBIAR, y es a propósito: un overlay nuevo
+         hay que nombrarlo en `silvaAtras()`, apilarle su entrada de historial y traducirlo entero,
+         que es exactamente lo que se olvida (P059/A7 y P153 se cobraron eso tres veces). Acá sólo
+         cambian el título, la bajada, los botones y este campo. Lo pinta `clvPintarModo()`. -->
+    <div class="field" id="clvActualCampo" hidden>
+      <label for="clvActual" data-i18n="clv_actual">Tu contraseña actual</label>
+      <div class="pw-wrap"><input id="clvActual" type="password" autocomplete="current-password" oninput="clvValidar()">
+        <button type="button" class="pw-eye" onclick="togglePw('clvActual',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <p class="nom-ayuda" id="clvOlvide" data-i18n="clv_olvide"></p>
+    </div>
+    <div class="field"><label for="clvPass" id="clvPassLbl" data-i18n="clv_pass">Contraseña</label>
       <div class="pw-wrap"><input id="clvPass" type="password" autocomplete="new-password" oninput="clvValidar()">
         <button type="button" class="pw-eye" onclick="togglePw('clvPass',this)" aria-label="Ver contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
@@ -6152,8 +6168,8 @@
       <p class="nom-ayuda" data-i18n="nom_codigo_ayuda">Te lo da tu supervisor o el área de seguridad de tu empresa.</p>
     </div>
     <div class="portal-err" id="clvErr"></div>
-    <button class="save-btn" id="clvBtn" onclick="clvGuardar(this)" data-i18n="clv_guardar">Crear mi contraseña</button>
-    <button type="button" class="cancel-btn" onclick="clvPosponer()" data-i18n="clv_luego">Más tarde</button>
+    <button class="save-btn" id="clvBtn" onclick="clvGuardar(this)">Crear mi contraseña</button>
+    <button type="button" class="cancel-btn" id="clvLuego" onclick="clvPosponer()">Más tarde</button>
   </div>
 </div>
 
@@ -7128,7 +7144,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.40';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.41';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7619,6 +7635,16 @@ const I18N = {
       clv_r_largo:'Al menos {n} caracteres', clv_r_numeros:'Que no sea sólo números',
       clv_r_iguales:'Las dos veces iguales',
       clv_guardar:'Crear mi contraseña', clv_luego:'Más tarde',
+      clv_actual:'Tu contraseña actual', clv_c_nueva:'Tu contraseña nueva',
+      clv_c_titulo:'Cambiar mi contraseña',
+      clv_c_lead:'Escribe la que usas hoy y la que quieres usar desde ahora. No cierras sesión en este teléfono.',
+      clv_c_guardar:'Guardar la nueva',
+      clv_c_listo:'Listo. Tu contraseña quedó cambiada.',
+      clv_c_mal:'La contraseña actual no es correcta. Verifícala e inténtalo de nuevo.',
+      clv_c_sin_red:'Necesitas conexión para cambiar tu contraseña. Tu contraseña actual sigue funcionando.',
+      clv_olvide:'¿No la recuerdas? Pídele a tu supervisor o al servicio médico que la reinicie desde su panel, en la lista de personal. Después vas a poder elegir una nueva al abrir la aplicación.',
+      clv_r_actual:'Escribe tu contraseña actual',
+      clv_r_distinta:'La nueva tiene que ser distinta de la actual',
       clv_listo:'Listo. Tu contraseña quedó guardada.',
       clv_error:'No se pudo crear la contraseña. Inténtalo de nuevo.',
       clv_sin_red:'Necesitas conexión para crear tu contraseña. Puedes hacerlo más tarde: tus datos ya quedaron guardados.',
@@ -9382,6 +9408,16 @@ const I18N = {
       clv_r_largo:'At least {n} characters', clv_r_numeros:'Not only numbers',
       clv_r_iguales:'Both entries match',
       clv_guardar:'Create my password', clv_luego:'Later',
+      clv_actual:'Your current password', clv_c_nueva:'Your new password',
+      clv_c_titulo:'Change my password',
+      clv_c_lead:'Enter the one you use today and the one you want from now on. You stay signed in on this phone.',
+      clv_c_guardar:'Save the new one',
+      clv_c_listo:'Done. Your password has been changed.',
+      clv_c_mal:'That current password is not correct. Please check it and try again.',
+      clv_c_sin_red:'You need a connection to change your password. Your current one keeps working.',
+      clv_olvide:'Do not remember it? Ask your supervisor or the medical service to reset it from their panel, in the staff list. Then you can choose a new one when you open the app.',
+      clv_r_actual:'Enter your current password',
+      clv_r_distinta:'The new one must be different from the current one',
       clv_listo:'Done. Your password has been saved.',
       clv_error:'The password could not be created. Please try again.',
       clv_sin_red:'You need a connection to create your password. You can do it later: your data is already saved.',
@@ -10892,6 +10928,11 @@ function aplicarIdioma(){
   try { if (typeof demoPintarBarra === 'function') demoPintarBarra(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateGestFab === 'function') dashUpdateGestFab(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateAdmFab === 'function') dashUpdateAdmFab(); } catch(e){}   // P166
+  /* P175 · el título, la bajada y los dos botones de la hoja de contraseña dependen del MODO, así
+     que no llevan `data-i18n` y hay que repintarlos acá — si no, cambiar de idioma con esa hoja
+     abierta la deja en el idioma anterior, y peor: si estaba en «cambiar», el barrido no la toca y
+     queda mitad y mitad. */
+  try { clvPintarModo(CLV_MODO); } catch(e){}
   /* ⚠️ P174 · Y LA INSIGNIA DEL ENCABEZADO, que no lleva `data-i18n`: la escribe sólo
      `paintProfile()`. Con la app en inglés seguía diciendo «Piloto», y —lo caro, R14— para un
      operario de planta cuya empresa cambió de sector, `sectorRefrescar()` repinta todo con la
@@ -11246,7 +11287,10 @@ function acceptConsent(){
   /* B4: el orden cambió y el alta ya ocurrió ANTES de esto. Igual se vuelve a preguntar por el
      paso siguiente en vez de asumirlo: si alguien llegó acá sin perfil (por ejemplo, aceptando un
      consentimiento actualizado tras borrar sus datos), `avanzarAlta()` lo manda al alta igual. */
-  avanzarAlta();
+  /* P175 · traspasa la entrada en vez de apilar una nueva. Medido antes de tocar, por el camino
+     real (consentimiento → tamaño de texto → contraseña): 3 `pushState`, 0 `history.back` — tres
+     entradas huérfanas, o sea tres toques de «atrás» que no hacen nada al terminar el registro. */
+  altaEncadenar(function(){});   // la pantalla ya se cerró arriba
   return aceptados;
 }
 /* La aceptación se manda al servidor por el mismo canal sin contraseña que usa el registro de
@@ -13059,6 +13103,17 @@ function buildItem(it, layout, i){
     mark(it.id);
   });
 
+  /* ⚠️ P175 · EL ↺ NO VA EN LAS TARJETAS QUE YA ESCRIBIERON EN EL CH. Decisión de Franco
+     (2026-09-11), sobre un hallazgo de la auditoría de P174: el ↺ quitaba la marca de la tarjeta y
+     nada más — el evento seguía en la línea de tiempo de abajo, el ciclo seguía «en curso» desde
+     ahí, y la fila de `Operacional` ya había salido, así que el supervisor la veía igual. Dos cosas
+     contradictorias en la misma pantalla, y una promesa de deshacer que no deshacía.
+     De las dos salidas posibles se eligió la que no toca datos: no se ofrece deshacer lo que ya
+     viajó. En las demás tarjetas (las de WhatsApp y los tests) el ↺ sigue igual, porque ahí sí
+     deshace todo lo que hizo: la marca es lo único que se escribió.
+     ⚠️ SI ALGÚN DÍA SE ENCOLA LA ANULACIÓN esto se revierte sacando la guarda: `unmark` sigue
+     entera y sigue siendo el llamador correcto. No se borró nada. */
+  if (!it.operacionalCampo){
   // El distintivo [registro]+[WhatsApp] ya NO va acá: vive una sola vez en el encabezado de la
   // sección (ver renderSections). Repetirlo en cada tarjeta era ruido: el mismo mensaje 8 veces.
   const undo = document.createElement('button');
@@ -13069,6 +13124,7 @@ function buildItem(it, layout, i){
   undo.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); unmark(it.id); });
 
   a.appendChild(undo);   // queda dentro de la tarjeta blanca, no afuera
+  }
   wrap.appendChild(a);
   return wrap;
 }
@@ -16235,7 +16291,9 @@ function saveProfile(){
     // W3: al identificarse se va a buscar el historial al CH. Sin esto la persona entra y ve
     // su pantalla vacia hasta el proximo arranque de la app.
     altaOlvidarPerfil();   // R1: el alta se completo, ya no hay nada que deshacer
-    if (!editing) { misRecuperarHistorial(); avanzarAlta(); } };
+    /* P175 · `closeSetup()` ya corrió arriba, así que acá sólo hace falta el traspaso de la
+       entrada: `altaEncadenar` con un cierre vacío. */
+    if (!editing) { misRecuperarHistorial(); altaEncadenar(function(){}); } };
 
   // Las contraseñas (supervisor y/o servicio médico, pueden ser distintas) se verifican contra
   // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
@@ -27600,13 +27658,55 @@ function miClavePintar(){
 function miClaveTocar(){
   /* Si ya tiene sesión abierta en este dispositivo, lo que necesita es cambiarla; si no, ponerla o
      entrar. `clvAbrir` decide sola si corresponde crearla. */
-  /* P174 · y si el servidor ya dijo que no tiene contraseña (se la reiniciaron), la sesión
-     guardada está muerta: lo que necesita es elegir una nueva, no escribir la vieja. */
-  if (sesPersonaGuardada()){ lgnAbrir(); return; }
+  /* P175 · CON SESIÓN ABIERTA, CAMBIARLA — que es lo que este comentario decía desde siempre y no
+     hacía: abría un login. Si se la reiniciaron, `misSincronizar` ya borró la sesión al arrancar
+     (P174), así que acá no queda ninguna y cae en `clvAbrir()`, que es crear. */
+  if (sesPersonaGuardada()){ if (clvCambiarAbrir()) return; lgnAbrir(); return; }
   if (!clvAbrir()) lgnAbrir();
 }
 
 var CLV_LARGO_MINIMO = 8;   // el que exige el servidor; acá sólo para avisar antes
+/* R16 · `var` sin asignar: la lee `clvValidar()`, que cuelga de un `oninput` del HTML estático y
+   puede dispararse antes de que este punto del archivo se ejecute. Sin valor no pisa nada. */
+var CLV_MODO;
+function clvEsCambio(){ return CLV_MODO === 'cambiar'; }
+/* ⚠️ P175 · CAMBIAR LA CONTRASEÑA PROPIA SABIÉNDOLA. No existía: `credencial_cambiar` estaba
+   escrita en el servidor, ruteada, y con CERO llamadas del cliente (verificado con grep). El único
+   camino era pedirle a un supervisor que la reiniciara — o sea, contarle a alguien que querés
+   cambiar tu contraseña. El caso real es de manual: alguien la dictó por teléfono para que un
+   compañero le cargara algo y después quiere cambiarla.
+   Y el comentario de `miClaveTocar` decía desde siempre «lo que necesita es cambiarla» y después
+   abría un LOGIN. Ahora hace lo que dice. */
+function clvPintarModo(modo){
+  CLV_MODO = (modo === 'cambiar') ? 'cambiar' : 'crear';
+  const cambio = clvEsCambio();
+  const set = (id, clave, extra) => { const el = document.getElementById(id); if (el) el.textContent = t(clave, extra || {}); };
+  set('clvTitulo', cambio ? 'clv_c_titulo' : 'clv_titulo');
+  set('clvLead',   cambio ? 'clv_c_lead'   : 'clv_lead');
+  set('clvPassLbl', cambio ? 'clv_c_nueva' : 'clv_pass');
+  set('clvBtn',    cambio ? 'clv_c_guardar' : 'clv_guardar');
+  set('clvLuego',  cambio ? 'cancelar'      : 'clv_luego');
+  set('clvOlvide', 'clv_olvide');
+  const act = document.getElementById('clvActualCampo');
+  if (act) act.hidden = !cambio;
+  /* El código de empresa no se pide para CAMBIAR: quien escribe su contraseña actual ya demostró
+     quién es, y pedirle además el código sería una barrera sin nada detrás. */
+  if (cambio){ const cod = document.getElementById('clvCodigoCampo'); if (cod) cod.hidden = true; }
+}
+function clvCambiarAbrir(){
+  const p = getProfile() || {};
+  if (!p.cedula || !p.empresa) return false;
+  const ov = document.getElementById('claveOv'); if (!ov) return false;
+  ['clvActual','clvPass','clvPass2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('clvErr').textContent = '';
+  clvPintarModo('cambiar');
+  clvValidar();
+  ov.classList.add('show');
+  navPush();          // esta NO es una pantalla del alta: apila su propia entrada, como cualquier overlay
+  syncScrollLock();
+  setTimeout(() => { try { document.getElementById('clvActual').focus(); } catch(e){} }, 60);
+  return true;
+}
 
 function clvAbrir(){
   const p = getProfile() || {};
@@ -27614,7 +27714,9 @@ function clvAbrir(){
   const ov = document.getElementById('claveOv'); if (!ov) return false;
   document.getElementById('clvPass').value = '';
   document.getElementById('clvPass2').value = '';
+  const _act = document.getElementById('clvActual'); if (_act) _act.value = '';
   document.getElementById('clvErr').textContent = '';
+  clvPintarModo('crear');   // P175 · la misma hoja sirve para las dos cosas: hay que decir cuál es
   clvCodigoPreparar();
   clvValidar();
   /* ⚠️ P153 · ídem: estaba en `silvaAtras()` sin entrada propia. Ver la nota de `nominaAbrir`.
@@ -27688,11 +27790,22 @@ function clvMarcarOfrecida(){
 function clvReglas(){
   const a = document.getElementById('clvPass').value || '';
   const b = document.getElementById('clvPass2').value || '';
-  return [
+  const reglas = [
     { ok: a.length >= CLV_LARGO_MINIMO, txt: t('clv_r_largo', { n: CLV_LARGO_MINIMO }) },
     { ok: /[^0-9]/.test(a),             txt: t('clv_r_numeros') },
     { ok: !!a && a === b,               txt: t('clv_r_iguales') }
   ];
+  /* P175 · al CAMBIAR se piden dos cosas más, y las dos son cortesía: el servidor vuelve a
+     verificar la actual y a rechazar una débil. Acá sólo evitan un viaje de red para decir algo
+     que se sabía antes de salir. «Distinta de la actual» no la comprueba el servidor —cambiarla
+     por la misma no es un error para él— pero para la persona sí: si toca guardar y nada cambia,
+     no tiene forma de saber si funcionó. */
+  if (clvEsCambio()){
+    const act = (document.getElementById('clvActual') || {}).value || '';
+    reglas.unshift({ ok: !!act, txt: t('clv_r_actual') });
+    reglas.push({ ok: !!a && a !== act, txt: t('clv_r_distinta') });
+  }
+  return reglas;
 }
 function clvValidar(){
   const caja = document.getElementById('clvReglas'); if (!caja) return false;
@@ -27710,6 +27823,7 @@ function clvValidar(){
 
 function clvGuardar(btn){
   if (!clvValidar()) return;
+  if (clvEsCambio()) return clvCambiarGuardar(btn);   // P175
   const p = getProfile() || {};
   const err = document.getElementById('clvErr'); err.textContent = '';
   if (!offHayConexion()){
@@ -27751,10 +27865,11 @@ function clvGuardar(btn){
       if (d && d.ok){
         clvMarcarOfrecida();
         tieneClaveMarcar(true);   // P166c · la creó
-        document.getElementById('claveOv').classList.remove('show');
-        syncScrollLock();
         showToast(t('clv_listo'));
-        avanzarAlta();
+        altaEncadenar(function(){   // P175 · ídem
+          document.getElementById('claveOv').classList.remove('show');
+          syncScrollLock();
+        });
         return;
       }
       /* ⚠️ L9 · SI FALTA EL CÓDIGO, SE ABRE EL CAMPO. Sin esto, el mensaje del servidor —«El
@@ -27782,6 +27897,49 @@ function clvGuardar(btn){
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
 }
 
+/* ⚠️ P175 · EL CAMBIO NO SE ENCOLA SIN RED, por la misma razón que la creación: encolarlo sería
+   dejar las DOS contraseñas escritas en texto plano en el `localStorage`, que es justo lo que este
+   bloque existe para evitar. Sin conexión se dice y se puede volver después.
+   Y no se toca `tieneClaveMarcar` ni la sesión: la persona ya tenía contraseña y sigue teniéndola;
+   el token de sesión de este dispositivo sigue siendo válido (el servidor sólo reescribe el hash,
+   no cierra sesiones). Cambiar eso obligaría a volver a entrar en el teléfono donde acaba de
+   cambiarla, que es exactamente donde NO hace falta. */
+function clvCambiarGuardar(btn){
+  const p = getProfile() || {};
+  const err = document.getElementById('clvErr'); err.textContent = '';
+  if (!offHayConexion()){ err.textContent = t('clv_c_sin_red'); return; }
+  btnSpin(btn, true, t('guardando'));
+  const cuerpo = { action:'credencial_cambiar', empresa: p.empresa || '', cedula: p.cedula || '',
+                   pass: document.getElementById('clvActual').value,
+                   pass_nueva: document.getElementById('clvPass').value,
+                   dispositivoId: dispositivoId() };
+  conBloqueo('#claveOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && d.ok){
+        try { haptic(18); } catch(e){}      // R8 · tiene consecuencia: se siente
+        clvCerrarUI();
+        showToast(t('clv_c_listo'));
+        return;
+      }
+      /* «Contraseña incorrecta» acá es SIEMPRE la actual: la nueva no se compara con nada. Decirlo
+         así evita que la persona borre y reescriba la nueva buscando un error que está arriba. */
+      if (d && d.motivo === 'credenciales'){ err.textContent = t('clv_c_mal'); return; }
+      err.textContent = (d && d.error) || t('clv_error');
+    })
+    .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
+}
+/* Cierra la hoja por el camino de la PERSONA (botón, «atrás» por interfaz): descarta su entrada de
+   historial, que es lo que P048 dejó escrito. No se usa en el recorrido del alta, donde la entrada
+   se traspasa en vez de descartarse (`altaEncadenar`). */
+function clvCerrarUI(){
+  try { document.getElementById('claveOv').classList.remove('show'); } catch(e){}
+  syncScrollLock();
+  navConsumir();
+}
+
 /* P173 · intenta el login con la contraseña que la persona acaba de tipear en «Crear contraseña».
    Si entra, aplica la sesión y cierra el alta (transparente). Si no, abre el login manual —la
    contraseña vieja era otra— con la empresa y la cédula ya puestas. */
@@ -27806,6 +27964,11 @@ function clvEntrarConClaveRecien(empresa, cedula, clave, btn){
     .catch(() => { btnSpin(btn, false); lgnAbrir(null, empresa, cedula); }));
 }
 function clvPosponer(){
+  /* P175 · en modo CAMBIO este botón dice «Cancelar» y no es un paso del alta: cierra y ya. Marcar
+     «ya se le ofreció» acá le sacaría a alguien el ofrecimiento de CREAR una contraseña que ya
+     tiene, que no significa nada, y encadenar el alta la mandaría al paso siguiente de un
+     recorrido que terminó hace meses. */
+  if (clvEsCambio()){ clvCerrarUI(); return; }
   clvMarcarOfrecida();
   /* P153c · el cierre y el paso siguiente van juntos, traspasando la entrada del historial. */
   altaEncadenar(function(){
@@ -28021,11 +28184,10 @@ function rolConfirmar(btn){
       rolActivarGuardar(rol, p.empresa || '', pass);
       try { haptic(18); } catch(e){}          // R8 · se siente que algo con consecuencia pasó
       rolMarcarOfrecido();
-      rolOfrecerCerrar();
       try { paintProfile(); } catch(e){}      // la insignia del encabezado ya dice otro rango
       try { miRolPintar(); } catch(e){}
       showToast(t('rol_of_listo'));
-      avanzarAlta();
+      altaEncadenar(rolOfrecerCerrar);        // P175 · ídem
     }));
 }
 
@@ -28073,9 +28235,10 @@ function miRolTocar(){
 
 function confirmarTamanoTexto(){
   if (!textoYaElegido()) fijarTamanoTexto(nivelTextoActual());   // deja registrado que ya eligió
-  document.getElementById('textoOverlay').classList.remove('show');
-  syncScrollLock();
-  avanzarAlta();
+  altaEncadenar(function(){   // P175 · ídem: se traspasa la entrada
+    document.getElementById('textoOverlay').classList.remove('show');
+    syncScrollLock();
+  });
 }
 // Nombre viejo, mantenido porque lo llaman otros puntos del arranque. Es el mismo criterio.
 function seguirTrasTamanoTexto(){ avanzarAlta(); }

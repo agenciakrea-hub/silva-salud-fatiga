@@ -49,11 +49,13 @@ PRUEBAS.caso('⚠️ cambiar la contraseña EXIGE la anterior', () => {
   const sal = base.credSalNueva();
   const api = z4Endpoint(Z4_NOMINA, [['helitec','V-111','ana', base.credHash('LaDeAna2026', sal, 100), sal, '100',
                                       'sha256-sal-vueltas-v1','empleado','activo','2026-09-01','']]);
+  /* P175 · `_post`: esta acción pasó a exigir POST cuando el cliente la conectó, porque lleva DOS
+     contraseñas en claro y por GET quedarían en la URL. Lo cubre su propio caso en p175. */
   const sinLaVieja = JSON.parse(api.accionCredencialCambiar({ empresa:'Helitec', cedula:'V-111',
-                        pass:'adivinada', pass_nueva:'OtraClave2026', dispositivoId:'d' }).getContent());
+                        pass:'adivinada', pass_nueva:'OtraClave2026', dispositivoId:'d', _post:true }).getContent());
   PRUEBAS.falso(sinLaVieja.ok, 'sin la contraseña anterior no se cambia');
   const conLaVieja = JSON.parse(api.accionCredencialCambiar({ empresa:'Helitec', cedula:'V-111',
-                        pass:'LaDeAna2026', pass_nueva:'OtraClave2026', dispositivoId:'d2' }).getContent());
+                        pass:'LaDeAna2026', pass_nueva:'OtraClave2026', dispositivoId:'d2', _post:true }).getContent());
   PRUEBAS.cierto(conLaVieja.ok, 'con la anterior sí');
   const nueva = JSON.parse(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'OtraClave2026', dispositivoId:'d3' }).getContent());
   const vieja = JSON.parse(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'LaDeAna2026', dispositivoId:'d4' }).getContent());
