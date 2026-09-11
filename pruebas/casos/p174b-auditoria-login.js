@@ -222,9 +222,31 @@ PRUEBAS.caso('🔴 la pantalla obligatoria del rol NO se abre sin señal (R7) ·
 });
 
 PRUEBAS.caso('🔴 el botón de reiniciar contraseña no dispara un POST real en la DEMOSTRACIÓN', () => {
-  PRUEBAS.cierto(p174bDentro('credReiniciarTocar', /DASH\.demoMode/),
-    '🔴 con la nómina de ejemplo el botón se pinta en 19 filas · el toque mandaba `pass` vacío y salía «Usuario o contraseña incorrecta» en medio de la demostración');
-  PRUEBAS.cierto(p174bDentro('ausTocar', /DASH\.demoMode/), 'EL DISCRIMINADOR · el botón de al lado, que sirvió de molde, la tiene');
+  /* P179 · medido: se cuenta si SALE el pedido, con `fetchConReloj` y `confirm` interceptados. Leer
+     que la guarda está escrita no dice que corte antes del `fetch`. */
+  const oFetch = window.fetchConReloj, oConfirm = window.confirm, oDash = DASH, oToast = window.showToast;
+  let pedidos = 0, toasts = [];
+  window.fetchConReloj = () => { pedidos++; return Promise.resolve({ json: () => Promise.resolve({ ok:false }) }); };
+  window.confirm = () => true;                 // si llegara a preguntar, se responde que sí
+  window.showToast = (m) => { toasts.push(String(m)); };
+  try {
+    const btn = document.createElement('button');
+    btn.setAttribute('data-ced', 'V-111'); btn.setAttribute('data-per', 'Mariana Cárdenas');
+    document.body.appendChild(btn);
+    DASH = { demoMode: true, params: { action:'demo', dispositivoId:'d' }, vista:'supervisor', f:{} };
+    credReiniciarTocar(btn);
+    PRUEBAS.igual(pedidos, 0,
+      '🔴 en la demostración NO sale ningún pedido · el toque mandaba `pass` vacío y en medio de la ' +
+      'demostración aparecía «Usuario o contraseña incorrecta», que se lee como que la función está rota');
+    PRUEBAS.cierto(toasts.length > 0, 'y se avisa que en la demostración no se aplica');
+    /* EL DISCRIMINADOR: fuera de la demostración el pedido SÍ sale. Sin esto, el caso pasaría con
+       una función que no haga nada nunca. */
+    pedidos = 0;
+    DASH = { demoMode: false, params: { usuario:'helitec', empresa:'Helitec', pass:'x', dispositivoId:'d' }, vista:'supervisor', f:{} };
+    credReiniciarTocar(btn);
+    PRUEBAS.igual(pedidos, 1, '🔒 EL DISCRIMINADOR · con credenciales de verdad, el pedido sale');
+    btn.remove();
+  } finally { window.fetchConReloj = oFetch; window.confirm = oConfirm; window.showToast = oToast; DASH = oDash; }
 });
 
 PRUEBAS.caso('🔒 los tres POST de `supervisor` que faltaban mandan `dispositivoId`', () => {
@@ -281,10 +303,40 @@ PRUEBAS.caso('🔴 el historial de ciclos se dibuja cuando llegan los datos del 
 });
 
 PRUEBAS.caso('⚠️ R8 · volver a marcar un paso del ciclo ya marcado pide confirmación', () => {
-  PRUEBAS.cierto(p174bDentro('buildItem', /operacionalCampo[\s\S]{0,320}confirm\(t\('op_remarcar'\)\)/),
-    '⚠️ un segundo toque en «Saliendo de casa» ABRE UN CICLO NUEVO: la llegada desaparece y el reloj de jornada vuelve a cero para quien lleva tres horas');
-  PRUEBAS.cierto(p174bDentro('buildItem', /op_remarcar[\s\S]{0,90}preventDefault/),
-    'y al cancelar no se abre WhatsApp · el <a> seguía su curso igual');
+  /* P179 · medido con un click REAL sobre la tarjeta que dibuja `buildItem`, y con `confirm`
+     interceptado para contar si preguntó. */
+  const oConfirm = window.confirm, oEnviar = window.enviarOperacional, oMark = window.mark;
+  let pregunto = 0, enviados = 0;
+  window.enviarOperacional = () => { enviados++; };
+  window.mark = () => {};
+  try {
+    const it = { id:'op_salir_casa', label:'Saliendo de casa', desc:'', ic:'var(--chip-bg)', icc:'var(--text)',
+                 icon:'', operacionalCampo:'salida_casa', msg:'x' };
+    const w = buildItem(it, 'lista', 0);
+    document.body.appendChild(w);
+    const a = w.querySelector('a');
+    const r = getReports();
+    try {
+      /* Sin marcar todavía: NO pregunta. */
+      delete r[it.id]; saveReports(r);
+      window.confirm = () => { pregunto++; return true; };
+      a.click();
+      PRUEBAS.igual(pregunto, 0, 'EL DISCRIMINADOR · la primera vez no pregunta nada · si preguntara siempre, molestaría a todo el mundo');
+      PRUEBAS.igual(enviados, 1, 'y el evento sale');
+      /* Ya marcado: pregunta, y si se cancela NO sale nada. */
+      const r2 = getReports(); r2[it.id] = { date: todayStr(), time:'05:00', ts: Date.now() }; saveReports(r2);
+      pregunto = 0; enviados = 0;
+      window.confirm = () => { pregunto++; return false; };   // la persona dice que NO
+      a.click();
+      PRUEBAS.igual(pregunto, 1,
+        '⚠️ el segundo toque pregunta · un toque de más en «Saliendo de casa» ABRE UN CICLO NUEVO: ' +
+        'la llegada al aeropuerto desaparece y el reloj de jornada vuelve a cero para quien lleva tres horas');
+      PRUEBAS.igual(enviados, 0, '⚠️ y al cancelar NO se escribe nada en el CH');
+    } finally {
+      const r3 = getReports(); delete r3[it.id]; saveReports(r3);
+      w.remove();
+    }
+  } finally { window.confirm = oConfirm; window.enviarOperacional = oEnviar; window.mark = oMark; }
 });
 
 PRUEBAS.caso('🔴 el splash frena su cadena de video en TODAS sus salidas', () => {
