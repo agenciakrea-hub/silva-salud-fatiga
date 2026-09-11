@@ -89,6 +89,8 @@ if "--archivo" in sys.argv:
 
 # Lista blanca: inalcanzable Y ESTA BIEN. Cada entrada lleva su motivo.
 ESPERADAS = {
+    # ── la sonda de la clave de la demostracion ───────────────────────────────────
+    "demoSondearClave":         "P171 (2026-09-10) · la clave de la demostracion se pide AL TOCAR el boton de la portada (demoClaveAbrir), antes de mostrar el gate; la sonda que la pedia adentro quedo sin llamador. Se conserva con su motivo",
     # ── el camino viejo del alta ────────────────────────────────────────────────
     "nominaAbrirListaEmpresas": "camino viejo del alta · P132 le saco el llamador porque publicaba el padron de 11 empresas clientes a cualquiera. Franco pidio guardarlo INACTIVO, no borrarlo (2026-09-08)",
     "nominaElegirEmpresa":      "idem · solo se alcanza desde el HTML que genera nominaAbrirListaEmpresas",

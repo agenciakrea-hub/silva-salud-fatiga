@@ -208,25 +208,43 @@ PRUEBAS.caso('el DISCRIMINADOR: estas mediciones detectan de verdad', () => {
   PRUEBAS.igual(d2.registros.length, total, 'y con el real no — o sea que la prueba discrimina');
 });
 
-/* ── La BARRA. Estaba sin cubrir: los primeros casos probaban el motor y ni tocaban la interfaz
-   que lo hace usable, que es exactamente cómo se entregan funciones que no llama nadie. ────── */
+/* ── El OJO y su hoja. Estaba sin cubrir: los primeros casos probaban el motor y ni tocaban la
+   interfaz que lo hace usable, que es exactamente cómo se entregan funciones que no llama nadie.
+   ⚠️ P171 (2026-09-10) · LA BARRA YA NO EXISTE. Franco: «que no ocupe en pantalla, sino que salga
+   del ojo». Lo que era la barra —aviso, cuatro paneles, Salir— vive en la hoja `#demoVistasOv`,
+   que se abre tocando el ojo flotante `#demoFab`. Los casos de abajo abren la hoja por el ojo
+   (R17) antes de medir los botones. ────────────────────────────────────────────────────────── */
 
-PRUEBAS.caso('la barra aparece SÓLO en la demostración', () => {
+/* Abre la hoja del ojo POR EL OJO, que es el único camino que tiene una persona. */
+function p106AbrirOjo(){
+  const fab = document.getElementById('demoFab');
+  if (fab) fab.click();
+}
+function p106CerrarOjo(){ try { demoVistasCerrar(); } catch (e) {} }
+
+PRUEBAS.caso('el ojo aparece SÓLO en la demostración, y la barra vieja ya no está', () => {
   p106ConPortal(() => {
-    const bar = document.getElementById('demoBar');
-    PRUEBAS.cierto(!!bar, 'existe #demoBar');
+    const fab = document.getElementById('demoFab');
+    PRUEBAS.cierto(!!fab, 'existe #demoFab');
+    PRUEBAS.falso(!!document.getElementById('demoBar'), '⚠️ #demoBar se fue del DOM: no ocupa pantalla');
     DASH = { demoMode: false, vista: 'supervisor' }; DEMO_PAYLOAD = null;
     demoPintarBarra();
-    PRUEBAS.igual(bar.style.display, 'none', 'sin demo, oculta');
+    PRUEBAS.igual(fab.style.display, 'none', 'sin demo, oculto');
     p106Entrar('supervisor');
-    PRUEBAS.falso(getComputedStyle(bar).display === 'none', '⚠️ en demo, visible');
+    PRUEBAS.falso(getComputedStyle(fab).display === 'none', '⚠️ en demo, visible');
+    PRUEBAS.falso(document.getElementById('demoVistasOv').classList.contains('show'), 'y la hoja arranca CERRADA: es lo que no achica la pantalla');
+    p106AbrirOjo();
+    PRUEBAS.cierto(document.getElementById('demoVistasOv').classList.contains('show'), '🔴 tocar el ojo abre la hoja sobre la interfaz');
+    p106CerrarOjo();
   });
 });
 
 PRUEBAS.caso('los cuatro botones existen y sólo uno queda marcado', () => {
   p106ConPortal(() => {
     p106Entrar('hseq');
+    p106AbrirOjo();
     const bs = [...document.querySelectorAll('#dbVistas .db-v')];
+    p106CerrarOjo();
     PRUEBAS.igual(bs.length, 4, 'Personal · Supervisor · Médico · Dirección');
     const marcados = bs.filter(b => b.getAttribute('aria-pressed') === 'true');
     PRUEBAS.igual(marcados.length, 1, '⚠️ exactamente uno marcado, nunca dos ni ninguno');
@@ -239,10 +257,14 @@ PRUEBAS.caso('⚠️ el área táctil llega a 44 px', () => {
      caso para errarle a un botón. */
   p106ConPortal(() => {
     p106Entrar('supervisor');
+    p106AbrirOjo();
     const chicos = [...document.querySelectorAll('#dbVistas .db-v')]
       .filter(b => b.getBoundingClientRect().height < 44)
       .map(b => b.textContent.trim() + ': ' + Math.round(b.getBoundingClientRect().height) + 'px');
+    const fab = document.getElementById('demoFab').getBoundingClientRect();
+    p106CerrarOjo();
     PRUEBAS.igual(chicos, [], 'ninguno por debajo de 44 px de alto');
+    PRUEBAS.cierto(fab.width >= 44 && fab.height >= 44, 'y el ojo también se toca con el dedo');
   });
 });
 
@@ -250,10 +272,13 @@ PRUEBAS.caso('tocar el botón cambia la vista de verdad', () => {
   /* R17: se toca el BOTÓN, no se llama la función. Es el único camino que tiene una persona. */
   p106ConPortal(() => {
     p106Entrar('supervisor');
+    p106AbrirOjo();
     const bs = () => [...document.querySelectorAll('#dbVistas .db-v')];
     bs()[3].click();
     PRUEBAS.igual(DASH.vista, 'hseq', '⚠️ el click llegó hasta el cambio de vista');
-    PRUEBAS.igual(bs()[3].getAttribute('aria-pressed'), 'true', 'y la barra se actualizó sola');
+    PRUEBAS.falso(document.getElementById('demoVistasOv').classList.contains('show'), 'y la hoja se cerró sola: se eligió, no hay que cerrarla a mano');
+    PRUEBAS.igual(bs()[3].getAttribute('aria-pressed'), 'true', 'y el selector quedó actualizado para la próxima vez');
+    p106CerrarOjo();
   });
 });
 

@@ -94,19 +94,30 @@ PRUEBAS.caso('⚠️ el botón no puede prometer "un toque" si falta escribir la
     'la razón tiene que seguir escrita al lado del código que la promete');
 });
 
-PRUEBAS.caso('⚠️ la demostración se abre en 2 toques', () => {
-  /* Es el camino comercial: cada toque de más es alguien que no llega a ver el producto. */
+PRUEBAS.caso('⚠️ la demostración se abre en 2 toques (más la clave, que va PRIMERO)', () => {
+  /* Es el camino comercial: cada toque de más es alguien que no llega a ver el producto.
+     P171 (2026-09-10) · Franco: «la contraseña para ver demostración se pide al tocar el botón, no
+     adentro». Así que el primer toque abre la hoja de la clave; con la clave validada (el payload
+     ya en memoria) se ve el gate con UN botón para entrar. Se miden los dos estados. */
   const ov = document.getElementById('splashOv');
   const tenia = ov.classList.contains('show');
   ov.classList.add('show');
+  const payPrev = DEMO_PAYLOAD;
   try {
+    DEMO_PAYLOAD = null;
+    splashVerDemo();
+    PRUEBAS.cierto(document.getElementById('demoClaveOv').classList.contains('show'), '🔴 sin clave validada, el botón abre la hoja de la clave');
+    PRUEBAS.falso(document.getElementById('portalOverlay').classList.contains('show'), '🔴 y el gate NO se muestra: nada del panel antes de la clave');
+    demoClaveCerrar();
+    DEMO_PAYLOAD = { d:{ ok:true, demo:true }, params:{ action:'demo' }, scope:'Empresa Demo' };
     splashVerDemo();
     const btn = document.getElementById('portalDemoBtn');
     PRUEBAS.cierto(!!btn && btn.getBoundingClientRect().width > 0,
-      '⚠️ tras tocar "Ver una demostración" tiene que quedar UN botón para entrar');
-    PRUEBAS.cierto(/portalMode\('sup'\)/.test(String(splashVerDemo)),
+      '⚠️ con la clave validada tiene que quedar UN botón para entrar');
+    PRUEBAS.cierto(/portalMode\('sup'\)/.test(String(demoAbrirGate)),
       'y abrir ya en una vista elegida, para no sumar un toque de selección');
   } finally {
+    DEMO_PAYLOAD = payPrev;
     document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
     if (tenia) ov.classList.add('show');
   }

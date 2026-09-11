@@ -240,19 +240,20 @@ PRUEBAS.caso('⚠️ y pasar por Administrador NO rompe "Ver una demostración"'
      código muerto, el mismo defecto que Q4c encontró antes).
      Efecto: la demo quedaba con UNA pestaña muerta y el botón clavado en "(para supervisor)", hasta
      recargar la página. */
+  const payPrev = DEMO_PAYLOAD;
   try {
     document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
     document.getElementById('splashOv').classList.add('show');
     splashAdmin();                                  // esconde las pestañas
     closePortal();
     document.getElementById('splashOv').classList.add('show');
-    splashVerDemo();                                // tiene que reponerlas
+    DEMO_PAYLOAD = { d:{ ok:true, demo:true }, params:{ action:'demo' }, scope:'Empresa Demo' }; splashVerDemo();   // P171 · con la clave ya validada (sin payload, el botón abre la hoja de la clave)                                // tiene que reponerlas
     const vis = id => { const e = document.getElementById(id); if (!e) return false;
       const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     PRUEBAS.igual(['ptabEmp','ptabSup','ptabMed','ptabHseq'].filter(vis).length, 4,
       '⚠️ la demostración tiene que ofrecer las cuatro vistas, se haya pasado o no por Administrador');
     PRUEBAS.falso(vis('pAdminPass'), 'y el campo de administrador se guarda (discriminador)');
-  } finally { document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); }
+  } finally { DEMO_PAYLOAD = payPrev; document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); }
 });
 
 PRUEBAS.caso('⚠️ cerrar el panel no deja la sesión de empresa viva detrás', () => {

@@ -114,10 +114,13 @@ PRUEBAS.caso('portal · "Entrar" (supervisor/servicio médico): sale de t(\'lgn_
 });
 
 PRUEBAS.caso('portal · "Ver demostración con datos simulados": sale de t(\'pg_demo_abriendo\')', () => {
+  /* P171 · con un payload de la demostración en memoria, «Ingresar» no viaja y el botón no gira:
+     acá se mide la etiqueta del CAMINO CON RED, así que se parte sin payload. */
+  const payPrev = DEMO_PAYLOAD; DEMO_PAYLOAD = null;
   const texto = p043Etiqueta(
     () => document.getElementById('portalDemoBtn'),
     (btn) => portalVerDemo(btn),
-    () => {}
+    () => { DEMO_PAYLOAD = payPrev; }
   );
   PRUEBAS.igual(texto, 'Opening example…',
     'estaba fijo en "Abriendo ejemplo…". Clave nueva pg_demo_abriendo, junto a pg_demo_pass_mal');

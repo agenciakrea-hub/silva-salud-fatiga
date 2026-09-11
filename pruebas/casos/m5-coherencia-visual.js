@@ -494,7 +494,9 @@ PRUEBAS.caso('⚠️ la demo no dispara el pedido sola', () => {
   /* Reportado: "le doy y me abre sí o sí dirección, no me deja seleccionar". Pasaba porque
      `splashVerDemo` llamaba a `portalVerDemo` en la misma línea que abría el portal: la persona
      nunca llegaba a tocar una pestaña. */
-  const fuente = splashVerDemo.toString();
+  /* P171 · `splashVerDemo` pide la clave primero y delega el gate en `demoAbrirGate`; se miran
+     las dos: ninguna puede disparar el pedido del panel. */
+  const fuente = splashVerDemo.toString() + demoAbrirGate.toString();
   PRUEBAS.falso(/portalVerDemo/.test(fuente),
     'abrir la demo no puede pedir los datos: primero hay que poder elegir qué vista mirar');
   PRUEBAS.cierto(/portalDemoModo\(true\)/.test(fuente), 'tiene que entrar en modo sólo demostración');
@@ -510,7 +512,7 @@ PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => 
   ['ptabSup','ptabMed','ptabHseq'].forEach(id => {
     const b = document.getElementById(id); if (b) b.style.display = '';
   });
-  splashVerDemo();
+  DEMO_PAYLOAD = { d:{ ok:true, demo:true }, params:{ action:'demo' }, scope:'Empresa Demo' }; splashVerDemo();   // P171 · con la clave ya validada (sin payload, el botón abre la hoja de la clave)
   const vis = id => { const e = document.getElementById(id); return e && getComputedStyle(e).display !== 'none'; };
   const r = { creds: vis('portalCreds'), admin: vis('adminSep'), tabEmp: vis('ptabEmp'),
               sup: vis('ptabSup'), med: vis('ptabMed'), dir: vis('ptabHseq') };
@@ -542,7 +544,7 @@ PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => 
 });
 
 PRUEBAS.caso('cada pestaña cambia la vista que se va a demostrar', () => {
-  splashVerDemo();
+  DEMO_PAYLOAD = { d:{ ok:true, demo:true }, params:{ action:'demo' }, scope:'Empresa Demo' }; splashVerDemo();   // P171 · con la clave ya validada (sin payload, el botón abre la hoja de la clave)
   const vistas = [];
   ['sup', 'med', 'hseq'].forEach(m => { portalMode(m); vistas.push(PORTAL_VISTA); });
   const etiqueta = (document.getElementById('portalDemoBtn') || {}).textContent || '';
@@ -555,7 +557,7 @@ PRUEBAS.caso('cada pestaña cambia la vista que se va a demostrar', () => {
 PRUEBAS.caso('al cerrar, el portal vuelve a la normalidad', () => {
   /* Si el modo demo quedara pegado, alguien que después quiere entrar de verdad no encontraría
      dónde poner su contraseña. */
-  splashVerDemo();
+  DEMO_PAYLOAD = { d:{ ok:true, demo:true }, params:{ action:'demo' }, scope:'Empresa Demo' }; splashVerDemo();   // P171 · con la clave ya validada (sin payload, el botón abre la hoja de la clave)
   closePortal();
   PRUEBAS.falso(PORTAL_SOLO_DEMO, 'el modo se apaga al cerrar');
   portalMode('sup');

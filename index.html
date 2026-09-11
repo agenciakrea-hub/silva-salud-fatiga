@@ -5220,7 +5220,24 @@
              border: none; border-radius: 13px; background: var(--orange-solido); color: var(--sobre-marca);
              box-shadow: var(--shadow-md); cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .adm-fab:active { transform: scale(.96); }
-  #portalDash.con-adm-fab .gest-fab { width: min(360px, calc(100% - 2.2rem - 56px)); }
+  #portalDash.con-adm-fab .gest-fab, #portalDash.con-demo-fab .gest-fab { width: min(360px, calc(100% - 2.2rem - 56px)); }
+  /* P171 · el ojo de la demostración: mismo lugar que el del administrador (nunca coinciden:
+     el del admin no se muestra en demo, ver `dashUpdateAdmFab`), con los colores de la demo. */
+  .demo-fab { background: var(--demo-bar); color: var(--sobre-claro-txt); }
+  .demo-salir { display: block; width: 100%; margin-top: .9rem; min-height: 44px; }
+  /* Dentro de la hoja (fondo claro) los chips se pintan sobre la franja de la demostración, que es
+     donde sus tokens (`--demo-chip` es blanco al 12 %) tienen contraste. La franja es la misma
+     que llevaba la barra: se sigue leyendo «esto no es la sesión real». */
+  #demoVistasOv .db-vistas { flex-wrap: wrap; overflow: visible; margin-top: .4rem; padding: .6rem;
+    border-radius: 12px;
+    background: repeating-linear-gradient(135deg, var(--demo-bar), var(--demo-bar) 12px, var(--demo-bar-2) 12px, var(--demo-bar-2) 24px); }
+  #demoVistasOv .db-v { flex: 1 1 auto; text-align: center; }
+  #demoVistasOv .demo-salir { background: var(--demo-bar); color: var(--sobre-claro-txt); border: none; border-radius: 12px; font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
+  /* P171 · la ficha de «Mis datos» */
+  .md-lista { margin: .4rem 0 .6rem; }
+  .md-fila { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
+  .md-k { flex: 0 0 auto; font-size: .8rem; color: var(--text-muted); font-weight: 700; }
+  .md-v { flex: 1 1 auto; text-align: right; font-size: .95rem; color: var(--text); word-break: break-word; }
   .adm-atajos-sheet h2 { margin-top: 0; }
   .adm-atajos-lead { font-size: .85rem; color: var(--text-soft); line-height: 1.5; margin: .2rem 0 1rem; }
   .adm-atajo { display: block; width: 100%; text-align: left; margin-top: .55rem; padding: .95rem 1rem;
@@ -5428,8 +5445,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
           <span class="hh-badge" id="tareasBadge" style="display:none">0</span>
         </button>
-        <button class="hh-edit" onclick="openSetup(true)" aria-label="Editar mis datos" data-i18n-attr="aria-label:editar_datos">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+        <!-- P171 · «Mis datos» es de SÓLO LECTURA: la ficha con lo que quedó registrado. Franco:
+             «los datos no pueden editarse, ese panel ahora es sólo para ver los datos que quedaron
+             registrados». El lápiz se fue con la edición; el ícono es una credencial. -->
+        <button class="hh-edit" onclick="misDatosAbrir()" aria-label="Mis datos" data-i18n-attr="aria-label:md_titulo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8.5" cy="11" r="2.5"/><path d="M4.5 18c.6-2 2.2-3 4-3s3.4 1 4 3"/><line x1="14" y1="9" x2="19" y2="9"/><line x1="14" y1="13" x2="19" y2="13"/></svg>
         </button>
         </div>
       </div>
@@ -5508,9 +5528,10 @@
       </div>
     </div>
 
-    <button type="button" class="rbtn mas-item" onclick="openSetup(true)">
-      <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
-      <div class="tx"><span class="tt" data-i18n="cambiar_datos">Cambiar mis datos</span><span class="ds" data-i18n="cambiar_datos_d">Nombre, empresa, email, teléfono…</span></div>
+    <!-- P171 · sólo lectura (ver el botón del encabezado). -->
+    <button type="button" class="rbtn mas-item" onclick="misDatosAbrir()">
+      <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8.5" cy="11" r="2.5"/><path d="M4.5 18c.6-2 2.2-3 4-3s3.4 1 4 3"/><line x1="14" y1="9" x2="19" y2="9"/><line x1="14" y1="13" x2="19" y2="13"/></svg></div>
+      <div class="tx"><span class="tt" data-i18n="md_titulo">Mis datos</span><span class="ds" data-i18n="md_mas_d">Así quedaste registrado</span></div>
       <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
     </button>
 
@@ -6763,14 +6784,11 @@
            dicen "esto no es la sesión real"— pero su contenido y su motivo son distintos.
            El selector cambia de vista SIN pedir nada a la red: el payload de la demostración ya
            trae las cuatro. -->
-      <div class="sim-bar demo-bar" id="demoBar" style="display:none">
-        <div class="db-fila">
-          <span class="sim-ico"><svg class="ico-svg" aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <span class="sim-txt"><span class="db-corto" data-i18n="demo_bar_corto">Demostración · nada se guarda</span><span class="db-largo" data-i18n="demo_bar_txt">Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.</span></span>
-          <button type="button" class="sim-salir" onclick="closePortalUI()" data-i18n="salir">Salir</button>
-        </div>
-        <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
-      </div>
+      <!-- P171 · LA BARRA DE LA DEMOSTRACIÓN SE FUE DE LA PANTALLA. Franco: «que no ocupe en
+           pantalla, sino que salga del ojo: cuando se toca se amplía sobre la interfaz con la
+           opción de cambiar entre panel, para no achicar la pantalla». Queda el ojo, flotante
+           (`#demoFab`, abajo a la izquierda como el del administrador), y la hoja `#demoVistasOv`
+           con el aviso, los cuatro paneles y «Salir». -->
       <div class="dash-top">
         <button class="portal-back" id="portalBackBtn" onclick="portalBackToGate()">←</button>
         <img id="dashBrandLogo" class="dash-brand-logo" alt="" style="display:none">
@@ -6830,6 +6848,7 @@
            despliega hacia arriba la explicación, sin abrir nada más. -->
       <!-- P166 · el flotante chico del administrador. Su onclick estático es raíz para
            `pruebas/alcanzabilidad.py`; el resto cuelga de `admAtajosPintar`. -->
+      <button class="adm-fab demo-fab" id="demoFab" style="display:none" onclick="demoVistasAbrir()" aria-label="Demostración: cambiar de panel" data-i18n-attr="aria-label:demo_ojo"><svg class="ico-svg" aria-hidden="true" focusable="false" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <button class="adm-fab" id="admFab" style="display:none" onclick="admAtajosAbrir()" aria-label="Ir al inicio" data-i18n-attr="aria-label:adm_ir_inicio"><svg class="ico-svg" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
       <div class="gest-fab" id="gestFab" style="display:none">
         <div class="gest-fab-info-panel" id="gestFabInfoPanel">
@@ -6982,6 +7001,50 @@
 
 <!-- P166 · la hoja del flotante de administrador: «Entrar como…». Los nombres y las cédulas llegan
      del servidor SÓLO a una sesión de administrador (`DASH.atajosAdmin`); acá no vive ninguno. -->
+<!-- P171 · MIS DATOS, DE SÓLO LECTURA. Overlay propio y chico, no `#setup` apagado: volver el
+     formulario de sólo lectura obligaría a recorrer sus quince campos poniéndoles `disabled`, y
+     bastaría un campo nuevo para que uno quedara editable. Acá se PINTA lo que hay: no hay nada
+     que deshabilitar porque no hay nada que escribir. `#setup` sigue siendo el paso de revisión
+     del ALTA (`openSetup(false)`), que es otra cosa: ahí todavía no hay registro. -->
+<div class="overlay" id="misDatosOv">
+  <div class="sheet">
+    <button type="button" class="portal-x" onclick="misDatosCerrarUI()" aria-label="Cerrar" data-i18n-attr="aria-label:cerrar">✕</button>
+    <h2 data-i18n="md_titulo">Mis datos</h2>
+    <p class="lead" data-i18n="md_lead">Así quedaste registrado. Estos datos los carga tu empresa: si algo no está bien, avísale a quien administra la nómina.</p>
+    <div class="md-lista" id="misDatosLista"></div>
+    <button type="button" class="cancel-btn" onclick="misDatosCerrarUI()" data-i18n="cerrar">Cerrar</button>
+  </div>
+</div>
+
+<!-- P171 · la hoja del ojo de la demostración: lo que era la barra, sobre la interfaz y sólo
+     cuando se pide. -->
+<div class="overlay" id="demoVistasOv">
+  <div class="sheet adm-atajos-sheet">
+    <h2 id="dvTitulo" data-i18n="demo_bar_corto">Demostración · nada se guarda</h2>
+    <p class="adm-atajos-lead" id="dvLead" data-i18n="demo_bar_txt">Demostración con datos de ejemplo. Puedes tocar todo: nada de lo que hagas aquí se guarda.</p>
+    <p class="adm-atajos-lead" data-i18n="demo_ojo_lead">Elige qué panel ver:</p>
+    <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
+    <button type="button" class="sim-salir demo-salir" onclick="closePortalUI()" data-i18n="demo_salir">Salir de la demostración</button>
+    <button type="button" class="cancel-btn" onclick="demoVistasCerrarUI()" data-i18n="cerrar">Cerrar</button>
+  </div>
+</div>
+<!-- P171 · la clave de la demostración, al tocar el botón de la portada -->
+<div class="overlay" id="demoClaveOv">
+  <div class="sheet">
+    <h2 data-i18n="dc_titulo">Ver una demostración</h2>
+    <p class="lead" data-i18n="dc_lead">La demostración tiene una clave. Escríbela para continuar.</p>
+    <form id="dcForm" onsubmit="demoClaveEnviar(this.querySelector('.save-btn')); return false;">
+      <div class="field"><label for="dcPass" data-i18n="pg_demo_pass_lbl">Clave de la demostración</label>
+        <div class="pw-wrap"><input id="dcPass" type="password" autocomplete="off">
+          <button type="button" class="pw-eye" onclick="togglePw('dcPass',this)" aria-label="Ver contraseña" data-i18n-attr="aria-label:ver_contrasena"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      </div>
+      <div class="portal-err" id="dcErr"></div>
+      <button class="save-btn" type="submit" data-i18n="dc_entrar">Ver la demostración</button>
+    </form>
+    <button type="button" class="cancel-btn" onclick="demoClaveCerrarUI()" data-i18n="atras">Atrás</button>
+  </div>
+</div>
+
 <div class="overlay" id="admAtajosOv">
   <div class="sheet adm-atajos-sheet">
     <h2 data-i18n="adm_ir_inicio">Ir al inicio</h2>
@@ -7057,7 +7120,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.35';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.36';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7127,6 +7190,11 @@ const I18N = {
       tamano_texto:'Tamaño del texto', apariencia:'Apariencia',
       tema_claro:'Claro', tema_oscuro:'Oscuro', tema_auto:'Automático',
       cambiar_datos:'Cambiar mis datos', cambiar_datos_d:'Nombre, empresa, email, teléfono…',
+      md_titulo:'Mis datos', md_mas_d:'Así quedaste registrado',
+      md_lead:'Así quedaste registrado. Estos datos los carga tu empresa: si algo no está bien, avísale a quien administra la nómina.',
+      md_rol:'Acceso al panel',
+      demo_ojo:'Demostración: cambiar de panel', demo_ojo_lead:'Elige qué panel ver:', demo_salir:'Salir de la demostración',
+      dc_titulo:'Ver una demostración', dc_lead:'La demostración tiene una clave. Escríbela para continuar.', dc_entrar:'Ver la demostración',
       splash_h1:'Tu bienestar y seguridad, en un solo lugar',
       /* Las cinco pantallas de la tira del splash. Texto corto a propósito: se leen de reojo
          mientras la persona decide si entra, no se estudian. */
@@ -7308,7 +7376,7 @@ const I18N = {
       setup_titulo:'Bienvenido',
       setup_titulo_faltantes:'Falta muy poco',
       setup_titulo_confirmar:'Confirma tus datos',
-      setup_lead_confirmar:'Esto es lo que tu empresa cargó de ti. Si algo no está bien, puedes corregirlo desde Más › Editar mis datos.',
+      setup_lead_confirmar:'Esto es lo que tu empresa cargó de ti. Si algo no está bien, avísale a quien administra la nómina de tu empresa.',
       paso_de:'paso {n} de {total}',
       paso_fase_ident:'Identificación',
       paso_fase_datos:'Tus datos',
@@ -8881,6 +8949,11 @@ const I18N = {
       tamano_texto:'Text size', apariencia:'Appearance',
       tema_claro:'Light', tema_oscuro:'Dark', tema_auto:'Automatic',
       cambiar_datos:'Edit my details', cambiar_datos_d:'Name, company, email, phone…',
+      md_titulo:'My details', md_mas_d:'How you were registered',
+      md_lead:'This is how you were registered. Your company loads these details: if something is wrong, tell whoever manages the roster.',
+      md_rol:'Panel access',
+      demo_ojo:'Demo: switch panel', demo_ojo_lead:'Choose which panel to see:', demo_salir:'Leave the demo',
+      dc_titulo:'See a demo', dc_lead:'The demo has a password. Enter it to continue.', dc_entrar:'See the demo',
       splash_h1:'Your wellbeing and safety, in one place',
       spl_m_estres:'STRESS', spl_m_gastro:'GASTRO', spl_m_fatiga:'FATIGUE', spl_m_somnol:'SLEEPINESS',
       spl_rt_t:'Live operations',
@@ -9032,7 +9105,7 @@ const I18N = {
       setup_titulo:'Welcome',
       setup_titulo_faltantes:'Almost done',
       setup_titulo_confirmar:'Confirm your details',
-      setup_lead_confirmar:'This is what your company loaded about you. If something is wrong, you can fix it from More › Edit my details.',
+      setup_lead_confirmar:'This is what your company loaded about you. If something is wrong, tell whoever manages your company\'s roster.',
       paso_de:'step {n} of {total}',
       paso_fase_ident:'Identification',
       paso_fase_datos:'Your details',
@@ -14382,6 +14455,46 @@ function paintProfile(){
   }
 }
 
+/* ── P171 · «Mis datos», de sólo lectura ─────────────────────────────────────────────────────
+   Pinta la ficha desde el perfil guardado, con las MISMAS etiquetas del formulario (`f_*`, que ya
+   resuelven idioma × sector: «Identificador de Piloto» / «de operario»). Sólo se listan los campos
+   que tienen valor: una fila «Identificador de piloto: —» en una planta es ruido. */
+function misDatosFilas(p){
+  const sexo = v => (v === 'Masculino' || v === 'M') ? t('f_masculino')
+                  : (v === 'Femenino' || v === 'F') ? t('f_femenino')
+                  : v ? t('f_prefiero_no') : '';
+  const filas = [
+    ['f_nombre',   p.nombre],
+    ['f_cedula',   p.cedula],
+    ['f_empresa',  p.empresa],
+    ['f_depto',    p.departamento],
+    ['f_cargo',    p.cargo],
+    ['f_sexo',     sexo(p.sexo)],
+    ['f_edad',     p.edad],
+    ['f_telefono', p.telefono],
+    ['f_email',    p.email],
+    ['f_idpiloto', p.esPiloto ? p.id_piloto : ''],
+    ['md_rol',     (p.esSupervisor || p.esServicioMedico) ? rangoDe(p) : '']
+  ];
+  return filas.filter(f => String(f[1] == null ? '' : f[1]).trim() !== '');
+}
+function misDatosPintar(){
+  const cont = document.getElementById('misDatosLista'); if (!cont) return;
+  const p = getProfile() || {};
+  cont.innerHTML = misDatosFilas(p).map(f =>
+    '<div class="md-fila"><span class="md-k">' + esc(t(f[0])) + '</span>' +
+    '<span class="md-v">' + esc(String(f[1])) + '</span></div>').join('');
+}
+function misDatosAbrir(){
+  misDatosPintar();
+  document.getElementById('misDatosOv').classList.add('show');
+  syncScrollLock(); navPush();
+}
+function misDatosCerrar(){ document.getElementById('misDatosOv').classList.remove('show'); syncScrollLock(); }
+/* El botón de cerrar consume la entrada que apiló `misDatosAbrir`; el «atrás» del teléfono no
+   (ahí ya la sacó el navegador). Mismo reparto que `tareasCerrarUI`. */
+function misDatosCerrarUI(){ misDatosCerrar(); navConsumir(); }
+
 /* ── Navegación estilo OSDE: Inicio / Estadísticas / Más ── */
 let _vistaActual = null;
 function mostrarVista(v){
@@ -14710,6 +14823,9 @@ function silvaAtras(){
     cerrarTest(); return true;
   }
   if (visible('tareasOv')){ tareasCerrar(); return true; }
+  if (visible('misDatosOv')){ misDatosCerrar(); return true; }        // P171 · la ficha de sólo lectura
+  if (visible('demoVistasOv')){ demoVistasCerrar(); return true; }    // P171 · la hoja del ojo de la demostración
+  if (visible('demoClaveOv')){ demoClaveCerrar(); return true; }      // P171 · la clave de la demostración, sobre el splash
   if (visible('loginOv')){ lgnCerrar(); return true; }
   if (visible('claveOv')){ clvPosponer(); return true; }
   /* ⚠️ P100 · SIN ESTA LÍNEA LA PANTALLA NUEVA ERA UN CALLEJÓN SIN SALIDA con el botón físico del
@@ -16435,9 +16551,13 @@ function portalAbrirDirecto(){
 
 function openPortalGate(){
   /* Volver al selector es salir de la demostración, aunque el portal no se cierre. Sin esto el
-     payload sobrevivía a la flecha ← y quedaba disponible para pisar el panel real. */
-  DEMO_PAYLOAD = null;
-  const _db = document.getElementById('demoBar'); if (_db) _db.style.display = 'none';
+     payload sobrevivía a la flecha ← y quedaba disponible para pisar el panel real.
+     P171 · SALVO en el portal sólo-demo (el de «Ver una demostración»): ahí no hay credenciales
+     que escribir ni panel real que pisar, y la clave ya se validó al entrar — tirar el payload
+     obligaría a escribirla de nuevo adentro del gate. `closePortal` (la ✕) sí lo tira siempre. */
+  if (!PORTAL_SOLO_DEMO) DEMO_PAYLOAD = null;
+  const _db = document.getElementById('demoFab'); if (_db) _db.style.display = 'none';
+  try { demoVistasCerrar(); } catch(e){}
   cargaCancelar();                    // volver al selector cancela la carga en curso
   portalReponerLoDeEmpresa();
   portalPintarOlvidar();
@@ -16609,7 +16729,8 @@ function closePortal(){
     } catch(e){}
   }
   DEMO_PAYLOAD = null;                // S7: el payload de la demo no sobrevive al cierre
-  const dbar = document.getElementById('demoBar'); if (dbar) dbar.style.display = 'none';
+  const dbar = document.getElementById('demoFab'); if (dbar) dbar.style.display = 'none';
+  try { demoVistasCerrar(); } catch(e){}
   portalDemoModo(false);              // salir del modo "sólo demo", si venía de ahí
   marcarStatsActivo(false); syncScrollLock();
   /* B5, 2026-08-25 — BUG REAL encontrado probando "Los otros tres caminos". El splash (B1) abre
@@ -17618,6 +17739,10 @@ function portalLoginSupervisor(btn){
 // Demostración con datos simulados (Empresa Demo), SIN login — botón del portal supervisor.
 function portalVerDemo(btn){
   const errEl = document.getElementById('portalDemoErr'); if (errEl) errEl.textContent = '';
+  /* P171 · la clave ya se validó al tocar «Ver una demostración» y el payload está en memoria:
+     se entra sin viajar. El pedido de abajo queda como respaldo (por ejemplo, si se llegó al gate
+     por otro camino sin payload): ahí el servidor pide la clave y el campo aparece acá. */
+  if (demoAplicarGuardado(PORTAL_VISTA)) return;
   /* Z1: la clave viaja SIEMPRE que la persona haya escrito una. Quién decide si hace falta es el
      servidor — acá no hay ninguna comparación, y no puede haberla: este archivo es público. */
   const passEl = document.getElementById('pDemoPass');
@@ -17655,6 +17780,7 @@ function portalVerDemo(btn){
    duplicar nada. */
 function portalVerDemoEmpleado(btn){
   const errEl = document.getElementById('portalDemoErr'); if (errEl) errEl.textContent = '';
+  if (demoAplicarGuardado('empleado')) return;   // P171 · ídem `portalVerDemo`
   const passEl = document.getElementById('pDemoPass');
   const params = { action:'demo', dispositivoId: dispositivoId() };
   if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
@@ -17755,32 +17881,52 @@ function demoVerVista(vista){
    así no hay forma de que la barra quede diciendo una vista y la pantalla mostrando otra.
    Las etiquetas se resuelven en cada pintada, no una vez: si no, cambiar de idioma dejaría los
    botones congelados en el idioma que hubiera al abrir. */
+/* P171 · Ya no pinta una barra: enciende el OJO flotante y arma la hoja que se abre al tocarlo.
+   Conserva el nombre porque la llaman `onDashData` (cada cambio de vista) y `aplicarIdioma`. */
 function demoPintarBarra(){
-  const bar = document.getElementById('demoBar');
-  if (!bar) return;
+  const fab = document.getElementById('demoFab');
+  if (!fab) return;
   const hay = !!(DASH && DASH.demoMode && DEMO_PAYLOAD);
-  bar.style.display = hay ? '' : 'none';
-  /* ⚠️ UNA SOLA BARRA, NUNCA DOS. Quien entra por Ajustes → Administrador → rol está simulando Y
-     en la demostración a la vez (`simEntrar` pide `action:'demo'`), así que las dos se mostrarían
-     juntas: 52 + 103 = 155 px de cromo sobre 812, y el panel se vería apretado. Cuando hay
-     simulación, ésta absorbe el aviso y la otra se esconde. */
+  fab.style.display = hay ? '' : 'none';
+  const dash = document.getElementById('portalDash');
+  if (dash) dash.classList.toggle('con-demo-fab', hay);
+  /* ⚠️ UNA SOLA SEÑAL, NUNCA DOS. Quien entra por Ajustes → Administrador → rol está simulando Y
+     en la demostración a la vez (`simEntrar` pide `action:'demo'`): la barra de simulación se
+     esconde y el ojo absorbe su aviso en la hoja. */
   const simBar = document.getElementById('simBar');
   if (simBar && hay) simBar.style.display = 'none';
-  if (!hay) return;
-  bar.classList.toggle('demo-bar--sim', !!SIMUL);
-  const txtC = bar.querySelector('.db-corto'), txtL = bar.querySelector('.db-largo');
-  if (txtC && txtL){
+  if (!hay){ demoVistasCerrar(); return; }
+  const ti = document.getElementById('dvTitulo'), le = document.getElementById('dvLead');
+  if (ti && le){
     const kc = SIMUL ? 'sim_bar_corto' : 'demo_bar_corto';
     const kl = SIMUL ? 'sim_bar_largo' : 'demo_bar_txt';
-    txtC.setAttribute('data-i18n', kc); txtC.textContent = t(kc);
-    txtL.setAttribute('data-i18n', kl); txtL.textContent = t(kl);
+    ti.setAttribute('data-i18n', kc); ti.textContent = t(kc);
+    le.setAttribute('data-i18n', kl); le.textContent = t(kl);
   }
   const cont = document.getElementById('dbVistas');
   if (!cont) return;
   cont.innerHTML = ['empleado','supervisor','medico','hseq'].map(v =>
-    '<button type="button" class="db-v" onclick="demoIrVista(\'' + v + '\')"' +
+    '<button type="button" class="db-v" onclick="demoElegirVista(\'' + v + '\')"' +
     ' aria-pressed="' + (DASH.vista === v ? 'true' : 'false') + '">' +
     esc(t(DEMO_VISTA_CORTA[v])) + '</button>').join('');
+}
+/* La hoja del ojo. Apila su entrada como cualquier overlay (P153); el botón físico «atrás» la
+   cierra desde `silvaAtras`. */
+function demoVistasAbrir(){
+  demoPintarBarra();
+  const ov = document.getElementById('demoVistasOv'); if (!ov) return;
+  ov.classList.add('show');
+  syncScrollLock(); navPush();
+}
+function demoVistasCerrar(){
+  const ov = document.getElementById('demoVistasOv');
+  if (ov && ov.classList.contains('show')){ ov.classList.remove('show'); syncScrollLock(); }
+}
+function demoVistasCerrarUI(){ demoVistasCerrar(); navConsumir(); }
+/* Tocar un panel en la hoja: se cierra la hoja y se cambia de vista. */
+function demoElegirVista(v){
+  demoVistasCerrarUI();
+  demoIrVista(v);
 }
 
 /* Etiquetas CORTAS para el selector. Las largas ("Servicio médico", "Dirección / HSEQ") no entran
@@ -27095,6 +27241,13 @@ function lgnAplicarEntrada(d, cedula, empresaLogin, desdeAdmin){
       if (!nuevo.empresa) nuevo.empresa = empresaLogin;
       setProfile(nuevo);
       try { if (nuevo.sector) sectorRecordar(nuevo.sector); } catch(e){}
+      /* ⚠️ P171 · SE REPINTA EL INICIO, y esto faltaba. Franco: «cuando cierro sesión y vuelvo a
+         entrar no dice hola Franco, dice —; y pasa lo mismo cuando entro desde admin». Las dos
+         puertas terminan acá, y el perfil quedaba guardado pero el encabezado seguía con el «—»
+         que `paintProfile()` no había podido llenar al arrancar sin perfil, y las tarjetas del
+         inicio con el render vacío. El camino del código (`nominaConfirmar`) sí repintaba; éste
+         no. Mismo cierre que allá: saludo, insignia y secciones. */
+      try { paintProfile(); renderSections(); } catch(e){}
       /* ⚠️ P118 · LOS CONSENTIMIENTOS YA FIRMADOS, que hasta acá sólo reponía `recuperar_perfil`.
          `cerrarSesion()` borra la clave del teléfono, así que quien volvía con su contraseña
          correcta se encontraba los cinco bloques otra vez — ya firmados en el CH, con fecha y
@@ -28111,13 +28264,70 @@ function splashAbrirPortal(){
   syncScrollLock(); navPush(); _portalApilo = true;   // P150 · esta apertura SÍ apiló
 }
 function splashVerDemo(){
+  /* ⚠️ P171 · LA CLAVE VA ANTES DE MOSTRAR NADA. Franco: «la contraseña para ver demostración se
+     pide al tocar el botón, no adentro: si es adentro ya podrían robar lógica importante». Hasta
+     acá se abría el gate —las cuatro pestañas con la descripción de qué hace cada panel— y recién
+     ahí una sonda ponía el campo de la clave. Ahora el botón de la portada abre una hoja con el
+     campo, sobre el splash; el gate se ve sólo con la clave ya validada por el servidor, y con el
+     payload de la demostración ya en memoria (así «Ingresar» es instantáneo). Si la clave ya se
+     validó en esta apertura del portal, no se vuelve a pedir. */
+  if (DEMO_PAYLOAD && DEMO_PAYLOAD.d){ demoAbrirGate(); return; }
+  demoClaveAbrir();
+}
+/* El gate de la demostración, ya con la clave validada. Es lo que `splashVerDemo` hacía directo. */
+function demoAbrirGate(){
   portalReponerLoDeEmpresa();   // ⚠️ si se viene de Administrador, las pestañas están escondidas
-  /* Abre el portal para MIRAR el ejemplo y nada más: sin credenciales, eligiendo la vista.
-     No se dispara el pedido acá — eso era lo que impedía elegir. */
   splashAbrirPortal();
   portalDemoModo(true);
   portalMode('sup');   // la vista más natural para alguien de afuera
-  demoSondearClave();  // pedido de Franco: "la contraseña es al darle al botón"; se puede cambiar de pestaña
+}
+function demoClaveAbrir(){
+  const ov = document.getElementById('demoClaveOv'); if (!ov) return;
+  const err = document.getElementById('dcErr'); if (err) err.textContent = '';
+  const campo = document.getElementById('dcPass'); if (campo) campo.value = '';
+  ov.classList.add('show');
+  syncScrollLock(); navPush();
+  if (campo) { try { campo.focus(); } catch(e){} }
+}
+function demoClaveCerrar(){ const ov = document.getElementById('demoClaveOv'); if (ov) ov.classList.remove('show'); syncScrollLock(); }
+function demoClaveCerrarUI(){ demoClaveCerrar(); navConsumir(); }
+/* Valida la clave contra el servidor con el MISMO pedido que abre la demostración (`action:'demo'`
+   con `pass`): no hay una acción de «sólo verificar» y no hace falta — si la clave es buena, lo
+   que vuelve es el payload, que queda guardado para el gate. La clave NO se guarda en ningún lado:
+   viaja en `params` en memoria, igual que hasta ahora, para que el refresco del panel funcione. */
+function demoClaveEnviar(btn){
+  const err = document.getElementById('dcErr'); if (err) err.textContent = '';
+  const pass = (document.getElementById('dcPass').value || '').trim();
+  if (!pass){ if (err) err.textContent = t('pg_demo_pass_pide'); return; }
+  if (!offHayConexion()){ if (err) err.textContent = t('sin_conexion') + '.'; return; }
+  const params = { action:'demo', dispositivoId: dispositivoId(), pass: pass };
+  btnSpin(btn, true, t('pg_demo_abriendo'));
+  conBloqueo('#demoClaveOv .sheet', dashRequest(params)
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
+        if (err) err.textContent = t('pg_demo_pass_mal');
+        return;
+      }
+      if (!d || !d.ok){ if (err) err.textContent = tError(d && d.error) || t('pg_demo_error'); return; }
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };
+      demoClaveCerrar();
+      demoAbrirGate();
+    })
+    .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; }));
+}
+/* P171 · con el payload ya en memoria, «Ingresar» del gate no viaja: aplica lo que hay. */
+function demoAplicarGuardado(vista){
+  const g = DEMO_PAYLOAD;
+  if (!g || !g.d) return false;
+  if (vista === 'empleado'){
+    const uno = demoPersonaEjemplo(g.d);
+    if (!uno) return false;
+    onDashData(demoRecortarAPersona(g.d, uno), uno, g.params, 'empleado');
+  } else {
+    onDashData(g.d, g.scope, g.params, vista);
+  }
+  return true;
 }
 /* ⚠️ NO usa openPortalGate(): esa función oculta las pestañas de Supervisor/Servicio médico
    salvo que el PERFIL DE EMPLEADO ya tenga esPiloto/esSupervisor marcado — correcto para quien
