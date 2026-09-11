@@ -210,3 +210,13 @@ PRUEBAS.caso('⚠️ los textos nuevos están en los dos idiomas (R14) y el CSS 
   PRUEBAS.cierto(i > 0 && j > i, 'guarda: se leyó el bloque nuevo');
   PRUEBAS.falso(/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(css.slice(i, j + 200)), '⚠️ ni un color a mano en .demo-fab, .demo-salir, #demoVistasOv y .md-*');
 });
+
+PRUEBAS.caso('⚠️ R13 · la barra de simulación del administrador (`.sim-bar`, `.sim-salir`) ya no tiene colores a mano', () => {
+  /* Aviso del cierre de P171; Franco: «arreglarla ahora». Tenía dos rgba blancos y un `#fff`. */
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const i = css.indexOf('.sim-bar {'), j = css.indexOf('.sim-salir:active');
+  PRUEBAS.cierto(i > 0 && j > i, 'guarda: se leyó el bloque');
+  PRUEBAS.igual(css.slice(i, j).match(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g) || [], [], '⚠️ cero colores a mano entre .sim-bar y .sim-salir');
+  PRUEBAS.cierto(/\.sim-salir \{[^}]*min-height:\s*44px/.test(css), 'y «Salir» de la simulación se toca con el dedo (44 px)');
+});
+
