@@ -7144,7 +7144,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.41';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.42';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -29500,6 +29500,27 @@ function tareasCargar(){
              pestaña: si la persona está parada ahí justo cuando llega la respuesta que le quitó el
              rol, la fila seguiría ofreciéndole activar algo que la nómina acaba de sacarle, hasta
              que cambiara de pestaña. Es chico, pero es una pantalla mintiendo. */
+          try { miRolPintar(); } catch(e){}
+        }
+      }
+      /* ⚠️ P176 · Y LA NÓMINA TAMBIÉN PONE EL ROL, NO SÓLO LO QUITA. Reportado por Franco
+         (2026-09-11): «estoy puesto como supervisor en el CH y al ir a estadísticas sólo veo el
+         panel personal». Su fila dice «Supervisor», el servidor manda `rolNomina:"supervisor"` en
+         cada arranque — y el cliente lo leía en UN solo lugar, el `if` de arriba, para quitar.
+         Nunca para poner.
+         El único que escribía `p.rol` era `nominaSoyYo` (el «¿eres tú?» del alta), así que el dato
+         sólo llegaba a quien se registró DESPUÉS de que existiera esa columna. Los cuatro
+         supervisores de Aeroambulancias Silva ya estaban registrados: para ellos la columna «Rol en
+         la app» no hizo nada nunca. Sin `p.rol`, `rolPropuesto()` devuelve '' y el arranque no
+         ofrece; sin ofrecer, `esSupervisor` sigue en false; y `abrirDestinoEstadisticas` manda
+         derecho a las estadísticas personales.
+         ⚠️ ESTO NO DA ACCESO A NADA (ADR 002): escribe la PROPUESTA. Lo que abre el panel sigue
+         siendo la contraseña de empresa, que el arranque le va a pedir en `#rolOv`. Y no se toca
+         `esSupervisor` ni ninguna credencial: sólo el campo que dice qué propone la nómina. */
+      if (d.rolNomina && d.rolNomina !== 'empleado' && rolOfrecible(d.rolNomina)){
+        const _pr = getProfile();
+        if (_pr && String(_pr.rol || '') !== d.rolNomina){
+          setProfile(Object.assign({}, _pr, { rol: d.rolNomina, rolOrigen: 'nomina' }));
           try { miRolPintar(); } catch(e){}
         }
       }
