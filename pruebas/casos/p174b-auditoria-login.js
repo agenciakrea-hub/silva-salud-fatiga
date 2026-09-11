@@ -244,13 +244,27 @@ PRUEBAS.caso('🔴 «cerrar sesión» borra el plan de ciclo PROPIO y la marca d
 });
 
 PRUEBAS.caso('🔴 el reloj del ciclo vuelve a arrancar al traer la app al frente, también para el EMPLEADO', () => {
-  const f = p174bFuente();
-  const i = f.indexOf("if (document.hidden){ cicloTickStop(); return; }");
-  PRUEBAS.cierto(i >= 0, 'el manejador está');
-  const tramo = f.slice(i, i + 900);
-  PRUEBAS.falso(/if \(!DASH \|\| !document\.getElementById\('dsec-ciclo'\)\) return;/.test(tramo),
-    '🔴 sin la guarda de panel · el piloto bloqueaba el teléfono para manejar al aeropuerto y volvía con la aguja clavada y los minutos congelados');
-  PRUEBAS.cierto(/cicloTickStart\(\);/.test(tramo), 'y sí lo vuelve a arrancar');
+  /* P179 · medido: se despacha el `visibilitychange` de verdad y se mira si el temporizador quedó
+     vivo. Antes este caso leía el texto de la función, que no dice si el reloj corre. */
+  const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  let oculto = false;
+  const vivo = () => (typeof _cicloTimer !== 'undefined' && !!_cicloTimer);   // así se llama el temporizador
+  try {
+    Object.defineProperty(document, 'hidden', { configurable:true, get: () => oculto });
+    /* Hace falta algo del ciclo en pantalla: `cicloTick()` se apaga solo si no encuentra nada. */
+    const marca = document.createElement('div'); marca.className = 'cic-mio';
+    (document.getElementById('sections') || document.body).appendChild(marca);
+    try {
+      cicloTickStart();
+      PRUEBAS.cierto(vivo(), 'precondición · el reloj arranca');
+      oculto = true;  document.dispatchEvent(new Event('visibilitychange'));
+      PRUEBAS.falso(vivo(), 'se apaga al minimizar · eso ya funcionaba');
+      oculto = false; document.dispatchEvent(new Event('visibilitychange'));
+      PRUEBAS.cierto(vivo(),
+        '🔴 y vuelve a arrancar SIN panel de supervisor · el `stop` se había generalizado y el `start` no: ' +
+        'el piloto bloqueaba el teléfono para manejar al aeropuerto y volvía con la aguja clavada');
+    } finally { marca.remove(); try { cicloTickStop(); } catch(e){} }
+  } finally { if (desc) Object.defineProperty(document, 'hidden', desc); else delete document.hidden; }
 });
 
 PRUEBAS.caso('🔴 la campana no afirma «no tienes tareas» antes de haber preguntado', () => {
@@ -288,12 +302,23 @@ PRUEBAS.caso('🔴 el splash frena su cadena de video en TODAS sus salidas', () 
   PRUEBAS.cierto(p174bDentro('splashCerrarUI', /splashAnimFrenar\(\)[\s\S]{0,120}splashLangHintFrenar\(\)/), 'y frena las dos cosas');
 });
 
-PRUEBAS.caso('⚠️ «atrás» conoce las dos guías de instalación', () => {
-  const f = p174bFuente();
-  const i = f.indexOf('function silvaAtras(');
-  const tramo = f.slice(i, i + 6000);
-  PRUEBAS.cierto(/visible\('iosModal'\)/.test(tramo) && /visible\('androidModal'\)/.test(tramo),
-    '⚠️ esta función tiene una lista EXPLÍCITA: lo que no se nombre no existe para «atrás» · el segundo toque salía de la app con la guía puesta');
+PRUEBAS.caso('⚠️ «atrás» cierra las dos guías de instalación', () => {
+  /* P179 · medido, no leído: se abre la guía como la abre el botón «Instalar» y se llama a
+     `silvaAtras()`, que es lo que corre cuando la persona toca «atrás» en el teléfono. */
+  ['iosModal','androidModal'].forEach(id => {
+    const ov = document.getElementById(id);
+    if (!ov) { PRUEBAS.cierto(false, 'falta el overlay ' + id); return; }
+    ov.classList.add('show');
+    const cerro = silvaAtras();
+    PRUEBAS.cierto(cerro, '⚠️ «atrás» dice haberlo atendido · ' + id);
+    PRUEBAS.falso(ov.classList.contains('show'),
+      '⚠️ y lo cierra · ' + id + ' · antes caía en la rama de la pestaña Más, iba a Inicio con la guía encima, y el segundo toque salía de la app');
+    ov.classList.remove('show');
+  });
+  /* EL DISCRIMINADOR: sin ninguna guía abierta, «atrás» no las inventa. */
+  const io2 = document.getElementById('iosModal');
+  silvaAtras();
+  PRUEBAS.falso(io2.classList.contains('show'), '🔒 y no abre ninguna por su cuenta');
 });
 
 PRUEBAS.caso('⚠️ el login no muestra «Entrar» habilitado sobre la contraseña que acaba de vaciar', () => {
@@ -356,20 +381,44 @@ PRUEBAS.caso('⚠️ el ↺ pasa por `t()` y los textos nuevos están en los dos
 /* ── P179 · lo que quedó abierto de la re-auditoría del inicio ────────────────────────────────── */
 
 PRUEBAS.caso('🔴 el día se anota al IRSE a segundo plano, no al volver', () => {
-  const f = p174bFuente();
-  const i = f.indexOf("if (document.hidden){ try { _diaPintado = todayStr(); } catch(e){} return; }");
-  PRUEBAS.alMenos(i, 1,
-    '🔴 sin esto el arreglo de P174 no servía para el caso que vino a cubrir: `_diaPintado` sólo se ' +
-    'asignaba al VOLVER, así que en el PRIMER regreso valía undefined y no disparaba nunca. Y el ' +
-    'escenario real es exactamente ése — minimizar a las 23:50 y volver a las 00:20 es un solo ciclo');
-  /* EL DISCRIMINADOR: la rama que repinta sigue estando, si no esto pasaría con el handler vacío. */
-  const j = f.indexOf('var _diaPintado');
-  /* 2.200 y no 1.400: el comentario que explica el arreglo empujó `renderInicio()` fuera de la
-     ventana y este mismo caso se puso en rojo por eso. Una ventana fija medida a ojo es un
-     instrumento frágil — se mide la distancia real antes de elegirla. */
-  const tramo = f.slice(j, j + 2200);
-  PRUEBAS.cierto(/renderInicio\(\)/.test(tramo) && /renderActividad\(\)/.test(tramo),
-    'y al detectar el cambio se repintan el inicio y la actividad');
+  /* ⚠️ P179 · ESTE CASO SE MIDE, NO SE LEE. La primera versión buscaba la línea en el texto del
+     archivo, y eso prueba que alguien la escribió — no que el manejador haga lo que dice. Acá se
+     despacha el `visibilitychange` DE VERDAD, en los dos sentidos, y se mira la variable. */
+  const antes = (typeof _diaPintado !== 'undefined') ? _diaPintado : undefined;
+  const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  let oculto = false;
+  try {
+    Object.defineProperty(document, 'hidden', { configurable:true, get: () => oculto });
+    _diaPintado = undefined;
+    /* La app se va a segundo plano: ACÁ tiene que quedar anotado el día. */
+    oculto = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    PRUEBAS.igual(_diaPintado, todayStr(),
+      '🔴 al minimizar queda anotado el día · antes se anotaba sólo al VOLVER, así que en el primer ' +
+      'regreso valía undefined y no disparaba nunca. Minimizar a las 23:50 y volver a las 00:20 es ' +
+      'un solo ciclo: el primero');
+    /* Y ahora vuelve, con el día cambiado: tiene que repintar. */
+    let repintados = 0;
+    const oRender = window.renderInicio, oAct = window.renderActividad;
+    window.renderInicio = () => { repintados++; };
+    window.renderActividad = () => { repintados++; };
+    try {
+      _diaPintado = '2000-01-01';          // como si hubiera minimizado otro día
+      oculto = false;
+      document.dispatchEvent(new Event('visibilitychange'));
+      PRUEBAS.alMenos(repintados, 2, '🔴 y al volver con el día cambiado se repintan el inicio y la actividad');
+      /* EL DISCRIMINADOR: con el MISMO día no tiene que repintar nada. */
+      repintados = 0;
+      oculto = true;  document.dispatchEvent(new Event('visibilitychange'));
+      oculto = false; document.dispatchEvent(new Event('visibilitychange'));
+      PRUEBAS.igual(repintados, 0,
+        '🔒 y minimizar y volver el MISMO día no repinta nada · si repintara siempre, el caso de ' +
+        'arriba pasaría con un manejador que ignore la fecha');
+    } finally { window.renderInicio = oRender; window.renderActividad = oAct; }
+  } finally {
+    if (desc) Object.defineProperty(document, 'hidden', desc); else delete document.hidden;
+    _diaPintado = antes;
+  }
 });
 
 PRUEBAS.caso('⚠️ la fila de `Operacional` lleva fecha y hora del MISMO huso (R15)', () => {
