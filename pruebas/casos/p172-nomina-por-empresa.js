@@ -37,7 +37,8 @@ function p172Env(fns, opciones) {
     'Registrados Fatiga': [P172_CAB_REG.slice()],
     'Credenciales': [P172_CAB_CRED.slice()],
     'Sesiones': [P172_CAB_SES.slice()],
-    'Config Empresa': [['Empresa','Clave','Valor'], ['Consorcio HELITEC','codigoRegistro','HEL-2026']],
+    'Config Empresa': [['Empresa','Clave','Valor'], ['Consorcio HELITEC','codigoRegistro','HEL-2026'],
+                       ['Consorcio HELITEC','sector','aviacion']],   // P174 · el discriminador del filtro
     'Consentimientos': [['Fecha','IdConsentimiento','Persona','Empresa','Cedula','Versiones','AppVersion']]
   }, o.hojas || {}));
   const api = GS.cargarGs(CTX.gs, env, ['manejar','accionLogin','accionCredencialCrear','accionTareasMias','accionNominaConfirmar',
@@ -123,7 +124,12 @@ PRUEBAS.caso('🔒 el id y el enlace de la hoja NO viajan al panel', () => {
   const cfg = api.leerConfigEmpresa('Consorcio HELITEC');
   PRUEBAS.falso('nominaHojaId' in cfg || 'nominaHojaUrl' in cfg || 'nominaSyncUltimo' in cfg || 'nominaSyncError' in cfg,
     '🔒 `leerConfigEmpresa` —lo que va en `config` a supervisor, médico, dirección y demo— no los trae');
-  PRUEBAS.cierto('codigoRegistro' in cfg, 'EL DISCRIMINADOR · las claves de siempre sí viajan');
+  /* P174 · `codigoRegistro` dejó de viajar (se sumó a `CONFIG_SOLO_SERVIDOR`: con él se llama
+     `nomina_personas`, que no pide contraseña, y sale la lista de nombres que esta misma vista
+     tiene prohibida). El discriminador pasa a una clave que SÍ tiene que llegar al panel. */
+  PRUEBAS.falso('codigoRegistro' in cfg, '🔒 P174 · y el código de registro tampoco');
+  PRUEBAS.falso('codigoSupervisor' in cfg || 'demo_pass' in cfg, '🔒 P174 · ni el de supervisor ni la clave de la demostración');
+  PRUEBAS.cierto('sector' in cfg, 'EL DISCRIMINADOR · las claves de siempre sí viajan');
   PRUEBAS.cierto(!!api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId'), 'y el servidor los lee por `valorConfigPropio`');
 });
 

@@ -4463,6 +4463,8 @@
     background:transparent; color:var(--text-muted); border-radius:var(--radius-xs);
     font-family:inherit; font-size:.7rem; font-weight:700; cursor:pointer; white-space:nowrap; }
   .nomlist-aus.on { background:var(--chip-bg); color:var(--text); border-color:var(--linea); }
+  /* P174 · la llave, al lado del de ausencia: mismo alto de toque, ancho mínimo (es un ícono). */
+  .nomlist-pass { display:inline-flex; align-items:center; justify-content:center; min-width:44px; padding:.3rem; }
   .nomlist-row.nomlist-ausente { opacity:.72; }
   .hs-nota-aus { font-size:.74rem; color:var(--text-muted); background:var(--chip-bg);
     border-radius:var(--radius-xs); padding:.4rem .55rem; margin-top:.4rem; line-height:1.35; }
@@ -4901,7 +4903,8 @@
   .cic-mio-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .5rem; }
   /* P167 · el historial de mis ciclos. Sobrio, plegado; ni un color a mano (R13). */
   .cic-hist { margin-top: .9rem; border: 1px solid var(--linea); border-radius: 14px; padding: .2rem .9rem .8rem; background: var(--card); }
-  .cic-hist-sum { cursor: pointer; font-weight: 800; font-size: .88rem; color: var(--text); padding: .7rem 0; list-style: none; }
+  .cic-hist-sum { cursor: pointer; font-weight: 800; font-size: .88rem; color: var(--text); padding: .7rem 0; list-style: none;
+                  min-height: 44px; display: flex; align-items: center; }   /* P174 · medía 40,4 px */
   .cic-hist-sum::-webkit-details-marker { display: none; }
   .cic-hist-sum::before { content: '›'; display: inline-block; margin-right: .5rem; transition: transform .2s; color: var(--text-muted); }
   .cic-hist[open] > .cic-hist-sum::before { transform: rotate(90deg); }
@@ -7125,7 +7128,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.39';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.40';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7198,6 +7201,16 @@ const I18N = {
       md_titulo:'Mis datos', md_mas_d:'Así quedaste registrado',
       md_lead:'Así quedaste registrado. Estos datos los carga tu empresa: si algo no está bien, avísale a quien administra la nómina.',
       md_rol:'Acceso al panel',
+      cred_reset_btn:'Reiniciar su contraseña',
+      cred_reset_confirmar:'¿Reiniciar la contraseña de {q}?\n\nSu contraseña actual deja de servir. La próxima vez que abra la aplicación va a poder elegir una nueva. Nadie llega a ver la contraseña de nadie.',
+      cred_reset_yendo:'Reiniciando…',
+      cred_reset_listo:'Listo. {q} puede elegir una contraseña nueva al abrir la aplicación.',
+      cred_reset_sin:'Esa persona todavía no creó su contraseña: no hay nada que reiniciar.',
+      cred_reset_no:'No se pudo reiniciar. Inténtalo de nuevo.',
+      cred_reset_empresa:'Elige primero la empresa en el filtro para poder reiniciar la contraseña.',
+      op_remarcar:'Ya marcaste este paso hoy. ¿Quieres registrarlo otra vez? Se agrega un evento nuevo a tu jornada.',
+      undo_no_enviado:'Marcar como no enviado',
+      clv_reiniciada:'Tu contraseña se reinició. Elige una nueva para continuar.',
       baja_titulo:'Tu empresa te dio de baja en la nómina',
       baja_texto:'Lo que registres desde ahora no se toma en cuenta. Si crees que es un error, consulta con tu supervisor o con quien administra la nómina.',
       demo_ojo:'Demostración: cambiar de panel', demo_ojo_lead:'Elige qué panel ver:', demo_salir:'Salir de la demostración',
@@ -7599,7 +7612,7 @@ const I18N = {
       lgn_olvide:'Olvidé mi contraseña',
       /* Se dice la verdad: la contraseña se guarda cifrada y nadie puede devolverla, tampoco
          nosotros. Prometer un correo de recuperación que no existe sería peor. */
-      lgn_olvide_d:'Tu contraseña se guarda cifrada y no se puede recuperar. Pídele a tu supervisor o al servicio médico que la reinicie.',
+      lgn_olvide_d:'Tu contraseña se guarda cifrada y no se puede recuperar. Pídele a tu supervisor o al servicio médico que la reinicie desde su panel, en la lista de personal. Después vas a poder elegir una nueva al abrir la aplicación.',
       clv_titulo:'Elige tu contraseña',
       clv_lead:'Va a ser tuya y sólo tuya. Desde ahora entras con tu cédula y esta contraseña, en cualquier teléfono.',
       clv_pass:'Contraseña', clv_pass2:'Repítela',
@@ -8959,6 +8972,16 @@ const I18N = {
       md_titulo:'My details', md_mas_d:'How you were registered',
       md_lead:'This is how you were registered. Your company loads these details: if something is wrong, tell whoever manages the roster.',
       md_rol:'Panel access',
+      cred_reset_btn:'Reset their password',
+      cred_reset_confirmar:'Reset {q}\'s password?\n\nTheir current password stops working. Next time they open the app they can choose a new one. Nobody gets to see anyone\'s password.',
+      cred_reset_yendo:'Resetting…',
+      cred_reset_listo:'Done. {q} can choose a new password next time they open the app.',
+      cred_reset_sin:'That person has not created a password yet: there is nothing to reset.',
+      cred_reset_no:'Could not reset it. Please try again.',
+      cred_reset_empresa:'Choose the company in the filter first to reset the password.',
+      op_remarcar:'You already marked this step today. Record it again? A new event will be added to your duty period.',
+      undo_no_enviado:'Mark as not sent',
+      clv_reiniciada:'Your password was reset. Choose a new one to continue.',
       baja_titulo:'Your company removed you from the roster',
       baja_texto:'Whatever you record from now on is not taken into account. If you think this is a mistake, check with your supervisor or whoever manages the roster.',
       demo_ojo:'Demo: switch panel', demo_ojo_lead:'Choose which panel to see:', demo_salir:'Leave the demo',
@@ -9352,7 +9375,7 @@ const I18N = {
       lgn_mal:'The ID number or password do not match.',
       lgn_sin_red:'You need a connection to sign in. Your data saved here is still available.',
       lgn_olvide:'I forgot my password',
-      lgn_olvide_d:'Your password is stored encrypted and cannot be recovered. Ask your supervisor or the medical service to reset it.',
+      lgn_olvide_d:'Your password is stored encrypted and cannot be recovered. Ask your supervisor or the medical service to reset it from their panel, in the staff list. Then you can choose a new one next time you open the app.',
       clv_titulo:'Choose your password',
       clv_lead:'It will be yours alone. From now on you sign in with your ID number and this password, on any phone.',
       clv_pass:'Password', clv_pass2:'Repeat it',
@@ -10869,6 +10892,12 @@ function aplicarIdioma(){
   try { if (typeof demoPintarBarra === 'function') demoPintarBarra(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateGestFab === 'function') dashUpdateGestFab(); } catch(e){}
   try { if (typeof DASH !== 'undefined' && DASH && typeof dashUpdateAdmFab === 'function') dashUpdateAdmFab(); } catch(e){}   // P166
+  /* ⚠️ P174 · Y LA INSIGNIA DEL ENCABEZADO, que no lleva `data-i18n`: la escribe sólo
+     `paintProfile()`. Con la app en inglés seguía diciendo «Piloto», y —lo caro, R14— para un
+     operario de planta cuya empresa cambió de sector, `sectorRefrescar()` repinta todo con la
+     terminología nueva menos esa palabra, que se queda con «Piloto» toda la sesión. Es el mismo
+     defecto que ya estaba documentado para el ícono del banner de rol: se arregló el ícono. */
+  try { paintProfile(); } catch(e){}
 }
 function fijarIdioma(k){
   try { localStorage.setItem(K_LANG, k); } catch(e){}
@@ -11107,12 +11136,12 @@ function seccionesApp(){ return [
     items:[
       {id:'sen_cansancio',   label:t('sens_cansancio'), desc:t('sens_d_cansancio'), icon:I.battery, ic:'var(--orange-bg)', icc:'var(--orange)', msg:'Por favor, asísteme e inicia el *Test de Cansancio* para registrar mi nivel actual.', testFlow:'cansancio'},
       {id:'sen_estres',      label:t('sens_estres'),    desc:t('sens_d_estres'),  icon:I.bolt,    ic:'var(--sem-rojo-bg)', icc:'var(--sem-rojo)', msg:'Por favor, asísteme e inicia el *Test de Estrés* para registrar mi nivel actual.', testFlow:'estres'},
-      {id:'sen_ansiedad',    label:t('sens_ansiedad'),  desc:t('sens_d_ansiedad'), icon:I.brain,   ic:'var(--sem-morado-bg)', icc:'#7c5cc4', msg:'Por favor, asísteme e inicia el *Test de Ansiedad (BAI)* para registrar mi nivel actual.', testFlow:'ansiedad'},
+      {id:'sen_ansiedad',    label:t('sens_ansiedad'),  desc:t('sens_d_ansiedad'), icon:I.brain,   ic:'var(--sem-morado-bg)', icc:'var(--sem-morado)', msg:'Por favor, asísteme e inicia el *Test de Ansiedad (BAI)* para registrar mi nivel actual.', testFlow:'ansiedad'},
       {id:'sen_malestar',    label:t('sens_malestar'),  desc:t('sens_d_gastro'),   icon:I.dizzy,   ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi nivel actual.', testFlow:'gastro'},
       {id:'sen_somnoliencia',label:t('sens_somnol'),    desc:t('sens_d_kss'),      icon:I.moon,    ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test de Somnoliencia - Escala KSS* correspondiente de inmediato.', testFlow:'kss'},
       {id:'sen_fatiga',      label:t('sens_fatiga'),    desc:t('sens_d_perelli'),  icon:I.bed,     ic:'var(--sem-azul-bg)', icc:'var(--sem-azul)', msg:'Por favor, asísteme e inicia el *Test Fatiga(Perelli SP)* correspondiente de inmediato.', testFlow:'perelli'},
       {id:'sen_depresion',   label:t('sens_depresion'), desc:t('sens_d_depresion'), icon:I.sad,    ic:'var(--sem-azul-bg)', icc:'var(--sem-azul-int)', msg:'Por favor, asísteme e inicia el *Test de Depresión* correspondiente de inmediato.', testFlow:'depresion'},
-      {id:'sen_gastro',      label:t('sens_gastro'),    desc:t('sens_d_gastro'),   icon:I.pill,    ic:'var(--sem-verde-bg)', icc:'#2e7d32', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
+      {id:'sen_gastro',      label:t('sens_gastro'),    desc:t('sens_d_gastro'),   icon:I.pill,    ic:'var(--sem-verde-bg)', icc:'var(--sem-verde-txt)', msg:'Por favor, asísteme e inicia el *Test Gastrointestinal* para registrar mi condición actual.', testFlow:'gastro'}
     ]
   },
   /* ⚠️ X2 · LA OPINIÓN VA DEBAJO DE SENSACIONES, y el lugar es parte del sentido: todo lo de arriba
@@ -11122,7 +11151,7 @@ function seccionesApp(){ return [
     id:'opinion', title:t('op_op_titulo'), sub:t('op_op_sub'), layout:'stack',
     items:[
       {id:'op_dejar', label:t('op_op_label'), desc:t('op_op_desc'), icon:I.chat,
-       ic:'var(--sem-morado-bg)', icc:'#7c5cc4', opinionFlow:true}
+       ic:'var(--sem-morado-bg)', icc:'var(--sem-morado)', opinionFlow:true}
     ]
   },
 ]; }
@@ -12502,7 +12531,12 @@ function iniTendencia(){
   const d = misDatos();
   const ctx = misCtx();
   if (!ctx || !d.registros.length) return null;
-  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  /* ⚠️ P174 · CON `todayStr()`, que resuelve en la zona de la OPERACIÓN — que es con la que se
+     guardaron estas fechas. Con la medianoche del dispositivo, y la operación un huso por delante,
+     el registro de hoy daba `dd = -1` y lo descartaba el `if (dd < 0)`: la tira de tendencia cuenta
+     mal o desaparece para quien está en otro huso. `iniRacha()` ya camina con `todayStr()`; ésta se
+     quedó afuera del barrido de L1. */
+  const hoy = new Date(todayStr() + 'T00:00:00');
   const diasDesde = f => Math.round((hoy - new Date(f + 'T00:00:00')) / 86400000);
   let mejor = null;
   ctx.metrics.forEach(m => {
@@ -12769,6 +12803,21 @@ function cicloMiRefrescar(){
   viejo.replaceWith(nuevo);
   iniAhoraCablear();                        // el botón es nuevo: hay que volver a cablearlo
   cicloMiArrancarReloj(nuevo);
+  /* ⚠️ P174 · Y EL HISTORIAL TAMBIÉN, que se armaba SÓLO dentro de `renderSections()`. Quien
+     cambia de teléfono abre la app, ve «Historial de tus ciclos (0) · Todavía no hay ciclos
+     guardados», y segundos después `misSincronizar` trae sus 30 días y llama a `renderInicio()`
+     —que pasa por acá— así que el bloque seguía diciendo (0) con los datos ya en memoria toda la
+     sesión. Es justo el caso de uso que P167 existe para cubrir. Se conserva si estaba desplegado. */
+  try {
+    const histViejo = document.getElementById('cicHist');
+    if (histViejo){
+      const abierto = !!histViejo.open;
+      const t2 = document.createElement('div');
+      t2.innerHTML = cicloMiHistorialBloque();
+      const histNuevo = t2.firstElementChild;
+      if (histNuevo){ histViejo.replaceWith(histNuevo); if (abierto) histNuevo.open = true; }
+    }
+  } catch(e){}
 }
 /* ⚠️ La aguja hay que UBICARLA a mano después de insertar el bloque, y el reloj hay que arrancarlo.
    Faltaban las dos cosas: `cicloUbicarAgujas()` sólo se llamaba desde el panel, así que en el inicio
@@ -12913,7 +12962,14 @@ function cicloMiHistorialTodo(btn){
   _cicloHistDias = 400;
   misSincronizar(400).then(ok => {
     btnSpin(btn, false);
-    if (!ok){ showToast(t('sin_conexion_reintenta')); _cicloHistDias = 0; return; }
+    /* ⚠️ P174 · `misSincronizar` devuelve `false` TAMBIÉN cuando ya hay una sincronización en curso
+       —la del arranque— y eso no es un fallo de red. Quien tocaba «Ver todo el historial» en los
+       primeros segundos leía «no hay conexión, intenta de nuevo» con conexión perfecta, y encima se
+       perdía el pedido de los 400 días. Se distingue mirando la conexión de verdad. */
+    if (!ok){
+      if (offHayConexion()){ setTimeout(() => { try { cicloMiHistorialTodo(btn); } catch(e){} }, 1200); return; }
+      showToast(t('sin_conexion_reintenta')); _cicloHistDias = 0; return;
+    }
     const abierto = !!(document.getElementById('cicHist') || {}).open;
     renderSections();
     const det = document.getElementById('cicHist'); if (det && abierto) det.open = true;
@@ -12988,7 +13044,18 @@ function buildItem(it, layout, i){
     if (it.opinionFlow){ e.preventDefault(); opinionAbrir(); return; }
     if (it.testFlow){ e.preventDefault(); abrirTest(it); return; }
     if (it.pvtFlow){ e.preventDefault(); openPVT(it); return; }
-    if (it.operacionalCampo) enviarOperacional(it.operacionalCampo);
+    /* ⚠️ R8 · P174 · VOLVER A TOCAR UNA TARJETA YA MARCADA TIENE CONSECUENCIA OPERATIVA, y no la
+       pedía. El caso medido: con «Saliendo de casa» y «Llegando al aeropuerto» ya marcados, un
+       segundo toque en el primero ABRE UN CICLO NUEVO — la llegada desaparece de la línea de
+       tiempo y el reloj de jornada vuelve a cero para alguien que lleva tres horas. Y escribe una
+       fila en el CH. La tarjeta marcada sigue siendo clickeable a propósito (la segunda jornada
+       del día existe), así que lo que corresponde es preguntar, no bloquear. */
+    if (it.operacionalCampo){
+      let yaEsta = false;
+      try { yaEsta = !!(getReports() || {})[it.id]; } catch(e){}
+      if (yaEsta && !confirm(t('op_remarcar'))) { e.preventDefault(); return; }
+      enviarOperacional(it.operacionalCampo);
+    }
     mark(it.id);
   });
 
@@ -12997,8 +13064,8 @@ function buildItem(it, layout, i){
   const undo = document.createElement('button');
   undo.className = 'undo';
   undo.innerHTML = undoSVG;
-  undo.title = 'Marcar como no enviado';
-  undo.setAttribute('aria-label', 'Marcar como no enviado');
+  undo.title = t('undo_no_enviado');                        // P174 · R14: pasa por `t()` como todo lo visible
+  undo.setAttribute('aria-label', t('undo_no_enviado'));   // y es lo único que ese botón dice a un lector de pantalla
   undo.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); unmark(it.id); });
 
   a.appendChild(undo);   // queda dentro de la tarjeta blanca, no afuera
@@ -13163,6 +13230,14 @@ function misPedirCedula(motivo){
   _misCedulaPedida = false;        // con la cédula puesta, el próximo intento tiene que poder correr
   _misCedulaIntentos = 0;
   try { misSincronizar(); } catch(e){}
+  /* ⚠️ P174 · Y LO QUE LA CÉDULA DESBLOQUEA, SE CARGA AHORA. `tareasPuedeConsultar()` es false sin
+     cédula, así que al arrancar `tareasCargar()` salió de una y nadie la vuelve a llamar: la
+     persona escribe su cédula y sigue toda la sesión sin tareas, sin `cicloPlan`, sin `zonaOp` —o
+     sea con la fecha operativa del dispositivo en vez de la de la operación— y sin el bloque «Lo
+     determinó el servicio médico», que es lo único que pisa el semáforo automático. Y la insignia
+     del encabezado seguía con el guion. */
+  try { paintProfile(); } catch(e){}
+  try { tareasCargar(); } catch(e){}
 }
 
 let _misSincronizando = false;
@@ -13203,6 +13278,10 @@ function misSincronizar(dias){
       if (d && !d.ok && d.motivo === 'necesita_clave'){
         try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
         try { if (!document.getElementById('loginOv').classList.contains('show')) lgnAbrir(); } catch(e){}
+      }
+      // P174 · se la reiniciaron: no es un login, es elegir una nueva.
+      if (d && !d.ok && d.motivo === 'clave_reiniciada'){
+        try { if (!document.getElementById('claveOv').classList.contains('show')) clvReiniciadaAtender(); } catch(e){}
       }
       if (!d || !d.ok) return false;
       const local = misDatos();
@@ -14822,6 +14901,11 @@ function silvaAtras(){
      aparece cuando el panel del empleado recibe `necesita_clave`). Sin esto, "atrás" cerraba el
      portal por debajo y la pantalla de contraseña quedaba flotando sobre la nada — el mismo
      callejón sin salida que R1 corrigió para las cuatro del alta. */
+  /* P174 · las dos guías de instalación. Se muestran sin `navPush`, así que «atrás» no las
+     encontraba: caía en la rama de la pestaña Más, iba a Inicio con la guía puesta encima, y el
+     segundo toque salía de la app. Es literalmente el caso que esta función previene. */
+  if (visible('iosModal')){ hide('iosModal'); return true; }
+  if (visible('androidModal')){ hide('androidModal'); return true; }
   if (visible('opinionOv')){ opinionCerrar(); return true; }           // X2
   if (visible('privOv')){ privCerrar(); return true; }                 // X1: va arriba del test
   /* ⚠️ P059/A7 · EL TEST Y LAS TAREAS FALTABAN EN ESTA LISTA, que es explícita (lo dice tres veces
@@ -15461,7 +15545,8 @@ function nominaSoyYo(){
      alta entera y terminaba en «Crear mi contraseña», que le contestaba «ya tienes» sin ningún
      botón para entrar. Se abre el login con la empresa y la cédula ya puestas; el perfil lo repone
      `login` (P118), así que acá no se guarda nada: si toca «Ahora no» vuelve a esta pantalla. */
-  if (q.tieneClave){ tieneClaveMarcar(true); lgnAbrir(null, NOM.empresa, NOM.cedula); return; }
+  if (q.tieneClave){ tieneClaveMarcar(true, NOM.cedula); lgnAbrir(null, NOM.empresa, NOM.cedula); return; }   // P174 · la marca es de ESA cédula, no del teléfono
+  if (q && q.tieneClave === false){ tieneClaveMarcar(false, NOM.cedula); }   // P174 · y el servidor también puede decir que no
   const prev = getProfile() || {};
   altaRecordarPerfil();
 
@@ -16212,7 +16297,14 @@ function saveProfile(){
 // Verifica usuario+contraseña de supervisor contra el endpoint. 'ok' | 'bad' | 'unknown' (sin conexión)
 function validarSupervisorCreds(usuario, pass){
   if (DASH_DEMO) return Promise.resolve('unknown');
-  return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass }) })
+  /* ⚠️ P174 · EL `dispositivoId` NO ES OPCIONAL ACÁ. Sin él el servidor usa la cadena «sin-id» y
+     el contador de intentos fallidos pasa a ser UNO SOLO para todos los dispositivos del mundo —lo
+     contrario de lo que el freno dice hacer («por DISPOSITIVO, así nadie puede bloquear a un
+     supervisor real tirándole contraseñas malas a propósito»)—. Con la URL del endpoint pública,
+     seis POST con una contraseña cualquiera dejaban diez minutos sin poder ACTIVAR SU ACCESO a
+     todo supervisor de esa empresa, mientras el portal —que sí manda el campo— los dejaba entrar:
+     «el panel me abre pero activar mi acceso dice que la clave está mal». */
+  return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId() }) })
     .then(r => r.json())
     .then(d => (d && d.ok) ? 'ok' : 'bad').catch(() => 'unknown');
 }
@@ -17201,8 +17293,51 @@ const K_TIENE_CLAVE = 'silva_fatiga_tiene_clave_v1';
 const K_BAJA = 'silva_fatiga_baja_v1';
 function bajaMarcar(v){ try { if (v) localStorage.setItem(K_BAJA, '1'); else localStorage.removeItem(K_BAJA); } catch(e){} }
 function bajaGuardada(){ try { return localStorage.getItem(K_BAJA) === '1'; } catch(e){ return false; } }
-function tieneClaveMarcar(v){ try { if (v) localStorage.setItem(K_TIENE_CLAVE, '1'); else localStorage.removeItem(K_TIENE_CLAVE); } catch(e){} }
-function tieneClaveGuardada(){ try { return localStorage.getItem(K_TIENE_CLAVE) === '1'; } catch(e){ return false; } }
+/* ⚠️ P174 · POR CÉDULA, igual que `K_CLV_OFRECIDA` y `K_ROL_OFRECIDO`. Era la única marca de
+   persona del archivo guardada como un `'1'` suelto del dispositivo, y sobrevive a «cerrar sesión»
+   a propósito (es lo que hace que el reingreso sepa por dónde entrar). En la tablet compartida del
+   hangar eso significaba: A crea su contraseña, cierra sesión, y B —que nunca puso ninguna— toca
+   «Ingresar» y recibe «Pusiste una contraseña propia para tus datos. Escríbela para continuar».
+   ⚠️ LO QUE ESTO NO ARREGLA, Y HAY QUE DECIRLO: en ESE momento —«Ingresar» en el splash, sin perfil—
+   la app todavía no sabe quién está tocando, así que se consulta la cédula del último reingreso y B
+   sigue viendo el login de A. Su salida es «No tengo contraseña», que está a la vista. Lo que sí
+   queda cerrado es todo el resto: con perfil puesto la marca es de ESA persona, `nomina_confirmar`
+   la puede apagar cuando el servidor dice que no hay contraseña, y deja de acumularse un booleano
+   del equipo que nadie apagaba nunca. Saber quién toca «Ingresar» requiere pedir la cédula antes
+   del login, que es un cambio de recorrido y no entra acá. */
+/* Sin cédula conocida se usa la clave de reserva `_`, que es el comportamiento VIEJO (uno por
+   dispositivo). Degradar así importa: quien cerró sesión con una versión anterior no tiene la
+   cédula del reingreso guardada, y sin reserva perdería el camino del login sin motivo. */
+function tieneClaveCed(ced){
+  try {
+    const c = dashNorm(String(ced != null ? ced : ((getProfile() || {}).cedula || reingresoCedula())) || '');
+    return c || '_';
+  } catch(e){ return '_'; }
+}
+function tieneClaveMapa(){
+  try { const o = JSON.parse(localStorage.getItem(K_TIENE_CLAVE)); return (o && typeof o === 'object') ? o : {}; }
+  catch(e){ return {}; }
+}
+function tieneClaveMarcar(v, ced){
+  const k = tieneClaveCed(ced);
+  if (!k) return;
+  const o = tieneClaveMapa();
+  if (v) o[k] = true; else delete o[k];
+  lsSet(K_TIENE_CLAVE, JSON.stringify(o));
+}
+function tieneClaveGuardada(ced){
+  const k = tieneClaveCed(ced);
+  if (!k) return false;
+  return tieneClaveMapa()[k] === true;
+}
+/* La cédula del último reingreso, para que la marca se pueda consultar ANTES de que haya perfil
+   (que es exactamente cuando `splashIngresar` la necesita). */
+const K_REINGRESO_CED = 'silva_fatiga_reingreso_ced_v1';
+function reingresoCedulaGuardar(ced){
+  const c = dashNorm(String(ced || ''));
+  try { if (c) localStorage.setItem(K_REINGRESO_CED, c); } catch(e){}
+}
+function reingresoCedula(){ try { return String(localStorage.getItem(K_REINGRESO_CED) || '').trim(); } catch(e){ return ''; } }
 function reingresoGuardar(empresa){
   const e = String(empresa || '').trim();
   if (!e) return;
@@ -17228,11 +17363,22 @@ function sesionClavesBorrar(){
        resultados— dibujada como propia. La poda que había era por tiempo (~48 h), no por persona.
        El contraste es lo que lo delata como olvido: `K_TAREAS_CACHE` sí se protege, y su comentario
        dice exactamente por qué. */
-    K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_TAREAS_CACHE, K_ZONA_OP,
+    /* ⚠️ P174 · `K_CICLO_PLAN_PROPIO` FALTABA, y es el que tiene consecuencias laborales. Guarda la
+       jornada de la fila de `Ciclo Persona` de QUIEN entró, y `tareasCargar` sólo lo pisa cuando el
+       servidor manda uno: para la persona siguiente del teléfono compartido —que no tiene fila
+       propia— llega `null` y NO se pisa, así que `enviarOperacional` escribe el plan ajeno en la
+       columna `Plan` de `Operacional`. El endpoint mide el exceso de jornada contra ese número, y
+       ese dato «no se corrige después: es el que tiene consecuencias laborales». */
+    K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_CICLO_PLAN_PROPIO, K_TAREAS_CACHE, K_ZONA_OP,
     K_SES_PERSONA,          // Z2-cliente: la sesión propia también se cierra
     /* Y la marca de "ya se le ofreció contraseña": es un mapa por CÉDULA, así que se iba
        acumulando la lista de todo el que usó el equipo. */
     K_CLV_OFRECIDA,
+    /* Y la gemela: `K_ROL_OFRECIDO` es el mismo mapa por cédula y quedaba. Ana activa su panel,
+       cierra sesión, vuelve a entrar por el código — y `avanzarAlta` saltea el paso del rol porque
+       la marca sigue ahí: entra como empleada común y nada se lo ofrece. Rompe la garantía de
+       P170b («si nunca lo respondió, el arranque lo vuelve a pedir»). */
+    K_ROL_OFRECIDO,
     // datos de TERCEROS que quedan en el dispositivo de quien tiene panel
     K_GESTIONES, K_BITACORA, K_CASOS_ODOO, K_REPORTES_VISTOS,
     // colas: se borran DESPUÉS de avisar cuántos registros se pierden (ver cerrarSesionPedir)
@@ -17287,7 +17433,7 @@ function cerrarSesion(){
      incluye `K_PROFILE`, así que después de esa línea ya no hay de dónde sacarla. Es lo único que
      sobrevive, y es lo que permite que el reingreso sea cédula + contraseña, sin el código otra
      vez, que es lo que pidió el dueño. */
-  try { const _p = getProfile(); if (_p && _p.empresa) reingresoGuardar(_p.empresa); } catch(e){}
+  try { const _p = getProfile(); if (_p && _p.empresa) reingresoGuardar(_p.empresa); if (_p && _p.cedula) reingresoCedulaGuardar(_p.cedula); } catch(e){}   // P174 · la marca de contraseña es por cédula
   sesionClavesBorrar().forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
   try { sessionStorage.removeItem(K_ADM_OK); } catch(e){}
   // Se recarga en vez de repintar: es la única forma de garantizar que no quede en memoria nada
@@ -17320,7 +17466,7 @@ function admEntrar(btn){
   // Se valida contra el MISMO endpoint que el acceso de administrador del portal (usuario '*').
   // Guardarlo en sessionStorage sólo evita re-escribirla mientras dura la pestaña: no otorga
   // ningún permiso por sí solo, cada pedido de datos al servidor sigue llevando su contraseña.
-  conBloqueo('#admBox', dashRequest({ action:'supervisor', usuario:'*', empresa:'*', pass:pass })
+  conBloqueo('#admBox', dashRequest({ action:'supervisor', usuario:'*', empresa:'*', pass:pass, dispositivoId:dispositivoId() })
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ err.textContent = tError(d && d.error); return; }
@@ -17661,6 +17807,9 @@ function portalAutoLoginEmpleado(){
       if (d && !d.ok && d.motivo === 'necesita_clave'){
         try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
         if (lgnAbrir(portalAutoLoginEmpleado)) return;
+      }
+      if (d && !d.ok && d.motivo === 'clave_reiniciada'){   // P174
+        if (clvReiniciadaAtender()) return;
       }
       if (!d || !d.ok) { dashMostrarError(tError(d && d.error), portalAutoLoginEmpleado); return; }
       onDashData(d, p.nombre || 'Mis registros', params); })
@@ -18090,7 +18239,7 @@ function portalLoginAdmin(btn){
   const pass = document.getElementById('pAdminPass').value.trim();
   const errEl = document.getElementById('adminErr'); errEl.textContent = '';
   if (!pass){ errEl.textContent = 'Ingresa la contraseña.'; return; }
-  const params = { action:'supervisor', usuario:'*', empresa:'*', pass };
+  const params = { action:'supervisor', usuario:'*', empresa:'*', pass, dispositivoId:dispositivoId() };
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('lgn_entrando'));
   conBloqueo('#portalGate', dashRequest(params)
@@ -19419,7 +19568,7 @@ function admAtajoIr(i){
     .then(d => {
       if (!d || !d.ok){ showToast(tError(d && d.error) || t('lgn_mal')); return; }
       closePortalUI();
-      try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+      splashCerrarUI();   // P174 · `closePortalUI` puede volver a encender el splash: hay que frenarlo
       lgnAplicarEntrada(d, String(a.cedula || ''), a.empresa, true);   // P170b · desde admin
     })
     .catch(() => { showToast(t('sin_conexion_reintenta')); }));
@@ -22897,7 +23046,12 @@ function cicloTickStop(){ if (_cicloTimer){ clearInterval(_cicloTimer); _cicloTi
    vieja, que es peor que no haber apagado nada. */
 document.addEventListener('visibilitychange', function(){
   if (document.hidden){ cicloTickStop(); return; }
-  if (!DASH || !document.getElementById('dsec-ciclo')) return;
+  /* ⚠️ P174 · EL `stop` SE GENERALIZÓ Y EL `start` NO. El `stop` de arriba frena el reloj para
+     todos, pero el re-arranque pedía `DASH` + `dsec-ciclo`, que sólo existen en el panel del
+     supervisor. O sea: el piloto marca «Saliendo de casa», bloquea el teléfono para manejar hasta
+     el aeropuerto, vuelve dos horas después y su tramo sigue diciendo los minutos que llevaba al
+     minimizar, con la aguja clavada. Es el mismo bug que L3 arreglo y reportó el usuario.
+     No hace falta guarda: `cicloTick()` se apaga solo si no encuentra ni la sección ni `.cic-mio`. */
   _cicloUltimoPull = 0;            // fuerza el pedido en el primer tick, sin esperar el minuto
   cicloTickStart();
 });
@@ -27067,7 +27221,14 @@ function avanzarAlta(){
      (verificado con `volcar` el 2026-09-10), así que `rolPropuesto()` da vacío y `rolOfrecerAbrir`
      no abre nada. Y quien entró por el atajo del administrador lleva la marca puesta desde
      `lgnAplicarEntrada(…, desdeAdmin)`. */
-  if (!rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando()){
+  /* ⚠️ P174 · Y SÓLO CON SEÑAL, porque esta pantalla es OBLIGATORIA (no tiene «Ahora no», ni ✕,
+     ni se cierra con «atrás»): sus dos únicas salidas son «Activar mi acceso» —que corta con
+     `rol_of_sin_red` y no avanza— y «Salir», que es CERRAR SESIÓN y borrar la cola de registros
+     pendientes. Sin esta guarda, quien abre la app en un hangar sin cobertura queda con la app
+     tapada y eligiendo entre quedar afuera o tirar tests ya hechos: R7 rota justo en el arranque y
+     justo para la población que más está sin señal. Sin red no se pide, no se marca nada, y el
+     próximo arranque con conexión lo vuelve a ofrecer —que es la garantía de P170b intacta. */
+  if (!rolYaOfrecido() && SHEETS_DASHBOARD_URL && !simulando() && offHayConexion()){
     if (rolOfrecerAbrir(true)) return;   // P170 · en el alta, sin «Ahora no»
   }
   /* 5 · Z4 · La contraseña propia. Va ÚLTIMO y sólo una vez por persona: es lo único opcional del
@@ -27113,6 +27274,30 @@ function avanzarAlta(){
    ⚠️ SE GUARDA LA SESIÓN, NO LA CONTRASEÑA. `accionLogin` devuelve un token (el mismo mecanismo de
    S4: no caduca, atado al dispositivo, anulable). Sin eso habría que escribir la contraseña en cada
    arranque, porque `misSincronizar` corre siempre al abrir — un formulario diario que nadie usa. */
+/* ⚠️ P174 · LA CONTRASEÑA REINICIADA · lo que faltaba del lado de la persona.
+   El supervisor toca la llave, el servidor vacía el hash, el toast dice «puede elegir una nueva al
+   abrir la aplicación» — y no podía. En su teléfono `avanzarAlta` saltea el paso de la contraseña
+   (su perfil ya está completo, que es la guarda que protege a quien ya estaba registrado), la marca
+   de «ya se le ofreció» sigue puesta, y «Mi contraseña» ve la sesión guardada y abre el LOGIN de una
+   contraseña que ya no existe: seis intentos y diez minutos afuera. La única salida real era cerrar
+   sesión, que le borra la cola de registros pendientes.
+   El servidor ahora lo dice (`motivo:'clave_reiniciada'`) y acá se atiende: se borra la sesión
+   muerta, se levanta la marca —es un mapa por cédula: sólo la de ella— y se abre la pantalla de
+   elegir contraseña. Si por lo que sea no se puede abrir (falta la empresa en el perfil), queda el
+   login, que es lo que había antes: nunca menos que hoy. */
+function clvReiniciadaAtender(){
+  try { localStorage.removeItem(K_SES_PERSONA); } catch(e){}
+  try {
+    const p = getProfile() || {};
+    const o = JSON.parse(localStorage.getItem(K_CLV_OFRECIDA)) || {};
+    delete o[dashNorm(p.cedula || '')];
+    lsSet(K_CLV_OFRECIDA, JSON.stringify(o));
+  } catch(e){}
+  try { tieneClaveMarcar(false); } catch(e){}
+  try { showToast(t('clv_reiniciada')); } catch(e){}
+  try { if (clvAbrir()) return true; } catch(e){}
+  try { return !!lgnAbrir(); } catch(e){ return false; }
+}
 function sesPersonaGuardada(){
   try { return JSON.parse(localStorage.getItem(K_SES_PERSONA)); } catch(e){ return null; }
 }
@@ -27154,6 +27339,11 @@ function lgnAbrir(alEntrar, empresa, cedula){
   const pass = document.getElementById('lgnPass');
   if (ced) ced.value = (cedula && String(cedula).trim()) || (p && p.cedula) || '';
   if (pass) pass.value = '';
+  /* ⚠️ P174 · Y SE VUELVE A EVALUAR EL GATEO ACÁ. Asignar `.value` a mano no dispara `input`, así
+     que el gateo de arriba decidía con lo que hubiera quedado escrito de la vez anterior: se veía
+     el botón «Entrar» habilitado sobre un campo de contraseña vacío, y al tocarlo, «faltan datos».
+     Es el mismo arreglo que `nominaPasoCodigoInicial` ya tiene. */
+  try { gateoAplicar('lgnBtn'); } catch(e){}
   document.getElementById('lgnErr').textContent = '';
   _lgnEmpresa = emp;
   /* P166 · «No tengo contraseña» sólo para quien viene del alta o del reingreso: con perfil
@@ -27353,7 +27543,7 @@ function lgnEntrar(btn){
     .then(d => {
       btnSpin(btn, false);
       if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
-      tieneClaveMarcar(true);                        // P166c · entró con ella: la tiene
+      tieneClaveMarcar(true, cedula);                // P166c · entró con ella: la tiene · P174 · y es la de ESA cédula
       lgnAplicarEntrada(d, cedula, empresaLogin);   // P166b · lo mismo que aplica el atajo del admin
     })
     .catch(() => { btnSpin(btn, false); err.textContent = t('sin_conexion_reintenta'); }));
@@ -27410,6 +27600,8 @@ function miClavePintar(){
 function miClaveTocar(){
   /* Si ya tiene sesión abierta en este dispositivo, lo que necesita es cambiarla; si no, ponerla o
      entrar. `clvAbrir` decide sola si corresponde crearla. */
+  /* P174 · y si el servidor ya dijo que no tiene contraseña (se la reiniciaron), la sesión
+     guardada está muerta: lo que necesita es elegir una nueva, no escribir la vieja. */
   if (sesPersonaGuardada()){ lgnAbrir(); return; }
   if (!clvAbrir()) lgnAbrir();
 }
@@ -28285,19 +28477,31 @@ function splashCambiarIdioma(){
    ingresar ponen cédula y contraseña; NO se vuelve a pedir el código».
    Y si no tiene contraseña, `lgnAbrir` igual se abre y el enlace de «olvidé mi contraseña» está
    ahí — no se lo manda a un callejón. */
+/* ⚠️ P174 · UN SOLO LUGAR PARA CERRAR EL SPLASH. Había tres salidas que sólo le sacaban la clase
+   y dejaban corriendo lo que el splash enciende: la cadena de clips (1,16 MB encadenados con
+   `v.onended`, más un `visibilitychange` y un `MutationObserver`) y el temporizador de la pista de
+   idioma cada 2.200 ms. Nada volvía a frenarlos en toda la sesión: seguían reproduciéndose debajo
+   de la app, gastando batería, hasta que la persona recargara. Es el caso 3 de la cabecera de
+   `pruebas/orden-declaracion.py` —«temporizador huérfano gastando batería abajo de la app»—
+   reintroducido tres veces por copiar la línea en vez de la función. */
+function splashCerrarUI(){
+  try { splashAnimFrenar(); } catch(e){}
+  try { splashLangHintFrenar(); } catch(e){}
+  try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+}
 function splashIngresar(){
   if (reingresoEmpresa() && !perfilCompleto(getProfile())){
     /* P166c · quien cerró sesión SIN haber creado contraseña no tiene nada que escribir en el login:
        vuelve por el código de su empresa, sin el carrusel (ya lo vio). El login queda para quien
        sí la tiene. Si la marca estuviera mal, el login tiene «No tengo contraseña» igual. */
     if (!tieneClaveGuardada()){
-      try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+      splashCerrarUI();   // P174 · y se frena la tira de video: ver `splashCerrarUI`
       nominaAbrir();
       return;
     }
     /* `splashCerrar` no existe: el splash se cierra sacándole la clase, que es lo que hacen
        `splashAbrirPortal` y `carruselMostrar`. */
-    try { if (lgnAbrir()) { document.getElementById('splashOv').classList.remove('show'); return; } } catch(e){}
+    try { if (lgnAbrir()) { splashCerrarUI(); return; } } catch(e){}   // P174
   }
   return splashIngresarAlta();
 }
@@ -28612,8 +28816,23 @@ function nominaListFiltrar(){
          que el `title` con la acción no se leía nunca. */
       esc(t(hoyAus ? 'aus_vuelve' : 'aus_marcar_corto')) + '</button>'
       : '';
+    /* P174 · REINICIAR LA CONTRASEÑA DE QUIEN LA OLVIDÓ. La app lo prometía desde siempre —«pídele
+       a tu supervisor que la reinicie»— y no existía la forma: el reinicio vivía sólo como tarea de
+       mantenimiento. Va acá, en la fila de cada persona, por el mismo motivo que el de ausencia: es
+       la única pantalla donde el supervisor ve a su gente por nombre.
+       Sólo para quien YA está registrado (quien nunca entró no tiene nada que reiniciar) y con
+       cédula (es con lo que el servidor la encuentra). Dirección/HSEQ no llega acá: su panel no
+       tiene el botón de la nómina. */
+    const btnPass = (x.cedula && x.registrado)
+      ? '<button type="button" class="nomlist-aus nomlist-pass"' +
+        ' data-ced="' + esc(String(x.cedula)) + '" data-per="' + esc(String(x.persona)) + '"' +
+        ' onclick="credReiniciarTocar(this)" title="' + esc(t('cred_reset_btn')) + '"' +
+        ' aria-label="' + esc(t('cred_reset_btn')) + '">' +
+        '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.5-2"/></svg>' +
+        '</button>'
+      : '';
     return '<div class="nomlist-row' + (hoyAus ? ' nomlist-ausente' : '') + '"><span class="nomlist-info"><b>' + esc(x.persona) + '</b>' +
-      (sub ? '<span class="nomlist-sub">' + esc(sub) + '</span>' : '') + '</span>' + badge + btn + '</div>';
+      (sub ? '<span class="nomlist-sub">' + esc(sub) + '</span>' : '') + '</span>' + badge + btn + btnPass + '</div>';
   }).join('');
 }
 
@@ -28627,6 +28846,40 @@ function nominaListFiltrar(){
    ⚠️ El motivo por defecto es `franco`. No se le pregunta: preguntar el motivo convierte dos toques
    en cinco, y el motivo casi nunca cambia lo que hay que hacer. Quien necesite precisarlo lo edita
    en la hoja. Y ningún motivo clínico entra acá — el servidor los rechaza (R2). */
+/* P174 · el supervisor (o el servicio médico) reinicia la contraseña de alguien que la olvidó.
+   ⚠️ NO genera ninguna contraseña provisoria: borra la que había, y la persona elige una nueva la
+   próxima vez que abra la app. Nadie —tampoco quien la reinicia— llega a saber la contraseña de
+   otro. R8: tiene consecuencia (la deja afuera hasta que elija una nueva), así que se confirma. */
+function credReiniciarTocar(btn){
+  if (!btn || !DASH || !DASH.params) return;
+  const ced = btn.getAttribute('data-ced') || '';
+  const persona = btn.getAttribute('data-per') || '';
+  if (!ced) return;
+  /* ⚠️ El mismo candado que `ausTocar`: sin esto, en la DEMOSTRACIÓN el botón se pinta en las 19
+     filas de la nómina de ejemplo y el toque manda un POST real con `pass` vacío. El servidor lo
+     rechaza, pero quien está mirando la demostración lee «Usuario o contraseña incorrecta» y
+     concluye que la función está rota. «Lo rechaza el servidor» no es una defensa que uno quiera
+     que sea la única. */
+  if (DASH.demoMode){ showToast(t('demo_aplicado')); return; }
+  if (!offHayConexion()){ showToast(t('aus_sin_red')); return; }
+  if (!confirm(t('cred_reset_confirmar', { q: persona }))) return;
+  btnSpin(btn, true, t('cred_reset_yendo'));
+  const cuerpo = dashAuth({ action:'credencial_reiniciar', cedula: ced });
+  conBloqueo('#nominaListOv .sheet',
+    fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      btnSpin(btn, false);
+      if (d && d.ok){ try { haptic(18); } catch(e){}   // R8 · se siente que pasó algo con consecuencia
+        showToast(t('cred_reset_listo', { q: persona })); return; }
+      if (d && d.motivo === 'sin_credencial'){ showToast(t('cred_reset_sin')); return; }
+      /* El administrador ve todas las empresas a la vez y su filtro arranca vacío: ahí el servidor
+         no puede saber de cuál es esa persona. Decirlo así, y no «no tiene contraseña». */
+      if (d && d.motivo === 'falta_empresa'){ showToast(t('cred_reset_empresa')); return; }
+      showToast(tError(d && d.error) || t('cred_reset_no'));
+    })
+    .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion_reintenta')); }));
+}
 function ausTocar(btn){
   if (!btn || !DASH || !DASH.params) return;
   const ced = btn.getAttribute('data-ced') || '';
@@ -28999,7 +29252,14 @@ function tareasCacheLeer(){
   } catch(e){ return null; }
 }
 function tareasCargar(){
-  if (!tareasPuedeConsultar() || TAREAS.cargando) return Promise.resolve();
+  if (!tareasPuedeConsultar()) return Promise.resolve();
+  /* ⚠️ P174 · CON UN PEDIDO EN VUELO SE DEVUELVE ESE PEDIDO, no una promesa ya resuelta. Devolver
+     `Promise.resolve()` hacía que `tareasRefrescar` —o sea, tocar la campana en los 4-5 s que tarda
+     la carga del arranque— pintara EN EL ACTO con la lista vacía: «No tienes tareas pendientes»
+     sobre una campana que dice «3». Y no se corregía solo, porque el `.then` del pedido original
+     repinta la campana y el inicio pero no la hoja abierta. Acá una tarea puede ser una cita con el
+     servicio médico. */
+  if (TAREAS.cargando) return TAREAS._enVuelo || Promise.resolve();
   const p = getProfile();
   /* Pintar YA con lo último que se supo, antes de salir a la red. Si no había nada guardado no
      pasa nada: se comporta como antes. */
@@ -29023,10 +29283,11 @@ function tareasCargar(){
     + '&cedula=' + encodeURIComponent(p.cedula)
     + '&appVersion=' + encodeURIComponent(APP_VERSION)
     + '&_=' + Date.now();
-  return fetchConReloj(url, { cache:'no-store' })
+  TAREAS._enVuelo = fetchConReloj(url, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       TAREAS.cargando = false;
+      TAREAS._enVuelo = null;
       /* P172 · la baja llega por acá, en cada apertura. Se marca (y se muestra en el inicio) o
          se desmarca si el servidor volvió a decir que sí. */
       if (d && !d.ok && d.motivo === 'baja'){
@@ -29081,9 +29342,14 @@ function tareasCargar(){
       }
       tareasCacheGuardar();      // M2: para que el próximo arranque no espere 5 segundos
       tareasPintarBadge();
+      /* Y si la hoja está abierta en este momento —porque la persona tocó la campana mientras el
+         pedido viajaba— se repinta con lo que acaba de llegar. Sin esto quedaba «No tienes tareas
+         pendientes» encima de una campana con número. */
+      try { if (document.getElementById('tareasOv').classList.contains('show')) tareasPintar(); } catch(e){}
       try { renderInicio(); } catch(e){}
     })
-    .catch(() => { TAREAS.cargando = false; });   // sin red: el contador queda como estaba
+    .catch(() => { TAREAS.cargando = false; TAREAS._enVuelo = null; });   // sin red: el contador queda como estaba
+  return TAREAS._enVuelo;
 }
 function tareasAbrir(){
   document.getElementById('tareasOv').classList.add('show');
@@ -29548,9 +29814,24 @@ function carruselCerrarUI(){ carruselCerrar(); navConsumir(); }
 tareasArranque();
 
 // Si la app estuvo abierta y cambió el día, resetea al volver al foco (y cierra el aviso)
+/* R16: `var` sin asignar, la lee el manejador de abajo que está más arriba en el archivo. */
+var _diaPintado;
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden){
+    /* ⚠️ P174 · SI CAMBIÓ EL DÍA, TAMBIÉN SE REPINTA EL INICIO. `refreshStates()` relee
+       `getReports()`, que hace el reset diario, así que las tarjetas vuelven a pendientes — pero
+       «Lo que te toca ahora» se quedaba diciendo «Estás al día · No te queda nada pendiente por
+       hoy» justo encima de cuatro tarjetas sin marcar. Le pasa a quien deja la PWA abierta en un
+       turno nocturno, que es el uso normal de esta app. */
+    let _hoy = '';
+    try { _hoy = todayStr(); } catch(e){}
+    const _cambio = !!(_hoy && _diaPintado && _hoy !== _diaPintado);
+    if (_hoy) _diaPintado = _hoy;
     refreshStates(); hideToast();
+    if (_cambio){
+      try { renderInicio(); } catch(e){}
+      try { renderActividad(); } catch(e){}
+    }
     /* Volver al frente es EL momento de chequear si hay versión nueva: es cuando la persona va a
        usar la app. Es gratis (el navegador compara el sw.js y corta si no cambió) y es lo único
        que corre de verdad en un celular. Si hay versión nueva, el flujo sigue solo:

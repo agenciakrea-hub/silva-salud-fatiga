@@ -191,7 +191,9 @@ PRUEBAS.caso('⚠️ el interruptor está en la lista que el supervisor ya usa',
   const idx = {}; idx['111|' + todayStr()] = 'franco';
   const h = y5bPintar(idx, Y5B_GENTE);
   try {
-    const btns = [...document.querySelectorAll('.nomlist-aus')];
+    /* P174 · `:not(.nomlist-pass)` — la fila ahora tiene DOS botones (ausencia y reiniciar
+       contraseña) y este caso mide el de ausencia. */
+    const btns = [...document.querySelectorAll('.nomlist-aus:not(.nomlist-pass)')];
     PRUEBAS.igual(btns.length, 2, 'una por persona con cédula');
     PRUEBAS.cierto(btns[0].classList.contains('on'), '⚠️ la que está ausente hoy se ve distinta');
     PRUEBAS.falso(btns[1].classList.contains('on'), 'y la que no, no');
@@ -206,7 +208,7 @@ PRUEBAS.caso('⚠️ un apóstrofo en el nombre no rompe la fila', () => {
      manejador. */
   const h = y5bPintar({}, Y5B_GENTE);
   try {
-    const btns = [...document.querySelectorAll('.nomlist-aus')];
+    const btns = [...document.querySelectorAll('.nomlist-aus:not(.nomlist-pass)')];   // P174 · el de ausencia
     PRUEBAS.igual(btns.length, 2, "⚠️ la fila de \"Beto O'Hara\" tiene que existir igual");
     PRUEBAS.cierto((btns[1].getAttribute('data-per') || '').indexOf("O'Hara") >= 0,
       'con su nombre entero en el atributo');

@@ -196,9 +196,18 @@ PRUEBAS.caso('⚠️ la marca se pone en las cuatro fuentes y sobrevive a cerrar
     PRUEBAS.falso(tieneClaveGuardada(), 'desmarcar → sin marca');
     const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
     const dentro = (fn, re) => { const i = fuente.indexOf('function ' + fn + '('); return i >= 0 && re.test(fuente.slice(i, i + 9000)); };
-    PRUEBAS.cierto(dentro('clvGuardar', /tieneClaveMarcar\(true\)/), 'al crear la contraseña propia');
-    PRUEBAS.cierto(dentro('lgnEntrar', /tieneClaveMarcar\(true\)/), 'al entrar con ella');
-    PRUEBAS.cierto(dentro('nominaSoyYo', /tieneClaveMarcar\(true\)/), 'y cuando el servidor dice `tieneClave` en «¿eres tú?»');
+    PRUEBAS.cierto(dentro('clvGuardar', /tieneClaveMarcar\(true/), 'al crear la contraseña propia');
+    PRUEBAS.cierto(dentro('lgnEntrar', /tieneClaveMarcar\(true, cedula\)/), 'al entrar con ella · P174 · con la cédula de quien entró');
+    PRUEBAS.cierto(dentro('nominaSoyYo', /tieneClaveMarcar\(true, NOM\.cedula\)/), 'y cuando el servidor dice `tieneClave` en «¿eres tú?» · P174 · ídem');
+    /* P174 · y es un MAPA POR CÉDULA, no un booleano del equipo: dos personas en la misma tablet
+       no comparten la marca. (El caso que esto NO cubre —«Ingresar» sin perfil— está explicado en
+       el comentario de `tieneClaveCed`: ahí todavía no se sabe quién toca.) */
+    localStorage.clear();
+    tieneClaveMarcar(true, 'V-111');
+    PRUEBAS.cierto(tieneClaveGuardada('V-111'), 'la de A queda puesta');
+    PRUEBAS.falso(tieneClaveGuardada('V-999'), '🔴 y la de B no: la marca es de la persona, no del teléfono');
+    tieneClaveMarcar(false, 'V-111');
+    PRUEBAS.falso(tieneClaveGuardada('V-111'), 'y se puede apagar · antes `tieneClaveMarcar(false)` no se llamaba desde ningún lado');
   } finally { p170Restaurar(prev); }
 });
 
