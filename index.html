@@ -7161,7 +7161,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.46';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.47';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12317,7 +12317,16 @@ function enviarOperacional(campo, test, resultado){
       action:'operacional_guardar',
       id: 'op_' + idPersonaClave(p) + '_' + fecha + '_' + campo,          // uno por persona/día/evento
       idPrevio: 'op_' + dashNorm(p.nombre||'') + '_' + fecha + '_' + campo,   // el de antes, para no duplicar
-      fecha: fecha, hora: pad(now.getHours()) + ':' + pad(now.getMinutes()), iso: now.toISOString(),
+      /* ⚠️ P179 · LA HORA, EN LA ZONA DE LA OPERACIÓN — la misma que la fecha de al lado. Estaban
+         en husos distintos EN LA MISMA FILA: `todayStr()` resuelve en la zona de la operación y
+         esto usaba la del dispositivo, así que con el piloto en otro huso la fila del CH decía una
+         fecha de un calendario y una hora de otro (medido: fecha 2026-09-12 con hora 18:52 cuando
+         en la operación eran las 06:52).
+         ⚠️ NO ROMPE NADA AL CAMBIARLO, y lo verifiqué antes de tocarlo: esta columna NO LA LEE
+         NADIE. El servidor la escribe y nunca la consulta, y el cliente dibuja siempre desde `iso`
+         (`horaOpDe`). El único que la ve es quien abre la hoja del CH a mano — que es exactamente
+         quien merece que las dos columnas hablen del mismo momento (R15). */
+      fecha: fecha, hora: horaOpDe(now), iso: now.toISOString(),
       persona: p.nombre||'', empresa: p.empresa||'', departamento: p.departamento||'', cargo: p.cargo||'',
       evento: campo, test: test||'', resultado: (resultado != null ? String(resultado) : ''),
       /* ⚠️ Y4 · EL UMBRAL VIAJA CON EL HECHO, y es lo que hace que el registro de exceso signifique
@@ -30212,6 +30221,15 @@ tareasArranque();
 /* R16: `var` sin asignar, la lee el manejador de abajo que está más arriba en el archivo. */
 var _diaPintado;
 document.addEventListener('visibilitychange', () => {
+  /* ⚠️ P179 · EL DÍA SE ANOTA AL IRSE, NO AL VOLVER — y sin esto el arreglo de P174 no servía para
+     el caso que vino a cubrir. `_diaPintado` se asignaba sólo dentro de la rama de «volver al
+     frente», así que en el PRIMER regreso valía `undefined` y la comparación no disparaba nunca.
+     El escenario real es exactamente ése: el piloto abre la app, la minimiza a las 23:50 y vuelve
+     a las 00:20 — un solo ciclo, el primero. Lo encontró la re-auditoría midiendo el handler de
+     verdad, no leyendo el commit.
+     Anotarlo al OCULTARSE es además lo correcto conceptualmente: lo que hay que comparar es el día
+     en que la app se fue a segundo plano contra el día en que volvió. */
+  if (document.hidden){ try { _diaPintado = todayStr(); } catch(e){} return; }
   if (!document.hidden){
     /* ⚠️ P174 · SI CAMBIÓ EL DÍA, TAMBIÉN SE REPINTA EL INICIO. `refreshStates()` relee
        `getReports()`, que hace el reset diario, así que las tarjetas vuelven a pendientes — pero

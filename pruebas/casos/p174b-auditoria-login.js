@@ -352,3 +352,50 @@ PRUEBAS.caso('⚠️ el ↺ pasa por `t()` y los textos nuevos están en los dos
       PRUEBAS.falso(/\bvos\b|\btenés\b|\bpodés\b|\bquerés\b/i.test(t(k)), 'R1 · español neutro en ' + k));
   } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
 });
+
+/* ── P179 · lo que quedó abierto de la re-auditoría del inicio ────────────────────────────────── */
+
+PRUEBAS.caso('🔴 el día se anota al IRSE a segundo plano, no al volver', () => {
+  const f = p174bFuente();
+  const i = f.indexOf("if (document.hidden){ try { _diaPintado = todayStr(); } catch(e){} return; }");
+  PRUEBAS.alMenos(i, 1,
+    '🔴 sin esto el arreglo de P174 no servía para el caso que vino a cubrir: `_diaPintado` sólo se ' +
+    'asignaba al VOLVER, así que en el PRIMER regreso valía undefined y no disparaba nunca. Y el ' +
+    'escenario real es exactamente ése — minimizar a las 23:50 y volver a las 00:20 es un solo ciclo');
+  /* EL DISCRIMINADOR: la rama que repinta sigue estando, si no esto pasaría con el handler vacío. */
+  const j = f.indexOf('var _diaPintado');
+  /* 2.200 y no 1.400: el comentario que explica el arreglo empujó `renderInicio()` fuera de la
+     ventana y este mismo caso se puso en rojo por eso. Una ventana fija medida a ojo es un
+     instrumento frágil — se mide la distancia real antes de elegirla. */
+  const tramo = f.slice(j, j + 2200);
+  PRUEBAS.cierto(/renderInicio\(\)/.test(tramo) && /renderActividad\(\)/.test(tramo),
+    'y al detectar el cambio se repintan el inicio y la actividad');
+});
+
+PRUEBAS.caso('⚠️ la fila de `Operacional` lleva fecha y hora del MISMO huso (R15)', () => {
+  const antes = localStorage.getItem('silva_fatiga_zona_op_v1');
+  try {
+    localStorage.setItem('silva_fatiga_zona_op_v1', 'Asia/Tokyo');
+    const f = todayStr(), h = horaOpDe(new Date());
+    const hDisp = String(new Date().getHours()).padStart(2,'0');
+    PRUEBAS.cierto(/^\d{4}-\d{2}-\d{2}$/.test(f) && /^\d{2}:\d{2}$/.test(h), 'las dos tienen forma');
+    /* La comprobación que importa: la hora que se escribe sale de la zona de la OPERACIÓN, igual
+       que la fecha. Con el equipo en otro huso, la hora del dispositivo es otra — y si fueran la
+       misma, este caso no estaría midiendo nada. */
+    PRUEBAS.cierto(p174bDentro('enviarOperacional', /hora: horaOpDe\(now\)/),
+      '⚠️ la escribe `horaOpDe`, no el reloj del dispositivo · estaban en husos distintos EN LA MISMA FILA');
+    if (h.slice(0,2) !== hDisp) PRUEBAS.cierto(true, 'EL DISCRIMINADOR · el equipo está en otro huso que la operación (' + h + ' contra ' + hDisp + ':xx)');
+    else PRUEBAS.cierto(true, 'el equipo coincide con Tokio: no se puede discriminar acá, lo hace la comprobación de arriba');
+  } finally {
+    if (antes == null) localStorage.removeItem('silva_fatiga_zona_op_v1');
+    else localStorage.setItem('silva_fatiga_zona_op_v1', antes);
+  }
+});
+
+PRUEBAS.caso('⚠️ «Ver todo el historial» no dice «sin conexión» cuando hay conexión', () => {
+  PRUEBAS.cierto(p174bDentro('cicloMiHistorialTodo', /offHayConexion\(\)[\s\S]{0,120}setTimeout/),
+    '⚠️ `misSincronizar` devuelve false TAMBIÉN con una sincronización ya en vuelo —la del arranque— ' +
+    'y eso no es un fallo de red: con conexión se reintenta en vez de mentir');
+  PRUEBAS.cierto(p174bDentro('cicloMiHistorialTodo', /sin_conexion_reintenta/),
+    'EL DISCRIMINADOR · y sin conexión de verdad, el aviso sigue');
+});

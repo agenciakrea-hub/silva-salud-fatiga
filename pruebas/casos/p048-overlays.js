@@ -87,6 +87,15 @@ function p048LimpiarOverlays(){
    existe, `medibleOk` da false y el caso que lo use tiene que fallar por eso, no seguir midiendo
    ceros como si el balance diera bien. */
 async function p048CicloOpinion(n){
+  /* ⚠️ P179 · EL ESTADO DEL HISTORIAL TIENE QUE SER CONOCIDO ANTES DE MEDIR, y es la causa real de
+     que este caso fuera intermitente. `navConsumir()` corta sin hacer nada si `history.state` no es
+     suyo (`{silva:1}`) — es su guarda para no robarle una entrada a otra pantalla. Corriendo solo,
+     el estado quedaba bien por casualidad; corriendo después de 1.500 casos que apilan y descartan
+     entradas, podía ser cualquier cosa, y entonces el primer cierre no consumía y el balance daba
+     6 contra 5. No era el reloj: era el estado de partida.
+     Este `pushState` va ANTES de interceptar, así que no entra en la cuenta. */
+  try { history.pushState({ silva: 1 }, ''); } catch(e){}
+  await p048EsperarLibre();
   const origPush = history.pushState.bind(history);
   const origBack = history.back.bind(history);
   let pushes = 0, backs = 0, medibleOk = true;

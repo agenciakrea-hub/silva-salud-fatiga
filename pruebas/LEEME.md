@@ -23,7 +23,7 @@ antes) y volver a correr → **los mismos ocho rojos**.
 | `el logo y el botón de idioma a la MISMA distancia` | Layout de la portada medido antes de estabilizar |
 | `la tira queda pegada al bloque de texto` | Ídem |
 | `lo que queda TAPADO sale del orden de tabulación` | Cuenta enfocables con overlays a medio abrir |
-| `P048 · abrir y cerrar la opinión 5 veces` | `navConsumir()` usa un `history.back()` con ventana de 400 ms; sin estrangulamiento, la cuenta de `pushState`/`back` se corre |
+| ~~`P048 · abrir y cerrar la opinión 5 veces`~~ **RESUELTO (2026-09-11)** | La causa NO era el reloj, como decía esta fila. Era el ESTADO DE PARTIDA: `navConsumir()` corta sin hacer nada si `history.state` no es suyo (`{silva:1}`) —su guarda para no robarle la entrada a otra pantalla— y después de 1.500 casos que apilan y descartan entradas, ese estado podía ser cualquiera. El arnés ahora fija `{silva:1}` antes de medir. Primer diagnóstico equivocado: ver MISTAKES |
 
 **Qué NO hacer:** «arreglar» la app para que estos ocho pasen. Lo que hay que recalibrar es la
 MEDICIÓN — o esperar el layout de verdad (no 350 ms fijos), o forzar el estado que cada caso
