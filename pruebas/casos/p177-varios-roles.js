@@ -222,3 +222,72 @@ PRUEBAS.caso('⚠️ un perfil viejo (un solo `rol`) sigue funcionando sin `role
     PRUEBAS.igual(p177Tabs().sup, true, 'y ve su pestaña');
   } finally { p177Restaurar(prev); }
 });
+
+/* ── P178 · la entrada al panel cuando la nómina te dio UN rol ────────────────────────────────── */
+
+/* Franco, entrando a la app con 6.44: «pero si estoy puesto como supervisor en el sheet, ¿por qué
+   me pide contraseña en el panel de estadísticas? entro y me pide contraseña».
+   La contraseña es a propósito (ADR 002) y no se toca. Lo que estaba mal era el recorrido: el
+   selector abría parado en «Mis estadísticas» aunque su único panel de empresa fuera Supervisor,
+   el botón decía «Entrar» a secas con el usuario ya sabido, y ninguna pantalla decía POR QUÉ se
+   pide una contraseña si el sheet ya lo nombra. */
+
+PRUEBAS.caso('🔴 con UN solo panel, el selector abre en ÉL y no en «Mis estadísticas»', () => {
+  const prev = p177Guardar();
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['supervisor'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+    DASH = null;
+    abrirDestinoEstadisticas();   // R17 · el botón de Estadísticas, no `openPortalGate` a mano
+    const activa = [...document.querySelectorAll('.ptab')].filter(b => b.classList.contains('active')).map(b => b.id);
+    PRUEBAS.igual(activa, ['ptabSup'],
+      '🔴 abre en Supervisor · antes abría en «Mis estadísticas» y había que tocar la pestaña ANTES de poder escribir');
+    PRUEBAS.cierto(document.getElementById('portalSup').style.display !== 'none', 'con el formulario a la vista');
+    PRUEBAS.igual(document.getElementById('pEmpresa').value, P177_PERFIL.empresa, 'y el usuario ya puesto');
+    PRUEBAS.cierto((document.querySelector('#portalSup .save-btn').textContent || '').indexOf(P177_PERFIL.empresa) >= 0,
+      'y el botón lo nombra: «Entrar a …» en vez de «Entrar» a secas');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('🔒 EL DISCRIMINADOR · con VARIOS paneles sigue abriendo en el selector', () => {
+  const prev = p177Guardar();
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['supervisor','medico'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+    DASH = null;
+    abrirDestinoEstadisticas();
+    const activa = [...document.querySelectorAll('.ptab')].filter(b => b.classList.contains('active')).map(b => b.id);
+    PRUEBAS.igual(activa, ['ptabEmp'],
+      '🔒 con dos paneles SÍ hay algo que elegir: se abre el selector, que es lo que Franco pidió');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('⚠️ y se explica POR QUÉ se pide la contraseña, sólo a quien todavía no activó', () => {
+  const prev = p177Guardar();
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['supervisor'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
+    DASH = null;
+    abrirDestinoEstadisticas();
+    const pq = document.getElementById('portalPorQue');
+    PRUEBAS.falso(pq.hidden, '⚠️ se ve la explicación · una barrera sin motivo a la vista se lee como un obstáculo');
+    PRUEBAS.cierto((pq.textContent || '').length > 40, 'y dice algo');
+    /* EL DISCRIMINADOR: a quien ya lo activó no se le explica nada. */
+    setProfile(Object.assign({}, getProfile(), { esSupervisor:true }));
+    DASH = null;
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    abrirDestinoEstadisticas();
+    PRUEBAS.cierto(document.getElementById('portalPorQue').hidden,
+      '🔒 y a quien ya lo activó NO · contárselo todos los días sería ruido');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('⚠️ la explicación está en los dos idiomas y en español NEUTRO (R14, R1)', () => {
+  const antes = localStorage.getItem(K_LANG);
+  try {
+    ['es','en'].forEach(l => { localStorage.setItem(K_LANG, l);
+      PRUEBAS.cierto(t('pg_porque_clave') !== 'pg_porque_clave', 'pg_porque_clave en ' + l); });
+    localStorage.setItem(K_LANG, 'es');
+    PRUEBAS.falso(/\bvos\b|\btenés\b|\bpodés\b|\bestás puesto\b/i.test(t('pg_porque_clave')), 'R1 · español neutro');
+  } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
+});

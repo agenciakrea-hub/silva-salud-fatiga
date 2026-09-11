@@ -1142,6 +1142,10 @@
   .ptab { flex: 1; padding: .65rem; border: none; background: transparent; border-radius: var(--radius-xs); font-family: inherit; font-weight: 700; font-size: .82rem; color: var(--text-muted); cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
   .ptab.active { background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); }
+  /* P178 · la línea que explica por qué se pide la contraseña. Se separa de `.portal-hint` para
+     que se lea como una aclaración y no como parte del formulario. */
+  .portal-porque { font-size: .78rem; line-height: 1.5; background: var(--chip-bg); border-radius: 10px;
+                   padding: .6rem .7rem; margin: .2rem 0 .9rem; }
   .portal-hint { font-size: .83rem; color: var(--text-soft); margin: .4rem 0 1rem; line-height: 1.5; }
   .portal-err { color: var(--sem-rojo-alt); font-size: .78rem; font-weight: 600; margin-top: .5rem; min-height: 1rem; }
 
@@ -6713,6 +6717,12 @@
            apilados en ese orden (no en columnas separadas). -->
       <div id="portalSup" class="portal-pane" style="display:none">
         <p class="portal-hint" id="portalSupHint"></p>
+        <!-- ⚠️ P178 · POR QUÉ SE PIDE LA CONTRASEÑA. Franco, entrando a la app: «si estoy puesto
+             como supervisor en el sheet, ¿por qué me pide contraseña?». La pantalla no lo decía en
+             ningún lado, y una barrera sin motivo a la vista se lee como un obstáculo.
+             Sólo aparece para quien tiene ese rol POR NÓMINA y todavía no lo activó: a quien ya
+             entra todos los días, contárselo sería ruido. Lo llena `openPortalGate`. -->
+        <p class="portal-hint portal-porque" id="portalPorQue" hidden></p>
         <p class="portal-hint portal-nota" data-i18n="pg_desc_inicio"></p>
         <!-- Auditoría de login (2026-08-26): tenían autocomplete="off". Con "off" el gestor de
              contraseñas del navegador/SO nunca ofrece guardarla ni completarla — la única forma de
@@ -7151,7 +7161,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.44';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.45';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7600,6 +7610,7 @@ const I18N = {
       pg_titulo:'Panel de estadísticas', pg_lead:'Consulta los indicadores de bienestar y fatiga.',
       pg_mis_stats:'Mis estadísticas', pg_hseq:'Dirección / HSEQ',
       pg_propios:'Vas a ver tus propios registros.', pg_ver_mis:'Ver mis estadísticas',
+      pg_porque_clave:'Tu empresa te registró con este acceso en su lista de personal. La contraseña se pide igual: estar en la lista PROPONE el acceso, la contraseña lo confirma. Así, quien edita la lista no puede darse acceso a los datos de nadie.',
       pg_usuario:'Usuario', pg_usuario_ph:'Tu usuario',
       pg_pass:'Contraseña', pg_pass_ph:'Tu contraseña',
       entrar:'Entrar',
@@ -9377,6 +9388,7 @@ const I18N = {
       pg_titulo:'Statistics panel', pg_lead:'Check the wellbeing and fatigue indicators.',
       pg_mis_stats:'My statistics', pg_hseq:'Management / HSEQ',
       pg_propios:'You will see your own records.', pg_ver_mis:'See my statistics',
+      pg_porque_clave:'Your company registered you with this access in its staff list. The password is still required: being on the list PROPOSES the access, the password confirms it. That way, whoever edits the list cannot grant themselves access to anyone data.',
       pg_usuario:'Username', pg_usuario_ph:'Your username',
       pg_pass:'Password', pg_pass_ph:'Your password',
       entrar:'Sign in',
@@ -16866,6 +16878,7 @@ function openPortalGate(){
        vez de en claro adentro de la app. `c.pass` sólo existe en dispositivos sin migrar. */
     document.getElementById('pPass').value = c.pass || '';
     if (btnEntrar) btnEntrar.textContent = 'Entrar a ' + c.usuario;   // ya está todo cargado: un solo toque
+    const pq0 = document.getElementById('portalPorQue'); if (pq0) pq0.hidden = true;   // P178 · ya lo sabe
     /* P177 · y si la vista previa ya no está entre sus paneles, se cae al primero que sí. */
     const M = { supervisor:'sup', medico:'med', hseq:'hseq' };
     let rolModo = (vistaPrevia && panelesG.indexOf(vistaPrevia) >= 0) ? vistaPrevia
@@ -16873,9 +16886,28 @@ function openPortalGate(){
     if (panelesG.indexOf(rolModo) < 0) rolModo = panelesG[0] || 'supervisor';
     portalMode(M[rolModo] || 'sup');
   } else {
-    if (btnEntrar) btnEntrar.textContent = 'Entrar';
-    portalMode('emp');
+    /* ⚠️ P178 · SE ABRE EN SU PANEL, NO EN «Mis estadísticas». Reportado por Franco (2026-09-11):
+       «entro y me pide contraseña». La contraseña es a propósito (ADR 002), pero el recorrido no
+       ayudaba: alguien cuyo único panel de empresa es Supervisor abría el selector parado en la
+       pestaña equivocada y tenía que tocar la suya ANTES de poder escribir nada. Con un solo panel
+       no hay nada que elegir; con varios sí, y ahí sigue abriendo en «Mis estadísticas».
+       Y el botón nombra la empresa: el campo «Usuario» ya sabía la respuesta y aun así decía
+       «Entrar» a secas, como si faltara algo más por decidir. */
     if (puedeEmpresa && p && p.empresa) document.getElementById('pEmpresa').value = p.empresa;
+    const unicoP = (panelesG.length === 1) ? panelesG[0] : null;
+    if (btnEntrar) btnEntrar.textContent = (p && p.empresa && unicoP) ? ('Entrar a ' + p.empresa) : 'Entrar';
+    const pq = document.getElementById('portalPorQue');
+    if (unicoP){
+      portalMode({ supervisor:'sup', medico:'med', hseq:'hseq' }[unicoP] || 'sup');
+      /* La explicación del porqué, sólo mientras no lo haya activado: a quien ya entra todos los
+         días, contarle esto sería ruido. */
+      if (pq){ pq.textContent = t('pg_porque_clave'); pq.hidden = rolActivado(unicoP, p); }
+      /* Y el foco va donde falta escribir: el usuario ya está puesto. */
+      setTimeout(() => { try { const pp = document.getElementById('pPass'); if (pp && !pp.value) pp.focus(); } catch(e){} }, 80);
+    } else {
+      portalMode('emp');
+      if (pq) pq.hidden = true;
+    }
   }
 }
 // Entra directo a la empresa con las credenciales guardadas (supervisor o servicio médico). Si ya no son válidas, cae al gate.
