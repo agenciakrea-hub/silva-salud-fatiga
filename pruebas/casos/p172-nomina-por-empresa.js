@@ -68,7 +68,7 @@ PRUEBAS.caso('⚠️ sin `confirmar`, `nomina_hoja_crear` SIMULA: dice qué har�
   PRUEBAS.igual(api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId'), '', 'ni anotó nada en Config');
 });
 
-PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 12 columnas, sembrada, texto, listas cerradas, compartida, anotada, con disparadores', () => {
+PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 15 columnas, sembrada, texto, listas cerradas, compartida, anotada, con disparadores', () => {
   if (p172Sin()) return;
   const api = p172Env();
   const r = api.__crear({ editores:'rrhh@helitec.com; jefe@helitec.com' });
@@ -78,8 +78,8 @@ PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 12 columnas, 
   PRUEBAS.cierto(/Consorcio HELITEC/.test(reg.libros[0].nombre) && /Silva Salud Fatiga/.test(reg.libros[0].nombre), 'con el nombre de la empresa y el del producto');
   const sh = api.__hojaEmpresa();
   const v = sh.__volcado();
-  PRUEBAS.igual(v[0], ['Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
-    '🔴 las 12 columnas: sin «Empresa» (la hoja ES la empresa) ni «Estado» (borrar la fila es la baja)');
+  PRUEBAS.igual(v[0], ['Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo','¿Supervisor?','¿Servicio médico?','¿Dirección?'],
+    '🔴 las 15 columnas: las 12 de siempre —sin «Empresa» (la hoja ES la empresa) ni «Estado» (borrar la fila es la baja)— más las TRES de rol de P177');
   PRUEBAS.igual(v.length, 3, 'sembrada con las dos personas de Helitec');
   PRUEBAS.igual(v[1][0], 'Ana Suárez', 'Ana…');
   PRUEBAS.igual(v[2][0], 'Beto Pérez', '…y Beto');
@@ -90,6 +90,13 @@ PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 12 columnas, 
   const val = (col) => sh.getRange(2, col).getDataValidation();
   PRUEBAS.igual((val(9) && val(9).getCriteriaValues()[0]) || null, ['Sí','No'], '🔴 «¿Es piloto?» es una lista cerrada');
   PRUEBAS.igual((val(11) && val(11).getCriteriaValues()[0]) || null, ['Empleado','Supervisor','Servicio médico','Dirección'], '🔴 «Rol en la app» también');
+  /* P177 · y las tres nuevas, con la misma lista cerrada Sí/No: la validación fuerte es la razón
+     por la que se eligieron tres columnas y no una celda con comas. */
+  [13, 14, 15].forEach(c => PRUEBAS.igual((val(c) && val(c).getCriteriaValues()[0]) || null, ['Sí','No'],
+    '🔴 P177 · la columna ' + c + ' es una lista cerrada Sí/No'));
+  /* Y se siembran DERIVADAS del rol que ya tenía: la empresa abre su hoja y ve el modelo nuevo
+     cargado, sin traducir nada a mano. Ana es «Empleado» en el CH de prueba → No en las tres. */
+  PRUEBAS.igual([v[1][12], v[1][13], v[1][14]], ['No','No','No'], '🔴 P177 · sembradas desde la lista ya derivada');
   PRUEBAS.igual((val(12) && val(12).getCriteriaValues()[0]) || null, ['1','2','3','4','5'], 'y «Nivel de riesgo»');
   PRUEBAS.cierto(!!val(11) && val(11).getAllowInvalid() === false, 'sin permitir valores fuera de la lista');
   PRUEBAS.igual(sh.__protecciones().length, 1, 'el encabezado está protegido');
@@ -172,7 +179,15 @@ PRUEBAS.caso('⚠️ `nomina_sync` sin confirmar INFORMA qué cambiaría y no to
   PRUEBAS.igual(r.r.simulado, true, 'simulado');
   const e = r.r.empresas[0];
   PRUEBAS.igual(e.agregadas, ['Dora Gil'], 'diría que agrega a Dora');
-  PRUEBAS.igual(e.actualizadas.map(a => a.nombre + ':' + a.campos.join('+')).sort(), ['Ana Suárez:telefono','Beto Pérez:rol'], 'y qué campo cambia de quién');
+  /* ⚠️ P177 · se filtran las tres columnas de rol, y hay que explicar por qué NO se rompió nada:
+     la hoja recién creada las trae sembradas y el CH de prueba (13 columnas, como el de antes de
+     P177) no las tiene, así que el primer sync las escribe para TODOS. Eso es la migración, no un
+     cambio de datos de esas personas. Lo que este caso vigila es qué campo REAL cambia de quién. */
+  const soloDatos = a => a.campos.filter(c => ['esSupervisor','esMedico','esHseq'].indexOf(c) < 0);
+  PRUEBAS.igual(e.actualizadas.filter(a => soloDatos(a).length).map(a => a.nombre + ':' + soloDatos(a).join('+')).sort(),
+    ['Ana Suárez:telefono','Beto Pérez:rol'], 'y qué campo cambia de quién');
+  PRUEBAS.cierto(e.actualizadas.every(a => a.campos.indexOf('esSupervisor') >= 0),
+    '🔴 P177 · y las tres de rol se escriben en la primera pasada: es la migración del modelo viejo al nuevo');
   PRUEBAS.igual(e.bajas, [], 'sin bajas');
   PRUEBAS.igual(JSON.stringify(api.__ch('Nómina')), antes, '⚠️ y el CH quedó IGUAL');
 });
@@ -303,7 +318,12 @@ PRUEBAS.caso('⚠️ LA CÉDULA ES PEGAJOSA · vacía en la hoja de la empresa, 
   p172Editar(api, { cedAna:'' });
   const r = api.__mant('nomina_sync', { empresa:'Helitec', confirmar:'1' });
   PRUEBAS.igual(api.__ch('Nómina').find(f => f[1] === 'Ana Suárez')[2], 'V-111', '⚠️ la cédula del CH sigue: es identidad, no un dato más');
-  PRUEBAS.igual(r.r.empresas[0].sinCambios, 2, 'y no cuenta como cambio');
+  /* ⚠️ P177 · YA NO SON 2 «sin cambios», y es correcto: la hoja recién creada trae las tres
+     columnas de rol sembradas y el CH de prueba no las tiene, así que el primer sync las escribe.
+     Esa ES la migración. Lo que este caso vigila —que la cédula no se pierda— es lo de arriba. */
+  PRUEBAS.igual(r.r.empresas[0].actualizadas.filter(x => (x.campos || []).indexOf('cedula') >= 0).length, 0,
+    'y la cédula NO figura entre los campos que cambiaron');
+  PRUEBAS.igual(api.__ch('Nómina').filter(f => f[1] === 'Ana Suárez').length, 1, 'y sin duplicar la fila');
 });
 
 PRUEBAS.caso('⚠️ una persona repetida en la hoja de la empresa se informa y no duplica', () => {

@@ -7144,7 +7144,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.42';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.43';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14702,15 +14702,21 @@ function abrirDestinoEstadisticas(){
   // Si dejó de ser supervisor/servicio médico, no puede reaparecer una vista de empresa cacheada: se descarta.
   if (DASH && DASH.vista && DASH.vista !== 'empleado'){
     const pp = getProfile() || {};
-    if (!pp.esSupervisor && !pp.esServicioMedico) DASH = null;
+    if (!rolesConPanel(pp).length) DASH = null;   // P177 · la lista, no los dos flags
   }
   // El selector (Personal/Supervisor/Servicio médico) sólo tiene sentido si hay algo para
   // elegir. Personal que NO es ni supervisor ni servicio médico no tiene otra vista posible:
   // entra DIRECTO a sus propias estadísticas, sin selector de por medio. Con la contraseña
   // guardada, para supervisor/servicio médico entrar sigue siendo un solo toque (openPortalGate).
+  /* ⚠️ P177 · LO QUE DECIDE ES LA NÓMINA, NO LOS FLAGS. Antes: «¿tiene alguna credencial
+     activada?». Ahora: «¿la nómina le da algún panel?». La diferencia es justo el caso que Franco
+     reportó — está puesto como supervisor en el CH, todavía no activó nada, y la app lo mandaba
+     derecho a sus estadísticas personales sin ofrecerle nada.
+     · Sin ningún panel → sus propias estadísticas, directo, como siempre.
+     · Con uno o más → el selector, con «Mis estadísticas» y SÓLO los suyos. */
   const perfil = getProfile();
-  const puedeEmpresa = !!(perfil && (perfil.esSupervisor || perfil.esServicioMedico));
-  if (!puedeEmpresa){ portalAutoLoginEmpleado(); return; }
+  const panelesP = rolesConPanel(perfil);
+  if (!panelesP.length){ portalAutoLoginEmpleado(); return; }
   /* ⚠️ Q4c · `openPortal()` y NO `openPortalGate()`. Acá estaba el defecto: se saltaba el
      auto-login y se iba derecho al formulario, así que el supervisor escribía su contraseña en
      cada entrada aunque hubiera tocado "Sí, recordar". `openPortal` prueba primero el token y sólo
@@ -16372,6 +16378,69 @@ function dashSaveCredsValues(usuario, pass){ try { localStorage.setItem(K_DASH_C
 const K_DASH_CREDS_MED = 'silva_dash_creds_med_v1';
 function dashGetCredsMed(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS_MED)); } catch(e){ return null; } }
 function dashSaveCredsValuesMed(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
+/* ⚠️ P177 · LA TERCERA RANURA. Hasta acá Dirección compartía la de supervisor —está documentado en
+   `rolActivarGuardar` y en su momento era correcto, porque nadie podía tener los dos roles—. Con
+   varios roles por persona deja de serlo: la contraseña de Dirección y la de supervisor son
+   columnas DISTINTAS de `Accesos`, así que guardar una encima de la otra le sacaría a la persona el
+   panel que acaba de activar. */
+const K_DASH_CREDS_HSEQ = 'silva_dash_creds_hseq_v1';
+function dashGetCredsHseq(){ try { return JSON.parse(localStorage.getItem(K_DASH_CREDS_HSEQ)); } catch(e){ return null; } }
+function dashSaveCredsValuesHseq(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS_HSEQ, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P177 · VARIOS ROLES POR PERSONA (2026-09-11)
+
+   Pedido de Franco: «en el sheet debería poder tener varios roles, y cuando voy a estadísticas veo
+   los paneles que tenga puesto en el sheet, y de ahí selecciono a cuál entro… por si alguien es
+   supervisor pero médico, o empleado pero médico».
+
+   ⚠️ LOS DOS FLAGS SE CONSERVAN Y SE DERIVAN. `esSupervisor` y `esServicioMedico` los leen 84
+   lugares de este archivo. Cambiarlos todos de una es exactamente cómo se rompe algo que anda: lo
+   que cambia es de dónde sale la RESPUESTA a «qué paneles puede abrir», y eso ahora vive en una
+   sola función, `rolesDeNomina()`, con su lista.
+
+   ⚠️ Y SIGUE VALIENDO EL ADR 002: esta lista PROPONE. Cada panel se abre con la contraseña de
+   empresa de ESE rol, que son tres columnas distintas de `Accesos`. Tener el rol en la nómina no
+   abre nada por sí solo — Franco lo dijo en el mismo mensaje: «debo poner cada contraseña del rol
+   que me pusieron». */
+function rolCredClave(rol){
+  return rol === 'medico' ? K_DASH_CREDS_MED : (rol === 'hseq' ? K_DASH_CREDS_HSEQ : K_DASH_CREDS);
+}
+function rolCredGuardada(rol){
+  try { const c = JSON.parse(localStorage.getItem(rolCredClave(rol))); return (c && c.usuario && (c.token || c.pass)) ? c : null; }
+  catch(e){ return null; }
+}
+/* Los roles que la nómina propone para esta persona, como lista. Respalda en `p.rol` —el campo de
+   UN rol— para los perfiles escritos antes de P177 y para los teléfonos que todavía no recibieron
+   una respuesta con `rolesNomina`. Nunca incluye «empleado»: no es un panel. */
+function rolesDeNomina(perfil){
+  const p = perfil || getProfile() || {};
+  const lista = Array.isArray(p.rolesNomina) ? p.rolesNomina : null;
+  if (lista) return lista.filter(rolOfrecible);
+  const uno = String(p.rol || '').trim().toLowerCase();
+  return rolOfrecible(uno) ? [uno] : [];
+}
+/* ¿Este rol ya está ACTIVADO? Lo dice el FLAG del perfil, que es lo que escribe `rolActivarGuardar`
+   cuando la persona pone la contraseña de empresa y el servidor la acepta.
+   ⚠️ NO se mira si hay credencial guardada, y me lo cazó la suite: guardar la contraseña en el
+   dispositivo es la comodidad de «recordar este teléfono», una decisión aparte que se puede decir
+   que no. Quien activó su rol y eligió no recordarlo entra igual —escribiendo la contraseña en el
+   gate cada vez— y volver a ofrecerle «activa tu acceso» sería pedirle otra vez algo que ya hizo. */
+function rolActivado(rol, perfil){
+  const p = perfil || getProfile() || {};
+  if (rol === 'medico') return !!p.esServicioMedico;
+  if (rol === 'hseq')   return !!p.esDireccion;
+  return !!p.esSupervisor;
+}
+/* Los paneles de empresa que esta persona puede abrir HOY: los que la nómina propone, más los que
+   ya tenía activados de antes aunque la nómina ya no los nombre —esos los saca la nómina por su
+   camino (`tareasCargar`), no una lista que se arma para pintar botones—. */
+function rolesConPanel(perfil){
+  const p = perfil || getProfile() || {};
+  const out = rolesDeNomina(p).slice();
+  ['supervisor','medico','hseq'].forEach(r => { if (out.indexOf(r) < 0 && rolActivado(r, p)) out.push(r); });
+  return out;
+}
 
 /* ════════════════ SETUP: toggles + combobox empresa/departamento ════════════════ */
 function onPilotToggle(el){
@@ -16659,10 +16728,22 @@ function openPortal(){
   document.getElementById('portalOverlay').classList.add('show');
   syncScrollLock();
   const p = getProfile();
-  const cMed = dashGetCredsMed(), cSup = dashGetCreds();
   const sirve = c => !!(c && c.usuario && (c.token || c.pass));
-  /* El desempate cuando hay dos: manda el perfil si lo dice; si no, la médica, que es la vista más
-     completa. Es la misma prioridad que ya tenía, sólo que ahora el perfil no es un requisito. */
+  /* ⚠️ P177 · CON UN SOLO PANEL SE ENTRA DIRECTO, con varios se elige. Pedido de Franco: «si tengo
+     uno, tocar el botón abre directo ese panel; si no, el panel que muestre las ventanas conforme
+     a los roles que me pusieron en el sheet».
+     El desempate viejo (médica sobre supervisor) se conserva para quien tiene las dos guardadas y
+     ningún dato de nómina: es el caso de quien usa sólo el panel y no tiene perfil en el teléfono. */
+  const paneles = rolesConPanel(p);
+  const credDe = { supervisor: dashGetCreds(), medico: dashGetCredsMed(), hseq: dashGetCredsHseq() };
+  const claveDe = { supervisor: K_DASH_CREDS, medico: K_DASH_CREDS_MED, hseq: K_DASH_CREDS_HSEQ };
+  if (paneles.length === 1){
+    const r = paneles[0];
+    if (sirve(credDe[r])){ portalAutoLoginSupervisor(credDe[r], claveDe[r]); return; }
+    openPortalGate(); return;              // lo tiene en la nómina pero le falta la contraseña
+  }
+  if (paneles.length > 1){ openPortalGate(); return; }   // que elija a cuál entra
+  const cMed = credDe.medico, cSup = credDe.supervisor;
   const preferirMed = sirve(cMed) && (!sirve(cSup) || !(p && p.esSupervisor) || (p && p.esServicioMedico));
   if (preferirMed){ portalAutoLoginSupervisor(cMed, K_DASH_CREDS_MED); return; }
   if (sirve(cSup)){ portalAutoLoginSupervisor(cSup, K_DASH_CREDS); return; }
@@ -16673,7 +16754,7 @@ function openPortal(){
 function portalPintarOlvidar(){
   const cont = document.getElementById('portalOlvidar');
   if (!cont) return;
-  const hay = !!((dashGetCreds() || {}).usuario || (dashGetCredsMed() || {}).usuario);
+  const hay = !!((dashGetCreds() || {}).usuario || (dashGetCredsMed() || {}).usuario || (dashGetCredsHseq() || {}).usuario);   // P177
   cont.style.display = hay ? '' : 'none';
 }
 
@@ -16692,6 +16773,7 @@ function portalOlvidarDispositivo(btn){
   try { sesionAvisarCierre(); } catch(e){}
   try { localStorage.removeItem(K_DASH_CREDS); } catch(e){}
   try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+  try { localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}   // P177 · también la de Dirección
   DASH = null;
   if (btn) btnSpin(btn, false);
   portalPintarOlvidar();
@@ -16735,18 +16817,30 @@ function openPortalGate(){
   document.getElementById('portalErr').textContent = '';
   // Si el perfil NO tiene activado "Supervisor" NI "Servicio médico", esas pestañas no existen
   // para esta persona: ve exactamente lo mismo que cualquier empleado.
-  const puedeEmpresa = !!(p && (p.esSupervisor || p.esServicioMedico));
-  document.getElementById('ptabSup').style.display = puedeEmpresa ? '' : 'none';
-  document.getElementById('ptabMed').style.display = puedeEmpresa ? '' : 'none';
+  /* ⚠️ P177 · UNA PESTAÑA POR ROL DE LA NÓMINA, no las tres o ninguna. Pedido de Franco
+     (2026-09-11): «debería ver el panel de antes, o sea el de personal, médico, supervisor, HSEQ
+     y así, pero SÓLO ver personal y supervisor, ya que estoy puesto como eso».
+     Hasta acá era todo-o-nada con los dos flags: quien activaba el rol de supervisor veía también
+     las pestañas de servicio médico y de Dirección, que no le corresponden y sólo sirven para que
+     escriba una contraseña que el servidor le va a rechazar. */
+  const panelesG = rolesConPanel(p);
+  const puedeEmpresa = panelesG.length > 0;
+  document.getElementById('ptabSup').style.display = panelesG.indexOf('supervisor') >= 0 ? '' : 'none';
+  document.getElementById('ptabMed').style.display = panelesG.indexOf('medico') >= 0 ? '' : 'none';
   /* ⚠️ `ptabHseq` FALTABA ACÁ. Se agregó después que las otras dos y esta línea no se actualizó,
      así que quedaba VISIBLE SIEMPRE: cualquier empleado común que tocaba "Estadísticas" veía una
      pestaña "Dirección / HSEQ" que no le corresponde. Medido con discriminador — se la escondió a
      mano, se llamó a `openPortalGate()`, y volvió visible mientras las otras dos quedaron ocultas.
      Es la clase de olvido que no rompe nada y por eso no se descubre: la pestaña no daba acceso
      (falta la contraseña), pero le anunciaba a todo el mundo que existe un panel de dirección. */
-  document.getElementById('ptabHseq').style.display = puedeEmpresa ? '' : 'none';
-  const cMed = dashGetCredsMed(), cSup = dashGetCreds();
-  const c = (p && p.esServicioMedico && cMed && cMed.usuario) ? cMed : cSup;   // prioriza la médica si está guardada
+  document.getElementById('ptabHseq').style.display = panelesG.indexOf('hseq') >= 0 ? '' : 'none';
+  /* P177 · la credencial precargada es la del primer panel que tenga guardada, en el orden de su
+     propia lista: con un solo rol es la suya, y con varios el gate abre en el que usó la última
+     vez (`vistaPrevia`, más abajo). */
+  const cMed = dashGetCredsMed(), cSup = dashGetCreds(), cHseq = dashGetCredsHseq();
+  const cDe = { supervisor: cSup, medico: cMed, hseq: cHseq };
+  let c = null;
+  for (let i = 0; i < panelesG.length && !c; i++){ const x = cDe[panelesG[i]]; if (x && x.usuario) c = x; }
   const btnEntrar = document.querySelector('#portalSup .save-btn');
   // Abre de entrada la pestaña que se estaba mirando la última vez (si la hay): así entrar y
   // salir entre Personal/Supervisor/Servicio médico se siente continuo, sin forzar siempre la
@@ -16765,8 +16859,12 @@ function openPortalGate(){
        vez de en claro adentro de la app. `c.pass` sólo existe en dispositivos sin migrar. */
     document.getElementById('pPass').value = c.pass || '';
     if (btnEntrar) btnEntrar.textContent = 'Entrar a ' + c.usuario;   // ya está todo cargado: un solo toque
-    const modo = vistaPrevia === 'supervisor' ? 'sup' : vistaPrevia === 'medico' ? 'med' : (c === cMed ? 'med' : 'sup');
-    portalMode(modo);
+    /* P177 · y si la vista previa ya no está entre sus paneles, se cae al primero que sí. */
+    const M = { supervisor:'sup', medico:'med', hseq:'hseq' };
+    let rolModo = (vistaPrevia && panelesG.indexOf(vistaPrevia) >= 0) ? vistaPrevia
+                : (c === cHseq ? 'hseq' : c === cMed ? 'medico' : 'supervisor');
+    if (panelesG.indexOf(rolModo) < 0) rolModo = panelesG[0] || 'supervisor';
+    portalMode(M[rolModo] || 'sup');
   } else {
     if (btnEntrar) btnEntrar.textContent = 'Entrar';
     portalMode('emp');
@@ -18267,7 +18365,17 @@ function dashSaveCreds(btn){
       if (!d || !d.ok || !d.sesion){ showToast(t('ts_recordar_error')); return; }
       /* Lo que se guarda: usuario y TOKEN. Nunca `pass`. Si algún día alguien agrega la contraseña
          acá "para el caso de que el token falle", vuelve el problema entero. */
-      try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario:c.usuario, token:d.sesion })); } catch(e){}
+      /* ⚠️ P177 · EN LA RANURA DE LA VISTA QUE SE ABRIÓ, no siempre en la de supervisor. Esto ya
+         estaba mal antes —quien entraba como servicio médico y tocaba «recordar» guardaba su token
+         en la ranura de supervisor— y sólo no mordía porque nadie podía tener los dos roles. Con
+         varios roles muerde: el token de un panel pisaba el del otro.
+         La vista la dice el SERVIDOR (`DASH.vista`); `PORTAL_VISTA` es el respaldo. */
+      /* ⚠️ SÓLO `DASH.vista`, y sin respaldo a `PORTAL_VISTA`: éste arranca en 'medico' por
+         defecto, así que usarlo cuando no hay panel abierto mandaría a la ranura médica un token
+         que puede no serlo. Sin panel abierto se guarda donde se guardaba siempre. */
+      const _v = (DASH && DASH.vista) || '';
+      const _clave = (_v === 'medico') ? K_DASH_CREDS_MED : (_v === 'hseq') ? K_DASH_CREDS_HSEQ : K_DASH_CREDS;
+      try { localStorage.setItem(_clave, JSON.stringify({ usuario:c.usuario, token:d.sesion })); } catch(e){}
       DASH_PENDING_CREDS = null;
       document.getElementById('dashRemember').classList.remove('show');
       showToast(t('ts_guardado_disp'));
@@ -28036,11 +28144,13 @@ function rolOfrecible(rol){
    la contraseña no necesita que le ofrezcan lo que ya tiene. */
 function rolPropuesto(perfil){
   const p = perfil || getProfile() || {};
-  const r = String(p.rol || '').trim().toLowerCase();
-  if (!rolOfrecible(r)) return '';
-  if (r === 'medico' && p.esServicioMedico) return '';
-  if (r !== 'medico' && p.esSupervisor) return '';
-  return r;
+  /* ⚠️ P177 · CON VARIOS ROLES SE OFRECE EL PRIMERO QUE FALTE, uno por vez. Activás supervisor hoy
+     y el próximo arranque te ofrece el médico: cada uno tiene su propia contraseña de empresa, así
+     que pedirlas todas juntas sería una pantalla con tres campos que nadie completa de una sentada.
+     Con un solo rol el comportamiento es idéntico al de antes. */
+  const lista = rolesDeNomina(p);
+  for (let i = 0; i < lista.length; i++) if (!rolActivado(lista[i], p)) return lista[i];
+  return '';
 }
 /* El nombre del rol tal como se le muestra a la persona. Sale del diccionario (R14): son las
    mismas etiquetas que ya usan las pestañas del portal y la insignia del encabezado, así que no
@@ -28141,11 +28251,18 @@ function rolOfrecerCerrar(){
    más: lo que vea del otro lado lo sigue decidiendo su contraseña. */
 function rolActivarGuardar(rol, empresa, pass){
   const p = getProfile() || {};
-  const nuevo = (rol === 'medico')
-    ? Object.assign({}, p, { esServicioMedico:true })
-    : Object.assign({}, p, { esSupervisor:true });
-  if (rol === 'medico') dashSaveCredsValuesMed(empresa, pass);
-  else                  dashSaveCredsValues(empresa, pass);
+  /* ⚠️ P177 · CADA ROL EN SU RANURA, Y DIRECCIÓN TIENE LA SUYA. Hasta acá `hseq` compartía la de
+     supervisor, con este razonamiento escrito: «el cliente sólo tiene dos flags y ninguno significa
+     hseq; la vista la decide el SERVIDOR por la contraseña». Lo segundo sigue siendo cierto y no
+     cambia. Lo primero dejó de alcanzar: quien es supervisor Y dirección tiene DOS contraseñas
+     distintas (columnas «Contraseña» y «Contraseña HSEQ» de `Accesos`), y una sola ranura le
+     borraba la que acababa de poner. */
+  const nuevo = (rol === 'medico') ? Object.assign({}, p, { esServicioMedico:true })
+              : (rol === 'hseq')   ? Object.assign({}, p, { esDireccion:true, esSupervisor:true })
+                                   : Object.assign({}, p, { esSupervisor:true });
+  if (rol === 'medico')     dashSaveCredsValuesMed(empresa, pass);
+  else if (rol === 'hseq')  dashSaveCredsValuesHseq(empresa, pass);
+  else                      dashSaveCredsValues(empresa, pass);
   setProfile(nuevo);
   /* ⚠️ P131 (b) · SE SINCRONIZA ACÁ, no en el próximo arranque. `saveProfile` —el otro camino que
      enciende estos flags, la casilla de «Editar mis datos»— llama a `sincronizarRegistro` desde
@@ -29522,6 +29639,40 @@ function tareasCargar(){
         if (_pr && String(_pr.rol || '') !== d.rolNomina){
           setProfile(Object.assign({}, _pr, { rol: d.rolNomina, rolOrigen: 'nomina' }));
           try { miRolPintar(); } catch(e){}
+        }
+      }
+      /* ⚠️ P177 · LA LISTA COMPLETA, cuando el endpoint la manda. Viaja junto al `rolNomina` de
+         arriba y no en su lugar: hay teléfonos con la 6.42 que sólo entienden aquél.
+         Y acá es donde la nómina QUITA un rol de los varios: lo que no está en la lista deja de
+         estar activado. Decisión de Franco (2026-09-11): «se quita lo que ya no esté en la lista».
+         Antes hacía falta poner la celda en «Empleado» para sacar algo; ahora sacar el «Sí» de una
+         columna saca ese panel y deja los otros, que es lo que uno espera al editar la hoja.
+         Se avisa al servidor ANTES de borrar el token, por el mismo motivo que la rama de arriba:
+         si se borra primero, la sesión queda viva del otro lado sin que nadie pueda cerrarla. */
+      if (Array.isArray(d.rolesNomina)){
+        const _pl = getProfile();
+        if (_pl){
+          const nueva = d.rolesNomina.filter(rolOfrecible);
+          const antes = rolesDeNomina(_pl);
+          const perdidos = ['supervisor','medico','hseq'].filter(r => nueva.indexOf(r) < 0 && rolActivado(r, _pl));
+          const cambio = nueva.join(',') !== antes.join(',') || perdidos.length;
+          if (cambio){
+            if (perdidos.length){ try { sesionAvisarCierre(); } catch(e){} }
+            const quita = {};
+            perdidos.forEach(r => {
+              if (r === 'medico'){ quita.esServicioMedico = false; try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){} }
+              else if (r === 'hseq'){ quita.esDireccion = false; try { localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){} }
+              else { quita.esSupervisor = false; try { localStorage.removeItem(K_DASH_CREDS); } catch(e){} }
+            });
+            setProfile(Object.assign({}, getProfile() || _pl, quita, { rolesNomina: nueva }));
+            if (perdidos.length){
+              /* Si estaba mirando justo el panel que le sacaron, se descarta: lo que tiene en
+                 pantalla ya no le corresponde. */
+              if (DASH && DASH.vista && DASH.vista !== 'empleado' && perdidos.indexOf(DASH.vista) >= 0) DASH = null;
+              try { showToast(t('rol_quitado')); } catch(e){}
+            }
+            try { miRolPintar(); } catch(e){}
+          }
         }
       }
       tareasCacheGuardar();      // M2: para que el próximo arranque no espere 5 segundos

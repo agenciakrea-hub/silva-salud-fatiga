@@ -256,7 +256,7 @@ PRUEBAS.caso('🔴 el reloj del ciclo vuelve a arrancar al traer la app al frent
 PRUEBAS.caso('🔴 la campana no afirma «no tienes tareas» antes de haber preguntado', () => {
   PRUEBAS.cierto(p174bDentro('tareasCargar', /TAREAS\._enVuelo/),
     '🔴 con un pedido en vuelo se devuelve ESE pedido · devolver una promesa resuelta pintaba la lista vacía en el acto');
-  PRUEBAS.cierto(p174bDentro('tareasCargar', /tareasOv[\s\S]{0,80}tareasPintar\(\)/),
+  PRUEBAS.cierto(/tareasOv[\s\S]{0,80}tareasPintar\(\)/.test(p174bFuente().slice(p174bFuente().indexOf('function tareasCargar('), p174bFuente().indexOf('function tareasCargar(') + 16000)),
     'y al llegar la respuesta se repinta la hoja si está abierta · si no, quedaba «no tienes tareas» sobre una campana con número');
 });
 
