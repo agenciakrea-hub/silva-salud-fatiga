@@ -439,7 +439,8 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
 
       Session: {
         getScriptTimeZone: function () { return opciones.zona || ZONA_DEL_SCRIPT; },   // P161
-        getActiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; }
+        getActiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; },
+        getEffectiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; }
       },
 
       Logger: { log: function () { registro.logs.push([].slice.call(arguments).join(' ')); } },
@@ -474,6 +475,8 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
       /* P172 · Drive, lo mínimo para compartir la hoja de una empresa. Cada `addEditor` queda en
          `registro.compartidos` para que un caso compruebe con quién se compartió y con qué rol. */
       DriveApp: {
+        Access: { ANYONE: 'ANYONE', ANYONE_WITH_LINK: 'ANYONE_WITH_LINK', DOMAIN: 'DOMAIN', DOMAIN_WITH_LINK: 'DOMAIN_WITH_LINK', PRIVATE: 'PRIVATE' },
+        Permission: { VIEW: 'VIEW', EDIT: 'EDIT', COMMENT: 'COMMENT', OWNER: 'OWNER', NONE: 'NONE' },
         getFileById: function (id) {
           const libro = env.__libros && env.__libros[id];
           if (!libro) throw new Error('DriveApp: no hay archivo con id ' + id + ' en esta prueba (sólo los creados con SpreadsheetApp.create)');
@@ -487,7 +490,11 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
             removeEditor: function (email) { registro.compartidos = registro.compartidos.filter(c => !(c.id === id && c.email === String(email))); return f; },
             getEditors: () => registro.compartidos.filter(c => c.id === id && c.rol === 'editor').map(c => ({ getEmail: () => c.email })),
             moveTo: function () { return f; },
-            setSharing: function () { return f; },
+            /* El estado de compartido vive en el LIBRO: `getFileById` devuelve un objeto nuevo cada vez. */
+            setSharing: function (acceso, permiso) { registro.compartidos.push({ id, email: '', rol: 'enlace:' + String(acceso) + ':' + String(permiso) }); libro._acceso = String(acceso); libro._permiso = String(permiso); return f; },
+            getSharingAccess: function () { return libro._acceso || 'PRIVATE'; },
+            getSharingPermission: function () { return libro._permiso || 'NONE'; },
+            getOwner: function () { return { getEmail: () => (opciones.email || 'dueno@prueba.com') }; },
             setShareableByEditors: function (v) { registro.compartidos.push({ id, email: '', rol: v ? 'editores-pueden-compartir' : 'editores-no-comparten' }); return f; },
             setTrashed: function (v) { if (v) { delete env.__libros[id]; registro.libros = registro.libros.filter(l => l.id !== id); registro.papelera = (registro.papelera || []).concat([id]); } return f; },
             isTrashed: function () { return !env.__libros[id]; }

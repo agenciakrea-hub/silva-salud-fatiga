@@ -22,7 +22,10 @@ PRUEBAS.grupo('P151 · el IdTurno llevaba la cédula a Dirección/HSEQ');
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const P151_CED = '12345678';
-const P151_ID_CON_CEDULA = 'turno_c' + P151_CED + '_2026-09-08_checkin';
+/* ⚠️ La fecha del turno es AYER, calculada: `leerTurnos` sólo devuelve los de los últimos 2 días,
+   y con una fecha fija el caso se puso rojo solo tres días después de escribirlo (2026-09-11). */
+const P151_FECHA = (() => { const d = new Date(); d.setDate(d.getDate() - 1); const p2 = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); })();
+const P151_ID_CON_CEDULA = 'turno_c' + P151_CED + '_' + P151_FECHA + '_checkin';
 
 function p151Env(fns){
   const env = GS.crearEntorno({
@@ -34,7 +37,7 @@ function p151Env(fns){
                ['Consorcio HELITEC','Ana Suárez', P151_CED,'Operaciones','Piloto','F','34','','','Sí','','','4']],
     /* Una fila de Turnos con el id tal como lo escribe el cliente de verdad. */
     'Turnos': [['Fecha','Hora','IdTurno','Tipo','Persona','Empresa','Departamento','Cargo','KSS','Carga'],
-               ['2026-09-08','07:30', P151_ID_CON_CEDULA,'checkin','Ana Suárez','Consorcio HELITEC',
+               [P151_FECHA,'07:30', P151_ID_CON_CEDULA,'checkin','Ana Suárez','Consorcio HELITEC',
                 'Operaciones','Piloto','3','4']],
     'Registrados Fatiga': [['Nota de la hoja','Fecha y hora','Nombre','Email','Cédula','ID Piloto',
       'Es piloto','Es supervisor','Empresa','Departamento','Cargo','Sexo','Edad','Teléfono',

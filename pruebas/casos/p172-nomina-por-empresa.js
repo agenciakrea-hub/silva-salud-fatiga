@@ -95,6 +95,8 @@ PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 12 columnas, 
   PRUEBAS.cierto(sh.__protecciones()[0].isWarningOnly(), 'con aviso (la empresa es dueña de su hoja: se le avisa, no se le prohíbe)');
   PRUEBAS.igual(reg.compartidos.filter(c => c.email).map(c => c.email + ':' + c.rol), ['rrhh@helitec.com:editor','jefe@helitec.com:editor'], '🔴 compartida como EDITOR con los dos correos');
   PRUEBAS.cierto(reg.compartidos.some(c => c.rol === 'editores-no-comparten'), '🔒 y los editores no pueden volver a compartirla');
+  PRUEBAS.cierto(reg.compartidos.some(c => c.rol === 'enlace:ANYONE_WITH_LINK:EDIT'), '🔴 y por ENLACE de edición (Franco: «se comparten con link de editor y listo»)');
+  PRUEBAS.igual(r.r.porEnlace, true, 'y lo dice');
   PRUEBAS.igual(r.r.compartidos, ['rrhh@helitec.com','jefe@helitec.com'], 'y lo dice');
   PRUEBAS.igual(api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId'), reg.libros[0].id, '🔴 el id quedó en Config Empresa');
   PRUEBAS.cierto(/docs\.google\.com/.test(api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaUrl')), 'con su enlace');
@@ -506,6 +508,22 @@ PRUEBAS.caso('⚠️ `rehacer=1` reemplaza la hoja sólo si no tiene cambios sin
   PRUEBAS.cierto((api.__env.__registro.papelera || []).includes(id1), 'la vieja en la papelera');
   PRUEBAS.igual(api.__hojaEmpresa().__volcado().length, 4, 'sembrada con las tres (Dora incluida)');
   PRUEBAS.falso(api.__env.__registro.triggers.some(t => t.getTriggerSourceId() === id1), 'sin disparadores colgados de la vieja');
+});
+
+PRUEBAS.caso('⚠️ `nomina_hoja_compartir` vuelve a compartir una hoja existente, y `nomina_hoja_info`/`quien_soy` dicen de quién es y cómo está', () => {
+  if (p172Sin()) return;
+  const api = p172Env();
+  api.__crear();
+  const r = api.__mant('nomina_hoja_compartir', { empresa:'Helitec', editores:'nuevo@helitec.com' });
+  PRUEBAS.igual(r.ok, true, 'responde · ' + (r.error || ''));
+  PRUEBAS.igual(r.r.compartidos, ['nuevo@helitec.com'], 'agregó el correo');
+  PRUEBAS.igual(r.r.drive.acceso, 'ANYONE_WITH_LINK', 'por enlace');
+  PRUEBAS.igual(r.r.drive.permiso, 'EDIT', 'de edición');
+  const info = api.__mant('nomina_hoja_info', { empresa:'Helitec' });
+  PRUEBAS.cierto(!!info.r.drive && /@/.test(info.r.drive.dueno), 'info dice el dueño');
+  const q = api.__mant('quien_soy', { hoja: api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId') });
+  PRUEBAS.cierto(/@/.test(q.r.efectivo), 'y quien_soy, la cuenta con la que corre el endpoint');
+  PRUEBAS.igual(api.__mant('nomina_hoja_compartir', { empresa:'Silva' }).ok, false, 'sin hoja, se niega');
 });
 
 PRUEBAS.caso('🔒 la tarea exige el token, como todas', () => {
