@@ -423,7 +423,9 @@ PRUEBAS.caso('⚠️ con forzar SÍ se da de baja, pero la gente NO se toca ni s
      todo su historial sigue cruzando igual. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = p039Api();
-  const nomina = () => api.__env.__libro.getSheetByName('Nómina').__volcado();
+  /* P172 · se comparan las FILAS DE DATOS: el encabezado gana la columna «Estado» la primera vez
+     que el servidor toca la hoja (una celda, sin mover ninguna fila), y eso no es reasignar a nadie. */
+  const nomina = () => api.__env.__libro.getSheetByName('Nómina').__volcado().slice(1);
   const antes = JSON.stringify(nomina());
   const r = p039Baja(api, P039_SUP, 'Operaciones', { forzar: '1', quien: 'Marta R.' });
   PRUEBAS.igual([r.ok, r.baja, r.personas, r.forzado], [true, true, 2, true],

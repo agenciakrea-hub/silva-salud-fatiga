@@ -329,14 +329,15 @@ PRUEBAS.caso('⚠️ el cron escribe la empresa CANÓNICA, que es por la que fil
 PRUEBAS.caso('⚠️ un fallo de la bitácora deja rastro (R3)', () => {
   const api = a11Env({ 'Bitácora': [A11_BITA_CAB.slice()] },
     ['bitacoraServidor', 'mantSalud', 'accionMantenimiento']);
-  /* Se rompe la escritura por el camino real: la hoja existe pero `appendRow` falla, que es lo que
-     pasa cuando la hoja está llena o se cae el permiso. */
+  /* Se rompe la escritura por el camino real: la hoja existe pero escribir falla, que es lo que
+     pasa cuando la hoja está llena o se cae el permiso. P172 · la bitácora escribe por
+     `filaAgregar_` (getRange + setValues, texto plano), ya no por `appendRow`: se rompe `getRange`. */
   const sh = api.__env.__libro.getSheetByName('Bitácora');
-  const orig = sh.appendRow;
-  sh.appendRow = () => { throw new Error('Service Spreadsheets timed out'); };
+  const orig = sh.getRange;
+  sh.getRange = () => { throw new Error('Service Spreadsheets timed out'); };
   let r;
   try { r = api.bitacoraServidor('Consorcio HELITEC', 'prueba', 'Ana', {}); }
-  finally { sh.appendRow = orig; }
+  finally { sh.getRange = orig; }
   PRUEBAS.igual(r, null, 'la acción no se cae: devuelve null y sigue');
   const s = api.mantSalud();
   PRUEBAS.alMenos(s.bitacoraFallos, 1,

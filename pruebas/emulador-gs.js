@@ -162,6 +162,32 @@ function __digestHex(bytes) {
      que es exactamente lo que el caso de `setNumberFormat` ya evita para R15. */
   HojaFalsa.prototype.__notaDe = function (fila, col) { return this._notas[fila + ',' + col] || null; };
   HojaFalsa.prototype.setColumnWidth = function () { return this; };   // no cambia datos: no-op
+  /* P172 · la hoja de nómina de cada empresa se crea desde el servidor: renombrar y proteger la
+     fila de encabezados. La protección se registra para que un caso pueda comprobarla. */
+  HojaFalsa.prototype.setName = function (n) {
+    /* El libro indexa sus hojas por nombre: renombrar tiene que mover la entrada, si no
+       `getSheetByName` del nombre nuevo devuelve null (pasó con la hoja de la empresa). */
+    const viejo = this._nombre; this._nombre = n;
+    const l = this._libro;
+    if (l && l._hojas[viejo] === this) { delete l._hojas[viejo]; l._hojas[n] = this; l._orden = l._orden.map(x => x === viejo ? n : x); }
+    return this;
+  };
+  HojaFalsa.prototype.protect = function () {
+    const h = this, p = { _rango: null, _aviso: false, _desc: '' };
+    p.setRange = function (r) { p._rango = r; return p; };
+    p.setWarningOnly = function (v) { p._aviso = !!v; return p; };
+    p.setDescription = function (d) { p._desc = String(d || ''); return p; };
+    p.getDescription = function () { return p._desc; };
+    p.isWarningOnly = function () { return p._aviso; };
+    h._protecciones = h._protecciones || [];
+    h._protecciones.push(p);
+    return p;
+  };
+  HojaFalsa.prototype.getProtections = function () { return (this._protecciones || []).slice(); };
+  HojaFalsa.prototype.insertRowsAfter = function () { return this; };   // la grilla falsa no tiene tope
+  HojaFalsa.prototype.insertColumnsAfter = function () { return this; };
+  HojaFalsa.prototype.insertRowsBefore = function () { return this; };
+  HojaFalsa.prototype.__protecciones = function () { return (this._protecciones || []).slice(); };
   HojaFalsa.prototype.getIndex = function () { return this._indice || 1; };
 
   function RangoFalso(hoja, fila, col, nFilas, nCols) {
@@ -220,6 +246,29 @@ function __digestHex(bytes) {
   };
   RangoFalso.prototype.getNote = function () { return this._h.__notaDe(this._f, this._c) || ''; };
   RangoFalso.prototype.setFontSize = function () { return this; };     // presentación: no-op
+  RangoFalso.prototype.getRow = function () { return this._f; };
+  RangoFalso.prototype.getColumn = function () { return this._c; };
+  RangoFalso.prototype.getNumRows = function () { return this._nf; };
+  RangoFalso.prototype.getNumColumns = function () { return this._nc; };
+  /* P172 · validación de datos (listas cerradas en la hoja de la empresa). Se guarda por celda
+     como el formato, así un caso puede leer qué lista quedó en qué columna. */
+  RangoFalso.prototype.setDataValidation = function (regla) {
+    this._h._validaciones = this._h._validaciones || {};
+    for (let i = 0; i < this._nf; i++)
+      for (let j = 0; j < this._nc; j++)
+        this._h._validaciones[(this._f + i) + ',' + (this._c + j)] = regla;
+    return this;
+  };
+  RangoFalso.prototype.getDataValidation = function () {
+    return (this._h._validaciones || {})[this._f + ',' + this._c] || null;
+  };
+  RangoFalso.prototype.clearDataValidations = function () { return this; };
+  /* Protección de RANGO: se anota en la hoja como la de hoja, con el rango. */
+  RangoFalso.prototype.protect = function () {
+    const p = this._h.protect();
+    p.setRange(this);
+    return p;
+  };
 
   function LibroFalso(hojas) {
     this._hojas = {};
@@ -227,10 +276,21 @@ function __digestHex(bytes) {
     Object.keys(hojas || {}).forEach((n, i) => {
       this._hojas[n] = new HojaFalsa(n, hojas[n]);
       this._hojas[n]._indice = i + 1;
+      this._hojas[n]._libro = this;
       this._orden.push(n);
     });
   }
   LibroFalso.prototype.getSheetByName = function (n) { return this._hojas[n] || null; };
+  /* P172 · identidad del libro: los creados por `SpreadsheetApp.create` llevan id y nombre. */
+  LibroFalso.prototype.getId = function () { return this._id || 'libro-maestro-de-prueba'; };
+  LibroFalso.prototype.getUrl = function () { return 'https://docs.google.com/spreadsheets/d/' + this.getId() + '/edit'; };
+  LibroFalso.prototype.getName = function () { return this._nombre || 'CH de prueba'; };
+  LibroFalso.prototype.rename = function (n) { this._nombre = n; return this; };
+  LibroFalso.prototype.deleteSheet = function (sh) {
+    const n = sh && sh.getName ? sh.getName() : String(sh);
+    delete this._hojas[n]; this._orden = this._orden.filter(x => x !== n);
+    return this;
+  };
 /* ⚠️ P161 · LA ZONA POR DEFECTO ES LA DEL SCRIPT REAL, y no es un detalle de configuración.
 
    Antes era `America/Caracas` (UTC-4) mientras `appsscript.json` pone el proyecto en
@@ -263,6 +323,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
     this._hojas[n] = new HojaFalsa(n, []);
     this._orden.push(n);
     this._hojas[n]._indice = this._orden.length;
+    this._hojas[n]._libro = this;
     return this._hojas[n];
   };
   /* El ORDEN de las hojas. `documentarCH()` reordena el CH para que las cinco editables queden
@@ -285,13 +346,41 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
   function crearEntorno(hojas, opciones) {
     opciones = opciones || {};
     const cache = {};
-    const registro = { logs: [], fetches: [] };
+    const registro = { logs: [], fetches: [], libros: [], compartidos: [], triggers: [] };
 
     const env = {
       /* — Sheets — */
       SpreadsheetApp: {
-        openById: function () { return env.__libro; },
+        /* P172 · `openById` devuelve el libro creado con ese id si existe; cualquier otro id es el
+           maestro (como siempre). Así el sync de la nómina por empresa abre DOS libros distintos. */
+        openById: function (id) {
+          if (env.__libros && env.__libros[id]) return env.__libros[id];
+          /* Un id con la forma de los creados acá pero que ya no existe (o que un caso marcó como
+             inaccesible) lanza, como en producción; cualquier otro id es el maestro. */
+          if (/^libro-creado-/.test(String(id)) || (env.__inaccesibles && env.__inaccesibles[id])) throw new Error('openById: no hay acceso al libro ' + id);
+          return env.__libro;
+        },
         getActiveSpreadsheet: function () { return env.__libro; },
+        create: function (nombre) {
+          env.__libros = env.__libros || {};
+          const n = (env.__nLibros = (env.__nLibros || 0) + 1);   // contador: un id nunca se reusa (ni tras la papelera)
+          const l = new LibroFalso({ 'Hoja 1': [] });
+          l._id = 'libro-creado-' + n; l._nombre = String(nombre || ''); l._zona = opciones.zona || ZONA_DEL_SCRIPT;
+          env.__libros[l._id] = l;
+          registro.libros.push({ id: l._id, nombre: l._nombre });
+          return l;
+        },
+        newDataValidation: function () {
+          const r = { _lista: null, _permiteInvalido: true, _ayuda: '' };
+          r.requireValueInList = function (lista, desplegable) { r._lista = lista.slice(); r._desplegable = desplegable !== false; return r; };
+          r.requireNumberBetween = function (a, b) { r._entre = [a, b]; return r; };
+          r.setAllowInvalid = function (v) { r._permiteInvalido = !!v; return r; };
+          r.setHelpText = function (t) { r._ayuda = String(t || ''); return r; };
+          r.build = function () { return r; };
+          r.getCriteriaValues = function () { return r._lista ? [r._lista, r._desplegable] : (r._entre || []); };
+          r.getAllowInvalid = function () { return r._permiteInvalido; };
+          return r;
+        },
         flush: function () {}
       },
       __libro: (function (l) { l._zona = opciones.zona || ZONA_DEL_SCRIPT; return l; })(new LibroFalso(hojas)),
@@ -382,11 +471,60 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
         }
       },
 
+      /* P172 · Drive, lo mínimo para compartir la hoja de una empresa. Cada `addEditor` queda en
+         `registro.compartidos` para que un caso compruebe con quién se compartió y con qué rol. */
       DriveApp: {
-        getFileById: function () {
-          throw new Error('DriveApp no está emulado: si una prueba lo necesita, hay que emularlo ' +
-            'a propósito en vez de devolver algo inventado.');
+        getFileById: function (id) {
+          const libro = env.__libros && env.__libros[id];
+          if (!libro) throw new Error('DriveApp: no hay archivo con id ' + id + ' en esta prueba (sólo los creados con SpreadsheetApp.create)');
+          const f = {
+            getId: () => id,
+            getUrl: () => libro.getUrl(),
+            getName: () => libro.getName(),
+            addEditor: function (email) { registro.compartidos.push({ id, email: String(email), rol: 'editor' }); return f; },
+            addEditors: function (emails) { (emails || []).forEach(e => f.addEditor(e)); return f; },
+            addViewer: function (email) { registro.compartidos.push({ id, email: String(email), rol: 'lector' }); return f; },
+            removeEditor: function (email) { registro.compartidos = registro.compartidos.filter(c => !(c.id === id && c.email === String(email))); return f; },
+            getEditors: () => registro.compartidos.filter(c => c.id === id && c.rol === 'editor').map(c => ({ getEmail: () => c.email })),
+            moveTo: function () { return f; },
+            setSharing: function () { return f; },
+            setShareableByEditors: function (v) { registro.compartidos.push({ id, email: '', rol: v ? 'editores-pueden-compartir' : 'editores-no-comparten' }); return f; },
+            setTrashed: function (v) { if (v) { delete env.__libros[id]; registro.libros = registro.libros.filter(l => l.id !== id); registro.papelera = (registro.papelera || []).concat([id]); } return f; },
+            isTrashed: function () { return !env.__libros[id]; }
+          };
+          return f;
         }
+      },
+      /* P172 · disparadores. `newTrigger(fn)` arma uno por tiempo o por edición de un libro;
+         quedan en `registro.triggers` y `getProjectTriggers` los devuelve con la misma cara que
+         Apps Script (getHandlerFunction, getTriggerSourceId, getEventType, getUniqueId). */
+      ScriptApp: {
+        EventType: { CLOCK: 'CLOCK', ON_EDIT: 'ON_EDIT', ON_CHANGE: 'ON_CHANGE', ON_OPEN: 'ON_OPEN' },
+        TriggerSource: { CLOCK: 'CLOCK', SPREADSHEETS: 'SPREADSHEETS' },
+        newTrigger: function (fn) {
+          const t = { _fn: String(fn), _tipo: null, _fuente: null, _cada: null };
+          const crear = () => {
+            const id = 'trigger-' + (registro.triggers.length + 1);
+            const obj = {
+              getHandlerFunction: () => t._fn, getTriggerSourceId: () => t._fuente,
+              getEventType: () => t._tipo, getUniqueId: () => id, __cadaMin: t._cada
+            };
+            registro.triggers.push(obj);
+            return obj;
+          };
+          const reloj = { everyMinutes: (n) => { t._tipo = 'CLOCK'; t._cada = n; return { create: crear }; },
+                          everyHours: (n) => { t._tipo = 'CLOCK'; t._cada = n * 60; return { create: crear }; } };
+          return {
+            timeBased: () => reloj,
+            forSpreadsheet: (idOLibro) => {
+              t._fuente = (idOLibro && idOLibro.getId) ? idOLibro.getId() : String(idOLibro);
+              return { onEdit: () => { t._tipo = 'ON_EDIT'; return { create: crear }; },
+                       onChange: () => { t._tipo = 'ON_CHANGE'; return { create: crear }; } };
+            }
+          };
+        },
+        getProjectTriggers: function () { return registro.triggers.slice(); },
+        deleteTrigger: function (tr) { registro.triggers = registro.triggers.filter(x => x !== tr); }
       },
 
       ContentService: {

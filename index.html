@@ -5235,6 +5235,9 @@
     background: repeating-linear-gradient(135deg, var(--demo-bar), var(--demo-bar) 12px, var(--demo-bar-2) 12px, var(--demo-bar-2) 24px); }
   #demoVistasOv .db-v { flex: 1 1 auto; text-align: center; }
   #demoVistasOv .demo-salir { background: var(--demo-bar); color: var(--sobre-claro-txt); border: none; border-radius: 12px; font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
+  /* P172 · el aviso de baja en el inicio: mismo molde que la determinación firmada, con los tokens del rojo */
+  .ini-baja { --inic-c: var(--sem-rojo); --inic-bg: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
+  .ini-baja b { display: block; margin-bottom: .2rem; }
   /* P171 · la ficha de «Mis datos» */
   .md-lista { margin: .4rem 0 .6rem; }
   .md-fila { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
@@ -7122,7 +7125,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.37';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.38';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7195,6 +7198,8 @@ const I18N = {
       md_titulo:'Mis datos', md_mas_d:'Así quedaste registrado',
       md_lead:'Así quedaste registrado. Estos datos los carga tu empresa: si algo no está bien, avísale a quien administra la nómina.',
       md_rol:'Acceso al panel',
+      baja_titulo:'Tu empresa te dio de baja en la nómina',
+      baja_texto:'Lo que registres desde ahora no se toma en cuenta. Si crees que es un error, consulta con tu supervisor o con quien administra la nómina.',
       demo_ojo:'Demostración: cambiar de panel', demo_ojo_lead:'Elige qué panel ver:', demo_salir:'Salir de la demostración',
       dc_titulo:'Ver una demostración', dc_lead:'La demostración tiene una clave. Escríbela para continuar.', dc_entrar:'Ver la demostración',
       splash_h1:'Tu bienestar y seguridad, en un solo lugar',
@@ -8954,6 +8959,8 @@ const I18N = {
       md_titulo:'My details', md_mas_d:'How you were registered',
       md_lead:'This is how you were registered. Your company loads these details: if something is wrong, tell whoever manages the roster.',
       md_rol:'Panel access',
+      baja_titulo:'Your company removed you from the roster',
+      baja_texto:'Whatever you record from now on is not taken into account. If you think this is a mistake, check with your supervisor or whoever manages the roster.',
       demo_ojo:'Demo: switch panel', demo_ojo_lead:'Choose which panel to see:', demo_salir:'Leave the demo',
       dc_titulo:'See a demo', dc_lead:'The demo has a password. Enter it to continue.', dc_entrar:'See the demo',
       splash_h1:'Your wellbeing and safety, in one place',
@@ -12674,7 +12681,13 @@ function renderInicio(){
   const recuperando = (typeof _misRecuperando !== 'undefined' && _misRecuperando &&
                        !misDatos().registros.length)
     ? '<div class="ini-recuperando">' + esc(t('mis_recuperando')) + '</div>' : '';
-  let html = firmada + recuperando + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
+  /* P172 · «Tu empresa te dio de baja en la nómina». Lo dice el servidor (`tareas_mias` con
+     `motivo:"baja"`), y hasta acá el cliente lo ignoraba: la persona seguía usando la app como si
+     nada. Se muestra arriba de todo, y se apaga solo cuando el servidor vuelve a responder bien. */
+  const bajaAviso = bajaGuardada()
+    ? '<div class="ini-firmada ini-baja"><b>' + esc(t('baja_titulo')) + '</b><div>' + esc(t('baja_texto')) + '</div></div>'
+    : '';
+  let html = bajaAviso + firmada + recuperando + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
     '<button type="button" class="ini-est-head" onclick="iniEstadoToggle()" aria-expanded="' + (estAbierto?'true':'false') + '" aria-controls="iniEstBody">' +
       '<span class="ini-est-headtx"><span class="ini-est-k">' + esc(t('ini_estado_k')) + '</span>' +
       '<span class="ini-est-t">' + esc(titulo) + '</span></span>' +
@@ -17184,6 +17197,10 @@ const K_REINGRESO = 'silva_fatiga_reingreso_v1';
    marca, quien no la creó vuelve por el código; quien sí, por el login. Se pone cuando se crea la
    contraseña, cuando se entra con ella, o cuando el servidor dice `tieneClave` en el «¿eres tú?». */
 const K_TIENE_CLAVE = 'silva_fatiga_tiene_clave_v1';
+/* P172 · la persona está de baja en la nómina de su empresa (lo dijo `tareas_mias`). */
+const K_BAJA = 'silva_fatiga_baja_v1';
+function bajaMarcar(v){ try { if (v) localStorage.setItem(K_BAJA, '1'); else localStorage.removeItem(K_BAJA); } catch(e){} }
+function bajaGuardada(){ try { return localStorage.getItem(K_BAJA) === '1'; } catch(e){ return false; } }
 function tieneClaveMarcar(v){ try { if (v) localStorage.setItem(K_TIENE_CLAVE, '1'); else localStorage.removeItem(K_TIENE_CLAVE); } catch(e){} }
 function tieneClaveGuardada(){ try { return localStorage.getItem(K_TIENE_CLAVE) === '1'; } catch(e){ return false; } }
 function reingresoGuardar(empresa){
@@ -17199,7 +17216,7 @@ function reingresoOlvidar(){ try { localStorage.removeItem(K_REINGRESO); } catch
 function sesionClavesBorrar(){
   return [
     // identidad y consentimiento
-    K_PROFILE, K_CONSENT, K_REG_SIG, K_ALTA_PROGRESO, K_EMPRESA_PERFIL, K_SECTOR,
+    K_PROFILE, K_CONSENT, K_REG_SIG, K_ALTA_PROGRESO, K_EMPRESA_PERFIL, K_SECTOR, K_BAJA,
     // lo que la persona registró en este dispositivo
     K_REPORTS, K_TURNOS, K_MIS_DATOS, K_ACTIVIDAD, K_CONFIABILIDAD, K_PVT_NOINFO,
     // accesos guardados (lo más sensible: contraseñas en texto plano)
@@ -28975,6 +28992,13 @@ function tareasCargar(){
     .then(r => r.json())
     .then(d => {
       TAREAS.cargando = false;
+      /* P172 · la baja llega por acá, en cada apertura. Se marca (y se muestra en el inicio) o
+         se desmarca si el servidor volvió a decir que sí. */
+      if (d && !d.ok && d.motivo === 'baja'){
+        if (!bajaGuardada()){ bajaMarcar(true); try { renderSections(); showToast(t('baja_titulo')); } catch(e){} }
+        return;
+      }
+      if (d && d.ok && bajaGuardada()){ bajaMarcar(false); try { renderSections(); } catch(e){} }
       if (!d || !d.ok) return;
       TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
       TAREAS.pendientes = Number(d.pendientes) || 0;
