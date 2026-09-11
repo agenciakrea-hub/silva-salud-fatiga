@@ -502,6 +502,27 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
           return f;
         }
       },
+      /* P172 · el servicio avanzado de Drive (API v3), lo mínimo que usa compartir: permisos y
+         `writersCanShare`. Un permiso sobre un libro que no existe lanza, como la API. */
+      Drive: {
+        Permissions: {
+          create: function (permiso, id) {
+            const libro = env.__libros && env.__libros[id];
+            if (!libro) throw new Error('Drive API: File not found: ' + id);
+            if (permiso.type === 'anyone') { registro.compartidos.push({ id, email: '', rol: 'enlace:ANYONE_WITH_LINK:' + (permiso.role === 'writer' ? 'EDIT' : 'VIEW') }); libro._acceso = 'ANYONE_WITH_LINK'; libro._permiso = permiso.role === 'writer' ? 'EDIT' : 'VIEW'; }
+            else registro.compartidos.push({ id, email: String(permiso.emailAddress || ''), rol: permiso.role === 'writer' ? 'editor' : 'lector' });
+            return { id: 'perm-' + registro.compartidos.length, role: permiso.role, type: permiso.type };
+          }
+        },
+        Files: {
+          update: function (cambios, id) {
+            const libro = env.__libros && env.__libros[id];
+            if (!libro) throw new Error('Drive API: File not found: ' + id);
+            if (cambios && cambios.writersCanShare === false) registro.compartidos.push({ id, email: '', rol: 'editores-no-comparten' });
+            return { id };
+          }
+        }
+      },
       /* P172 · disparadores. `newTrigger(fn)` arma uno por tiempo o por edición de un libro;
          quedan en `registro.triggers` y `getProjectTriggers` los devuelve con la misma cara que
          Apps Script (getHandlerFunction, getTriggerSourceId, getEventType, getUniqueId). */
