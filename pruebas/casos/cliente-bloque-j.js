@@ -69,12 +69,19 @@ PRUEBAS.caso('J2 · el desplegable no corta contenido, ni con todas las métrica
      misma dependencia con otro número. Mientras la pestaña estuvo oculta esos 450 eran ~1.000 por
      el estrangulamiento de Chrome y alcanzaba; el día que dejó de estarlo, no. Ahora se espera a
      que el `max-height` esté calculado, con tope: mide igual en los dos entornos. */
-  const listo = await PRUEBAS.esperarA(() => {
-    const mh = parseFloat(getComputedStyle(b).maxHeight);
-    return !!mh && mh > 1 && b.getBoundingClientRect().height > 1;
-  }, 3000);
-  PRUEBAS.cierto(listo, 'el desplegable llegó a calcular su alto · sin esto lo de abajo mediría el estado intermedio');
-  const visible = b.getBoundingClientRect().height, real = b.scrollHeight;
+  /* ⚠️ Y SE LEE `b.style.maxHeight`, EL VALOR INLINE, NO EL COMPUTADO. Medido en P182: en este
+     entorno `getComputedStyle` sirve valores cacheados —Chrome no rehace el estilo de un documento
+     que no se está pintando—, así que esperar a que el COMPUTADO cambie es esperar a algo que puede
+     no llegar nunca: agotaba los 3.000 ms y el caso se ponía rojo sobre una app que funciona bien.
+     El alto lo fija el código con `b.style.maxHeight = b.scrollHeight + 'px'` (lo comprueba el caso
+     de acá abajo), y esa lectura es el atributo, no una resolución de estilo. */
+  const listo = await PRUEBAS.esperarA(() => parseFloat(b.style.maxHeight) > 1, 3000);
+  PRUEBAS.cierto(listo, 'el desplegable llegó a calcular su alto (`style.maxHeight` = ' +
+    (b.style.maxHeight || 'vacío') + ') · sin esto lo de abajo mediría el estado intermedio');
+  /* Y la medición va sin transiciones: el alto se anima desde 0 y el rectángulo a mitad de camino
+     no es el final. */
+  let visible = 0, real = 0;
+  PRUEBAS.sinAnimaciones(() => { visible = b.getBoundingClientRect().height; real = b.scrollHeight; });
   window.misDatos = mdPrevio; window.misCtx = ctxPrevio;
 
   PRUEBAS.alMenos(real, 100, 'con las 7 métricas el contenido tiene que ser grande, o el caso no prueba nada');

@@ -112,10 +112,29 @@ PRUEBAS.caso('⚠️ `onDashData` NO descarta el campo nuevo (el hallazgo A4)', 
   /* `onDashData` arma `DASH` nombrando campos uno por uno. Un campo que el endpoint mande y que no
      esté en esa lista se descarta EN SILENCIO: ya pasó con `duty` y `ausencias`, y dos prompts
      enteros pasaron sus pruebas y no funcionaron en producción. */
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const cuerpo = (f.match(/function onDashData\([\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(cuerpo.length, 400, 'guarda de medibilidad: se encontró `onDashData`');
-  PRUEBAS.cierto(/cicloPlanPersona:\s*d\.cicloPlanPersona/.test(cuerpo),
-    '⚠️ el campo está nombrado en la lista explícita · sin esto, el servidor lo manda en P057b y el ' +
-    'cliente lo tira sin un solo error');
+  /* ⚠️ P182 · ESTE CASO BUSCABA EL TEXTO `cicloPlanPersona: d.cicloPlanPersona` CON UN REGEX sobre
+     el cuerpo de la función. O sea: la prueba escrita para que no se repitiera el defecto de
+     `duty`/`ausencias` usaba EL MISMO MÉTODO que dejó pasar ese defecto — comprobar que algo está
+     escrito, no que funcione. Un regex así da verde con el campo nombrado dentro de un `if` que no
+     se cumple, con el nombre en un comentario, o con la lista armada de otra forma; y da rojo
+     cuando alguien reformatea la línea, sobre código correcto.
+     Ahora entra por el camino real (R17): se le pasa un payload a `onDashData` y se mira si el
+     campo llegó a `DASH`, que es lo único que el resto del panel va a leer. */
+  const prev = DASH;
+  try {
+    const marca = { __p057a: 'plan-por-persona' };
+    const base = { ok: true, rol: 'empresa', vista: 'hseq', registros: [], metricas: [] };
+    onDashData(Object.assign({}, base, { cicloPlanPersona: marca }), 'Empresa', {}, 'hseq');
+    PRUEBAS.cierto(!!DASH, 'guarda de medibilidad: `onDashData` tiene que haber armado `DASH` — si ' +
+      'salió temprano, lo de abajo mediría la ausencia del campo y parecería un defecto');
+    PRUEBAS.cierto(!!(DASH && DASH.cicloPlanPersona === marca),
+      '⚠️ el campo tiene que SOBREVIVIR a `onDashData` · sin esto, el servidor lo manda en P057b y ' +
+      'el cliente lo tira sin un solo error');
+    /* R17 · el discriminador no hay que fabricarlo: un campo que NO está en la lista explícita se
+       pierde de verdad, y eso demuestra que la medición distingue las dos cosas. */
+    onDashData(Object.assign({}, base, { campoInventado: marca }), 'Empresa', {}, 'hseq');
+    PRUEBAS.falso(!!(DASH && ('campoInventado' in DASH)),
+      'el DISCRIMINADOR: un campo que la lista no nombra sí se descarta — o sea que el de arriba ' +
+      'llegó porque está nombrado, no porque esto mida cualquier cosa');
+  } finally { DASH = prev; }
 });
