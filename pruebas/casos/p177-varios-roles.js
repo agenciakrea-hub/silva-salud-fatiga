@@ -365,3 +365,108 @@ PRUEBAS.caso('⚠️ «¿hay sesión de empresa en este teléfono?» cuenta tamb
       '⚠️ quien sólo tiene el panel de Dirección arrancaba en la portada en vez de su panel: esta función es la que decide ese desvío');
   } finally { p177Restaurar(prev); }
 });
+
+/* ── P181 · lo que encontró la auditoría del cliente ─────────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 a quien SÓLO tiene Dirección no se le quita nada en cada arranque', async () => {
+  const prev = p177Guardar();
+  const oF = window.fetch, oT = window.showToast;
+  const toasts = [];
+  try {
+    /* ⚠️ EL DEFECTO, y era crítico: `rolActivarGuardar('hseq')` enciende `esSupervisor` para los 84
+       lugares del archivo que leen ese flag, así que `rolActivado('supervisor')` daba true para
+       alguien que sólo activó Dirección. La rama que quita roles veía «supervisor» como perdido SIN
+       QUE NADIE TOCARA LA HOJA: le apagaba el flag, le borraba credenciales, le anulaba la sesión
+       personal del lado del servidor y le mostraba «Tu empresa actualizó tu rol», que es falso.
+       Medido antes del arreglo: `esSupervisor` de true a false con la lista `["hseq"]` sin cambios. */
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['hseq'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}
+    rolActivarGuardar('hseq', 'Aeroambulancias Silva', 'clave-hseq');   // R17 · el camino real
+    PRUEBAS.igual((getProfile() || {}).rolesActivados, ['hseq'], 'precondición · queda anotado qué activó');
+
+    window.showToast = m => toasts.push(String(m));
+    window.fetch = () => Promise.resolve({ ok:true, json: () => Promise.resolve({
+      ok:true, tareas:[], pendientes:0, rolNomina:'hseq', rolesNomina:['hseq'] }) });
+    TAREAS.lista = []; TAREAS.cargando = false; TAREAS._enVuelo = null;
+    await tareasCargar();
+
+    PRUEBAS.cierto(!!(getProfile() || {}).esDireccion, '🔴 sigue teniendo su rol tras el arranque');
+    PRUEBAS.cierto(!!rolCredGuardada('hseq'), '🔴 y su contraseña guardada');
+    PRUEBAS.igual(toasts, [], '🔴 y NO se le avisa de un cambio que no ocurrió');
+  } finally { window.fetch = oF; window.showToast = oT; p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('🔒 EL DISCRIMINADOR · y cuando la nómina SÍ se lo quita, se lo quita', async () => {
+  const prev = p177Guardar();
+  const oF = window.fetch, oT = window.showToast;
+  const toasts = [];
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['hseq'] }));
+    rolActivarGuardar('hseq', 'Aeroambulancias Silva', 'clave-hseq');
+    window.showToast = m => toasts.push(String(m));
+    window.fetch = () => Promise.resolve({ ok:true, json: () => Promise.resolve({
+      ok:true, tareas:[], pendientes:0, rolNomina:'empleado', rolesNomina:[] }) });
+    TAREAS.lista = []; TAREAS.cargando = false; TAREAS._enVuelo = null;
+    await tareasCargar();
+    PRUEBAS.falso(!!(getProfile() || {}).esDireccion, '🔒 la nómina sigue siendo lo único que puede sacar un rol');
+    PRUEBAS.falso(!!rolCredGuardada('hseq'), '🔒 y se le retira la credencial');
+    PRUEBAS.igual(toasts.length, 1,
+      '⚠️ y se avisa UNA vez · las dos ramas (la vieja de P101 y la de la lista) avisaban las dos');
+  } finally { window.fetch = oF; window.showToast = oT; p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('🔴 con dos roles, el SEGUNDO se sigue ofreciendo después de activar el primero', () => {
+  const prev = p177Guardar();
+  try {
+    /* El ADR 006 lo dice como decisión: «se activa supervisor hoy y el próximo arranque ofrece el
+       médico». No pasaba: `K_ROL_OFRECIDO` marcaba la CÉDULA, así que activar el primer rol cerraba
+       el ofrecimiento de todos los demás para siempre, y la fila de Más abría el panel en vez de
+       ofrecer el que faltaba. */
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['supervisor','medico'] }));
+    try { localStorage.removeItem(K_ROL_OFRECIDO); localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
+    PRUEBAS.igual(rolPropuesto(), 'supervisor', 'precondición · primero el supervisor');
+    rolActivarGuardar('supervisor', 'Aeroambulancias Silva', 'k1');
+    rolMarcarOfrecido('supervisor');                    // lo que hace `rolConfirmar`
+    PRUEBAS.igual(rolPropuesto(), 'medico', 'queda pendiente el médico');
+    PRUEBAS.falso(rolYaOfrecido(),
+      '🔴 y el arranque lo vuelve a ofrecer · la marca por cédula sola cerraba la puerta para siempre');
+    /* Y la fila de «Más» ofrece lo pendiente en vez de abrir el panel. */
+    DASH = null;
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    miRolTocar();
+    PRUEBAS.cierto(document.getElementById('rolOv').classList.contains('show'),
+      '🔴 «Mi acceso al panel» ofrece el rol que falta · antes abría el panel y el segundo rol no se ofrecía por ninguna puerta');
+    /* EL DISCRIMINADOR: con los dos activados, la fila abre el panel. */
+    rolActivarGuardar('medico', 'Aeroambulancias Silva', 'k2');
+    rolMarcarOfrecido('medico');
+    PRUEBAS.igual(rolPropuesto(), '', '🔒 sin nada pendiente…');
+    PRUEBAS.cierto(rolYaOfrecido(), '🔒 …el arranque no abre nada');
+  } finally { p177Restaurar(prev); try { localStorage.removeItem(K_ROL_OFRECIDO); } catch(e){} }
+});
+
+PRUEBAS.caso('⚠️ «Editar mis datos» no queda con Guardar muerto para quien sólo tiene Dirección', () => {
+  const prev = p177Guardar();
+  try {
+    setProfile(Object.assign({}, P177_PERFIL, { rolesNomina:['hseq'] }));
+    try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}
+    rolActivarGuardar('hseq', 'Aeroambulancias Silva', 'clave-hseq');
+    /* La credencial quedó en la ranura de Dirección, pero el formulario miraba sólo la de
+       supervisor: veía un formulario completo, sin ningún campo en rojo, y el botón en gris. */
+    PRUEBAS.cierto(!!((dashGetCredsHseq() || {}).pass), 'precondición · su contraseña está en la ranura de Dirección');
+    const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
+    const i = f.indexOf("if (esSup) pide('inSupPass'");
+    PRUEBAS.cierto(/K_DASH_CREDS_HSEQ|dashGetCredsHseq/.test(f.slice(i, i + 400)),
+      '⚠️ el formulario cuenta la ranura de Dirección · si no, «Guardar y continuar» queda en gris sin explicar por qué');
+  } finally { p177Restaurar(prev); }
+});
+
+PRUEBAS.caso('⚠️ R14 · el botón del panel se traduce', () => {
+  const antes = localStorage.getItem(K_LANG);
+  try {
+    ['es','en'].forEach(l => { localStorage.setItem(K_LANG, l);
+      PRUEBAS.cierto(t('pg_entrar_a', { x:'X' }) !== 'pg_entrar_a', 'pg_entrar_a en ' + l); });
+    localStorage.setItem(K_LANG, 'en');
+    PRUEBAS.falso(/^Entrar/.test(t('pg_entrar_a', { x:'X' })),
+      '⚠️ en inglés no dice «Entrar a …» · el botón principal del panel armaba su texto a mano en español');
+  } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
+});

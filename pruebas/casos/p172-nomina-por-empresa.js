@@ -186,8 +186,15 @@ PRUEBAS.caso('⚠️ `nomina_sync` sin confirmar INFORMA qué cambiaría y no to
   const soloDatos = a => a.campos.filter(c => ['esSupervisor','esMedico','esHseq'].indexOf(c) < 0);
   PRUEBAS.igual(e.actualizadas.filter(a => soloDatos(a).length).map(a => a.nombre + ':' + soloDatos(a).join('+')).sort(),
     ['Ana Suárez:telefono','Beto Pérez:rol'], 'y qué campo cambia de quién');
-  PRUEBAS.cierto(e.actualizadas.every(a => a.campos.indexOf('esSupervisor') >= 0),
-    '🔴 P177 · y las tres de rol se escriben en la primera pasada: es la migración del modelo viejo al nuevo');
+  /* ⚠️ P180 · sólo para las filas que TIENEN un rol escrito. Ana dice «Empleado» y se traduce a tres
+     «No»; Beto tiene la celda vacía y ahí la migración NO decide nada — sembrar «No» convertiría un
+     «no sé» en una degradación deliberada, que es el defecto que la auditoría encontró. */
+  const conRol = e.actualizadas.filter(a => a.nombre === 'Ana Suárez');
+  PRUEBAS.cierto(conRol.length && conRol[0].campos.indexOf('esSupervisor') >= 0,
+    '🔴 P177 · la fila CON rol escrito se migra en la primera pasada');
+  const sinRol = e.actualizadas.filter(a => a.nombre === 'Beto Pérez')[0];
+  PRUEBAS.falso(!!sinRol && sinRol.campos.indexOf('esSupervisor') >= 0,
+    '🔴 P180 · y la que tiene la celda VACÍA no recibe ningún «No»');
   PRUEBAS.igual(e.bajas, [], 'sin bajas');
   PRUEBAS.igual(JSON.stringify(api.__ch('Nómina')), antes, '⚠️ y el CH quedó IGUAL');
 });

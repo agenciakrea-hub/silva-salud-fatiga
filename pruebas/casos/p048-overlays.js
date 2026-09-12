@@ -94,7 +94,10 @@ async function p048CicloOpinion(n){
      entradas, podía ser cualquier cosa, y entonces el primer cierre no consumía y el balance daba
      6 contra 5. No era el reloj: era el estado de partida.
      Este `pushState` va ANTES de interceptar, así que no entra en la cuenta. */
-  try { history.pushState({ silva: 1 }, ''); } catch(e){}
+  /* `replaceState` y no `pushState`: fija el estado SIN apilar una entrada. Con `pushState` quedaba
+     una de más y eso corría el estado de los dos discriminadores de más abajo, que también miden el
+     historial — los puse en rojo a los dos. Fijar el estado es lo único que hace falta. */
+  try { history.replaceState({ silva: 1 }, ''); } catch(e){}
   await p048EsperarLibre();
   const origPush = history.pushState.bind(history);
   const origBack = history.back.bind(history);
