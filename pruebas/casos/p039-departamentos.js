@@ -733,6 +733,14 @@ PRUEBAS.caso('⚠️ P048 · abrir y cerrar por el botón X no deja historial hu
      (una por ciclo más una) el `back()` siempre tiene a dónde volver. */
   /* Y se arranca de un estado limpio: si un caso anterior dejó un overlay abierto, `depAbrir()`
      empuja igual y el balance da 6 pushes contra 5 backs sobre código que funciona bien. Medido. */
+  /* ⚠️ P182 · Y SE ESPERA A QUE EL HISTORIAL QUEDE QUIETO ANTES DE TOCARLO. Ésta era la causa
+     real de que este caso y sus dos gemelos de P048 fueran intermitentes, con un diagnóstico
+     distinto cada vez. `history.back()` no entrega su `popstate` en el acto: lo entrega en una
+     tarea posterior, así que el `back()` de otro caso aterriza en el medio de éste, le baja
+     `_navConsumiendo` —que es un booleano, no un contador— y hace que el manejador corra
+     `silvaAtras()` y vuelva a apilar. Medido con la pila de llamadas de cada push; está escrito
+     en detalle arriba de `p048HistorialQuieto`, en `p048-overlays.js`. */
+  const quieto = await PRUEBAS.historialQuieto();
   document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
   try { syncScrollLock(); } catch (e) {}
   try { for (let k = 0; k < 6; k++) history.pushState({ p039: k }, ''); } catch (e) {}
@@ -750,6 +758,13 @@ PRUEBAS.caso('⚠️ P048 · abrir y cerrar por el botón X no deja historial hu
       if (!ov || !ov.classList.contains('show') || ov.getBoundingClientRect().width === 0 || !x) { medible = false; break; }
       x.click();
       await p039EsperarTurno(80);
+      /* ⚠️ Y se espera a que baje el flag de `navConsumir` antes del ciclo siguiente: mientras está
+         puesto, el cierre siguiente NO descarta su entrada — es la red que documenta la propia
+         `navConsumir`. Faltaba acá y sí estaba en el gemelo de P048. */
+      const _t = Date.now();
+      while (typeof _navConsumiendo !== 'undefined' && _navConsumiendo && Date.now() - _t < 900){
+        await new Promise(r => setTimeout(r, 30));
+      }
     }
   } finally {
     history.pushState = origPush; history.back = origBack;
@@ -759,6 +774,10 @@ PRUEBAS.caso('⚠️ P048 · abrir y cerrar por el botón X no deja historial hu
   PRUEBAS.cierto(medible,
     '⚠️ GUARDA DE MEDIBILIDAD: el overlay no llegó a mostrarse con tamaño real, o no está el botón ' +
     'de volver. Sin esto el balance daría 0 = 0 y pasaría sin medir nada');
+  PRUEBAS.cierto(quieto,
+    '⚠️ GUARDA DE MEDIBILIDAD: el historial tiene que estar quieto antes de contar — con un ' +
+    'popstate de otro caso en vuelo, esto mide una carrera y no la app');
+  if (!medible || !quieto) return;
   PRUEBAS.alMenos(pushes, 5, 'cinco aperturas, cinco entradas apiladas');
   PRUEBAS.igual(backs, pushes, '⚠️ y cada una consumida: ' + pushes + ' pushes contra ' + backs + ' backs');
 });

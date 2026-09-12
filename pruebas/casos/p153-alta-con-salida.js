@@ -102,6 +102,16 @@ PRUEBAS.caso('🔒 las seis están en `silvaAtras` · estar en la lista y apilar
 /* Balance de un ciclo abrir/cerrar completo, entrando por la función real y por el control real
    del DOM. Mismo instrumento que `p048-overlays.js`. */
 async function p153Ciclo(n, abrir, id, selCierre){
+  /* ⚠️ P182 · SE ESPERA A QUE EL HISTORIAL QUEDE QUIETO. El `back()` de otro caso entrega su
+     `popstate` en una tarea posterior y puede aterrizar acá: le baja `_navConsumiendo` —un
+     booleano, no un contador— y el manejador de la app corre `silvaAtras()` y vuelve a apilar.
+     Medido con la pila de llamadas; está escrito arriba de `p048HistorialQuieto`. Sólo hace falta
+     en los arneses ASÍNCRONOS: uno síncrono corre entero en una tarea y ningún evento se le cuela,
+     que es por qué `p153Apila`, acá arriba, no lo necesita. */
+  if (!(await PRUEBAS.historialQuieto())) {
+    return { pushes: 0, backs: 0, medibleOk: false,
+             porQue: 'el historial no se quedó quieto: hay un popstate de otro caso en vuelo' };
+  }
   const origPush = history.pushState.bind(history);
   const origBack = history.back.bind(history);
   let pushes = 0, backs = 0, medibleOk = true, porQue = '';
@@ -178,6 +188,8 @@ PRUEBAS.caso('🔴 el recorrido encadenado no acumula entradas · una por pantal
      entradas propias NO crece. Se mide sobre el camino real —`clvPosponer()`, que es el botón «Más
      tarde»— contando pushState y back de verdad. */
   const previo = { todo: Object.assign({}, localStorage) };
+  /* P182 · misma precondición que `p153Ciclo`: este caso es asíncrono y cuenta entradas. */
+  const quieto = await PRUEBAS.historialQuieto();
   const origPush = history.pushState.bind(history);
   const origBack = history.back.bind(history);
   let pushes = 0, backs = 0;
@@ -189,7 +201,9 @@ PRUEBAS.caso('🔴 el recorrido encadenado no acumula entradas · una por pantal
     p048LimpiarOverlays();
     /* Se abre la pantalla de la contraseña como la abre el alta, y se toca «Más tarde». */
     const abrio = clvAbrir();
+    PRUEBAS.cierto(quieto, 'guarda de medibilidad: el historial tiene que estar quieto antes de contar');
     PRUEBAS.cierto(abrio !== false, 'guarda de medibilidad: la pantalla de contraseña se abrió');
+    if (!quieto) return;
     if (abrio === false) return;
     const trasAbrir = pushes;
     PRUEBAS.igual(trasAbrir, 1, 'guarda: apiló su entrada (P153)');

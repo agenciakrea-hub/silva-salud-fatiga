@@ -192,6 +192,29 @@
     finally { st.remove(); }
   };
 
+  /* ⚠️ EL HISTORIAL ES ESTADO GLOBAL Y SUS EVENTOS LLEGAN TARDE. `history.back()` no entrega su
+     `popstate` en el acto: lo entrega en una tarea posterior, así que el `back()` de un caso puede
+     aterrizar en el medio del caso SIGUIENTE. En esta app eso no es inocuo: el manejador de
+     `popstate` baja `_navConsumiendo` —un booleano, no un contador— y corre `silvaAtras()`, que
+     cierra overlays y vuelve a apilar. Un caso que mide el historial sin esperar a que se vacíe lo
+     pendiente está midiendo una carrera contra los casos que corrieron antes.
+     Eso es lo que hacía intermitentes a los tres casos de historial de la suite, con un
+     diagnóstico distinto cada vez. Devuelve `false` si se agotó el tope y el historial sigue
+     moviéndose: el caso que la use tiene que fallar POR ESO, y decirlo, en vez de acusar al código. */
+  PRUEBAS.historialQuieto = async function (calma, tope) {
+    const c = calma || 90, t = tope || 1200;
+    let ultimo = Date.now();
+    const h = function () { ultimo = Date.now(); };
+    window.addEventListener('popstate', h);
+    try {
+      const t0 = Date.now();
+      while (Date.now() - ultimo < c && Date.now() - t0 < t) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return Date.now() - ultimo >= c;
+    } finally { window.removeEventListener('popstate', h); }
+  };
+
   PRUEBAS.enVentana = function (ancho, alto, fn) {
     const marco = window.frameElement;
     /* Sin iframe (alguien corriendo la suite a mano en la app) se mide al tamaño que haya, en vez

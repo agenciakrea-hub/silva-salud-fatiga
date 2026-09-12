@@ -1,36 +1,60 @@
 # Pruebas
 
 
-## ⚠️ 2026-09-11 · LA PESTAÑA YA NO ESTÁ OCULTA, y ocho casos dependían de que lo estuviera
+## ⚠️⚠️ 2026-09-11 · EL ENTORNO NO ES CONSTANTE. Es lo primero que hay que entender
 
-Todo lo que sigue más abajo sobre «la pestaña está oculta de forma permanente» **dejó de ser cierto
-en este entorno**. Medido: `document.hidden === false` y `document.visibilityState === 'visible'`
-incluso en una pestaña creada en segundo plano.
+Durante meses este archivo dijo «la pestaña está oculta de forma permanente, los `setTimeout` se
+estrangulan a uno por segundo». Después dijo lo contrario: «la pestaña ya no está oculta». **Las dos
+cosas estuvieron mal, porque las dos describían el entorno como si fuera fijo.** Medido el mismo
+día, en la misma pestaña:
 
-**Cómo se nota, antes de mirar ningún caso:** la corrida entera pasó de 50–110 s a **17 s**, de
-forma estable. Los `setTimeout` ya no se estrangulan a 1 s, así que la suite no espera nada.
+| Momento | `document.hidden` | `setTimeout(25)` pedido |
+|---|---|---|
+| Con la suite corriendo | `true` | 25 ms de verdad — 81 ticks en 2.022 ms |
+| Con la página quieta | `true` | ~500 ms — 2 ticks en 1.000 ms |
 
-**Qué se rompe con eso —ocho casos, y NINGUNO es un defecto de la app.** Verificado con el
-discriminador correcto: `git stash` al commit anterior (P174, que había dado 1490/1490 una hora
-antes) y volver a correr → **los mismos ocho rojos**.
+O sea: **el estrangulamiento depende de la carga del momento**, no de un estado que se pueda
+consultar. Un `setTimeout(120)` puede valer 120 ms o 1.000 según lo que esté pasando alrededor, y
+eso cambia con cuántos casos corran antes, con qué máquina, y con la versión del navegador.
 
-| Caso | Por qué depende de la visibilidad |
+**La consecuencia práctica:** un caso que espera un número de milisegundos no está esperando nada
+comprobable. Cuando pasa, no se sabe si pasa por el código o porque el reloj le tocó favorable, y
+un día cambia el entorno y aparece un rojo sobre una app que funciona bien. Eso costó tres
+diagnósticos equivocados sobre los mismos casos de historial (el reloj en `P177b`, el estado de
+partida en `P179`, y recién en `P182` la causa real).
+
+**Qué usar en vez de un número.** Los cuatro ayudantes de `marco.js`, todos con tope y todos
+restaurando en el `finally`:
+
+| Ayudante | Para qué |
 |---|---|
-| `se apaga con la app en segundo plano` | Mide `document.hidden`. Con la pestaña visible, la respuesta correcta es la contraria |
-| `J2 · el desplegable no corta contenido` | Mide alto de contenido contra alto visible; con las animaciones corriendo, mide a mitad de la transición |
-| `no quedan superficies claras en tema oscuro` | Ídem: lee color computado durante el cambio de tema |
-| `la flecha del desplegable sigue al tema` | Ídem |
-| `el logo y el botón de idioma a la MISMA distancia` | Layout de la portada medido antes de estabilizar |
-| `la tira queda pegada al bloque de texto` | Ídem |
-| `lo que queda TAPADO sale del orden de tabulación` | Cuenta enfocables con overlays a medio abrir |
-| ~~`P048 · abrir y cerrar la opinión 5 veces`~~ **RESUELTO (2026-09-11)** | La causa NO era el reloj, como decía esta fila. Era el ESTADO DE PARTIDA: `navConsumir()` corta sin hacer nada si `history.state` no es suyo (`{silva:1}`) —su guarda para no robarle la entrada a otra pantalla— y después de 1.500 casos que apilan y descartan entradas, ese estado podía ser cualquiera. El arnés ahora fija `{silva:1}` antes de medir. Primer diagnóstico equivocado: ver MISTAKES |
+| `await PRUEBAS.esperarA(cond, tope)` | Esperar a que algo sea cierto, en vez de a que pase un rato |
+| `await PRUEBAS.historialQuieto(calma, tope)` | Esperar a que no llegue ningún `popstate` — precondición de todo caso que cuente entradas de historial. Devuelve `false` si no lo logra, para fallar POR ESO |
+| `PRUEBAS.sinAnimaciones(fn)` | Medir un estado FINAL sin que una transición a mitad de camino conteste por él |
+| `PRUEBAS.conOculto(oculto, fn)` | Probar los dos lados de una guarda de visibilidad, sin depender de cómo esté la pestaña |
 
-**Qué NO hacer:** «arreglar» la app para que estos ocho pasen. Lo que hay que recalibrar es la
-MEDICIÓN — o esperar el layout de verdad (no 350 ms fijos), o forzar el estado que cada caso
-necesita en vez de suponerlo del entorno. Está anotado como **P176**.
+### Dos trampas medidas que ningún `await` arregla
 
-**Y cómo distinguir un rojo nuevo de estos ocho:** son exactamente los de la tabla. Cualquier otro
-sí es del cambio que estés haciendo.
+**1 · `getComputedStyle` sirve valores VIEJOS para lo que resuelve un `var()`.** Con
+`data-tema="oscuro"` puesto, `--flecha-select` computaba el color oscuro en el elemento y en todos
+sus ancestros, mientras `backgroundImage` —que es `var(--flecha-select)`— seguía devolviendo el
+color claro. 81 lecturas en 2.022 ms, sin cambiar nunca. Chrome no vuelve a resolver `var()` en un
+documento que no se está pintando. **Para comprobar que un token cambió con el tema, leer el
+TOKEN** (`getPropertyValue('--x')` sobre el elemento, no sobre la raíz, así también prueba la
+herencia) y comprobar **aparte** que la regla lo usa. Leer la propiedad final mide un caché.
+⚠️ Esto alcanza a cualquier auditor de contraste que compare colores tras cambiar `data-tema`: los
+que están en verde pueden estar comparando un tema consigo mismo.
+
+**2 · Una transición puede no terminar NUNCA.** El puntito activo del splash se ensancha con
+`transition:width .28s`. Medido con la pestaña sin pintar: a los 600 ms seguía en el ancho de
+partida. Esperar más no sirve — no avanza. Se mide dentro de `PRUEBAS.sinAnimaciones`.
+
+### Cómo distinguir un rojo tuyo de uno del entorno
+
+El discriminador es `git stash` al commit anterior y correr ahí. Si aparecen los mismos rojos, no
+son del cambio. Y si el caso es **intermitente**, una corrida en verde no prueba nada: se valida
+con **cinco corridas seguidas**, porque algo que falla la mitad de las veces pasa la mitad de las
+veces por definición.
 
 ## Cómo correrlas
 

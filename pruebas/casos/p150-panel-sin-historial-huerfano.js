@@ -25,6 +25,17 @@ PRUEBAS.grupo('P150 · el panel no deja historial huérfano');
    ⚠️ La guarda de medibilidad es lo que impide medir ceros: si el overlay no llega a mostrarse con
    ancho real o el control no existe, `medibleOk` da false y el caso falla POR ESO. */
 async function p150Ciclo(n, selCierre){
+  /* ⚠️ P182 · SE ESPERA A QUE EL HISTORIAL QUEDE QUIETO ANTES DE CONTAR. `history.back()` entrega
+     su `popstate` en una tarea posterior, así que el de otro caso aterriza en el medio de éste,
+     le baja `_navConsumiendo` —que es un booleano, no un contador— y el manejador de la app corre
+     `silvaAtras()` y vuelve a apilar: 6 pushes contra 5 backs sobre código que funciona bien.
+     Era la causa de que los cuatro casos de historial de la suite fueran intermitentes; está
+     medida con la pila de llamadas en `p048-overlays.js`. Cae en `medibleOk` a propósito, para que
+     el caso falle por la precondición y lo diga, en vez de acusar al código. */
+  if (!(await PRUEBAS.historialQuieto())) {
+    return { pushes: 0, backs: 0, medibleOk: false,
+             porQue: 'el historial no se quedó quieto: hay un popstate de otro caso en vuelo y esto mediría una carrera' };
+  }
   const origPush = history.pushState.bind(history);
   const origBack = history.back.bind(history);
   let pushes = 0, backs = 0, medibleOk = true, porQue = '';

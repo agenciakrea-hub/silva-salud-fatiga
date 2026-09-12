@@ -77,6 +77,56 @@ async function p048EsperarLibre(tope){
   }
 }
 
+/* ⚠️⚠️ P182 · LA CAUSA REAL DE QUE ESTE ARCHIVO FUERA INTERMITENTE, medida con la pila de llamadas
+   de cada `pushState` de una corrida entera. La secuencia del rojo, en milisegundos:
+
+     +0   push   navPush > opinionAbrir        (el ciclo 0 abre: normal)
+     +4   back                                 (el botón X cierra: normal)
+     +27  push   navPush                       ← SIN llamador: vino de un manejador de evento
+     +27  push   navPush > opinionAbrir        (el ciclo 1 abre)
+     … los ciclos 1 a 4, los cinco limpios
+
+   Ese push de +27 ms sale del manejador de `popstate`, en la rama `if (silvaAtras()) navPush()`.
+   Llegó ahí porque `_navConsumiendo` —que es UN BOOLEANO GLOBAL, no un contador— ya estaba en
+   `false`: se lo bajó un `popstate` PENDIENTE de otro caso. Los `popstate` no se entregan cuando se
+   llama a `back()`, sino en una tarea posterior, así que un `back()` de un caso anterior puede
+   aterrizar en el medio de éste. El de casa llegó después, con el flag ya consumido, corrió
+   `silvaAtras()` y volvió a apilar. De ahí los 6 pushes contra 5 backs.
+
+   Por eso fallaba a veces y en un caso distinto cada vez: depende de cuántos `popstate` quedaron en
+   vuelo, que depende de qué casos corrieron antes. Los dos diagnósticos anteriores —el reloj en
+   P177b, el estado de partida en P179— no eran la causa; arreglaban el síntoma y el caso volvía a
+   ponerse verde por un rato, que en algo intermitente no distingue arreglarlo de tener suerte.
+
+   Esto se espera a que el historial quede QUIETO: sin un `popstate` durante `calma` ms seguidos.
+   No es un apaño de tiempos, es la precondición que el caso necesita y nunca declaró. Lo que NO
+   arregla es que el flag de la app se lo pueda robar un `popstate` ajeno — eso está anotado en
+   `PENDIENTES_USUARIO.md` para que lo decida el dueño, porque toca producción. */
+/* ⚠️⚠️ P182 · LA CAUSA REAL DE QUE ESTE ARCHIVO FUERA INTERMITENTE, medida con la pila de llamadas
+   de cada `pushState` de una corrida entera. La secuencia del rojo, en milisegundos:
+
+     +0   push   navPush > opinionAbrir        (el ciclo 0 abre: normal)
+     +4   back                                 (el botón X cierra: normal)
+     +27  push   navPush                       ← SIN llamador: vino de un manejador de evento
+     +27  push   navPush > opinionAbrir        (el ciclo 1 abre)
+     … los ciclos 1 a 4, los cinco limpios
+
+   Ese push de +27 ms sale del manejador de `popstate`, en la rama `if (silvaAtras()) navPush()`.
+   Llegó ahí porque `_navConsumiendo` —que es UN BOOLEANO GLOBAL, no un contador— ya estaba en
+   `false`: se lo bajó un `popstate` PENDIENTE de otro caso. El de casa llegó después, con el flag
+   ya consumido, corrió `silvaAtras()` y volvió a apilar. De ahí los 6 pushes contra 5 backs.
+
+   Por eso fallaba a veces y en un caso distinto cada vez: depende de cuántos `popstate` quedaron
+   en vuelo, que depende de qué casos corrieron antes. Los dos diagnósticos anteriores —el reloj en
+   P177b, el estado de partida en P179— no eran la causa; arreglaban el síntoma y el caso volvía a
+   ponerse verde por un rato, que en algo intermitente no distingue arreglarlo de tener suerte.
+
+   Lo que este arreglo NO cubre: que el flag de la app se lo pueda robar un `popstate` ajeno. Eso
+   toca producción y está anotado en `PENDIENTES_USUARIO.md` para que lo decida el dueño. */
+async function p048HistorialQuieto(calma, tope){
+  return PRUEBAS.historialQuieto(calma, tope);
+}
+
 function p048LimpiarOverlays(){
   document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
 }
@@ -97,6 +147,10 @@ async function p048CicloOpinion(n){
   /* `replaceState` y no `pushState`: fija el estado SIN apilar una entrada. Con `pushState` quedaba
      una de más y eso corría el estado de los dos discriminadores de más abajo, que también miden el
      historial — los puse en rojo a los dos. Fijar el estado es lo único que hace falta. */
+  /* El orden importa: primero se deja que se vacíen los `popstate` en vuelo, y RECIÉN DESPUÉS se
+     fija el estado. Al revés, el popstate rezagado llega con el estado ya fijado y se lleva puesto
+     el primer ciclo — que es exactamente lo que se medía. */
+  const quieto = await p048HistorialQuieto();
   try { history.replaceState({ silva: 1 }, ''); } catch(e){}
   await p048EsperarLibre();
   const origPush = history.pushState.bind(history);
@@ -121,7 +175,7 @@ async function p048CicloOpinion(n){
     history.back = origBack;
     p048LimpiarOverlays();
   }
-  return { pushes: pushes, backs: backs, medibleOk: medibleOk };
+  return { pushes: pushes, backs: backs, medibleOk: medibleOk, quieto: quieto };
 }
 
 PRUEBAS.caso('⚠️ abrir y cerrar la opinión 5 veces por el botón X real no deja historial huérfano', async () => {
@@ -129,7 +183,13 @@ PRUEBAS.caso('⚠️ abrir y cerrar la opinión 5 veces por el botón X real no 
   PRUEBAS.cierto(r.medibleOk,
     'guarda de medibilidad: el overlay tiene que abrirse de verdad (con ancho > 0) y el botón X ' +
     'tiene que existir en el DOM; si no, lo de abajo mediría ceros sin haber probado nada');
-  if (!r.medibleOk) return;
+  /* Guarda de medibilidad nueva: si el historial no llegó a quedarse quieto, lo de abajo mide una
+     carrera y no la app. Falla por ESTO y se lee en el informe, en vez de aparecer como un defecto
+     inventado del código. */
+  PRUEBAS.cierto(r.quieto,
+    'guarda de medibilidad: el historial tiene que estar quieto antes de contar — con un popstate ' +
+    'de otro caso todavía en vuelo, el primer ciclo mide una carrera');
+  if (!r.medibleOk || !r.quieto) return;
   PRUEBAS.igual(r.pushes, 5, 'cada apertura real apila su entrada, como siempre — esto no cambió');
   PRUEBAS.igual(r.backs, 5,
     '⚠️ y cada cierre por el botón X tiene que descartarla. Antes del arreglo esto daba 0: la ' +
@@ -165,6 +225,10 @@ PRUEBAS.caso('⚠️ cerrar la opinión por UI no cierra un overlay abierto por 
      la opinión cierra, el portal sigue abierto, el historial queda en 50 → 50).
      Con dos entradas propias de colchón, el `back()` siempre tiene a dónde volver dentro de la
      app y el caso mide lo que dice medir. */
+  /* P182 · misma precondición que el ciclo de arriba: con un `popstate` de otro caso en vuelo, el
+     manejador de la app corre `silvaAtras()` sobre lo que este caso acaba de abrir y el panel se
+     cierra por una razón ajena. Ver el bloque de `p048HistorialQuieto`. */
+  const quieto2 = await p048HistorialQuieto();
   try { history.pushState({ p048: 1 }, ''); history.pushState({ p048: 2 }, ''); } catch(e){}
   abrirDestinoEstadisticas();
   await new Promise(r => setTimeout(r, 20));
@@ -183,10 +247,11 @@ PRUEBAS.caso('⚠️ cerrar la opinión por UI no cierra un overlay abierto por 
   try { closePortal(); } catch(e){}
   p048LimpiarOverlays();
 
+  PRUEBAS.cierto(quieto2, 'guarda de medibilidad: el historial tiene que estar quieto antes de medir');
   PRUEBAS.cierto(portalAntes, 'guarda de medibilidad: el panel tenía que estar realmente abierto para que esto signifique algo');
   PRUEBAS.cierto(opinionAntes, 'guarda de medibilidad: y la opinión, encima de él');
   PRUEBAS.cierto(!!x, 'guarda de medibilidad: el botón X tiene que existir');
-  if (!portalAntes || !opinionAntes || !x) return;
+  if (!quieto2 || !portalAntes || !opinionAntes || !x) return;
   PRUEBAS.cierto(opinionCerrado, 'la opinión se cierra con su propio botón');
   PRUEBAS.cierto(portalSigueAbierto,
     '⚠️ y el panel de estadísticas, que la persona NO tocó, tiene que seguir abierto — si el ' +
