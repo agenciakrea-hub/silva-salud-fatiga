@@ -103,6 +103,11 @@ PRUEBAS.caso('⚠️ lo que queda TAPADO por otro overlay sale del orden de tabu
   const splash = document.getElementById('splashOv'), login = document.getElementById('loginOv');
   const previos = { s: splash.className, l: login.className };
   try {
+    /* P182 · con las animaciones apagadas: los overlays se cruzan con una transición de opacidad, y
+       mientras corre, `getBoundingClientRect` de lo que hay debajo devuelve tamaños que después no
+       tiene. Este caso filtra los enfocables justamente por tamaño, así que medía de más. Con la
+       pestaña de pruebas oculta las transiciones no corrían y salía estable por casualidad. */
+    PRUEBAS.sinAnimaciones(() => {
     splash.classList.add('show'); login.classList.add('show');
     sincronizarInert();                       // el observer es asíncrono; acá se fuerza
     PRUEBAS.cierto(splash.hasAttribute('inert'),
@@ -119,6 +124,7 @@ PRUEBAS.caso('⚠️ lo que queda TAPADO por otro overlay sale del orden de tabu
       '⚠️ con un overlay abierto, TODO lo enfocable tiene que estar dentro de él — quedaron ' +
       enfocables.filter(e => !login.contains(e)).slice(0,3)
         .map(e => (e.id || (e.textContent||'').trim().slice(0,18))).join(', '));
+    });
   } finally { splash.className = previos.s; login.className = previos.l; sincronizarInert(); }
 });
 

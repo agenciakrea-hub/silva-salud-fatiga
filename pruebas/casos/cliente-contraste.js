@@ -99,6 +99,10 @@ PRUEBAS.caso('no quedan superficies claras en tema oscuro', () => {
   CTX.resetear();
   fijarTema('oscuro');
   const claras = [];
+  /* P182 · sin animaciones: cambiar de tema anima los colores, y leer `backgroundColor` a mitad de
+     esa transición devuelve un valor intermedio que no es de ninguno de los dos temas. Con la
+     pestaña de pruebas oculta las transiciones no corrían y esto salía estable por casualidad. */
+  PRUEBAS.sinAnimaciones(() => {
   document.querySelectorAll('#viewInicio *').forEach(e => {
     const r = e.getBoundingClientRect();
     if (r.width < 40 || r.height < 20) return;      // muy chico: es un chip o un ícono
@@ -118,6 +122,7 @@ PRUEBAS.caso('no quedan superficies claras en tema oscuro', () => {
     if (CTX.contraste(b, 'rgb(0,0,0)') > 12) {
       claras.push((String(e.className).split(' ')[0] || e.tagName) + ' ' + b);
     }
+  });
   });
   fijarTema(temaPrevio || 'claro');
   PRUEBAS.igual(claras, [],

@@ -101,18 +101,30 @@ PRUEBAS.caso('sin el contenedor cae al render completo, no deja la pantalla viej
 
 PRUEBAS.grupo('L3 · el reloj del ciclo');
 
-PRUEBAS.caso('se apaga con la app en segundo plano', () => {
+PRUEBAS.caso('se apaga con la app en segundo plano', async () => {
   /* El tick cuesta 0.02 ms y no molesta; lo que cuesta es lo que dispara: `dashRefresh()` cada
      60 s mientras la sección esté en el DOM. Un supervisor con el panel abierto todo el turno son
      unos 480 pedidos al endpoint sin nadie mirando — y el refresco general de la app es diario a
      propósito, justamente por la cuota del endpoint. */
+  /* ⚠️ P182 · EL ESTADO SE FUERZA, NO SE HEREDA. La versión anterior decía, textual, «en este
+     entorno el documento está oculto» — y ese supuesto se cayó: cuando la pestaña de pruebas dejó
+     de estar oculta, este caso empezó a dar rojo sin que la app cambiara en nada. Un caso que mide
+     qué hace la app en segundo plano tiene que PONER la app en segundo plano. */
   panelCon(10);
   DASH.tab = 'ciclo'; DASH.tabs = ['ciclo']; buildDashTabs(); renderDash();
-  cicloTickStart();
-  PRUEBAS.cierto(!!_cicloTimer, 'con la sección en pantalla, el reloj corre');
-  document.dispatchEvent(new Event('visibilitychange'));   // en este entorno el documento está oculto
-  PRUEBAS.falso(!!_cicloTimer,
-    'oculto tiene que apagarse: si no, sigue pidiendo datos cada minuto con el teléfono guardado');
+  await PRUEBAS.conOculto(false, async (poner) => {
+    cicloTickStart();
+    PRUEBAS.cierto(!!_cicloTimer, 'con la sección en pantalla y la app a la vista, el reloj corre');
+    poner(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    PRUEBAS.falso(!!_cicloTimer,
+      'oculto tiene que apagarse: si no, sigue pidiendo datos cada minuto con el teléfono guardado');
+    /* EL DISCRIMINADOR, y es el que faltaba: al volver al frente tiene que volver a arrancar. Sin
+       esto, un manejador que apague el reloj y no lo encienda nunca más también pasaría. */
+    poner(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    PRUEBAS.cierto(!!_cicloTimer, 'y al volver al frente, vuelve a correr');
+  });
   cicloTickStop();
   DASH = null;
 });

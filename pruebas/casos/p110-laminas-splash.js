@@ -97,14 +97,25 @@ PRUEBAS.caso('el puntito activo se distingue por FORMA, no sólo por color', () 
   if (dots.length < 2){ PRUEBAS.cierto(false, 'sin puntitos que comparar'); return; }
   const prev = dots.findIndex(d => d.classList.contains('on'));
   try {
-    dots.forEach(d => d.classList.remove('on'));
-    dots[0].classList.add('on');
-    /* `getBoundingClientRect`, NO `getComputedStyle().width`: acá el computado devolvió "5px" para
-       un punto que medía 16 de verdad. El rect es lo que el navegador dibujó. */
-    const anchoOn = dots[0].getBoundingClientRect().width;
-    const anchoOff = dots[1].getBoundingClientRect().width;
-    PRUEBAS.alMenos(Math.round(anchoOn), Math.round(anchoOff) + 4,
-      '⚠️ el activo tiene que ser visiblemente más ancho');
+    /* ⚠️ `sinAnimaciones` NO es cosmético acá: el ancho lo mueve `transition:width .28s`, y medir
+       un ancho en transición mide el instante, no la regla. Este caso estuvo en verde por una
+       carambola del entorno: sin un recálculo de estilo entre el `remove` y el `add`, el navegador
+       funde los dos cambios y el punto salta a 16 sin transición — que es lo que pasa con la
+       pestaña oculta, donde no hay fotogramas en el medio. Con la pestaña AL FRENTE sí los hay, la
+       transición arranca, y el rect devuelve los 5 px de partida. Peor: medido a los 600 ms con la
+       pestaña oculta seguía en 5, porque ahí la transición no avanza NUNCA. Esperar no servía.
+       Apagadas las transiciones, el estado final se aplica al instante y la medición es la misma
+       en las dos condiciones — que es lo único que prueba el CSS en vez del entorno. */
+    PRUEBAS.sinAnimaciones(() => {
+      dots.forEach(d => d.classList.remove('on'));
+      dots[0].classList.add('on');
+      /* `getBoundingClientRect`, NO `getComputedStyle().width`: acá el computado devolvió "5px" para
+         un punto que medía 16 de verdad. El rect es lo que el navegador dibujó. */
+      const anchoOn = dots[0].getBoundingClientRect().width;
+      const anchoOff = dots[1].getBoundingClientRect().width;
+      PRUEBAS.alMenos(Math.round(anchoOn), Math.round(anchoOff) + 4,
+        '⚠️ el activo tiene que ser visiblemente más ancho');
+    });
   } finally { dots.forEach((d,k) => d.classList.toggle('on', k === prev)); }
 }); });
 

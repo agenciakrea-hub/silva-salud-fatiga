@@ -197,6 +197,10 @@ PRUEBAS.caso('⚠️ el logo y el botón de idioma están a la MISMA distancia d
   ov.classList.add('show');
   const malos = [];
   try {
+    /* P182 · con las animaciones apagadas: abrir el overlay dispara su transición y, mientras
+       corre, el rectángulo que devuelve `getBoundingClientRect` no es el final. Con la pestaña
+       oculta no corrían y esto medía estable por casualidad. */
+    PRUEBAS.sinAnimaciones(() => {
     for (const v of PRUEBAS.VENTANAS.filter(x => x.w < 900)) {
       PRUEBAS.enVentana(v.w, v.h, () => {
         const logo = document.querySelector('.splash-logo'), lang = document.getElementById('splashLangBtn');
@@ -208,6 +212,7 @@ PRUEBAS.caso('⚠️ el logo y el botón de idioma están a la MISMA distancia d
           malos.push(v.w + 'px: arrancan a distinta altura (' + Math.round(rl.top) + ' y ' + Math.round(rg.top) + ')');
       });
     }
+    });
   } finally { if (!tenia) ov.classList.remove('show'); }
   PRUEBAS.igual(malos, [], '⚠️ las dos esquinas tienen que ser espejo — ' + malos.join(' · '));
 });

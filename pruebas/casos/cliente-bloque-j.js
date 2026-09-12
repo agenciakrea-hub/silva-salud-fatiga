@@ -64,7 +64,16 @@ PRUEBAS.caso('J2 · el desplegable no corta contenido, ni con todas las métrica
      Esta prueba pasaba POR SUERTE DE TIEMPOS y empezó a fallar cuando otros casos corrieron antes y
      movieron el reloj. Una prueba que depende de la velocidad de la máquina es peor que una que
      falla: hace desconfiar de toda la suite. */
-  await new Promise(r => setTimeout(r, 450));
+  /* ⚠️ P182 · SE ESPERA LA CONDICIÓN, NO EL RELOJ. El comentario de arriba ya decía que este caso
+     «pasaba POR SUERTE DE TIEMPOS»; el arreglo de entonces fue esperar 450 ms fijos, que es la
+     misma dependencia con otro número. Mientras la pestaña estuvo oculta esos 450 eran ~1.000 por
+     el estrangulamiento de Chrome y alcanzaba; el día que dejó de estarlo, no. Ahora se espera a
+     que el `max-height` esté calculado, con tope: mide igual en los dos entornos. */
+  const listo = await PRUEBAS.esperarA(() => {
+    const mh = parseFloat(getComputedStyle(b).maxHeight);
+    return !!mh && mh > 1 && b.getBoundingClientRect().height > 1;
+  }, 3000);
+  PRUEBAS.cierto(listo, 'el desplegable llegó a calcular su alto · sin esto lo de abajo mediría el estado intermedio');
   const visible = b.getBoundingClientRect().height, real = b.scrollHeight;
   window.misDatos = mdPrevio; window.misCtx = ctxPrevio;
 

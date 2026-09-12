@@ -142,6 +142,56 @@
      tamaños de letra: los doce resultados, idénticos.
      REGLA GENERAL PARA ESTA SUITE: nada de `setTimeout` para "esperar a que se acomode". Forzar el
      recálculo y medir. */
+  /* ⚠️ P182 · ESPERAR LA CONDICIÓN, NUNCA EL RELOJ. Varios casos medían layout después de un
+     `setTimeout` fijo —350 ms, 450 ms— elegido a ojo porque «alcanzaba». Alcanzaba mientras la
+     pestaña de pruebas estuviera oculta y Chrome estrangulara los timers a ~1 s: esos «450 ms» eran
+     en realidad mil. El día que el entorno dejó de estrangularlos, siete casos empezaron a medir a
+     destiempo y la suite pasó a dar ocho rojos que NO eran de la app. Uno de ellos ya lo decía en
+     su propio comentario: «esta prueba pasaba POR SUERTE DE TIEMPOS».
+     `esperarA` resuelve la clase entera: espera a que la condición se cumpla, con un tope generoso,
+     y devuelve si se cumplió. Un caso que la use mide lo mismo con los timers estrangulados y sin
+     estrangular — que es la única forma de que un verde signifique algo.
+     ⚠️ Devuelve `false` en vez de lanzar: el caso decide si eso es una falla o un salteo honesto. */
+  PRUEBAS.esperarA = async function (cond, tope, paso) {
+    const t0 = Date.now(), lim = tope || 3000, p = paso || 25;
+    for (;;) {
+      let ok = false;
+      try { ok = !!cond(); } catch (e) { ok = false; }
+      if (ok) return true;
+      if (Date.now() - t0 >= lim) return false;
+      await new Promise(r => setTimeout(r, p));
+    }
+  };
+
+  /* Fuerza `document.hidden` durante `fn` y lo restaura al salir. Varios casos miden qué hace la app
+     al pasar a segundo plano y HEREDABAN el estado del entorno —uno hasta lo decía: «en este entorno
+     el documento está oculto»—, así que el resultado dependía de si la pestaña estaba en foco.
+     Lo que un caso necesita lo fuerza; lo que hereda, lo condiciona. */
+  PRUEBAS.conOculto = async function (oculto, fn) {
+    const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+    let val = !!oculto;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => val });
+    try { return await fn(function (v) { val = !!v; }); }
+    finally { if (desc) Object.defineProperty(document, 'hidden', desc); else { try { delete document.hidden; } catch (e) {} } }
+  };
+
+  /* ⚠️ P182 · MEDIR CON LAS ANIMACIONES APAGADAS. Los casos de layout abren un overlay con
+     `classList.add('show')` y miden enseguida — pero eso dispara la transición de `.overlay`
+     (220 ms de opacidad) y, si hay `transform`, el rectángulo que devuelve `getBoundingClientRect`
+     durante esa ventana no es el final. Con la pestaña oculta las animaciones no corren y la
+     medición sale estable por casualidad; con la pestaña visible sí corren y el mismo caso mide a
+     mitad de camino. Cinco de los siete rojos «de entorno» eran exactamente eso.
+     Apagar transición y animación durante la medición la vuelve determinista en los dos entornos.
+     No cambia el layout final: sólo saca el camino hacia él. */
+  PRUEBAS.sinAnimaciones = function (fn) {
+    const st = document.createElement('style');
+    st.textContent = '*,*::before,*::after{transition:none !important;animation:none !important}';
+    document.head.appendChild(st);
+    void document.body.offsetWidth;
+    try { return fn(); }
+    finally { st.remove(); }
+  };
+
   PRUEBAS.enVentana = function (ancho, alto, fn) {
     const marco = window.frameElement;
     /* Sin iframe (alguien corriendo la suite a mano en la app) se mide al tamaño que haya, en vez

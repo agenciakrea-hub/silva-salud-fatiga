@@ -39,6 +39,8 @@ PRUEBAS.caso('⚠️ la tira queda pegada al bloque de texto, sin el vacío que 
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
   const huecos = [];
+  /* P182 · sin animaciones: la transición del overlay movía el rectángulo mientras se medía. */
+  PRUEBAS.sinAnimaciones(() => {
   for (const [w, h] of [[1024, 768], [1366, 768], [1920, 1080]]) {
     PRUEBAS.enVentana(w, h, () => {
       const brand = document.querySelector('.splash-brand').getBoundingClientRect();
@@ -47,6 +49,7 @@ PRUEBAS.caso('⚠️ la tira queda pegada al bloque de texto, sin el vacío que 
       if (Math.abs(hueco) > 4) huecos.push(w + 'x' + h + ': ' + hueco + 'px entre el título y la tira');
     });
   }
+  });
   if (!yaAbierto) ov.classList.remove('show');
   PRUEBAS.igual(huecos, [],
     'la tira arranca donde termina el bloque de texto: eran 207 px de navy vacío y pasan a 0');

@@ -225,30 +225,57 @@ PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', async () => {
   ov.classList.add('show');
   const sel = document.querySelector('.field select');
   PRUEBAS.cierto(!!sel, 'tiene que haber al menos un desplegable para medir');
+  if (!sel) { if (!yaAbierto) ov.classList.remove('show'); return; }
+
+  /* ⚠️⚠️ P182 · NO SE LEE `backgroundImage` COMPUTADO. MEDIDO: en este entorno, cambiar el tema
+     actualiza la VARIABLE en el elemento pero NO la propiedad que la usa. Rastro de la corrida:
+     con `data-tema="oscuro"` puesto, `--flecha-select` computaba `9fb0c8` en el propio `#inSexo`
+     —y en cada uno de sus ancestros hasta `<html>`— mientras `backgroundImage` seguía devolviendo
+     `667`, el valor del tema claro, tras 81 lecturas en 2.022 ms. No es falta de tiempo: Chrome no
+     re-resuelve `var()` en un documento que no se está pintando, y `getComputedStyle` sirve el
+     valor cacheado. Lo mismo vale para `backgroundColor`, que seguía en el fondo claro.
+     Antes esto no se notaba porque el caso esperaba 120 ms fijos que, con los timers
+     estrangulados, eran ~1.000 reales y algún ciclo de render se colaba: pasaba por el entorno,
+     no por el código. Se leen entonces los TOKENS, que sí se resuelven, y en el ELEMENTO, no en la
+     raíz — así se comprueba que el tema llega hasta el campo y no sólo hasta `<html>`. */
+  const tokenEn = (el, nombre) => getComputedStyle(el).getPropertyValue(nombre).trim();
+  const strokeDe = v => ((v || '').match(/stroke='%23([0-9a-fA-F]{3,6})'/) || [])[1] || '';
 
   const tema0 = document.documentElement.getAttribute('data-tema');
-  const flojas = [], vistas = new Set();
-  /* ⚠️ Cambiar `data-tema` no actualiza `background-image` en el mismo tick: la imagen sale de una
-     variable y el navegador la vuelve a resolver recién en el próximo recálculo. Sin forzarlo, los
-     dos temas devuelven el MISMO valor y la prueba acusa un bug que no existe — me pasó.
-     `void sel.offsetHeight` fuerza el recálculo; la espera le da tiempo a que se aplique. */
-  for (const tema of ['claro', 'oscuro']) {
-    document.documentElement.setAttribute('data-tema', tema);
-    void sel.offsetHeight;
-    await new Promise(r => setTimeout(r, 120));
-    const cs = getComputedStyle(sel);
-    const m = (cs.backgroundImage || '').match(/stroke='%23([0-9a-fA-F]{3,6})'/);
-    if (!m){ flojas.push(tema + ': no se encontró la flecha'); return; }
-    vistas.add(m[1]);
-    const c = ct(hex(m[1]), cs.backgroundColor);
-    if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
+  const flojas = [], vistas = new Set(), rastro = [];
+  try {
+    for (const tema of ['claro', 'oscuro']) {
+      document.documentElement.setAttribute('data-tema', tema);
+      void sel.offsetHeight;
+      const flecha = strokeDe(tokenEn(sel, '--flecha-select'));
+      const campo  = tokenEn(sel, '--sup-campo');
+      if (!flecha) { flojas.push(tema + ': no se encontró la flecha en --flecha-select'); break; }
+      if (!campo)  { flojas.push(tema + ': no se encontró el fondo del campo en --sup-campo'); break; }
+      vistas.add(flecha);
+      const c = ct(hex(flecha), campo.charAt(0) === '#' ? hex(campo) : campo);
+      rastro.push(tema + ' ' + flecha + ' sobre ' + campo + ' = ' + c.toFixed(2) + ':1');
+      if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
+    }
+  } finally {
+    /* Restaurar SIEMPRE, pase lo que pase: un `return` o un tiro acá dejaba la app teñida para
+       todos los casos que siguen (R18). */
+    if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+    else document.documentElement.removeAttribute('data-tema');
+    if (!yaAbierto) ov.classList.remove('show');
   }
-  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
-  if (!yaAbierto) ov.classList.remove('show');
 
-  PRUEBAS.igual(flojas, [], 'la flecha tiene que verse sobre el campo en los dos temas');
+  PRUEBAS.igual(flojas, [], 'la flecha tiene que verse sobre el campo en los dos temas · ' + rastro.join(' · '));
   PRUEBAS.igual(vistas.size, 2,
-    'y ser DISTINTA en cada tema: si es la misma, vuelve a estar escrita a mano y uno de los dos pierde');
+    'y ser DISTINTA en cada tema: si es la misma, vuelve a estar escrita a mano y uno de los dos ' +
+    'pierde · vio [' + [...vistas].join(', ') + ']');
+  /* R17 · medir el token no alcanza: hay que comprobar que el campo lo USA. Si mañana alguien le
+     escribe el data-URI a mano en la regla, los tokens seguirían bien y la flecha estaría rota.
+     Esta mitad va contra la regla porque el computado, como dice el bloque de arriba, miente. */
+  const css = [...document.querySelectorAll('style')].map(e => e.textContent).join('').replace(/\s+/g, ' ');
+  PRUEBAS.cierto(/\.field select \{[^}]*background-image: var\(--flecha-select\)/.test(css),
+    '⚠️ el campo tiene que sacar la flecha del token, no de un data-URI escrito en la regla');
+  PRUEBAS.cierto(/\.field input, \.field select \{[^}]*background: var\(--sup-campo\)/.test(css),
+    '⚠️ y el fondo contra el que se mide tiene que ser el que el campo usa de verdad');
 });
 
 PRUEBAS.caso('el campo enfocado se distingue de un vistazo', () => {
