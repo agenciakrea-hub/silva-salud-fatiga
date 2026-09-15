@@ -83,18 +83,22 @@ PRUEBAS.caso('los tiempos no se parten en dos renglones', () => {
 });
 
 PRUEBAS.caso('no queda ninguna regla del empleado tapando el layout general', () => {
-  /* Esta prueba decía otra cosa hasta M5. Verificaba que MI regla de dos columnas estuviera acotada
-     con `@media (min-width: 481px)` — o sea, verificaba mi parche.
-     En M5 el parche desapareció: `.cic-tramos` pasó a `repeat(auto-fit, minmax(185px, 1fr))`, que
-     acomoda las columnas segun el ancho disponible y no necesita ningún caso especial para el
-     empleado. Al desaparecer la regla, la prueba falló — correctamente, porque estaba escrita
-     contra la implementación y no contra lo que importa.
-     Lo que importa es esto: que no exista NINGUNA regla específica de `.cic-mio-linea` pisando las
-     columnas, que es lo que causó el bug original. Escrito así, sigue valiendo aunque el layout se
-     vuelva a cambiar. */
-  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('');
-  PRUEBAS.igual((fuente.match(/\.cic-mio-linea\s+\.cic-tramos\s*\{[^}]*grid-template-columns/g) || []).length, 0,
-    'una regla propia del empleado sobre las columnas vuelve a ganarle a la general por especificidad');
+  /* P183 · antes contaba reglas en el CSS como texto. Ahora se pintan dos barras de tramos con el
+     MISMO ancho —una dentro del bloque del empleado (`.cic-mio-linea`) y otra dentro de una tarjeta
+     del panel— y se compara lo que el navegador COMPUTA para las columnas: si existiera una regla
+     propia del empleado ganándole a la general por especificidad, serían distintas. */
+  const raiz = document.createElement('div'); raiz.style.cssText = 'position:absolute;left:0;top:0;width:600px;';
+  raiz.innerHTML = '<div class="cic-mio-linea"><div class="cic-tramos" id="m4a"><div></div><div></div><div></div><div></div></div></div>' +
+                   '<div class="cic-card"><div class="cic-tramos" id="m4b"><div></div><div></div><div></div><div></div></div></div>';
+  document.body.appendChild(raiz);
+  try {
+    const a = getComputedStyle(document.getElementById('m4a')), b = getComputedStyle(document.getElementById('m4b'));
+    PRUEBAS.cierto(a.display === 'grid' && b.display === 'grid', 'guarda: las dos barras son grillas (' + a.display + '/' + b.display + ')');
+    /* se compara la CANTIDAD de columnas (los píxeles difieren por el padding de cada contenedor): una regla propia del empleado —la del bug original— fijaba dos */
+    const cols = cs => cs.gridTemplateColumns.trim().split(/\s+/).length;
+    PRUEBAS.igual(cols(a), cols(b), 'el bloque del empleado reparte las MISMAS columnas que la tarjeta del panel (' + cols(a) + ' y ' + cols(b) + '): ninguna regla propia le gana por especificidad');
+    PRUEBAS.alMenos(cols(a), 3, 'y a 600 px son tres o más, no las dos fijas de la regla vieja');
+  } finally { raiz.remove(); }
 });
 
 PRUEBAS.caso('las columnas se acomodan solas al ancho', () => {

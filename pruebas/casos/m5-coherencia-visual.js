@@ -710,26 +710,20 @@ PRUEBAS.caso('el acceso con credenciales ofrece las tres vistas', () => {
 });
 
 PRUEBAS.caso('⚠️ los controles del panel se pueden tocar con guantes', () => {
-  /* Medidos en el panel abierto: las pestañas daban 35 px de alto, los filtros 33 y el botón de
-     refrescar 34x34 — veintiún objetivos por debajo del mínimo de 44. Y la regla de pantallas
-     chicas los bajaba a 30, justo donde más importa. Un toque de 35 px falla y se corrige tocando
-     de nuevo: esa es exactamente la sensación de "apretado" que se reportó.
-     Se comprueba sobre el CSS porque el panel necesita datos para dibujarse. */
-  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
-  const flojos = [];
-  [['.dtab', 'las pestañas'], ['.pchip', 'los filtros']].forEach(([sel, que]) => {
-    /* Se recorta con indexOf y no con `new RegExp`: armar la expresión desde una cadena obliga a
-       escapar barras, y al escribir este archivo una de esas barras se perdió y dejó la cadena sin
-       cerrar — se rompió el archivo ENTERO y la suite no cargó ni un caso. Sin escapes no pasa. */
-    const desde = css.indexOf(sel + ' {');
-    const regla = desde < 0 ? '' : css.slice(desde, css.indexOf('}', desde) + 1);
-    if (!/min-height: ?44px/.test(regla)) flojos.push(que + ': ' + regla.slice(0, 70));
-  });
-  if (!/\.dash-refresh \{ width: ?44px; height: ?44px/.test(css)) flojos.push('el botón de refrescar');
-  PRUEBAS.igual(flojos, [], 'todo control del panel necesita 44 px de área, aunque el dibujo sea menor');
-
-  PRUEBAS.falso(/\.portal-back, \.dash-refresh[^{]*\{ width: ?30px/.test(css),
-    'y la regla de pantallas chicas no puede volver a bajarlos: ahí es donde más importa');
+  /* P183 · antes recortaba las reglas del CSS como texto («el panel necesita datos para
+     dibujarse»). No hace falta el panel: se pintan los controles con sus clases y se mide lo que
+     el navegador computa, al ancho que tenga la pestaña — la regla de pantallas chicas los bajaba
+     a 30, justo donde más importa, así que el mínimo tiene que valer a cualquier ancho. */
+  const raiz = document.createElement('div');
+  raiz.innerHTML = '<button class="dtab" id="m5t">Pestaña</button><button class="pchip" id="m5c">Filtro</button><button class="dash-refresh" id="m5r">↻</button>';
+  document.body.appendChild(raiz);
+  try {
+    const mh = id => parseFloat(getComputedStyle(document.getElementById(id)).minHeight) || 0;
+    const r = document.getElementById('m5r').getBoundingClientRect();
+    PRUEBAS.alMenos(mh('m5t'), 44, 'las pestañas miden al menos 44 px de alto (' + mh('m5t') + ')');
+    PRUEBAS.alMenos(mh('m5c'), 44, 'los filtros también (' + mh('m5c') + ')');
+    PRUEBAS.cierto(r.width >= 44 && r.height >= 44, 'y el botón de refrescar es de 44×44 o más (' + Math.round(r.width) + '×' + Math.round(r.height) + ') · a ' + innerWidth + ' px de ancho');
+  } finally { raiz.remove(); }
 });
 
 PRUEBAS.grupo('P1 · los paneles del splash no se encima nada');

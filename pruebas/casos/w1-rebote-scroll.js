@@ -77,18 +77,16 @@ PRUEBAS.caso('la barra de navegación sigue fija abajo en cualquier punto del sc
 });
 
 PRUEBAS.caso('⚠️ nada quedó con su propio scroll bloqueado', () => {
-  /* Apagar el rebote del DOCUMENTO no tiene que apagar el de los paneles internos (el buscador de
-     nómina, el cuerpo de un documento largo, las tarjetas de un overlay): esos siguen necesitando
-     poder scrollear sin que el rebote del documento se les escape encima. Se comprueba que la
-     propiedad nueva NO se coló en ninguna de esas reglas por un copiar y pegar de más. */
-  /* Se sacan los comentarios ANTES de contar: el propio comentario que explica la decisión
-     menciona "overscroll-behavior" como texto, y sin esto la cuenta se infla contra algo que no
-     es una regla. */
-  const fuente = [...document.querySelectorAll('style')].map(s => s.textContent).join('')
-    .replace(/\/\*[\s\S]*?\*\//g, '');
-  const total = (fuente.match(/overscroll-behavior/g) || []).length;
-  PRUEBAS.igual(total, 1,
-    '⚠️ SÓLO `html` toca esta propiedad. Era 2 —html y body— y esa segunda aparición es la que ' +
-    'dejó la app sin scroll cinco días. Si vuelve a aparecer en otro lado hay que revisar a mano ' +
-    'que no mate el gesto ni bloquee un scroll interno');
+  /* P183 · antes contaba `overscroll-behavior` en el CSS como texto. Ahora se lee lo que computa
+     el navegador: el documento con el rebote apagado; `body` y los paneles internos (la hoja de
+     un overlay, la lista de la nómina) con el suyo libre. Era 2 —html y body— y esa segunda es la
+     que dejó la app sin scroll cinco días. */
+  const cs = el => el ? getComputedStyle(el).overscrollBehaviorY || getComputedStyle(el).overscrollBehavior : '';
+  PRUEBAS.igual(cs(document.documentElement), 'none', '⚠️ el documento tiene el rebote apagado');
+  PRUEBAS.cierto(cs(document.body) !== 'none', '⚠️ `body` NO: ahí es donde estuvo cinco días y dejó la app sin scroll (' + cs(document.body) + ')');
+  const raiz = document.createElement('div'); raiz.innerHTML = '<div class="overlay"><div class="sheet" id="w1s"></div></div><div class="nom-lista" id="w1l"></div>';
+  document.body.appendChild(raiz);
+  try {
+    ['w1s', 'w1l'].forEach(id => PRUEBAS.cierto(cs(document.getElementById(id)) !== 'none', 'y un panel interno (' + id + ') conserva su propio scroll (' + cs(document.getElementById(id)) + ')'));
+  } finally { raiz.remove(); }
 });

@@ -142,21 +142,15 @@ PRUEBAS.caso('⚠️ ningún color escrito a mano en el bloque del desplazamient
 });
 
 PRUEBAS.caso('la elipsis de CSS se sacó de los tres elementos: compite con la animación de deslizar', () => {
-  /* Si quedara `text-overflow: ellipsis` puesto, el navegador recortaría el texto ANTES de que la
-     animación pudiera mostrarlo completo — quedaría "Empresa Dem…" deslizándose sobre sí mismo.
-     Ya le había pasado a `.an-res-hasta` (comentario de M4, línea ~3887: "el nombre tenía ellipsis
-     puesto — ESE era el bug real"), así que el bloque de los tres elementos nuevos lo evita desde
-     el principio en vez de repetir el mismo bug tres veces. */
-  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('').replace(/\s+/g, ' ');
-  const faltan = [];
-  [
-    /\.dash-scope\s*\{[^}]*\}/,
-    /\.dash-updated\s*\{[^}]*\}/,
-    /\.inf-prev\s*\{[^}]*\}/,
-  ].forEach(re => {
-    const m = css.match(re);
-    if (!m) { faltan.push('no se encontró la regla'); return; }
-    if (/text-overflow\s*:\s*ellipsis/.test(m[0])) faltan.push(m[0].slice(0, 60));
-  });
-  PRUEBAS.igual(faltan, [], 'ninguno de los tres puede tener text-overflow:ellipsis: ' + faltan.join(' | '));
+  /* P183 · antes buscaba `text-overflow: ellipsis` en las reglas como texto. Ahora se pintan los
+     tres elementos y se lee lo que el navegador computa: si quedara la elipsis, el texto se
+     recortaría ANTES de que la animación pudiera mostrarlo completo («Empresa Dem…» deslizándose
+     sobre sí mismo). */
+  const raiz = document.createElement('div'); raiz.style.cssText = 'position:absolute;left:0;top:0;width:200px;';
+  raiz.innerHTML = '<span class="dash-scope">Empresa Demostración larga</span><span class="dash-updated">Actualizado hace un rato largo</span><span class="inf-prev">Vista previa de un informe largo</span>';
+  document.body.appendChild(raiz);
+  try {
+    const con = ['dash-scope', 'dash-updated', 'inf-prev'].filter(c => getComputedStyle(raiz.querySelector('.' + c)).textOverflow === 'ellipsis');
+    PRUEBAS.igual(con, [], 'ninguno de los tres computa text-overflow:ellipsis: ' + con.join(' | '));
+  } finally { raiz.remove(); }
 });
