@@ -64,12 +64,26 @@ PRUEBAS.caso('⚠️ el mapa de jornadas NO viaja a Dirección/HSEQ (K1b)', () =
   /* Sus claves son nombres. Se comprueba sobre el `.gs` REAL, que es donde vive el recorte —
      esconderlo en la pantalla no lo protege de nadie que abra las herramientas del navegador. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
-  const gs = CTX.gs;
-  PRUEBAS.alMenos(gs.length, 10000, 'guarda de medibilidad: se leyó el .gs · ' + gs.length);
-  const bloque = (gs.match(/var planPorPersona = \{\}[\s\S]{0,700}/) || [''])[0];
-  PRUEBAS.alMenos(bloque.length, 50, 'guarda: se encontró el armado del campo');
-  PRUEBAS.cierto(/acc\.vista\s*!==\s*"hseq"/.test(bloque),
-    '⚠️ el mapa se llena SÓLO si la vista no es hseq · ' + bloque.replace(/\s+/g, ' ').slice(0, 130));
+  /* P183 · antes buscaba `acc.vista !== "hseq"` al lado de `var planPorPersona`. Ahora se siembra
+     una jornada propia en `Ciclo Persona` y se pide el panel con las tres contraseñas: al
+     supervisor y al servicio médico les llega el mapa con el nombre; a Dirección, vacío. */
+  const env = GS.crearEntorno({
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','clave-med','clave-dir']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan']],
+    'Ciclo Persona': [['Empresa','Persona','Plan','Actualizado','ActualizadoPor'], ['Helitec','Ana Suárez','{"traslado":60,"jornada":600,"regreso":60,"descanso":600}','2026-09-01','x']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
+  const pedir = (pass) => JSON.parse(api.accionSupervisor({ usuario:'Helitec', empresa:'Helitec', pass: pass, dispositivoId:'d' }).getContent());
+  const sup = pedir('clave-sup'), med = pedir('clave-med'), dir = pedir('clave-dir');
+  PRUEBAS.cierto(sup.ok && med.ok && dir.ok && dir.vista === 'hseq', 'guarda: entran los tres (' + [sup.vista, med.vista, dir.vista].join('/') + ')');
+  PRUEBAS.igual(Object.keys(sup.cicloPlanPersona || {}), ['ana suarez'], 'DISCRIMINADOR · al supervisor le llega el mapa con la persona');
+  PRUEBAS.igual((sup.cicloPlanPersona || {})['ana suarez'] && sup.cicloPlanPersona['ana suarez'].jornada, 600, 'y su jornada propia');
+  PRUEBAS.igual(Object.keys(med.cicloPlanPersona || {}), ['ana suarez'], 'al servicio médico también');
+  PRUEBAS.igual(Object.keys(dir.cicloPlanPersona || {}), [], '⚠️ a Dirección/HSEQ el mapa va VACÍO: sus claves son nombres (K1b)');
+  PRUEBAS.cierto(JSON.stringify(dir).indexOf('ana suarez') < 0, 'y el nombre no viaja por ninguna otra parte de su respuesta');
 });
 
 PRUEBAS.caso('⚠️ el servidor y el cliente coinciden en QUIÉN puede cambiar la jornada', () => {

@@ -74,14 +74,28 @@ PRUEBAS.caso('🔴 el plan PROPIO no viaja por el campo que el cliente lee como 
      nunca tocó «Guardar para toda la empresa» —el estado por defecto— la jornada propia de quien
      abría el panel pasaba a ser la de TODOS, y prellenaba el editor de empresa. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const cuerpo = (gs.match(/function accionTareasMias[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(cuerpo.length, 200, 'guarda de medibilidad: se encontró la acción');
-  PRUEBAS.cierto(/cicloPlanPropio/.test(cuerpo),
-    '⚠️ la jornada personal viaja por su propio campo');
-  PRUEBAS.falso(/if \(mio\) planCiclo = mio;/.test(cuerpo),
-    '⚠️ y NO pisando `planCiclo`, que es el de la empresa');
-
+  /* P183 · antes buscaba `cicloPlanPropio` en el cuerpo de `accionTareasMias`. Ahora se siembra la
+     jornada de la empresa (12 h) y la propia de Ana (10 h) y se pide `tareas_mias`: la de la
+     empresa tiene que llegar por `cicloPlan` y la de Ana por `cicloPlanPropio`, sin pisarse. */
+  const pedir = (conPropio) => {
+    const env = GS.crearEntorno({
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','clave-med','clave-dir']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+    'Config Empresa': [['Empresa','Clave','Valor'], ['Helitec','cicloPlan','{"traslado":60,"jornada":720,"regreso":60,"descanso":600}']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan']],
+    'Ciclo Persona': [['Empresa','Persona','Plan','Actualizado','ActualizadoPor']].concat(conPropio ? [['Helitec','Ana Suárez','{"traslado":60,"jornada":600,"regreso":60,"descanso":600}','2026-09-01','x']] : []),
+  });
+    const api = GS.cargarGs(CTX.gs, env, ['accionTareasMias']);
+    return JSON.parse(api.accionTareasMias({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d' }).getContent());
+  };
+  const con = pedir(true);
+  PRUEBAS.cierto(!!con.ok, 'guarda: responde (' + (con.error || 'ok') + ')');
+  PRUEBAS.igual(con.cicloPlan && con.cicloPlan.jornada, 720, '⚠️ `cicloPlan` es el de la EMPRESA (12 h): la jornada propia NO lo pisa');
+  PRUEBAS.igual(con.cicloPlanPropio && con.cicloPlanPropio.jornada, 600, '⚠️ y la propia viaja por SU campo (10 h)');
+  const sin = pedir(false);
+  PRUEBAS.igual(sin.cicloPlan && sin.cicloPlan.jornada, 720, 'DISCRIMINADOR · sin jornada propia, la de la empresa sigue igual');
+  PRUEBAS.cierto(sin.cicloPlanPropio == null, 'y `cicloPlanPropio` va vacío');
   /* Y el cliente los guarda en claves distintas. */
   PRUEBAS.cierto(typeof cicloPlanPropioGuardado === 'function', 'el cliente tiene su lector propio');
   PRUEBAS.falso(K_CICLO_PLAN === K_CICLO_PLAN_PROPIO,
@@ -94,14 +108,20 @@ PRUEBAS.caso('🟡 el exceso de TRASLADO llega al reporte del médico', () => {
      exceso es `previsto > 0`, el exceso de traslado daba SIEMPRE 0. La pestaña Ciclo lo pintaba en
      rojo y la pestaña Jornada en 0, sobre el mismo turno. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const def = (gs.match(/var DUTY_TRAMOS = \[[\s\S]*?\];/) || [''])[0];
-  PRUEBAS.alMenos(def.length, 50, 'guarda: se encontró la tabla');
-  ['traslado', 'jornada', 'regreso'].forEach(k =>
-    PRUEBAS.cierto(new RegExp('planK:"' + k + '"').test(def),
-      '⚠️ el tramo sabe con qué clave del plan se lee · ' + k));
-  PRUEBAS.falso(/Number\(plan\[def\.k\]\)/.test(gs),
-    '⚠️ y ya nadie lee el plan con la clave del cálculo, que es la que no existe ahí');
+  /* P183 · antes buscaba `planK:"traslado"` en `DUTY_TRAMOS`. Ahora se mide una jornada con un
+     traslado de ida de 2 h contra un plan de 1 h escrito con las claves del PLAN (`traslado`,
+     `jornada`, `regreso`): el exceso del traslado tiene que llegar al reporte. Con el lector
+     leyendo `plan["traslado_ida"]`, daba siempre 0. */
+  const plan = '{"traslado":60,"jornada":720,"regreso":60,"descanso":600}';
+  const fila = (hora, evento) => { const iso = '2026-09-10T' + hora + ':00.000Z'; return { fecha: '2026-09-10', hora: hora, iso: iso, persona: 'Ana Suárez', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', evento: evento, test: '', resultado: null, plan: plan }; };
+  const api = GS.cargarGs(CTX.gs, GS.crearEntorno({ 'Config Empresa': [['Empresa','Clave','Valor']] }), ['leerDuty']);
+  const r = api.leerDuty([fila('06:00', 'salida_casa'), fila('08:00', 'llegada_aero'), fila('16:00', 'salida_aero'), fila('17:00', 'llegada_casa')], 7);
+  PRUEBAS.igual(r.diario.length, 1, 'guarda: una jornada medida');
+  const ida = (r.diario[0].tramos || []).find(t => t.tramo === 'traslado_ida') || {};
+  PRUEBAS.igual(ida.previsto, 60, '⚠️ el tramo de ida lee su previsto con la clave del PLAN (`traslado` → 60)');
+  PRUEBAS.igual(ida.real, 120, 'y midió 2 h reales');
+  PRUEBAS.igual(ida.exceso, 60, '⚠️ 60 min de exceso de TRASLADO: llega al reporte del médico');
+  PRUEBAS.igual(r.diario[0].excesoMin, 60, 'y suma al exceso del día (la jornada de 8 h no aporta)');
 });
 
 PRUEBAS.caso('🔴 tocar el nombre de una tarjeta abre la ficha de ESA persona', () => {

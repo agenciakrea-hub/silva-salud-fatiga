@@ -62,15 +62,27 @@ PRUEBAS.caso('⚠️ el alta de una contraseña queda registrada y se puede ver'
   /* El camino REAL: crear una credencial y después leer la bitácora, como haría alguien
      investigando una cuenta tomada. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const fuente = CTX.gs.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-  const i = fuente.indexOf('credencial_creada');
-  PRUEBAS.alMenos(i, 0, 'existe el registro del alta');
-  if (i < 0) return;
-  PRUEBAS.cierto(/bitacoraServidor\(/.test(fuente.slice(Math.max(0, i - 200), i + 200)),
-    '⚠️ el alta usa bitacoraServidor(), que escribe las 13 columnas');
-  PRUEBAS.falso(/shb\.appendRow/.test(fuente),
-    'y ya no queda ningún appendRow corto a la bitácora');
+  /* P183 · antes buscaba `credencial_creada` cerca de `bitacoraServidor(` en la fuente. Ahora se
+     crea la credencial y se LEE la bitácora, como haría alguien investigando una cuenta tomada:
+     tiene que haber una fila `credencial_creada` con las 13 columnas de `bitacoraServidor`. */
+  const env = GS.crearEntorno({
+    'Accesos': [['Usuario','Contraseña','Rol','Empresas','ClaveMedica','ClaveHseq'], ['Helitec','sup001','supervisor','Helitec','','']],
+    'Sesiones': [['Id','HashToken','Usuario','Dispositivo','Rol','Vista','Empresas','Canonical','Combinada','Creada','UltimoUso','Estado','Cerrada']],
+    'Credenciales': [['Empresa','Cédula','Usuario','Hash','Sal','Vueltas','Algoritmo','Rol','Estado','Creada','UltimoAcceso']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
+               ['Helitec','Ana Suárez','V-1','Operaciones','Piloto','F',35,'+58123','a@e.com','Sí','','empleado','2']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-1', pass:'unaClaveLarga1', usuario:'Ana Suárez', dispositivoId:'d' }).getContent());
+  PRUEBAS.cierto(!!r.ok, 'guarda: la credencial se creó (' + (r.error || r.motivo || 'ok') + ')');
+  const bit = env.__libro.getSheetByName('Bitácora');
+  const filas = bit ? bit.__volcado() : [];
+  const fila = filas.slice(1).find(f => f.join('|').indexOf('credencial_creada') >= 0);
+  PRUEBAS.cierto(!!fila, '⚠️ el alta queda registrada en la bitácora');
+  PRUEBAS.alMenos((fila || []).filter(x => String(x) !== '').length, 10, '⚠️ con las columnas completas de `bitacoraServidor` (fecha, empresa, acción, sujeto, actor, rol, origen, versión, id…), no un appendRow corto');
+  PRUEBAS.cierto(fila && fila.join('|').indexOf(GS_VERSION_DEL_EMULADOR()) >= 0, 'y lleva la versión del servidor que la escribió');
 });
+function GS_VERSION_DEL_EMULADOR(){ const m = /var GS_VERSION = "([^"]+)"/.exec(CTX.gs || ''); return m ? m[1] : '¿?'; }
 
 /* ══════════ P103 ══════════ */
 

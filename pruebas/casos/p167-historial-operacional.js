@@ -128,12 +128,20 @@ PRUEBAS.caso('⚠️ CSS sin color a mano (R13) y textos en los dos idiomas (R14
 /* ── el servidor ─────────────────────────────────────────────────────────────────────────── */
 
 PRUEBAS.caso('⚠️ `empleado` acepta `dias` con tope, y sin él sigue en 30 · sobre la fuente', () => {
-  const gs = CTX.gs;
-  const i = gs.indexOf('function accionEmpleado(');
-  const fin = gs.indexOf('\n}', i);
-  const cuerpo = gs.slice(i, fin > 0 ? fin + 2 : i + 6000);
-  PRUEBAS.cierto(/Number\(p\.dias\)/.test(cuerpo), 'lee `p.dias`');
-  PRUEBAS.cierto(/Math\.min\(400/.test(cuerpo), '⚠️ con tope 400: nadie pide diez años de hoja');
-  PRUEBAS.cierto(/\|\| 30/.test(cuerpo), 'y 30 por defecto');
-  PRUEBAS.falso(/leerOperacional\(30\)/.test(cuerpo), 'el 30 fijo ya no está escrito a mano');
+  /* P183 · antes leía el cuerpo de `accionEmpleado`. Ahora se pide con y sin `dias` y se mira el
+     período que el servidor dice haber servido. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const env = GS.crearEntorno({
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan']],
+    'Nómina': [['Empresa','Nombre','Cedula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+    'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionEmpleado']);
+  const dias = (extra) => (JSON.parse(api.accionEmpleado(Object.assign({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d' }, extra || {})).getContent()).operacionalPeriodo || {}).dias;
+  PRUEBAS.igual(dias(), 30, '30 por defecto');
+  PRUEBAS.igual(dias({ dias: 90 }), 90, 'lee `dias`');
+  PRUEBAS.igual(dias({ dias: 9999 }), 400, '⚠️ con tope 400: nadie pide diez años de hoja');
+  PRUEBAS.igual(dias({ dias: 'x' }), 30, 'y un valor inválido cae al 30');
 });

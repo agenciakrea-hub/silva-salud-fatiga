@@ -110,14 +110,16 @@ PRUEBAS.caso('⚠️ la columna dice lo que de verdad guarda', () => {
   /* Es la hoja que un humano abre para corregir identidades de personas a mano. Un encabezado que
      miente ahí es peor que en cualquier otra. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const fuente = CTX.gs.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-  /* ⚠️ Esto mide el ENCABEZADO que el código escribe, no todo uso del nombre viejo. Desde P163
-     `IDENT_COLS_DEF` lo lleva como alias en minúscula (`"nombrecanonico"`) para poder leer una
-     hoja que haya quedado con el título anterior — el regex pide las mayúsculas exactas
-     justamente para no confundir una cosa con la otra. */
-  PRUEBAS.falso(/["']NombreCanonico["']/.test(fuente),
-    '⚠️ ya no se ESCRIBE NombreCanonico como encabezado: nunca guardó un nombre');
-  PRUEBAS.cierto(/["']ResueltoPor["']/.test(fuente), 'ahora dice cómo se resolvió, que es lo que hay ahí');
+  /* P183 · antes buscaba las comillas de `"ResueltoPor"` en la fuente. Ahora se deja que el
+     servidor CREE la hoja `Identidades` (entorno sin ella) y se lee el encabezado que escribió. */
+  const env = GS.crearEntorno({ 'Config Empresa': [['Empresa','Clave','Valor']] });
+  const api = GS.cargarGs(CTX.gs, env, ['obtenerHojaIdentidades']);
+  api.obtenerHojaIdentidades();
+  const sh = env.__libro.getSheetByName('Identidades');
+  PRUEBAS.cierto(!!sh, 'guarda: el servidor creó la hoja');
+  const cab = sh ? sh.__volcado()[0].map(String) : [];
+  PRUEBAS.cierto(cab.indexOf('ResueltoPor') >= 0, 'el encabezado dice cómo se resolvió, que es lo que hay ahí (' + cab.join(', ') + ')');
+  PRUEBAS.falso(cab.indexOf('NombreCanonico') >= 0, '⚠️ y ya no se ESCRIBE NombreCanonico: nunca guardó un nombre');
 });
 
 PRUEBAS.caso('⚠️ el encabezado de una hoja CON DATOS ya no se reescribe · lo cambió P163', () => {

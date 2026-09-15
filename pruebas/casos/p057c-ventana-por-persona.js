@@ -92,14 +92,38 @@ PRUEBAS.caso('⚠️ el umbral que se CONGELA lo mide el servidor contra el plan
      usara la configuración actual, bajar la jornada de la empresa marcaría excedidos
      retroactivamente a todos — que es exactamente lo que su propio comentario dice evitar. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
-  PRUEBAS.alMenos(CTX.gs.length, 10000, 'guarda de medibilidad: se leyó el .gs · ' + CTX.gs.length);
-  const fn = (CTX.gs.match(/function dutyDePersona\([\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 200, 'guarda: se encontró `dutyDePersona`');
-  PRUEBAS.cierto(/dutyPlanDeFila\(abre\.plan\)/.test(fn),
-    '⚠️ mide contra el plan que viajó con el evento que ABRE la jornada, no contra la config vigente');
-  /* Y el cliente escribe ese plan con la persona, que es la otra mitad del contrato (R17). */
-  const cli = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const env = (cli.match(/function enviarOperacional\([\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.cierto(/plan:\s*JSON\.stringify\(cicloPlan\(cicloYo\(\)\)/.test(env),
-    '⚠️ y el cliente congela el plan de LA PERSONA · las dos mitades del contrato');
+  /* P183 · antes buscaba `dutyPlanDeFila(abre.plan)` en la fuente y `plan: JSON.stringify(…)` en
+     `enviarOperacional`. Ahora: (1) el servidor mide una jornada de 10 h contra el plan que viajó
+     con la fila (12 h → sin exceso) aunque la empresa hoy diga 5 h; con la fila diciendo 5 h, 300
+     min de exceso. (2) El cliente, con una jornada propia guardada, manda `plan=` con ESA jornada
+     en el pedido real (`enviarConCola` espiado). */
+  const fila = (hora, evento, plan) => { const iso = '2026-09-10T' + hora + ':00.000Z'; return { fecha: '2026-09-10', hora: hora, iso: iso, persona: 'Ana Suárez', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', evento: evento, test: '', resultado: null, plan: plan }; };
+  const env = GS.crearEntorno({ 'Config Empresa': [['Empresa','Clave','Valor'], ['Helitec','cicloPlan','{"traslado":60,"jornada":300,"regreso":60,"descanso":600}']] });
+  const api = GS.cargarGs(CTX.gs, env, ['leerDuty']);
+  const jornada = (planFila) => api.leerDuty([fila('06:00', 'salida_casa', planFila), fila('07:00', 'llegada_aero', planFila), fila('17:00', 'salida_aero', planFila), fila('18:00', 'llegada_casa', planFila)], 7);
+  const congelado12 = jornada('{"traslado":60,"jornada":720,"regreso":60,"descanso":600}');
+  PRUEBAS.igual(congelado12.diario.length, 1, 'guarda: una jornada medida');
+  PRUEBAS.igual(congelado12.diario[0].jornadaMin, 600, 'de 10 h');
+  PRUEBAS.igual(congelado12.diario[0].excesoMin, 0, '⚠️ contra el plan que viajó con la fila (12 h) no hay exceso, aunque la config de HOY diga 5 h');
+  const congelado5 = jornada('{"traslado":60,"jornada":300,"regreso":60,"descanso":600}');
+  PRUEBAS.igual(congelado5.diario[0].excesoMin, 300, 'DISCRIMINADOR · con la fila diciendo 5 h, 300 min de exceso: el umbral es el de la fila');
+  /* y el cliente congela el plan de LA PERSONA en el pedido real */
+  const oEnviar = window.enviarConCola, prevPerfil = getProfile();
+  const prevPropio = localStorage.getItem(K_CICLO_PLAN_PROPIO), prevMio = localStorage.getItem(K_CICLO_MIO);
+  const pedidos = [];
+  try {
+    window.enviarConCola = (url) => { pedidos.push(String(url)); };
+    setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+    cicloPlanPropioGuardar({ traslado: 60, jornada: 555, regreso: 60, descanso: 600 });
+    enviarOperacional('salida_casa', '', null);
+    const u = pedidos.find(x => /action=operacional_guardar/.test(x)) || '';
+    PRUEBAS.cierto(!!u, 'guarda: salió el pedido de `operacional_guardar`');
+    const plan = JSON.parse(new URLSearchParams(u.split('?')[1] || '').get('plan') || 'null');
+    PRUEBAS.igual(plan && plan.jornada, 555, '⚠️ y el cliente congela el plan de LA PERSONA (555) en la fila · las dos mitades del contrato');
+  } finally {
+    window.enviarConCola = oEnviar;
+    if (prevPropio == null) localStorage.removeItem(K_CICLO_PLAN_PROPIO); else localStorage.setItem(K_CICLO_PLAN_PROPIO, prevPropio);
+    if (prevMio == null) localStorage.removeItem(K_CICLO_MIO); else localStorage.setItem(K_CICLO_MIO, prevMio);
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+  }
 });

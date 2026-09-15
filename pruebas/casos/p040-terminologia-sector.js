@@ -197,20 +197,25 @@ PRUEBAS.caso('el CH es la fuente: el endpoint lee `sector` de Config Empresa y d
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido se saltea'); return; }
   /* R17 · el contrato entre los dos lados, no cada lado por su cuenta: lo que el `.gs` MANDA
      contra lo que el cliente CONSUME. Se lee del `.gs` real, no de una copia. */
-  const gs = CTX.gs;
-  const i = gs.indexOf('function perfilPublicoEmpresa');
-  PRUEBAS.alMenos(i, 0, 'el endpoint tiene `perfilPublicoEmpresa` · si no, esta prueba mide aire');
-  const cuerpo = gs.slice(i, i + 2000);
-  PRUEBAS.cierto(/sector:\s*String\(cfg\.sector/.test(cuerpo),
-    'el perfil público incluye `sector`, y sale de la config de la empresa');
-  PRUEBAS.cierto(/leerConfigEmpresa\(/.test(cuerpo),
-    'y esa config es la hoja `Config Empresa`, no un valor escrito en el código');
-  PRUEBAS.cierto(/cfg\.sector\s*==\s*null\s*\?\s*""/.test(cuerpo),
+  /* P183 · antes leía `perfilPublicoEmpresa` con regex. Ahora se pide `empresa_perfil` —sin
+     contraseña, como lo hace el alta— con la hoja `Config Empresa` con y sin la fila `sector`. */
+  const pedir = (config) => {
+    const api = GS.cargarGs(CTX.gs, GS.crearEntorno({
+      'Config Empresa': [['Empresa','Clave','Valor']].concat(config),
+      'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','','']],
+      'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+    }), ['manejar']);
+    return JSON.parse(api.manejar({ action: 'empresa_perfil', empresa: 'Helitec' }).getContent());
+  };
+  const con = pedir([['Helitec', 'sector', 'aviacion']]);
+  PRUEBAS.cierto(!!con.ok, 'la acción existe y no pide contraseña: el alta ocurre antes de tener credenciales (' + (con.error || 'ok') + ')');
+  PRUEBAS.igual(con.perfil && con.perfil.sector, 'aviacion', 'el perfil público incluye `sector`, y sale de la hoja `Config Empresa`');
+  const sin = pedir([]);
+  PRUEBAS.cierto(!!sin.ok && sin.perfil && 'sector' in sin.perfil, 'guarda: sin la fila, el perfil llega igual y trae la clave');
+  PRUEBAS.igual(sin.perfil && sin.perfil.sector, '',
     '⚠️ y sin configurar devuelve VACÍO, no "generico" · devolver "generico" ya hizo que el ' +
     'servidor le afirmara ese sector a Helitec en cada arranque y sus pilotos leyeran "trabajo" ' +
     'en vez de "aeropuerto"');
-  PRUEBAS.cierto(/accion === "empresa_perfil"/.test(gs),
-    'y la acción existe y no pide contraseña: el alta ocurre antes de tener credenciales');
 });
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════

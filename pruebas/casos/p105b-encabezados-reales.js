@@ -294,19 +294,21 @@ PRUEBAS.caso('el diagnóstico no compacta los huecos · era lo que había mentid
      por la explicación que el propio arreglo dejó escrita al lado ("SIN `filter(Boolean)`…").
      Es la tercera vez que pasa en esta suite: un nombre citado en un comentario no es código, y
      la salida fácil —empobrecer el comentario— es peor que el problema. */
-  const sinComentarios = x => x.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-  const i = CTX.gs.indexOf('if (tarea === "encabezados")');
-  const bloque = sinComentarios(CTX.gs.slice(i, CTX.gs.indexOf('hojas: out', i)));
-  PRUEBAS.igual(i > 0 && bloque.length > 0, true, 'se encontró el bloque de la tarea');
-  PRUEBAS.igual(bloque.indexOf('filter(Boolean)') < 0, true,
-    'la tarea encabezados ya no filtra las celdas vacías');
-  PRUEBAS.igual(bloque.indexOf('fila.pop()') >= 0, true,
-    'y sólo recorta las vacías del FINAL, que son las que no significan nada');
-  /* El discriminador: si el recorte de comentarios se comiera el código, todo daría verde. */
-  PRUEBAS.igual(bloque.indexOf('getLastColumn') >= 0, true,
-    'y el bloque analizado sigue teniendo código adentro');
+  /* P183 · antes leía el bloque `if (tarea === "encabezados")` sin comentarios. Ahora se corre la
+     tarea de mantenimiento sobre una hoja con huecos en el medio y celdas vacías al final, y se
+     mira el informe: los huecos se conservan (como cadena vacía) y sólo se recorta el final. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const tok = (/var MANT_TOKEN = "([^"]+)"/.exec(CTX.gs) || [])[1] || '';
+  const env = GS.crearEntorno({ 'PVT': [['FECHA', 'NOMBRE', '', '', 'IdPVT', '', '']], 'Config Empresa': [['Empresa','Clave','Valor']] });
+  const api = GS.cargarGs(CTX.gs, env, ['accionMantenimiento']);
+  const r = JSON.parse(api.accionMantenimiento({ tarea: 'encabezados', token: tok }).getContent());
+  PRUEBAS.cierto(!!r.ok && r.hojas, 'guarda: la tarea responde (' + (r.error || 'ok') + ')');
+  PRUEBAS.igual((r.hojas || {}).PVT, ['FECHA', 'NOMBRE', '', '', 'IdPVT'],
+    '⚠️ los huecos del medio se conservan (IdPVT sigue en la 5ª columna) y sólo se recortan las vacías del FINAL · con `filter(Boolean)` decía FECHA, NOMBRE, IdPVT y se concluyó que producción perdía datos');
   /* El otro informe que mentía igual: el que lista los "encabezados reales" cuando una nota no
-     encuentra su columna. Es el que se leyó para diagnosticar esto. */
+     encuentra su columna. Es el que se leyó para diagnosticar esto. Éste sigue sobre la fuente:
+     está adentro de `documentarCH`, que escribe notas en el CH real y no tiene entrada aislada. */
+  const sinComentarios = x => x.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
   const j = CTX.gs.indexOf('sinColumna.push(nombre');
   const bloque2 = sinComentarios(CTX.gs.slice(j, j + 400));
   PRUEBAS.igual(bloque2.indexOf('filter(Boolean)') < 0, true,
