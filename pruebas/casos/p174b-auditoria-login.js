@@ -215,10 +215,43 @@ const p174bFuente = () => [...document.querySelectorAll('script')].map(x => x.te
 const p174bDentro = (fn, re) => { const f = p174bFuente(); const i = f.indexOf('function ' + fn + '('); return i >= 0 && re.test(f.slice(i, i + 9000)); };
 
 PRUEBAS.caso('🔴 la pantalla obligatoria del rol NO se abre sin señal (R7) · sus dos salidas son «activar» y CERRAR SESIÓN', () => {
-  PRUEBAS.cierto(p174bDentro('avanzarAlta', /!rolYaOfrecido\(\)[^\n]*offHayConexion\(\)/),
-    '🔴 el paso 4 pide conexión · sin esto, en un hangar sin cobertura la app queda tapada y la única salida borra la cola de registros');
-  PRUEBAS.cierto(p174bDentro('rolConfirmar', /offHayConexion\(\)/),
-    'EL DISCRIMINADOR · el botón sigue teniendo su propia guarda (no se sacó una por la otra)');
+  /* P183 · antes buscaba `!rolYaOfrecido() … offHayConexion()` en `avanzarAlta`. Ahora se recorre el
+     alta con un perfil completo al que la nómina le propone un rol, con la conexión APAGADA y
+     ENCENDIDA, y se espía la pantalla del rol: sin señal no se abre. Y el botón «Activar» con la
+     conexión apagada escribe su aviso en vez de mandar nada. */
+  const oOff = window.offHayConexion, oRolAbrir = window.rolOfrecerAbrir, oFetch = window.fetchConReloj, oPush = history.pushState;
+  const prevLS = Object.assign({}, localStorage);
+  let abriera = 0, posts = 0;
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba', rol: 'supervisor', rolesNomina: ['supervisor'], rolOrigen: 'nomina', sexo: 'F', edad: '34', telefono: '+58 412 0000000', email: 'ana@e.com', esPiloto: false });
+    PRUEBAS.cierto(perfilCompleto(getProfile()), 'guarda: el perfil está completo (si no, el alta abre la nómina y este caso no mide nada)');
+    /* los pasos anteriores del alta (consentimiento y tamaño de letra) ya resueltos, con las funciones reales */
+    { const cs = consentStore(); cs.items = cs.items || {}; consentPendientes().forEach(c => { cs.items[c.k] = c.v; }); consentSave(cs); }
+    try { localStorage.setItem(K_TEXTO, String(TEXTO_POR_DEFECTO)); } catch(e){}
+    PRUEBAS.cierto(hasConsent() && textoYaElegido(), 'guarda: consentimiento y letra ya resueltos');
+    try { localStorage.removeItem(K_ROL_OFRECIDO); } catch(e){}
+    history.pushState = () => {};
+    window.rolOfrecerAbrir = () => { abriera++; return true; };
+    window.fetchConReloj = () => { posts++; return new Promise(() => {}); };
+    PRUEBAS.cierto(!rolYaOfrecido() && !!rolPropuesto(), 'guarda: hay un rol propuesto y todavía no se ofreció (' + rolPropuesto() + ')');
+    window.offHayConexion = () => false;
+    avanzarAlta();
+    PRUEBAS.igual(abriera, 0, '🔴 sin señal, el paso 4 NO abre la pantalla del rol · en un hangar sin cobertura la app quedaba tapada y la única salida borraba la cola');
+    window.offHayConexion = () => true;
+    avanzarAlta();
+    PRUEBAS.igual(abriera, 1, 'DISCRIMINADOR · con señal, sí se abre');
+    /* y el botón «Activar» tiene su propia guarda */
+    window.offHayConexion = () => false;
+    document.getElementById('rolPass').value = 'clave-de-empresa';
+    rolConfirmar(null);
+    PRUEBAS.igual(document.getElementById('rolErr').textContent, t('rol_of_sin_red'), 'y «Activar» sin señal dice que no hay red en vez de mandar la contraseña');
+    PRUEBAS.igual(posts, 0, 'sin ningún pedido');
+  } finally {
+    window.offHayConexion = oOff; window.rolOfrecerAbrir = oRolAbrir; window.fetchConReloj = oFetch; history.pushState = oPush;
+    document.getElementById('rolPass').value = ''; document.getElementById('rolErr').textContent = '';
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+  }
 });
 
 PRUEBAS.caso('🔴 el botón de reiniciar contraseña no dispara un POST real en la DEMOSTRACIÓN', () => {
@@ -249,11 +282,30 @@ PRUEBAS.caso('🔴 el botón de reiniciar contraseña no dispara un POST real en
   } finally { window.fetchConReloj = oFetch; window.confirm = oConfirm; window.showToast = oToast; DASH = oDash; }
 });
 
-PRUEBAS.caso('🔒 los tres POST de `supervisor` que faltaban mandan `dispositivoId`', () => {
-  const f = p174bFuente();
-  const sinId = (f.match(/action:'supervisor',[^}]{0,240}/g) || []).filter(x => !/dispositivoId/.test(x));
-  PRUEBAS.igual(sinId.length, 0,
-    '🔒 sin el campo, el freno usa la cadena «sin-id» y el contador es UNO para todos los dispositivos del mundo · seis POST dejaban a una empresa entera sin poder activar su acceso');
+PRUEBAS.caso('🔒 los POST de `supervisor` que se disparan desde el cliente mandan `dispositivoId`', () => {
+  /* P183 · antes barría la fuente buscando `action:'supervisor'` sin `dispositivoId` al lado. Ahora
+     se DISPARAN los caminos reales con `fetchConReloj` espiado y se mira cada cuerpo que salió. */
+  const oFetch = window.fetchConReloj, oDemo = window.DASH_DEMO;
+  const cuerpos = [];
+  window.fetchConReloj = (url, opts) => { try { cuerpos.push(JSON.parse(opts.body)); } catch(e){} return new Promise(() => {}); };
+  const prevLS = Object.assign({}, localStorage);
+  try {
+    validarSupervisorCreds('helitec', 'una-clave');
+    portalAutoLoginSupervisor({ usuario: 'helitec', pass: 'una-clave' }, K_DASH_CREDS);
+    document.getElementById('pEmpresa').value = 'helitec'; document.getElementById('pPass').value = 'una-clave';
+    portalLoginSupervisor(null);
+    document.getElementById('pAdminPass').value = 'una-clave';
+    portalLoginAdmin(null);
+    const sup = cuerpos.filter(b => b.action === 'supervisor');
+    PRUEBAS.alMenos(sup.length, 3, 'guarda: salieron los POST de `supervisor` (' + sup.length + ')');
+    PRUEBAS.igual(sup.filter(b => !b.dispositivoId).length, 0,
+      '🔒 todos llevan `dispositivoId` · sin el campo, el freno usa la cadena «sin-id» y el contador es UNO para todos los dispositivos del mundo: seis POST dejaban a una empresa entera sin poder activar su acceso');
+  } finally {
+    window.fetchConReloj = oFetch;
+    ['pEmpresa', 'pPass', 'pAdminPass'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['portalErr'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('🔴 «cerrar sesión» borra el plan de ciclo PROPIO y la marca de rol ofrecido', () => {
@@ -290,16 +342,58 @@ PRUEBAS.caso('🔴 el reloj del ciclo vuelve a arrancar al traer la app al frent
 });
 
 PRUEBAS.caso('🔴 la campana no afirma «no tienes tareas» antes de haber preguntado', () => {
-  PRUEBAS.cierto(p174bDentro('tareasCargar', /TAREAS\._enVuelo/),
-    '🔴 con un pedido en vuelo se devuelve ESE pedido · devolver una promesa resuelta pintaba la lista vacía en el acto');
-  PRUEBAS.cierto(/tareasOv[\s\S]{0,80}tareasPintar\(\)/.test(p174bFuente().slice(p174bFuente().indexOf('function tareasCargar('), p174bFuente().indexOf('function tareasCargar(') + 16000)),
-    'y al llegar la respuesta se repinta la hoja si está abierta · si no, quedaba «no tienes tareas» sobre una campana con número');
+  /* P183 · antes buscaba `TAREAS._enVuelo` y `tareasOv … tareasPintar()` en la fuente. Ahora: con un
+     pedido EN VUELO, una segunda `tareasCargar()` devuelve ESE mismo pedido (no una promesa ya
+     resuelta que pintaría la lista vacía en el acto); y cuando la respuesta llega con la hoja
+     abierta, se repinta. Se restaura en el `.finally()` de la promesa (R18). */
+  const oFetch = window.fetchConReloj, oPintar = window.tareasPintar, prevPerfil = getProfile();
+  let responder = null, pintadas = 0;
+  window.fetchConReloj = () => new Promise(res => { responder = () => res({ json: () => Promise.resolve({ ok: true, tareas: [{ id: 't1', titulo: 'Una', origen: 'supervisor', estado: 'sin_leer' }], pendientes: 1 }) }); });
+  window.tareasPintar = () => { pintadas++; };
+  setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+  TAREAS.cargando = false; TAREAS._enVuelo = null; TAREAS.lista = [];
+  const p1 = tareasCargar();
+  const p2 = tareasCargar();
+  PRUEBAS.cierto(!!p1 && p1 === p2, '🔴 con un pedido en vuelo se devuelve ESE pedido, no uno nuevo ni uno ya resuelto');
+  document.getElementById('tareasOv').classList.add('show');
+  PRUEBAS.igual(pintadas, 0, 'guarda: antes de la respuesta no se pintó nada');
+  responder();
+  return p1.finally(() => {
+    window.fetchConReloj = oFetch; window.tareasPintar = oPintar;
+    document.getElementById('tareasOv').classList.remove('show');
+    TAREAS.cargando = false; TAREAS._enVuelo = null; TAREAS.lista = []; TAREAS.pendientes = 0;
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    try { tareasPintarBadge(); } catch(e){}
+  }).then(() => {
+    PRUEBAS.alMenos(pintadas, 1, 'y al llegar la respuesta con la hoja abierta, se repinta · si no, quedaba «no tienes tareas» sobre una campana con número');
+  });
 });
 
 PRUEBAS.caso('🔴 el historial de ciclos se dibuja cuando llegan los datos del servidor', () => {
-  PRUEBAS.cierto(p174bDentro('cicloMiRefrescar', /cicHist/),
-    '🔴 se armaba SÓLO dentro de `renderSections()` · quien cambia de teléfono veía «(0) · Todavía no hay ciclos guardados» toda la sesión, con los datos ya en memoria');
-  PRUEBAS.cierto(p174bDentro('cicloMiRefrescar', /\.open/), 'y se conserva desplegado si lo estaba');
+  /* P183 · antes buscaba `cicHist` y `.open` en `cicloMiRefrescar`. Ahora se pinta el inicio sin
+     ciclos, llegan los del servidor a `K_CICLO_SRV`, y se llama SÓLO a `cicloMiRefrescar()` (lo que
+     corre cuando llega la respuesta, sin `renderSections`): el historial tiene que decir (2) y
+     seguir desplegado si lo estaba. */
+  const prevLS = Object.assign({}, localStorage), prevDash = DASH;
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba', esPiloto: true });
+    localStorage.removeItem(K_CICLO_SRV); localStorage.removeItem(K_CICLO_MIO);
+    renderSections();
+    const h0 = document.getElementById('cicHist');
+    PRUEBAS.cierto(!!h0, 'guarda: el inicio tiene el bloque del historial');
+    PRUEBAS.cierto(/\(0\)/.test(h0 ? h0.textContent : ''), 'guarda: arranca en (0)');
+    h0.open = true;
+    const hace = h => new Date(Date.now() - h * 3600000).toISOString();
+    const ev = (evento, iso) => ({ evento, iso, persona: 'Ana Prueba', empresa: 'Empresa De Prueba' });
+    localStorage.setItem(K_CICLO_SRV, JSON.stringify([ev('salida_casa', hace(50)), ev('llegada_casa', hace(40)), ev('salida_casa', hace(26)), ev('llegada_casa', hace(16))]));
+    cicloMiRefrescar();
+    const h1 = document.getElementById('cicHist');
+    PRUEBAS.cierto(!!h1 && /\(2\)/.test(h1.textContent), '🔴 al llegar los datos, el historial dice (2) sin esperar a `renderSections` · quien cambiaba de teléfono veía «(0)» toda la sesión con los datos ya en memoria');
+    PRUEBAS.cierto(h1 && h1.open === true, 'y se conserva desplegado si lo estaba');
+  } finally {
+    DASH = prevDash;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ R8 · volver a marcar un paso del ciclo ya marcado pide confirmación', () => {
@@ -340,18 +434,36 @@ PRUEBAS.caso('⚠️ R8 · volver a marcar un paso del ciclo ya marcado pide con
 });
 
 PRUEBAS.caso('🔴 el splash frena su cadena de video en TODAS sus salidas', () => {
-  const f = p174bFuente();
-  /* Se mira cada sitio que oculta el splash y se exige que las 400 letras de ANTES frenen la tira.
-     Contar líneas no serviría: `splashAbrirPortal` y `carruselMostrar` frenan con las dos llamadas
-     sueltas y están bien. Lo que estaba mal eran tres sitios que sólo sacaban la clase. */
-  const sitios = [];
-  let i = 0, aguja = /getElementById\('splashOv'\)\.classList\.remove\('show'\)/g, m;
-  while ((m = aguja.exec(f)) !== null) sitios.push(f.slice(Math.max(0, m.index - 400), m.index));
-  PRUEBAS.alMenos(sitios.length, 3, 'hay varios sitios que ocultan el splash · si esto diera 0, el caso no mediría nada');
-  const sinFrenar = sitios.filter(x => !/splashAnimFrenar\(\)/.test(x)).length;
-  PRUEBAS.igual(sinFrenar, 0,
-    '🔴 ninguno oculta el splash sin frenar antes · los tres que faltaban dejaban 1,16 MB de clips reproduciéndose debajo de la app hasta recargar');
-  PRUEBAS.cierto(p174bDentro('splashCerrarUI', /splashAnimFrenar\(\)[\s\S]{0,120}splashLangHintFrenar\(\)/), 'y frena las dos cosas');
+  /* P183 · antes miraba las 400 letras anteriores a cada `classList.remove('show')` del splash. Ahora
+     se SALE del splash por cada una de sus tres puertas (cerrar, abrir el portal, mostrar el
+     carrusel) con los frenos espiados: cada salida tiene que frenar la tira antes de ocultarlo. */
+  const oAnim = window.splashAnimFrenar, oHint = window.splashLangHintFrenar, oNav = window.navConsumir, oPush = history.pushState;
+  const splash = document.getElementById('splashOv');
+  const salidas = { splashCerrarUI: () => splashCerrarUI(), splashAbrirPortal: () => splashAbrirPortal(), carruselMostrar: () => carruselMostrar() };
+  const resultado = {};
+  try {
+    window.navConsumir = () => {}; history.pushState = () => {};
+    Object.keys(salidas).forEach(nombre => {
+      let anim = 0, hint = 0, visibleAlFrenar = null;
+      window.splashAnimFrenar = () => { anim++; if (visibleAlFrenar == null) visibleAlFrenar = splash.classList.contains('show'); };
+      window.splashLangHintFrenar = () => { hint++; };
+      splash.classList.add('show');
+      try { salidas[nombre](); } catch(e){ resultado[nombre] = 'reventó: ' + e.message; return; }
+      resultado[nombre] = { anim, hint, oculto: !splash.classList.contains('show'), visibleAlFrenar };
+    });
+    Object.keys(resultado).forEach(nombre => {
+      const r = resultado[nombre];
+      PRUEBAS.cierto(typeof r === 'object' && r.oculto, 'guarda: ' + nombre + ' oculta el splash (' + JSON.stringify(r) + ')');
+      PRUEBAS.alMenos((r && r.anim) || 0, 1, '🔴 ' + nombre + ' frena la tira · los tres que faltaban dejaban 1,16 MB de clips reproduciéndose debajo de la app hasta recargar');
+      PRUEBAS.cierto(r && r.visibleAlFrenar === true, 'y ' + nombre + ' frena ANTES de ocultar');
+    });
+    PRUEBAS.alMenos(resultado.splashCerrarUI && resultado.splashCerrarUI.hint, 1, 'y `splashCerrarUI` frena las dos cosas (la pista de idioma también)');
+  } finally {
+    window.splashAnimFrenar = oAnim; window.splashLangHintFrenar = oHint; window.navConsumir = oNav; history.pushState = oPush;
+    splash.classList.remove('show');
+    ['portalOverlay', 'carruselOv'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('show'); });
+    try { syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ «atrás» cierra las dos guías de instalación', () => {
@@ -374,8 +486,23 @@ PRUEBAS.caso('⚠️ «atrás» cierra las dos guías de instalación', () => {
 });
 
 PRUEBAS.caso('⚠️ el login no muestra «Entrar» habilitado sobre la contraseña que acaba de vaciar', () => {
-  PRUEBAS.cierto(p174bDentro('lgnAbrir', /pass\.value = ''[\s\S]{0,420}gateoAplicar\('lgnBtn'\)/),
-    '⚠️ asignar `.value` a mano no dispara `input`: el gateo decidía con lo escrito la vez anterior');
+  /* P183 · antes buscaba `pass.value = '' … gateoAplicar('lgnBtn')` en `lgnAbrir`. Ahora se deja la
+     contraseña escrita y el botón habilitado —como quedan al cerrar—, se vuelve a abrir el login y
+     se mira el botón: asignar `.value` a mano no dispara `input`, así que el gateo decidía con lo
+     escrito la vez anterior. */
+  const oPush = history.pushState;
+  const pass = document.getElementById('lgnPass'), btn = document.getElementById('lgnBtn');
+  try {
+    history.pushState = () => {};
+    pass.value = 'clave-vieja'; btn.disabled = false;
+    lgnAbrir(null, 'Consorcio HELITEC', '12345678');
+    PRUEBAS.igual(pass.value, '', 'guarda: al abrir, la contraseña se vacía');
+    PRUEBAS.igual(btn.disabled, true, '⚠️ y «Entrar» queda deshabilitado sobre el campo vacío · no habilitado con lo escrito la vez anterior');
+  } finally {
+    history.pushState = oPush;
+    pass.value = '';
+    try { document.getElementById('loginOv').classList.remove('show'); syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ R13 · los íconos del inicio no llevan ningún color escrito a mano', () => {
@@ -407,14 +534,43 @@ PRUEBAS.caso('⚠️ R12 · el desplegable del historial llega a 44 px', () => {
 });
 
 PRUEBAS.caso('⚠️ la tendencia del inicio se mide con el día de la OPERACIÓN', () => {
-  PRUEBAS.cierto(p174bDentro('iniTendencia', /new Date\(todayStr\(\)/),
-    '⚠️ con la medianoche del dispositivo y la operación un huso por delante, el registro de hoy daba -1 días y se descartaba');
-  PRUEBAS.falso(p174bDentro('iniTendencia', /const hoy = new Date\(\); hoy\.setHours/), 'y ya no queda el cálculo viejo');
+  /* P183 · antes buscaba `new Date(todayStr()` en `iniTendencia`. Ahora se pone la operación en un
+     huso donde YA es otro día que en el dispositivo, se siembra un registro con la fecha de la
+     operación (hoy, allá) y ocho de hace 8-13 días: la tendencia tiene que salir. Con la medianoche
+     del dispositivo, el registro de hoy daba -1 días, se descartaba, y sin «recientes» no había
+     tendencia. El huso se elige según la hora local para que la fecha difiera de verdad. */
+  const prevLS = Object.assign({}, localStorage);
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba' });
+    const hora = new Date().getHours();
+    zonaOpGuardar(hora >= 8 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago');
+    const hoyOp = todayStr(), hoyDisp = (d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))(new Date());
+    PRUEBAS.cierto(hoyOp !== hoyDisp, 'guarda: en la operación es otro día que en el dispositivo (' + hoyOp + ' vs ' + hoyDisp + ')');
+    const fechaOp = ms => { const d = new Date(ms); return new Intl.DateTimeFormat('en-CA', { timeZone: (hora >= 8 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'), year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); };
+    const regs = [{ fecha: hoyOp, kss: 8 }];
+    for (let d = 8; d <= 13; d++) regs.push({ fecha: fechaOp(Date.now() - d * 86400000), kss: 4 });
+    localStorage.setItem(K_MIS_DATOS, JSON.stringify({ registros: regs, pvt: [], ref: { kss: 6 }, metrics: ['kss'] }));
+    const tend = iniTendencia();
+    PRUEBAS.cierto(!!tend, '⚠️ con el registro de HOY (día de la operación) hay tendencia · con la medianoche del dispositivo ese registro daba -1 días y se descartaba');
+    /* discriminador: sin el registro de hoy no hay «recientes» y no hay tendencia */
+    localStorage.setItem(K_MIS_DATOS, JSON.stringify({ registros: regs.slice(1), pvt: [], ref: { kss: 6 }, metrics: ['kss'] }));
+    PRUEBAS.igual(iniTendencia(), null, 'DISCRIMINADOR · sin ese registro no hay tendencia: es el que decide');
+  } finally {
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ la insignia del encabezado se repinta al cambiar de idioma (y de sector, R14)', () => {
-  PRUEBAS.cierto(p174bDentro('aplicarIdioma', /paintProfile\(\)/),
-    '⚠️ `hhRango`/`hhDoc` no llevan `data-i18n`: los escribe sólo `paintProfile`. Un operario de planta se quedaba con «Piloto» toda la sesión');
+  /* P183 · antes buscaba `paintProfile()` en `aplicarIdioma`. Ahora se cambia el idioma con
+     `paintProfile` espiado: tiene que repintarse, porque `hhRango`/`hhDoc` no llevan `data-i18n` y
+     los escribe sólo esa función. Un operario de planta se quedaba con «Piloto» toda la sesión. */
+  const oPaint = window.paintProfile, idioma = (typeof idiomaActual === 'function') ? idiomaActual() : 'es';
+  let pintadas = 0;
+  try {
+    window.paintProfile = () => { pintadas++; };
+    aplicarIdioma(idioma);
+    PRUEBAS.alMenos(pintadas, 1, '⚠️ cambiar de idioma repinta la insignia del encabezado');
+  } finally { window.paintProfile = oPaint; try { aplicarIdioma(idioma); } catch(e){} }
 });
 
 PRUEBAS.caso('⚠️ el ↺ pasa por `t()` y los textos nuevos están en los dos idiomas (R14, R1)', () => {
@@ -494,9 +650,28 @@ PRUEBAS.caso('⚠️ la fila de `Operacional` lleva fecha y hora del MISMO huso 
 });
 
 PRUEBAS.caso('⚠️ «Ver todo el historial» no dice «sin conexión» cuando hay conexión', () => {
-  PRUEBAS.cierto(p174bDentro('cicloMiHistorialTodo', /offHayConexion\(\)[\s\S]{0,120}setTimeout/),
-    '⚠️ `misSincronizar` devuelve false TAMBIÉN con una sincronización ya en vuelo —la del arranque— ' +
-    'y eso no es un fallo de red: con conexión se reintenta en vez de mentir');
-  PRUEBAS.cierto(p174bDentro('cicloMiHistorialTodo', /sin_conexion_reintenta/),
-    'EL DISCRIMINADOR · y sin conexión de verdad, el aviso sigue');
+  /* P183 · antes buscaba `offHayConexion() … setTimeout` y `sin_conexion_reintenta` en la función.
+     Ahora se toca «Ver todo el historial» con `misSincronizar` devolviendo false (la sincronización
+     del arranque en vuelo) y la conexión ENCENDIDA: no hay toast, se reintenta. Con la conexión
+     apagada de verdad, el aviso sigue. */
+  const oSinc = window.misSincronizar, oOff = window.offHayConexion, oToast = window.showToast, oTimeout = window.setTimeout;
+  const toasts = []; let reintentos = 0, sincs = 0;
+  window.showToast = m => { toasts.push(String(m)); };
+  window.misSincronizar = () => { sincs++; return Promise.resolve(false); };
+  window.setTimeout = function (fn, ms) { if (ms === 1200) { reintentos++; return 0; } return oTimeout.apply(window, arguments); };
+  window.offHayConexion = () => true;
+  const p = cicloMiHistorialTodo(null);
+  return new Promise(res => oTimeout(res, 30)).then(() => {
+    PRUEBAS.igual(sincs, 1, 'guarda: pidió sincronizar');
+    PRUEBAS.igual(toasts.filter(x => x === t('sin_conexion_reintenta') || x === t('sin_conexion')).length, 0, '⚠️ con conexión y la sincronización en vuelo NO dice «sin conexión»');
+    PRUEBAS.igual(reintentos, 1, 'y programa el reintento (1,2 s)');
+    window.offHayConexion = () => false;
+    cicloMiHistorialTodo(null);
+    return new Promise(res => oTimeout(res, 30));
+  }).then(() => {
+    PRUEBAS.cierto(toasts.some(x => x === t('sin_conexion')), 'DISCRIMINADOR · sin conexión de verdad, el aviso sigue');
+  }).finally(() => {
+    window.misSincronizar = oSinc; window.offHayConexion = oOff; window.showToast = oToast; window.setTimeout = oTimeout;
+    try { _cicloHistDias = 0; } catch(e){}
+  });
 });
