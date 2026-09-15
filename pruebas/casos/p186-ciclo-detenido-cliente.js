@@ -240,3 +240,36 @@ PRUEBAS.caso('🔴 en un ciclo detenido NADA corre: ni la tarjeta del supervisor
     PRUEBAS.igual(exc, 0, 'nada en rojo');
   } finally { DASH = prevDash; }
 });
+
+PRUEBAS.caso('🔴 la tarjeta del supervisor de un ciclo detenido NO muestra el total del ciclo (y la de uno en curso sí)', () => {
+  /* En producción, los dos primeros detenidos reales tenían un solo evento y el resumen decía
+     «Traslado: Se detuvo a las 24 h sin el paso siguiente · ciclo 0 min». Era lo registrado de
+     verdad (ADR 008: `transcurrido` llega hasta el ancla), pero se leía como un error. Franco
+     eligió sacarlo. Se mide el texto que ve el supervisor, entrando por `onDashData`, con dos
+     personas en el mismo pedido: una detenida y una en curso, que es el discriminador. */
+  const prevDash = DASH;
+  try {
+    const base = { empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' };
+    onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: [],
+      registros: [{ persona: 'Olvido Solo', fecha: todayStr(), ...base }, { persona: 'En Curso', fecha: todayStr(), ...base }],
+      comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [],
+      operacional: [
+        { persona: 'Olvido Solo', evento: 'salida_casa', iso: p186cHace(30), fecha: p186cHace(30).substring(0, 10), test: '', resultado: '', plan: '', ...base },
+        { persona: 'En Curso', evento: 'salida_casa', iso: p186cHace(0.5), fecha: p186cHace(0.5).substring(0, 10), test: '', resultado: '', plan: '', ...base }
+      ],
+      operacionalPeriodo: { dias: 7 }
+    }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'p186' }, 'supervisor');
+    const cont = document.createElement('div'); cont.innerHTML = renderCicloOperativo();
+    const det = cont.querySelector('.cic-card.cic-est-detenido');
+    const curso = [...cont.querySelectorAll('.cic-card')].find(c => !c.classList.contains('cic-est-detenido') && !c.classList.contains('cic-est-inactivo'));
+    PRUEBAS.cierto(!!det && !!curso, 'guarda: hay una tarjeta detenida y una en curso');
+    const rDet = det && det.querySelector('.cic-reloj'), rCur = curso && curso.querySelector('.cic-reloj');
+    PRUEBAS.cierto(!!rDet && !!rCur, 'guarda: las dos tienen su línea de resumen');
+    const lbl = t('cic_ciclo_lbl');
+    PRUEBAS.cierto(rDet && /Se detuvo a las 24 h sin el paso siguiente/.test(rDet.textContent), 'la detenida dice que se detuvo');
+    PRUEBAS.falso(rDet && new RegExp('\\b' + lbl + '\\b').test(rDet.textContent), '⚠️ y NO lleva «' + lbl + ' …»: un total que no se sabe no se muestra');
+    PRUEBAS.falso(rDet && /0 min/.test(rDet.textContent), 'ni «0 min» en ningún lado del resumen');
+    PRUEBAS.cierto(rCur && new RegExp('\\b' + lbl + '\\b').test(rCur.textContent), 'DISCRIMINADOR · la que está en curso sí lleva «' + lbl + ' …» con su reloj');
+    PRUEBAS.cierto(rCur && rCur.querySelectorAll('[data-cic-from]').length === 2, 'y sus dos relojes vivos siguen ahí');
+  } finally { DASH = prevDash; }
+});
