@@ -127,22 +127,45 @@ PRUEBAS.caso('⚠️ el inicio NO dispara pedidos al servidor cada minuto', asyn
      lo necesita: sus eventos son locales. Si el reloj compartido arrastrara ese pedido, un teléfono
      con el inicio abierto un turno entero serían ~480 pedidos contra la cuota del endpoint.
      Se comprueba sobre el código porque esperar 60 s en una prueba no es opción. */
-  const fuente = cicloTick.toString();
-  PRUEBAS.cierto(/if \(sec && DASH && !DASH\.demoMode/.test(fuente),
-    'el pedido de cada minuto tiene que estar condicionado a que exista la sección del PANEL');
-  /* ⚠️ ANTES ESTO EXIGÍA LA LÍNEA LETRA POR LETRA (`if (sec && DASH && ahora - ...`) y se puso roja
-     cuando T1 le agregó una condición más —que no repinte mientras alguien escribe en el buscador—.
-     O sea: falló por una MEJORA, el síntoma clásico de una prueba atada a cómo está escrito algo.
-     Lo que importa es que el repintado dependa de que exista la sección del PANEL, no la forma
-     exacta de la condición. */
-  PRUEBAS.cierto(/_cicloUltimoRender > 60000/.test(fuente) && /\bsec &&/.test(fuente),
-    'y el repintado de cada minuto también: el inicio se repinta por su cuenta');
+  /* P183 · antes leía `cicloTick.toString()` (y ya se había puesto roja una vez por una mejora).
+     Ahora se hace latir el reloj con el bloque del INICIO en pantalla y sin panel, con el pedido y
+     el repintado espiados y el «último» envejecido a más de un minuto: no puede salir nada. Con la
+     sección del panel presente, sí. */
+  const oRefresh = window.dashRefresh, oRepintar = window.cicloRepintar, prevDash = DASH, prevPull = _cicloUltimoPull, prevRender = _cicloUltimoRender;
+  let pedidos = 0, repintes = 0;
+  const raiz = document.createElement('div'); raiz.innerHTML = '<div class="cic-mio"></div>'; document.body.appendChild(raiz);
+  try {
+    window.dashRefresh = () => { pedidos++; }; window.cicloRepintar = () => { repintes++; };
+    DASH = null; _cicloUltimoPull = 0; _cicloUltimoRender = 0;
+    PRUEBAS.cierto(!document.getElementById('dsec-ciclo') && !!document.querySelector('.cic-mio'), 'guarda: hay bloque de inicio y no hay sección del panel');
+    cicloTick();
+    PRUEBAS.igual(pedidos, 0, '⚠️ el inicio NO dispara pedidos al servidor cada minuto: sus eventos son locales (un turno entero serían ~480 pedidos)');
+    PRUEBAS.igual(repintes, 0, 'y tampoco repinta el panel: el inicio se repinta por su cuenta');
+    /* discriminador: con la sección del panel, pide y repinta */
+    const sec = document.createElement('div'); sec.id = 'dsec-ciclo'; raiz.appendChild(sec);
+    DASH = { vista: 'supervisor', demoMode: false };
+    _cicloUltimoPull = 0; _cicloUltimoRender = 0;
+    cicloTick();
+    PRUEBAS.igual(pedidos, 1, 'DISCRIMINADOR · con la sección del panel en pantalla, pide');
+    PRUEBAS.igual(repintes, 1, 'y repinta');
+  } finally { window.dashRefresh = oRefresh; window.cicloRepintar = oRepintar; DASH = prevDash; _cicloUltimoPull = prevPull; _cicloUltimoRender = prevRender; raiz.remove(); }
 });
 
 PRUEBAS.caso('el reloj se apaga solo cuando no queda nada vivo', () => {
   /* Antes esto dependía de que alguien llamara a `cicloTickStop()` desde el lugar correcto; ahora el
      propio tick se apaga si no hay ni panel ni bloque de inicio en pantalla. */
-  const fuente = cicloTick.toString();
-  PRUEBAS.cierto(/if \(!sec && !mio\)\{ cicloTickStop\(\); return; \}/.test(fuente),
-    'sin nada que actualizar, el intervalo tiene que apagarse solo y no quedar corriendo');
+  /* P183 · antes leía la línea exacta en `cicloTick.toString()`. Ahora se arranca el reloj, se
+     quita todo lo que actualiza (ni panel ni bloque de inicio) y se lo hace latir: tiene que
+     apagarse solo. */
+  const prevDash = DASH;
+  const escondidos = [...document.querySelectorAll('#dsec-ciclo, .cic-mio')];
+  const marcas = escondidos.map(el => { const p = el.parentNode, s = el.nextSibling; el.remove(); return { el, p, s }; });
+  try {
+    DASH = null;
+    cicloTickStart();
+    PRUEBAS.cierto(!!_cicloTimer, 'guarda: el reloj arrancó');
+    PRUEBAS.cierto(!document.getElementById('dsec-ciclo') && !document.querySelector('.cic-mio'), 'guarda: no queda nada que actualizar');
+    cicloTick();
+    PRUEBAS.igual(_cicloTimer, null, 'sin nada que actualizar, el intervalo se apaga solo y no queda corriendo');
+  } finally { cicloTickStop(); DASH = prevDash; marcas.forEach(m => { try { m.p.insertBefore(m.el, m.s); } catch(e){} }); }
 });

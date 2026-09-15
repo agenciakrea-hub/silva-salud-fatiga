@@ -110,6 +110,16 @@ PRUEBAS.caso('el arranque no repinta el inicio de más', () => {
   /* `tareasCargar()` ya llama a `renderInicio()` al terminar; `tareasArranque()` lo volvía a
      llamar en su `.then()`. Dos repintados completos a 1 ms de distancia. Se comprueba sobre el
      código para que nadie vuelva a agregar el segundo. */
-  PRUEBAS.falso(/tareasCargar\(\)\s*\.then\([^)]*renderInicio/.test(tareasArranque.toString()),
-    'el arranque no puede repintar además de lo que ya repinta tareasCargar()');
+  /* P183 · antes leía `tareasArranque.toString()`. Ahora se corre el arranque con `tareasCargar`
+     y `misSincronizar` reemplazados por promesas ya resueltas (que NO repintan) y `renderInicio`
+     espiado: el arranque por sí mismo no puede repintar; el repintado es responsabilidad de
+     `tareasCargar` cuando llega la respuesta. */
+  const oCargar = window.tareasCargar, oSinc = window.misSincronizar, oRender = window.renderInicio;
+  let repintes = 0;
+  window.tareasCargar = () => Promise.resolve(); window.misSincronizar = () => Promise.resolve(false);
+  window.renderInicio = () => { repintes++; };
+  tareasArranque();
+  return new Promise(res => setTimeout(res, 30)).then(() => {
+    PRUEBAS.igual(repintes, 0, 'el arranque no repinta además de lo que ya repinta tareasCargar() · medido: dos repintados completos a 1 ms de distancia');
+  }).finally(() => { window.tareasCargar = oCargar; window.misSincronizar = oSinc; window.renderInicio = oRender; });
 });

@@ -138,8 +138,25 @@ PRUEBAS.caso('⚠️ el reloj no repinta la sección mientras alguien está escr
   /* El tic repinta cada 60 s. Sin esta guarda, a la persona se le borraría lo tipeado en medio de
      una palabra, sin ninguna causa visible. Se comprueba sobre el código: esperar 60 s en una
      prueba no es opción, y acá el foco real no se puede simular (ver LEEME). */
-  PRUEBAS.cierto(/cicBuscar/.test(cicloTick.toString()),
-    'el tic tiene que mirar si el buscador tiene el foco antes de repintar');
+  /* P183 · antes leía `cicloTick.toString()`. Ahora se pone el foco en el buscador de la sección
+     del panel (`document.activeElement` sí cambia con la pestaña oculta; lo que no engancha es el
+     pseudo-selector `:focus`, ver LEEME) y se hace latir el reloj con el repintado espiado. */
+  const oRepintar = window.cicloRepintar, oRefresh = window.dashRefresh, prevDash = DASH, prevRender = _cicloUltimoRender, prevPull = _cicloUltimoPull;
+  let repintes = 0;
+  const raiz = document.createElement('div'); raiz.innerHTML = '<div id="dsec-ciclo"><input id="cicBuscar" type="text"></div>'; document.body.appendChild(raiz);
+  try {
+    window.cicloRepintar = () => { repintes++; }; window.dashRefresh = () => {};
+    DASH = { vista: 'supervisor', demoMode: false };
+    const inp = document.getElementById('cicBuscar'); inp.focus();
+    if (document.activeElement !== inp) { PRUEBAS.cierto(true, 'este navegador no deja enfocar con la pestaña oculta: se saltea'); return; }
+    _cicloUltimoRender = 0; _cicloUltimoPull = Date.now();
+    cicloTick();
+    PRUEBAS.igual(repintes, 0, '⚠️ mientras alguien escribe en el buscador, el reloj NO repinta la sección (le borraría lo tipeado)');
+    inp.blur();
+    _cicloUltimoRender = 0;
+    cicloTick();
+    PRUEBAS.igual(repintes, 1, 'DISCRIMINADOR · al soltar el foco, vuelve a repintar');
+  } finally { window.cicloRepintar = oRepintar; window.dashRefresh = oRefresh; DASH = prevDash; _cicloUltimoRender = prevRender; _cicloUltimoPull = prevPull; raiz.remove(); }
 });
 
 PRUEBAS.caso('con una sola persona no se dibuja buscador ni corte', () => {

@@ -98,12 +98,26 @@ PRUEBAS.caso('⚠️ una fila VIEJA sin la columna vuelve con `creada` nula, no 
 PRUEBAS.caso('🔴 el cliente usa el instante primero, y el cálculo viejo sólo de respaldo', () => {
   /* La otra punta del contrato. Se mide sobre el fuente porque lo que se vigila es cuál de los dos
      caminos se toma — y `cicloTurnoDe` necesita un panel armado para ejecutarse. */
-  const fuente = cicloTurnoDe.toString().replace(/\/\*[\s\S]*?\*\//g, ' ');
-  PRUEBAS.cierto(/r\.creada\s*\|\|/.test(fuente),
-    '⚠️ `r.creada ||` va primero · antes reconstruía con fecha + hora y mezclaba tres relojes');
-  /* Y que sigue siendo el MISMO orden que usa el teléfono: si los dos se separan otra vez, vuelve
-     el defecto por el que la persona y su supervisor veían cosas distintas. */
-  const enTelefono = turnosHoy.toString().replace(/\/\*[\s\S]*?\*\//g, ' ');
-  PRUEBAS.cierto(/r\.creada\s*\|\|/.test(enTelefono),
-    '🔒 y el teléfono hace lo mismo · las dos mitades de la decisión, con la misma regla');
+  /* P183 · antes leía las dos funciones con `.toString()`. Ahora se arma un check-in de AYER cuya
+     `fecha + hora` reconstruida cae fuera de la ventana de 14 h pero cuyo instante real (`creada`)
+     cae adentro: los dos lados tienen que mostrarlo (usan el instante primero). Y al revés, uno
+     con `creada` vieja y fecha+hora recientes NO se muestra. */
+  const prevDash = DASH, prevLS = Object.assign({}, localStorage);
+  try {
+    const ayer = fechaMasDias(todayStr(), -1), ahora = Date.now();
+    const creadaAdentro = ahora - 2 * 3600000, creadaAfuera = ahora - 20 * 3600000;
+    const fila = (creada, hora) => ({ persona: 'Ana Prueba', tipo: 'checkin', fecha: ayer, hora: hora, creada: creada });
+    /* panel */
+    DASH = { turnos: [fila(creadaAdentro, '00:01')] };
+    PRUEBAS.cierto(!!cicloTurnoDe('Ana Prueba').checkin, '🔴 el panel usa `creada` (hace 2 h) aunque fecha+hora diga ayer a las 00:01: no mezcla tres relojes');
+    DASH = { turnos: [fila(creadaAfuera, '23:59')] };
+    PRUEBAS.falso(!!cicloTurnoDe('Ana Prueba').checkin, 'DISCRIMINADOR · con `creada` de hace 20 h no se muestra aunque fecha+hora diga ayer a las 23:59');
+    /* teléfono: la misma regla */
+    CTX.resetear({ nombre: 'Ana Prueba' });
+    const guardar = (creada, hora) => localStorage.setItem(K_TURNOS, JSON.stringify({ ['turno_' + dashNorm('Ana Prueba') + '_' + ayer + '_checkin']: fila(creada, hora) }));
+    guardar(creadaAdentro, '00:01');
+    PRUEBAS.cierto(!!turnosHoy('Ana Prueba').checkin, '🔒 y el teléfono hace lo mismo: `creada` primero');
+    guardar(creadaAfuera, '23:59');
+    PRUEBAS.falso(!!turnosHoy('Ana Prueba').checkin, 'con la misma regla en la otra dirección · las dos mitades de la decisión');
+  } finally { DASH = prevDash; try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
 });

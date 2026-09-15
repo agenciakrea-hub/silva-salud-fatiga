@@ -95,7 +95,19 @@ PRUEBAS.caso('🔴 y con esa cédula, la ausencia LLEGA a la hoja', async () => 
 PRUEBAS.caso('⚠️ el cliente dibuja el botón cuando la fila trae cédula, y no cuando no', () => {
   /* Se mide la condición REAL del cliente sobre las dos formas de fila, para que el día que alguien
      cambie `x.cedula` por otro campo esto se ponga rojo aunque el servidor siga mandando bien. */
-  const fuente = nominaListFiltrar.toString();
-  PRUEBAS.cierto(/x\.cedula/.test(fuente) || /\.cedula/.test(fuente),
-    '⚠️ el dibujo del botón sigue dependiendo de `cedula` · si cambia el nombre del campo, el contrato se rompe');
+  /* P183 · antes leía `nominaListFiltrar.toString()`. Ahora se pinta la lista con dos filas —una
+     con cédula y una sin— y se cuentan los botones de ausencia. */
+  const prevDash = DASH, prevDatos = NOMLIST.datos, prevTot = NOMLIST.total, prevReg = NOMLIST.registrados;
+  const body = document.getElementById('nomListBody');
+  try {
+    DASH = { vista: 'supervisor', params: { usuario: 'helitec', empresa: 'Helitec', pass: 'x' }, f: { emp: 'Helitec' }, ausencias: {} };
+    NOMLIST.datos = [{ persona: 'Con Cedula', cedula: 'V-1', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', registrado: true },
+                     { persona: 'Sin Cedula', cedula: '', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', registrado: false }];
+    NOMLIST.total = 2; NOMLIST.registrados = 1;
+    (document.getElementById('nomListSearch') || {}).value = '';
+    nominaListFiltrar();
+    const botones = [...body.querySelectorAll('[onclick*="ausTocar"]')];
+    PRUEBAS.igual(botones.length, 1, '⚠️ el botón de ausencia se dibuja para la fila CON cédula y no para la otra');
+    PRUEBAS.igual(botones[0] && botones[0].getAttribute('data-per'), 'Con Cedula', 'y es el de la persona con cédula');
+  } finally { DASH = prevDash; NOMLIST.datos = prevDatos; NOMLIST.total = prevTot; NOMLIST.registrados = prevReg; if (body) body.innerHTML = ''; }
 });

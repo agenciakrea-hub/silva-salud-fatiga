@@ -99,17 +99,27 @@ PRUEBAS.caso('🔴 EL CLIENTE NO PUEDE REORDENAR, NUMERAR NI MARCAR «NUEVAS»',
      las tres cosas parecen mejoras de presentación y las tres reconstruyen la marca de tiempo que
      el barajado del servidor destruye. La bandeja de REPORTES sí marca las nuevas, y está bien
      ahí — los reportes llevan nombre. Acá no. */
-  const js = [...document.querySelectorAll('script')].map(s => s.textContent).join('');
-  const i = js.indexOf('function renderOpiniones');
-  const cuerpo = i >= 0 ? js.slice(i, js.indexOf('\n}', i) + 2) : '';
-  PRUEBAS.cierto(cuerpo.length > 0, 'tiene que encontrarse la función');
-  PRUEBAS.falso(/\.sort\s*\(/.test(cuerpo),
-    '🔴 ningún `sort()`: el servidor baraja en CADA pedido, y cualquier criterio estable vuelve a ' +
-    'fijar un orden entre dos cargas');
-  PRUEBAS.falso(/reverse\s*\(/.test(cuerpo), '🔴 ni `reverse()`, que es un orden igual de estable');
-  PRUEBAS.falso(/Vistos|vistos|nuevo|nuevas|Nuevo/.test(cuerpo),
-    '🔴 ni «nuevas desde tu última visita»: la diferencia entre dos cargas es una marca de tiempo ' +
-    'con la resolución de cada cuánto entra el supervisor');
+  /* P183 · antes leía el cuerpo de `renderOpiniones`. Ahora se pinta la bandeja con una lista en un
+     orden que no es alfabético ni cronológico ni el inverso de ninguno, y se mira la pantalla:
+     mismo orden que llegó, sin números y sin marcas de «nueva». */
+  const prevDash = DASH;
+  const cuerpo = (() => {
+    try {
+      const ops = [
+        { id: 'o3', texto: 'Mucho ruido en el hangar', mes: '2026-07' },
+        { id: 'o1', texto: 'Buen ambiente', mes: '2026-09' },
+        { id: 'o4', texto: 'Zapatos nuevos, gracias', mes: '2026-08' },
+        { id: 'o2', texto: 'Cambien las sillas', mes: '2026-09' },
+      ];
+      DASH = { vista: 'supervisor', demoMode: false, _opinionesPedidas: true, _opiniones: ops };
+      const cont = document.createElement('div'); cont.innerHTML = renderOpiniones();
+      const textos = [...cont.querySelectorAll('.opi-txt')].map(e => e.textContent);
+      PRUEBAS.igual(textos, ops.map(o => o.texto), '🔴 la pantalla muestra las opiniones EN EL ORDEN EN QUE LLEGARON: ni por texto, ni por mes, ni al revés · cualquier criterio estable vuelve a fijar un orden entre dos cargas');
+      const items = [...cont.querySelectorAll('.opi-item')];
+      PRUEBAS.falso(items.some(it => /^\s*\d+[.)·]/.test(it.textContent) || it.querySelector('[class*="num"], [class*="nuev"], [class*="vist"]')), '🔴 sin numerar y sin marcas de «nueva»');
+      return (cont.querySelector('.opi-lista') || cont).innerHTML;   // la lista, sin la guía ⓘ (que sí puede decir «nombre» para explicar que no lo hay)
+    } finally { DASH = prevDash; }
+  })();
   PRUEBAS.falso(/\bindex\b|\(o,\s*i\)|\[i\s*\+\s*1\]/.test(cuerpo),
     '🔴 ni numerarlas: «opinión #3» es una posición, y una posición es un reloj');
   PRUEBAS.falso(/departamento|cedula|persona|nombre/i.test(cuerpo),
