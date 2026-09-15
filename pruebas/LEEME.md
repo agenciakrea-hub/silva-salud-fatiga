@@ -195,6 +195,12 @@ Tres servidores, y los tres tienen que estar arriba:
 
 Después se abre `http://127.0.0.1:8928/pruebas/panel.html` y se toca "Correr las pruebas".
 
+**Para capturar lo que se ve en producción con datos reales**, no se abre el dominio publicado: desde
+`https` el navegador bloquea el envío de la captura al 8930 (contenido mixto) y no se guarda nada.
+Se abre la app LOCAL (`http://127.0.0.1:8928/index.html`), que habla con el mismo endpoint real, y
+ahí `capturar()` funciona. Es el mismo código si el árbol está en el commit publicado (mirar
+`APP_VERSION`). Al terminar, `localStorage.clear()` (R18). Hecho así para P186 el 2026-09-15.
+
 ⚠️ **Dos cosas que hacen fallar la corrida y no son culpa del código:**
 
 - **Recargar y medir en la misma llamada no funciona.** `location.reload()` corta la conexión de la
