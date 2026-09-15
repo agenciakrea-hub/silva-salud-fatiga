@@ -82,16 +82,30 @@ PRUEBAS.caso('⚠️ registrar fatiga NUNCA dependió de la cédula, y tiene que
      fuente del `.gs` porque son cuatro acciones distintas y lo que importa es que NINGUNA empiece a
      pedirla — es el error que sería fácil cometer "por consistencia" en el próximo cambio. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const malos = [];
-  ['accionReporteGuardar','accionOperacionalGuardar','accionTurnoGuardar','accionPvt'].forEach(fn => {
-    const i = CTX.gs.indexOf('function ' + fn + '(');
-    if (i < 0){ malos.push(fn + ': no existe'); return; }
-    const cuerpo = CTX.gs.slice(i, i + 1200);
-    if (/if\s*\(\s*!\s*(p\.)?ced/.test(cuerpo) || /falta_cedula/.test(cuerpo)) malos.push(fn + ': empezó a exigir cédula');
+  /* P183 · antes buscaba `falta_cedula` en el cuerpo de las cuatro. Ahora se llama a cada una SIN
+     cédula, con un padrón que SÍ la conoce (el caso en que una lectura la exige), y tiene que
+     escribir igual. El discriminador es la lectura: `empleado` con el mismo padrón y sin cédula
+     responde `falta_cedula`. */
+  const env = GS.crearEntorno({
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-111','Op','Piloto']],
+    'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez'], ['Ana Suárez','Helitec','V-111','Ana Suárez','nomina','5','2026-01-01','2026-09-01']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','','']],
   });
+  const api = GS.cargarGs(CTX.gs, env, ['accionReporteGuardar','accionOperacionalGuardar','accionTurnoGuardar','accionPvt','accionEmpleado']);
+  const base = { persona:'Ana Suárez', nombre:'Ana Suárez', empresa:'Helitec', departamento:'Op', dispositivoId:'d-a3' };
+  const respuestas = {
+    accionReporteGuardar:     JSON.parse(api.accionReporteGuardar(Object.assign({ id:'rep1', opcion:'cansado', creada:new Date().toISOString() }, base)).getContent()),
+    accionOperacionalGuardar: JSON.parse(api.accionOperacionalGuardar(Object.assign({ id:'op1', evento:'salida_casa', iso:new Date().toISOString(), fecha:'2026-09-15', hora:'08:00' }, base)).getContent()),
+    accionTurnoGuardar:       JSON.parse(api.accionTurnoGuardar(Object.assign({ id:'t1', tipo:'checkin', fecha:'2026-09-15', hora:'08:00' }, base)).getContent()),
+    accionPvt:                JSON.parse(api.accionPvt(Object.assign({ validas:'10', rt_prom:'300', rt_min:'250', rt_max:'400' }, base)).getContent()),
+  };
+  const malos = Object.keys(respuestas).filter(k => !respuestas[k].ok || respuestas[k].motivo === 'falta_cedula').map(k => k + ' → ' + JSON.stringify(respuestas[k]).slice(0, 80));
   PRUEBAS.igual(malos, [],
     '⚠️ ninguna acción de registro puede exigir cédula: es lo único que hoy mantiene a Helitec ' +
     'operando mientras el resto de la migración avanza — ' + malos.join(' | '));
+  const lectura = JSON.parse(api.accionEmpleado({ empresa:'Helitec', persona:'Ana Suárez', dispositivoId:'d-a3' }).getContent());
+  PRUEBAS.igual(lectura.motivo, 'falta_cedula', 'DISCRIMINADOR · la LECTURA con el mismo padrón y sin cédula sí la exige');
 });
 
 PRUEBAS.grupo('A3 · el fallo no puede ser mudo');

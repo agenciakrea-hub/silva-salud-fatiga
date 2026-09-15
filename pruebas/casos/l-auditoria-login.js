@@ -60,15 +60,19 @@ PRUEBAS.caso('🔴 el «sólo POST» no se saltea con un parámetro en la URL', 
   /* `_post` era un campo más del objeto de parámetros: `?_post=1` en la query saltaba la guarda
      entera. Una guarda que el cliente puede escribir no es una guarda. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const dg = (gs.match(/function doGet\(e\)[\s\S]{0,500}/) || [''])[0];
-  PRUEBAS.alMenos(dg.length, 60, 'guarda de medibilidad: se encontró doGet');
-  PRUEBAS.cierto(/delete _q\._post/.test(dg),
-    '⚠️ `doGet` borra `_post` de lo que llega en la query');
-  const dp = (gs.match(/function doPost\(e\)[\s\S]{0,700}/) || [''])[0];
-  const iFusion = dp.indexOf('body[k2]'), iPost = dp.indexOf('p._post = true');
-  PRUEBAS.cierto(iFusion >= 0 && iPost > iFusion,
-    '⚠️ y `doPost` lo asigna DESPUÉS de fusionar · si no, el cliente lo pisaría');
+  /* P183 · antes buscaba `delete _q._post` en `doGet` y el orden de dos líneas en `doPost`. Ahora
+     se entra por las DOS puertas reales con `codigo_empresa`, que es sólo-POST, y se mira la
+     respuesta: por GET con `?_post=1` tiene que rebotar; por POST, aunque el cuerpo diga
+     `_post:false`, tiene que entrar. */
+  const api = GS.cargarGs(CTX.gs, lAudEnv(L_SIETE, [['Consorcio HELITEC','codigoRegistro','ABC123']]), ['doGet', 'doPost']);
+  const get = JSON.parse(api.doGet({ parameter: { action:'codigo_empresa', codigo:'ABC123', _post:'1', dispositivoId:'d-get' } }).getContent());
+  PRUEBAS.falso(!!get.ok, '⚠️ por GET con `?_post=1` NO entra: la guarda no la escribe el cliente (' + (get.error || get.motivo || 'ok') + ')');
+  PRUEBAS.falso(!!get.empresa, 'y no devuelve la empresa');
+  const post = JSON.parse(api.doPost({ parameter: {}, postData: { contents: JSON.stringify({ action:'codigo_empresa', codigo:'ABC123', dispositivoId:'d-post' }) } }).getContent());
+  PRUEBAS.cierto(!!post.ok, 'DISCRIMINADOR · por POST el mismo código entra (' + (post.error || post.motivo || 'ok') + ')');
+  PRUEBAS.igual(post.empresa, 'Consorcio HELITEC', 'y devuelve la empresa canónica');
+  const postFalso = JSON.parse(api.doPost({ parameter: { _post: '0' }, postData: { contents: JSON.stringify({ action:'codigo_empresa', codigo:'ABC123', dispositivoId:'d-post2', _post: false }) } }).getContent());
+  PRUEBAS.cierto(!!postFalso.ok, '⚠️ y un POST cuyo cuerpo diga `_post:false` entra igual: el servidor lo fija DESPUÉS de fusionar');
 });
 
 PRUEBAS.caso('🔴 con el alta cerrada, un código válido no se distingue por el contador', () => {
@@ -76,12 +80,30 @@ PRUEBAS.caso('🔴 con el alta cerrada, un código válido no se distingue por e
      fallo, así que mandándolo siete veces se sabía si era válido —si al séptimo salía
      `codigo_frenado` era falso; si seguía `codigo_invalido`, era VÁLIDO—. Siete POST. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const fn = (gs.match(/function accionCodigoEmpresa[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 300, 'guarda: se encontró la acción');
-  const ramas = (fn.match(/codAnotarFallo/g) || []).length;
-  PRUEBAS.alMenos(ramas, 3,
-    '⚠️ todas las ramas de rechazo anotan el fallo · ' + ramas + ' encontradas (inválido, ambiguo, cerrado)');
+  /* P183 · antes contaba cuántas veces aparecía `codAnotarFallo` en el cuerpo. Ahora se hace lo
+     que haría el atacante: mandar el mismo código muchas veces y mirar EN QUÉ INTENTO frena. Un
+     código válido con el alta cerrada, uno inválido y uno ambiguo tienen que frenar en el MISMO
+     intento; si uno frenara más tarde, el contador lo delataría. */
+  const api = GS.cargarGs(CTX.gs, lAudEnv(L_SIETE, [
+    ['Consorcio HELITEC', 'codigoRegistro', 'ABC123'], ['Consorcio HELITEC', 'altaAbierta', '0'],   // válido pero cerrado
+    ['Empresa Uno', 'codigoRegistro', 'DOBLE'], ['Empresa Dos', 'codigoRegistro', 'DOBLE'],          // ambiguo
+  ]), ['accionCodigoEmpresa']);
+  const intentoQueFrena = (codigo, disp) => {
+    for (let i = 1; i <= 15; i++) {
+      const r = JSON.parse(api.accionCodigoEmpresa({ _post: true, codigo: codigo, dispositivoId: disp }).getContent());
+      if (r.ok) return 'ENTRÓ';
+      if (r.motivo === 'codigo_frenado') return i;
+    }
+    return 'nunca';
+  };
+  const cerrado = intentoQueFrena('ABC123', 'd-cerrado'), invalido = intentoQueFrena('NOEXISTE', 'd-invalido'), ambiguo = intentoQueFrena('DOBLE', 'd-ambiguo');
+  PRUEBAS.cierto(typeof invalido === 'number', 'guarda: el inválido frena en algún intento (' + invalido + ')');
+  PRUEBAS.igual(cerrado, invalido, '⚠️ el código VÁLIDO con el alta cerrada frena en el MISMO intento que uno inválido: el contador no lo delata');
+  PRUEBAS.igual(ambiguo, invalido, 'y el ambiguo también');
+  /* y el mismo código, con el alta abierta, entra: es la ventana la que cierra, no el código */
+  const api2 = GS.cargarGs(CTX.gs, lAudEnv(L_SIETE, [['Consorcio HELITEC', 'codigoRegistro', 'ABC123']]), ['accionCodigoEmpresa']);
+  const abierto = JSON.parse(api2.accionCodigoEmpresa({ _post: true, codigo: 'ABC123', dispositivoId: 'd-abierto' }).getContent());
+  PRUEBAS.cierto(!!abierto.ok, 'DISCRIMINADOR · con el alta abierta el mismo código entra (' + (abierto.motivo || abierto.error || 'ok') + ')');
 });
 
 PRUEBAS.caso('🔴 el freno del código lee el contador POR EMPRESA, no sólo el del dispositivo', () => {
@@ -133,15 +155,33 @@ PRUEBAS.caso('⚠️ un «Volver» no devuelve la lista de nombres de la nómina
      lista» con el padrón completo a la vista, porque el origen se INFERÍA de que `NOM.empresa`
      tuviera valor y `nominaResolverCodigo` también la setea. Y esa sesión ya no volvía nunca al
      flujo nuevo. */
-  const src = String(nominaCodigoConfirmar);
-  PRUEBAS.cierto(/NOM\.empresaPorLista/.test(src),
-    '⚠️ el origen se marca con un flag, no se adivina de que la empresa tenga valor');
-  PRUEBAS.falso(/if \(NOM\.empresa\) \{ nominaCargarPersonas/.test(src),
-    '⚠️ y ya no se infiere · esa premisa era falsa porque resolver el código también la setea');
-  PRUEBAS.cierto(/empresaPorLista = true/.test(String(nominaElegirEmpresa)),
-    'se pone SÓLO al elegir de la lista');
-  PRUEBAS.cierto(/empresaPorLista = false/.test(String(nominaResolverCodigo)),
-    'y se limpia al resolver por código');
+  /* P183 · antes leía `String(nominaCodigoConfirmar)` y dos funciones más. Ahora se recorre el
+     camino: la empresa ya está puesta (como la deja resolver por código) y se toca «Continuar»
+     con las dos salidas espiadas; la lista de nombres no puede pedirse. */
+  const oCargar = window.nominaCargarPersonas, oResolver = window.nominaResolverCodigo;
+  let cargas = 0, resueltas = 0;
+  window.nominaCargarPersonas = () => { cargas++; };
+  window.nominaResolverCodigo = () => { resueltas++; };
+  const prev = { empresa: NOM.empresa, porLista: NOM.empresaPorLista, codigo: NOM.codigo, personas: NOM.personas.slice() };
+  const prevCod = nominaEl('nomCodigo').value;
+  try {
+    nominaEl('nomCodigo').value = 'ABC123';
+    NOM.empresa = 'Consorcio HELITEC'; NOM.empresaPorLista = false;   // la premisa falsa: empresa puesta, pero vino por código
+    nominaCodigoConfirmar();
+    PRUEBAS.igual(cargas, 0, '⚠️ con la empresa puesta por CÓDIGO, «Continuar» no pide la lista de nombres');
+    PRUEBAS.igual(resueltas, 1, 'vuelve a resolver el código, que es el flujo nuevo');
+    NOM.empresaPorLista = true;                                          // eligió de la lista (camino viejo)
+    nominaCodigoConfirmar();
+    PRUEBAS.igual(cargas, 1, 'DISCRIMINADOR · si la eligió de la lista, sí carga las personas');
+    /* y los dos caminos marcan el origen: elegir de la lista lo enciende (sin pedir código, la lista se carga y el flag queda) */
+    NOM.empresaPorLista = false; NOM.perfiles = {};
+    nominaElegirEmpresa('Consorcio HELITEC');
+    PRUEBAS.cierto(NOM.empresaPorLista === true, 'elegir de la lista marca el origen');
+  } finally {
+    window.nominaCargarPersonas = oCargar; window.nominaResolverCodigo = oResolver;
+    NOM.empresa = prev.empresa; NOM.empresaPorLista = prev.porLista; NOM.codigo = prev.codigo; NOM.personas = prev.personas;
+    nominaEl('nomCodigo').value = prevCod; nominaEl('nomPersonas').innerHTML = '';
+  }
 });
 
 PRUEBAS.caso('🔴 el código de supervisor VIAJA · P099 estaba muerto en el flujo nuevo', () => {

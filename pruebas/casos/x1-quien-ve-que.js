@@ -77,14 +77,28 @@ PRUEBAS.caso('⚠️ los comentarios NO se le mandan al supervisor', () => {
      Es la promesa más fuerte de todas —texto libre que la persona escribe— y por eso se comprueba
      sobre el código del endpoint, no sobre una respuesta armada. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const i = CTX.gs.indexOf('comentarios = (acc.vista === "medico")');
-  PRUEBAS.alMenos(i, 0,
-    '⚠️ tiene que existir el recorte de comentarios por vista — si esta línea cambió de forma, ' +
-    'HAY QUE LEERLA de nuevo antes de dar el caso por bueno');
-  if (i < 0) return;
-  const bloque = CTX.gs.slice(i, i + 220);
-  PRUEBAS.cierto(/:\s*\[\]/.test(bloque),
-    '⚠️ para cualquier vista que no sea la médica tiene que quedar el arreglo VACÍO — ' + bloque.slice(0,120));
+  /* P183 · antes buscaba la línea `comentarios = (acc.vista === "medico")` en la fuente. Ahora se
+     siembra un comentario de texto libre en el formulario (columnas fijas: persona 2, empresa 73,
+     fecha 74, KSS 87, comentario de fatiga 86) y se pide el panel con las DOS contraseñas: al
+     supervisor le llega `comentarios: []`; al servicio médico, el texto. */
+  const fila = (persona, empresa, fecha, comentario) => { const f = new Array(90).fill(''); f[0] = fecha; f[1] = persona; f[2] = 'Op'; f[72] = empresa; f[73] = fecha; f[85] = comentario; f[86] = '7'; return f; };
+  const cab = new Array(90).fill('');
+  const env = GS.crearEntorno({
+    'Respuestas de formulario 1': [cab, cab, fila('Ana Suárez', 'Helitec', '2026-09-04', 'Anoche no dormí por un problema en casa')],
+    'Niveles de riesgo': [['Empresa','Departamento','Cargo','Persona','Nivel']],
+    'Config Empresa':    [['Empresa','Clave','Valor']],
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','clave-med','']],
+    'Nómina': [['Empresa','Nombre','Cedula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
+  const pedir = (pass) => JSON.parse(api.accionSupervisor({ usuario:'Helitec', empresa:'Helitec', pass: pass, dispositivoId:'d' }).getContent());
+  const sup = pedir('clave-sup'), med = pedir('clave-med');
+  PRUEBAS.cierto(!!sup.ok && sup.vista === 'supervisor', 'guarda: el supervisor entra (' + (sup.error || sup.vista) + ')');
+  PRUEBAS.cierto(!!med.ok && med.vista === 'medico', 'guarda: el servicio médico entra (' + (med.error || med.vista) + ')');
+  PRUEBAS.igual((med.comentarios || []).length, 1, 'DISCRIMINADOR · al servicio médico le llega el comentario');
+  PRUEBAS.cierto(/no dormí/.test(JSON.stringify(med.comentarios)), 'con el texto');
+  PRUEBAS.igual(sup.comentarios, [], '⚠️ al supervisor le llega el arreglo VACÍO: el servidor ni se los envía');
+  PRUEBAS.cierto(JSON.stringify(sup).indexOf('no dormí') < 0, 'y el texto no viaja en ninguna otra parte de su respuesta');
 });
 
 PRUEBAS.caso('⚠️ HSEQ no recibe nombres: P1, P2, P3…', () => {

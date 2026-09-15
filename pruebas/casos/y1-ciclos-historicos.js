@@ -187,15 +187,33 @@ PRUEBAS.caso('⚠️ quién puede ver histórico lo decide el servidor, no la pa
      cliente no lo protege de nadie que abra las herramientas del navegador. El endpoint ignora el
      rango pedido por un supervisor y lo dice en `operacionalPeriodo.puedeVerHistorico`; el cliente
      sólo lee esa bandera para no ofrecer un control que no va a funcionar. */
-  const fuente = CTX.gs || '';
-  if (!fuente) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
-  PRUEBAS.cierto(/acc\.vista === "medico" \|\| acc\.vista === "hseq"/.test(fuente),
-    'el endpoint tiene que decidir por VISTA quién recibe más de 7 días');
-  PRUEBAS.cierto(/operacionalPeriodo/.test(fuente),
-    'y tiene que devolver el período servido, para que la pantalla no suponga que le dieron lo que pidió');
-  PRUEBAS.cierto(/function cicloPuedeHistorico/.test(
-    [...document.querySelectorAll('script')].map(s => s.textContent).join('')),
-    'y el cliente lo lee de ahí en vez de decidirlo por su cuenta');
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
+  /* P183 · antes buscaba `acc.vista === "medico" || …` y `operacionalPeriodo` en la fuente, y
+     `function cicloPuedeHistorico` en los scripts. Ahora se pide el panel con `opDias: 90` con las
+     dos contraseñas y se mira qué período SIRVIÓ el servidor; y el cliente se alimenta con ese
+     payload real por `onDashData` para ver qué decide `cicloPuedeHistorico()`. */
+  const env = GS.crearEntorno({
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','clave-med','']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
+  const pedir = (pass) => JSON.parse(api.accionSupervisor({ usuario:'Helitec', empresa:'Helitec', pass: pass, dispositivoId:'d', opDias: 90 }).getContent());
+  const sup = pedir('clave-sup'), med = pedir('clave-med');
+  PRUEBAS.cierto(!!sup.ok && !!med.ok, 'guarda: los dos entran');
+  PRUEBAS.igual(sup.operacionalPeriodo && sup.operacionalPeriodo.dias, 7, '⚠️ el supervisor pide 90 días y el servidor le sirve 7');
+  PRUEBAS.igual(sup.operacionalPeriodo && sup.operacionalPeriodo.puedeVerHistorico, false, 'y le dice que no puede ver histórico');
+  PRUEBAS.igual(med.operacionalPeriodo && med.operacionalPeriodo.dias, 90, 'DISCRIMINADOR · al servicio médico le sirve los 90');
+  PRUEBAS.igual(med.operacionalPeriodo && med.operacionalPeriodo.puedeVerHistorico, true, 'y le dice que sí puede');
+  /* y el cliente lo LEE de ahí: mismo payload, por la entrada real */
+  const prevDash = DASH;
+  try {
+    onDashData(sup, 'Helitec', { action:'supervisor', usuario:'Helitec', empresa:'Helitec', pass:'x', dispositivoId:'d' }, sup.vista);
+    PRUEBAS.igual(cicloPuedeHistorico(), false, 'con el payload del supervisor, la pantalla no ofrece el selector');
+    onDashData(med, 'Helitec', { action:'supervisor', usuario:'Helitec', empresa:'Helitec', pass:'x', dispositivoId:'d' }, med.vista);
+    PRUEBAS.igual(cicloPuedeHistorico(), true, 'y con el del servicio médico, sí: el cliente lee la bandera en vez de decidir por su cuenta');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.grupo('Y1b · el empleado recupera su propia historia');
@@ -205,19 +223,29 @@ PRUEBAS.caso('⚠️ el endpoint le manda al empleado SUS eventos del ciclo', ()
      de `Operacional`, pero a la persona NO le llegaban los suyos. Su línea de tiempo vivía sólo en
      el teléfono, podada a ~48 h. Dos consecuencias, las dos silenciosas: no podía mirar días
      anteriores, y al cambiar de teléfono PERDÍA SU HISTORIA — mientras el CH la tenía entera. */
-  const fuente = CTX.gs || '';
-  if (!fuente) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
-  const cuerpo = (fuente.match(/function accionEmpleado\(p\)[\s\S]*?\n\}/) || [''])[0];
-  /* ⚠️ QUÉ CAMBIÓ EN P167 (2026-09-10): el 30 dejó de estar escrito a mano — `dias` viene del
-     cliente cuando la persona pide su historial completo, con tope 400 y 30 por defecto. Lo que
-     este caso afirma es lo mismo: la respuesta trae sus eventos operacionales. */
-  PRUEBAS.cierto(/leerOperacional\(\s*diasOp\s*\)/.test(cuerpo) && /\|\| 30/.test(cuerpo),
-    'la respuesta del empleado tiene que traer sus eventos operacionales (30 días por defecto)');
-  PRUEBAS.cierto(/leerOperacional\(30\)\.filter\(esMio\)/.test(cuerpo.replace(/\s/g, '')
-      .replace('leerOperacional(30).filter(esMio)', 'leerOperacional(30).filter(esMio)')) ||
-    /\.filter\(esMio\)/.test(cuerpo),
-    '⚠️ y recortados por identidad con el MISMO esMio que ya recorta sus registros: esta acción no ' +
-    'pide contraseña, así que ese filtro es toda la protección que hay');
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido este caso se saltea'); return; }
+  /* P183 · antes leía el cuerpo de `accionEmpleado` con regex. Ahora se siembra `Operacional` con
+     eventos de Ana y de otra persona de la misma empresa, se pide como Ana, y se mira qué eventos
+     vuelven y qué período dice el servidor (30 por defecto, `dias` con tope 400). */
+  const ev = (persona, horasAtras, evento) => { const d = new Date(Date.now() - horasAtras * 3600000); const iso = d.toISOString(); return [iso.substring(0, 10), iso.substring(11, 16), iso, 'op_' + persona + '_' + evento + '_' + horasAtras, persona, 'Helitec', 'Op', 'Piloto', evento, '', '', '']; };
+  const env = GS.crearEntorno({
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan'],
+                    ev('Ana Suárez', 5, 'salida_casa'), ev('Ana Suárez', 4, 'llegada_aero'), ev('Beto Pérez', 5, 'salida_casa')],
+    'Nómina': [['Empresa','Nombre','Cedula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto'], ['Helitec','Beto Pérez','V-2','Op','Piloto']],
+    'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionEmpleado']);
+  const pedir = (extra) => JSON.parse(api.accionEmpleado(Object.assign({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d' }, extra || {})).getContent());
+  const r = pedir();
+  PRUEBAS.cierto(!!r.ok, 'guarda: Ana entra (' + (r.motivo || r.error || 'ok') + ')');
+  const eventos = (r.operacional || []).map(x => x.evento).sort();
+  PRUEBAS.igual(eventos, ['llegada_aero', 'salida_casa'], '⚠️ la respuesta trae SUS dos eventos del ciclo');
+  PRUEBAS.igual((r.operacional || []).filter(x => /beto/i.test(String(x.persona))).length, 0, 'y ninguno de Beto: recortados por identidad con el mismo `esMio`, que es toda la protección que hay (esta acción no pide contraseña)');
+  PRUEBAS.igual(r.operacionalPeriodo && r.operacionalPeriodo.dias, 30, '30 días por defecto');
+  PRUEBAS.igual(pedir({ dias: 120 }).operacionalPeriodo.dias, 120, 'con `dias`, lo que pidió');
+  PRUEBAS.igual(pedir({ dias: 9999 }).operacionalPeriodo.dias, 400, 'con tope 400');
 });
 
 PRUEBAS.caso('⚠️ la poda local no se lleva puesto el histórico del servidor', () => {

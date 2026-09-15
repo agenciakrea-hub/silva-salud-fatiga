@@ -35,11 +35,25 @@ PRUEBAS.caso('🔴 "5.100" es MAYOR que "5.99" · comparar versiones como texto 
 });
 
 PRUEBAS.caso('⚠️ el cliente manda su versión en el pedido que corre en cada apertura', () => {
-  /* Sin esto no hay nada que contar. `tareasCargar` es la única llamada que ocurre siempre. */
-  const src = String(tareasCargar);
-  PRUEBAS.alMenos(src.length, 200, 'guarda de medibilidad: se leyó la función');
-  PRUEBAS.cierto(/appVersion=/.test(src), '⚠️ la versión viaja en el pedido');
-  PRUEBAS.cierto(/APP_VERSION/.test(src), 'y es la de verdad, no una escrita a mano');
+  /* Sin esto no hay nada que contar. `tareasCargar` es la única llamada que ocurre siempre.
+     P183 · antes leía `String(tareasCargar)`. Ahora se dispara el pedido con `fetchConReloj`
+     espiado y se mira la URL que salió. Se restaura en el `.finally()` de la promesa (R18). */
+  const prevPerfil = getProfile(), oFetch = window.fetchConReloj;
+  const urls = [];
+  window.fetchConReloj = (url) => { urls.push(String(url)); return Promise.resolve({ json: () => Promise.resolve({ ok: false }) }); };
+  setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+  TAREAS.cargando = false; TAREAS._enVuelo = null;
+  const p = tareasCargar() || Promise.resolve();
+  return p.finally(() => {
+    window.fetchConReloj = oFetch;
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    TAREAS.cargando = false; TAREAS._enVuelo = null;
+  }).then(() => {
+    PRUEBAS.igual(urls.length, 1, 'guarda: salió el pedido de tareas');
+    const u = urls[0] || '';
+    PRUEBAS.cierto(/[?&]action=tareas_mias\b/.test(u), 'y es `tareas_mias`, el que corre en cada apertura');
+    PRUEBAS.cierto(u.indexOf('appVersion=' + encodeURIComponent(APP_VERSION)) >= 0, '⚠️ la versión viaja en el pedido, y es la de verdad (' + APP_VERSION + ')');
+  });
 });
 
 PRUEBAS.caso('🔴 el semáforo dice VERDE sólo si nadie falta y de nadie falta el dato', () => {
@@ -111,10 +125,29 @@ PRUEBAS.caso('⚠️ anotar la versión nunca puede romper el pedido de la perso
   /* Es telemetría: si falla, falla en silencio. Lo que no puede pasar es que alguien no vea sus
      tareas porque no se pudo guardar un dato de diagnóstico. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const fn = (gs.match(/function verAnotar[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 60, 'guarda: se encontró la función');
-  PRUEBAS.cierto(/catch \(e\) \{\}/.test(fn), '⚠️ el fallo se traga · es telemetría, no el pedido');
-  PRUEBAS.cierto(/if \(!v \|\| v\.length > 20\) return/.test(fn),
-    'y una versión vacía o absurda no se guarda · no se inventa un dato');
+  /* P183 · antes leía `verAnotar` con un regex. Ahora se pide `tareas_mias` con las propiedades
+     del script ROTAS y se mira que la persona reciba sus tareas igual; y se comprueba qué queda
+     guardado con una versión real, una vacía y una absurda. */
+  const armar = (propsRotas) => {
+    const env = GS.crearEntorno({
+      'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Operaciones','Piloto']],
+      'Tareas': [['Empresa','ID','Cedula','Persona','Origen','Titulo','Detalle','Vence','Estado','Creada','Actualizada','CreadaPor']],
+      'Accesos': [['Usuario','Contraseña','Rol','Empresas','ClaveMedica','ClaveHseq'], ['Helitec','sup001','supervisor','Helitec','','']],
+      'Config Empresa': [['Empresa','Clave','Valor']],
+    });
+    if (propsRotas) env.PropertiesService = { getScriptProperties: () => ({ setProperty: () => { throw new Error('cuota de propiedades'); }, getProperty: () => null, getProperties: () => ({}), deleteProperty: () => {} }) };
+    return { api: GS.cargarGs(CTX.gs, env, ['accionTareasMias']), env: env };
+  };
+  const rota = armar(true);
+  const r = JSON.parse(rota.api.accionTareasMias({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d', appVersion:'6.50' }).getContent());
+  PRUEBAS.cierto(!!r.ok, '⚠️ con las propiedades rotas la persona recibe sus tareas igual · es telemetría, no el pedido (' + (r.error || r.motivo || 'ok') + ')');
+  const sana = armar(false);
+  const props = () => Object.keys(sana.env.PropertiesService.getScriptProperties().getProperties()).filter(k => k.indexOf('ver_') === 0);
+  sana.api.accionTareasMias({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d', appVersion:'' });
+  PRUEBAS.igual(props().length, 0, 'una versión vacía no se guarda · no se inventa un dato');
+  sana.api.accionTareasMias({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d', appVersion:'x'.repeat(40) });
+  PRUEBAS.igual(props().length, 0, 'ni una absurda de 40 caracteres');
+  sana.api.accionTareasMias({ empresa:'Helitec', persona:'Ana Suárez', cedula:'V-1', dispositivoId:'d', appVersion:'6.50' });
+  PRUEBAS.igual(props().length, 1, 'DISCRIMINADOR · una versión real sí queda anotada');
+  PRUEBAS.cierto(/"v":"6\.50"/.test(sana.env.PropertiesService.getScriptProperties().getProperties()[props()[0]] || ''), 'con la versión adentro');
 });

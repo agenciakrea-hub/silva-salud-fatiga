@@ -150,11 +150,23 @@ PRUEBAS.caso('⚠️ el duty NO viaja para el supervisor: es de servicio médico
      viaja en la respuesta, viajó — esconderlo en la pantalla no lo protege de nadie que abra las
      herramientas del navegador. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const bloque = (CTX.gs.match(/duty:[\s\S]{0,220}/) || [''])[0];
-  PRUEBAS.cierto(/acc\.vista === "medico"/.test(bloque) && /acc\.vista === "hseq"/.test(bloque) && /acc\.rol === "admin"/.test(bloque),
-    '⚠️ el recorte por rol tiene que estar en el .gs, no en el cliente');
-  PRUEBAS.cierto(/leerDuty\(operacional, opDias\)/.test(bloque) && /:\s*null/.test(bloque),
-    'y para el resto tiene que ir null, no un objeto vacío que parezca "no hubo excesos"');
+  /* P183 · antes buscaba `duty: (acc.vista === "medico" || …) ? leerDuty(…) : null` en la fuente.
+     Ahora se pide el panel con las tres contraseñas de la empresa y se mira el payload real. */
+  const env = GS.crearEntorno({
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan'],
+                    y4Ev('Ana Suárez', new Date().toISOString().substring(0, 10), '06:00', 'salida_casa')],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','clave-med','clave-dir']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
+  const pedir = (pass) => JSON.parse(api.accionSupervisor({ usuario:'Helitec', empresa:'Helitec', pass: pass, dispositivoId:'d' }).getContent());
+  const sup = pedir('clave-sup'), med = pedir('clave-med'), dir = pedir('clave-dir');
+  PRUEBAS.cierto(!!sup.ok && sup.vista === 'supervisor' && !!med.ok && med.vista === 'medico' && !!dir.ok && dir.vista === 'hseq', 'guarda: entran los tres (' + [sup.vista, med.vista, dir.vista].join('/') + ')');
+  PRUEBAS.igual(sup.duty, null, '⚠️ para el supervisor `duty` viaja como null · el recorte es del servidor, no de la pantalla');
+  PRUEBAS.cierto(!!med.duty && typeof med.duty === 'object', 'DISCRIMINADOR · al servicio médico sí le llega');
+  PRUEBAS.cierto(!!dir.duty && typeof dir.duty === 'object', 'y a Dirección/HSEQ también');
+  PRUEBAS.cierto('duty' in sup, 'y la clave existe en el payload del supervisor (null, no ausente: un objeto vacío parecería «no hubo excesos»)');
 });
 
 PRUEBAS.caso('⚠️ un tramo ABANDONADO no es un tramo excedido', () => {

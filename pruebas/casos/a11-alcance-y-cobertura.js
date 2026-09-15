@@ -164,11 +164,23 @@ PRUEBAS.caso('⚠️ nominaTotal llega de verdad · P096 no funcionaba en produc
 });
 
 PRUEBAS.caso('el catch de la nómina ya no es mudo', () => {
-  /* El discriminador de que el campo sirve: si algo revienta ahí adentro, se ve. */
-  PRUEBAS.igual(/nominaError: nomError \|\| null/.test(CTX.gs), true,
-    'el payload lleva el motivo del fallo, no sólo un cero');
+  /* El discriminador de que el campo sirve: si algo revienta ahí adentro, se ve.
+     P183 · lo que SÍ se puede medir por el camino real: el payload del panel lleva la clave
+     `nominaError` (null cuando todo anduvo) al lado de `nominaTotal`. Lo que NO se puede provocar
+     desde afuera es el fallo mismo: `leerNomina` se cachea por ejecución y se lee ANTES del bloque
+     con el catch (alias, resolutor), así que cualquier hoja rota revienta el pedido entero, no ese
+     bloque; y con datos válidos el bucle no tiene forma de fallar. El catch existe para el error
+     interno que ya pasó (un `ReferenceError` de una variable sin declarar), y ése sólo se puede
+     vigilar leyendo la fuente. Se deja escrito por qué, para que nadie lo «convierta» a ciegas. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = a11Env({ 'Respuestas de formulario 1': [['A'], ['B']], 'Config Empresa': [['Empresa', 'Clave', 'Valor']] }, ['accionSupervisor']);
+  const r = a11Json(api.accionSupervisor({ usuario:'rafael', empresa:'rafael', pass:'claveA', dispositivoId:'d' }));
+  PRUEBAS.cierto(!!r.ok, 'guarda: el panel responde');
+  PRUEBAS.cierto('nominaError' in r, '⚠️ el payload lleva la clave `nominaError` al lado del total');
+  PRUEBAS.igual(r.nominaError, null, 'y con la nómina sana vale null (un cero sin motivo no es un dato)');
+  PRUEBAS.cierto(Number(r.nominaTotal) > 0, 'con el total de verdad');
   PRUEBAS.igual(/nomError = String\(e && e\.message \|\| e\)/.test(CTX.gs), true,
-    'y el catch lo guarda en vez de descartarlo');
+    'y el catch guarda el mensaje en vez de descartarlo · sobre la fuente, por lo de arriba');
 });
 
 /* ── 5 · la tarea del admin ─────────────────────────────────────────────────────────────────── */
@@ -218,13 +230,31 @@ PRUEBAS.caso('⚠️ la clave del índice de anotaciones lleva la empresa', () =
      misma forma de clave, que es la propiedad que se rompió — el productor la cambió el
      2026-09-03 y el consumidor se quedó atrás, y nadie se enteró porque `undefined` no falla:
      simplemente desactiva las dos guardas de `casoDePersona`. */
-  const prod = /var k = norm\(limpiarPersona\(g\.persona\)\) \+ "\|" \+ norm\(/.test(CTX.gs);
-  PRUEBAS.igual(prod, true, 'el productor indexa por nombre|empresa');
-  const cons = /anots\[norm\(limpiarPersona\(per\)\) \+ "\|" \+ norm\(emp\)\]/.test(CTX.gs);
-  PRUEBAS.igual(cons, true, 'y el consumidor busca con la misma clave');
-  /* El discriminador: que la forma vieja ya no esté. */
-  PRUEBAS.igual(/anots\[norm\(limpiarPersona\(per\)\)\]/.test(CTX.gs), false,
-    'y la clave vieja sin empresa desapareció · con ella, `anot` era siempre undefined');
+  /* P183 · el activador no existe en el emulador, pero la FUNCIÓN sí se puede llamar: se corre
+     `cronCasosOdoo()` con un homónimo en dos empresas, y sólo una con alta médica vigente. Si la
+     clave llevara sólo el nombre, la anotación de una empresa taparía (o no) a la otra. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const filaRaw = (persona, empresa, fecha) => { const f = new Array(90).fill(''); f[0] = fecha; f[1] = persona; f[2] = 'Op'; f[72] = empresa; f[73] = fecha; f[86] = '9'; return f; };
+  const cab = new Array(90).fill('');
+  const correr = (conAlta) => {
+    const env = GS.crearEntorno({
+      'Config Empresa': [['Empresa','Clave','Valor'], ['Helitec','casosOdoo','{"activo":true,"disparo":"rojo_amarillo"}'], ['OtraEmp','casosOdoo','{"activo":true,"disparo":"rojo_amarillo"}']],
+      'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Juan Pérez','V-1','Op','Piloto'], ['OtraEmp','Juan Pérez','V-2','Op','Piloto']],
+      'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
+      'Respuestas de formulario 1': [cab, cab, filaRaw('Juan Pérez','Helitec','2026-09-01'), filaRaw('Juan Pérez','Helitec','2026-09-02'), filaRaw('Juan Pérez','Helitec','2026-09-03'),
+                                     filaRaw('Juan Pérez','OtraEmp','2026-09-01'), filaRaw('Juan Pérez','OtraEmp','2026-09-02'), filaRaw('Juan Pérez','OtraEmp','2026-09-03')],
+      'PVT': [['Fecha','Persona','Empresa','Departamento','Validas','RtProm','RtMin','RtMax']],
+      'Gestiones': [['Empresa','ID','Datos (JSON)','Última actualización']].concat(conAlta ? [['Helitec','g1',JSON.stringify({ tipo:'anotacion_aptitud', persona:'Juan Pérez', empresa:'Helitec', nivel:'ok', creada: Date.now(), vigenciaHasta: Date.now() + 30 * 86400000 }),'']] : []),
+      'Casos Odoo': [['Fecha','Persona','Empresa','Departamento','Cargo','Tel','Mail','NivelRiesgo','Severidad','Motivo','Indicadores','Confiabilidad','OrigenApp','IdCaso','Procesado','RefOdoo','Valores']],
+    });
+    const api = GS.cargarGs(CTX.gs, env, ['cronCasosOdoo']);
+    api.cronCasosOdoo();
+    return env.__libro.getSheetByName('Casos Odoo').__volcado().slice(1).map(f => String(f[2]));
+  };
+  const sinAlta = correr(false);
+  PRUEBAS.igual(sinAlta.slice().sort(), ['Helitec', 'OtraEmp'], 'guarda: con tres KSS 9 y sin alta médica, el cron abre caso en las DOS empresas');
+  const conAlta = correr(true);
+  PRUEBAS.igual(conAlta, ['OtraEmp'], '⚠️ con el alta médica de Helitec vigente, el de Helitec NO se abre y el homónimo de OtraEmp SÍ: la clave lleva la empresa');
 });
 
 /* ── A11c · dos ids para el mismo hecho, y una empresa escrita de dos formas ──────────────────── */

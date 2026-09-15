@@ -54,12 +54,23 @@ PRUEBAS.caso('🔴 `listas` responde ok:false · NUNCA una lista vacía con ok:t
   /* Es la diferencia entre cerrar una puerta y borrarle los datos al teléfono de la persona. Con
      `{ok:true, empresas:[]}` la guarda `if (d && d.ok)` del cliente pasa y pisa el caché. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const bloque = (gs.match(/if \(accion === "listas" && algunaAltaCerrada\(\)\)[\s\S]{0,320}/) || [''])[0];
-  PRUEBAS.alMenos(bloque.length, 60, 'guarda de medibilidad: se encontró el corte');
-  PRUEBAS.cierto(/ok:false/.test(bloque), '⚠️ responde ok:false');
-  PRUEBAS.falso(/ok:true[\s\S]{0,40}empresas: \[\]/.test(bloque),
-    '⚠️ y NO una lista vacía con ok:true · eso le borraría el caché al teléfono');
+  /* P183 · antes leía el bloque de `manejar` con un regex. Ahora se pide `listas` por la puerta
+     real con un alta cerrada y con una abierta, y se mira la respuesta. */
+  const pedir = (config) => {
+    const api = GS.cargarGs(CTX.gs, GS.crearEntorno({
+      'Config Empresa': [['Empresa','Clave','Valor']].concat(config),
+      'Accesos': [['Usuario','Contraseña','Rol','Empresas','ClaveMedica','ClaveHseq'], ['Helitec','sup001','supervisor','Helitec','','']],
+      'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Operaciones','Piloto']],
+      'Respuestas de formulario 1': [['A'], ['B']],
+    }), ['manejar']);
+    return JSON.parse(api.manejar({ action: 'listas' }).getContent());
+  };
+  const cerrada = pedir([['Helitec', 'altaAbierta', '0']]);
+  PRUEBAS.falso(!!cerrada.ok, '⚠️ con un alta cerrada `listas` responde ok:false (' + (cerrada.motivo || 'sin motivo') + ')');
+  PRUEBAS.igual(cerrada.motivo, 'alta_cerrada', 'y dice por qué');
+  PRUEBAS.falso(Array.isArray(cerrada.empresas) || Array.isArray(cerrada.departamentos), '⚠️ y NO manda una lista vacía · con `{ok:true, …:[]}` la guarda `if (d && d.ok)` del cliente pisaría el caché del teléfono');
+  const abierta = pedir([]);
+  PRUEBAS.cierto(!!abierta.ok && Array.isArray(abierta.departamentos), 'DISCRIMINADOR · sin alta cerrada responde ok:true con sus listas (' + (abierta.error || 'ok') + ')');
 });
 
 PRUEBAS.caso('🔴 `empresa_perfil` cerrado devuelve un perfil GENÉRICO, no un error', () => {
@@ -84,27 +95,51 @@ PRUEBAS.caso('🔴 `empresa_perfil` cerrado devuelve un perfil GENÉRICO, no un 
 
 PRUEBAS.caso('⚠️ `registro` NO se cierra · un alta perdida en silencio es peor que la fuga', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const fn = (gs.match(/function accionRegistro[\s\S]{0,400}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 100, 'guarda: se encontró la acción');
-  PRUEBAS.falso(/altaEstaAbierta|algunaAltaCerrada/.test(fn),
-    '⚠️ no lleva la ventana · la persona vería «Listo» y no quedaría nada. Se cierra el día que se ' +
-    'publique un cliente que sepa mostrar el rechazo');
+  /* P183 · antes buscaba que `accionRegistro` NO mencionara la ventana. Ahora se registra a una
+     persona con el alta CERRADA y se mira que la fila quede escrita igual: la persona vería «Listo»
+     y, si la ventana la cortara, no quedaría nada. Se cierra el día que se publique un cliente que
+     sepa mostrar el rechazo. */
+  const env = GS.crearEntorno({
+    'Config Empresa': [['Empresa','Clave','Valor'], ['Helitec', 'altaAbierta', '0']],
+    'Accesos': [['Usuario','Contraseña','Rol','Empresas','ClaveMedica','ClaveHseq'], ['Helitec','sup001','supervisor','Helitec','','']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Operaciones','Piloto']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionRegistro', 'manejar']);
+  PRUEBAS.igual(JSON.parse(api.manejar({ action: 'listas' }).getContent()).motivo, 'alta_cerrada', 'guarda: en este entorno el alta está cerrada (`listas` lo dice)');
+  const r = JSON.parse(api.accionRegistro({ nombre: 'Ana Suárez', cedula: 'V-1', empresa: 'Helitec', departamento: 'Operaciones', dispositivoId: 'd' }).getContent());
+  PRUEBAS.cierto(!!r.ok, '⚠️ `registro` NO se cierra: con el alta cerrada el alta queda escrita (' + (r.motivo || r.error || 'ok') + ')');
+  const hoja = env.__libro.getSheetByName('Registrados Fatiga');
+  const filas = hoja ? hoja.__volcado() : [];
+  PRUEBAS.cierto(filas.length >= 2 && filas.slice(1).some(f => f.join('|').indexOf('Ana Su') >= 0), 'y la fila de Ana está en «Registrados Fatiga»: un alta perdida en silencio es peor que la fuga');
 });
 
 PRUEBAS.caso('🔴 a la persona se le avisa si alguien le crea la contraseña', () => {
   /* Crear una contraseña es tomar una cuenta. Hasta acá la persona se enteraba el día que intentaba
      entrar y no podía. La revisión adversarial pidió esto ANTES de cualquier cierre. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const gs = CTX.gs;
-  const fn = (gs.match(/function credAvisarDueno[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 200, 'guarda de medibilidad: existe la función');
-  PRUEBAS.cierto(/leerNomina\(\)/.test(fn),
-    '⚠️ el correo sale de la NÓMINA · si viniera del POST, el atacante elegiría a dónde avisar');
-  PRUEBAS.falso(/p\.email|p\.correo/.test(fn), 'y nunca de lo que mande el cliente');
-  PRUEBAS.cierto(/catch \(e\) \{\}/.test(fn),
-    '⚠️ y va en try/catch: una cuota de correo agotada no puede impedir crear una contraseña');
-  /* Que esté CONECTADO, no sólo escrito. */
-  const crear = (gs.match(/function accionCredencialCrear[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.cierto(/credAvisarDueno\(/.test(crear), '⚠️ y la creación lo llama de verdad');
+  /* P183 · antes leía `credAvisarDueno` y buscaba `leerNomina()`, `catch (e) {}` y la llamada.
+     Ahora se crea la credencial por la acción real con `MailApp` espiado: el correo tiene que salir
+     al de la NÓMINA aunque el POST traiga otro, y si el correo revienta la credencial se crea igual. */
+  const armar = (mail) => {
+    const env = GS.crearEntorno({
+      'Accesos': [['Usuario','Contraseña','Rol','Empresas','ClaveMedica','ClaveHseq'], ['Helitec','sup001','supervisor','Helitec','','']],
+      'Sesiones': [['Id','HashToken','Usuario','Dispositivo','Rol','Vista','Empresas','Canonical','Combinada','Creada','UltimoUso','Estado','Cerrada']],
+      'Credenciales': [['Empresa','Cédula','Usuario','Hash','Sal','Vueltas','Algoritmo','Rol','Estado','Creada','UltimoAcceso']],
+      'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
+                 ['Helitec','Ana Suárez','V-1','Operaciones','Piloto','F',35,'+58123','ana.real@empresa.com','Sí','','empleado','2']],
+    });
+    env.MailApp = mail;
+    return GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+  };
+  const enviados = [];
+  const api = armar({ sendEmail: function (a, asunto, cuerpo) { enviados.push({ a: a, asunto: asunto, cuerpo: cuerpo }); } });
+  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-1', pass:'unaClaveLarga1', usuario:'Ana Suárez', dispositivoId:'d', email:'atacante@otro.com', correo:'atacante@otro.com' }).getContent());
+  PRUEBAS.cierto(!!r.ok, 'guarda: la credencial se creó (' + (r.error || r.motivo || 'ok') + ')');
+  PRUEBAS.igual(enviados.length, 1, '⚠️ a la persona se le avisa: salió UN correo');
+  PRUEBAS.igual(enviados[0] && enviados[0].a, 'ana.real@empresa.com', '⚠️ al correo de la NÓMINA, no al que mandó el POST · si no, el atacante elegiría a dónde avisar');
+  PRUEBAS.cierto(enviados[0] && /contraseña/i.test(enviados[0].asunto + enviados[0].cuerpo) && !/unaClaveLarga1/.test(enviados[0].cuerpo), 'dice que se creó una contraseña y NO la incluye');
+  const api2 = armar({ sendEmail: function () { throw new Error('cuota de correo agotada'); } });
+  const r2 = JSON.parse(api2.accionCredencialCrear({ empresa:'Helitec', cedula:'V-1', pass:'unaClaveLarga1', usuario:'Ana Suárez', dispositivoId:'d2' }).getContent());
+  PRUEBAS.cierto(!!r2.ok, '⚠️ y si el correo revienta, la credencial se crea igual (' + (r2.error || r2.motivo || 'ok') + ')');
 });

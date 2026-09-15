@@ -140,20 +140,49 @@ PRUEBAS.caso('⚠️ el doble toque no genera dos opiniones', () => {
 PRUEBAS.caso('⚠️ va por la cola offline: sin señal no se pierde', () => {
   /* R7. Y `empEncolar` manda exactamente el payload que se le da, sin agregar nada por su cuenta —
      por eso la lista blanca de más arriba es la lista completa de lo que sale del teléfono. */
-  PRUEBAS.cierto(/empEncolar\(/.test(String(opinionEnviar)),
-    '⚠️ tiene que encolarse, no hacer un fetch directo que se pierda sin señal');
-  /* ⚠️ ESTE CASO ME FRENÓ, Y POR ESO SE AFINA EN VEZ DE AFLOJARSE. En L6 agregué `dispositivoId`
+  /* P183 · antes leía `String(opinionEnviar)` y `String(empFlush)`. Ahora se escribe la opinión y
+     se toca «Enviar» con `empEncolar` espiado (tiene que encolarse, no salir por un fetch directo
+     que se pierda sin señal); y después se vacía la cola con `fetchConReloj` espiado: el cuerpo de
+     `opinion_guardar` NO puede llevar el identificador del dispositivo, y el de cualquier otra
+     acción SÍ.
+     ⚠️ ESTE CASO ME FRENÓ, Y POR ESO SE AFINA EN VEZ DE AFLOJARSE. En L6 agregué `dispositivoId`
      a TODAS las escrituras de esta cola para poder frenar una inundación, sin mirar que una de
-     ellas es el canal anónimo. La comprobación de antes era «la palabra `dispositivoId` no aparece
-     en `empFlush`», y eso ya no alcanza: ahora aparece, pero excluyendo a la opinión.
-     Se comprueba lo que de verdad importa —que para `opinion_guardar` NO se agregue— en vez de
-     borrar el caso, que era la salida fácil y la que habría dejado pasar el defecto. */
-  const src = String(empFlush);
-  PRUEBAS.cierto(/opinion_guardar/.test(src),
-    '⚠️ la cola tiene que distinguir la opinión de las demás acciones');
-  PRUEBAS.cierto(/_sinId \? \{\} : \{ dispositivoId/.test(src),
-    '⚠️ y para la opinión NO se agrega el identificador del dispositivo · un id estable identifica ' +
-    'al teléfono, y por lo tanto a la persona, aunque el texto no lleve nombre');
+     ellas es el canal anónimo. Un id estable identifica al teléfono, y por lo tanto a la persona,
+     aunque el texto no lleve nombre. */
+  const oEncolar = window.empEncolar, oFetch = window.fetchConReloj, oNav = history.pushState;
+  const prevCola = localStorage.getItem(K_EMP_COLA), prevPerfil = getProfile();
+  const encolado = [], posts = [];
+  try {
+    setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+    window.empEncolar = (id, accion, payload) => { encolado.push({ id, accion, payload }); };
+    history.pushState = () => {};
+    document.getElementById('opinionTxt').value = 'Los turnos de noche seguidos me dejan mal.';
+    opinionEnviar(null);
+    PRUEBAS.igual(encolado.length, 1, '⚠️ «Enviar» ENCOLA la opinión (R7): sin señal no se pierde');
+    PRUEBAS.igual(encolado[0] && encolado[0].accion, 'opinion_guardar', 'con la acción de la opinión');
+    PRUEBAS.igual(Object.keys((encolado[0] || {}).payload || {}).sort(), ['empresa', 'mes', 'texto'], 'y el payload lleva SÓLO empresa, mes y texto: ni nombre, ni cédula, ni dispositivo');
+    /* ahora la cola de verdad, con dos ítems: la opinión y un reporte cualquiera */
+    window.empEncolar = oEncolar;
+    localStorage.setItem(K_EMP_COLA, JSON.stringify({
+      'op_x2': { accion: 'opinion_guardar', payload: { empresa: 'Consorcio HELITEC', mes: '2026-09', texto: 'hola' }, creada: Date.now() },
+      'rep_x2': { accion: 'reporte_guardar', payload: { id: 'rep_x2', opcion: 'cansado', empresa: 'Consorcio HELITEC' }, creada: Date.now() }
+    }));
+    window.fetchConReloj = (url, opts) => { try { posts.push(JSON.parse(opts.body)); } catch(e){ posts.push({ _crudo: String(opts && opts.body) }); } return new Promise(() => {}); };   // la red no contesta: nada se borra de la cola
+    delete _empEnVuelo.op_x2; delete _empEnVuelo.rep_x2;
+    empFlush();
+    const op = posts.find(b => b.action === 'opinion_guardar'), rep = posts.find(b => b.action === 'reporte_guardar');
+    PRUEBAS.cierto(!!op && !!rep, 'guarda: la cola mandó las dos (' + posts.map(b => b.action).join(', ') + ')');
+    PRUEBAS.falso(op && ('dispositivoId' in op), '⚠️ la opinión sale SIN `dispositivoId`');
+    PRUEBAS.cierto(rep && !!rep.dispositivoId, 'DISCRIMINADOR · el reporte sí lo lleva (es lo que frena una inundación)');
+    PRUEBAS.igual(Object.keys(op || {}).sort(), ['action', 'empresa', 'mes', 'texto'], 'y la opinión no lleva ninguna otra cosa');
+  } finally {
+    window.empEncolar = oEncolar; window.fetchConReloj = oFetch; history.pushState = oNav;
+    delete _empEnVuelo.op_x2; delete _empEnVuelo.rep_x2;
+    if (prevCola == null) localStorage.removeItem(K_EMP_COLA); else localStorage.setItem(K_EMP_COLA, prevCola);
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+    document.getElementById('opinionTxt').value = '';
+    try { document.getElementById('opinionOv').classList.remove('show'); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('los textos están en los dos idiomas y en neutro (R1, R14)', () => {
@@ -179,6 +208,7 @@ function x2Env(filas){
   const api = GS.cargarGs(CTX.gs, env,
     ['accionOpinionGuardar','accionOpiniones','obtenerHojaOpiniones']);
   api.filas = () => { const h = env.__libro.getSheetByName('Opiniones'); return h ? h._datos : null; };
+  api.__env = env;   // P183 · para mirar formatos y hojas desde los casos
   return api;
 }
 const x2r = resp => JSON.parse(resp.getContent());
@@ -186,14 +216,26 @@ const x2r = resp => JSON.parse(resp.getContent());
 PRUEBAS.caso('⚠️ la hoja tiene CUATRO columnas y ninguna identifica', () => {
   /* Si mañana alguien agrega `Persona` o `Fecha` acá, todo lo demás pasa a ser decorativo. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const m = /var OPI_HEAD\s*=\s*\[([^\]]+)\]/.exec(CTX.gs);
-  PRUEBAS.cierto(!!m, 'guarda: tiene que existir la cabecera de la hoja en el .gs');
-  if (!m) return;
-  const cols = m[1].split(',').map(x => x.trim().replace(/^["']|["']$/g, ''));
-  PRUEBAS.igual(cols, ['IdOpinion','Empresa','Mes','Texto'],
-    '⚠️ estas cuatro y ninguna más — leyó: ' + cols.join(', '));
+  /* P183 · antes leía `var OPI_HEAD = […]` en la fuente. Ahora se deja que el servidor CREE la
+     hoja (entorno sin `Opiniones`) y escriba una opinión con todo lo identificable a mano en el
+     POST: la cabecera y la fila tienen que quedar con cuatro celdas y ninguna que identifique. */
+  const env = GS.crearEntorno({
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','','']],
+    'Nómina': [['Empresa','Nombre','Cedula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionOpinionGuardar']);
+  const r = JSON.parse(api.accionOpinionGuardar({ id:'op1', empresa:'Helitec', mes:'2026-09', texto:'una opinión', persona:'Ana Suárez', nombre:'Ana Suárez', cedula:'V-1', dispositivoId:'tel-de-ana', departamento:'Op', cargo:'Piloto', fecha:'2026-09-15', hora:'10:00' }).getContent());
+  PRUEBAS.cierto(!!r.ok, 'guarda: la opinión se guardó (' + (r.error || 'ok') + ')');
+  const hoja = env.__libro.getSheetByName('Opiniones');
+  PRUEBAS.cierto(!!hoja, 'guarda: el servidor creó la hoja');
+  const filas = hoja ? hoja.__volcado() : [];
+  const cols = (filas[0] || []).map(String).filter(x => x !== '');
+  PRUEBAS.igual(cols, ['IdOpinion','Empresa','Mes','Texto'], '⚠️ la cabecera tiene estas cuatro columnas y ninguna más — quedó: ' + cols.join(', '));
   ['Persona','Nombre','Cedula','Departamento','Cargo','Fecha','Hora','Dispositivo'].forEach(mala =>
     PRUEBAS.falso(cols.indexOf(mala) >= 0, '⚠️ no puede existir la columna ' + mala));
+  const fila = (filas[1] || []).map(String);
+  PRUEBAS.igual(fila.filter(x => x !== '').length, 4, 'y la fila escrita tiene cuatro celdas con dato');
+  PRUEBAS.cierto(fila.join('|').indexOf('Ana') < 0 && fila.join('|').indexOf('V-1') < 0 && fila.join('|').indexOf('tel-de-ana') < 0, '⚠️ y ninguna guarda lo identificable que vino en el POST (nombre, cédula, dispositivo)');
 });
 
 PRUEBAS.caso('⚠️ guardar NO exige contraseña — un empleado no tiene ninguna', () => {
@@ -246,17 +288,22 @@ PRUEBAS.caso('⚠️ y no se devuelven en el orden en que se escribieron', () =>
      ⚠️ Se comprueba sobre el CÓDIGO y no sobre una corrida: un barajado real puede devolver el
      orden original por azar, y un caso que falla 1 de cada N veces es peor que no tenerlo. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const i = CTX.gs.indexOf('function accionOpiniones');
-  PRUEBAS.alMenos(i, 0, 'guarda: tiene que existir la función');
-  if (i < 0) return;
-  /* ⚠️ SE CORTA EN EL CIERRE DE LA FUNCIÓN, no a los 1400 caracteres. Con la ventana fija, el
-     caso se puso rojo el día que la función ganó siete líneas de comentario (P162, 2026-09-09):
-     el barajado seguía ahí, sólo que más abajo. Un caso que depende de cuánto se comenta arriba
-     no mide lo que dice medir. `\n}` en columna cero es el cierre: adentro todo va indentado. */
-  const fin = CTX.gs.indexOf('\n}', i);
-  const cuerpo = CTX.gs.slice(i, fin > 0 ? fin + 2 : i + 3000);
-  PRUEBAS.cierto(/Math\.random\(\)/.test(cuerpo),
-    '⚠️ tiene que barajarlas antes de devolverlas');
+  /* P183 · antes buscaba `Math.random()` en el cuerpo de `accionOpiniones`. Ahora se escriben
+     diez opiniones en orden y se piden TRES veces: si alguna vuelta trae un orden distinto del de
+     escritura, se barajan. Con diez hay 3.628.800 órdenes posibles: que tres barajados
+     devuelvan el original por azar es (1/3.628.800)³ — no es una prueba intermitente. Y si el
+     código NO barajara, las tres vueltas serían el orden de escritura, siempre: rojo seguro. */
+  const filas = []; for (let i = 0; i < 10; i++) filas.push(['op' + i, 'Helitec', '2026-09', 'texto número ' + i]);
+  const api = x2Env(filas);
+  const pedir = () => x2r(api.accionOpiniones({ usuario:'Helitec', empresa:'Helitec', pass:'clave-sup', dispositivoId:'d' }));
+  const r0 = pedir();
+  PRUEBAS.cierto(!!r0.ok, 'guarda: la bandeja responde (' + (r0.error || 'ok') + ')');
+  const lista = r0.opiniones || r0.lista || r0.items || [];
+  PRUEBAS.igual(lista.length, 10, 'guarda: vuelven las diez');
+  const orden = r => (r.opiniones || r.lista || r.items || []).map(x => String(x.texto || x)).join('|');
+  const escrito = filas.map(f => f[3]).join('|');
+  const vueltas = [orden(r0), orden(pedir()), orden(pedir())];
+  PRUEBAS.cierto(vueltas.some(v => v !== escrito), '⚠️ al menos una vuelta NO viene en el orden en que se escribieron: se barajan');
 });
 
 PRUEBAS.caso('⚠️ una empresa no ve las opiniones de otra', () => {
@@ -271,14 +318,21 @@ PRUEBAS.caso('⚠️ R15 · la hoja se fuerza a TEXTO en cada acceso', () => {
   /* `Mes` es "2026-09" y Sheets lo convierte solo en una fecha si se lo deja. Y un texto que empiece
      con "=" o "+" lo interpretaría como fórmula. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const i = CTX.gs.indexOf('function obtenerHojaOpiniones');
-  PRUEBAS.alMenos(i, 0, 'guarda: tiene que existir');
-  if (i < 0) return;
-  /* P168 · el formato se aplica por `formatoTextoUnaVez_` (una escritura por hoja y por ejecución,
-     en vez de `setNumberFormat("@")` sobre todas las filas en cada acceso, que costaba ~400 ms por
-     hoja). Lo que se vigila es lo mismo: que la hoja se fuerce a texto. */
-  PRUEBAS.cierto(/setNumberFormat\("@"\)|formatoTextoUnaVez_\(/.test(CTX.gs.slice(i, i + 900)),
-    '⚠️ falta el formato texto — es el defecto que ya rompió los teléfonos con "+" y las fechas');
-  PRUEBAS.cierto(/function formatoTextoUnaVez_[\s\S]{0,400}setNumberFormat\("@"\)/.test(CTX.gs),
-    'y `formatoTextoUnaVez_` de verdad escribe el formato');
+  /* P183 · antes buscaba `formatoTextoUnaVez_(` cerca de `obtenerHojaOpiniones`. Ahora se guarda
+     una opinión sobre una hoja YA EXISTENTE (la rama que en producción corre siempre: la hoja
+     nunca se crea dos veces) y se mira el registro de formatos del emulador: la columna Mes tiene
+     que haber quedado como texto. P168: una escritura por hoja y por ejecución. */
+  const api = x2Env([]);
+  const hoja = () => api.filas && api.filas() ? api : null;
+  const r = x2r(api.accionOpinionGuardar({ id:'op-fmt', empresa:'Helitec', mes:'2026-09', texto:'=1+1 no es una fórmula' }));
+  PRUEBAS.cierto(!!r.ok, 'guarda: se guardó (' + (r.error || 'ok') + ')');
+  const sh = api.__env ? api.__env.__libro.getSheetByName('Opiniones') : null;
+  const formatos = sh ? sh._formatos : null;
+  PRUEBAS.cierto(!!formatos, 'guarda: el emulador registra formatos');
+  const arrobas = Object.keys(formatos || {}).filter(k => formatos[k] === '@');
+  PRUEBAS.alMenos(arrobas.length, 4, '⚠️ la hoja se forzó a TEXTO (celdas con "@": ' + arrobas.length + ') — es el defecto que ya rompió los teléfonos con "+" y las fechas');
+  const colMes = 3;
+  PRUEBAS.cierto(arrobas.some(k => Number(k.split(',')[1]) === colMes), 'y la columna Mes ("2026-09", que Sheets convertiría en fecha) está entre ellas');
+  const fila = (api.filas() || [])[1] || [];
+  PRUEBAS.igual(String(fila[3]), '=1+1 no es una fórmula', 'y el texto que empieza con "=" quedó como texto, no como fórmula');
 });
