@@ -7212,7 +7212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8045,10 +8045,10 @@ const I18N = {
       op_detenido:'Se detuvo a las {h} h',
       jor_detenido:'detenido',
       cic_kpi_det:'detenidos',
-      cic_mio_detenido:'Tu ciclo del {f} se detuvo a las {h} h: no se registraron los pasos siguientes.{reg} Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
+      cic_mio_detenido:'Tu ciclo {f} se detuvo a las {h} h: no se registraron los pasos siguientes.{reg} Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
       cic_mio_registrado:' Quedó registrado.',
       cic_mio_detenido_corto:'Se detuvo a las {h} h porque no se registraron los pasos siguientes.',
-      ts_ciclo_detenido:'Tu ciclo del {f} se detuvo a las {h} h sin los pasos siguientes',
+      ts_ciclo_detenido:'Tu ciclo {f} se detuvo a las {h} h sin los pasos siguientes',
       cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
       cic_sin_jornadas:'No se pudieron leer las jornadas configuradas por persona. Se está midiendo a todos contra la jornada de la empresa.',
@@ -8523,7 +8523,7 @@ const I18N = {
       tz_sobre:'Sobre {q}', tz_del_sistema:'Del sistema', tz_por:'por {q}', tz_automatico:'automático',
       tz_umbral:'Umbral vigente: nivel {n} · amarillo {a} · rojo {r}',
       // ── F1 · Consola de Dirección / HSEQ ──
-      cic_hoy:'hoy', cic_ayer:'ayer',
+      cic_hoy:'hoy', cic_ayer:'ayer', cic_de_hoy:'de hoy', cic_de_ayer:'de ayer', cic_del_dia:'del {d}',
       n_persona:'persona', n_personas:'personas', n_area:'área', n_areas:'áreas',
       hs_en_condiciones:'en condiciones', hs_nomina_medida:'de la nómina medida',
       hs_n_de_m_datos:'{n} de {m} con datos', hs_n_de_m_pers:'{n} de {m} personas',
@@ -8752,13 +8752,18 @@ const I18N = {
       sub_determ:'Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión',
       // ── Tareas y notificaciones (D1) ──
       tar_titulo:'Tus tareas',
-      tar_lead:'Lo que tu supervisor o el servicio médico te pidieron.',
+      tar_lead:'Lo que tu supervisor o el servicio médico te pidieron, y los avisos de la aplicación.',
       tar_vacio:'No tienes tareas pendientes.',
       tar_sin_perfil:'Completa tus datos para ver tus tareas.',
       tar_actualizar:'Actualizar',
       tar_de_medico:'Servicio médico', tar_de_supervisor:'Supervisor', tar_de_sistema:'Sistema',
       tar_vence:'Vence el {f}', tar_vencio:'Venció el {f}', tar_sin_plazo:'Sin plazo',
       tar_marcar:'Marcar como hecha', tar_hecha:'Hecha', tar_listo:'Listo, quedó registrado',
+      /* P186c · avisos que genera la propia app (no vienen del servidor). Se guardan como HECHO
+         (tipo + datos) y el texto se arma al pintar, así cambia con el idioma. */
+      notif_det_titulo:'Tu ciclo {f} se detuvo a las {h} h',
+      notif_det_detalle:'No se registraron los pasos siguientes. Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
+      notif_entendido:'Entendido', notif_de:'Aviso {f}',
       tar_est_sin_leer:'Sin leer', tar_est_leida:'Leída', tar_est_hecha:'Hecha', tar_est_vencida:'Vencida',
       // ── Crear tareas desde la ficha ──
       tar_pedirle:'Pedirle algo a esta persona',
@@ -9841,10 +9846,10 @@ const I18N = {
       op_detenido:'Stopped at {h} h',
       jor_detenido:'stopped',
       cic_kpi_det:'stopped',
-      cic_mio_detenido:'Your cycle of {f} stopped at {h} h: the next steps were not recorded.{reg} When you go out again, tap "{primero}" and start a new one.',
+      cic_mio_detenido:'Your cycle {f} stopped at {h} h: the next steps were not recorded.{reg} When you go out again, tap "{primero}" and start a new one.',
       cic_mio_registrado:' It has been logged.',
       cic_mio_detenido_corto:'Stopped at {h} h because the next steps were not recorded.',
-      ts_ciclo_detenido:'Your cycle of {f} stopped at {h} h without the next steps',
+      ts_ciclo_detenido:'Your cycle {f} stopped at {h} h without the next steps',
       cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
       cic_e_comp:'Complete', cic_e_sin:'Not started',
       cic_sin_jornadas:'Per-person work schedules could not be read. Everyone is being measured against the company schedule.',
@@ -10371,7 +10376,7 @@ const I18N = {
       tz_sobre:'About {q}', tz_del_sistema:'From the system', tz_por:'by {q}', tz_automatico:'automatic',
       tz_umbral:'Threshold in force: level {n} · amber {a} · red {r}',
       // ── F1 · Management / HSEQ console ──
-      cic_hoy:'today', cic_ayer:'yesterday',
+      cic_hoy:'today', cic_ayer:'yesterday', cic_de_hoy:'from today', cic_de_ayer:'from yesterday', cic_del_dia:'of {d}',
       n_persona:'person', n_personas:'people', n_area:'area', n_areas:'areas',
       hs_en_condiciones:'fit to work', hs_nomina_medida:'of the workforce measured',
       hs_n_de_m_datos:'{n} of {m} with data', hs_n_de_m_pers:'{n} of {m} people',
@@ -10594,13 +10599,16 @@ const I18N = {
       sub_determ:'Your active determinations · on expiry, the person returns to Pending review',
       // ── Tasks and notifications (D1) ──
       tar_titulo:'Your tasks',
-      tar_lead:'What your supervisor or the medical service asked of you.',
+      tar_lead:'What your supervisor or the medical service asked of you, and the app\'s notices.',
       tar_vacio:'You have no pending tasks.',
       tar_sin_perfil:'Complete your details to see your tasks.',
       tar_actualizar:'Refresh',
       tar_de_medico:'Medical staff', tar_de_supervisor:'Supervisor', tar_de_sistema:'System',
       tar_vence:'Due {f}', tar_vencio:'Was due {f}', tar_sin_plazo:'No deadline',
       tar_marcar:'Mark as done', tar_hecha:'Done', tar_listo:'Done, it has been logged',
+      notif_det_titulo:'Your cycle {f} stopped at {h} h',
+      notif_det_detalle:'The next steps were not recorded. When you go out again, tap "{primero}" and start a new one.',
+      notif_entendido:'Got it', notif_de:'Notice {f}',
       tar_est_sin_leer:'Unread', tar_est_leida:'Read', tar_est_hecha:'Done', tar_est_vencida:'Overdue',
       // ── Creating tasks from the record ──
       tar_pedirle:'Ask this person for something',
@@ -13103,7 +13111,7 @@ function cicloMiBloque(){
 /* P186 · el texto de la nota, con lo que se sabe: «quedó registrado» SÓLO si el servidor lo escribió (los
    92 históricos y cualquier ciclo anterior al reloj no tienen registro, y decirlo sería falso). */
 function cicloDetenidoTexto(st){
-  return t('cic_mio_detenido', { f: cicloFechaLabel(st.inicio), h: CICLO_DETENIDO_HORAS,
+  return t('cic_mio_detenido', { f: cicloFechaDe(st.inicio), h: CICLO_DETENIDO_HORAS,
     reg: st.detenidoRegistrado ? t('cic_mio_registrado') : '', primero: cicloEventoLabel(cicloEventoInicial()) });
 }
 /* P186 · el aviso de «se detuvo» se da UNA vez por ciclo: la marca es el inicio del ciclo (`t0`),
@@ -13121,7 +13129,7 @@ function cicloDetenidoAvisar(st){
   if (vistos.indexOf(st.inicio) >= 0) return false;
   vistos.push(st.inicio);
   try { localStorage.setItem(K_CICLO_DETENIDO_VISTO, JSON.stringify(vistos.slice(-10))); } catch(e){}
-  try { showToast(t('ts_ciclo_detenido', { f: cicloFechaLabel(st.inicio), h: CICLO_DETENIDO_HORAS })); } catch(e){}
+  try { showToast(t('ts_ciclo_detenido', { f: cicloFechaDe(st.inicio), h: CICLO_DETENIDO_HORAS })); } catch(e){}
   return true;
 }
 let _cicDetRevisarT = 0;
@@ -13134,9 +13142,16 @@ function cicloDetenidoRevisar(){
       const ciclos = cicloAgruparTodos(cicloMioAll(), cicloTotalMin(plan) * 60000) || [];
       const ahora = Date.now();
       // del más nuevo al más viejo, como los devuelve cicloAgruparTodos; con dos alcanza
+      let avisado = false;
       for (const c of ciclos.slice(0, 2)){
         const st = cicloEstado(c, ahora, plan);
-        if (st.estado === 'detenido' && cicloDetenidoAvisar(st)) return;   // uno por vez
+        if (st.estado !== 'detenido') continue;
+        /* P186c · el toast se va; la entrada en «Tus tareas» queda (pedido de Franco: «que el
+           aviso lo ponga en notificaciones»). Idempotente por ciclo: el id es su inicio. Va ANTES
+           del toast y sin la marca de «visto», para que quien ya vio el toast en la versión
+           anterior también tenga la entrada. */
+        notifLocalAgregar({ id: 'det_' + st.inicio, tipo: 'ciclo_detenido', t0: st.inicio });
+        if (!avisado && cicloDetenidoAvisar(st)) avisado = true;   // el toast: uno por vez
       }
     } catch(e){}
   }, 1500);
@@ -17784,6 +17799,7 @@ function sesionClavesBorrar(){
        columna `Plan` de `Operacional`. El endpoint mide el exceso de jornada contra ese número, y
        ese dato «no se corrige después: es el que tiene consecuencias laborales». */
     K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_CICLO_PLAN_PROPIO, K_CICLO_DETENIDO_VISTO, K_TAREAS_CACHE, K_ZONA_OP,   // P186 · la marca de avisos también
+    K_NOTIF_LOCAL,          // P186c · los avisos de la app son de esta persona (dicen cuándo salió y cuándo se olvidó)
     K_SES_PERSONA,          // Z2-cliente: la sesión propia también se cierra
     /* Y la marca de "ya se le ofreció contraseña": es un mapa por CÉDULA, así que se iba
        acumulando la lista de todo el que usó el equipo. */
@@ -21700,6 +21716,16 @@ function cicloFechaLabel(ms){
   if (mismo(d, ayer)) return t('cic_ayer');
   const p = n => String(n).padStart(2,'0');
   return p(d.getDate()) + '/' + p(d.getMonth()+1);
+}
+/* P186c · LA FECHA CON SU PREPOSICIÓN. `cicloFechaLabel` devuelve «hoy», «ayer» o «11/09», y las
+   frases de P186 decían «Tu ciclo del {f}»: con datos reales salió «Tu ciclo del ayer». La
+   preposición depende de la forma, así que la elige el idioma, no la plantilla. */
+function cicloFechaDe(ms){
+  const d = new Date(ms), hoy = new Date(), ayer = new Date(hoy.getTime() - 86400000);
+  const mismo = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  if (mismo(d, hoy))  return t('cic_de_hoy');
+  if (mismo(d, ayer)) return t('cic_de_ayer');
+  return t('cic_del_dia', { d: cicloFechaLabel(ms) });
 }
 
 /* Agrupa los eventos en ciclos. Cronológicamente, NO por fecha de calendario: un turno que cruza la
@@ -29971,8 +29997,11 @@ function tareasPuedeConsultar(){
 function tareasPintarBadge(){
   const b = document.getElementById('tareasBadge');
   if (!b) return;
-  b.textContent = String(TAREAS.pendientes);
-  b.style.display = TAREAS.pendientes > 0 ? '' : 'none';
+  /* P186c · lo pendiente del servidor MÁS los avisos de la app que la persona no marcó todavía */
+  let n = Number(TAREAS.pendientes) || 0;
+  try { n += notifLocalPendientes(); } catch(e){}
+  b.textContent = String(n);
+  b.style.display = n > 0 ? '' : 'none';
 }
 /* ── M2 · Lo último que se supo de las tareas, guardado en el dispositivo ──────────────────────
    `tareas_mias` tarda entre 4 y 5 segundos (medido contra producción). Sin esto, el contador de
@@ -30001,6 +30030,59 @@ function tareasCacheLeer(){
     if (c.persona !== ((getProfile()||{}).nombre || '')) return null;
     return c;
   } catch(e){ return null; }
+}
+/* ── P186c · AVISOS DE LA PROPIA APP, en la misma lista que las tareas ──────────────────────────
+   Franco, al ver el aviso de «se detuvo a las 24 h»: «que el aviso lo ponga en notificaciones, en
+   el apartado del botón al lado de los datos personales». El toast dura tres segundos; esto queda
+   hasta que la persona toca «Entendido». No viene del servidor: lo genera el teléfono cuando deriva
+   el estado (ADR 008: el cliente deriva, el servidor registra), así que funciona sin red y también
+   para ciclos que el reloj nunca registró.
+   Se guarda el HECHO (`tipo` + datos), no el texto: el título se arma al pintar con `t()`, en el
+   idioma del momento (R14). Misma guarda de dueño que `K_TAREAS_CACHE`: en un teléfono compartido,
+   los avisos del piloto anterior dicen cuándo salió y cuándo se olvidó — no son de la persona
+   siguiente. */
+const K_NOTIF_LOCAL = 'silva_fatiga_notif_local_v1';
+function notifLocalLeer(){
+  try {
+    const c = JSON.parse(localStorage.getItem(K_NOTIF_LOCAL));
+    if (!c || typeof c !== 'object' || !Array.isArray(c.lista)) return [];
+    if (c.persona !== ((getProfile() || {}).nombre || '')) return [];
+    return c.lista;
+  } catch(e){ return []; }
+}
+function notifLocalGuardar(lista){
+  try { localStorage.setItem(K_NOTIF_LOCAL, JSON.stringify({ lista: (lista || []).slice(0, 20), persona: (getProfile() || {}).nombre || '' })); } catch(e){}
+}
+/* Idempotente por id: la misma revisión corre en cada repintado del inicio. Devuelve si agregó. */
+function notifLocalAgregar(n){
+  if (!n || !n.id || !n.tipo) return false;
+  const lista = notifLocalLeer();
+  if (lista.some(x => x.id === n.id)) return false;
+  lista.unshift(Object.assign({ estado: 'sin_leer', creada: new Date().toISOString() }, n));
+  notifLocalGuardar(lista);
+  try { tareasPintarBadge(); } catch(e){}
+  return true;
+}
+function notifLocalPendientes(){ return notifLocalLeer().filter(x => x.estado !== 'hecha').length; }
+/* Con la FORMA de una tarea, para que `tareasPintar` las trate igual; `local:true` cambia sólo el botón. */
+function notifLocalItems(){
+  return notifLocalLeer().map(x => {
+    let titulo = String(x.titulo || ''), detalle = String(x.detalle || '');
+    if (x.tipo === 'ciclo_detenido'){
+      titulo  = t('notif_det_titulo', { f: cicloFechaDe(x.t0), h: CICLO_DETENIDO_HORAS });
+      detalle = t('notif_det_detalle', { primero: cicloEventoLabel(cicloEventoInicial()) });
+    }
+    return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', local: true };
+  });
+}
+function notifLocalHecha(id){
+  const lista = notifLocalLeer();
+  const it = lista.find(x => x.id === id);
+  if (!it) return;
+  it.estado = 'hecha';
+  notifLocalGuardar(lista);
+  try { haptic(12); } catch(e){}
+  tareasPintarBadge(); tareasPintar();
 }
 function tareasCargar(){
   if (!tareasPuedeConsultar()) return Promise.resolve();
@@ -30171,7 +30253,7 @@ function tareasAbrir(){
      de haber ido a preguntar. Con un pedido de 4 a 5 segundos, eso es lo primero que alguien lee,
      y es falso. Ahora: si hay datos (normalmente los de la caché de M2) se ven al instante; si no,
      se muestra el esqueleto hasta que llegue la respuesta. */
-  if (TAREAS.lista.length) tareasPintar();
+  if (TAREAS.lista.length || notifLocalItems().length) tareasPintar();
   tareasRefrescar();
 }
 function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('show'); syncScrollLock(); }
@@ -30182,7 +30264,7 @@ function tareasCerrarUI(){ tareasCerrar(); navConsumir(); }
 function tareasRefrescar(){
   const cont = document.getElementById('tareasLista');
   /* Esqueleto con la FORMA de lo que va a llegar (filas de persona), no el texto "Cargando…". */
-  if (cont && !TAREAS.lista.length) cont.innerHTML = skeletonHtml('persona', 3);
+  if (cont && !TAREAS.lista.length && !notifLocalItems().length) cont.innerHTML = skeletonHtml('persona', 3);
   /* Y la hoja entera queda fuera de alcance mientras tanto: sin esto se podía tocar "Actualizar"
      tres veces seguidas, o cerrar y reabrir, y quedaban pedidos pisándose. */
   const hoja = document.querySelector('#tareasOv .sheet');
@@ -30191,15 +30273,19 @@ function tareasRefrescar(){
 function tareasPintar(){
   const cont = document.getElementById('tareasLista');
   if (!cont) return;
-  if (!tareasPuedeConsultar()){
+  /* P186c · los avisos de la app van primero (son lo más nuevo) y se pintan aunque el perfil
+     todavía no tenga cédula: no necesitan al servidor. */
+  const locales = notifLocalItems();
+  if (!tareasPuedeConsultar() && !locales.length){
     cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_sin_perfil')) + '</div>';
     return;
   }
-  if (!TAREAS.lista.length){
+  const lista = locales.concat(TAREAS.lista);
+  if (!lista.length){
     cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_vacio')) + '</div>';
     return;
   }
-  cont.innerHTML = TAREAS.lista.map(x => {
+  cont.innerHTML = lista.map(x => {
     const hecha = x.estado === 'hecha';
     const venc  = x.estado === 'vencida';
     return '<div class="tar-item' + (hecha ? ' tar-hecha' : '') + '">' +
@@ -30210,11 +30296,14 @@ function tareasPintar(){
       (x.detalle ? '<div class="tar-det">' + esc(x.detalle) + '</div>' : '') +
       '<div class="tar-pie">' +
         '<span class="tar-vence' + (venc ? ' tar-venc' : '') + '">' +
-          esc(x.vence ? t(venc ? 'tar_vencio' : 'tar_vence', { f: tareaFechaLinda(x.vence) }) : t('tar_sin_plazo')) +
+          esc(x.local ? t('notif_de', { f: cicloFechaDe(Date.parse(x.creada) || Date.now()) })   // P186c · un aviso no vence: dice de cuándo es
+                      : x.vence ? t(venc ? 'tar_vencio' : 'tar_vence', { f: tareaFechaLinda(x.vence) }) : t('tar_sin_plazo')) +
         '</span>' +
         (hecha
           ? '<span class="tar-hecha-lbl">' + esc(t('tar_hecha')) + '</span>'
-          : '<button type="button" class="tar-btn" onclick="tareaMarcarHecha(\'' + esc(x.id) + '\', this)">' + esc(t('tar_marcar')) + '</button>') +
+          : x.local
+            ? '<button type="button" class="tar-btn" onclick="notifLocalHecha(\'' + esc(x.id) + '\')">' + esc(t('notif_entendido')) + '</button>'
+            : '<button type="button" class="tar-btn" onclick="tareaMarcarHecha(\'' + esc(x.id) + '\', this)">' + esc(t('tar_marcar')) + '</button>') +
       '</div>' +
     '</div>';
   }).join('');
@@ -30230,6 +30319,7 @@ function tareaFechaLinda(iso){
    ANTES en el archivo— tiraba "Cannot access 'TAREAS' before initialization" y dejaba la app
    entera sin cargar. Acá abajo las declaraciones ya corrieron. */
 function tareasArranque(){
+  try { tareasPintarBadge(); } catch(e){}   // P186c · los avisos de la app cuentan aunque `tareasCargar` no salga a la red
   /* M2: NO se repinta acá. `tareasCargar()` ya llama a `renderInicio()` cuando termina, y este
      `.then()` lo hacía de nuevo: medido, dos repintados completos del inicio con 1 ms de
      diferencia (6024 ms y 6025 ms). Es parte de lo que se ve como "la página se carga varias

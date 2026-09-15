@@ -85,10 +85,35 @@ PRUEBAS.grupo('M1 · la lista de tareas');
 PRUEBAS.caso('no dice "no tienes tareas" antes de haber preguntado', () => {
   /* `tareasAbrir()` llamaba a `tareasPintar()` con la lista todavía vacía, y eso escribe
      "no tienes tareas". O sea que la app afirmaba que no había nada ANTES de ir a preguntar —
-     y con un pedido de 4 a 5 segundos, eso es lo primero que alguien lee. */
-  const fuente = tareasAbrir.toString();
-  PRUEBAS.cierto(/if\s*\(\s*TAREAS\.lista\.length\s*\)\s*tareasPintar\(\)/.test(fuente),
-    'sólo se pinta de entrada si HAY algo que pintar; si no, va el esqueleto');
+     y con un pedido de 4 a 5 segundos, eso es lo primero que alguien lee.
+     ⚠️ P186c · Antes esto leía `tareasAbrir.toString()` buscando la línea exacta, y se puso rojo
+     el día que esa línea cambió para algo mejor (los avisos de la app también cuentan como «algo
+     que pintar»). Ahora se ABRE la hoja con la red colgada y se mira lo que dice. `pushState` se
+     neutraliza durante la llamada: la suite tiene tope de historial por pestaña (LEEME). */
+  CTX.resetear({ nombre: 'Ana Prueba' });
+  TAREAS.lista = []; TAREAS.pendientes = 0;
+  try { localStorage.removeItem(K_NOTIF_LOCAL); } catch(e){}
+  const cont = document.getElementById('tareasLista');
+  const oFetch = window.fetch, oPush = history.pushState;
+  const abrirSinRed = () => {
+    window.fetch = () => new Promise(() => {});     // la red nunca contesta
+    history.pushState = () => {};
+    try { tareasAbrir(); }
+    finally { window.fetch = oFetch; history.pushState = oPush; TAREAS.cargando = false; TAREAS._enVuelo = null; }
+  };
+  try {
+    abrirSinRed();
+    PRUEBAS.falso(cont.textContent.indexOf(t('tar_vacio')) >= 0, '⚠️ con la lista vacía NO afirma «no tienes tareas» antes de preguntar');
+    PRUEBAS.alMenos(cont.querySelectorAll('.sk-wrap').length, 1, 'muestra el esqueleto mientras la red no contesta');
+    /* discriminador: con algo que pintar, se pinta de entrada, sin esperar a la red */
+    TAREAS.lista = [{ id: 'm1-x', titulo: 'Tarea de prueba', detalle: '', origen: 'supervisor', estado: 'sin_leer', vence: '' }];
+    abrirSinRed();
+    PRUEBAS.cierto(!!cont.querySelector('.tar-item') && !cont.querySelector('.sk-wrap'), 'DISCRIMINADOR · con algo en la lista se pinta de entrada');
+  } finally {
+    TAREAS.lista = []; TAREAS.pendientes = 0;
+    try { tareasCerrar(); } catch(e){}
+    if (cont) cont.innerHTML = '';
+  }
 });
 
 PRUEBAS.caso('mientras carga muestra el esqueleto, no un texto', () => {

@@ -184,7 +184,8 @@ PRUEBAS.caso('🔴 Jornada por onDashData: una jornada detenida lleva su chip y 
 });
 
 PRUEBAS.caso('R14 · textos en los dos idiomas · R1 · sin voseo', () => {
-  const claves = ['cic_e_detenido', 'op_detenido', 'jor_detenido', 'cic_mio_detenido', 'cic_mio_detenido_corto', 'ts_ciclo_detenido'];
+  const claves = ['cic_e_detenido', 'op_detenido', 'jor_detenido', 'cic_mio_detenido', 'cic_mio_detenido_corto', 'ts_ciclo_detenido',
+                  'notif_det_titulo', 'notif_det_detalle', 'notif_entendido', 'tar_lead', 'cic_de_hoy', 'cic_de_ayer', 'cic_del_dia', 'notif_de'];   // P186c
   const faltan = [];
   ['es', 'en'].forEach(i => claves.forEach(k => { const v = _i18nBuscar(i, SECTOR_FALLBACK, k); if (!v || v === k) faltan.push(i + ':' + k); }));
   PRUEBAS.igual(faltan, [], 'sin claves faltantes');
@@ -272,4 +273,94 @@ PRUEBAS.caso('🔴 la tarjeta del supervisor de un ciclo detenido NO muestra el 
     PRUEBAS.cierto(rCur && new RegExp('\\b' + lbl + '\\b').test(rCur.textContent), 'DISCRIMINADOR · la que está en curso sí lleva «' + lbl + ' …» con su reloj');
     PRUEBAS.cierto(rCur && rCur.querySelectorAll('[data-cic-from]').length === 2, 'y sus dos relojes vivos siguen ahí');
   } finally { DASH = prevDash; }
+});
+
+PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada del sistema, globito, «Entendido», y se borra al cerrar sesión', () => {
+  /* Franco, al ver el toast: «que el aviso lo ponga en notificaciones, en el apartado del botón al
+     lado de los datos personales». Se entra por el camino real: el ciclo como lo deja el servidor
+     en `K_CICLO_SRV` → `cicloDetenidoRevisar()` (diferido, con la app visible) → el almacén local →
+     `tareasPintarBadge()` y `tareasPintar()`, que son lo que la persona ve. */
+  const origToast = window.showToast; const toasts = [];
+  window.showToast = m => { toasts.push(String(m)); };
+  const prevDash = DASH, prevLista = TAREAS.lista, prevPend = TAREAS.pendientes;
+  return PRUEBAS.conOculto(false, async () => {
+    try {
+      const prevLS = Object.assign({}, localStorage);
+      try {
+        setProfile({ nombre: 'Yo', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', sexo: 'F', edad: '34' });
+        TAREAS.lista = []; TAREAS.pendientes = 0;
+        localStorage.setItem(K_CICLO_SRV, JSON.stringify([p186cEv('salida_casa', p186cHace(26)), p186cEv('llegada_aero', p186cHace(25.5))]));
+        localStorage.removeItem(K_CICLO_MIO); localStorage.removeItem(K_CICLO_DETENIDO_VISTO); localStorage.removeItem(K_NOTIF_LOCAL);
+        const t0 = cicloEstado(cicloMio(), Date.now(), cicloPlan('')).inicio;
+        PRUEBAS.igual(cicloEstado(cicloMio(), Date.now(), cicloPlan('')).estado, 'detenido', 'guarda: el ciclo está detenido');
+        PRUEBAS.igual(notifLocalItems().length, 0, 'guarda: la lista de avisos arranca vacía');
+        cicloDetenidoRevisar();
+        await PRUEBAS.esperarA(() => toasts.length > 0, 3000);
+        const lista = notifLocalLeer();
+        PRUEBAS.igual(lista.length, 1, '⚠️ queda UNA entrada en el almacén local');
+        PRUEBAS.igual(lista[0] && lista[0].id, 'det_' + t0, 'con el inicio del ciclo como id (el mismo que usa la marca del toast)');
+        PRUEBAS.igual(lista[0] && lista[0].estado, 'sin_leer', 'sin leer');
+        const badge = document.getElementById('tareasBadge');
+        tareasPintarBadge();
+        PRUEBAS.cierto(badge && badge.textContent === '1' && badge.style.display !== 'none', 'el globito del inicio dice 1 aunque el servidor no tenga tareas');
+        tareasPintar();
+        const cont = document.getElementById('tareasLista');
+        const item = cont.querySelector('.tar-item');
+        PRUEBAS.cierto(!!item, 'guarda: se pintó una tarjeta en «Tus tareas»');
+        PRUEBAS.cierto(item && !!item.querySelector('.tar-org-sistema'), 'con el rótulo del sistema');
+        PRUEBAS.cierto(item && item.textContent.indexOf(cicloFechaDe(t0) + ' se detuvo a las 24 h') >= 0, 'el título dice la fecha del ciclo, con su preposición, y las 24 h');
+        PRUEBAS.cierto(item && item.textContent.indexOf(cicloEventoLabel(cicloEventoInicial())) >= 0, 'y el detalle nombra el primer botón del ciclo');
+        const btn = item && item.querySelector('.tar-btn');
+        PRUEBAS.cierto(btn && btn.textContent === t('notif_entendido') && /notifLocalHecha/.test(btn.getAttribute('onclick') || ''), 'el botón es «Entendido» y NO manda nada al servidor');
+        PRUEBAS.falso(/tareaMarcarHecha/.test(item ? item.innerHTML : 'tareaMarcarHecha'), 'no es «marcar como hecha» del servidor');
+        PRUEBAS.cierto(item && item.textContent.indexOf(t('notif_de', { f: t('cic_de_hoy') })) >= 0 && item.textContent.indexOf(t('tar_sin_plazo')) < 0, 'y dice «Aviso de hoy», no «Sin plazo»');
+        /* idempotente: otra revisión no duplica */
+        cicloDetenidoRevisar();
+        await PRUEBAS.esperarA(() => false, 1800);
+        PRUEBAS.igual(notifLocalLeer().length, 1, 'otra revisión no la duplica');
+        /* «Entendido» */
+        btn.click();
+        PRUEBAS.igual(notifLocalLeer()[0].estado, 'hecha', 'tocar «Entendido» la marca como hecha');
+        PRUEBAS.cierto(badge.style.display === 'none', 'y el globito se apaga');
+        PRUEBAS.cierto(!!cont.querySelector('.tar-item.tar-hecha') && !cont.querySelector('.tar-btn'), 'la tarjeta queda como hecha, sin botón');
+        /* privacidad: otra persona en el mismo teléfono no la ve */
+        setProfile({ nombre: 'Otra Persona', cedula: '87654321', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', sexo: 'M', edad: '40' });
+        PRUEBAS.igual(notifLocalItems().length, 0, 'con otro perfil en el mismo teléfono, los avisos del anterior no se ven');
+        PRUEBAS.cierto(sesionClavesBorrar().indexOf(K_NOTIF_LOCAL) >= 0, 'y cerrar sesión borra la clave');
+        /* discriminador: sin ciclo detenido, nada */
+        setProfile({ nombre: 'Yo', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', sexo: 'F', edad: '34' });
+        localStorage.removeItem(K_NOTIF_LOCAL); localStorage.removeItem(K_CICLO_DETENIDO_VISTO);
+        localStorage.setItem(K_CICLO_SRV, JSON.stringify([p186cEv('salida_casa', p186cHace(0.5))]));
+        cicloDetenidoRevisar();
+        await PRUEBAS.esperarA(() => false, 1800);
+        PRUEBAS.igual(notifLocalLeer().length, 0, 'DISCRIMINADOR · un ciclo de media hora no deja aviso');
+      } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
+    } finally {
+      window.showToast = origToast; DASH = prevDash; clearTimeout(_cicDetRevisarT);
+      TAREAS.lista = prevLista; TAREAS.pendientes = prevPend;
+      try { tareasPintarBadge(); } catch(e){}
+      try { const c = document.getElementById('tareasLista'); if (c) c.innerHTML = ''; } catch(e){}
+    }
+  });
+});
+
+PRUEBAS.caso('🔴 P186c · «Tu ciclo del ayer» no existe: la fecha lleva SU preposición en el toast, la tarjeta y el aviso', () => {
+  /* Con datos reales, el aviso decía «Tu ciclo del ayer se detuvo a las 24 h». `cicloFechaLabel`
+     devuelve «hoy», «ayer» o «11/09» y las tres plantillas decían «del {f}». */
+  const hoy = Date.now(), ayer = hoy - 86400000, viejo = hoy - 5 * 86400000;
+  PRUEBAS.igual(cicloFechaDe(hoy), t('cic_de_hoy'), 'hoy → «de hoy»');
+  PRUEBAS.igual(cicloFechaDe(ayer), t('cic_de_ayer'), 'ayer → «de ayer»');
+  PRUEBAS.igual(cicloFechaDe(viejo), t('cic_del_dia', { d: cicloFechaLabel(viejo) }), 'más viejo → «del dd/mm»');
+  const malo = /\b(del hoy|del ayer|de \d{2}\/\d{2})\b/;
+  const frases = [ayer, hoy, viejo].flatMap(ms => [
+    t('ts_ciclo_detenido', { f: cicloFechaDe(ms), h: CICLO_DETENIDO_HORAS }),
+    t('notif_det_titulo', { f: cicloFechaDe(ms), h: CICLO_DETENIDO_HORAS }),
+    t('cic_mio_detenido', { f: cicloFechaDe(ms), h: CICLO_DETENIDO_HORAS, reg: '', primero: 'X' })
+  ]);
+  PRUEBAS.igual(frases.filter(f => malo.test(f)), [], '⚠️ ninguna frase dice «del ayer», «del hoy» ni «de 11/09»');
+  PRUEBAS.cierto(frases.every(f => /Tu ciclo (de hoy|de ayer|del \d{2}\/\d{2}) se detuvo/.test(f)), 'todas empiezan «Tu ciclo de hoy / de ayer / del dd/mm se detuvo»');
+  PRUEBAS.cierto(malo.test('Tu ciclo del ayer se detuvo'), 'DISCRIMINADOR · el patrón sí caza la frase mala');
+  /* y en inglés tampoco queda «of yesterday» */
+  const en = _i18nBuscar('en', SECTOR_FALLBACK, 'ts_ciclo_detenido').replace('{f}', _i18nBuscar('en', SECTOR_FALLBACK, 'cic_de_ayer'));
+  PRUEBAS.cierto(/cycle from yesterday stopped/.test(en), 'en inglés: «cycle from yesterday»');
 });
