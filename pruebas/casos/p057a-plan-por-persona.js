@@ -72,15 +72,24 @@ PRUEBAS.caso('⚠️ CON plan por persona, esa persona usa el suyo y el resto el
 });
 
 PRUEBAS.caso('⚠️ el que CONGELA el umbral pasa la persona (la línea irreversible)', () => {
-  /* No se puede ejecutar `enviarOperacional` sin mandar datos, así que se comprueba sobre la
-     fuente: es la única línea del archivo cuyo error no se corrige después. */
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  PRUEBAS.alMenos(f.length, 100000, 'guarda de medibilidad: se leyó la fuente · ' + f.length);
-  const cuerpo = (f.match(/function enviarOperacional\([\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(cuerpo.length, 200, 'guarda: se encontró la función · ' + cuerpo.length);
-  PRUEBAS.cierto(/plan:\s*JSON\.stringify\(cicloPlan\(cicloYo\(\)\)/.test(cuerpo),
-    '⚠️ el umbral que se congela lleva la persona · si vuelve a `cicloPlan()` a secas, el día que ' +
-    'haya planes propios se escribe la jornada de la empresa en un dato que NO se corrige');
+  /* P183 · antes leía `enviarOperacional` en la fuente («no se puede ejecutar sin mandar datos»).
+     Sí se puede: con `enviarConCola` espiado no sale nada. Se guarda una jornada PROPIA distinta
+     de la de la empresa y se toca un botón del ciclo: el `plan=` que viaja tiene que ser el propio.
+     Es la única línea del archivo cuyo error no se corrige después. */
+  const oEnviar = window.enviarConCola, prevLS = Object.assign({}, localStorage), prevDash = DASH;
+  const urls = [];
+  try {
+    window.enviarConCola = (url) => { urls.push(String(url)); };
+    CTX.resetear({ nombre: 'Zoe Propia', cedula: '12345678', esPiloto: true });
+    DASH = null;
+    cicloPlanGuardar({ traslado: 60, jornada: 720, regreso: 60, descanso: 600 });          // la de la empresa
+    cicloPlanPropioGuardar({ traslado: 60, jornada: 555, regreso: 60, descanso: 600 });    // la propia
+    enviarOperacional('salida_casa', '', null);
+    const u = urls.find(x => /action=operacional_guardar/.test(x)) || '';
+    const plan = JSON.parse(new URLSearchParams(u.split('?')[1] || '').get('plan') || 'null');
+    PRUEBAS.cierto(!!plan, 'guarda: el evento viaja con `plan`');
+    PRUEBAS.igual(plan && plan.jornada, 555, '⚠️ el umbral que se congela es el de LA PERSONA (555), no el de la empresa (720) · en un dato que NO se corrige después');
+  } finally { window.enviarConCola = oEnviar; DASH = prevDash; try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
 });
 
 PRUEBAS.caso('⚠️ los diez llamadores están conectados o documentados, ninguno olvidado', () => {

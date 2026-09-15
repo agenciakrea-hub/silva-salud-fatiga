@@ -179,12 +179,21 @@ PRUEBAS.caso('no quedan colores del mapa escritos a mano', () => {
 });
 
 PRUEBAS.caso('no dice "1 días seguidos"', () => {
-  /* Estaba a la vista desde J4 y ninguna medición lo iba a encontrar: la cadena era correcta como
-     plantilla, sólo que sin caso singular. La app ya lo resuelve así en otros seis lugares. */
+  /* P183 · antes leía `rachaPintar.toString()`. Ahora se siembra UN día de actividad y se pinta
+     la racha: tiene que decir la forma singular. Con dos, la plural. */
   PRUEBAS.igual(t('ini_racha_v_1'), '1 día seguido', 'tiene que existir la forma singular en español');
-  const fuente = rachaPintar.toString();
-  PRUEBAS.cierto(/n === 1 \? 'ini_racha_v_1'/.test(fuente),
-    'y hay que usarla: si no, el singular queda escrito y nadie lo llama');
+  const prevAct = localStorage.getItem(K_ACTIVIDAD);
+  const cont = document.getElementById('actRacha');
+  const raiz = cont ? null : (() => { const d = document.createElement('div'); d.id = 'actRacha'; document.body.appendChild(d); return d; })();
+  try {
+    localStorage.setItem(K_ACTIVIDAD, JSON.stringify({ [todayStr()]: 1 }));
+    rachaPintar();
+    const el = document.getElementById('actRacha');
+    PRUEBAS.cierto(el.textContent.indexOf(t('ini_racha_v_1')) >= 0 && el.textContent.indexOf(t('ini_racha_v', { n: 1 })) < 0, 'con un día dice «' + t('ini_racha_v_1') + '», no «1 días seguidos»');
+    localStorage.setItem(K_ACTIVIDAD, JSON.stringify({ [todayStr()]: 1, [fechaMasDias(todayStr(), -1)]: 1 }));
+    rachaPintar();
+    PRUEBAS.cierto(el.textContent.indexOf(t('ini_racha_v', { n: 2 })) >= 0, 'DISCRIMINADOR · con dos, la forma plural');
+  } finally { if (prevAct == null) localStorage.removeItem(K_ACTIVIDAD); else localStorage.setItem(K_ACTIVIDAD, prevAct); if (raiz) raiz.remove(); else try { rachaPintar(); } catch(e){} }
 });
 
 PRUEBAS.caso('el texto de ayuda del mapa vale en los dos temas', () => {
@@ -355,12 +364,23 @@ PRUEBAS.caso('la secuencia se lee del DOM, no está escrita en el código', () =
 });
 
 PRUEBAS.caso('el freno sigue puesto donde el splash se oculta', () => {
-  /* Va en los DOS lugares que ocultan el splash, no en cada botón: así queda cubierto cualquier
-     camino que se agregue después. */
-  PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(splashAbrirPortal.toString()),
-    'salir por el portal / demo / admin tiene que frenarla');
-  PRUEBAS.cierto(/splashAnimFrenar\(\)/.test(carruselMostrar.toString()),
-    'y entrar al carrusel también');
+  /* P183 · antes leía `.toString()` de las dos. Ahora se sale del splash por las dos puertas con
+     el freno espiado (mismo molde que p174b, que cubre también la tercera). */
+  const oFrenar = window.splashAnimFrenar, oNav = window.navConsumir, oPush = history.pushState, oHint = window.splashLangHintFrenar;
+  let frenos = 0;
+  try {
+    window.splashAnimFrenar = () => { frenos++; }; window.splashLangHintFrenar = () => {}; window.navConsumir = () => {}; history.pushState = () => {};
+    document.getElementById('splashOv').classList.add('show');
+    splashAbrirPortal();
+    PRUEBAS.alMenos(frenos, 1, 'salir por el portal / demo / admin la frena');
+    frenos = 0; document.getElementById('splashOv').classList.add('show');
+    carruselMostrar();
+    PRUEBAS.alMenos(frenos, 1, 'y entrar al carrusel también');
+  } finally {
+    window.splashAnimFrenar = oFrenar; window.splashLangHintFrenar = oHint; window.navConsumir = oNav; history.pushState = oPush;
+    ['splashOv', 'portalOverlay', 'carruselOv'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('show'); });
+    try { syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('sin animaciones se queda quieta, pero se ve', () => {
@@ -462,17 +482,26 @@ PRUEBAS.caso('⚠️ nada del arranque depende del ORDEN de una asignación', ()
 });
 
 PRUEBAS.caso('⚠️ la tira sobrevive a arrancar con el movimiento apagado', () => {
-  /* El síntoma reportado: "cuando cargo la página no se mueven, pero si entro a un botón y vuelvo,
-     ahí sí". Al abrir una PWA desde el ícono la página suele cargar en segundo plano, la app pone
-     `.sin-animaciones`, y la tira se quedaba quieta PARA SIEMPRE aunque después el movimiento
-     estuviera permitido. Ahora queda marcada como parada y un observador la re-arma. */
-  const fuente = splashAnimArrancar.toString();
-  PRUEBAS.cierto(/const quieto = \(\) =>/.test(fuente),
-    '`quieto` tiene que ser función: calculado una sola vez, congelaba la tira para siempre');
-  PRUEBAS.cierto(/est\.parado = true/.test(fuente), 'sin movimiento se marca parada, no se abandona');
-  PRUEBAS.cierto(/MutationObserver/.test(fuente), 'y algo la vuelve a poner en marcha sola');
-  PRUEBAS.cierto(/_splAnim !== est/.test(fuente),
-    'y cada paso comprueba que la cadena sea LA vigente, para que ninguna huérfana siga corriendo');
+  /* P183 · antes leía `splashAnimArrancar.toString()`. Ahora se arranca la tira con el movimiento
+     apagado (queda PARADA, no abandonada), se habilita el movimiento cambiando la clase del
+     `<html>` y se espera a que la tira cambie de lámina sola: eso es el observador. */
+  const html = document.documentElement, tenia = html.classList.contains('sin-animaciones'), oMM = window.matchMedia;
+  return (async () => {
+    try {
+      window.matchMedia = q => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} });
+      splashAnimFrenar();
+      html.classList.add('sin-animaciones');
+      splashAnimArrancar();
+      PRUEBAS.cierto(!!_splAnim && _splAnim.parado === true, 'guarda: sin movimiento la tira arranca PARADA, no abandonada');
+      const i0 = _splAnim.i;
+      html.classList.remove('sin-animaciones');
+      const paso = await PRUEBAS.esperarA(() => _splAnim && _splAnim.parado === false, 2500);
+      PRUEBAS.cierto(paso, '⚠️ al habilitar el movimiento, la tira se pone en marcha sola (parado=false)');
+      /* y una cadena vieja no sigue viva: frenar y arrancar de nuevo deja UNA */
+      const vieja = _splAnim; splashAnimFrenar(); splashAnimArrancar();
+      PRUEBAS.cierto(vieja.vivo === false && _splAnim !== vieja, 'una cadena frenada queda muerta y la nueva es otra (lámina inicial ' + i0 + ')');
+    } finally { splashAnimFrenar(); window.matchMedia = oMM; if (tenia) html.classList.add('sin-animaciones'); else html.classList.remove('sin-animaciones'); }
+  })();
 });
 
 PRUEBAS.caso('⚠️ el alto usa dvh y no vh (el pie no se puede cortar en el teléfono)', () => {
@@ -491,15 +520,26 @@ PRUEBAS.caso('⚠️ el alto usa dvh y no vh (el pie no se puede cortar en el te
 PRUEBAS.grupo('N10 · "Ver una demostración" deja elegir');
 
 PRUEBAS.caso('⚠️ la demo no dispara el pedido sola', () => {
-  /* Reportado: "le doy y me abre sí o sí dirección, no me deja seleccionar". Pasaba porque
-     `splashVerDemo` llamaba a `portalVerDemo` en la misma línea que abría el portal: la persona
-     nunca llegaba a tocar una pestaña. */
-  /* P171 · `splashVerDemo` pide la clave primero y delega el gate en `demoAbrirGate`; se miran
-     las dos: ninguna puede disparar el pedido del panel. */
-  const fuente = splashVerDemo.toString() + demoAbrirGate.toString();
-  PRUEBAS.falso(/portalVerDemo/.test(fuente),
-    'abrir la demo no puede pedir los datos: primero hay que poder elegir qué vista mirar');
-  PRUEBAS.cierto(/portalDemoModo\(true\)/.test(fuente), 'tiene que entrar en modo sólo demostración');
+  /* P183 · antes leía `.toString()` de las dos. Ahora se abre la demostración por las dos puertas
+     con el pedido del panel espiado: nada puede salir hasta que la persona elija una vista. */
+  const oVer = window.portalVerDemo, oReq = window.dashRequest, oNav = window.navConsumir, oPush = history.pushState, oClave = window.demoClaveAbrir, prevPayload = DEMO_PAYLOAD;
+  let pedidos = 0, clave = 0;
+  try {
+    window.portalVerDemo = () => { pedidos++; }; window.dashRequest = () => { pedidos++; return new Promise(() => {}); }; window.navConsumir = () => {}; history.pushState = () => {}; window.demoClaveAbrir = () => { clave++; };
+    DEMO_PAYLOAD = null;
+    splashVerDemo();
+    PRUEBAS.igual(pedidos, 0, 'abrir la demo desde la portada no pide los datos');
+    PRUEBAS.igual(clave, 1, 'primero pide la clave de la demostración');
+    DEMO_PAYLOAD = { d: { ok: true } };
+    splashVerDemo();
+    PRUEBAS.igual(pedidos, 0, '⚠️ y con la clave ya validada tampoco: se abre el gate para que la persona ELIJA qué vista mirar');
+    PRUEBAS.cierto(PORTAL_SOLO_DEMO === true, 'en modo sólo demostración');
+  } finally {
+    window.portalVerDemo = oVer; window.dashRequest = oReq; window.navConsumir = oNav; history.pushState = oPush; window.demoClaveAbrir = oClave; DEMO_PAYLOAD = prevPayload;
+    try { portalDemoModo(false); } catch(e){}
+    ['splashOv', 'portalOverlay', 'demoClaveOv'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('show'); });
+    try { syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('en modo demostración no se puede entrar con credenciales', () => {
@@ -639,11 +679,23 @@ PRUEBAS.caso('⚠️ ninguna pantalla puede quedar en blanco', () => {
 });
 
 PRUEBAS.caso('"Mis estadísticas" sólo aparece si hay perfil', () => {
-  /* Muestra los registros DE ESTA PERSONA: sin perfil no tiene nada que mostrar y lleva a un error.
-     Se ocultaba sólo en modo demo, así que por el camino de "Soy supervisor…" —donde tampoco hay
-     perfil— quedaba visible y roto. La condición correcta no es "estoy en demo" sino "hay perfil". */
-  PRUEBAS.cierto(/perfilCompleto\(getProfile\(\)\)/.test(portalMode.toString()),
-    'la pestaña depende de tener perfil, no del modo');
+  /* P183 · antes leía `portalMode.toString()`. Ahora se pinta el selector sin perfil y con perfil
+     completo, fuera de la demo, y se mira la pestaña. */
+  const prevLS = Object.assign({}, localStorage), tab = document.getElementById('ptabEmp'), prevSolo = PORTAL_SOLO_DEMO;
+  try {
+    try { portalDemoModo(false); } catch(e){}
+    localStorage.removeItem(K_PROFILE);
+    portalMode('sup');
+    PRUEBAS.cierto(!!tab && tab.style.display === 'none', 'sin perfil, «Mis estadísticas» NO aparece (no tiene nada que mostrar y llevaba a un error)');
+    CTX.resetear({ nombre: 'Ana Prueba', sexo: 'F', edad: '34', telefono: '+58 412 0000000', email: 'ana@e.com', esPiloto: false });
+    PRUEBAS.cierto(perfilCompleto(getProfile()), 'guarda: perfil completo');
+    portalMode('sup');
+    PRUEBAS.cierto(tab.style.display !== 'none', 'DISCRIMINADOR · con perfil, aparece · la condición es «hay perfil», no «estoy en demo»');
+  } finally {
+    try { portalDemoModo(prevSolo); } catch(e){}
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+    try { portalMode('sup'); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('el acceso con credenciales ofrece las tres vistas', () => {

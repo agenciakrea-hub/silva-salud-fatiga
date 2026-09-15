@@ -168,28 +168,42 @@ PRUEBAS.caso('🔴 tocar el nombre de una tarjeta abre la ficha de ESA persona',
 });
 
 PRUEBAS.caso('🟡 "ver en pantalla completa" abre la gente que se está viendo', () => {
-  /* `DASH._cicFilas` se asignaba ANTES de aplicar la búsqueda, así que el modo pantalla completa
-     abría a la primera de la lista entera y el contador decía "1 / 8" con una tarjeta a la vista. */
-  const src = renderCicloOperativo.toString();
-  const iFilas = src.indexOf('_cicFilas =');
-  const iVis = src.indexOf('const visibles =');
-  PRUEBAS.alMenos(iFilas, 1, 'guarda: se encontró la asignación');
-  PRUEBAS.alMenos(iVis, 1, 'guarda: se encontró el filtro de búsqueda');
-  PRUEBAS.cierto(iFilas > iVis,
-    '⚠️ se guardan DESPUÉS de filtrar · antes se guardaba la lista sin filtrar');
-  PRUEBAS.cierto(/_cicFilas = visibles/.test(src),
-    '⚠️ y se guardan las visibles, no todas');
+  /* P183 · antes leía `renderCicloOperativo.toString()`. Ahora se pinta la pestaña con dos personas
+     y una búsqueda que deja UNA: `DASH._cicFilas` (lo que abre el modo pantalla completa) tiene
+     que tener sólo la visible. */
+  const prevDash = DASH;
+  const hace = h => new Date(Date.now() - h * 3600000).toISOString();
+  try {
+    const ev = (persona, evento, h) => ({ persona, empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', evento, iso: hace(h), fecha: hace(h).substring(0, 10), test: '', resultado: '', plan: '' });
+    onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: [],
+      registros: [{ persona: 'Ana Uno', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }, { persona: 'Beto Dos', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }],
+      comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [],
+      operacional: [ev('Ana Uno', 'salida_casa', 2), ev('Beto Dos', 'salida_casa', 2)], operacionalPeriodo: { dias: 7 }
+    }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'p059b' }, 'supervisor');
+    DASH._cicQ = '';
+    renderCicloOperativo();
+    PRUEBAS.igual((DASH._cicFilas || []).length, 2, 'guarda: sin búsqueda, las dos');
+    DASH._cicQ = 'Beto';   // lo que deja `cicloBuscar(q)` al escribir en el buscador
+    renderCicloOperativo();
+    PRUEBAS.igual((DASH._cicFilas || []).length, 1, '⚠️ con la búsqueda, el modo pantalla completa abre sólo a quien se está viendo (antes «1 / 8» con una tarjeta a la vista)');
+    PRUEBAS.igual(DASH._cicFilas[0] && DASH._cicFilas[0].p.persona, 'Beto Dos', 'y es la persona buscada');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('🟡 la barra del ciclo rotula con el mismo plan con el que juzga', () => {
-  /* H3 congela el plan al abrir el ciclo, pero `cicloTramosHtml` volvía a derivar el previsto del
-     plan VIGENTE. Medido: jornada congelada en 12 h, la persona 8 h adentro, el supervisor la baja
-     a 5 h desde esa misma tarjeta → «Quedan 0 min de 5 h», en azul y sin marca de excedido. */
-  const src = cicloTramosHtml.toString();
-  PRUEBAS.cierto(/tra\.previsto/.test(src),
-    '⚠️ el previsto sale del tramo ya calculado, que es el congelado');
-  PRUEBAS.falso(/const previsto = plan\[tr\.k\];/.test(src),
-    '⚠️ y no se vuelve a derivar del plan de ahora');
+  /* P183 · antes leía `cicloTramosHtml.toString()`. Ahora se calcula el estado con la jornada
+     CONGELADA en 12 h y se pintan los tramos pasando la jornada VIGENTE de 5 h: el rótulo tiene
+     que decir 12 h (el mismo plan con el que se juzgó), no 5. */
+  const hace = h => new Date(Date.now() - h * 3600000).toISOString();
+  const congelado = { traslado: 60, jornada: 720, regreso: 60, descanso: 600 }, vigente = { traslado: 60, jornada: 300, regreso: 60, descanso: 600 };
+  const ev = (evento, h) => ({ evento, iso: hace(h), persona: 'Ana', empresa: 'Consorcio HELITEC' });
+  const ciclo = cicloAgruparEventos([ev('salida_casa', 9), ev('llegada_aero', 8)], cicloTotalMin(congelado) * 60000);
+  const st = cicloEstado(ciclo, Date.now(), congelado);
+  PRUEBAS.cierto(!!st && st.tramos && st.tramos.length > 1, 'guarda: hay tramos');
+  const cont = document.createElement('div'); cont.innerHTML = cicloTramosHtml(st, vigente);
+  const txt = cont.textContent;
+  PRUEBAS.cierto(/12 h/.test(txt), '⚠️ el previsto de la jornada sale del tramo ya calculado (12 h, el congelado)');
+  PRUEBAS.falso(/\b5 h\b/.test(txt), 'y no del plan de ahora (5 h) · «Quedan 0 min de 5 h» en azul y sin exceso era el defecto');
 });
 
 PRUEBAS.caso('🟡 si las jornadas por persona no se pueden leer, la pantalla lo dice', () => {

@@ -54,19 +54,31 @@ PRUEBAS.caso('⚠️ la ventana sigue a la jornada de cada persona', () => {
 });
 
 PRUEBAS.caso('⚠️ los dos bucles de agrupación pasan la persona, no una ventana global', () => {
-  /* Los dos ya agrupaban por persona; lo que faltaba era darle a cada grupo SU ventana. */
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  PRUEBAS.alMenos(f.length, 100000, 'guarda de medibilidad: se leyó la fuente');
-  ['cicloArmar', 'cicloHistorico'].forEach(fn => {
-    const cuerpo = (f.match(new RegExp('function ' + fn + '\\([\\s\\S]*?\\n\\}')) || [''])[0];
-    PRUEBAS.alMenos(cuerpo.length, 200, 'guarda: se encontró ' + fn);
-    PRUEBAS.cierto(/cicloVentanaDe\(nombre\)/.test(cuerpo),
-      '⚠️ ' + fn + ' calcula la ventana por persona');
-    /* Y la variable global que había quedado sin uso no está: dejarla haría pensar que esta
-       función todavía depende del plan de la empresa. */
-    PRUEBAS.falso(/const plan = cicloPlan\(\)/.test(cuerpo),
-      '⚠️ y ya no queda la variable `plan` sin uso en ' + fn);
-  });
+  /* P183 · antes buscaba `cicloVentanaDe(nombre)` en `cicloArmar` y `cicloHistorico`. Ahora dos
+     personas con los MISMOS eventos (dos salidas separadas por 20 h) y jornadas distintas: para la
+     de jornada corta son dos ciclos; para la de jornada muy larga, uno solo. Si la ventana fuera
+     global, las dos darían lo mismo. */
+  const prevDash = DASH;
+  const hace = h => new Date(Date.now() - h * 3600000).toISOString();
+  try {
+    const ev = (persona, evento, h) => ({ persona, empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', evento, iso: hace(h), fecha: hace(h).substring(0, 10), test: '', resultado: '', plan: '' });
+    onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: [],
+      registros: [{ persona: 'Corta Ventana', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }, { persona: 'Larga Ventana', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }],
+      comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [],
+      operacional: [ev('Corta Ventana', 'salida_casa', 30), ev('Corta Ventana', 'llegada_aero', 10),
+                    ev('Larga Ventana', 'salida_casa', 30), ev('Larga Ventana', 'llegada_aero', 10)],
+      operacionalPeriodo: { dias: 7 },
+      cicloPlanPersona: { [dashNorm('Corta Ventana')]: { traslado: 60, jornada: 300, regreso: 60, descanso: 60 }, [dashNorm('Larga Ventana')]: { traslado: 120, jornada: 1440, descanso: 1440, regreso: 120 } }
+    }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'p057c' }, 'supervisor');
+    const ciclos = cicloArmar();   // { <persona normalizada>: ciclo vigente }
+    const corta = ciclos[dashNorm('Corta Ventana')], larga = ciclos[dashNorm('Larga Ventana')];
+    PRUEBAS.cierto(!!corta && !!larga, 'guarda: `cicloArmar` devolvió un ciclo por persona (' + Object.keys(ciclos).join(', ') + ')');
+    /* con ventana propia: para la de jornada corta (ventana ~8 h), la llegada de hace 10 h ya no cabe en el ciclo de hace 30 h (queda suelta, como ciclo nuevo); para la de jornada enorme (ventana ~52 h) sigue siendo el mismo ciclo */
+    const inicioCorta = corta && corta.t0, inicioLarga = larga && larga.t0;
+    PRUEBAS.cierto(inicioCorta != null && inicioLarga != null, 'guarda: cada persona trae su ciclo con inicio');
+    PRUEBAS.cierto(Date.now() - inicioCorta < 12 * 3600000 && Object.keys(corta.ev || {}).length === 1, '⚠️ para la de jornada corta, la llegada de hace 10 h NO entra en el ciclo de hace 30 h: la ventana es SUYA');
+    PRUEBAS.cierto(Date.now() - inicioLarga > 25 * 3600000 && Object.keys(larga.ev || {}).length === 2, '⚠️ para la de jornada enorme, los dos eventos son el mismo ciclo · si la ventana fuera global, las dos darían igual');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('⚠️ EL DISCRIMINADOR · con la ventana global el caso de arriba se pone rojo', () => {

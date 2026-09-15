@@ -47,17 +47,30 @@ PRUEBAS.caso('⚠️ el plan de una persona manda sobre el de la empresa, y sól
 });
 
 PRUEBAS.caso('⚠️ quien decide si alguien está EXCEDIDO usa el plan de esa persona', () => {
-  /* El llamador que se me había pasado en P057a y que encontró la prueba de aquel prompt.
-     `cicloEstado` alimenta el chip de la tarjeta, los contadores de arriba y el color del borde:
-     con el plan de la empresa, alguien con jornada propia más larga aparecería pasado de tiempo
-     sin estarlo. Verificado mirando: al subir la jornada de Ana su tarjeta dejó de estar en rojo. */
-  PRUEBAS.igual(typeof cicloEstado, 'function', 'guarda de medibilidad: la función existe');
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const cuerpo = (f.match(/function renderCicloOperativo\(\)[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(cuerpo.length, 400, 'guarda: se encontró la función');
-  PRUEBAS.cierto(/cicloEstado\(p\.ciclo, ahora, cicloPlan\(p\.persona\)\)/.test(cuerpo),
-    '⚠️ `cicloEstado` recibe el plan de LA persona · si vuelve a `plan` a secas, alguien con jornada ' +
-    'propia aparece excedido sin estarlo');
+  /* P183 · antes buscaba `cicloEstado(p.ciclo, ahora, cicloPlan(p.persona))` en la fuente. Ahora se
+     pinta la pestaña Ciclo con Ana 13 h adentro de su jornada: con jornada PROPIA de 15 h no está
+     excedida; sin jornada propia (empresa 12 h) sí. Verificado mirando en su momento: al subir la
+     jornada de Ana su tarjeta dejó de estar en rojo. Esto lo mide. */
+  const prevDash = DASH;
+  const hace = h => new Date(Date.now() - h * 3600000).toISOString();
+  const pintar = (conPropia) => {
+    const base = { persona: 'Ana Suárez', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', test: '', resultado: '', plan: '' };
+    onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: [],
+      registros: [{ persona: 'Ana Suárez', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }],
+      comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [],
+      operacional: [Object.assign({ evento: 'salida_casa', iso: hace(14), fecha: hace(14).substring(0, 10) }, base), Object.assign({ evento: 'llegada_aero', iso: hace(13), fecha: hace(13).substring(0, 10) }, base)],
+      operacionalPeriodo: { dias: 7 },
+      cicloPlanPersona: conPropia ? { [dashNorm('Ana Suárez')]: { traslado: 60, jornada: 900, regreso: 60, descanso: 600 } } : {}
+    }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'p057b' }, 'supervisor');
+    const cont = document.createElement('div'); cont.innerHTML = renderCicloOperativo();
+    return { excedidas: cont.querySelectorAll('.cic-card.cic-est-excedido').length, tarjetas: cont.querySelectorAll('.cic-card').length };
+  };
+  try {
+    const con = pintar(true), sin = pintar(false);
+    PRUEBAS.igual(con.tarjetas, 1, 'guarda: Ana tiene su tarjeta');
+    PRUEBAS.igual(con.excedidas, 0, '⚠️ con jornada PROPIA de 15 h, 13 h adentro NO es exceso · quien decide usa el plan de esa persona');
+    PRUEBAS.igual(sin.excedidas, 1, 'DISCRIMINADOR · sin jornada propia (empresa 12 h), sí está excedida');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('⚠️ el mapa de jornadas NO viaja a Dirección/HSEQ (K1b)', () => {
