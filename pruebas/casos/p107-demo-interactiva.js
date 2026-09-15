@@ -56,11 +56,29 @@ PRUEBAS.caso('🔴 la cola del EMPLEADO sigue cerrada en la demostración', () =
      `confiabilidad_guardar`, `consentimiento_guardar`, `opinion_guardar` y `tarea_estado` no
      piden credencial. Un envío desde la demo dejaría filas con `Empresa = "Empresa Demo"` en las
      hojas reales de un cliente. */
-  const cuerpo = p107Cuerpo('empFlush');
-  PRUEBAS.cierto(!!cuerpo, 'existe empFlush');
-  if (!cuerpo) return;
-  PRUEBAS.cierto(/demoBloqueaEscritura\(\)/.test(cuerpo),
-    '🔴 empFlush TIENE que consultar demoBloqueaEscritura(): es la única cola sin contraseña');
+  /* P183 · antes buscaba `demoBloqueaEscritura()` en el cuerpo de `empFlush`. Ahora se deja un
+     registro en la cola, se pone la demostración ABIERTA (panel demo en pantalla) y se vacía la
+     cola con `fetchConReloj` espiado: nada puede salir. Con la demo cerrada, sale. */
+  const oFetch = window.fetchConReloj, prevDash = DASH, prevCola = localStorage.getItem(K_EMP_COLA);
+  const ov = document.getElementById('portalOverlay'), estabaShow = ov.classList.contains('show');
+  let posts = 0;
+  try {
+    window.fetchConReloj = () => { posts++; return new Promise(() => {}); };
+    localStorage.setItem(K_EMP_COLA, JSON.stringify({ 'rep_demo': { accion: 'reporte_guardar', payload: { id: 'rep_demo', empresa: 'Empresa Demo' }, creada: Date.now() } }));
+    delete _empEnVuelo.rep_demo;
+    DASH = { demoMode: true, vista: 'supervisor' }; ov.classList.add('show');
+    PRUEBAS.cierto(demoBloqueaEscritura(), 'guarda: la demostración está abierta y bloquea escrituras');
+    empFlush();
+    PRUEBAS.igual(posts, 0, '🔴 con la demostración abierta, la cola del empleado NO manda nada · es la única cola sin contraseña: un envío dejaría filas de «Empresa Demo» en las hojas reales de un cliente');
+    DASH = null; ov.classList.remove('show');
+    delete _empEnVuelo.rep_demo;
+    empFlush();
+    PRUEBAS.igual(posts, 1, 'DISCRIMINADOR · con la demostración cerrada, el mismo registro sale');
+  } finally {
+    window.fetchConReloj = oFetch; DASH = prevDash; delete _empEnVuelo.rep_demo;
+    if (estabaShow) ov.classList.add('show'); else ov.classList.remove('show');
+    if (prevCola == null) localStorage.removeItem(K_EMP_COLA); else localStorage.setItem(K_EMP_COLA, prevCola);
+  }
 });
 
 PRUEBAS.caso('🔴 escribir como EMPLEADO sigue bloqueado en la demo', () => {
@@ -84,13 +102,24 @@ PRUEBAS.caso('🔴 lo sembrado por la demo NO sube al CH ni desde una cuenta rea
 });
 
 PRUEBAS.caso('🔴 marcar una ausencia en la demo no manda nada a la red', () => {
-  const cuerpo = p107Cuerpo('ausTocar');
-  PRUEBAS.cierto(!!cuerpo, 'existe ausTocar');
-  if (!cuerpo) return;
-  const j = cuerpo.indexOf("action:'ausencia_guardar'");
-  PRUEBAS.alMenos(j, 0, 'y arma el POST en algún lado');
-  PRUEBAS.cierto(j > 0 && /DASH\.demoMode/.test(cuerpo.slice(0, j)),
-    '🔴 la rama de demo tiene que cortar ANTES de armar el POST');
+  /* P183 · antes buscaba `DASH.demoMode` antes de `action:'ausencia_guardar'` en la fuente. Ahora
+     se toca el botón de ausencia con la demo puesta y `fetchConReloj` espiado: no sale nada, se
+     avisa «aplicado en la demostración» y la marca queda en memoria. Sin demo, sale el POST. */
+  const oFetch = window.fetchConReloj, oOff = window.offHayConexion, oToast = window.showToast, prevDash = DASH;
+  const posts = [], toasts = [];
+  const btn = document.createElement('button'); btn.setAttribute('data-ced', 'V-12345678'); btn.setAttribute('data-per', 'Ana Demo');
+  try {
+    window.fetchConReloj = (u, o) => { try { posts.push(JSON.parse(o.body)); } catch(e){} return new Promise(() => {}); };
+    window.offHayConexion = () => true; window.showToast = m => { toasts.push(String(m)); };
+    DASH = { demoMode: true, vista: 'supervisor', params: { usuario: 'demo', empresa: 'Empresa Demo' }, ausencias: {}, registros: [] };
+    ausTocar(btn);
+    PRUEBAS.igual(posts.length, 0, '🔴 en la demostración, marcar una ausencia NO manda nada a la red');
+    PRUEBAS.cierto(toasts.indexOf(t('demo_aplicado')) >= 0, 'y avisa que se aplicó en la demostración');
+    PRUEBAS.cierto(Object.keys(DASH.ausencias).length >= 1, 'y la marca queda en pantalla (en memoria)');
+    DASH = { demoMode: false, vista: 'supervisor', params: { usuario: 'helitec', empresa: 'Helitec' }, ausencias: {}, registros: [] };
+    ausTocar(btn);
+    PRUEBAS.igual(posts.filter(b => b.action === 'ausencia_guardar').length, 1, 'DISCRIMINADOR · sin demo, el mismo toque manda `ausencia_guardar`');
+  } finally { window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; DASH = prevDash; }
 });
 
 /* ══════════ LO QUE SÍ SE PUEDE TOCAR ══════════ */
@@ -140,10 +169,22 @@ PRUEBAS.caso('⚠️ la demostración siembra su bitácora', () => {
 PRUEBAS.caso('⚠️ lo sembrado en la bitácora NO queda en cola de subida', () => {
   /* El cinturón es `demoEsIdSembrado`; esto es el tirante. Un evento en `up` es un evento que la
      app va a intentar subir en cuanto encuentre credenciales. */
-  const cuerpo = p107Cuerpo('bitacoraSembrarDemo');
-  if (!cuerpo){ PRUEBAS.cierto(false, 'no existe la función'); return; }
-  PRUEBAS.falso(/s\.up\[/.test(cuerpo), '⚠️ no marca nada para subir');
-  PRUEBAS.cierto(/'bdemo'/.test(cuerpo) || /"bdemo"/.test(cuerpo), 'y usa el prefijo que se filtra');
+  /* P183 · antes buscaba `s.up[` y `'bdemo'` en la fuente. Ahora se siembra la bitácora de la
+     demostración de verdad y se mira el almacén: entradas con el prefijo que se filtra, y la cola
+     de subida (`up`) vacía. */
+  const prevDash = DASH, prevBit = localStorage.getItem(K_BITACORA);
+  try {
+    localStorage.removeItem(K_BITACORA);
+    DASH = { demoMode: true, vista: 'supervisor', f: { emp: EMPRESA_DEMO_NOMBRE }, params: { usuario: 'demo', empresa: EMPRESA_DEMO_NOMBRE }, registros: [{ persona: 'Ana Demo' }, { persona: 'Beto Demo' }] };
+    bitacoraSembrarDemo();
+    const s = bitStore();
+    PRUEBAS.alMenos(s.items.length, 5, 'guarda: la bitácora de la demo quedó sembrada (' + s.items.length + ')');
+    PRUEBAS.cierto(s.items.every(e => String(e.id || '').indexOf('bdemo') === 0), 'todas con el prefijo que se filtra');
+    PRUEBAS.igual(Object.keys(s.up || {}).length, 0, '⚠️ y NINGUNA marcada para subir: lo sembrado no puede intentar subir el día que aparezcan credenciales');
+  } finally {
+    DASH = prevDash;
+    if (prevBit == null) localStorage.removeItem(K_BITACORA); else localStorage.setItem(K_BITACORA, prevBit);
+  }
 });
 
 /* ══════════ EL ELENCO ══════════ */
@@ -177,9 +218,17 @@ PRUEBAS.caso('⚠️ y nadie tiene dos departamentos', () => {
 PRUEBAS.caso('la nómina de ejemplo se puede abrir', () => {
   /* `nominaDemo()` tiene 21 personas escritas desde S7 y el botón que abre esa pantalla estaba
      escondido en modo demo: código que anda y que nadie podía alcanzar. */
-  const cuerpo = p107Cuerpo('dashUpdateNomFab');
-  if (!cuerpo){ PRUEBAS.cierto(false, 'no existe dashUpdateNomFab'); return; }
-  PRUEBAS.falso(/!DASH\.demoMode/.test(cuerpo), '⚠️ ya no se esconde el botón en la demostración');
+  /* P183 · antes buscaba que `!DASH.demoMode` NO estuviera en `dashUpdateNomFab`. Ahora se pinta el
+     botón con la demo puesta y se mira si se ve. */
+  const prevDash = DASH, btn = document.getElementById('nomFabBtn'), prevDisplay = btn ? btn.style.display : '';
+  try {
+    DASH = { demoMode: true, vista: 'supervisor' };
+    dashUpdateNomFab();
+    PRUEBAS.cierto(!!btn && btn.style.display !== 'none', '⚠️ en la demostración el botón de la nómina SE VE · `nominaDemo()` tiene 21 personas y la pantalla era inalcanzable');
+    DASH = { demoMode: true, vista: 'hseq' };
+    dashUpdateNomFab();
+    PRUEBAS.cierto(btn.style.display === 'none', 'DISCRIMINADOR · para Dirección sigue oculto (K1b: la nómina lleva nombres)');
+  } finally { DASH = prevDash; if (btn) btn.style.display = prevDisplay; }
 });
 
 /* ══════════ LA LIMPIEZA ══════════ */
@@ -188,10 +237,26 @@ PRUEBAS.caso('⚠️ al salir se borra lo que la demostración escribió', () =>
   /* Desde que la demo puede escribir, esto dejó de ser cosmético: sin la limpieza, la segunda
      demostración arranca con las restricciones que se aplicaron en la primera, delante de otro
      cliente. */
-  const cuerpo = p107Cuerpo('closePortal');
-  if (!cuerpo){ PRUEBAS.cierto(false, 'no existe closePortal'); return; }
-  PRUEBAS.cierto(/_eraDemo/.test(cuerpo), 'se recuerda si era demo ANTES de perder DASH');
-  PRUEBAS.cierto(/gestSaveStoreAll|bitSaveStoreAll/.test(cuerpo), 'y se limpia el almacén de esa empresa');
+  /* P183 · antes buscaba `_eraDemo` y `gestSaveStoreAll|bitSaveStoreAll` en `closePortal`. Ahora se
+     siembra gestión y bitácora de la empresa de ejemplo y de otra, se cierra el panel en modo demo
+     y se mira qué quedó: lo de la demo se fue, lo de la otra empresa sigue. */
+  const prevDash = DASH, prevG = localStorage.getItem(K_GESTIONES), prevB = localStorage.getItem(K_BITACORA), oPush = history.pushState;
+  const k = dashNorm(EMPRESA_DEMO_NOMBRE);
+  try {
+    history.pushState = () => {};
+    gestSaveStoreAll({ [k]: { items: [{ id: 'g-demo' }], up: {}, del: {} }, helitec: { items: [{ id: 'g-real' }], up: {}, del: {} } });
+    bitSaveStoreAll({ [k]: { items: [{ id: 'bdemo1' }], up: {} }, helitec: { items: [{ id: 'b-real' }], up: {} } });
+    DASH = { demoMode: true, vista: 'supervisor', params: { usuario: 'demo', empresa: EMPRESA_DEMO_NOMBRE } };
+    closePortal();
+    PRUEBAS.igual(DASH, null, 'guarda: el panel se cerró');
+    PRUEBAS.cierto(!gestStoreAll()[k] && !bitStoreAll()[k], '⚠️ al salir de la demostración se borra lo que escribió (gestiones y bitácora de la empresa de ejemplo)');
+    PRUEBAS.cierto(!!gestStoreAll().helitec && !!bitStoreAll().helitec, 'DISCRIMINADOR · lo de una empresa real sigue ahí');
+  } finally {
+    DASH = prevDash; history.pushState = oPush;
+    if (prevG == null) localStorage.removeItem(K_GESTIONES); else localStorage.setItem(K_GESTIONES, prevG);
+    if (prevB == null) localStorage.removeItem(K_BITACORA); else localStorage.setItem(K_BITACORA, prevB);
+    try { document.getElementById('portalOverlay').classList.remove('show'); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('el DISCRIMINADOR del helper: ignora comentarios y no corta el cuerpo', () => {

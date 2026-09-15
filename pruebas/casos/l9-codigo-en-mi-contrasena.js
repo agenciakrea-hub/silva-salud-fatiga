@@ -70,40 +70,97 @@ PRUEBAS.caso('🔴 y el ERROR del servidor lo abre igual · la red del camino de
 PRUEBAS.caso('⚠️ el envío usa lo que la persona escribió, no sólo el progreso del alta', () => {
   /* El defecto entero era que `altaProgresoCargar()` fuera la ÚNICA fuente: se borra al terminar
      el alta (index.html, en `nominaConfirmar`) y vence a las 24 h. */
-  const src = String(clvGuardar);
-  PRUEBAS.alMenos(src.length, 200, 'guarda de medibilidad: se leyó la función');
-  PRUEBAS.cierto(/clvCodigo/.test(src), '⚠️ lee el campo de la pantalla');
-  /* ⚠️ QUÉ CAMBIÓ EN P164 (2026-09-10): el respaldo ya no es `altaProgresoCargar()` a secas sino
-     `altaCodigoVigente()`, que mira PRIMERO la memoria del alta en curso (`NOM.codigo`) y después
-     el progreso guardado. El alta de prueba contra producción encontró que el progreso se borra
-     en `nominaConfirmar` —cuatro pantallas antes— así que el respaldo de L9 nunca llegaba a
-     esta pantalla durante un alta normal. Lo que este caso afirma es lo mismo: el campo manda y
-     hay un respaldo detrás. */
-  PRUEBAS.cierto(/codManual/.test(src) && /altaCodigoVigente/.test(src),
-    'y el código del alta queda de respaldo para quien está terminando su alta ahora');
-  const iManual = src.indexOf('codManual'), iProg = src.indexOf('altaCodigoVigente');
-  PRUEBAS.cierto(iManual >= 0 && iProg > iManual,
-    '⚠️ y el campo tiene PRIORIDAD sobre el respaldo · si no, un código viejo taparía al nuevo');
-  const srcV = String(altaCodigoVigente);
-  PRUEBAS.cierto(/altaProgresoCargar/.test(srcV) && srcV.indexOf('NOM') < srcV.indexOf('altaProgresoCargar'),
-    'y dentro del respaldo, la memoria de ESTA alta va antes que lo guardado de una anterior');
+  /* P183 · antes leía `String(clvGuardar)`. Ahora se toca «Crear mi contraseña» con el campo del
+     código escrito y con la memoria del alta cargada, y se mira qué código VIAJÓ en el POST. */
+  const oFetch = window.fetchConReloj, oOff = window.offHayConexion, prevPerfil = getProfile(), prevNom = NOM.codigo, prevModo = CLV_MODO;
+  const cuerpos = [];
+  try {
+    window.fetchConReloj = (u, o) => { try { cuerpos.push(JSON.parse(o.body)); } catch(e){} return new Promise(() => {}); };
+    window.offHayConexion = () => true; CLV_MODO = 'crear';
+    setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+    document.getElementById('clvPass').value = 'unaClaveLarga1'; document.getElementById('clvPass2').value = 'unaClaveLarga1';
+    NOM.codigo = 'DEL-ALTA';
+    document.getElementById('clvCodigo').value = 'ESCRITO-AHORA';
+    clvGuardar(null);
+    PRUEBAS.igual(cuerpos.length, 1, 'guarda: salió el pedido de crear la credencial');
+    PRUEBAS.igual(cuerpos[0] && cuerpos[0].codigo, 'ESCRITO-AHORA', '⚠️ el campo de la pantalla tiene PRIORIDAD · si no, un código viejo taparía al nuevo');
+    document.getElementById('clvCodigo').value = '';
+    try { btnSpin(document.getElementById('clvBtn'), false); } catch(e){}
+    clvGuardar(null);
+    PRUEBAS.igual(cuerpos[1] && cuerpos[1].codigo, 'DEL-ALTA', 'y con el campo vacío viaja el respaldo: el código del alta en curso');
+  } finally {
+    window.fetchConReloj = oFetch; window.offHayConexion = oOff; NOM.codigo = prevNom; CLV_MODO = prevModo;
+    document.getElementById('clvPass').value = ''; document.getElementById('clvPass2').value = ''; document.getElementById('clvCodigo').value = '';
+    try { btnSpin(document.getElementById('clvBtn'), false); } catch(e){}
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+  }
+  /* y dentro del respaldo, la memoria de ESTA alta va antes que lo guardado de una anterior */
+  const prevNom2 = NOM.codigo, prevProg = localStorage.getItem(K_ALTA_PROGRESO);
+  try {
+    const prevEmp = NOM.empresa; NOM.empresa = 'Consorcio HELITEC'; NOM.codigo = 'DE-UNA-ALTA-VIEJA'; altaProgresoGuardar(); NOM.empresa = prevEmp;   // el progreso se guarda desde NOM y necesita empresa
+    NOM.codigo = 'DE-ESTA-ALTA';
+    PRUEBAS.igual(altaCodigoVigente(), 'DE-ESTA-ALTA', 'con las dos memorias, gana la del alta en curso');
+    NOM.codigo = '';
+    PRUEBAS.igual(altaCodigoVigente(), 'DE-UNA-ALTA-VIEJA', 'y sin ella, el progreso guardado');
+  } finally {
+    NOM.codigo = prevNom2;
+    if (prevProg == null) localStorage.removeItem(K_ALTA_PROGRESO); else localStorage.setItem(K_ALTA_PROGRESO, prevProg);
+  }
 });
 
 PRUEBAS.caso('⚠️ la respuesta de código inválido abre el campo · por el camino real', () => {
-  const src = String(clvGuardar);
-  PRUEBAS.cierto(/codigo_invalido/.test(src) && /clvCodigoRevelar/.test(src),
-    '⚠️ el manejador de la respuesta llama a revelar · antes sólo pintaba el error');
-  PRUEBAS.cierto(/codigo_frenado/.test(src),
-    'y también cuando el servidor dice que hubo demasiados intentos');
+  /* P183 · antes buscaba `codigo_invalido` y `clvCodigoRevelar` en `clvGuardar`. Ahora el servidor
+     (espiado) responde `codigo_invalido` y después `codigo_frenado`: el campo del código tiene que
+     quedar a la vista. Se restaura en el `.finally()` de la promesa (R18). */
+  const oFetch = window.fetchConReloj, oOff = window.offHayConexion, prevPerfil = getProfile(), prevModo = CLV_MODO;
+  const campo = document.getElementById('clvCodigoCampo');
+  const responder = (motivo) => { window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok: false, motivo: motivo, error: 'x' }) }); campo.hidden = true; try { btnSpin(document.getElementById('clvBtn'), false); } catch(e){} clvGuardar(null); return new Promise(res => setTimeout(res, 30)); };
+  window.offHayConexion = () => true; CLV_MODO = 'crear';
+  setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+  document.getElementById('clvPass').value = 'unaClaveLarga1'; document.getElementById('clvPass2').value = 'unaClaveLarga1';
+  return responder('codigo_invalido').then(() => {
+    PRUEBAS.cierto(campo.hidden === false, '⚠️ con `codigo_invalido` el campo del código se REVELA · antes sólo pintaba el error');
+    return responder('codigo_frenado');
+  }).then(() => {
+    PRUEBAS.cierto(campo.hidden === false, 'y también cuando el servidor dice que hubo demasiados intentos');
+    return responder('clave_debil');
+  }).then(() => {
+    PRUEBAS.cierto(campo.hidden === true, 'DISCRIMINADOR · con otro motivo el campo sigue guardado');
+  }).finally(() => {
+    window.fetchConReloj = oFetch; window.offHayConexion = oOff; CLV_MODO = prevModo; campo.hidden = true;
+    document.getElementById('clvPass').value = ''; document.getElementById('clvPass2').value = ''; document.getElementById('clvErr').textContent = '';
+    try { btnSpin(document.getElementById('clvBtn'), false); } catch(e){}
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+  });
 });
 
 PRUEBAS.caso('⚠️ abrir la pantalla NO depende de la red (R7)', () => {
   /* Si `clvAbrir` pidiera el perfil de la empresa al servidor para saber si mostrar el campo, sin
      señal la hoja no se abriría o se abriría mal. Se lee del guardado, y la red es la de abajo. */
-  const src = String(clvCodigoPreparar);
-  PRUEBAS.falso(/fetch|dashRequest|fetchConReloj/.test(src),
-    '⚠️ no hay pedido a la red para abrir la pantalla · el perfil sale del guardado local');
-  PRUEBAS.cierto(/empresaPerfilGuardado/.test(src), 'y de ahí sale `pideCodigo`');
+  /* P183 · antes leía `String(clvCodigoPreparar)`. Ahora se prepara la pantalla con la red espiada
+     y el perfil de empresa GUARDADO: cero pedidos, y el campo aparece o no según `pideCodigo` del
+     guardado. */
+  const oFetch = window.fetchConReloj, oFetch2 = window.fetch, oDash = window.dashRequest, prevPerfilEmp = localStorage.getItem(K_EMPRESA_PERFIL), prevPerfil = getProfile();
+  const campo = document.getElementById('clvCodigoCampo');
+  let pedidos = 0;
+  try {
+    window.fetchConReloj = () => { pedidos++; return new Promise(() => {}); };
+    window.fetch = () => { pedidos++; return new Promise(() => {}); };
+    window.dashRequest = () => { pedidos++; return new Promise(() => {}); };
+    setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+    localStorage.setItem(K_EMPRESA_PERFIL, JSON.stringify({ empresa: 'Consorcio HELITEC', pideCodigo: true, nombre: 'Consorcio HELITEC' }));
+    clvCodigoPreparar();
+    PRUEBAS.igual(pedidos, 0, '⚠️ abrir la pantalla no pide nada a la red (R7)');
+    PRUEBAS.cierto(campo.hidden === false, 'y el campo aparece porque el perfil GUARDADO dice que la empresa pide código');
+    localStorage.setItem(K_EMPRESA_PERFIL, JSON.stringify({ empresa: 'Consorcio HELITEC', pideCodigo: false, nombre: 'Consorcio HELITEC' }));
+    clvCodigoPreparar();
+    PRUEBAS.cierto(campo.hidden === true, 'DISCRIMINADOR · si el guardado dice que no pide, el campo no aparece');
+    PRUEBAS.igual(pedidos, 0, 'y sigue sin pedidos');
+  } finally {
+    window.fetchConReloj = oFetch; window.fetch = oFetch2; window.dashRequest = oDash; campo.hidden = true;
+    if (prevPerfilEmp == null) localStorage.removeItem(K_EMPRESA_PERFIL); else localStorage.setItem(K_EMPRESA_PERFIL, prevPerfilEmp);
+    if (prevPerfil) setProfile(prevPerfil); else { try { localStorage.removeItem(K_PROFILE); } catch(e){} }
+  }
 });
 
 PRUEBAS.caso('🔴 un código que NO se mandó no quema un intento', () => {
@@ -111,9 +168,19 @@ PRUEBAS.caso('🔴 un código que NO se mandó no quema un intento', () => {
      tocar «Crear mi contraseña» sin código contara como intento fallido, la persona a la que hay
      que NO trabar se frenaba sola en pocos toques — incluido el camino que la salva. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
-  const gs = CTX.gs;
-  const fn = (gs.match(/function puertaCodigo[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 100, 'guarda de medibilidad: se encontró la puerta');
-  PRUEBAS.cierto(/if \(String\(p\.codigo == null \? "" : p\.codigo\)\.trim\(\)\) codAnotarFallo/.test(fn),
-    '⚠️ sólo se anota el fallo si vino un código · el freno es contra quien PRUEBA códigos');
+  /* P183 · antes buscaba la línea del `if` en `puertaCodigo`. Ahora se golpea la puerta muchas veces
+     SIN código (lo que hace quien toca «Crear mi contraseña» sin saber que hace falta uno): nunca
+     frena. Con códigos EQUIVOCADOS, frena. */
+  const api = GS.cargarGs(CTX.gs, GS.crearEntorno({
+    'Config Empresa': [['Empresa','Clave','Valor'], ['Helitec','codigoRegistro','ABC123']],
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','','']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+  }), ['accionNominaPersonas']);
+  const golpear = (codigo, d) => JSON.parse(api.accionNominaPersonas({ empresa: 'Helitec', codigo: codigo, dispositivoId: d }).getContent());
+  let frenadoSin = false;
+  for (let i = 0; i < 15; i++) { if (golpear('', 'sin-codigo').motivo === 'codigo_frenado') frenadoSin = true; }
+  PRUEBAS.falso(frenadoSin, '🔴 quince toques SIN código no queman ningún intento · el freno es contra quien PRUEBA códigos');
+  let frenadoMal = false;
+  for (let i = 0; i < 15 && !frenadoMal; i++) { if (golpear('MALO' + i, 'probando').motivo === 'codigo_frenado') frenadoMal = true; }
+  PRUEBAS.cierto(frenadoMal, 'DISCRIMINADOR · quince códigos equivocados sí frenan');
 });
