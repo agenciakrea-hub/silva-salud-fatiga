@@ -349,12 +349,24 @@ PRUEBAS.caso('la pista NUNCA queda alternando de fondo: splashMostrar/splashAbri
      completo, que no es lo que este caso quiere medir. Se comprueba que las tres funciones que
      ocultan o reabren el splash LLAMEN a splashLangHintFrenar() — mismo criterio que ya usa este
      archivo para _splAnim/splashAnimFrenar (ver m5-coherencia-visual.js). */
-  PRUEBAS.cierto(/splashLangHintFrenar\(\)[\s\S]*splashLangHintArrancar\(\)/.test(splashMostrar.toString()),
-    'splashMostrar() tiene que frenar antes de arrancar — si no, dos aperturas seguidas del splash dejarían DOS cadenas vivas');
-  PRUEBAS.cierto(/splashLangHintFrenar\(\)/.test(splashAbrirPortal.toString()),
-    'splashAbrirPortal() tiene que frenarla: es uno de los caminos por los que el splash se oculta de verdad');
-  PRUEBAS.cierto(/splashLangHintFrenar\(\)/.test(carruselMostrar.toString()),
-    'carruselMostrar() también: si no, tocar "Ingresar" dejaría la cadena corriendo detrás del carrusel');
+  /* P183 · antes leía `.toString()` de las tres. Ahora se llaman con los frenos y el arranque
+     espiados (el arranque espiado no dispara nada: no se anima nada de verdad) y se mira el orden. */
+  const oFrenar = window.splashLangHintFrenar, oArrancar = window.splashLangHintArrancar, oAnimF = window.splashAnimFrenar, oAnimA = window.splashAnimArrancar, oNav = window.navConsumir, oPush = history.pushState;
+  const orden = [];
+  try {
+    window.splashLangHintFrenar = () => { orden.push('frenar'); }; window.splashLangHintArrancar = () => { orden.push('arrancar'); };
+    window.splashAnimFrenar = () => {}; window.splashAnimArrancar = () => {}; window.navConsumir = () => {}; history.pushState = () => {};
+    splashMostrar();
+    PRUEBAS.cierto(orden.indexOf('frenar') >= 0 && orden.indexOf('arrancar') > orden.indexOf('frenar'), 'splashMostrar() frena ANTES de arrancar — si no, dos aperturas seguidas dejarían DOS cadenas vivas (' + orden.join('→') + ')');
+    orden.length = 0; splashAbrirPortal();
+    PRUEBAS.cierto(orden.indexOf('frenar') >= 0, 'splashAbrirPortal() la frena: es uno de los caminos por los que el splash se oculta de verdad');
+    orden.length = 0; carruselMostrar();
+    PRUEBAS.cierto(orden.indexOf('frenar') >= 0, 'carruselMostrar() también: si no, tocar «Ingresar» dejaría la cadena corriendo detrás del carrusel');
+  } finally {
+    window.splashLangHintFrenar = oFrenar; window.splashLangHintArrancar = oArrancar; window.splashAnimFrenar = oAnimF; window.splashAnimArrancar = oAnimA; window.navConsumir = oNav; history.pushState = oPush;
+    ['splashOv', 'portalOverlay', 'carruselOv'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('show'); });
+    try { syncScrollLock(); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ la guarda de quieto revisa las DOS condiciones — el sistema Y el interruptor propio de la app', () => {
@@ -362,20 +374,51 @@ PRUEBAS.caso('⚠️ la guarda de quieto revisa las DOS condiciones — el siste
      sobre el CÓDIGO que las dos condiciones están, en vez de sólo una — que es exactamente el tipo
      de regresión que colaría "quedó fijo con el interruptor de la app pero sigue parpadeando si el
      SISTEMA pide movimiento reducido", o viceversa. */
-  const fuente = splashLangHintQuieto.toString();
-  PRUEBAS.cierto(/prefers-reduced-motion/.test(fuente), 'tiene que consultar el media query del SISTEMA');
-  PRUEBAS.cierto(/sin-animaciones/.test(fuente), 'Y el interruptor propio de la app (html.sin-animaciones)');
+  /* P183 · antes leía `.toString()`. No se puede emular prefers-reduced-motion en esta pestaña
+     (LEEME), pero sí se puede reemplazar `matchMedia` por uno que diga que el SISTEMA lo pide: la
+     guarda tiene que responder a cada una de las dos condiciones por separado. */
+  const oMM = window.matchMedia, html = document.documentElement, tenia = html.classList.contains('sin-animaciones');
+  try {
+    window.matchMedia = q => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} });
+    html.classList.remove('sin-animaciones');
+    PRUEBAS.igual(splashLangHintQuieto(), false, 'guarda: sin ninguna de las dos, no está quieta');
+    html.classList.add('sin-animaciones');
+    PRUEBAS.igual(splashLangHintQuieto(), true, 'con el interruptor propio de la app (html.sin-animaciones) queda quieta');
+    html.classList.remove('sin-animaciones');
+    window.matchMedia = q => ({ matches: /prefers-reduced-motion/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} });
+    PRUEBAS.igual(splashLangHintQuieto(), true, 'y con el SISTEMA pidiendo movimiento reducido, también — las dos condiciones, cada una sola');
+  } finally { window.matchMedia = oMM; if (tenia) html.classList.add('sin-animaciones'); else html.classList.remove('sin-animaciones'); }
 });
 
 PRUEBAS.caso('⚠️ la pista se re-arma sola si el movimiento se habilita mientras estaba quieta (MutationObserver)', () => {
   /* Mismo motivo que splashAnimArrancar (N10): si la pestaña carga oculta, `.sin-animaciones` se
      pone SOLA al arranque, y sin esto la pista quedaría fija para siempre aunque el movimiento ya
      estuviera permitido — el mismo síntoma que el usuario reportó para la tira del splash. */
-  const fuente = splashLangHintArrancar.toString();
-  PRUEBAS.cierto(/MutationObserver/.test(fuente), 'algo tiene que re-armarla sola');
-  PRUEBAS.cierto(/est\.parado = true/.test(fuente), 'y marcarse como parada, no abandonada, cuando se congela');
-  PRUEBAS.cierto(/_splLangHint !== est/.test(fuente),
-    'y comprobar identidad contra el estado global en cada paso, para que una cadena vieja no siga viva por error');
+  /* P183 · antes leía `.toString()`. Ahora se arranca la pista con el movimiento apagado (queda
+     parada), se habilita el movimiento cambiando la clase del `<html>`, y se espera a que la pista
+     cambie de palabra sola: eso es el observer. Se espera una condición observable, no tiempo. */
+  const html = document.documentElement, tenia = html.classList.contains('sin-animaciones'), oMM = window.matchMedia;
+  const el = document.getElementById('splashLangHint');
+  return (async () => {
+    try {
+      window.matchMedia = q => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} });
+      splashLangHintFrenar();
+      html.classList.add('sin-animaciones');
+      splashLangHintArrancar();
+      PRUEBAS.cierto(!!_splLangHint && _splLangHint.parado === true, 'guarda: con el movimiento apagado la pista arranca PARADA, no abandonada');
+      const antes = el.dataset.muestra;
+      html.classList.remove('sin-animaciones');
+      const cambio = await PRUEBAS.esperarA(() => el.dataset.muestra !== antes, 2500);
+      PRUEBAS.cierto(cambio, '⚠️ al habilitar el movimiento, la pista se re-arma sola y cambia de palabra (' + antes + ' → ' + el.dataset.muestra + ')');
+      PRUEBAS.cierto(_splLangHint && _splLangHint.parado === false, 'y ya no está parada');
+      /* discriminador: una cadena vieja no sigue viva — frenar y arrancar de nuevo deja UNA */
+      const vieja = _splLangHint; splashLangHintFrenar(); splashLangHintArrancar();
+      PRUEBAS.cierto(vieja.vivo === false && _splLangHint !== vieja, 'una cadena frenada queda muerta y la nueva es otra');
+    } finally {
+      splashLangHintFrenar(); window.matchMedia = oMM;
+      if (tenia) html.classList.add('sin-animaciones'); else html.classList.remove('sin-animaciones');
+    }
+  })();
 });
 
 PRUEBAS.caso('el estado global se declara SIN asignar (R16): "= null" pisaría lo que ya arrancó', () => {

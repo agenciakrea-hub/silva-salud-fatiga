@@ -73,11 +73,24 @@ PRUEBAS.caso('mientras carga, no se puede tocar ni tabular a la zona', () => {
 PRUEBAS.caso('⚠️ el bloqueo se levanta TAMBIÉN cuando el pedido falla', () => {
   /* Un bloqueo que queda pegado por un error de red deja la pantalla muerta y sin explicación —
      peor que no bloquear. Se comprueba sobre el código: el `catch` del login tiene que soltarlo. */
-  const fuente = portalLoginSupervisor.toString();
-  const idxCatch = fuente.indexOf('.catch(');
-  PRUEBAS.alMenos(idxCatch, 1, 'el login tiene que tener un catch');
-  PRUEBAS.cierto(fuente.slice(idxCatch).indexOf('cargaBloquear') > 0,
-    'si el catch no lo libera, un corte de red deja el formulario inutilizable para siempre');
+  /* P183 · antes leía `.toString()` buscando `cargaBloquear` después del `.catch(`. Ahora se toca
+     «Entrar» con la red FALLANDO y se mira el formulario después: tiene que volver a poder tocarse. */
+  const oFetch = window.fetchConReloj, gate = document.getElementById('portalGate');
+  window.fetchConReloj = () => Promise.reject(new Error('sin red'));
+  document.getElementById('pEmpresa').value = 'helitec'; document.getElementById('pPass').value = 'una-clave';
+  const zona = cargaZona(gate);
+  portalLoginSupervisor(null);
+  PRUEBAS.cierto(!!zona && zona.hasAttribute('inert'), 'guarda: mientras el pedido viaja, el formulario está bloqueado');
+  /* `cargaConMinimo` sostiene el cargador un mínimo (CARGA_MIN_MS) antes de reaccionar: se espera la
+     condición observable, no un tiempo fijo */
+  return PRUEBAS.esperarA(() => !zona.hasAttribute('inert'), CARGA_MIN_MS + 3000).then(() => {
+    PRUEBAS.falso(zona.hasAttribute('inert'), '⚠️ con el pedido FALLADO el bloqueo se levanta · si no, un corte de red dejaba el formulario inutilizable para siempre');
+    PRUEBAS.cierto(!!document.getElementById('portalErr').textContent, 'y se explica el error');
+  }).finally(() => {
+    window.fetchConReloj = oFetch;
+    try { cargaBloquear(gate, 'reset'); } catch(e){}
+    document.getElementById('pEmpresa').value = ''; document.getElementById('pPass').value = ''; document.getElementById('portalErr').textContent = '';
+  });
 });
 
 PRUEBAS.grupo('M1 · la lista de tareas');
@@ -225,10 +238,29 @@ PRUEBAS.caso('⚠️ conCarga suelta el bloqueo también cuando el pedido falla'
 PRUEBAS.caso('las pantallas que traen listas quedan bloqueadas mientras cargan', () => {
   /* El reclamo era poder "tocar botones o hacer otras cosas mientras carga". `cargaBloquear`
      existía desde M1 pero se usaba en UN solo lugar de 34 llamadas de red. */
-  PRUEBAS.cierto(/conCarga\(/.test(tareasRefrescar.toString()),
-    'la hoja de tareas: se podía tocar "Actualizar" tres veces y encimar pedidos');
-  PRUEBAS.cierto(/conCarga\(/.test(nominaListCargar.toString()),
-    'la nómina: se podía escribir en el buscador y filtrar sobre una lista que no existía todavía');
+  /* P183 · antes leía `.toString()` buscando `conCarga(`. Ahora se disparan las dos cargas con la
+     red colgada y se mira si su hoja queda fuera de alcance (`inert`) mientras tanto. */
+  const oFetch = window.fetchConReloj, oDash = window.dashRequest, prevDash = DASH;
+  const prevLS = Object.assign({}, localStorage);
+  const hojaTar = cargaZona(document.querySelector('#tareasOv .sheet')), hojaNom = cargaZona(document.querySelector('#nominaListOv .sheet') || document.getElementById('nominaListOv'));
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba' });
+    TAREAS.lista = []; TAREAS.cargando = false; TAREAS._enVuelo = null;
+    window.fetchConReloj = () => new Promise(() => {});
+    tareasRefrescar();
+    PRUEBAS.cierto(hojaTar && hojaTar.hasAttribute('inert'), 'la hoja de tareas queda bloqueada mientras carga: no se puede tocar «Actualizar» tres veces y encimar pedidos');
+    window.dashRequest = () => new Promise(() => {});
+    DASH = { vista: 'supervisor', params: { usuario: 'helitec', empresa: 'Helitec', pass: 'x' }, f: { emp: 'Helitec' } };
+    NOMLIST.datos = []; NOMLIST.cargando = false;
+    nominaListCargar();
+    PRUEBAS.cierto(hojaNom && hojaNom.hasAttribute('inert'), 'y la nómina también: no se puede escribir en el buscador sobre una lista que no existe todavía');
+  } finally {
+    window.fetchConReloj = oFetch; window.dashRequest = oDash; DASH = prevDash;
+    TAREAS.cargando = false; TAREAS._enVuelo = null; NOMLIST.cargando = false; NOMLIST.datos = [];
+    try { cargaBloquear(document.querySelector('#tareasOv .sheet'), 'reset'); } catch(e){}
+    try { cargaBloquear(document.querySelector('#nominaListOv .sheet') || document.getElementById('nominaListOv'), 'reset'); } catch(e){}
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.grupo('N9 · campos del formulario');

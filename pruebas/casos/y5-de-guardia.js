@@ -1,6 +1,22 @@
 
 PRUEBAS.grupo('Y5 · quién no estaba de guardia');
 
+/* P183 · el IDC de Dirección con cuatro personas por el camino real (`onDashData` → `renderHseqIdc`):
+   dos con dato, dos sin dato, y una de las dos sin dato ausente hoy (si `conAusencia`). */
+function y5Idc(conAusencia){
+  const hoy = todayStr();
+  const reg = n => ({ persona: n, empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: hoy, kss: 5 });
+  onDashData({ ok: true, rol: 'supervisor', vista: 'hseq', referencia: {}, metricas: [],
+    registros: ['Ana Uno', 'Beto Dos', 'Caro Tres', 'Dani Cuatro'].map(reg), comentarios: [], pvt: [],
+    aptitud: [{ nombre: 'Ana Uno', auto: 'ok', n: 1 }, { nombre: 'Beto Dos', auto: 'ok', n: 1 }, { nombre: 'Caro Tres', auto: 'sin', n: 0 }, { nombre: 'Dani Cuatro', auto: 'sin', n: 0 }],   // la forma que manda el servidor (`aptAutoServer`): `auto`, no `estado`
+    config: {}, marca: null, duty: null, turnos: [], nominaTotal: 0, nominaSinDato: [],
+    ausencias: conAusencia ? { ['n:' + ausNombreClave('Caro Tres') + '|' + hoy]: 'franco' } : {}
+  }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'y5' }, 'hseq');
+  const cont = document.createElement('div'); cont.innerHTML = renderHseqIdc(DASH.registros);
+  const filas = [...cont.querySelectorAll('.hs-row')].filter(r => r.querySelector('.hs-v')).map(r => ({ k: r.querySelector('.hs-k').textContent, n: Number(r.querySelector('.hs-v').textContent), pct: r.querySelector('.hs-pct').textContent }));
+  return { html: cont.innerHTML, texto: cont.textContent, filas };
+}
+
 /* ⚠️ EL PEDIDO ERA "quién está de guardia y quién no". SE IMPLEMENTÓ AL REVÉS, y la inversión es la
    decisión de diseño de todo el bloque.
    Declarar la GUARDIA obliga a cargar a las 47 personas todos los días. Un dato que hay que
@@ -41,37 +57,57 @@ PRUEBAS.caso('⚠️ una ausencia NO le esconde la app a nadie', () => {
   /* El riesgo que el plan marca como el más alto. Alguien de franco puede querer registrar igual, y
      esconderle la app porque una planilla dice que hoy no trabaja sería el error caro.
      Lo único que cambia una ausencia es cómo se CUENTA a esa persona en los porcentajes. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  /* `ausenteEse`/`ausenteHoy` sólo pueden usarse en el cálculo del panel. Si aparecieran en el
-     camino del empleado (renderInicio, las tarjetas, los tests), estarían filtrando su app. */
-  ['renderInicio', 'iniTieneCiclo', 'aptPersona'].forEach(fn => {
-    const i = fuente.indexOf('function ' + fn + '(');
-    if (i < 0) return;
-    const cuerpo = fuente.slice(i, i + 2500);
-    PRUEBAS.falso(/ausente(Ese|Hoy)\s*\(/.test(cuerpo),
-      '⚠️ `' + fn + '` no puede consultar ausencias: eso sería esconderle la app a quien está de franco');
-  });
+  /* P183 · antes buscaba `ausenteEse|ausenteHoy` en el cuerpo de tres funciones. Ahora se marca a
+     la PROPIA persona como ausente hoy —en el panel, que es el único lugar donde existe la
+     ausencia— y se pinta su inicio: tiene que verse igual que sin la ausencia, con sus botones del
+     ciclo y sus tests. Lo único que cambia una ausencia es cómo se la cuenta en un porcentaje. */
+  const prevLS = Object.assign({}, localStorage), prevDash = DASH;
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba', cedula: '12345678', esPiloto: true });
+    const pintar = () => { renderSections(); renderInicio(); const s = document.getElementById('sections'); return { secciones: s ? s.children.length : -1, botones: document.querySelectorAll('#sections a, #sections button').length, texto: (s ? s.textContent : '').length }; };
+    DASH = null;
+    const sin = pintar();
+    DASH = { vista: 'supervisor', ausencias: { ['12345678|' + todayStr()]: 'franco', ['n:' + ausNombreClave('Ana Prueba') + '|' + todayStr()]: 'franco' } };
+    PRUEBAS.cierto(ausenteHoy({ cedula: '12345678', nombre: 'Ana Prueba' }), 'guarda: para el panel, Ana está ausente hoy');
+    const con = pintar();
+    PRUEBAS.cierto(sin.secciones > 0 && sin.botones > 0, 'guarda: el inicio tiene secciones y botones (' + sin.secciones + '/' + sin.botones + ')');
+    PRUEBAS.igual(con, sin, '⚠️ con la ausencia puesta, el inicio de la persona es EXACTAMENTE el mismo: nadie le esconde la app a quien está de franco');
+  } finally {
+    DASH = prevDash;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ a quien no le tocaba sale del DENOMINADOR, no de la lista', () => {
   /* Sacarlos en silencio inflaría la cobertura sin que nadie pueda revisarlo, y una ausencia mal
      cargada se volvería invisible: nadie la corregiría nunca. Por eso se dice el número. */
-  const fuente = String(renderHseqIdc);
-  PRUEBAS.cierto(/const ausentes = /.test(fuente), 'los ausentes se identifican aparte');
-  PRUEBAS.cierto(/hs_no_tocaba/.test(fuente), '⚠️ y se informa cuántos son, siempre');
-  PRUEBAS.cierto(/cuentan\.length/.test(fuente), 'y el denominador pasa a ser quienes sí contaban');
-  PRUEBAS.falso(/conDato\.length \/ gente\.length/.test(fuente),
-    'ya no se divide por el total de la nómina');
+  /* P183 · antes leía `String(renderHseqIdc)`. Ahora se pinta el IDC con cuatro personas (dos con
+     dato, dos sin, una de ellas ausente hoy) y se lee lo que muestra. */
+  const prevDash = DASH;
+  try {
+    const con = y5Idc(true), sin = y5Idc(false);
+    PRUEBAS.cierto(con.texto.indexOf(t('hs_no_tocaba_1')) >= 0, '⚠️ dice cuántos no contaban: «' + t('hs_no_tocaba_1') + '»');
+    PRUEBAS.cierto(/67\s*%/.test(con.texto), 'y la cobertura es 2 de 3 = 67%: la ausente salió del DENOMINADOR');
+    PRUEBAS.cierto(/50\s*%/.test(sin.texto) && sin.texto.indexOf(t('hs_no_tocaba_1')) < 0, 'DISCRIMINADOR · sin la ausencia es 2 de 4 = 50% y no hay aviso');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('⚠️ el reparto por estado cuadra con el denominador de la cobertura', () => {
   /* Si el reparto se calculara sobre toda la nómina y la cobertura sobre los que cuentan, la suma
      de la tabla no daría con el número de arriba y el panel se contradiría solo — la clase de
      inconsistencia que hace que alguien deje de creerle a la pantalla entera. */
-  const fuente = String(renderHseqIdc);
-  PRUEBAS.falso(/gente\.forEach\(p => \{ porEstado/.test(fuente),
-    '⚠️ el reparto no puede ir sobre `gente` si la cobertura va sobre `cuentan`');
-  PRUEBAS.cierto(/cuentan\.forEach\(p => \{ porEstado/.test(fuente), 'tiene que ir sobre `cuentan`');
+  /* P183 · antes leía `String(renderHseqIdc)`. Ahora se pinta el IDC y se suma la tabla de estados:
+     tiene que dar lo mismo que el denominador de la cobertura (3 con la ausente afuera). */
+  const prevDash = DASH;
+  try {
+    const con = y5Idc(true);
+    const suma = con.filas.reduce((s, f) => s + f.n, 0);
+    PRUEBAS.igual(suma, 3, '⚠️ el reparto por estado suma 3, los que cuentan — no 4 (' + JSON.stringify(con.filas) + ')');
+    const sinDato = con.filas.find(f => f.k === t('est_sindato'));
+    PRUEBAS.cierto(!!sinDato && sinDato.n === 1 && /33\s*%/.test(sinDato.pct), 'y «sin dato» es 1 de 3 (33%), no 2 de 4');
+    const sin = y5Idc(false);
+    PRUEBAS.igual(sin.filas.reduce((s, f) => s + f.n, 0), 4, 'DISCRIMINADOR · sin la ausencia, la tabla suma 4');
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('los textos del bloque están en los dos idiomas (R14, R1)', () => {
@@ -355,15 +391,33 @@ PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una so
      partes de la misma pantalla diciendo cosas distintas. Al quitar era peor — se borraba la de
      cédula y quedaba la de nombre, o sea que la persona seguía descontada de la cobertura después
      de que el supervisor le sacara la ausencia, sin nada en pantalla que lo delatara. */
-  const fuente = String(ausTocar);
-  PRUEBAS.cierto(/ausNombreClave\(persona\)/.test(fuente),
-    '⚠️ el pintado local tiene que armar también la clave por nombre');
-  PRUEBAS.falso(/const clave = cedNum \+ '\|' \+ hoy;/.test(fuente),
-    'y no puede quedar la variante de una sola clave');
-  const revertidos = (fuente.match(/claves\.forEach/g) || []).length;
-  PRUEBAS.alMenos(revertidos, 3,
-    '⚠️ las dos claves en los TRES lugares: el pintado y los dos revertidos (servidor y red) — ' +
-    'si un revertido quedara con una sola, un guardado fallido dejaría media ausencia puesta');
-  PRUEBAS.cierto(/ausenteHoy\(\{ cedula: ced, nombre: persona \}\)/.test(fuente),
-    '⚠️ y el estado previo se pregunta por las dos, o una ausencia que vino por nombre se lee como "no está"');
+  /* P183 · antes leía `String(ausTocar)`. Ahora se toca el botón con la red espiada: al MARCAR
+     quedan las dos claves (cédula y nombre); al QUITAR se van las dos; y si el servidor falla, se
+     revierten las dos (no queda media ausencia). */
+  const oFetch = window.fetchConReloj, oOff = window.offHayConexion, oToast = window.showToast, prevDash = DASH;
+  const hoy = todayStr(), kCed = '12345678|' + hoy, kNom = 'n:' + ausNombreClave('Ana Prueba') + '|' + hoy;
+  const btn = document.createElement('button'); btn.setAttribute('data-ced', 'V-12345678'); btn.setAttribute('data-per', 'Ana Prueba');
+  let responder = null;
+  try {
+    window.offHayConexion = () => true; window.showToast = () => {};
+    window.fetchConReloj = () => new Promise(res => { responder = res; });
+    DASH = { vista: 'supervisor', params: { usuario: 'helitec', empresa: 'Helitec' }, ausencias: {}, registros: [] };
+    ausTocar(btn);
+    PRUEBAS.cierto(DASH.ausencias[kCed] && DASH.ausencias[kNom], '⚠️ MARCAR pone las DOS claves (cédula y nombre): la nómina busca por una y la cobertura por la otra');
+    PRUEBAS.cierto(ausenteHoy({ cedula: '12345678', nombre: 'Ana Prueba' }), 'y el panel la ve ausente');
+    /* ahora una ausencia que vino SÓLO por nombre (de otro dispositivo): quitar la quita entera */
+    DASH.ausencias = { [kNom]: 'otro' };
+    PRUEBAS.cierto(ausenteHoy({ cedula: '12345678', nombre: 'Ana Prueba' }), 'guarda: con la clave por nombre sola, el panel la ve ausente');
+    ausTocar(btn);
+    PRUEBAS.cierto(!DASH.ausencias[kCed] && !DASH.ausencias[kNom], '⚠️ QUITAR se lleva las DOS vías · antes quedaba la de nombre y la persona seguía descontada de la cobertura');
+    /* y si el servidor rechaza, se revierte entero */
+    DASH.ausencias = {};
+    ausTocar(btn);
+    responder({ json: () => Promise.resolve({ ok: false, error: 'no' }) });
+    return new Promise(res => setTimeout(res, 40)).then(() => {
+      PRUEBAS.cierto(!DASH.ausencias[kCed] && !DASH.ausencias[kNom], 'si el servidor rechaza, se revierten las dos claves: no queda media ausencia puesta');
+    }).finally(() => { window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; DASH = prevDash; });
+  } catch (e) {
+    window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; DASH = prevDash; throw e;
+  }
 });
