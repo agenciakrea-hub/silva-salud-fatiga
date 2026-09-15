@@ -56,6 +56,22 @@ son del cambio. Y si el caso es **intermitente**, una corrida en verde no prueba
 con **cinco corridas seguidas**, porque algo que falla la mitad de las veces pasa la mitad de las
 veces por definición.
 
+## Correr UN archivo mientras se trabaja (2026-09-15)
+
+`window.SOLO_CASOS = ['p185-visor-servidor.js']` en el iframe **antes** de evaluar `correr.js`
+corre sólo esos archivos. Desde el panel, en la consola:
+
+```js
+const f = document.getElementById('app');
+await new Promise(res => { f.onload = () => setTimeout(res, 350); f.src = '/index.html?suite=' + Date.now(); });
+f.contentWindow.SOLO_CASOS = ['p185-visor-servidor.js'];
+JSON.parse(await f.contentWindow.eval(await (await fetch('/pruebas/correr.js?v=' + Date.now())).text()));
+```
+
+Los demás cuentan como salteados, así que la corrida sale **INCOMPLETA** y no puede pasar por
+verde. Es para trabajar un caso sin esperar los 170; la suite se sigue corriendo entera, y en
+pestaña nueva, antes de dar nada por bueno.
+
 ## Cómo correrlas
 
 **Doble clic en `PRUEBAS.bat`, desde el Explorador de Windows.**

@@ -642,7 +642,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      Las llamadas INTERNAS (una acción que llama a `leerNomina` tres veces) no pasan por acá y
      siguen compartiendo la caché, que es exactamente lo que pasa dentro de un pedido real. */
   const REINICIO = '\nfunction __nuevaEjecucion(){' +
-    ['_maestroAbierto', '_nominaPorEjecucion', '_aliasPorEjecucion'].map(v =>
+    ['_maestroAbierto', '_nominaPorEjecucion', '_aliasPorEjecucion', '_accesosPorEjecucion'].map(v =>   // P185 · la de `Accesos` también
       ' if (typeof ' + v + ' !== "undefined") ' + v + ' = undefined;').join('') +
     ['_hojaValores', '_hojaFormateada'].map(v =>
       ' if (typeof ' + v + ' !== "undefined") ' + v + ' = {};').join('') + ' }';

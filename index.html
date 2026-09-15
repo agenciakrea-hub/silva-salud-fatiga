@@ -1166,6 +1166,29 @@
   /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
      viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
      arriba de todo. Antes no había forma de saberlo salvo mirando qué pestañas aparecen abajo. */
+  /* P185 · el visor del administrador. Todo por tokens (R13). Los dos selectores van en una
+     fila y a 375 px se apilan (media query más abajo). El rótulo «estás viendo» lleva el color de
+     marca para que se lea de un vistazo como quién se está mirando. */
+  .visor { margin: .55rem .9rem 0; padding: .7rem .85rem .75rem; background: var(--card);
+    border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); }
+  .visor-cab { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+  .visor-t { font-size: .82rem; font-weight: 800; color: var(--text); letter-spacing: .01em; }
+  .visor-info { flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 999px; border: 1.5px solid var(--sup-borde);
+    background: var(--sup-campo); color: var(--text-muted); font-weight: 800; font-size: .8rem; cursor: pointer; }
+  .visor-info[aria-expanded="true"] { color: var(--orange-legible); border-color: var(--orange); }
+  .visor-guia { font-size: .78rem; color: var(--text-soft); line-height: 1.45; margin: 0 0 .6rem;
+    padding: .55rem .7rem; background: var(--chip-bg); border-radius: var(--radius-sm); }
+  .visor-guia p { margin: 0 0 .4rem; } .visor-guia p:last-child { margin: 0; }
+  .visor-sels { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+  .visor-sel { display: flex; flex-direction: column; gap: .25rem; font-size: .7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+  .visor-sel select { width: 100%; min-height: 2.6rem; padding: .5rem .7rem; font: inherit; font-size: .92rem; font-weight: 700;
+    text-transform: none; letter-spacing: 0; color: var(--text); background: var(--sup-campo);
+    border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); }
+  .visor-sel select:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
+  .visor-viendo { margin-top: .55rem; font-size: .8rem; font-weight: 700; color: var(--orange-legible); }
+  .visor-viendo b { color: var(--text); }
+  @media (max-width: 420px) { .visor-sels { grid-template-columns: 1fr; } }
   .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
     padding: .12rem .5rem; white-space: nowrap; }
@@ -4680,6 +4703,8 @@
   .cic-cfg-btn { width:100%; text-align:left; background:var(--chip-bg); border:1px solid var(--sup-linea);
     border-radius:10px; padding:.5rem .7rem; min-height:44px; font-family:inherit; font-size:.74rem; font-weight:600;
     color:var(--text-soft); cursor:pointer; margin:.7rem 0 .2rem; line-height:1.5; }
+
+  .cic-cfg-solo { cursor: default; }   /* P185 · el resumen de horas sin «Editar», en el visor */
   .cic-cfg-btn b { color:var(--orange-legible); }
   .cic-cfg-btn:hover { background:var(--chip-bg-h); }
   .cic-cfg { background:var(--chip-bg); border:1px solid var(--sup-linea); border-radius:12px;
@@ -6848,6 +6873,25 @@
         </button>
         <button class="portal-x" onclick="closePortalUI()">✕</button>
       </div>
+      <!-- P185 · EL VISOR DEL ADMINISTRADOR. Sólo se muestra en una sesión de admin (`visorPintar`).
+           Va ARRIBA de los filtros y con peso, porque Franco lo pidió así: «dale peso a elegir
+           empresas dentro de admin, Rafael lo usa para mostrar y sobre todo ver en qué anda
+           HELITEC». Dos decisiones y un rótulo: la empresa, el rol, y «estás viendo…». Los textos
+           salen de `t()` (R14); los `<option>` los pinta el JS con la lista que manda el servidor. -->
+      <div class="visor" id="visorBloque" hidden>
+        <div class="visor-cab">
+          <span class="visor-t" id="visorTitulo"></span>
+          <button type="button" class="visor-info" id="visorInfoBtn" onclick="visorInfoToggle()" aria-expanded="false" aria-controls="visorGuia"></button>
+        </div>
+        <div class="visor-guia" id="visorGuia" hidden></div>
+        <div class="visor-sels">
+          <label class="visor-sel"><span id="visorLblEmpresa"></span>
+            <select id="visorEmpresa" onchange="visorCambiar()"></select></label>
+          <label class="visor-sel"><span id="visorLblVista"></span>
+            <select id="visorVista" onchange="visorCambiar()"></select></label>
+        </div>
+        <div class="visor-viendo" id="visorViendo" role="status" aria-live="polite"></div>
+      </div>
       <div class="dfm-wrap">
         <div class="dfm-row">
           <button type="button" class="dfm-toggle" id="dfmToggle" onclick="dfmToggle()" aria-expanded="false">
@@ -7161,7 +7205,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.48';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.49';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7739,6 +7783,19 @@ const I18N = {
       pg_demo_d:'Explora el panel con una empresa de ejemplo, sin necesidad de usuario ni contraseña.',
       consent_titulo:'Cómo se usan tus datos', consent_aceptar:'Aceptar y continuar',
       // ── Administración (herramienta interna) ──
+      /* P185 · el visor del administrador */
+      visor_t:'Visor del administrador',
+      visor_empresa:'Empresa', visor_todas:'Todas las empresas',
+      visor_vista:'Ver como', visor_sup:'Supervisor', visor_med:'Servicio médico', visor_hseq:'Dirección / HSEQ',
+      visor_viendo:'Estás viendo el panel de <b>{empresa}</b> como <b>{vista}</b>, sin escribir nada.',
+      visor_viendo_todas:'Estás viendo <b>todas las empresas</b> como <b>{vista}</b>.',
+      visor_guia:'<p>Elige una empresa y un rol, y verás <b>exactamente</b> el panel que ve esa persona: los mismos datos, los mismos recortes. No hace falta escribir ninguna contraseña.</p><p>Como <b>Dirección / HSEQ</b> las personas aparecen como P1, P2… porque ese panel no ve nombres: es lo que ve Dirección de verdad.</p><p>El visor es <b>sólo para mirar</b>: no restringe tareas, no marca ausencias ni firma determinaciones. Para actuar, entra con la contraseña de la empresa.</p>',
+      visor_solo_lectura_nota:'El visor no escribe notas clínicas.',
+      visor_informe_nota:'El visor no genera informes; el historial de arriba sí se puede leer.',
+      visor_tarea:'crear una tarea', visor_departamento:'editar departamentos', visor_ausencia:'marcar una ausencia',
+      visor_credencial:'reiniciar una contraseña', visor_jornada:'cambiar una jornada',
+      ts_visor_no_escribe:'El visor del administrador no escribe',
+      ts_visor_empresa_no:'Esa empresa no tiene cuenta en Accesos: se sigue viendo todo.',
       adm_ver:'Ver como administrador',
       adm_ver_d:'Simular roles y ver cómo funciona la app por dentro',
       adm_pass:'Contraseña de administrador',
@@ -9490,6 +9547,19 @@ const I18N = {
       pg_demo_d:'Explore the panel with a sample company — no username or password needed.',
       consent_titulo:'How your data is used', consent_aceptar:'Accept and continue',
       // ── Administration (internal tool) ──
+      /* P185 · the administrator viewer */
+      visor_t:'Administrator viewer',
+      visor_empresa:'Company', visor_todas:'All companies',
+      visor_vista:'View as', visor_sup:'Supervisor', visor_med:'Medical service', visor_hseq:'Management / HSEQ',
+      visor_viendo:'You are viewing the <b>{empresa}</b> panel as <b>{vista}</b>, without writing anything.',
+      visor_viendo_todas:'You are viewing <b>all companies</b> as <b>{vista}</b>.',
+      visor_guia:'<p>Pick a company and a role and you will see <b>exactly</b> the panel that person sees: same data, same cuts. No password needed.</p><p>As <b>Management / HSEQ</b> people show up as P1, P2… because that panel never sees names: it is what Management really sees.</p><p>The viewer is <b>read-only</b>: it does not restrict tasks, mark absences or sign determinations. To act, sign in with the company password.</p>',
+      visor_solo_lectura_nota:'The viewer does not write clinical notes.',
+      visor_informe_nota:'The viewer does not generate reports; the history above can be read.',
+      visor_tarea:'create a task', visor_departamento:'edit departments', visor_ausencia:'mark an absence',
+      visor_credencial:'reset a password', visor_jornada:'change a shift plan',
+      ts_visor_no_escribe:'The administrator viewer does not write',
+      ts_visor_empresa_no:'That company has no account in Access: still viewing everything.',
       adm_ver:'View as administrator',
       adm_ver_d:'Simulate roles and see how the app works inside',
       adm_pass:'Administrator password',
@@ -11403,13 +11473,32 @@ function simulando(){ return !!SIMUL; }
      aporta nada a la venta.
    La simulación de rol (`SIMUL`) sigue bloqueando las dos: ahí la persona está mirando la app de
    otro, y escribir sería escribir en su nombre. */
+/* ══════════ P185 · EL VISOR DEL ADMINISTRADOR · el criterio, en un solo lugar ══════════════════
+   `DASH.rol` deja de significar «quién entró» para significar «como quién se mira»: en el visor,
+   el servidor devuelve el rol y la vista de la CUENTA elegida (así todo el panel se comporta como
+   esa persona) y `DASH.visor` dice que detrás hay un administrador. Lo propio del admin —el
+   bloque de arriba, los atajos «Entrar como…», los informes sin límite— pregunta `esAdminSesion()`;
+   lo que se comporta como la persona sigue mirando `DASH.rol`/`DASH.vista`.
+   Y el visor NO ESCRIBE (decisión de Franco: «visor», no «actuar en nombre de»). El servidor lo
+   rechaza con `motivo:"solo_lectura"`; acá se corta antes de salir, en `simulBloquea` —el guardián
+   que ya consultan todos los caminos de escritura— y en los cortes que la demostración ya tenía. */
+function esAdminSesion(){ return !!(typeof DASH !== 'undefined' && DASH && (DASH.rol === 'admin' || DASH.visor)); }
+function visorSoloLectura(){ return !!(typeof DASH !== 'undefined' && DASH && DASH.visor); }
+function visorBloquea(queIntentaba){
+  if (!visorSoloLectura()) return false;
+  try { showToast(t('ts_visor_no_escribe') + (queIntentaba ? ' (' + queIntentaba + ')' : '')); } catch(e){}
+  return true;
+}
+
 function simulBloqueaGestion(queIntentaba){
+  if (visorBloquea(queIntentaba)) return true;   // P185 · antes que la demo: el visor no aplica ni en memoria
   if (DEMO_SEMBRANDO) return false;
   if (typeof DASH !== 'undefined' && DASH && DASH.demoMode && !simulando()) return false;
   return simulBloquea(queIntentaba);
 }
 
 function simulBloquea(queIntentaba){
+  if (visorBloquea(queIntentaba)) return true;   // P185
   /* ⚠️ S1 · LA DEMOSTRACION TAMBIEN BLOQUEA, y esto lo encontre probando lo que acababa de abrir.
      Al mostrar "Mis estadisticas" dentro de la demo (que antes estaba oculta), quedo alcanzable la
      pantalla del empleado CON SUS BOTONES: toque "Registrar" y la cola de envios paso de 3 a 4.
@@ -17280,12 +17369,19 @@ const DASH_TIMEOUT_MS = 120000;
    Reproducido con el `.gs` real: SIN disp → "Usuario o contraseña incorrecta" · CON disp → ok. */
 function dashAuth(extra){
   const cred = (DASH && DASH.params) || {};
-  return Object.assign({
+  const base = {
     usuario: cred.usuario,
     empresa: ((DASH && DASH.f && DASH.f.emp) || cred.empresa || cred.usuario),
     pass: cred.pass,
     dispositivoId: dispositivoId()
-  }, extra || {});
+  };
+  /* ⚠️ P185 · LOS PARÁMETROS DEL VISOR VIAJAN EN TODOS LOS PEDIDOS DEL PANEL. Esta función y
+     `gestAuth()` NO copian `DASH.params`: reconstruyen los cuatro campos de siempre. Sin estas dos
+     líneas, «HELITEC · Dirección» pintaba HELITEC en el primer pedido y «Todas las empresas» en
+     niveles, reportes, opiniones, gestiones, nómina, departamentos y tareas — sin un solo error. */
+  if (cred.verEmpresa) base.verEmpresa = cred.verEmpresa;
+  if (cred.verVista)   base.verVista   = cred.verVista;
+  return Object.assign(base, extra || {});
 }
 function dashRequest(params){
   if (!DASH_DEMO){
@@ -18505,6 +18601,71 @@ function dashMigrarCredsAToken(credKey, usuario, pass){
 }
 function dismissRemember(){ document.getElementById('dashRemember').classList.remove('show'); }
 function toggleAdminLogin(){ const b = document.getElementById('adminBox'); b.style.display = (b.style.display==='none') ? '' : 'none'; }
+/* ══════════ P185 · EL VISOR DEL ADMINISTRADOR · la interfaz ═══════════════════════════════════
+   Pinta el bloque de arriba del panel (`#visorBloque`) con lo que dice `DASH`: la lista de cuentas
+   que mandó el servidor, la empresa y la vista que se están mirando. Cambiar cualquiera de los dos
+   selectores es una RE-ENTRADA por `onDashData` —un panel nuevo, con el rol y las pestañas de esa
+   persona—, nunca un `dashRefresh` (que hace un merge parcial y conserva rol/vista/pestañas).
+   «Todas las empresas · Servicio médico» NO manda parámetros: es el administrador de siempre, con
+   lo que hoy puede hacer. Cualquier otra combinación es el visor, de sólo lectura. */
+function visorVistaTxt(v){ return t(v === 'supervisor' ? 'visor_sup' : (v === 'hseq' ? 'visor_hseq' : 'visor_med')); }
+function visorPintar(){
+  const b = document.getElementById('visorBloque'); if (!b) return;
+  const va = esAdminSesion() && !(DASH && DASH.demoMode);
+  b.hidden = !va;
+  if (!va) return;
+  const $ = id => document.getElementById(id);
+  $('visorTitulo').textContent = t('visor_t');
+  $('visorLblEmpresa').textContent = t('visor_empresa');
+  $('visorLblVista').textContent = t('visor_vista');
+  const info = $('visorInfoBtn'); info.textContent = 'ⓘ'; info.setAttribute('aria-label', t('que_es_esto'));
+  $('visorGuia').innerHTML = t('visor_guia');
+  const cuentas = Array.isArray(DASH.cuentas) ? DASH.cuentas : [];
+  const empAct = (DASH.visor && DASH.visor.empresa) || '';
+  const visAct = (DASH.visor && DASH.visor.vista) || DASH.vista || 'medico';
+  $('visorEmpresa').innerHTML = '<option value="">' + esc(t('visor_todas')) + '</option>' +
+    cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
+  $('visorVista').innerHTML = ['supervisor', 'medico', 'hseq'].map(k =>
+    '<option value="' + k + '"' + (k === visAct ? ' selected' : '') + '>' + esc(visorVistaTxt(k)) + '</option>').join('');
+  $('visorViendo').innerHTML = empAct
+    ? t('visor_viendo', { empresa: esc(empAct), vista: esc(visorVistaTxt(visAct)) })
+    : t('visor_viendo_todas', { vista: esc(visorVistaTxt(visAct)) });
+}
+function visorInfoToggle(){
+  const g = document.getElementById('visorGuia'), b = document.getElementById('visorInfoBtn');
+  if (!g || !b) return;
+  g.hidden = !g.hidden;
+  b.setAttribute('aria-expanded', g.hidden ? 'false' : 'true');
+}
+/* Los parámetros del visor para un pedido: {verEmpresa, verVista}, o {} si es «Todas · Servicio
+   médico» (el admin de siempre). En un solo lugar para que `visorCambiar` y las pruebas coincidan. */
+function visorParams(emp, vis){
+  const p = {};
+  if (emp) p.verEmpresa = emp;
+  if (emp || (vis && vis !== 'medico')) p.verVista = vis || 'medico';
+  return p;
+}
+function visorCambiar(){
+  if (!DASH || !DASH.params || !esAdminSesion()) return;
+  const emp = (document.getElementById('visorEmpresa') || {}).value || '';
+  const vis = (document.getElementById('visorVista') || {}).value || 'medico';
+  const params = Object.assign({}, DASH.params);
+  /* el período (7/30/90) y el refresco no se arrastran: un panel nuevo arranca como al entrar */
+  ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida'].forEach(k => { delete params[k]; });   // `pedida` también: la vista la elige el visor
+  Object.assign(params, visorParams(emp, vis));
+  const dash = document.getElementById('portalDash');
+  const carga = cargaIniciar({ gate: dash });
+  conBloqueo('#portalDash', dashRequest(params)
+    .then(d => {
+      if (!cargaVigente(carga)) return;
+      if (!d || !d.ok){ showToast(tError(d && d.error)); visorPintar(); return; }
+      if (d.visorError === 'empresa') showToast(t('ts_visor_empresa_no'));
+      const label = (d.visor && d.visor.empresa) ? d.visor.empresa : t('dash_todas_empresas');
+      onDashData(d, label, params, d.vista || vis);
+    })
+    .catch(() => { showToast(t('sin_conexion') + '.'); visorPintar(); }));
+}
+
 function portalLoginAdmin(btn){
   const pass = document.getElementById('pAdminPass').value.trim();
   const errEl = document.getElementById('adminErr'); errEl.textContent = '';
@@ -18757,7 +18918,14 @@ function onDashData(d, scopeLabel, params, vista){
            _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
            /* P166 · los atajos del administrador. Sólo llegan con rol admin, y acá se vuelve a
               exigir: si un payload los trajera con otro rol, no se guardan. */
-           atajosAdmin: (d.rol === 'admin' && Array.isArray(d.atajosAdmin)) ? d.atajosAdmin : null,
+           atajosAdmin: ((d.rol === 'admin' || !!d.visor) && Array.isArray(d.atajosAdmin)) ? d.atajosAdmin : null,   // P185 · también en el visor
+           /* P185 · EL VISOR DEL ADMINISTRADOR. `visor` dice como quién se está mirando ({empresa,
+              vista} o null); `visorError` avisa que la empresa pedida no existe en `Accesos`;
+              `cuentas` es la lista del selector, sólo llega a una sesión de admin y nunca trae
+              contraseñas. Los tres nombrados acá porque esta lista es EXPLÍCITA (ver `duty`). */
+           visor: (d.visor && typeof d.visor === 'object') ? d.visor : null,
+           visorError: d.visorError || null,
+           cuentas: Array.isArray(d.cuentas) ? d.cuentas : null,
            _opiniones:null, _opinionesPedidas:false,   // P162 · el buzón anónimo
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
@@ -18842,6 +19010,7 @@ function onDashData(d, scopeLabel, params, vista){
   dashSetMq('dashScope', nombreVisible + ((DASH_DEMO || d.demo) ? (' · ' + t('dash_ejemplo')) : ''));
   dashPintarVista(vista);
   dashApplyMarca(d.marca);
+  visorPintar();              // P185 · el bloque del visor sigue a DASH
   dashUpdateDemoBtn();
   demoPintarBarra();          // S7: la barra sigue a la vista, no al revés
   /* ⚠️ ARRIBA DE TODO AL CAMBIAR DE VISTA. Sin esto, ir de Dirección (8 secciones, ~7.500 px) a
@@ -18871,8 +19040,9 @@ function onDashData(d, scopeLabel, params, vista){
 function dashCargarNiveles(){
   if (!DASH || DASH._nivelesPedidos) return;
   DASH._nivelesPedidos = true;
+  const mio = DASH;
   gestPost(gestAuth({ action:'niveles_riesgo' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.niveles) || !DASH) return;
+    if (!d || !d.ok || !Array.isArray(d.niveles) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     DASH._niveles = d.niveles;
     if (d.config && typeof d.config === 'object') DASH._cfg = d.config;
     nivelCacheClear();
@@ -18892,8 +19062,9 @@ function dashCargarNiveles(){
 function dashCargarReportes(){
   if (!DASH || DASH._reportesPedidos) return;
   DASH._reportesPedidos = true;
+  const mio = DASH;
   gestPost(gestAuth({ action:'reportes' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH) return;
+    if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     DASH._reportes = d.reportes;
     if (DASH.tab === 'reportes') dashRepintar();   // P049 · idem: llega tarde, no re-anima
   }).catch(()=>{});
@@ -18923,8 +19094,9 @@ function dashCargarReportes(){
 function dashCargarOpiniones(){
   if (!DASH || DASH._opinionesPedidas) return;
   DASH._opinionesPedidas = true;
+  const mio = DASH;
   gestPost(gestAuth({ action:'opiniones' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.opiniones) || !DASH) return;
+    if (!d || !d.ok || !Array.isArray(d.opiniones) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     DASH._opiniones = d.opiniones;
     if (DASH.tab === 'opiniones') dashRepintar();   // P049 · llega tarde, no re-anima el panel
   }).catch(()=>{});
@@ -18996,8 +19168,10 @@ function dashRefresh(manual){
   const keep = { desde:DASH.f.desde, hasta:DASH.f.hasta, dep:DASH.f.dep, per:DASH.f.per };
   // Refresco manual (botón ↻) → fresh:'1': saltea la cache del endpoint y relee la hoja al instante.
   const params = manual ? Object.assign({}, DASH.params, { fresh:'1' }) : DASH.params;
+  const mio = DASH;
   return dashRequest(params).then(d => {
     if (btn) btn.classList.remove('spin');
+    if (DASH !== mio) return false;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return false; }
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
@@ -19208,13 +19382,13 @@ function buildDashFilters(){
   if (showGroup){
     let rows = DASH.registros;
     const esAdmin = DASH.rol === 'admin';
-    if (esAdmin){
-      // El "*" es el comodín del administrador, no una empresa real: nunca va en la lista.
-      const emps = uniqSorted(rows, 'empresa').filter(x => x !== '*');
-      html += '<div class="df-row"><div class="df"><label>' + esc(t('flt_empresa')) + '</label><select id="dashEmp" onchange="dashFilterChange(\'emp\')"><option value="">' + esc(t('flt_todas')) + '</option>' +
-        emps.map(x=>optSel(x, DASH.f.emp)).join('') + '</select></div></div>';
-      if (DASH.f.emp) rows = rows.filter(r=>r.empresa===DASH.f.emp);
-    }
+    /* P185 · EL SELECTOR DE EMPRESA YA NO VIVE ACÁ. Estaba entre los filtros de fecha y
+       departamento, con la lista sacada de los registros de tests (una empresa sin tests en el
+       rango no aparecía aunque tuviera jornadas), y filtraba en el cliente: las pestañas con
+       dataset propio —Jornada, Ciclo, Reportes, Opiniones— lo ignoraban y seguían mostrando
+       todas. Lo reemplaza el bloque del visor arriba del panel, que pide al SERVIDOR el panel de
+       esa empresa: ninguna pestaña puede ignorarlo porque los datos de las otras no viajan.
+       `DASH.f.emp` queda vacío para el admin; lo que sigue abajo ya lo contempla. */
     // Departamento/empleado sólo tienen sentido dentro de UNA empresa: los departamentos son los
     // de esa empresa, no la mezcla de todas. Para el admin sin empresa elegida no se muestran
     // (mezclaría "Operaciones" de una empresa con la de otra). El supervisor ya está acotado a la suya.
@@ -19784,7 +19958,7 @@ window.addEventListener('orientationchange', dashRemedirMarquees);
 function dashUpdateAdmFab(){
   const fab = document.getElementById('admFab'); if (!fab) return;
   const dash = document.getElementById('portalDash');
-  const va = !!(DASH && DASH.rol === 'admin' && !DASH.demoMode && Array.isArray(DASH.atajosAdmin) && DASH.atajosAdmin.length);
+  const va = !!(esAdminSesion() && !DASH.demoMode && Array.isArray(DASH.atajosAdmin) && DASH.atajosAdmin.length);   // P185 · también en el visor
   fab.style.display = va ? '' : 'none';
   if (dash) dash.classList.toggle('con-adm-fab', va);
 }
@@ -20516,7 +20690,7 @@ function aptTarjeta(p, opts){
   // tilde o apóstrofe no rompe el atributo.
   const nomAttr = argAttr(p.nombre);   // H4 · antes no escapaba `&`
   const puedeSugerirTelem = !p.telem && !p.ultimoPocoConfiable;
-  const acciones = (opts && opts.acciones)
+  const acciones = (opts && opts.acciones && !visorSoloLectura())   // P185 · el visor no ofrece acciones
     ? '<div class="apt-acciones">' +
         (p.restriccion
           ? '<button type="button" class="apt-act apt-act-off" onclick="restLevantar(\'' + p.restriccion.id + '\')">Levantar restricción</button>'
@@ -21986,6 +22160,7 @@ function cicloCfgHtml(plan){
   if (!CICLO_CFG_ABIERTO){
     // El resumen se arma desde la forma: un sector con otra cantidad de tramos se lista solo.
     const resumen = TRAMOS.map(tr => cicloHM(plan[tr.k]) + ' ' + t(tr.corto).toLowerCase()).join(' · ');
+    if (!cicloPuedeEditarPlan()) return '<div class="cic-cfg-btn cic-cfg-solo">' + esc(t('cic_horas') + ': ' + resumen) + '</div>';   // P185 · el visor lo lee, no lo edita
     return '<button type="button" class="cic-cfg-btn" onclick="cicloCfgToggle()">' +
       esc(t('cic_horas') + ': ' + resumen) + ' · <b>' + esc(t('editar')) + '</b></button>';
   }
@@ -22009,6 +22184,7 @@ function cicloCfgGuardar(btn){
   cicloTramos().forEach(tr => { plan[tr.k] = leer(tr.k); });
   const malo = Object.keys(plan).find(k => !isFinite(plan[k]) || plan[k] < 5 || plan[k] > 1440);
   if (malo){ if (err) err.textContent = t('cic_cfg_err'); return; }
+  if (visorBloquea(t('visor_jornada'))) return;   // P185
   if (DASH.demoMode){
     DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
     CICLO_CFG_ABIERTO = false; cicloRepintar(); showToast('Guardado (ejemplo)');
@@ -22085,12 +22261,14 @@ function cicloPerHtml(persona){
    si acá dijera que sí y allá que no, la persona vería un formulario que siempre falla. */
 function cicloPuedeEditarPlan(){
   if (!DASH) return false;
+  if (visorSoloLectura()) return false;   // P185 · el visor no escribe; el servidor dice lo mismo (`depPuedeEscribir`)
   if (DASH.rol === 'admin') return true;
   return DASH.vista !== 'medico' || DASH.combinada === true;
 }
 
 function cicloPerEnviar(btn, persona, cuerpo, msgOk){
   const err = document.getElementById('cicPerErr');
+  if (visorBloquea(t('visor_jornada'))) return;   // P185
   if (DASH && DASH.demoMode){
     /* En la demostración se guarda en memoria y se repinta: sale un resultado creíble sin tocar el CH.
        ⚠️ PERO SE VALIDA IGUAL QUE EN PRODUCCIÓN, y esto costó caro. La demo guardaba
@@ -24562,10 +24740,12 @@ function dashGoPvtIdx(i){ const n = DASH._pvtNames && DASH._pvtNames[i]; if (n==
 /* ── INFORME IA (Gemini): generar + historial + compartir ── */
 function renderInforme(rows){
   if (!DASH._informesLoaded && !DASH._informesLoading) dashLoadInformes();   // trae el historial la 1ra vez
-  const help = dashHelp(t('hlp_informe') + ' ' + t(DASH.rol==='admin' ? 'hlp_informe_admin' : 'hlp_informe_limite'));
-  const bloqueado = DASH.rol!=='admin' && DASH._informesProximo;
+  const help = dashHelp(t('hlp_informe') + ' ' + t(esAdminSesion() ? 'hlp_informe_admin' : 'hlp_informe_limite'));
+  const bloqueado = !esAdminSesion() && DASH._informesProximo;   // P185 · el visor tampoco tiene límite
   const btn = DASH.demoMode
     ? '<div class="informe-demo-nota">' + t('inf_demo_nota') + '</div>'
+    : visorSoloLectura()
+    ? '<div class="informe-demo-nota">' + esc(t('visor_informe_nota')) + '</div>'   // P185 · el visor lee el historial, no genera
     : (bloqueado
       ? '<button class="save-btn informe-btn" disabled title="' + esc(t('inf_bloqueado_tt')) + '">' + esc(t('inf_bloqueado_prox', { f: DASH._informesProximo })) + '</button>'
       : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">' + esc(t('inf_generar')) + '</button>');
@@ -24595,7 +24775,7 @@ function dashLoadInformes(){
   }
   if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
   DASH._informesLoading = true;
-  const payload = { action:'informes', usuario: DASH.params.usuario || DASH.params.empresa || '', empresa: DASH.scope || '', pass: DASH.params.pass || '' };
+  const payload = dashAuth({ action:'informes', empresa: DASH.scope || '' });   // P185 · por dashAuth (A15): así el visor viaja
   fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) }).then(r => r.json()).then(d => {
     DASH._informesLoading = false; DASH._informesLoaded = true;
     if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; }
@@ -24635,9 +24815,8 @@ function dashGenerarInforme(){
   const out = document.getElementById('informeOut');
   if (out) out.innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
   stopDashAutoRefresh();
-  const payload = { action:'informe', usuario: DASH.params.usuario || DASH.params.empresa, pass: DASH.params.pass,
-    dispositivoId: dispositivoId(),
-    resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) };
+  const payload = dashAuth({ action:'informe',   // P185 · por dashAuth (A15): así el visor viaja
+    resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) });
   conBloqueo('#portalDash', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
@@ -25380,7 +25559,12 @@ let _gestSyncT = null;
 // escribirse en el sheet real — datos de ejemplo mezclándose con Gestiones real, exactamente lo que
 // el comentario de arriba decía que NO debía pasar.
 function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL && !(DASH && DASH.demoMode); }
-function gestAuth(extra){ return Object.assign({ usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || ''), dispositivoId: dispositivoId() }, extra||{}); }
+function gestAuth(extra){
+  const base = { usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || ''), dispositivoId: dispositivoId() };
+  if (DASH.params.verEmpresa) base.verEmpresa = DASH.params.verEmpresa;   // P185 · ver `dashAuth`
+  if (DASH.params.verVista)   base.verVista   = DASH.params.verVista;
+  return Object.assign(base, extra||{});
+}
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
 function gestPost(body){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
 // Candado de envíos en vuelo — mismo motivo que `_empEnVuelo` (ver el comentario de K_EMP_COLA):
@@ -25423,8 +25607,9 @@ function gestPush(){
 }
 function gestPull(){
   if(!gestCanSync()) return Promise.resolve(false);
+  const mio = DASH;
   return gestPost(gestAuth({ action:'gestiones' })).then(d=>{
-    if(!d || !d.ok || !Array.isArray(d.gestiones)) return false;
+    if(!d || !d.ok || !Array.isArray(d.gestiones) || DASH !== mio) return false;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     const s=gestStore();
     let items = d.gestiones.filter(g => g && g.id && !s.del[g.id]);   // el servidor es base; saca los borrados localmente
     Object.keys(s.up).forEach(id=>{                                    // superpone lo local pendiente (aún sin confirmar)
@@ -25858,8 +26043,9 @@ window.addEventListener('online', function(){ casosOdooSchedulePush(); });
 function casosResumenPull(){
   if (!gestCanSync()) return Promise.resolve(false);
   if (simulando()) return Promise.resolve(false);
+  const mio = DASH;
   return gestPost(gestAuth({ action:'casos_odoo_resumen' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.casos) || !DASH) return false;
+    if (!d || !d.ok || !Array.isArray(d.casos) || !DASH || DASH !== mio) return false;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     // Una persona puede tener varios casos (uno por fecha de test): gana el más reciente, que es
     // el que corresponde mostrar en la tarjeta.
     const porPersona = {};
@@ -26354,7 +26540,7 @@ function dashFichaMedica(rows){
     (p.telem && p.telem.estado === 'aceptada'
       ? '<div class="fm-sec-t">' + esc(t('fm_telemedicina')) + '</div>' +
         '<div class="fm-telem-accion">' + esc(t('fm_telem_acepto')) +
-        '<button type="button" class="fm-nota-btn" onclick="telemMarcarRealizada(\'' + p.telem.id + '\')">' + esc(t('fm_telem_marcar')) + '</button></div>'
+        (visorSoloLectura() ? '' : '<button type="button" class="fm-nota-btn" onclick="telemMarcarRealizada(\'' + p.telem.id + '\')">' + esc(t('fm_telem_marcar')) + '</button>') + '</div>'   // P185
       : '') +
     (p.telem && p.telem.estado === 'sugerida'
       ? '<div class="fm-sec-t">' + esc(t('fm_telemedicina')) + '</div>' +
@@ -26362,9 +26548,10 @@ function dashFichaMedica(rows){
       : '') +
     '<div class="fm-sec-t">' + esc(t('tar_pedirle')) + '</div>' + tareasFichaHtml() +
     '<div class="fm-sec-t">' + esc(t('fm_nota_clinica')) + '</div>' +
+    (visorSoloLectura() ? '<div class="fm-nota-aviso">' + esc(t('visor_solo_lectura_nota')) + '</div>' :   // P185
     '<textarea id="fmNota" class="fm-nota" maxlength="600" placeholder="' + esc(t('fm_ph_nota')) + '"></textarea>' +
     '<div class="fm-nota-aviso">' + t('fm_nota_aviso') + '</div>' +
-    '<button type="button" class="fm-nota-btn" onclick="notaClinicaGuardar()">' + esc(t('fm_guardar_nota')) + '</button>' +
+    '<button type="button" class="fm-nota-btn" onclick="notaClinicaGuardar()">' + esc(t('fm_guardar_nota')) + '</button>') +
   '</div>';
 }
 
@@ -26465,7 +26652,7 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
       '<span class="an-activa-hasta">' + esc(t('an_visible_hasta', { f: gestFechaTs(g.vigenciaHasta) })) +
         (g.medico ? ' · ' + esc(g.medico) : '') + '</span></div>' +
       (g.nota ? '<div class="an-activa-nota">' + esc(g.nota) + '</div>' : '') +
-      '<button type="button" class="an-activa-quitar" onclick="anotQuitar(\'' + g.id + '\')">' + esc(t('an_quitar')) + '</button></div>';
+      (visorSoloLectura() ? '' : '<button type="button" class="an-activa-quitar" onclick="anotQuitar(\'' + g.id + '\')">' + esc(t('an_quitar')) + '</button>') + '</div>';   // P185
   }).join('');
   const segBtns = aptAnotNiveles().map(n =>
     '<button type="button" class="an-seg-btn' + (ANOT.nivel===n.k?' active':'') + '" data-nivel="' + n.k + '" style="--anc:' + n.c + ';--anbg:' + n.bg + '" onclick="anotSetNivel(\'' + n.k + '\')">' + esc(n.t) + '</button>'
@@ -26479,7 +26666,8 @@ function dashAnotacionSupervisor(rows, esOtraPersona, who){
     '<div class="db-sub">' + esc(t('an_sub', { q: who })) + '</div>' +
     activasHtml +
     '<div class="an-row">' +
-      '<button type="button" class="an-btn' + (ANOT.open?' open':'') + '" id="anotBtn" onclick="anotAbrir()"><span>' + esc(t(activas.length ? 'an_agregar_otra' : 'an_determinar')) + '</span>' + AN_CHEVRON + '</button>' +
+      (visorSoloLectura() ? '' :   // P185 · el visor ve las determinaciones vigentes, no firma
+      '<button type="button" class="an-btn' + (ANOT.open?' open':'') + '" id="anotBtn" onclick="anotAbrir()"><span>' + esc(t(activas.length ? 'an_agregar_otra' : 'an_determinar')) + '</span>' + AN_CHEVRON + '</button>') +
       '<button type="button" class="an-info-btn" id="anotInfoBtn" onclick="anotToggleInfo()" aria-label="' + esc(t('que_es_esto')) + '" aria-expanded="' + (ANOT.infoOpen?'true':'false') + '">' + svgIco('info', 18) + '</button>' +
     '</div>' +
     '<div class="an-form' + (ANOT.open?' open':'') + '" id="anotForm"><div class="an-form-inner">' +
@@ -26891,6 +27079,7 @@ function openGestiones(){
   GEST.q=''; const s=document.getElementById('gestSearch'); if(s) s.value='';
   document.getElementById('gestionesOverlay').classList.add('show');
   document.body.classList.add('modal-open');
+  document.querySelectorAll('#gestionesOverlay .gest-new').forEach(b => { b.style.display = visorSoloLectura() ? 'none' : ''; });   // P185
   if (DASH && DASH.demoMode) demoSembrando(gestSembrarDemo);
   renderGestiones();                          // muestra la copia local al instante
   navPush();
@@ -27133,6 +27322,9 @@ function renderGestiones(){
     return;
   }
   cont.innerHTML = vis.map(gestCard).join('');
+  /* P185 · en el visor las tarjetas se leen, no se editan: sin esto cada tecla disparaba el
+     toast del visor y el texto quedaba en pantalla sin guardarse. */
+  if (visorSoloLectura()) cont.querySelectorAll('input, textarea, select, button.gest-del, button.gest-pin').forEach(el => { el.disabled = true; });
 }
 
 // Nada es obligatorio: una nota sin título se llama "Nota sin título N°X". El número es estable
@@ -29210,7 +29402,7 @@ function nominaListFiltrar(){
        ⚠️ La cédula va por `data-`, no dentro del `onclick`: un nombre con comilla rompía el HTML
        (ya pasó en este archivo) y una cédula puede venir con puntos y guiones. */
     const hoyAus = ausenteHoy(x);
-    const btn = x.cedula
+    const btn = (x.cedula && !visorSoloLectura())   // P185
       ? '<button type="button" class="nomlist-aus' + (hoyAus ? ' on' : '') + '"' +
         ' data-ced="' + esc(String(x.cedula)) + '" data-per="' + esc(String(x.persona)) + '"' +
         ' onclick="ausTocar(this)" title="' + esc(t(hoyAus ? 'aus_quitar' : 'aus_marcar')) + '">' +
@@ -29227,7 +29419,7 @@ function nominaListFiltrar(){
        Sólo para quien YA está registrado (quien nunca entró no tiene nada que reiniciar) y con
        cédula (es con lo que el servidor la encuentra). Dirección/HSEQ no llega acá: su panel no
        tiene el botón de la nómina. */
-    const btnPass = (x.cedula && x.registrado)
+    const btnPass = (x.cedula && x.registrado && !visorSoloLectura())   // P185
       ? '<button type="button" class="nomlist-aus nomlist-pass"' +
         ' data-ced="' + esc(String(x.cedula)) + '" data-per="' + esc(String(x.persona)) + '"' +
         ' onclick="credReiniciarTocar(this)" title="' + esc(t('cred_reset_btn')) + '"' +
@@ -29264,6 +29456,7 @@ function credReiniciarTocar(btn){
      rechaza, pero quien está mirando la demostración lee «Usuario o contraseña incorrecta» y
      concluye que la función está rota. «Lo rechaza el servidor» no es una defensa que uno quiera
      que sea la única. */
+  if (visorBloquea(t('visor_credencial'))) return;   // P185
   if (DASH.demoMode){ showToast(t('demo_aplicado')); return; }
   if (!offHayConexion()){ showToast(t('aus_sin_red')); return; }
   if (!confirm(t('cred_reset_confirmar', { q: persona }))) return;
@@ -29313,6 +29506,7 @@ function ausTocar(btn){
      acá se corta antes del POST. Sin esto se mandaba `ausencia_guardar` con `pass:''`: el servidor
      lo rechaza, pero el pedido salía igual, y "lo rechaza el servidor" no es una defensa que uno
      quiera que sea la única. */
+  if (visorBloquea(t('visor_ausencia'))) return;   // P185
   if (DASH.demoMode){ showToast(t('demo_aplicado')); return; }
 
   const cuerpo = { action:'ausencia_guardar', usuario: DASH.params.usuario || DASH.params.empresa,
@@ -29544,6 +29738,7 @@ function depPedirBaja(btn){
    ocasional y con consecuencia, y mostrarla aplicada antes de que el CH la tenga sería justo la
    clase de mentira que hace desconfiar de la pantalla. */
 function depEnviar(accion, nombre, extra, tipo){
+  if (visorBloquea(t('visor_departamento'))) return;   // P185
   if (DASH && DASH.demoMode){ showToast(t('demo_aplicado')); return; }
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ showToast(t('tar_err_creds')); return; }
@@ -29946,6 +30141,7 @@ function tareasFichaHtml(){
     : dashVacioTexto(t('vac_tareas_t'), t('vac_tareas_d'), 'nota');
   const opts = tareasPlantillas().map(p =>
     '<option value="' + esc(p.k) + '">' + esc(p.t) + '</option>').join('');
+  if (visorSoloLectura()) return yaHay;   // P185 · el visor ve las tareas, no crea
   return yaHay +
     '<div class="tar-nueva">' +
       '<select id="tarTipo" class="restr-input" onchange="tareaTipoCambio()">' + opts + '</select>' +
@@ -29991,6 +30187,7 @@ function tareaCrear(btn){
   if (!titulo){ if (err) err.textContent = t('tar_err_titulo'); return; }
   const detalle = ((document.getElementById('tarDetalle')||{}).value || '').trim();
   const vence = (document.getElementById('tarVence')||{}).value || '';
+  if (visorBloquea(t('visor_tarea'))) return;   // P185
   if (DASH.demoMode){ showToast(t('guardado_ejemplo')); return; }
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ if (err) err.textContent = t('tar_err_creds'); return; }

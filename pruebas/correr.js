@@ -126,7 +126,13 @@
        puede listar una carpeta. Agregar un caso = crear el archivo y sumarlo ahí. */
     const lista = JSON.parse(await bajar('casos.json'));
     const salteados = [];
+    /* P185 · `window.SOLO_CASOS = ['x.js']` en el iframe ANTES de evaluar esto corre sólo esos
+       archivos — para trabajar un caso sin esperar los 170. Los demás cuentan como salteados, así
+       que la corrida sale INCOMPLETA y no puede pasar por verde: es una herramienta de desarrollo,
+       no una forma de correr la suite. */
+    const solo = Array.isArray(window.SOLO_CASOS) ? window.SOLO_CASOS : null;
     for (const archivo of lista.casos) {
+      if (solo && solo.indexOf(archivo) < 0) { salteados.push(archivo); continue; }
       if (lista.soloConGs && lista.soloConGs.indexOf(archivo) >= 0 && !fuenteGs) { salteados.push(archivo); continue; }
       await cargarScript('casos/' + archivo);
     }
