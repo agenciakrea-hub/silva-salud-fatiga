@@ -121,13 +121,32 @@ PRUEBAS.caso('🔴 H3 · bajarle la jornada a alguien NO lo marca excedido hacia
 PRUEBAS.caso('🔴 H5 · la aguja del bloque PROPIO usa la jornada propia, no la del primero de la lista', () => {
   /* Regresión que introduje en P057a: `cont = document` agarraba el primer `.cic-nom` del
      documento. El bloque del piloto no tiene `.cic-card` ni `#cicFullCuerpo` como ancestro. */
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const fn = (f.match(/function cicloUbicarAguja\(barra\)[\s\S]*?\n\}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 200, 'guarda de medibilidad: se encontró la función');
-  PRUEBAS.falso(/\|\|\s*document;/.test(fn),
-    '⚠️ ya no cae a `document` · ahí agarraba el nombre de OTRA persona');
-  PRUEBAS.cierto(/cicloYo\(\)/.test(fn),
-    '⚠️ sin tarjeta contenedora, la barra es la PROPIA · se usa `cicloYo()`');
+  /* P183 · antes leía el cuerpo de `cicloUbicarAguja`. Ahora se arma el escenario: una tarjeta
+     del panel de OTRA persona (con jornada corta) antes en el documento, y la barra PROPIA suelta
+     (sin `.cic-card`), con la jornada propia larga. La aguja tiene que ubicarse con la propia. */
+  const prevLS = Object.assign({}, localStorage), prevDash = DASH;
+  const raiz = document.createElement('div'); raiz.style.cssText = 'position:absolute;left:0;top:0;width:400px;';
+  try {
+    CTX.resetear({ nombre: 'Zoe Propia', esPiloto: true });
+    cicloPlanPropioGuardar({ traslado: 60, jornada: 600, regreso: 60, descanso: 600 });
+    DASH = { vista: 'supervisor', cicloPlanPersona: { [dashNorm('Ana Otra')]: { traslado: 60, jornada: 300, regreso: 60, descanso: 600 } } };
+    const seg = k => '<span data-seg="' + k + '" style="display:inline-block;width:100px;height:4px"></span>';
+    raiz.innerHTML = '<div class="cic-card"><div class="cic-nom">Ana Otra</div></div>' +
+      '<div id="p057hBarra" style="position:relative;width:400px;white-space:nowrap">' + cicloTramos().map(tr => seg(tr.k)).join('') + '<i class="cic-now" data-cic-needle="' + (Date.now() - 90 * 60000) + '" style="position:absolute;left:0"></i></div>';
+    document.body.appendChild(raiz);
+    const barra = document.getElementById('p057hBarra');
+    cicloUbicarAguja(barra);
+    const x = parseFloat(barra.querySelector('.cic-now').style.left);
+    /* 90 min desde el inicio: 60 de traslado y 30 adentro de la jornada · propia (600) → 100 + 100·30/600 = 105 · la de Ana (300) → 110 */
+    PRUEBAS.cierto(Math.abs(x - 105) < 1, '🔴 la aguja del bloque PROPIO usa la jornada propia (quedó en ' + x + ' px; con la de la primera tarjeta del panel daría 110)');
+    /* discriminador: la misma barra ADENTRO de la tarjeta de Ana se ubica con la de Ana */
+    raiz.querySelector('.cic-card').appendChild(barra);
+    cicloUbicarAguja(barra);
+    PRUEBAS.cierto(Math.abs(parseFloat(barra.querySelector('.cic-now').style.left) - 110) < 1, 'DISCRIMINADOR · dentro de la tarjeta de Ana, la aguja va con la jornada de Ana (110 px)');
+  } finally {
+    raiz.remove(); DASH = prevDash;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('🔴 H7 · Dirección/HSEQ no puede ESCRIBIR la jornada de una persona', () => {
@@ -175,19 +194,50 @@ PRUEBAS.caso('🔴 H8 · si la hoja no se puede leer, el panel se entera', () =>
      jornadas propias sin un error, y todo el mundo volvía a medirse contra la de la empresa. Se ve
      exactamente igual que «nadie tiene jornada propia». */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
-  PRUEBAS.cierto(/cicloPlanPersonaError/.test(CTX.gs),
-    '⚠️ el payload trae un canal de error · como `nominaError`, que este archivo ya tenía');
+  /* P183 · antes buscaba `cicloPlanPersonaError` en la fuente. Ahora se rompe la hoja `Ciclo
+     Persona` del entorno (su lectura lanza) y se pide el panel: llega igual, con el motivo. */
+  const armar = () => GS.crearEntorno({
+    'Accesos': [['Usuario','Pass','Rol','Empresas','PassMed','PassHseq'], ['Helitec','clave-sup','supervisor','Helitec','','']],
+    'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo'], ['Helitec','Ana Suárez','V-1','Op','Piloto']],
+    'Config Empresa': [['Empresa','Clave','Valor']],
+    'Respuestas de formulario 1': [['A'], ['B']],
+    'Operacional': [['Fecha','Hora','ISO','IdEvento','Persona','Empresa','Departamento','Cargo','Evento','Test','Resultado','Plan']],
+    'Ciclo Persona': [['Empresa','Persona','Plan','Actualizado','ActualizadoPor'], ['Helitec','Ana Suárez','{"traslado":60,"jornada":600,"regreso":60,"descanso":600}','2026-09-01','x']],
+  });
+  const pedir = (romper) => {
+    const env = armar();
+    if (romper) env.__libro.getSheetByName('Ciclo Persona').getDataRange = function () { throw new Error('la pestaña no se puede leer'); };
+    const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
+    return JSON.parse(api.accionSupervisor({ usuario:'Helitec', empresa:'Helitec', pass:'clave-sup', dispositivoId:'d' }).getContent());
+  };
+  const roto = pedir(true), sano = pedir(false);
+  PRUEBAS.cierto(!!roto.ok, 'guarda: con la hoja rota el panel llega igual (' + (roto.error || 'ok') + ')');
+  PRUEBAS.cierto(/no se puede leer/.test(String(roto.cicloPlanPersonaError || '')), '🔴 y el payload trae el MOTIVO en `cicloPlanPersonaError` · antes el catch devolvía {} en silencio y «nadie tiene jornada propia» se veía igual que «la pestaña no se pudo leer»');
+  PRUEBAS.igual(Object.keys(roto.cicloPlanPersona || {}).length, 0, 'con el mapa vacío');
+  PRUEBAS.igual(sano.cicloPlanPersonaError, null, 'DISCRIMINADOR · con la hoja sana, null');
+  PRUEBAS.igual(Object.keys(sano.cicloPlanPersona || {}), ['ana suarez'], 'y el mapa con la persona');
 });
 
 PRUEBAS.caso('🔴 H-bajo · la demostración valida IGUAL que producción', () => {
   /* La demo guardaba el plan crudo mientras el servidor descartaba tres tramos. Yo verifiqué este
      prompt MIRANDO la demostración y los cuatro números aparecían: hice la verificación visual en
      el único camino donde el defecto no existía. Una demo que valida distinto no es una demo. */
-  const f = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const fn = (f.match(/function cicloPerEnviar\([\s\S]*?demoMode[\s\S]{0,900}/) || [''])[0];
-  PRUEBAS.alMenos(fn.length, 200, 'guarda de medibilidad: se encontró la rama de demostración');
-  PRUEBAS.falso(/mapa\[k\] = JSON\.parse\(cuerpo\.plan\)/.test(fn),
-    '⚠️ la demo ya no guarda el plan crudo sin validar');
-  PRUEBAS.cierto(/cicloTramos\(\)\.forEach/.test(fn),
-    '⚠️ valida tramo por tramo, como el servidor');
+  /* P183 · antes leía la rama de demostración de `cicloPerEnviar`. Ahora se guarda una jornada
+     propia EN LA DEMO con un tramo inválido (jornada 0) y otro fuera de rango (2000): tiene que
+     rechazarse, igual que en el servidor; con valores válidos, se guarda limpia. */
+  const prevDash = DASH, oToast = window.showToast, oRepintar = window.cicloRepintar;
+  const err = document.getElementById('cicPerErr');
+  try {
+    window.showToast = () => {}; window.cicloRepintar = () => {};
+    DASH = { demoMode: true, vista: 'supervisor', cicloPlanPersona: {} };
+    cicloPerEnviar(null, 'Ana Demo', { plan: JSON.stringify({ traslado: 60, jornada: 0, regreso: 60, descanso: 600 }) }, 'ok');
+    PRUEBAS.igual(Object.keys(DASH.cicloPlanPersona).length, 0, '🔴 la demo NO guarda un plan con jornada 0: valida tramo por tramo, como el servidor');
+    PRUEBAS.cierto(!err || err.textContent === t('cic_cfg_err'), 'y dice que está mal (si el editor está pintado)');
+    cicloPerEnviar(null, 'Ana Demo', { plan: JSON.stringify({ traslado: 60, jornada: 2000, regreso: 60, descanso: 600 }) }, 'ok');
+    PRUEBAS.igual(Object.keys(DASH.cicloPlanPersona).length, 0, 'ni uno con 2000 minutos de jornada (tope 1440, el del servidor)');
+    if (err) err.textContent = '';
+    cicloPerEnviar(null, 'Ana Demo', { plan: JSON.stringify({ traslado: 60, jornada: 600, regreso: 60, descanso: 600, basura: 'x' }) }, 'ok');
+    const g = DASH.cicloPlanPersona[dashNorm('Ana Demo')];
+    PRUEBAS.cierto(!!g && g.jornada === 600 && !('basura' in g), 'DISCRIMINADOR · uno válido se guarda, limpio (sin claves de más)');
+  } finally { DASH = prevDash; window.showToast = oToast; window.cicloRepintar = oRepintar; if (err) err.textContent = ''; try { CICLO_PER_ABIERTO = ''; } catch(e){} }
 });

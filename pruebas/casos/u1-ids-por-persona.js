@@ -68,14 +68,32 @@ PRUEBAS.caso('⚠️ y viaja `idPrevio`, para que el servidor actualice la fila 
   /* Sin esto, el día del cambio cada persona duplicaría su check-in en el CH: el servidor no
      encontraría el id nuevo, haría append, y quedarían dos filas del mismo evento —que además
      vuelven a contar en los promedios. */
-  const fuente = String(turnoGuardar);
-  PRUEBAS.cierto(/idPrevio/.test(fuente),
-    '⚠️ el registro de turno tiene que mandar el id anterior junto con el nuevo');
-  const fuenteOp = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  PRUEBAS.cierto(/action:'operacional_guardar'[\s\S]{0,400}idPrevio/.test(fuenteOp),
-    'y el operacional también');
-  PRUEBAS.cierto(/consentimiento_guardar'[\s\S]{0,200}idPrevio/.test(fuenteOp),
-    'y el consentimiento, que es la evidencia legal de que se informó');
+  /* P183 · antes leía `String(turnoGuardar)` y la fuente entera. Ahora se registran un turno, un
+     evento del ciclo y el consentimiento con la cola y el envío espiados, y se mira qué VIAJA:
+     cada uno lleva `idPrevio` (el id de antes del cambio, sin cédula) al lado del nuevo. */
+  const oEncolar = window.empEncolar, oEnviar = window.enviarConCola, prevPerfil = getProfile();
+  const prevLS = Object.assign({}, localStorage);
+  const encolado = [], urls = [];
+  try {
+    CTX.resetear({ nombre: 'Ana Prueba', cedula: '12345678', esPiloto: true });
+    window.empEncolar = (id, accion, payload) => { encolado.push({ id, accion, payload }); };
+    window.enviarConCola = (url) => { urls.push(String(url)); };
+    turnoGuardar('checkin', {});
+    const turno = encolado.find(x => x.accion === 'turno_guardar');
+    PRUEBAS.cierto(!!turno, 'guarda: el turno se encoló');
+    PRUEBAS.cierto(turno && 'idPrevio' in turno.payload && turno.payload.idPrevio !== turno.id, '⚠️ el registro de turno manda el id anterior junto con el nuevo · sin esto, el día del cambio cada persona duplicaría su check-in en el CH');
+    enviarOperacional('salida_casa', '', null);
+    const op = urls.find(u => /action=operacional_guardar/.test(u)) || '';
+    const qs = new URLSearchParams(op.split('?')[1] || '');
+    PRUEBAS.cierto(!!qs.get('idPrevio') && qs.get('idPrevio') !== qs.get('id'), 'y el operacional también (' + qs.get('idPrevio') + ')');
+    const cs = consentStore(); cs.items = cs.items || {}; consentPendientes().forEach(c => { cs.items[c.k] = c.v; }); cs.sincronizado = false; consentSave(cs);
+    consentSync();
+    const cons = encolado.find(x => x.accion === 'consentimiento_guardar');
+    PRUEBAS.cierto(!!cons && !!cons.payload.idPrevio, 'y el consentimiento, que es la evidencia legal de que se informó');
+  } finally {
+    window.empEncolar = oEncolar; window.enviarConCola = oEnviar;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.grupo('U2 · el arranque');
@@ -268,19 +286,34 @@ PRUEBAS.caso('⚠️ el sw avisa cuando lo que sirvió no es lo último', async 
 });
 
 PRUEBAS.caso('⚠️ la app escucha ese aviso y ofrece actualizar', () => {
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  PRUEBAS.cierto(/'version-nueva'/.test(fuente),
-    '⚠️ sin esto, el sw avisa al vacío y la versión vieja se queda para siempre');
-  PRUEBAS.cierto(typeof versionNuevaAvisar === 'function', 'y existe la función que lo muestra');
+  /* P183 · antes buscaba `'version-nueva'` en la fuente. Ahora se le manda a la app el mismo
+     mensaje que manda el service worker y se mira si aparece el cartel. */
+  const prev = document.getElementById('verNuevaBar'); if (prev) prev.remove();
+  const oAplicar = window.versionAplicar; let aplicadas = 0;
+  try {
+    window.versionAplicar = () => { aplicadas++; versionNuevaAvisar(); };
+    if (!navigator.serviceWorker) { PRUEBAS.cierto(true, 'sin service worker en este navegador: se saltea'); return; }
+    navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { tipo: 'version-nueva' } }));
+    PRUEBAS.alMenos(aplicadas, 1, '⚠️ la app escucha el aviso del sw · sin esto avisa al vacío y la versión vieja se queda para siempre');
+    PRUEBAS.cierto(!!document.getElementById('verNuevaBar'), 'y muestra el cartel');
+    navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { tipo: 'otra-cosa' } }));
+    PRUEBAS.igual(aplicadas, 1, 'DISCRIMINADOR · otro mensaje no dispara nada');
+  } finally { window.versionAplicar = oAplicar; const b = document.getElementById('verNuevaBar'); if (b) b.remove(); }
 });
 
 PRUEBAS.caso('⚠️ pero NO recarga sola', () => {
   /* Alguien puede estar a mitad de un test de reacción de 90 segundos. Recargarle la app debajo le
      hace perder el trabajo — la clase de "mejora" que se paga cara. Decide la persona. */
-  const f = String(versionNuevaAvisar);
-  PRUEBAS.falso(/^[\s\S]*location\.reload\(\)\s*;/m.test(f.replace(/onclick="[^"]*"/g, '')),
-    '⚠️ la recarga sólo puede salir de un botón, nunca automática');
-  PRUEBAS.cierto(/onclick="location\.reload\(\)"/.test(f), 'y ese botón tiene que existir');
+  /* P183 · antes leía `String(versionNuevaAvisar)`. Ahora se muestra el cartel y se comprueba que
+     la página SIGUE (una marca puesta antes sobrevive) y que la recarga está sólo en un botón. */
+  const prev = document.getElementById('verNuevaBar'); if (prev) prev.remove();
+  window.__u1Marca = 'sigo-viva';
+  versionNuevaAvisar();
+  const bar = document.getElementById('verNuevaBar');
+  return new Promise(res => setTimeout(res, 120)).then(() => {
+    PRUEBAS.igual(window.__u1Marca, 'sigo-viva', '⚠️ mostrar el aviso NO recarga sola: la persona puede estar a mitad de un test de reacción');
+    PRUEBAS.cierto(!!bar && [...bar.querySelectorAll('button')].some(b => /location\.reload/.test(b.getAttribute('onclick') || '')), 'y la recarga está en un botón, que decide la persona');
+  }).finally(() => { delete window.__u1Marca; const b = document.getElementById('verNuevaBar'); if (b) b.remove(); });
 });
 
 PRUEBAS.caso('⚠️ el aviso no aparece hasta que haga falta, y se puede cerrar', () => {

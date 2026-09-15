@@ -700,11 +700,17 @@ PRUEBAS.caso('⚠️ el overlay nuevo existe y "atrás" lo cierra (si no, es un 
   /* `silvaAtras()` tiene una lista EXPLÍCITA: un overlay que no se nombre ahí no existe para el
      botón físico del teléfono. Es el defecto que R1 tuvo que corregir para las cuatro pantallas
      del alta y que P100 volvió a encontrar. */
+  /* P183 · antes buscaba `visible('depOv')` en `silvaAtras`. Ahora se abre la pantalla y se toca
+     «atrás» (la función que atiende el botón físico): tiene que cerrarse. */
   PRUEBAS.existe('#depOv', 'la pantalla de departamentos tiene que estar en el DOM');
-  PRUEBAS.cierto(/visible\('depOv'\)/.test(p039Fuente()),
-    "⚠️ `silvaAtras()` no nombra a `depOv`: el botón atrás del teléfono no lo cerraría nunca");
-  PRUEBAS.cierto(typeof depCerrarUI === 'function',
-    'y tiene su cierre propio, el que consume el navPush (P048)');
+  const ov = document.getElementById('depOv'), oNav = window.navConsumir, oPush = history.pushState;
+  try {
+    window.navConsumir = () => {}; history.pushState = () => {};
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    ov.classList.add('show');
+    const atendio = silvaAtras();
+    PRUEBAS.cierto(atendio === true && !ov.classList.contains('show'), "⚠️ «atrás» cierra la pantalla de departamentos · si `silvaAtras()` no la nombrara, el botón físico no la cerraría nunca");
+  } finally { window.navConsumir = oNav; history.pushState = oPush; ov.classList.remove('show'); try { syncScrollLock(); } catch(e){} }
 });
 
 /* Espera el `popstate` real, o como mucho `ms`. ⚠️ HACE FALTA DE VERDAD: `navConsumir()` levanta
@@ -888,14 +894,23 @@ PRUEBAS.caso('⚠️ R13 · todo se lee en los DOS temas, incluido lo que está 
 PRUEBAS.caso('⚠️ R8 · dar de baja pide confirmación y vibra; ninguna de las dos es opcional', () => {
   /* Sacar un área del mapa tiene consecuencia operativa: nadie más se puede asignar ahí. No puede
      ocurrir por un toque accidental en un teléfono. */
-  const f = p039Fuente();
-  const i = f.indexOf('function depPedirBaja');
-  PRUEBAS.alMenos(i, 0, '⚠️ GUARDA: no se encontró `depPedirBaja` en la fuente de la app');
-  if (i < 0) return;
-  const cuerpo = f.slice(i, i + 2200);
-  PRUEBAS.cierto(/confirm\s*\(/.test(cuerpo) || /depConfirmar\s*\(/.test(cuerpo),
-    '⚠️ la baja tiene que pasar por una confirmación explícita');
-  PRUEBAS.cierto(/haptic\s*\(/.test(cuerpo), '⚠️ y por el háptico (R8)');
+  /* P183 · antes buscaba `confirm(` y `haptic(` en la fuente de `depPedirBaja`. Ahora se toca el
+     botón con `confirm` respondiendo NO y después SÍ, y `haptic`/`depEnviar` espiados. */
+  const oConfirm = window.confirm, oHaptic = window.haptic, oEnviar = window.depEnviar;
+  let preguntas = 0, vibro = 0, envios = 0;
+  const btn = document.createElement('button'); btn.setAttribute('data-dep', 'Mantenimiento');
+  try {
+    window.haptic = () => { vibro++; }; window.depEnviar = () => { envios++; };
+    window.confirm = () => { preguntas++; return false; };
+    depPedirBaja(btn);
+    PRUEBAS.igual(preguntas, 1, '⚠️ la baja pasa por una confirmación explícita');
+    PRUEBAS.igual(envios, 0, 'y con «No», no se manda nada');
+    PRUEBAS.igual(vibro, 0, 'ni vibra');
+    window.confirm = () => { preguntas++; return true; };
+    depPedirBaja(btn);
+    PRUEBAS.igual(envios, 1, 'DISCRIMINADOR · con «Sí», se manda');
+    PRUEBAS.igual(vibro, 1, '⚠️ y vibra (R8): ninguna de las dos es opcional');
+  } finally { window.confirm = oConfirm; window.haptic = oHaptic; window.depEnviar = oEnviar; }
 });
 
 PRUEBAS.caso('⚠️ R3 · el alta y la baja quedan en la bitácora, con el departamento y la empresa', async () => {
@@ -1207,14 +1222,23 @@ PRUEBAS.caso('🔴 A15 · R3 · dar de baja dos veces deja bitácora de BAJA, no
   /* El servidor tiene dos respuestas que no entraban en ninguna rama: `actualizado:true` y
      `yaEstaba:true`. Las dos caían al final sin bitácora y con el toast «agregado» — o sea que dar
      de baja dos veces decía «agregado» y no dejaba rastro de ninguna de las dos. */
-  const f = p039Fuente();
-  PRUEBAS.igual((f.match(/else if \(d\.nuevo\)\s+bitacoraRegistrar/g) || []).length, 0,
-    '⚠️ la bitácora ya no se decide por el shape de la respuesta');
-  PRUEBAS.cierto(/bitacoraRegistrar\(tipo === 'baja'/.test(f),
-    "⚠️ se decide por `tipo`, que lo fija el llamador ('alta' / 'react' / 'baja') y no la red");
-  PRUEBAS.cierto(/empresa: cuerpo\.empresa/.test(f),
-    '⚠️ y la bitácora usa la empresa que SE MANDÓ, no `DEPS.empresa` · eran dos derivaciones ' +
-    'distintas y podían quedar diciendo empresas distintas para el mismo hecho');
+  /* P183 · antes buscaba `bitacoraRegistrar(tipo === 'baja'` y `empresa: cuerpo.empresa` en la
+     fuente. Ahora se da de baja con el servidor (espiado) contestando `yaEstaba:true` —la segunda
+     baja— y se mira qué se registró en la bitácora y qué dijo el toast. */
+  const oFetch = window.fetchConReloj, oBit = window.bitacoraRegistrar, oToast = window.showToast, oCargar = window.depCargar, prevDash = DASH;
+  const bit = [], toasts = [];
+  window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok: true, yaEstaba: true }) });
+  window.bitacoraRegistrar = (tipo, sujeto, detalle) => { bit.push({ tipo, detalle }); };
+  window.showToast = m => { toasts.push(String(m)); }; window.depCargar = () => {};
+  DASH = { vista: 'supervisor', params: { usuario: 'helitec', empresa: 'Helitec', pass: 'x' }, f: { emp: 'Consorcio HELITEC' } };
+  depEnviar('departamento_baja', 'Mantenimiento', {}, 'baja');
+  return new Promise(res => setTimeout(res, 40)).then(() => {
+    PRUEBAS.igual(bit.length, 1, 'guarda: quedó UNA entrada en la bitácora');
+    PRUEBAS.igual(bit[0] && bit[0].tipo, 'departamento_baja', '🔴 la segunda baja deja bitácora de BAJA · antes `yaEstaba:true` caía sin bitácora y con el toast «agregado»');
+    PRUEBAS.cierto(bit[0] && bit[0].detalle.sinCambio === true, 'y dice que no hubo cambio');
+    PRUEBAS.igual(bit[0] && bit[0].detalle.empresa, 'Consorcio HELITEC', '⚠️ con la empresa que SE MANDÓ (`DASH.f.emp`), no otra derivación');
+    PRUEBAS.cierto(toasts.some(x => x === t('dep_hecho_baja', { d: 'Mantenimiento' })), 'y el toast dice baja, no «agregado»');
+  }).finally(() => { window.fetchConReloj = oFetch; window.bitacoraRegistrar = oBit; window.showToast = oToast; window.depCargar = oCargar; DASH = prevDash; });
 });
 
 PRUEBAS.caso('🔴 A15 · cambiar de empresa no deja la lista de la anterior en pantalla', () => {
