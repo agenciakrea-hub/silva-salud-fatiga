@@ -159,11 +159,21 @@ PRUEBAS.caso('⚠️ el DISCRIMINADOR: sin navConsumir el balance se rompe', asy
 });
 
 PRUEBAS.caso('⚠️ `silvaAtras` sigue cerrando el carrusel SIN consumir · ahí ya lo hizo el navegador', () => {
-  /* La otra mitad de la regla, y la que se rompe más fácil: si `silvaAtras` empezara a consumir,
-     el botón físico descartaría dos entradas de un toque — la que el navegador ya sacó y una ajena. */
-  const fuente = silvaAtras.toString().replace(/\/\*[\s\S]*?\*\//g, ' ');
-  PRUEBAS.cierto(/carruselCerrar\(\)/.test(fuente), '⚠️ el botón físico llama a `carruselCerrar()` pelado');
-  PRUEBAS.falso(/carruselCerrarUI\(\)/.test(fuente), '⚠️ y NO a la versión que consume');
+  /* P183 · antes leía `silvaAtras.toString()`. Ahora se abre el carrusel y se toca «atrás» con
+     `navConsumir` espiado: se cierra sin consumir; la ✕ sí consume. */
+  const oNav = window.navConsumir, oPush = history.pushState, ov = document.getElementById('carruselOv'), splash = document.getElementById('splashOv');
+  let consumidos = 0;
+  try {
+    window.navConsumir = () => { consumidos++; }; history.pushState = () => {};
+    document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+    ov.classList.add('show');
+    const atendio = silvaAtras();
+    PRUEBAS.cierto(atendio === true && !ov.classList.contains('show'), 'guarda: «atrás» cierra el carrusel');
+    PRUEBAS.igual(consumidos, 0, '⚠️ `silvaAtras` cierra el carrusel SIN consumir · ahí ya lo hizo el navegador');
+    ov.classList.add('show');
+    carruselCerrarUI();
+    PRUEBAS.igual(consumidos, 1, 'DISCRIMINADOR · la ✕ sí consume');
+  } finally { window.navConsumir = oNav; history.pushState = oPush; ov.classList.remove('show'); splash.classList.remove('show'); try { syncScrollLock(); } catch(e){} }
 });
 
 PRUEBAS.caso('🔴 los cierres que ENCADENAN traspasan su entrada · ni consumen ni apilan de más', () => {

@@ -86,14 +86,36 @@ PRUEBAS.caso('el cliente avisa al servidor ANTES de borrar el token', () => {
 });
 
 PRUEBAS.caso('⚠️ sólo se le quita a quien tenía el rol', () => {
-  /* Un empleado común recibe `rolNomina:'empleado'` en cada arranque. Si la rama no comprobara que
-     antes tenía el rol, le escribiría el perfil y le mostraría un aviso todos los días. */
-  const f = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-  const i = f.indexOf("d.rolNomina === 'empleado'");
-  if (i < 0){ PRUEBAS.cierto(false, 'no existe la rama'); return; }
-  PRUEBAS.cierto(/esSupervisor \|\| _p\.esServicioMedico/.test(f.slice(i, i + 400)),
-    '⚠️ se comprueba que tenía rol antes de tocar nada');
+  /* P183 · antes buscaba `esSupervisor || _p.esServicioMedico` cerca de la rama. Ahora un empleado
+     común recibe `rolNomina:'empleado'` (lo que pasa en cada arranque) y no puede haber aviso, ni
+     escritura del perfil, ni cierre de sesión; quien SÍ tenía el rol, sí. */
+  /* Entra por `tareasCargar()` con el servidor espiado, que es lo que corre en cada arranque. Se
+     restaura en el `.finally()` de la promesa (R18). */
+  const oFetch = window.fetchConReloj, oPintar = window.miRolPintar, oAviso = window.sesionAvisarCierre, oToast = window.showToast, prevPerfil = getProfile(), prevDash = DASH;
+  const prevLS = Object.assign({}, localStorage);
+  let repintes = 0, avisos = 0; const toasts = [];
+  window.miRolPintar = () => { repintes++; }; window.sesionAvisarCierre = () => { avisos++; }; window.showToast = m => { toasts.push(String(m)); };
+  const correr = (perfil, respuesta) => {
+    setProfile(perfil);
+    TAREAS.cargando = false; TAREAS._enVuelo = null;
+    window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(respuesta) });
+    return tareasCargar() || Promise.resolve();
+  };
+  const comun = { nombre: 'Beto Prueba', cedula: '87654321', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' };
+  return correr(comun, { ok: true, tareas: [], pendientes: 0, rolNomina: 'empleado' }).then(() => {
+    PRUEBAS.igual(toasts.filter(x => x === t('rol_quitado')).length, 0, '⚠️ a un empleado común no se le avisa que «le quitaron» un rol que nunca tuvo');
+    PRUEBAS.igual(avisos, 0, 'ni se le cierra ninguna sesión');
+    PRUEBAS.igual(repintes, 0, 'ni se repinta nada');
+    const conRol = { nombre: 'Ana Prueba', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', esSupervisor: true, rolesActivados: ['supervisor'] };
+    return correr(conRol, { ok: true, tareas: [], pendientes: 0, rolNomina: 'empleado' });
+  }).then(() => {
+    PRUEBAS.igual(toasts.filter(x => x === t('rol_quitado')).length, 1, 'DISCRIMINADOR · a quien tenía el rol, sí se le avisa');
+    PRUEBAS.igual(avisos, 1, 'y se le avisa al servidor para cerrar la sesión');
+  }).finally(() => {
+    window.fetchConReloj = oFetch; window.miRolPintar = oPintar; window.sesionAvisarCierre = oAviso; window.showToast = oToast; DASH = prevDash;
+    TAREAS.cargando = false; TAREAS._enVuelo = null;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  });
 });
 
 

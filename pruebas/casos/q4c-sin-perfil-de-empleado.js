@@ -29,12 +29,29 @@ PRUEBAS.caso('⚠️ el auto-login del panel SE LLAMA desde el camino real', () 
   /* Q4a lo midió: `openPortal()` tenía la lógica completa y CERO usos. El botón Estadísticas iba a
      `openPortalGate()`, que no autologuea, así que el token de S4 no se usaba nunca para entrar.
      ⚠️ Este caso reemplaza al de Q4a que afirmaba el defecto (`usos === 0`), como decía ahí mismo. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const usos = (fuente.match(/[^e]\bopenPortal\s*\(/g) || []).length;
-  PRUEBAS.alMenos(usos, 1,
-    '⚠️ si esto vuelve a cero, el "Sí, recordar" dejó de recordar otra vez');
-  PRUEBAS.cierto(/openPortal\(\);/.test(String(abrirDestinoEstadisticas)),
-    '⚠️ y el camino que lo llama tiene que ser el botón Estadísticas, no cualquiera');
+  /* P183 · antes contaba `openPortal(` en la fuente. Ahora se toca el botón Estadísticas (la
+     función que lo atiende) con un perfil que gestiona y con uno que no, con las dos salidas
+     espiadas: el que gestiona va por `openPortal` (que prueba primero el token); el que sólo
+     reporta, derecho a sus datos. */
+  const oOpen = window.openPortal, oEmp = window.portalAutoLoginEmpleado, oPush = history.pushState, prevLS = Object.assign({}, localStorage), prevDash = DASH;
+  let abiertos = 0, empleados = 0;
+  try {
+    window.openPortal = () => { abiertos++; }; window.portalAutoLoginEmpleado = () => { empleados++; }; history.pushState = () => {};
+    CTX.resetear({ nombre: 'Ana Prueba', cedula: '12345678', esSupervisor: true, rolesActivados: ['supervisor'] });
+    DASH = null;
+    abrirDestinoEstadisticas();
+    PRUEBAS.igual(abiertos, 1, '⚠️ quien gestiona entra por `openPortal`, que prueba primero el token · si esto vuelve a cero, «Sí, recordar» dejó de recordar otra vez');
+    PRUEBAS.igual(empleados, 0, 'y no por el auto-login de empleado');
+    CTX.resetear({ nombre: 'Beto Prueba', cedula: '87654321' });
+    DASH = null;
+    abrirDestinoEstadisticas();
+    PRUEBAS.igual(empleados, 1, 'DISCRIMINADOR · quien sólo reporta entra directo a sus propios datos, sin selector');
+    PRUEBAS.igual(abiertos, 1, 'y no abre el panel');
+  } finally {
+    window.openPortal = oOpen; window.portalAutoLoginEmpleado = oEmp; history.pushState = oPush; DASH = prevDash;
+    try { document.getElementById('portalOverlay').classList.remove('show'); marcarStatsActivo(false); } catch(e){}
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
 });
 
 PRUEBAS.caso('⚠️ y NO exige perfil de empleado: entra con el token, tenga perfil o no', () => {

@@ -114,21 +114,21 @@ const A4_VALOR = {
 };
 
 PRUEBAS.caso('⚠️ y tampoco se pierden en el REFRESCO, que es otro lugar distinto', () => {
-  /* Son DOS los sitios que copian campos del servidor: la carga inicial y el refresco periódico.
-     `duty` y `ausencias` faltaban en los dos. Si sólo se arreglara la carga, marcar una ausencia y
-     esperar al refresco la borraría de la pantalla. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const i = fuente.indexOf('DASH.turnos = d.turnos || [];   // E2b: idem');
-  PRUEBAS.alMenos(i, 0, 'tiene que existir el bloque de refresco');
-  if (i < 0) return;
-  /* P169 · `duty` se copia ANTES del corte por `changed` (junto a `operacionalPeriodo`), así que
-     está unas líneas ARRIBA de este ancla, no abajo. Se mira la función entera de `dashRefresh`. */
-  const ini = fuente.lastIndexOf('function dashRefresh(', i);
-  const bloque = fuente.slice(ini >= 0 ? ini : i, i + 900);
-  PRUEBAS.cierto(/DASH\.duty\s*=\s*d\.duty/.test(bloque),
-    '⚠️ el refresco tiene que traer `duty`, o la pestaña Jornada se vacía sola al actualizar');
-  PRUEBAS.cierto(/d\.ausencias/.test(bloque),
-    '⚠️ y `ausencias`, o una ausencia recién marcada desaparece en el siguiente refresco');
+  /* P183 · antes leía el bloque de `dashRefresh` en la fuente. Ahora se REFRESCA de verdad con el
+     servidor espiado devolviendo `duty` y `ausencias`, y se mira que queden en `DASH`. Restaura en
+     el `.finally()` de la promesa (R18). */
+  const oReq = window.dashRequest, prevDash = DASH;
+  onDashData({ ok: true, rol: 'supervisor', vista: 'medico', referencia: {}, metricas: [], registros: [], comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [], operacional: [] },
+    'Helitec', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'a4' }, 'medico');
+  const mio = DASH;
+  const dutyNuevo = { diario: [{ persona: 'Ana', fecha: '2026-09-15', jornadaMin: 700, excesoMin: 0, tramos: [] }], resumen: [] };
+  const ausNuevas = { ['12345678|' + todayStr()]: 'franco' };
+  window.dashRequest = () => Promise.resolve({ ok: true, rol: 'supervisor', vista: 'medico', referencia: { kss: 6 }, metricas: [], registros: [{ persona: 'Ana', empresa: 'Helitec', fecha: '2026-09-15', kss: 3 }], comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, duty: dutyNuevo, ausencias: ausNuevas, turnos: [], operacional: [] });
+  return dashRefresh(false).then(() => {
+    PRUEBAS.cierto(DASH === mio, 'guarda: el refresco aplicó sobre el mismo panel');
+    PRUEBAS.cierto(!!DASH.duty && DASH.duty.diario && DASH.duty.diario.length === 1, '⚠️ el refresco trae `duty`, o la pestaña Jornada se vacía sola al actualizar');
+    PRUEBAS.igual(DASH.ausencias, ausNuevas, '⚠️ y `ausencias`, o una ausencia recién marcada desaparece en el siguiente refresco');
+  }).finally(() => { window.dashRequest = oReq; DASH = prevDash; });
 });
 
 PRUEBAS.caso('⚠️ con el payload del servidor, Jornada PINTA y la ausencia DESCUENTA', () => {

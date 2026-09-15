@@ -129,12 +129,19 @@ PRUEBAS.caso('🔒 abrir el panel SIN apilar y cerrarlo no se come una entrada a
 });
 
 PRUEBAS.caso('⚠️ `silvaAtras` sigue cerrando el panel SIN consumir · ahí el navegador ya lo hizo', () => {
-  /* La otra mitad de la regla. Si `silvaAtras` empezara a consumir, el botón físico descartaría dos
-     entradas de un toque: la que el navegador ya sacó y una ajena. Se mide sobre el fuente porque
-     lo que se vigila es cuál de las dos funciones se llama, no un efecto. */
-  const fuente = silvaAtras.toString().replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, '');
-  PRUEBAS.cierto(/closePortal\(\)/.test(fuente),
-    '⚠️ el botón físico llama a `closePortal()` pelado');
-  PRUEBAS.falso(/closePortalUI\(\)/.test(fuente),
-    '⚠️ y NO a `closePortalUI()` · consumir ahí descartaría una entrada de más');
+  /* P183 · antes leía `silvaAtras.toString()`. Ahora se abre el panel y se toca «atrás» con
+     `navConsumir` espiado: el panel se cierra y NO se consume nada (el navegador ya sacó la
+     entrada); la ✕ de la pantalla, en cambio, sí consume. */
+  const oNav = window.navConsumir, oPush = history.pushState, ov = document.getElementById('portalOverlay'), prevDash = DASH, prevApilo = _portalApilo;
+  let consumidos = 0;
+  try {
+    window.navConsumir = () => { consumidos++; }; history.pushState = () => {};
+    DASH = null; ov.classList.add('show'); _portalApilo = true;
+    const atendio = silvaAtras();
+    PRUEBAS.cierto(atendio === true && !ov.classList.contains('show'), 'guarda: «atrás» cierra el panel');
+    PRUEBAS.igual(consumidos, 0, '⚠️ `silvaAtras` cierra el panel SIN consumir · ahí el navegador ya sacó la entrada');
+    ov.classList.add('show'); _portalApilo = true;
+    closePortalUI();
+    PRUEBAS.igual(consumidos, 1, 'DISCRIMINADOR · la ✕ de la pantalla sí consume la entrada que apiló');
+  } finally { window.navConsumir = oNav; history.pushState = oPush; DASH = prevDash; _portalApilo = prevApilo; ov.classList.remove('show'); try { syncScrollLock(); } catch(e){} }
 });

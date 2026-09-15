@@ -188,17 +188,23 @@ PRUEBAS.caso('⚠️ el empleado NO la ve, y el supervisor tampoco (discriminado
 });
 
 PRUEBAS.caso('⚠️ ningún número queda sin decir qué es', () => {
-  /* Salió MIRANDO la captura, no midiendo: la columna "Días" mostraba "2 2" —los días y, al lado,
-     los días con exceso— y el segundo número no lo explicaba nada. Un dato sin etiqueta en la tabla
-     que el servicio médico lee para firmar una determinación es peor que no mostrarlo.
-     Ahora va en "Por encima", junto al total, donde se lee solo: "+2 h 20 min · 2 días". */
-  const fuente = String(renderJornada);
-  PRUEBAS.falso(/'<td>' \+ pe\.dias \+ \(pe\.diasConExceso/.test(fuente),
-    '⚠️ el chip no puede volver a la columna de días, donde queda sin etiqueta');
-  PRUEBAS.cierto(/jor_n_dias/.test(fuente),
-    'y el número tiene que venir con su palabra ("2 días"), traducida por t()');
-  ['jor_n_dias','jor_n_dias_1'].forEach(k =>
-    PRUEBAS.cierto(!!t(k) && t(k) !== k, 'falta la traducción de ' + k));
+  /* P183 · antes leía `String(renderJornada)`. Ahora se pinta Jornada con una persona con dos días
+     de exceso y se mira la tabla: la columna de días trae UN número, y los días con exceso van
+     junto al total, con su palabra («2 días»). */
+  const prevDash = DASH;
+  try {
+    const dia = (fecha, exceso) => ({ persona: 'Ana Prueba', empresa: 'Helitec', departamento: 'Op', fecha: fecha, jornadaMin: 720 + exceso, previstoMin: 720, excesoMin: exceso, abierto: false, umbralCongelado: true, tramos: [] });
+    onDashData({ ok: true, rol: 'supervisor', vista: 'medico', referencia: {}, metricas: [], registros: [], comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, turnos: [], operacional: [],
+      duty: { diario: [dia('2026-09-10', 60), dia('2026-09-11', 80), dia('2026-09-12', 0)], personas: [{ persona: 'Ana Prueba', empresa: 'Helitec', departamento: 'Op', dias: 3, jornadaMin: 2300, excesoMin: 140, diasConExceso: 2, umbralCongelado: true, promedioJornadaMin: 767 }], historico: [] } },
+      'Helitec', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'y4b' }, 'medico');
+    const cont = document.createElement('div'); cont.innerHTML = renderJornada();
+    const fila = [...cont.querySelectorAll('table.jor-tabla tbody tr')].find(tr => /Ana Prueba/.test(tr.textContent));
+    PRUEBAS.cierto(!!fila, 'guarda: la persona está en la tabla');
+    const celdas = fila ? [...fila.querySelectorAll('td')].map(td => td.textContent.trim()) : [];
+    PRUEBAS.cierto(celdas.some(c => /^\d+$/.test(c)) && !celdas.some(c => /^\d+\s+\d+$/.test(c)), '⚠️ la columna de días trae UN número, no «2 2»');
+    PRUEBAS.cierto(celdas.some(c => c.indexOf(t('jor_n_dias', { n: 2 })) >= 0), 'y los días con exceso van con su palabra («' + t('jor_n_dias', { n: 2 }) + '»), junto al total');
+    ['jor_n_dias', 'jor_n_dias_1'].forEach(k => PRUEBAS.cierto(!!t(k) && t(k) !== k, 'falta la traducción de ' + k));
+  } finally { DASH = prevDash; }
 });
 
 PRUEBAS.caso('⚠️ los plurales se resuelven, no se escriben "persona(s)"', () => {

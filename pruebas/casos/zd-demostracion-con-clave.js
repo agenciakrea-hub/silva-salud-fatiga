@@ -105,19 +105,25 @@ PRUEBAS.caso('⚠️ sin `demo_pass` cargada, la demostración sigue abierta par
 });
 
 PRUEBAS.caso('⚠️ `simEntrar` manda la credencial · A15, por sexta vez', () => {
-  /* R17 · se mira el CÓDIGO REAL, porque lo que este caso vigila es justamente que nadie vuelva a
-     armar los params a mano. `dashAuth()` es lo que agrega `usuario`, `pass` y `dispositivoId`;
-     escribir `{action:'demo'}` a pulso es lo que dejó la simulación sin credencial. */
-  const js = [...document.querySelectorAll('script')].map(s => s.textContent).join('');
-  const i = js.indexOf('function simEntrar');
-  const cuerpo = i >= 0 ? js.slice(i, i + 2600) : '';
-  PRUEBAS.cierto(cuerpo.length > 0, 'tiene que encontrarse la función');
-  PRUEBAS.cierto(/dashAuth\(\s*\{\s*action\s*:\s*'demo'/.test(cuerpo),
-    '⚠️ los params tienen que salir de `dashAuth()`, que es quien sabe poner el token y el dispositivo');
-  PRUEBAS.falso(/dashRequest\(\s*\{\s*action\s*:\s*'demo'\s*\}\s*\)/.test(cuerpo),
-    '⚠️ y no puede quedar ningún `dashRequest({action:\'demo\'})` escrito a mano');
-  PRUEBAS.cierto(/demo_pass/.test(cuerpo),
-    'y si aun así el servidor pidiera la clave, hay que decir QUÉ pasó y no un aviso genérico');
+  /* P183 · antes leía el cuerpo de `simEntrar`. Ahora se entra a la simulación con el pedido
+     espiado: los params tienen que traer la credencial del panel (usuario, contraseña/token y
+     dispositivo) que sólo `dashAuth()` sabe poner; y si el servidor pide la clave de la demo, el
+     aviso dice QUÉ pasó. */
+  const oReq = window.dashRequest, oToast = window.showToast, oSalir = window.simSalir, prevDash = DASH, prevSim = SIMUL;
+  const pedidos = [], toasts = [];
+  try {
+    DASH = { vista: 'supervisor', params: { usuario: 'helitec', empresa: 'helitec', pass: 'clave-o-token' }, f: { emp: 'Helitec' } };
+    window.dashRequest = (p) => { pedidos.push(Object.assign({}, p)); return Promise.resolve({ ok: false, motivo: 'demo_pass' }); };
+    window.showToast = m => { toasts.push(String(m)); }; window.simSalir = () => {};
+    simEntrar('supervisor');
+    PRUEBAS.igual(pedidos.length, 1, 'guarda: salió el pedido');
+    const p = pedidos[0] || {};
+    PRUEBAS.igual(p.action, 'demo', 'pide la demostración');
+    PRUEBAS.cierto(p.usuario === 'helitec' && p.pass === 'clave-o-token' && !!p.dispositivoId, '⚠️ y lleva la credencial del panel (usuario, secreto, dispositivo): los params salen de `dashAuth()`, no se arman a mano · A15, por sexta vez');
+    return new Promise(res => setTimeout(res, 30)).then(() => {
+      PRUEBAS.cierto(toasts.indexOf(t('ts_sim_demo_pass')) >= 0, 'y si el servidor pide la clave de la demo, se dice QUÉ pasó, no un aviso genérico');
+    }).finally(() => { window.dashRequest = oReq; window.showToast = oToast; window.simSalir = oSalir; DASH = prevDash; SIMUL = prevSim; try { simPintarBarra(); } catch(e){} });
+  } catch (e) { window.dashRequest = oReq; window.showToast = oToast; window.simSalir = oSalir; DASH = prevDash; SIMUL = prevSim; throw e; }
 });
 
 PRUEBAS.caso('⚠️ ZD · cada panel de la demostración dice QUÉ HACE, y el inicio es otra pantalla', () => {

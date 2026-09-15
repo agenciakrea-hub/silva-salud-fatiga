@@ -117,11 +117,17 @@ PRUEBAS.caso('⚠️ el departamento de cada uno sale de la misma tabla, no escr
 PRUEBAS.caso('⚠️ y nada de esto se activa fuera de la demostración', () => {
   /* El discriminador que importa: si estos datos aparecieran en una empresa real, el panel estaría
      mostrando gente inventada mezclada con la de verdad. */
-  const fuente = [...document.querySelectorAll('script')].map(x => x.textContent).join('\n');
-  const i = fuente.indexOf('DASH.duty = dutyDemo()');
-  PRUEBAS.alMenos(i, 0, 'el enganche tiene que existir');
-  if (i < 0) return;
-  const bloque = fuente.slice(Math.max(0, i - 900), i);
-  PRUEBAS.cierto(/if \(DASH\.demoMode\)\{/.test(bloque),
-    '⚠️ los datos de ejemplo SÓLO se cargan dentro de la rama de demo');
+  /* P183 · antes buscaba `if (DASH.demoMode){` antes de `DASH.duty = dutyDemo()`. Ahora se entra
+     por `onDashData` con el MISMO payload dos veces: con `demo:true` y sin él. Sólo la demo
+     recibe la jornada de ejemplo; la empresa real se queda con lo que mandó el servidor. */
+  const prevDash = DASH;
+  try {
+    const base = { ok: true, rol: 'supervisor', vista: 'medico', referencia: {}, metricas: [], registros: [], comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, turnos: [], operacional: [], duty: null };
+    onDashData(Object.assign({}, base, { demo: true }), 'Empresa Demo', { action: 'demo', dispositivoId: 'd' }, 'medico');
+    PRUEBAS.cierto(DASH.demoMode === true, 'guarda: quedó en modo demostración');
+    PRUEBAS.cierto(!!DASH.duty && Array.isArray(DASH.duty.diario) && DASH.duty.diario.length > 0, 'en la demostración la jornada trae los datos de ejemplo');
+    onDashData(Object.assign({}, base), 'Helitec', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'd' }, 'medico');
+    PRUEBAS.cierto(DASH.demoMode === false, 'guarda: empresa real');
+    PRUEBAS.igual(DASH.duty, null, '⚠️ y en una empresa real NO aparece gente inventada: la jornada es la que mandó el servidor (null)');
+  } finally { DASH = prevDash; }
 });

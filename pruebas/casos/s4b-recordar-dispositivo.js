@@ -117,8 +117,19 @@ PRUEBAS.caso('⚠️ el pedido de cierre sobrevive a la recarga (keepalive)', ()
      el navegador ABORTA el pedido al recargar y la sesión no se cierra nunca del lado del CH — y
      como no caduca, queda viva para siempre. Es un detalle de una palabra que decide si "cerrar
      sesión" cierra algo o no. */
-  PRUEBAS.cierto(/keepalive\s*:\s*true/.test(String(sesionAvisarCierre)),
-    '⚠️ el pedido de cierre tiene que ir con keepalive:true, o la recarga lo aborta');
+  /* P183 · la mitad medible: se avisa el cierre con `fetch` espiado y una sesión guardada, y se
+     mira con qué opciones salió el pedido. La otra mitad (el ORDEN dentro de `cerrarSesion`) sigue
+     sobre la fuente: esa función recarga la página al final y no se puede llamar en la suite. */
+  const oFetch = window.fetch, prevCred = localStorage.getItem(K_DASH_CREDS);
+  const salidas = [];
+  try {
+    window.fetch = (url, opts) => { salidas.push(opts || {}); return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) }); };
+    localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario: 'helitec', token: 'ses_x' }));
+    sesionAvisarCierre();
+    PRUEBAS.alMenos(salidas.length, 1, 'guarda: salió el aviso de cierre');
+    PRUEBAS.cierto(salidas.every(o => o.keepalive === true), '⚠️ el pedido de cierre va con keepalive:true, o la recarga lo aborta y la sesión queda viva para siempre');
+    PRUEBAS.cierto(salidas.some(o => /sesion_cerrar/.test(String(o.body || '')) && /ses_x/.test(String(o.body || ''))), 'y lleva el token que hay que anular');
+  } finally { window.fetch = oFetch; if (prevCred == null) localStorage.removeItem(K_DASH_CREDS); else localStorage.setItem(K_DASH_CREDS, prevCred); }
   /* Y el orden, que es lo único que hace que esto sirva: borrado primero el token, ya no hay con
      qué pedir que lo anulen y la sesión queda viva en el servidor PARA SIEMPRE, porque no caduca. */
   const f = String(cerrarSesion);

@@ -129,15 +129,19 @@ PRUEBAS.caso('⚠️ la persona de ejemplo sale de la DEMO, nunca de una empresa
      se manda es `action:'demo'`, cuyo alcance lo fija el SERVIDOR por código (filtra por
      `EMPRESA_DEMO` y no acepta ningún parámetro de empresa). No se llama a `action:'empleado'` con
      un nombre elegido en el cliente — que sería el camino por el que podría colarse alguien real. */
-  const js = [...document.querySelectorAll('script')].map(s => s.textContent).join('');
-  const i = js.indexOf('function portalVerDemoEmpleado');
-  const cuerpo = i >= 0 ? js.slice(i, i + 2000) : '';
-  PRUEBAS.cierto(cuerpo.length > 0, 'tiene que encontrarse la función');
-  PRUEBAS.cierto(/action\s*:\s*'demo'/.test(cuerpo),
-    'tiene que pedir la DEMOSTRACIÓN, que es el único pedido con alcance fijado por el servidor');
-  PRUEBAS.falso(/action\s*:\s*'empleado'/.test(cuerpo),
-    '⚠️ no puede pedir `empleado`: ese sí acepta empresa y persona desde el cliente, y por ahí se ' +
-    'podría traer a alguien de una empresa real');
+  /* P183 · antes leía el cuerpo de `portalVerDemoEmpleado`. Ahora se toca «Ver demostración» con
+     el pedido espiado y se mira QUÉ se pidió: `demo`, cuyo alcance lo fija el servidor, y nunca
+     `empleado`, que acepta empresa y persona desde el cliente. */
+  const oReq = window.dashRequest;
+  const pedidos = [];
+  window.dashRequest = (p) => { pedidos.push(Object.assign({}, p)); return new Promise(() => {}); };
+  try {
+    portalVerDemoEmpleado(null);
+    PRUEBAS.igual(pedidos.length, 1, 'guarda: salió un pedido');
+    PRUEBAS.igual(pedidos[0] && pedidos[0].action, 'demo', 'pide la DEMOSTRACIÓN, el único pedido con alcance fijado por el servidor');
+    PRUEBAS.falso(pedidos.some(p => p.action === 'empleado'), '⚠️ y no `empleado`: por ahí se podría traer a alguien de una empresa real');
+    PRUEBAS.falso(pedidos[0] && ('persona' in pedidos[0] || 'empresa' in pedidos[0]), 'y no manda ni persona ni empresa: no hay nada que elegir');
+  } finally { window.dashRequest = oReq; try { cargaBloquear(document.getElementById('portalGate'), 'reset'); } catch(e){} }
 });
 
 PRUEBAS.caso('elige a la persona con más registros, y siempre la misma', () => {

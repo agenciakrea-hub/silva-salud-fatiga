@@ -67,11 +67,24 @@ PRUEBAS.caso('⚠️ con la sesión vencida, el gate conserva el USUARIO', () =>
      y hacían falta dos. Se ve más desde Q4b, porque ahora el arranque lleva a esta persona derecho
      al panel y el vencimiento es lo primero que ve al abrir la app.
      Lo que caduca es el TOKEN, no el nombre de usuario. */
-  const fuente = String(portalAutoLoginSupervisor);
-  PRUEBAS.cierto(/JSON\.stringify\(\{ usuario: c\.usuario \}\)/.test(fuente),
-    '⚠️ al vencer tiene que guardar el usuario SOLO, sin token ni contraseña');
-  PRUEBAS.falso(/removeItem\(credKey\);\s*\n\s*openPortalGate/.test(fuente),
-    'y no borrarlo todo antes de repintar el gate');
+  /* P183 · antes leía `String(portalAutoLoginSupervisor)`. Ahora se entra con una sesión guardada
+     y el servidor (espiado) la rechaza: lo guardado tiene que quedar con el USUARIO solo (sin token
+     ni contraseña) y el gate pintado con ese usuario. */
+  const oFetch = window.fetchConReloj, oGate = window.openPortalGate, prevCred = localStorage.getItem(K_DASH_CREDS), prevDash = DASH;
+  let gates = 0;
+  window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve({ ok: false, error: 'Sesión vencida' }) });
+  window.openPortalGate = () => { gates++; };
+  localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario: 'helitec', token: 'ses_viejo' }));
+  portalAutoLoginSupervisor({ usuario: 'helitec', token: 'ses_viejo' }, K_DASH_CREDS);
+  return PRUEBAS.esperarA(() => gates > 0, CARGA_MIN_MS + 3000).then(() => {
+    const guardado = JSON.parse(localStorage.getItem(K_DASH_CREDS) || 'null');
+    PRUEBAS.igual(guardado, { usuario: 'helitec' }, '⚠️ al vencer queda el usuario SOLO, sin token ni contraseña: el mensaje promete un paso, no dos');
+    PRUEBAS.igual(gates, 1, 'y se vuelve al gate (con el usuario puesto)');
+  }).finally(() => {
+    window.fetchConReloj = oFetch; window.openPortalGate = oGate; DASH = prevDash;
+    if (prevCred == null) localStorage.removeItem(K_DASH_CREDS); else localStorage.setItem(K_DASH_CREDS, prevCred);
+    try { document.getElementById('portalGate').style.display = ''; document.getElementById('portalDash').style.display = 'none'; } catch(e){}
+  });
 });
 
 PRUEBAS.caso('⚠️ y lo que queda guardado NO puede volver a entrar solo', () => {

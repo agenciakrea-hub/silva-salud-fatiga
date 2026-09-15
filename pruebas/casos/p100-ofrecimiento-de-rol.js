@@ -676,25 +676,29 @@ PRUEBAS.caso('⚠️ CONTRATO · el servidor manda `rol` y `rolOrigen`, y el cli
 });
 
 PRUEBAS.caso('cuando la nómina QUITA el rol, la fila de Más se repinta sola', () => {
-  /* P101 baja el rol en el refresco y `miRolPintar()` sólo corría al ENTRAR a la pestaña Más: si
-     la persona está parada ahí justo cuando llega la respuesta, la fila seguía ofreciéndole
-     activar algo que la nómina acaba de sacarle. Una pantalla mintiendo, aunque sea por un rato.
-
-     Se lee la función REAL con `.toString()` —no el archivo— porque es lo que el navegador está
-     ejecutando de verdad: si alguien mueve el bloque a otro lado, esto sigue mirando el código
-     vivo. Entrar por `tareasCargar()` exigiría montar la respuesta entera del servidor, y lo que
-     hay que vigilar es sólo que no se olvide el repintado. */
-  const fuente = String(tareasCargar);
-  const sinComentarios = fuente.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-  const i = sinComentarios.indexOf('rol_quitado');
-  PRUEBAS.cierto(i > 0, 'el camino de P101 que quita el rol está en tareasCargar()');
-  /* El rango arranca ANTES del índice: `rol_quitado` aparece DENTRO de `showToast(...)`, así que
-     un `slice(i, …)` deja al propio showToast afuera y el discriminador de abajo daba falso. */
-  const bloque = sinComentarios.slice(Math.max(0, i - 300), i + 400);
-  PRUEBAS.cierto(bloque.indexOf('miRolPintar()') >= 0,
-    'y repinta la fila de Más al quitarlo');
-  /* Discriminadores: que el recorte de comentarios no se haya comido el código, y que la función
-     que se repinta exista de verdad (un nombre mal escrito daría verde arriba). */
-  PRUEBAS.cierto(bloque.indexOf('showToast') >= 0, 'el bloque analizado sigue teniendo código');
-  PRUEBAS.igual(typeof miRolPintar, 'function', 'y miRolPintar existe');
+  /* P183 · antes leía `String(tareasCargar)` alrededor de `rol_quitado`. Ahora la nómina QUITA el
+     rol de verdad (respuesta con `rolesNomina: []`) a alguien que lo tenía activado, y se mira si la
+     fila de Más se repinta sola y si el perfil perdió el rol. */
+  /* Entra por `tareasCargar()` con el servidor espiado, que es lo que corre en cada arranque. Se
+     restaura en el `.finally()` de la promesa (R18). */
+  const oFetch = window.fetchConReloj, oPintar = window.miRolPintar, oAviso = window.sesionAvisarCierre, oToast = window.showToast, prevPerfil = getProfile(), prevDash = DASH;
+  const prevLS = Object.assign({}, localStorage);
+  let repintes = 0, avisos = 0; const toasts = [];
+  window.miRolPintar = () => { repintes++; }; window.sesionAvisarCierre = () => { avisos++; }; window.showToast = m => { toasts.push(String(m)); };
+  const correr = (perfil, respuesta) => {
+    setProfile(perfil);
+    TAREAS.cargando = false; TAREAS._enVuelo = null;
+    window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(respuesta) });
+    return tareasCargar() || Promise.resolve();
+  };
+  const conRol = { nombre: 'Ana Prueba', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', esSupervisor: true, rolesActivados: ['supervisor'], rolesNomina: ['supervisor'] };
+  return correr(conRol, { ok: true, tareas: [], pendientes: 0, rolNomina: 'empleado', rolesNomina: [] }).then(() => {
+    PRUEBAS.alMenos(repintes, 1, 'cuando la nómina QUITA el rol, la fila de Más se repinta sola (sin esperar a cambiar de pestaña)');
+    PRUEBAS.cierto(!(getProfile() || {}).esSupervisor, 'y el perfil ya no tiene el rol');
+    PRUEBAS.cierto(toasts.indexOf(t('rol_quitado')) >= 0, 'y se avisa');
+  }).finally(() => {
+    window.fetchConReloj = oFetch; window.miRolPintar = oPintar; window.sesionAvisarCierre = oAviso; window.showToast = oToast; DASH = prevDash;
+    TAREAS.cargando = false; TAREAS._enVuelo = null;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  });
 });
