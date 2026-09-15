@@ -282,6 +282,13 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
      `tareasPintarBadge()` y `tareasPintar()`, que son lo que la persona ve. */
   const origToast = window.showToast; const toasts = [];
   window.showToast = m => { toasts.push(String(m)); };
+  /* ⚠️ Las esperas son por una CONDICIÓN OBSERVABLE, no por tiempo: con la pestaña oculta Chrome
+     estrangula los timers y una espera de 1,8 s puede volver antes de que el `setTimeout(1500)` de
+     `cicloDetenidoRevisar` haya corrido — y entonces «no duplica» y «no deja aviso» pasarían sin que
+     el código hubiera corrido (la deuda que P182 sacó de siete casos). Se espía `cicloAgruparTodos`,
+     que corre adentro del timer: cada revisión lo llama una vez. */
+  const origAgrupar = window.cicloAgruparTodos; let revisiones = 0;
+  window.cicloAgruparTodos = function(){ revisiones++; return origAgrupar.apply(this, arguments); };
   const prevDash = DASH, prevLista = TAREAS.lista, prevPend = TAREAS.pendientes;
   return PRUEBAS.conOculto(false, async () => {
     try {
@@ -295,7 +302,8 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         PRUEBAS.igual(cicloEstado(cicloMio(), Date.now(), cicloPlan('')).estado, 'detenido', 'guarda: el ciclo está detenido');
         PRUEBAS.igual(notifLocalItems().length, 0, 'guarda: la lista de avisos arranca vacía');
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => toasts.length > 0, 3000);
+        await PRUEBAS.esperarA(() => revisiones >= 1 && toasts.length > 0, 3000);
+        PRUEBAS.igual(revisiones, 1, 'guarda: la revisión diferida corrió una vez');
         const lista = notifLocalLeer();
         PRUEBAS.igual(lista.length, 1, '⚠️ queda UNA entrada en el almacén local');
         PRUEBAS.igual(lista[0] && lista[0].id, 'det_' + t0, 'con el inicio del ciclo como id (el mismo que usa la marca del toast)');
@@ -316,7 +324,8 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         PRUEBAS.cierto(item && item.textContent.indexOf(t('notif_de', { f: t('cic_de_hoy') })) >= 0 && item.textContent.indexOf(t('tar_sin_plazo')) < 0, 'y dice «Aviso de hoy», no «Sin plazo»');
         /* idempotente: otra revisión no duplica */
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => false, 1800);
+        await PRUEBAS.esperarA(() => revisiones >= 2, 3000);
+        PRUEBAS.igual(revisiones, 2, 'guarda: la segunda revisión corrió de verdad');
         PRUEBAS.igual(notifLocalLeer().length, 1, 'otra revisión no la duplica');
         /* «Entendido» */
         btn.click();
@@ -332,11 +341,12 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         localStorage.removeItem(K_NOTIF_LOCAL); localStorage.removeItem(K_CICLO_DETENIDO_VISTO);
         localStorage.setItem(K_CICLO_SRV, JSON.stringify([p186cEv('salida_casa', p186cHace(0.5))]));
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => false, 1800);
+        await PRUEBAS.esperarA(() => revisiones >= 3, 3000);
+        PRUEBAS.igual(revisiones, 3, 'guarda: la tercera revisión corrió de verdad');
         PRUEBAS.igual(notifLocalLeer().length, 0, 'DISCRIMINADOR · un ciclo de media hora no deja aviso');
       } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
     } finally {
-      window.showToast = origToast; DASH = prevDash; clearTimeout(_cicDetRevisarT);
+      window.showToast = origToast; window.cicloAgruparTodos = origAgrupar; DASH = prevDash; clearTimeout(_cicDetRevisarT);
       TAREAS.lista = prevLista; TAREAS.pendientes = prevPend;
       try { tareasPintarBadge(); } catch(e){}
       try { const c = document.getElementById('tareasLista'); if (c) c.innerHTML = ''; } catch(e){}
@@ -363,4 +373,90 @@ PRUEBAS.caso('🔴 P186c · «Tu ciclo del ayer» no existe: la fecha lleva SU p
   /* y en inglés tampoco queda «of yesterday» */
   const en = _i18nBuscar('en', SECTOR_FALLBACK, 'ts_ciclo_detenido').replace('{f}', _i18nBuscar('en', SECTOR_FALLBACK, 'cic_de_ayer'));
   PRUEBAS.cierto(/cycle from yesterday stopped/.test(en), 'en inglés: «cycle from yesterday»');
+});
+
+PRUEBAS.caso('🔴 P186d · el doble toque («lo volví a tocar porque no estaba seguro») no arma un ciclo fantasma que se «detiene»', () => {
+  /* La revisión adversarial de P186c: el servidor colapsa dos envíos del mismo evento a menos de
+     20 min en UNA fila (gana el más nuevo); el teléfono guardaba los dos, y con P186 el primero
+     quedaba solo en un ciclo de un evento que a las 24 h se detenía — toast, entrada y globito
+     falsos, con el ciclo real completo. Se mide por `cicloMioAll` → `cicloAgruparTodos` →
+     `cicloEstado` → `cicloDetenidoRevisar`, con la app visible. */
+  const origToast = window.showToast; const toasts = []; window.showToast = m => { toasts.push(String(m)); };
+  const origAgrupar = window.cicloAgruparTodos; let revisiones = 0;
+  window.cicloAgruparTodos = function(){ revisiones++; return origAgrupar.apply(this, arguments); };
+  const prevDash = DASH;
+  return PRUEBAS.conOculto(false, async () => {
+    try {
+      const prevLS = Object.assign({}, localStorage);
+      try {
+        setProfile({ nombre: 'Yo', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', sexo: 'F', edad: '34' });
+        localStorage.removeItem(K_CICLO_DETENIDO_VISTO); localStorage.removeItem(K_NOTIF_LOCAL); localStorage.removeItem(K_CICLO_MIO);
+        /* ayer: salida 06:00, otra vez 06:03 (doble toque), y el ciclo completo; el servidor sólo tiene la de 06:03 */
+        const h = 30;   // hace 30 h = ayer a esta hora
+        const local = [p186cEv('salida_casa', p186cHace(h)), p186cEv('salida_casa', p186cHace(h - 0.05)), p186cEv('llegada_aero', p186cHace(h - 1)),
+                       p186cEv('salida_aero', p186cHace(h - 10)), p186cEv('llegada_casa', p186cHace(h - 11))];
+        localStorage.setItem(K_CICLO_MIO, JSON.stringify(local.map(e => ({ evento: e.evento, iso: e.iso, test: '', resultado: null }))));
+        localStorage.setItem(K_CICLO_SRV, JSON.stringify(local.slice(1)));
+        const todos = cicloMioAll();
+        PRUEBAS.igual(todos.filter(e => e.evento === 'salida_casa').length, 1, '⚠️ dos «Saliendo de casa» a 3 min son UN hecho (la regla del servidor)');
+        PRUEBAS.igual(todos.filter(e => e.evento === 'salida_casa')[0].iso, local[1].iso, 'y gana el más nuevo, como en la hoja');
+        const ciclos = origAgrupar(todos, cicloTotalMin(cicloPlan('')) * 60000);   // directo, sin contar como revisión
+        PRUEBAS.igual(ciclos.length, 1, 'un solo ciclo, no un fantasma más el real');
+        PRUEBAS.igual(cicloEstado(ciclos[0], Date.now(), cicloPlan('')).estado, 'completo', 'y está completo');
+        cicloDetenidoRevisar();
+        await PRUEBAS.esperarA(() => revisiones >= 1, 3000);
+        PRUEBAS.igual(revisiones, 1, 'guarda: la revisión corrió');
+        PRUEBAS.igual(toasts.filter(x => /24 h/.test(x)).length, 0, 'ningún toast de «se detuvo»');
+        PRUEBAS.igual(notifLocalLeer().length, 0, 'ninguna entrada en «Tus tareas»');
+        /* discriminador: a 25 min ya son dos hechos (como en el servidor), y el primero sí queda solo */
+        const lejos = [p186cEv('salida_casa', p186cHace(h)), p186cEv('salida_casa', p186cHace(h - 0.42))];
+        localStorage.setItem(K_CICLO_MIO, JSON.stringify(lejos.map(e => ({ evento: e.evento, iso: e.iso, test: '', resultado: null }))));
+        localStorage.setItem(K_CICLO_SRV, JSON.stringify([]));
+        PRUEBAS.igual(cicloMioAll().length, 2, 'DISCRIMINADOR · a 25 min son dos eventos');
+        /* y el encadenado: 06:00, 06:15, 06:30 → uno solo, el de 06:30 (cada uno a menos de 20 min del anterior) */
+        const cadena = [p186cEv('salida_casa', p186cHace(h)), p186cEv('salida_casa', p186cHace(h - 0.25)), p186cEv('salida_casa', p186cHace(h - 0.5))];
+        localStorage.setItem(K_CICLO_MIO, JSON.stringify(cadena.map(e => ({ evento: e.evento, iso: e.iso, test: '', resultado: null }))));
+        const c = cicloMioAll();
+        PRUEBAS.cierto(c.length === 1 && c[0].iso === cadena[2].iso, 'tres toques encadenados a 15 min: uno, el último (como reescribe la hoja)');
+      } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
+    } finally { window.showToast = origToast; window.cicloAgruparTodos = origAgrupar; DASH = prevDash; clearTimeout(_cicDetRevisarT); }
+  });
+});
+
+PRUEBAS.caso('🔴 P186d · en «Tus tareas» lo pendiente va arriba de lo hecho, el aviso más nuevo primero, y los vistos se van a la semana', () => {
+  /* R6: ocho avisos ya vistos no pueden tapar una cita del servicio médico. Y dos detenidos de la
+     misma revisión: el de ayer arriba del de anteayer. */
+  const prevLista = TAREAS.lista, prevPend = TAREAS.pendientes;
+  const prevLS = Object.assign({}, localStorage);
+  try {
+    setProfile({ nombre: 'Yo', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', sexo: 'F', edad: '34' });
+    const ahora = Date.now(), dia = 86400000;
+    const iso = ms => new Date(ms).toISOString();
+    /* almacén: tres avisos vistos (uno de hace 10 días), uno sin leer viejo y uno sin leer nuevo, todos «creada» distinta */
+    notifLocalGuardar([
+      { id: 'det_a', tipo: 'ciclo_detenido', t0: ahora - 2 * dia, estado: 'sin_leer', creada: iso(ahora - dia) },
+      { id: 'det_b', tipo: 'ciclo_detenido', t0: ahora - 1 * dia, estado: 'sin_leer', creada: iso(ahora - dia) },
+      { id: 'det_c', tipo: 'ciclo_detenido', t0: ahora - 3 * dia, estado: 'hecha',    creada: iso(ahora - 2 * dia) },
+      { id: 'det_d', tipo: 'ciclo_detenido', t0: ahora - 12 * dia, estado: 'hecha',   creada: iso(ahora - 10 * dia) }
+    ]);
+    const items = notifLocalItems();
+    PRUEBAS.igual(items.map(x => x.id), ['det_b', 'det_a', 'det_c'], '⚠️ más nuevo primero (misma revisión: gana el ciclo más reciente) y el visto de hace 10 días ya no se pinta');
+    PRUEBAS.igual(notifLocalLeer().length, 4, 'pero sigue en el almacén (no se vuelve a avisar)');
+    TAREAS.lista = [{ id: 'med-1', titulo: 'Cita de telemedicina', detalle: '', origen: 'medico', estado: 'sin_leer', vence: '' }];
+    TAREAS.pendientes = 1;
+    tareasPintar();
+    const cont = document.getElementById('tareasLista');
+    const orden = [...cont.querySelectorAll('.tar-item')].map(el => (el.classList.contains('tar-hecha') ? 'H:' : 'P:') + el.querySelector('.tar-tit').textContent.slice(0, 12));
+    PRUEBAS.igual(orden.length, 4, 'guarda: cuatro tarjetas');
+    PRUEBAS.cierto(orden[3].startsWith('H:'), '⚠️ la única hecha va ÚLTIMA');
+    PRUEBAS.cierto(orden.slice(0, 3).every(o => o.startsWith('P:')), 'y las tres pendientes arriba');
+    PRUEBAS.cierto(orden[2] === 'P:Cita de tele', 'la cita del médico está entre las pendientes, no debajo de lo hecho');
+    tareasPintarBadge();
+    PRUEBAS.igual(document.getElementById('tareasBadge').textContent, '3', 'el globito cuenta 1 del servidor + 2 avisos sin leer (los vistos no)');
+  } finally {
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+    TAREAS.lista = prevLista; TAREAS.pendientes = prevPend;
+    try { tareasPintarBadge(); } catch(e){}
+    try { const c = document.getElementById('tareasLista'); if (c) c.innerHTML = ''; } catch(e){}
+  }
 });

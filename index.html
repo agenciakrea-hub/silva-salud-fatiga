@@ -5998,7 +5998,7 @@
 <div class="overlay" id="tareasOv">
   <div class="sheet">
     <h2 data-i18n="tar_titulo">Tus tareas</h2>
-    <p class="lead" data-i18n="tar_lead">Lo que tu supervisor o el servicio médico te pidieron.</p>
+    <p class="lead" data-i18n="tar_lead">Lo que tu supervisor o el servicio médico te pidieron, y los avisos de la aplicación.</p>
     <div id="tareasLista"></div>
     <div class="nom-pie">
       <button type="button" class="nom-link" onclick="tareasRefrescar()" data-i18n="tar_actualizar">Actualizar</button>
@@ -7212,7 +7212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.52';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.53';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8038,7 +8038,7 @@ const I18N = {
       apt_ultimo_test:'último test hace {n} días',
       apt_no_reciente:'Dato no reciente: puede no reflejar cómo está hoy.',
       ver_mas_n:'Ver {n} más',
-      cic_ciclo_de:'Ciclo de {f}', cic_sin_iniciar:'Sin ciclo iniciado',
+      cic_ciclo_de:'Ciclo {f}', cic_sin_iniciar:'Sin ciclo iniciado',
       /* P186 · el ciclo que se detiene solo a las 24 h */
       cic_e_detenido:'Detenido a las {h} h',
       cic_detenido_detalle:'Se detuvo a las {h} h sin el paso siguiente',
@@ -9839,7 +9839,7 @@ const I18N = {
       apt_ultimo_test:'last test {n} days ago',
       apt_no_reciente:'Data is not recent: it may not reflect how they are today.',
       ver_mas_n:'See {n} more',
-      cic_ciclo_de:'Cycle of {f}', cic_sin_iniciar:'Cycle not started',
+      cic_ciclo_de:'Cycle {f}', cic_sin_iniciar:'Cycle not started',
       /* P186 · the cycle that stops itself at 24 h */
       cic_e_detenido:'Stopped at {h} h',
       cic_detenido_detalle:'Stopped at {h} h without the next step',
@@ -12403,12 +12403,30 @@ function cicloMioServidor(){ try { return JSON.parse(localStorage.getItem(K_CICL
    acaba de registrarse y sigue en la cola de envío tiene que ganarle a la versión del servidor
    (que todavía no lo tiene) — es el mismo criterio que ya usa `misSincronizar` con los registros,
    sólo que al revés de lado, porque acá lo más nuevo está del lado del teléfono. */
+/* P186d · LA MISMA REGLA QUE EL SERVIDOR PARA EL DOBLE TOQUE. `Operacional` colapsa dos envíos del
+   mismo evento a menos de `OP_VENTANA_MISMA_OCURRENCIA_MIN` (20) en UNA fila, y gana el más nuevo
+   («lo volví a tocar porque no estaba seguro»). El teléfono guardaba los dos, y con P186 eso tenía
+   un precio: dos «Saliendo de casa» a 3 minutos armaban un ciclo fantasma de un solo evento que a
+   las 24 h se «detenía» —toast, entrada en «Tus tareas» y globito— mientras el ciclo real estaba
+   completo y el CH no tenía ningún `detenido`. Lo encontró la revisión adversarial de P186c:
+   escritor y lector derivando distinto, otra vez. */
+const CICLO_MISMA_OCURRENCIA_MIN = 20;   // = OP_VENTANA_MISMA_OCURRENCIA_MIN del servidor
 function cicloMioAll(){
   const porClave = {};
   cicloMioServidor().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
   cicloMioLocal().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
-  return Object.keys(porClave).map(k => porClave[k])
+  const lista = Object.keys(porClave).map(k => porClave[k])
     .sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  const out = [], ultimo = {};
+  lista.forEach(e => {
+    const ev = e.evento || '', t = Date.parse(e.iso), prev = ultimo[ev];
+    if (prev && isFinite(t) && isFinite(prev.t) && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
+      out[prev.i] = e; ultimo[ev] = { t: t, i: prev.i };   // mismo hecho: gana el más nuevo
+      return;
+    }
+    ultimo[ev] = { t: t, i: out.length }; out.push(e);
+  });
+  return out.sort((a,b) => new Date(a.iso) - new Date(b.iso));
 }
 function cicloMioGuardar(evento, test, resultado){
   if (!evento) return;
@@ -23367,7 +23385,7 @@ function renderCicloOperativo(){
       reloj = '<span class="cic-reloj">' + esc(t(tra.corto)) + ': <b data-cic-from="' + tra.ini + '">' +
         cicloHM(tra.real) + '</b> · ' + esc(t('cic_ciclo_lbl')) + ' <b data-cic-from="' + st.inicio + '">' + cicloHM(st.transcurrido) + '</b></span>';
     }
-    const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
+    const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaDe(st.inicio) }) : t('cic_sin_iniciar');
 
     /* ⚠️ Y6 · CUÁNTOS CICLOS TIENE ESA PERSONA EN EL PERÍODO. Sin esto, mirando "30 días" se ve
        UNA tarjeta por persona y se lee como si hubiera trabajado una sola vez en el mes — cuando lo
@@ -23568,7 +23586,7 @@ function cicloFullPintar(){
   const plan = cicloPlan(pe.persona);   // P057a · el plan de ESTA persona, no el de la empresa
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
                  completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }) };   // P186
-  const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaLabel(st.inicio) }) : t('cic_sin_iniciar');
+  const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaDe(st.inicio) }) : t('cic_sin_iniciar');
   /* Mismo HTML que la tarjeta, con `cic-full` arriba: todo el cambio de tamaño vive en el CSS. */
   cuerpo.innerHTML =
     '<div class="cic-full-head">' +
@@ -30072,8 +30090,12 @@ function notifLocalItems(){
       titulo  = t('notif_det_titulo', { f: cicloFechaDe(x.t0), h: CICLO_DETENIDO_HORAS });
       detalle = t('notif_det_detalle', { primero: cicloEventoLabel(cicloEventoInicial()) });
     }
-    return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', local: true };
-  });
+    return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', t0: Number(x.t0) || 0, local: true };
+  })
+  /* P186d · los ya vistos se van de la lista a la semana (siguen en el almacén, para no volver a
+     avisarlos), y lo más nuevo va arriba: por `creada` y, a igual revisión, por el inicio del ciclo. */
+  .filter(x => x.estado !== 'hecha' || (Date.now() - (Date.parse(x.creada) || 0)) < 7 * 86400000)
+  .sort((a, b) => (Date.parse(b.creada) || 0) - (Date.parse(a.creada) || 0) || b.t0 - a.t0);
 }
 function notifLocalHecha(id){
   const lista = notifLocalLeer();
@@ -30280,7 +30302,10 @@ function tareasPintar(){
     cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_sin_perfil')) + '</div>';
     return;
   }
-  const lista = locales.concat(TAREAS.lista);
+  /* P186d · lo pendiente arriba, lo hecho abajo (R6): ocho avisos ya vistos no pueden tapar una
+     cita del servicio médico. Dentro de cada grupo se conserva el orden de origen. */
+  const todo = locales.concat(TAREAS.lista);
+  const lista = todo.filter(x => x.estado !== 'hecha').concat(todo.filter(x => x.estado === 'hecha'));
   if (!lista.length){
     cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_vacio')) + '</div>';
     return;

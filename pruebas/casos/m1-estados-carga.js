@@ -112,6 +112,9 @@ PRUEBAS.caso('no dice "no tienes tareas" antes de haber preguntado', () => {
   } finally {
     TAREAS.lista = []; TAREAS.pendientes = 0;
     try { tareasCerrar(); } catch(e){}
+    /* la red nunca contestó: `conCarga` dejó la hoja con `inert` y el contador en 2. Se resetea
+       como hace `p089Salir`, para no dejarle el bloqueo al caso siguiente. */
+    try { cargaBloquear(document.querySelector('#tareasOv .sheet'), 'reset'); } catch(e){}
     if (cont) cont.innerHTML = '';
   }
 });
