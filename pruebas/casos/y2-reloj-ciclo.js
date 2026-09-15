@@ -134,6 +134,8 @@ PRUEBAS.caso('⚠️ el inicio NO dispara pedidos al servidor cada minuto', asyn
   const oRefresh = window.dashRefresh, oRepintar = window.cicloRepintar, prevDash = DASH, prevPull = _cicloUltimoPull, prevRender = _cicloUltimoRender;
   let pedidos = 0, repintes = 0;
   const raiz = document.createElement('div'); raiz.innerHTML = '<div class="cic-mio"></div>'; document.body.appendChild(raiz);
+  /* una sección del panel que haya dejado otro caso de la corrida se aparta mientras dura éste */
+  const ajenas = [...document.querySelectorAll('#dsec-ciclo')].map(el => { const p = el.parentNode, s = el.nextSibling; el.remove(); return { el, p, s }; });
   try {
     window.dashRefresh = () => { pedidos++; }; window.cicloRepintar = () => { repintes++; };
     DASH = null; _cicloUltimoPull = 0; _cicloUltimoRender = 0;
@@ -148,7 +150,7 @@ PRUEBAS.caso('⚠️ el inicio NO dispara pedidos al servidor cada minuto', asyn
     cicloTick();
     PRUEBAS.igual(pedidos, 1, 'DISCRIMINADOR · con la sección del panel en pantalla, pide');
     PRUEBAS.igual(repintes, 1, 'y repinta');
-  } finally { window.dashRefresh = oRefresh; window.cicloRepintar = oRepintar; DASH = prevDash; _cicloUltimoPull = prevPull; _cicloUltimoRender = prevRender; raiz.remove(); }
+  } finally { window.dashRefresh = oRefresh; window.cicloRepintar = oRepintar; DASH = prevDash; _cicloUltimoPull = prevPull; _cicloUltimoRender = prevRender; raiz.remove(); ajenas.forEach(m => { try { m.p.insertBefore(m.el, m.s); } catch(e){} }); }
 });
 
 PRUEBAS.caso('el reloj se apaga solo cuando no queda nada vivo', () => {

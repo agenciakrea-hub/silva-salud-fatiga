@@ -104,8 +104,11 @@ PRUEBAS.caso('⚠️ el cliente dibuja el botón cuando la fila trae cédula, y 
     NOMLIST.datos = [{ persona: 'Con Cedula', cedula: 'V-1', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', registrado: true },
                      { persona: 'Sin Cedula', cedula: '', empresa: 'Helitec', departamento: 'Op', cargo: 'Piloto', registrado: false }];
     NOMLIST.total = 2; NOMLIST.registrados = 1;
-    (document.getElementById('nomListSearch') || {}).value = '';
+    /* los filtros de la pantalla pueden haber quedado puestos por otro caso de la corrida: se limpian los dos */
+    const bus = document.getElementById('nomListSearch'), dep = document.getElementById('nomListDepto');
+    if (bus) bus.value = ''; if (dep) dep.value = '';
     nominaListFiltrar();
+    PRUEBAS.igual(body.querySelectorAll('.nom-op, .nomlist-fila, [data-per]').length >= 2 || body.textContent.indexOf('Con Cedula') >= 0, true, 'guarda: se pintaron las dos filas');
     const botones = [...body.querySelectorAll('[onclick*="ausTocar"]')];
     PRUEBAS.igual(botones.length, 1, '⚠️ el botón de ausencia se dibuja para la fila CON cédula y no para la otra');
     PRUEBAS.igual(botones[0] && botones[0].getAttribute('data-per'), 'Con Cedula', 'y es el de la persona con cédula');

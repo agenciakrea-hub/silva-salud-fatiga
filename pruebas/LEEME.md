@@ -195,6 +195,26 @@ Tres servidores, y los tres tienen que estar arriba:
 
 Después se abre `http://127.0.0.1:8928/pruebas/panel.html` y se toca "Correr las pruebas".
 
+**El foco SÍ engancha con la pestaña oculta, a medias (P183, 2026-09-15).** `el.focus()` cambia
+`document.activeElement` aunque la pestaña esté oculta —`t1-listas-largas.js` lo usa para medir que
+el reloj no repinta mientras alguien escribe—; lo que no responde es el pseudo-selector CSS `:focus`
+(el navegador no pinta el estado). Medir «tiene el foco» por `activeElement` vale; medir «se ve
+enfocado» por `:focus`, no.
+
+**Un caso que espera un timer de la app espera una CONDICIÓN, no un tiempo** (P183). Con la
+pestaña oculta el `setTimeout(1500)` de la app puede correr a los 2 s o más; `esperarA(() => false,
+1800)` vuelve antes y el caso «pasa» sin que el código haya corrido. La forma que funciona: espiar
+la función que corre ADENTRO del timer (`window.cicloAgruparTodos = …` con un contador) y esperar
+`esperarA(() => contador >= n, 3000)`. Y para los pedidos con `cargaConMinimo`, esperar la
+condición observable (`!zona.hasAttribute('inert')`) con `CARGA_MIN_MS + 3000` de tope.
+
+**Correr UN archivo suelto puede fallar por el ORDEN de la corrida** (P183). Dos casos de
+`q4d-cierre-del-inicio.js` («el prefill del gate…», «el botón atrás vuelve a la portada…») pasan en
+la corrida completa y caen sueltos: dependen de estado que dejan archivos anteriores. Y al revés: un
+caso puede pasar suelto y caer en la completa por un `#dsec-ciclo` o un filtro de nómina que dejó
+otro. Antes de dar por bueno un archivo, la corrida completa; antes de dar por malo un caso suelto,
+mirar qué deja el archivo anterior.
+
 **Para capturar lo que se ve en producción con datos reales**, no se abre el dominio publicado: desde
 `https` el navegador bloquea el envío de la captura al 8930 (contenido mixto) y no se guarda nada.
 Se abre la app LOCAL (`http://127.0.0.1:8928/index.html`), que habla con el mismo endpoint real, y
