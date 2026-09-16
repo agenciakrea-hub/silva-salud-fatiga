@@ -296,11 +296,15 @@ PRUEBAS.caso('el cartel no dice "Enviando…" de algo que nadie está enviando',
   PRUEBAS.igual(typeof el.onclick === 'function', true, 'y se puede tocar para reintentar');
   PRUEBAS.igual(el.getAttribute('role'), 'button', 'anunciado como botón, no como estado');
   p087Limpiar(); offPintar();
-  /* El discriminador: sin retenidos el cartel deja de decirlo. No se mira `display`, porque las
-     otras cuatro colas de la app pueden tener pendientes de otros casos y la barra seguiría
-     visible con razón. */
-  PRUEBAS.igual(/no se pudo enviar|no se pudieron enviar/i.test(el.textContent), false,
-    'sin retenidos, el cartel deja de avisarlo · decía «' + el.textContent + '»');
+  /* El discriminador: sin retenidos el cartel deja de decirlo. Las otras cuatro colas de la app
+     pueden tener pendientes de otros casos y la barra seguiría visible con razón —entonces el TEXTO
+     no puede seguir diciendo «no se pudo enviar»—; y si no hay nada pendiente, `offPintar` la
+     esconde sin tocar el texto (sale por el `return` temprano), así que un cartel OCULTO con el
+     texto viejo también es correcto. Suelto, este caso caía por eso: sin otras colas, la barra
+     quedaba `display:none` con el texto anterior (2026-09-16). */
+  const oculta = el.style.display === 'none';
+  PRUEBAS.igual(oculta || !/no se pudo enviar|no se pudieron enviar/i.test(el.textContent), true,
+    'sin retenidos, el cartel deja de avisarlo (o se esconde) · display «' + el.style.display + '» · decía «' + el.textContent + '»');
   PRUEBAS.igual(el.className.indexOf('off-bar-trabada') < 0, true, 'y vuelve a su color normal');
   PRUEBAS.igual(el.onclick, null, 'y deja de ser clickeable');
   PRUEBAS.igual(el.getAttribute('role'), 'status',
