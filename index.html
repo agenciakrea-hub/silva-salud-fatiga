@@ -12424,8 +12424,12 @@ function cicloColapsarMismaOcurrencia(lista, porPersona){
      y otra del servidor no se juntaría. Ahí es una sola persona por construcción: sólo el evento. */
   const out = [], ultimo = {};
   (lista || []).forEach(e => {
+    /* P186f · `detenido` no entra al colapso (lo escribe el reloj; dos de dos ciclos distintos a
+       menos de 20 min son dos hechos), igual que en el servidor. Y `t >= prev.t`: un ISO con
+       desplazamiento ordena por texto antes que uno en Z más viejo; sin la guarda ganaba el viejo. */
+    if (e.evento === CICLO_EVENTO_DETENIDO){ out.push(e); return; }
     const k = (e.evento || '') + (porPersona ? '|' + dashNorm(e.persona || '') : ''), t = Date.parse(e.iso), prev = ultimo[k];
-    if (prev && isFinite(t) && isFinite(prev.t) && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
+    if (prev && isFinite(t) && isFinite(prev.t) && t >= prev.t && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
       out[prev.i] = e; ultimo[k] = { t: t, i: prev.i };   // mismo hecho: gana el más nuevo
       return;
     }

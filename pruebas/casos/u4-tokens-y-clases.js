@@ -77,22 +77,16 @@ PRUEBAS.caso('⚠️ todo token de color existe en LOS DOS temas', () => {
     const n = m.match(/--[a-zA-Z0-9-]+/);
     if (n && !String(getComputedStyle(document.documentElement).getPropertyValue(n[0])).trim()) locales.add(n[0]);
   });
-  const previo = document.documentElement.getAttribute('data-tema');
   const rotos = [];
-  try {
-    ['claro','oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
-      void document.body.offsetWidth;
-      const raiz = getComputedStyle(document.documentElement);
-      [...usadas].forEach(v => {
-        if (U4_INLINE.indexOf(v) >= 0 || locales.has(v)) return;
-        if (!String(raiz.getPropertyValue(v)).trim()) rotos.push(tema + ': ' + v);
-      });
+  /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+  ['claro','oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
+    void document.body.offsetWidth;
+    const raiz = getComputedStyle(document.documentElement);
+    [...usadas].forEach(v => {
+      if (U4_INLINE.indexOf(v) >= 0 || locales.has(v)) return;
+      if (!String(raiz.getPropertyValue(v)).trim()) rotos.push(tema + ': ' + v);
     });
-  } finally {
-    if (previo) document.documentElement.setAttribute('data-tema', previo);
-    else document.documentElement.removeAttribute('data-tema');
-  }
+  }));
   PRUEBAS.igual(rotos, [],
     '⚠️ estos tokens no resuelven en uno de los dos temas — ' + rotos.join(' | '));
 });

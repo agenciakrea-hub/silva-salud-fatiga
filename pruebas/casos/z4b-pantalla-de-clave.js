@@ -85,24 +85,18 @@ PRUEBAS.caso('⚠️ los textos de las reglas se leen en los dos temas', () => {
         if (m && (m.length < 4 || Number(m[3]) > 0.5)) return c;
         n = n.parentElement; }
       return 'rgb(255,255,255)'; };
-    const previo = document.documentElement.getAttribute('data-tema');
     const flojos = [];
-    try {
-      ['claro','oscuro'].forEach(tema => {
-        document.documentElement.setAttribute('data-tema', tema);
-        void document.body.offsetWidth;
-        document.querySelectorAll('.clv-regla').forEach(e => {
-          const a = lum(getComputedStyle(e).color), b = lum(fondo(e));
-          if (a == null || b == null) return;
-          const [hi, lo] = a > b ? [a, b] : [b, a];
-          const r = (hi + 0.05) / (lo + 0.05);
-          if (r < 4.5) flojos.push(tema + ': ' + r.toFixed(2) + ':1');
-        });
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+    ['claro','oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
+      void document.body.offsetWidth;
+      document.querySelectorAll('.clv-regla').forEach(e => {
+        const a = lum(getComputedStyle(e).color), b = lum(fondo(e));
+        if (a == null || b == null) return;
+        const [hi, lo] = a > b ? [a, b] : [b, a];
+        const r = (hi + 0.05) / (lo + 0.05);
+        if (r < 4.5) flojos.push(tema + ': ' + r.toFixed(2) + ':1');
       });
-    } finally {
-      if (previo) document.documentElement.setAttribute('data-tema', previo);
-      else document.documentElement.removeAttribute('data-tema');
-    }
+    }));
     return flojos;
   });
   PRUEBAS.igual(malos, [], 'ninguna regla puede quedar bajo 4,5:1 — ' + malos.join(' | '));

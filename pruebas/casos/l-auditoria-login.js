@@ -245,21 +245,15 @@ PRUEBAS.caso('⚠️ R13 · un botón deshabilitado se puede leer, en los dos te
     if (a == null || b == null) return null;
     return (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
   };
-  ['claro', 'oscuro'].forEach(tema => {
-    const previo = document.documentElement.getAttribute('data-tema');
-    document.documentElement.setAttribute('data-tema', tema);
-    try {
-      const v = r('--text-soft', '--chip-bg-h');
-      /* Guarda de medibilidad: un token que no resuelve devuelve null, y sin esto borrarlo dejaría
-         el caso en verde — que es como se cuela un `var()` roto, porque no da error en consola. */
-      PRUEBAS.cierto(v != null, 'guarda: `--text-soft` y `--chip-bg-h` existen en el tema ' + tema);
-      if (v != null) PRUEBAS.alMenos(Math.round(v * 100), 450,
-        '⚠️ el botón deshabilitado se lee en ' + tema + ' · ' + v.toFixed(2) + ':1 · antes 4,22 y 4,03 con `--text-muted`');
-    } finally {
-      if (previo) document.documentElement.setAttribute('data-tema', previo);
-      else document.documentElement.removeAttribute('data-tema');
-    }
-  });
+  /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos antes de medir. */
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
+    const v = r('--text-soft', '--chip-bg-h');
+    /* Guarda de medibilidad: un token que no resuelve devuelve null, y sin esto borrarlo dejaría
+       el caso en verde — que es como se cuela un `var()` roto, porque no da error en consola. */
+    PRUEBAS.cierto(v != null, 'guarda: `--text-soft` y `--chip-bg-h` existen en el tema ' + tema);
+    if (v != null) PRUEBAS.alMenos(Math.round(v * 100), 450,
+      '⚠️ el botón deshabilitado se lee en ' + tema + ' · ' + v.toFixed(2) + ':1 · antes 4,22 y 4,03 con `--text-muted`');
+  }));
   PRUEBAS.cierto(/\.save-btn:disabled \{[^}]*var\(--text-soft\)/.test(
     [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')),
     '⚠️ y la regla usa ese token · alcanza a los 22 botones de guardar');

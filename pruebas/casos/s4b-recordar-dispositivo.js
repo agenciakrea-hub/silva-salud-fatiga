@@ -204,11 +204,10 @@ PRUEBAS.caso('⚠️ el cartel se lee: los cuatro textos por encima de 4,5:1, en
   const ovTenia = ov && ov.classList.contains('show');
   if (ov) ov.classList.add('show');
   cartel.classList.add('show');
-  const previo = document.documentElement.getAttribute('data-tema');
   const flojos = [];
   try {
-    ['claro','oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+    ['claro','oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
       void document.body.offsetWidth;
       const fondoCartel = rgba(getComputedStyle(cartel).backgroundColor);
       [['título','#dashRemember span'], ['bajada','.dr-d'], ['sí','.dr-yes'], ['no','.dr-no']]
@@ -223,10 +222,8 @@ PRUEBAS.caso('⚠️ el cartel se lee: los cuatro textos por encima de 4,5:1, en
           const r = ratio(lum(fg), lum(bg));
           if (r < 4.5) flojos.push(tema + '/' + qué + ': ' + r.toFixed(2) + ':1');
         });
-    });
+    }));
   } finally {
-    if (previo) document.documentElement.setAttribute('data-tema', previo);
-    else document.documentElement.removeAttribute('data-tema');
     cartel.classList.remove('show');
     if (ov && !ovTenia) ov.classList.remove('show');
   }

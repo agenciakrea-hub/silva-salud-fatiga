@@ -557,7 +557,6 @@ PRUEBAS.caso('⚠️ R13 · se lee en los DOS temas, y sin un solo color a mano'
   /* El modo oscuro de este archivo estuvo roto por ~400 colores fijos. Un `var()` que no resuelve
      computa a `inherit` SIN error en consola, así que esto no se descubre mirando: se mide. */
   const prev = p100Preparar({ rol:'supervisor' });
-  const temaAntes = document.documentElement.getAttribute('data-tema');
   const flojos = [];
   try {
     avanzarAlta();
@@ -583,8 +582,9 @@ PRUEBAS.caso('⚠️ R13 · se lee en los DOS temas, y sin un solo color a mano'
       }
       return getComputedStyle(document.body).backgroundColor || 'rgb(255,255,255)';
     };
-    ['claro', 'oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo
+       (antes el `finally` escribía `data-tema="null"` cuando no había tema puesto). */
+    ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
       void document.body.offsetWidth;
       ['#rolTitulo', '#rolLead', '#rolJusta', '#rolPassLbl', '#rolOv .save-btn', '#rolOv .cancel-btn',
        '#rolGuia summary', '#rolGuia .dh-body'].forEach(sel => {
@@ -593,9 +593,8 @@ PRUEBAS.caso('⚠️ R13 · se lee en los DOS temas, y sin un solo color a mano'
         const c = CTX.contraste(getComputedStyle(el).color, fondoDe(el));
         if (c < 4.5) flojos.push(tema + ' ' + sel + ' = ' + c);
       });
-    });
+    }));
   } finally {
-    document.documentElement.setAttribute('data-tema', temaAntes);
     void document.body.offsetWidth;
     p100Restaurar(prev);
   }

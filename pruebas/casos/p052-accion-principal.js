@@ -62,10 +62,8 @@ function p052Con(sel, fn) {
 }
 
 PRUEBAS.caso('⚠️ las cuatro comparten fondo, tinta y sombra, en los DOS temas', () => {
-  const antes = document.documentElement.getAttribute('data-tema');
-  try {
-    ['claro', 'oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+  /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
       void document.body.offsetWidth;
       const vistos = P052_SEL.map(sel => p052Con(sel, el => {
         const c = getComputedStyle(el);
@@ -86,12 +84,8 @@ PRUEBAS.caso('⚠️ las cuatro comparten fondo, tinta y sombra, en los DOS tema
         '⚠️ [' + tema + '] una sola sombra · eran dos halos escritos a mano (R13) · ' + JSON.stringify(sombras));
       PRUEBAS.igual(vistos.filter(v => v.img !== 'none').map(v => v.sel), [],
         '⚠️ [' + tema + '] ninguna usa degradado · el de `.ent-btn--solid` contrastaba PEOR que el plano');
-    });
-  } finally {
-    if (antes) document.documentElement.setAttribute('data-tema', antes);
-    else document.documentElement.removeAttribute('data-tema');
-    void document.body.offsetWidth;
-  }
+  }));
+  void document.body.offsetWidth;
 });
 
 PRUEBAS.caso('⚠️ el fondo sale de `--orange-solido`, NO del token de tinta', () => {
@@ -112,10 +106,7 @@ PRUEBAS.caso('⚠️ el fondo sale de `--orange-solido`, NO del token de tinta',
 });
 
 PRUEBAS.caso('⚠️ el texto se lee sobre el botón, en los dos temas (≥4.5:1)', () => {
-  const antes = document.documentElement.getAttribute('data-tema');
-  try {
-    ['claro', 'oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {   // P184
       void document.body.offsetWidth;
       P052_SEL.forEach(sel => p052Con(sel, el => {
         const c = getComputedStyle(el);
@@ -125,12 +116,8 @@ PRUEBAS.caso('⚠️ el texto se lee sobre el botón, en los dos temas (≥4.5:1
           '⚠️ [' + tema + '] ' + sel + ' da ' + (r || 0).toFixed(2) + ':1 · el degradado que se ' +
           'reemplazó daba 4.62, y el naranja de antes 2.14 con sol de frente');
       }));
-    });
-  } finally {
-    if (antes) document.documentElement.setAttribute('data-tema', antes);
-    else document.documentElement.removeAttribute('data-tema');
-    void document.body.offsetWidth;
-  }
+  }));
+  void document.body.offsetWidth;
 });
 
 PRUEBAS.caso('⚠️ el estado «al día» NO se disfraza de acción', () => {

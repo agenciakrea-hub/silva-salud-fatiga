@@ -98,3 +98,50 @@ PRUEBAS.caso('⚠️ todo archivo marcado en `soloConGs` está TAMBIÉN en `caso
   PRUEBAS.igual(huerfanos, [],
     '⚠️ estos están marcados pero no se cargan nunca, y el panel no lo dice: ' + JSON.stringify(huerfanos));
 });
+
+PRUEBAS.caso('⚠️ P184 · enTema() pone el tema, lo COMPRUEBA en la resolución de estilos y restaura', () => {
+  /* Los auditores de contraste hacían `setAttribute('data-tema', …)` y medían enseguida. P182 vio
+     una vez a Chrome servir el color final CACHEADO después del cambio (81 lecturas en 2 s con el
+     valor del tema anterior): así un auditor compara un tema consigo mismo y dice «0 defectos»
+     sobre un tema que nunca miró. Hoy no se reproduce, y justamente por eso el helper lo comprueba
+     cada vez en vez de confiar. Acá: (1) adentro de `fn` el atributo es el pedido y un nodo pintado
+     con `var(--card)` mide distinto que en el otro tema; (2) al salir, el atributo vuelve a lo que había, incluso a
+     «no había»; (3) el discriminador: una sonda que NO cambia entre temas hace que lance. */
+  const html = document.documentElement;
+  const previo = html.getAttribute('data-tema');
+  const lecturas = {};
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, t => {
+    PRUEBAS.igual(html.getAttribute('data-tema'), tema, 'adentro de fn el tema puesto es el pedido');
+    PRUEBAS.igual(t, tema, 'y fn lo recibe como argumento');
+    const s = document.createElement('div'); s.style.cssText = 'background:var(--card);color:var(--text)'; document.body.appendChild(s);
+    try { lecturas[tema] = getComputedStyle(s).backgroundColor + '|' + getComputedStyle(s).color; }
+    finally { s.remove(); }
+  }));
+  PRUEBAS.cierto(lecturas.claro !== lecturas.oscuro,
+    'un nodo con `var(--card)`/`var(--text)` mide distinto en los dos temas · ' + JSON.stringify(lecturas));
+  PRUEBAS.igual(html.getAttribute('data-tema'), previo, 'al salir, el tema vuelve al que había');
+
+  /* Restaura también cuando no había ninguno (antes de P184, p100 dejaba `data-tema="null"`). */
+  html.removeAttribute('data-tema');
+  try {
+    PRUEBAS.enTema('oscuro', () => {});
+    PRUEBAS.igual(html.getAttribute('data-tema'), null, 'si no había tema, no deja ninguno puesto');
+  } finally {
+    if (previo) html.setAttribute('data-tema', previo); else html.removeAttribute('data-tema');
+  }
+
+  /* EL DISCRIMINADOR: una sonda con colores fijos en línea no cambia entre temas — es exactamente
+     lo que se vería si el tema no llegara a la resolución de estilos. Tiene que lanzar, y `fn` no
+     tiene que correr. */
+  const fija = document.createElement('div');
+  fija.style.cssText = 'position:absolute;left:-9999px;background:rgb(1, 2, 3);color:rgb(4, 5, 6);';
+  document.body.appendChild(fija);
+  let corrio = false, error = null;
+  try { PRUEBAS.enTema('oscuro', () => { corrio = true; }, fija); }
+  catch (e) { error = e; }
+  finally { fija.remove(); }
+  PRUEBAS.cierto(!!error && /no se aplicó/.test(String(error && error.message)),
+    '⚠️ con una sonda que mide igual en los dos temas, enTema() LANZA (dijo: ' + (error && error.message) + ')');
+  PRUEBAS.falso(corrio, 'y no corre la medición: medir ahí sería comparar un tema consigo mismo');
+  PRUEBAS.igual(html.getAttribute('data-tema'), previo, 'y aun lanzando, restaura el tema');
+});

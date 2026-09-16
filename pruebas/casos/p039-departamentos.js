@@ -853,7 +853,6 @@ PRUEBAS.caso('⚠️ R13 · todo se lee en los DOS temas, incluido lo que está 
      "Volver a activar" quedaban en 2.45:1 (claro) y 2.99:1 (oscuro). Un botón que hay que poder
      tocar, ilegible, y sin que ningún auditor de contraste lo viera porque la opacidad no está en
      el `color` calculado. Se cambió por un borde punteado. */
-  const temaPrevio = document.documentElement.getAttribute('data-tema');
   const prev = { lista: DEPS.lista, puede: DEPS.puedeEditar, dup: DEPS.duplicadas };
   const malos = [];
   let medidos = 0;
@@ -863,8 +862,8 @@ PRUEBAS.caso('⚠️ R13 · todo se lee en los DOS temas, incluido lo que está 
   ];
   DEPS.puedeEditar = true; DEPS.duplicadas = 2;
   try {
-    ['claro', 'oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+    ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
       depAbrir(); depPintar();
       void document.body.offsetWidth;
       const ov = document.getElementById('depOv');
@@ -877,11 +876,9 @@ PRUEBAS.caso('⚠️ R13 · todo se lee en los DOS temas, incluido lo que está 
         });
       });
       try { depCerrarUI(); } catch (e) {}
-    });
+    }));
   } finally {
     DEPS.lista = prev.lista; DEPS.puedeEditar = prev.puede; DEPS.duplicadas = prev.dup;
-    if (temaPrevio) document.documentElement.setAttribute('data-tema', temaPrevio);
-    else document.documentElement.removeAttribute('data-tema');
     document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
     try { syncScrollLock(); } catch (e) {}
   }

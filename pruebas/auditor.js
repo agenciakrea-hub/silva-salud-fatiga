@@ -594,6 +594,21 @@
 
   /* ── Todo junto ─────────────────────────────────────────────────────────────────────────── */
 
+  /* P184 · lee el color final de un div fuera de pantalla pintado con `var(--card)`/`var(--text)`
+     en `doc`: una propiedad que depende de los tokens (lo que P182 vio cacheado). Dos temas
+     distintos tienen que dar dos lecturas distintas; si no, el tema no llegó a la resolución. */
+  AUDITOR.sondaDeTema = function (doc) {
+    doc = doc || document;
+    const s = doc.createElement('div');
+    s.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px;' +
+      'background:var(--card);color:var(--text);';
+    doc.body.appendChild(s);
+    try {
+      const cs = doc.defaultView.getComputedStyle(s);
+      return cs.backgroundColor + '|' + cs.color;
+    } finally { s.remove(); }
+  };
+
   AUDITOR.todo = function () {
     const desplegados = AUDITOR.abrirTodo();
     const c = AUDITOR.contraste();
@@ -624,12 +639,22 @@
     const salida = [];
     try {
       for (const [w, h] of ventanas) {
+        const sonda = {};
         for (const tema of ['claro', 'oscuro']) {
           iframe.style.width = w + 'px';
           iframe.style.height = h + 'px';
           doc.documentElement.setAttribute('data-tema', tema);
           if (antesDeMedir) antesDeMedir(win, doc);
           void doc.body.offsetWidth;
+          /* P184 · centinela: el tema tiene que haber llegado a la resolución de estilos ANTES de
+             medir. P182 vio a Chrome servir el color final cacheado después del cambio; si eso pasa,
+             la pasada «oscuro» mide el tema claro y dice «0 defectos» sobre un tema que no miró.
+             Una sonda con `var(--card)` leída en los dos temas del mismo ancho tiene que dar distinto. */
+          sonda[tema] = AUDITOR.sondaDeTema(doc);
+          if (tema === 'oscuro' && sonda.claro === sonda.oscuro) {
+            throw new Error('AUDITOR.barrer: el tema no se aplicó a ' + w + '×' + h + ' (la sonda mide ' +
+              sonda.oscuro + ' en claro y en oscuro): la pasada quedaría midiendo el tema equivocado');
+          }
           salida.push(win.AUDITOR.todo());
         }
       }

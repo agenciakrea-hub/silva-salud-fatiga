@@ -215,6 +215,54 @@
     } finally { window.removeEventListener('popstate', h); }
   };
 
+  /* ⚠️ P184 · MEDIR EN UN TEMA, CON LA PRUEBA DE QUE EL TEMA SE APLICÓ. Los casos de contraste
+     hacían `setAttribute('data-tema', tema)` y medían enseguida con `getComputedStyle`. P182 encontró
+     una vez a Chrome sirviendo el color final CACHEADO después del cambio (81 lecturas en 2 s con el
+     valor del tema anterior): un auditor que mide así puede estar comparando un tema consigo mismo y
+     dar «0 defectos» sobre un tema que nunca miró. Hoy no se reproduce, y justamente por eso no se
+     puede confiar: el auditor tiene que COMPROBARLO cada vez.
+     Cómo: una sonda (un div con `var(--card)`/`var(--text)`) leída en el tema pedido y en el otro. Si el color
+     final no difiere entre los dos, el tema no llegó a la resolución y se lanza —el caso se pone rojo
+     POR ESO, y lo dice— en vez de medir aire. Devuelve lo que devuelva `fn`, restaura el tema. */
+  PRUEBAS.enTema = function (tema, fn, sondaPropia) {
+    const html = document.documentElement;
+    const previo = html.getAttribute('data-tema');
+    const poner = function (t) { if (t) html.setAttribute('data-tema', t); else html.removeAttribute('data-tema'); };
+    /* La sonda por defecto es un div fuera de pantalla pintado con `var(--card)` y `var(--text)`: una
+       PROPIEDAD que depende de los tokens, que es justo lo que P182 vio cacheado (los tokens sí
+       cambiaban; la propiedad que los usaba, no). No sirve una `.card` suelta: esa clase no existe
+       global y medía transparente en los dos temas. Un caso puede pasar el elemento que va a medir
+       (`sondaPropia`, elemento o selector) para que el centinela lea EXACTAMENTE ese nodo. */
+    let sonda = (typeof sondaPropia === 'string') ? document.querySelector(sondaPropia) : sondaPropia;
+    let creada = false;
+    if (!sonda) {
+      sonda = document.createElement('div');
+      sonda.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px;' +
+        'background:var(--card);color:var(--text);';
+      document.body.appendChild(sonda);
+      creada = true;
+    }
+    const leer = function () {
+      const cs = getComputedStyle(sonda);
+      return cs.backgroundColor + '|' + cs.color + '|' + cs.backgroundImage;
+    };
+    try {
+      const otro = (tema === 'oscuro') ? 'claro' : 'oscuro';
+      poner(otro);   void sonda.offsetWidth;
+      const enOtro = leer();
+      poner(tema);   void sonda.offsetWidth;
+      const enEste = leer();
+      if (enEste === enOtro) {
+        throw new Error('el tema «' + tema + '» no se aplicó a la resolución de estilos (la sonda mide ' +
+          enEste + ' en los dos temas): medir ahora sería comparar un tema consigo mismo');
+      }
+      return fn(tema);
+    } finally {
+      if (creada) sonda.remove();
+      poner(previo);
+    }
+  };
+
   PRUEBAS.enVentana = function (ancho, alto, fn) {
     const marco = window.frameElement;
     /* Sin iframe (alguien corriendo la suite a mano en la app) se mide al tamaño que haya, en vez

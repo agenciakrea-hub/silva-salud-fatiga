@@ -365,11 +365,10 @@ PRUEBAS.caso('⚠️ se lee en tema OSCURO (daba 1,05:1, o sea invisible)', () =
   const lum = c => { const g = v => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
     return 0.2126*g(c.r) + 0.7152*g(c.g) + 0.0722*g(c.b); };
   const ratio = (x,y) => { const [h,l] = x > y ? [x,y] : [y,x]; return (h+0.05)/(l+0.05); };
-  const previo = document.documentElement.getAttribute('data-tema');
   const flojos = [];
   try {
-    ['claro','oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+    ['claro','oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
       void document.body.offsetWidth;
       const cs = getComputedStyle(b), bg = rgba(cs.backgroundColor);
       const rt = ratio(lum(rgba(cs.color)), lum(bg));
@@ -377,10 +376,8 @@ PRUEBAS.caso('⚠️ se lee en tema OSCURO (daba 1,05:1, o sea invisible)', () =
       const bt = b.querySelector('button'), bs = getComputedStyle(bt);
       const rb = ratio(lum(rgba(bs.color)), lum(rgba(bs.backgroundColor)));
       if (rb < 4.5) flojos.push(tema + '/botón: ' + rb.toFixed(2) + ':1');
-    });
+    }));
   } finally {
-    if (previo) document.documentElement.setAttribute('data-tema', previo);
-    else document.documentElement.removeAttribute('data-tema');
     b.remove();
   }
   PRUEBAS.igual(flojos, [], 'nada por debajo de 4,5:1 — ' + flojos.join(' | '));

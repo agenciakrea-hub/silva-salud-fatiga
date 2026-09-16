@@ -121,22 +121,18 @@ PRUEBAS.caso('⚠️ SE CONSERVA · el anillo de foco llega al 3:1 en los DOS te
 
   const tok = (decl.match(/var\((--[\w-]+)\)/) || [])[1];
   PRUEBAS.cierto(!!tok, 'y el color sale de un token (R13) · decía «' + decl + '»');
-  const antes = document.documentElement.getAttribute('data-tema');
   const malos = [];
   const hex2rgb = h => { const x = h.replace('#','');
     const n = x.length === 3 ? x.split('').map(c => c + c).join('') : x;
     return 'rgb(' + [0,2,4].map(i => parseInt(n.substr(i,2),16)).join(', ') + ')'; };
   p095Con(() => {
-    ['claro', 'oscuro'].forEach(tema => {
-      document.documentElement.setAttribute('data-tema', tema);
+    ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {   // P184
       const cs = getComputedStyle(document.documentElement);
       const r = CTX.contraste(hex2rgb(cs.getPropertyValue(tok).trim()),
                               hex2rgb(cs.getPropertyValue('--navy').trim()));
       if (!(r >= 3)) malos.push(tema + ': ' + r + ':1');
-    });
+    }));
   });
-  if (antes) document.documentElement.setAttribute('data-tema', antes);
-  else document.documentElement.removeAttribute('data-tema');
   PRUEBAS.igual(malos, [], 'pasa 3:1 sobre el navy en los dos temas — ' + malos.join(' | '));
 });
 

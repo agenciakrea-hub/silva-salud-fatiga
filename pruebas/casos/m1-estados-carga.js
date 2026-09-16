@@ -301,26 +301,27 @@ PRUEBAS.caso('⚠️ la flecha del desplegable sigue al tema', async () => {
   const tokenEn = (el, nombre) => getComputedStyle(el).getPropertyValue(nombre).trim();
   const strokeDe = v => ((v || '').match(/stroke='%23([0-9a-fA-F]{3,6})'/) || [])[1] || '';
 
-  const tema0 = document.documentElement.getAttribute('data-tema');
   const flojas = [], vistas = new Set(), rastro = [];
   try {
+    /* P184 · `PRUEBAS.enTema` restaura solo y comprueba que el tema llegó al propio `sel` (la sonda
+       es el campo: es justo el nodo donde P182 vio el `var()` cacheado). */
     for (const tema of ['claro', 'oscuro']) {
-      document.documentElement.setAttribute('data-tema', tema);
-      void sel.offsetHeight;
-      const flecha = strokeDe(tokenEn(sel, '--flecha-select'));
-      const campo  = tokenEn(sel, '--sup-campo');
-      if (!flecha) { flojas.push(tema + ': no se encontró la flecha en --flecha-select'); break; }
-      if (!campo)  { flojas.push(tema + ': no se encontró el fondo del campo en --sup-campo'); break; }
-      vistas.add(flecha);
-      const c = ct(hex(flecha), campo.charAt(0) === '#' ? hex(campo) : campo);
-      rastro.push(tema + ' ' + flecha + ' sobre ' + campo + ' = ' + c.toFixed(2) + ':1');
-      if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
+      const corte = PRUEBAS.enTema(tema, () => {
+        const flecha = strokeDe(tokenEn(sel, '--flecha-select'));
+        const campo  = tokenEn(sel, '--sup-campo');
+        if (!flecha) { flojas.push(tema + ': no se encontró la flecha en --flecha-select'); return true; }
+        if (!campo)  { flojas.push(tema + ': no se encontró el fondo del campo en --sup-campo'); return true; }
+        vistas.add(flecha);
+        const c = ct(hex(flecha), campo.charAt(0) === '#' ? hex(campo) : campo);
+        rastro.push(tema + ' ' + flecha + ' sobre ' + campo + ' = ' + c.toFixed(2) + ':1');
+        if (c < 3) flojas.push(tema + ': ' + c.toFixed(2) + ':1');
+        return false;
+      }, sel);
+      if (corte) break;
     }
   } finally {
-    /* Restaurar SIEMPRE, pase lo que pase: un `return` o un tiro acá dejaba la app teñida para
+    /* Restaurar SIEMPRE, pase lo que pase: un `return` o un tiro acá dejaba el splash abierto para
        todos los casos que siguen (R18). */
-    if (tema0) document.documentElement.setAttribute('data-tema', tema0);
-    else document.documentElement.removeAttribute('data-tema');
     if (!yaAbierto) ov.classList.remove('show');
   }
 

@@ -506,6 +506,14 @@ PRUEBAS.caso('⚠️ CONTRATO P186e · la ventana de «misma ocurrencia» es UN 
   const srv = api.dutyColapsarMismaOcurrencia_(evs.slice()).map(e => e.iso), cli = cicloColapsarMismaOcurrencia(evs.slice(), true).map(e => e.iso);
   PRUEBAS.igual(cli, srv, '⚠️ las dos capas colapsan igual (' + cli.length + ' de 4: encadenado a 15 min, cortado a 40)');
   PRUEBAS.igual(cli, [iso(base + 15 * 60000), iso(base + 40 * 60000)], 'quedan la de +15 (que se llevó a +0 y +9) y la de +40');
+  /* P186f · y las dos capas dejan `detenido` afuera del colapso, y no pisan por un ISO con
+     desplazamiento que ordena por texto antes que uno en Z más viejo */
+  const dets = [{ evento: 'detenido', iso: iso(base), persona: 'X', empresa: 'E' }, { evento: 'detenido', iso: iso(base + 1000), persona: 'X', empresa: 'E' }];
+  PRUEBAS.igual(cicloColapsarMismaOcurrencia(dets.slice(), true).length, 2, 'P186f · el cliente deja los dos `detenido`');
+  PRUEBAS.igual(api.dutyColapsarMismaOcurrencia_(dets.slice()).length, 2, 'P186f · el servidor también');
+  const cruzados = [{ evento: 'salida_casa', iso: '2026-09-15T23:00:00-04:00', persona: 'X', empresa: 'E' }, { evento: 'salida_casa', iso: '2026-09-16T01:00:00Z', persona: 'X', empresa: 'E' }];
+  PRUEBAS.igual(cicloColapsarMismaOcurrencia(cruzados.slice(), true).length, 2, 'P186f · el cliente no junta dos hechos a dos horas por el orden del texto');
+  PRUEBAS.igual(api.dutyColapsarMismaOcurrencia_(cruzados.slice()).length, 2, 'P186f · el servidor tampoco');
 });
 
 PRUEBAS.caso('🔴 P186e · en el propio teléfono, el doble toque colapsa aunque una copia sea local (sin persona) y la otra del servidor (con persona)', () => {
@@ -524,4 +532,22 @@ PRUEBAS.caso('🔴 P186e · en el propio teléfono, el doble toque colapsa aunqu
     PRUEBAS.igual(ciclos.length, 1, 'y un solo ciclo');
     PRUEBAS.igual(cicloEstado(ciclos[0], Date.now(), cicloPlan('')).estado, 'completo', 'completo, no un fantasma detenido');
   } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
+});
+
+PRUEBAS.caso('🔴 P186f · en el panel, dos ciclos detenidos a menos de 20 min se muestran los dos detenidos (los `detenido` no se juntan)', () => {
+  /* Entra por `cicloAgruparTodos`, el agrupador del histórico del panel, con lo que manda el servidor.
+     Sin P186f el primer ciclo perdía su `detenido` y se leía como abandonado en vez de detenido. */
+  {
+    const base = Date.now() - 30 * 3600000, iso = ms => new Date(ms).toISOString();
+    const ev = (evento, ms) => ({ evento, iso: iso(ms), persona: 'Dos Ciclos', empresa: 'Consorcio HELITEC', fecha: iso(ms).slice(0, 10) });
+    const duty = [ev('salida_casa', base), ev('llegada_aero', base + 10 * 60000), ev('salida_aero', base + 15 * 60000),
+                  ev('detenido', base + 15 * 60000 + 1000), ev('llegada_aero', base + 31 * 60000), ev('detenido', base + 31 * 60000 + 1000)];
+    const ciclos = cicloAgruparTodos(duty, cicloTotalMin(cicloPlan('')) * 60000);   // colapsa adentro (P186e)
+    PRUEBAS.igual(ciclos.length, 2, 'dos ciclos');
+    PRUEBAS.igual(ciclos.map(c => !!c.ev[CICLO_EVENTO_DETENIDO]), [true, true], '🔴 cada uno conserva su `detenido`');
+    /* `cicloAgruparTodos` devuelve el más nuevo primero. El segundo ciclo (abierto por la `llegada_aero`
+       repetida) no tiene evento inicial y `cicloEstado` lo da «inactivo» por diseño; el que importa
+       es el PRIMERO: sin P186f perdía su `detenido` y se leía «abandonado». */
+    PRUEBAS.igual(cicloEstado(ciclos[1], Date.now(), cicloPlan('')).estado, 'detenido', '🔴 el primer ciclo se lee «detenido»');
+  }
 });

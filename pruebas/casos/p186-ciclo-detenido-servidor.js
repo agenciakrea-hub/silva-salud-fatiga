@@ -310,10 +310,11 @@ PRUEBAS.caso('🔴 P186e · EL CASO REAL DEL 15/09 · dos filas del mismo «sali
   PRUEBAS.igual(api2.dutyAgruparCiclos_(api2.leerOperacional(4)).filter(g => g.evs[0].persona === 'Dos Salidas').length, 2, 'DISCRIMINADOR · a 25 min son dos ciclos');
 });
 
-PRUEBAS.caso('🔴 P186e · dos `detenido` ya escritos del mismo ciclo (antes del arreglo) se juntan al leer y no se vuelve a escribir', () => {
+PRUEBAS.caso('🔴 P186e/f · dos `detenido` ya escritos del mismo ciclo (antes del arreglo) no hacen que se vuelva a escribir', () => {
   /* Si el reloj alcanzó a escribir los dos `detenido` antes de publicar el colapso, quedan en la hoja
-     con ids distintos (van por ISO con milisegundos). Al leer se juntan en uno, el ciclo «ya tiene
-     detenido», y la corrida siguiente no agrega nada. Es la parte que se arregla sola. */
+     con ids distintos (van por ISO con milisegundos). P186f los deja a los dos (`detenido` no entra
+     al colapso: ver el caso siguiente), pero el ciclo «ya tiene detenido» —`cicloAnclaDetencion_`
+     corta en el primero— y la corrida siguiente no agrega nada. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const hojas = p186Hojas();
   const base = P186_AHORA - 30 * 3600000;
@@ -328,7 +329,7 @@ PRUEBAS.caso('🔴 P186e · dos `detenido` ya escritos del mismo ciclo (antes de
   const api = GS.cargarGs(CTX.gs, env, ['cicloDetenerVencidos', 'leerOperacional', 'leerDuty', 'dutyAgruparCiclos_']);
   const grupos = api.dutyAgruparCiclos_(api.leerOperacional(4)).filter(g => g.evs[0].persona === 'Ya Detenido');
   PRUEBAS.igual(grupos.length, 1, 'un ciclo');
-  PRUEBAS.igual(grupos[0].evs.map(e => e.evento), ['salida_casa', 'llegada_aero', 'detenido'], 'con UN detenido (los dos se juntaron)');
+  PRUEBAS.igual(grupos[0].evs.map(e => e.evento), ['salida_casa', 'llegada_aero', 'detenido', 'detenido'], 'los dos `detenido` quedan (P186f: no se colapsan) y el ciclo es uno');
   const suyas = () => p186FilasOp({ __env: env }).filter(f => f[4] === 'Ya Detenido').length;
   const antes = suyas();
   const r = api.cicloDetenerVencidos(false, P186_AHORA, P186_DESDE_LEJOS);
@@ -336,4 +337,56 @@ PRUEBAS.caso('🔴 P186e · dos `detenido` ya escritos del mismo ciclo (antes de
   PRUEBAS.igual(suyas(), antes, 'sus filas quedan igual (las otras personas del CH falso sí se detienen, como siempre)');
   const jor = (api.leerDuty(api.leerOperacional(4), 4).diario || []).filter(f => f.persona === 'Ya Detenido');
   PRUEBAS.igual(jor.length, 1, 'y Jornada muestra una sola, detenida');
+});
+
+PRUEBAS.caso('🔴 P186f · dos `detenido` de DOS ciclos distintos a menos de 20 min son dos hechos: el reloj no vuelve a «detener» el primero cada hora', () => {
+  /* Lo encontró el verificador de P186e: con `detenido` adentro del colapso, alguien que prueba el
+     botón dos veces seguidas (dos ciclos abiertos a 16 min, los dos abandonados) recibe dos
+     `detenido` a 16 min → se juntaban → el primer ciclo quedaba sin registro → el reloj lo volvía a
+     «detener» en cada corrida: la fila se reescribía con el mismo id (no duplica), pero la bitácora,
+     que no se limpia, sumaba una entrada por hora. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const hojas = p186Hojas();
+  const base = P186_AHORA - 30 * 3600000;
+  const iso = ms => new Date(ms).toISOString();
+  hojas['Operacional'].push(
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'salida_casa',  iso(base)),
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'llegada_aero', iso(base + 10 * 60000)),
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'salida_aero',  iso(base + 15 * 60000)),
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'llegada_aero', iso(base + 31 * 60000)),   // apertura repetida: ciclo nuevo
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'detenido',     iso(base + 15 * 60000 + 1000)),
+    p186Ev('Dos Ciclos', 'Empresa De Prueba', 'detenido',     iso(base + 31 * 60000 + 1000)));
+  const env = GS.crearEntorno(hojas);
+  const api = GS.cargarGs(CTX.gs, env, ['cicloDetenerVencidos', 'leerOperacional', 'leerDuty', 'dutyAgruparCiclos_', 'dutyColapsarMismaOcurrencia_']);
+  const grupos = api.dutyAgruparCiclos_(api.leerOperacional(4)).filter(g => g.evs[0].persona === 'Dos Ciclos');
+  PRUEBAS.igual(grupos.length, 2, 'dos ciclos');
+  PRUEBAS.igual(grupos.map(g => g.evs.filter(e => e.evento === 'detenido').length), [1, 1], '🔴 cada uno con SU detenido');
+  const suyas = () => p186FilasOp({ __env: env }).filter(f => f[4] === 'Dos Ciclos').length;
+  const antes = suyas();
+  const r = api.cicloDetenerVencidos(false, P186_AHORA, P186_DESDE_LEJOS);
+  PRUEBAS.igual(r.filas.filter(f => f.persona === 'Dos Ciclos').length, 0, '🔴 el reloj no escribe nada: los dos ya tienen su detenido');
+  PRUEBAS.igual(suyas(), antes, 'sus filas quedan igual');
+  const jor = (api.leerDuty(api.leerOperacional(4), 4).diario || []).filter(f => f.persona === 'Dos Ciclos');
+  PRUEBAS.igual(jor.map(f => !!f.detenido), [true, true], 'y Jornada muestra dos jornadas, las dos detenidas');
+  /* discriminador directo sobre el colapso: dos `detenido` a 1 s siguen siendo dos; dos `salida_casa` a 1 s, uno */
+  const par = t => [{ evento: t, iso: iso(base), persona: 'x' }, { evento: t, iso: iso(base + 1000), persona: 'x' }];
+  PRUEBAS.igual(api.dutyColapsarMismaOcurrencia_(par('detenido')).length, 2, '`detenido` no entra al colapso');
+  PRUEBAS.igual(api.dutyColapsarMismaOcurrencia_(par('salida_casa')).length, 1, 'DISCRIMINADOR · `salida_casa` sí');
+});
+
+PRUEBAS.caso('P186f · un ISO con desplazamiento que ordena por texto antes que uno en Z más viejo no lo pisa', () => {
+  /* Toda fila de la app sale de `toISOString()` (Z), pero el CH lo escribe también otra IA y a mano.
+     `2026-09-15T23:00:00-04:00` (= 03:00Z del 16) ordena por texto ANTES que `2026-09-16T01:00:00Z`,
+     y el resto negativo (−2 h) entraba en la ventana: se juntaban y ganaba la MÁS VIEJA. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const api = GS.cargarGs(CTX.gs, GS.crearEntorno(p186Hojas()), ['dutyColapsarMismaOcurrencia_']);
+  const evs = [
+    { evento: 'salida_casa', iso: '2026-09-15T23:00:00-04:00', persona: 'x' },   // 03:00Z del 16
+    { evento: 'salida_casa', iso: '2026-09-16T01:00:00Z',      persona: 'x' }];  // dos horas ANTES en realidad
+  const out = api.dutyColapsarMismaOcurrencia_(evs.slice());
+  PRUEBAS.igual(out.length, 2, 'dos hechos a dos horas: no se juntan aunque el texto los ordene al revés');
+  const out2 = api.dutyColapsarMismaOcurrencia_([
+    { evento: 'salida_casa', iso: '2026-09-16T01:00:00Z',      persona: 'x' },
+    { evento: 'salida_casa', iso: '2026-09-16T01:00:09.000Z',  persona: 'x' }]);
+  PRUEBAS.igual(out2.length, 1, 'DISCRIMINADOR · a 9 s en Z siguen siendo uno');
 });

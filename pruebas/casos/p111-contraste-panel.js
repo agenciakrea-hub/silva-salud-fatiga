@@ -59,9 +59,8 @@ function p111Ratio(tinta, fondo){
 
 ['claro', 'oscuro'].forEach(tema => {
   PRUEBAS.caso('⚠️ R13 · la tinta semántica llega a 4,5:1 sobre su fondo · tema ' + tema, () => {
-    const previo = document.documentElement.getAttribute('data-tema');
-    document.documentElement.setAttribute('data-tema', tema);
-    try {
+    /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+    PRUEBAS.enTema(tema, () => {
       P111_PARES.forEach(p => {
         const r = p111Ratio(p.tinta, p.fondo);
         /* Guarda de medibilidad: un token que no resuelve devuelve '' y `p111Ratio` da null. Sin
@@ -73,10 +72,7 @@ function p111Ratio(tinta, fondo){
         PRUEBAS.alMenos(Math.round(r * 100), 450,
           '⚠️ ' + p.tinta + ' sobre ' + p.fondo + ' = ' + r.toFixed(2) + ':1 · antes: ' + p.antes);
       });
-    } finally {
-      if (previo) document.documentElement.setAttribute('data-tema', previo);
-      else document.documentElement.removeAttribute('data-tema');
-    }
+    });
   });
 });
 

@@ -147,10 +147,9 @@ PRUEBAS.caso('⚠️ en oscuro el mapa de actividad no está dado vuelta', () =>
   const ct = (a, b) => { const A = lum(a), B = lum(b);
     return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
 
-  const tema0 = document.documentElement.getAttribute('data-tema');
   const roto = [];
-  ['claro', 'oscuro'].forEach(tema => {
-    document.documentElement.setAttribute('data-tema', tema);
+  /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {
     const card = document.querySelector('.act-card') || document.querySelector('#viewInicio .card');
     if (!card) return;
     const fondo = getComputedStyle(card).backgroundColor;
@@ -166,8 +165,7 @@ PRUEBAS.caso('⚠️ en oscuro el mapa de actividad no está dado vuelta', () =>
           ') no resalta más que el anterior (' + esc[i - 1].toFixed(2) + ')');
       }
     }
-  });
-  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  }));
   PRUEBAS.igual(roto, [],
     'más actividad tiene que verse MÁS, en los dos temas: si no, el gráfico dice lo contrario de lo que pasó');
 });
@@ -222,17 +220,14 @@ PRUEBAS.caso('⚠️ el contador de notificaciones se lee en los DOS temas', () 
   const ct = (a, b) => { const A = lum(a), B = lum(b);
     return (Math.max(A,B) + .05) / (Math.min(A,B) + .05); };
 
-  const tema0 = document.documentElement.getAttribute('data-tema');
   const flojos = [];
-  ['claro', 'oscuro'].forEach(tema => {
-    document.documentElement.setAttribute('data-tema', tema);
+  ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {   // P184
     const b = document.getElementById('tareasBadge');
     if (!b) return;
     const cs = getComputedStyle(b);
     const c = ct(cs.color, cs.backgroundColor);
     if (c < 4.5) flojos.push(tema + ': ' + c.toFixed(2) + ':1');
-  });
-  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
+  }));
   PRUEBAS.igual(flojos, [],
     'el número tiene que leerse sobre su propio relleno en los dos temas (10.56 px y peso 900 son texto chico: mínimo 4.5)');
 });
@@ -339,18 +334,18 @@ PRUEBAS.caso('en los dos temas el título de la pantalla se lee', () => {
   const ov = document.getElementById('splashOv');
   const yaAbierto = ov.classList.contains('show');
   ov.classList.add('show');
-  const tema0 = document.documentElement.getAttribute('data-tema');
   const flojos = [];
-  ['claro', 'oscuro'].forEach(tema => {
-    document.documentElement.setAttribute('data-tema', tema);
-    document.querySelectorAll('#splashAnimTrack .spl-p').forEach((p, i) => {
-      const b = p.querySelector('.spl-p-tx b');
-      const c = ct(getComputedStyle(b).color, getComputedStyle(p).backgroundColor);
-      if (c < 4.5) flojos.push(tema + ' · pantalla ' + (i + 1) + ': ' + c.toFixed(2));
-    });
-  });
-  if (tema0) document.documentElement.setAttribute('data-tema', tema0);
-  if (!yaAbierto) ov.classList.remove('show');
+  try {
+    ['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => {   // P184
+      document.querySelectorAll('#splashAnimTrack .spl-p').forEach((p, i) => {
+        const b = p.querySelector('.spl-p-tx b');
+        const c = ct(getComputedStyle(b).color, getComputedStyle(p).backgroundColor);
+        if (c < 4.5) flojos.push(tema + ' · pantalla ' + (i + 1) + ': ' + c.toFixed(2));
+      });
+    }));
+  } finally {
+    if (!yaAbierto) ov.classList.remove('show');
+  }
   PRUEBAS.igual(flojos, [], 'el título sobre su propia tarjeta, en los dos temas');
 });
 
