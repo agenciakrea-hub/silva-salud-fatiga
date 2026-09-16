@@ -460,3 +460,68 @@ PRUEBAS.caso('🔴 P186d · en «Tus tareas» lo pendiente va arriba de lo hecho
     try { const c = document.getElementById('tareasLista'); if (c) c.innerHTML = ''; } catch(e){}
   }
 });
+
+PRUEBAS.caso('🔴 P186e · el panel del supervisor con las dos filas del 15/09 (mismo salida_casa a 9 ms): una tarjeta, sin ciclo fantasma', () => {
+  /* Las dos filas reales de `Operacional` con el mismo `IdEvento` llegan al panel en el payload.
+     Sin el colapso, `cicloArmar` armaba un ciclo de un solo `salida_casa` (que a las 24 h se
+     mostraba «detenido») y otro con el ciclo real. Ahora los tres agrupadores del cliente aplican
+     la regla de `cicloMioAll`: por persona y por evento, dos a menos de 20 min son una. */
+  const prevDash = DASH;
+  const base = Date.now() - 30 * 3600000, iso = ms => new Date(ms).toISOString();
+  const ev = (evento, ms) => ({ persona: 'Doble Toque', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', evento, iso: iso(ms), fecha: iso(ms).substring(0, 10), test: '', resultado: '', plan: '' });
+  const pintar = (segunda) => {
+    onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: [],
+      registros: [{ persona: 'Doble Toque', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto', fecha: todayStr() }],
+      comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, duty: null, turnos: [],
+      operacional: [ev('salida_casa', base), ev('salida_casa', base + segunda), ev('llegada_aero', base + segunda + 5), ev('salida_aero', base + 10 * 3600000), ev('llegada_casa', base + 11 * 3600000)],
+      operacionalPeriodo: { dias: 7 }
+    }, 'Consorcio HELITEC', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'p186e' }, 'supervisor');
+    const cont = document.createElement('div'); cont.innerHTML = renderCicloOperativo();
+    const todos = cicloAgruparTodos(DASH.operacional, cicloTotalMin(cicloPlan('Doble Toque')) * 60000);
+    return { tarjetas: cont.querySelectorAll('.cic-card').length, detenidas: cont.querySelectorAll('.cic-card.cic-est-detenido').length, completas: cont.querySelectorAll('.cic-card.cic-est-completo').length, ciclos: todos.length };
+  };
+  try {
+    const r = pintar(9);
+    PRUEBAS.igual(r.tarjetas, 1, 'guarda: una tarjeta para la persona');
+    PRUEBAS.igual(r.ciclos, 1, '🔴 el histórico ve UN ciclo (no un fantasma de un evento más el real)');
+    PRUEBAS.igual(r.detenidas, 0, '🔴 y nada «detenido»: el ciclo real está completo');
+    PRUEBAS.igual(r.completas, 1, 'la tarjeta dice completo');
+    const r2 = pintar(25 * 60000);
+    PRUEBAS.igual(r2.ciclos, 2, 'DISCRIMINADOR · con la segunda salida 25 min después, son dos ciclos (la persona volvió a salir)');
+  } finally { DASH = prevDash; }
+});
+
+PRUEBAS.caso('⚠️ CONTRATO P186e · la ventana de «misma ocurrencia» es UN número en las dos capas', () => {
+  /* El servidor la usa al escribir y al leer; el teléfono, en sus tres agrupadores. Si una cambia
+     y la otra no, vuelve el escritor y el lector derivando distinto. Se lee del `.gs` real. */
+  PRUEBAS.igual(CICLO_MISMA_OCURRENCIA_MIN, 20, 'el cliente dice 20');
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs se saltea la otra mitad'); return; }
+  const m = /var OP_VENTANA_MISMA_OCURRENCIA_MIN = (\d+);/.exec(CTX.gs);
+  PRUEBAS.cierto(!!m, 'guarda: el .gs declara la ventana');
+  PRUEBAS.igual(m && Number(m[1]), CICLO_MISMA_OCURRENCIA_MIN, '⚠️ y es el mismo número que el cliente');
+  /* y el mismo colapso da lo mismo en las dos capas para los mismos eventos */
+  const api = GS.cargarGs(CTX.gs, GS.crearEntorno({ 'Config Empresa': [['Empresa','Clave','Valor']] }), ['dutyColapsarMismaOcurrencia_']);
+  const base = Date.now() - 3600000, iso = ms => new Date(ms).toISOString();
+  const evs = [{ evento: 'salida_casa', iso: iso(base), persona: 'X', empresa: 'E' }, { evento: 'salida_casa', iso: iso(base + 9), persona: 'X', empresa: 'E' }, { evento: 'salida_casa', iso: iso(base + 15 * 60000), persona: 'X', empresa: 'E' }, { evento: 'salida_casa', iso: iso(base + 40 * 60000), persona: 'X', empresa: 'E' }];
+  const srv = api.dutyColapsarMismaOcurrencia_(evs.slice()).map(e => e.iso), cli = cicloColapsarMismaOcurrencia(evs.slice(), true).map(e => e.iso);
+  PRUEBAS.igual(cli, srv, '⚠️ las dos capas colapsan igual (' + cli.length + ' de 4: encadenado a 15 min, cortado a 40)');
+  PRUEBAS.igual(cli, [iso(base + 15 * 60000), iso(base + 40 * 60000)], 'quedan la de +15 (que se llevó a +0 y +9) y la de +40');
+});
+
+PRUEBAS.caso('🔴 P186e · en el propio teléfono, el doble toque colapsa aunque una copia sea local (sin persona) y la otra del servidor (con persona)', () => {
+  /* Los eventos de `K_CICLO_MIO` se guardan sin `persona`; los de `K_CICLO_SRV` la traen. Si la
+     clave del colapso llevara el nombre, un toque local a 9 ms de su copia del servidor no se
+     juntaría y volvería el ciclo fantasma en la tarjeta del piloto. */
+  const prevLS = Object.assign({}, localStorage);
+  try {
+    setProfile({ nombre: 'Ana Suárez', cedula: '12345678', empresa: 'Consorcio HELITEC', departamento: 'Operaciones', cargo: 'Piloto' });
+    const base = Date.now() - 30 * 3600000, iso = ms => new Date(ms).toISOString();
+    localStorage.setItem(K_CICLO_MIO, JSON.stringify([{ evento: 'salida_casa', iso: iso(base), test: '', resultado: null }]));
+    localStorage.setItem(K_CICLO_SRV, JSON.stringify([{ evento: 'salida_casa', iso: iso(base + 9), persona: 'Ana Suárez', empresa: 'Consorcio HELITEC' }, { evento: 'llegada_aero', iso: iso(base + 14), persona: 'Ana Suárez', empresa: 'Consorcio HELITEC' }, { evento: 'salida_aero', iso: iso(base + 10 * 3600000), persona: 'Ana Suárez', empresa: 'Consorcio HELITEC' }, { evento: 'llegada_casa', iso: iso(base + 11 * 3600000), persona: 'Ana Suárez', empresa: 'Consorcio HELITEC' }]));
+    const todos = cicloMioAll();
+    PRUEBAS.igual(todos.filter(e => e.evento === 'salida_casa').length, 1, '🔴 la copia local (sin persona) y la del servidor (con persona) a 9 ms son UN hecho');
+    const ciclos = cicloAgruparTodos(todos, cicloTotalMin(cicloPlan('')) * 60000);
+    PRUEBAS.igual(ciclos.length, 1, 'y un solo ciclo');
+    PRUEBAS.igual(cicloEstado(ciclos[0], Date.now(), cicloPlan('')).estado, 'completo', 'completo, no un fantasma detenido');
+  } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
+});

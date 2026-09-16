@@ -271,3 +271,69 @@ PRUEBAS.caso('un ciclo TRUNCADO por la ventana no se detiene (no empieza con el 
   const api2 = GS.cargarGs(CTX.gs, GS.crearEntorno(hojas2), ['cicloDetenerVencidos']);
   PRUEBAS.igual(api2.cicloDetenerVencidos(true, P186_AHORA, P186_DESDE_LEJOS).filas.filter(f => f.persona === 'Muy Viejo').length, 0, 'ni con más de 72 h');
 });
+
+PRUEBAS.caso('🔴 P186e · EL CASO REAL DEL 15/09 · dos filas del mismo «salida_casa» a 9 ms son UN ciclo y UN detenido', () => {
+  /* En producción quedaron dos filas con el mismo `IdEvento` (`…salida_casa#20260915T195001`, ISO
+     19:50:01.402Z y 19:50:01.411Z): dos escrituras en el mismo segundo que el upsert no alcanzó a
+     juntar. Sin el colapso al leer, la agrupación abría un ciclo de un solo `salida_casa` más el
+     real, y el reloj escribía DOS `detenido`. Ahora al leer se aplica la misma regla que al
+     escribir: dos ocurrencias del mismo evento a menos de 20 min son una, y gana la más nueva. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const hojas = p186Hojas();
+  const base = P186_AHORA - 26 * 3600000;   // hace 26 h: el ciclo vence
+  const iso = ms => new Date(ms).toISOString();
+  hojas['Operacional'].push(
+    p186Ev('Doble Toque', 'Empresa De Prueba', 'salida_casa',  iso(base)),
+    p186Ev('Doble Toque', 'Empresa De Prueba', 'salida_casa',  iso(base + 9)),          // 9 ms después, mismo IdEvento
+    p186Ev('Doble Toque', 'Empresa De Prueba', 'llegada_aero', iso(base + 14)));
+  const env = GS.crearEntorno(hojas);
+  const api = GS.cargarGs(CTX.gs, env, ['cicloDetenerVencidos', 'leerOperacional', 'leerDuty', 'dutyAgruparCiclos_']);
+  const op = api.leerOperacional(4);
+  const grupos = api.dutyAgruparCiclos_(op).filter(g => g.evs[0].persona === 'Doble Toque');
+  PRUEBAS.igual(grupos.length, 1, '🔴 UN ciclo, no un fantasma de un evento más el real');
+  PRUEBAS.igual(grupos[0].evs.map(e => e.evento), ['salida_casa', 'llegada_aero'], 'con el salida_casa más nuevo y la llegada');
+  PRUEBAS.igual(grupos[0].evs[0].iso, iso(base + 9), 'y gana el más nuevo de los dos, como en la hoja');
+  const r = api.cicloDetenerVencidos(false, P186_AHORA, P186_DESDE_LEJOS);
+  const mios = r.filas.filter(f => f.persona === 'Doble Toque');
+  PRUEBAS.igual(mios.length, 1, '🔴 el reloj escribe UN detenido, no dos');
+  PRUEBAS.igual(p186FilasOp({ __env: env }).filter(f => f[4] === 'Doble Toque' && f[8] === 'detenido').length, 1, 'y en la hoja queda una fila detenido');
+  const jor = (api.leerDuty(api.leerOperacional(4), 4).diario || []).filter(f => f.persona === 'Doble Toque');
+  PRUEBAS.igual(jor.length, 1, 'Jornada: una sola jornada, detenida');
+  PRUEBAS.igual(jor[0] && !!jor[0].detenido, true, 'detenida');
+  /* discriminador: a 25 min son DOS hechos (la persona volvió a salir), como al escribir */
+  const hojas2 = p186Hojas();
+  hojas2['Operacional'].push(
+    p186Ev('Dos Salidas', 'Empresa De Prueba', 'salida_casa',  iso(base)),
+    p186Ev('Dos Salidas', 'Empresa De Prueba', 'salida_casa',  iso(base + 25 * 60000)),
+    p186Ev('Dos Salidas', 'Empresa De Prueba', 'llegada_aero', iso(base + 26 * 60000)));
+  const api2 = GS.cargarGs(CTX.gs, GS.crearEntorno(hojas2), ['leerOperacional', 'dutyAgruparCiclos_']);
+  PRUEBAS.igual(api2.dutyAgruparCiclos_(api2.leerOperacional(4)).filter(g => g.evs[0].persona === 'Dos Salidas').length, 2, 'DISCRIMINADOR · a 25 min son dos ciclos');
+});
+
+PRUEBAS.caso('🔴 P186e · dos `detenido` ya escritos del mismo ciclo (antes del arreglo) se juntan al leer y no se vuelve a escribir', () => {
+  /* Si el reloj alcanzó a escribir los dos `detenido` antes de publicar el colapso, quedan en la hoja
+     con ids distintos (van por ISO con milisegundos). Al leer se juntan en uno, el ciclo «ya tiene
+     detenido», y la corrida siguiente no agrega nada. Es la parte que se arregla sola. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const hojas = p186Hojas();
+  const base = P186_AHORA - 30 * 3600000;
+  const iso = ms => new Date(ms).toISOString();
+  hojas['Operacional'].push(
+    p186Ev('Ya Detenido', 'Empresa De Prueba', 'salida_casa',  iso(base)),
+    p186Ev('Ya Detenido', 'Empresa De Prueba', 'salida_casa',  iso(base + 9)),
+    p186Ev('Ya Detenido', 'Empresa De Prueba', 'llegada_aero', iso(base + 14)),
+    p186Ev('Ya Detenido', 'Empresa De Prueba', 'detenido',     iso(base + 1000)),        // el que escribió por el fantasma
+    p186Ev('Ya Detenido', 'Empresa De Prueba', 'detenido',     iso(base + 14 + 1000)));  // el del ciclo real
+  const env = GS.crearEntorno(hojas);
+  const api = GS.cargarGs(CTX.gs, env, ['cicloDetenerVencidos', 'leerOperacional', 'leerDuty', 'dutyAgruparCiclos_']);
+  const grupos = api.dutyAgruparCiclos_(api.leerOperacional(4)).filter(g => g.evs[0].persona === 'Ya Detenido');
+  PRUEBAS.igual(grupos.length, 1, 'un ciclo');
+  PRUEBAS.igual(grupos[0].evs.map(e => e.evento), ['salida_casa', 'llegada_aero', 'detenido'], 'con UN detenido (los dos se juntaron)');
+  const suyas = () => p186FilasOp({ __env: env }).filter(f => f[4] === 'Ya Detenido').length;
+  const antes = suyas();
+  const r = api.cicloDetenerVencidos(false, P186_AHORA, P186_DESDE_LEJOS);
+  PRUEBAS.igual(r.filas.filter(f => f.persona === 'Ya Detenido').length, 0, '🔴 y el reloj no vuelve a escribir: el ciclo ya tiene su detenido');
+  PRUEBAS.igual(suyas(), antes, 'sus filas quedan igual (las otras personas del CH falso sí se detienen, como siempre)');
+  const jor = (api.leerDuty(api.leerOperacional(4), 4).diario || []).filter(f => f.persona === 'Ya Detenido');
+  PRUEBAS.igual(jor.length, 1, 'y Jornada muestra una sola, detenida');
+});

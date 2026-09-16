@@ -7212,7 +7212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.53';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.54';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12411,22 +12411,35 @@ function cicloMioServidor(){ try { return JSON.parse(localStorage.getItem(K_CICL
    completo y el CH no tenía ningún `detenido`. Lo encontró la revisión adversarial de P186c:
    escritor y lector derivando distinto, otra vez. */
 const CICLO_MISMA_OCURRENCIA_MIN = 20;   // = OP_VENTANA_MISMA_OCURRENCIA_MIN del servidor
+/* P186e · UNA sola función para los tres agrupadores (el propio, el del panel y el histórico). El
+   2026-09-15 quedaron en `Operacional` dos filas del mismo `salida_casa` a 9 ms (dos escrituras en
+   el mismo segundo que el upsert no alcanzó a juntar): el panel armaba un ciclo fantasma de un solo
+   evento más el real, y a las 24 h lo mostraba «detenido». Por persona y por evento, dos ocurrencias
+   a menos de la ventana son una y gana la más nueva (encadenado). El servidor hace lo mismo al leer
+   (`dutyColapsarMismaOcurrencia_`). */
+function cicloColapsarMismaOcurrencia(lista, porPersona){
+  /* `porPersona`: en el panel y el histórico la lista puede traer varias personas y la clave lleva el
+     nombre. En el propio teléfono (`cicloMioAll`) NO: los eventos locales de `K_CICLO_MIO` no traen
+     `persona` y los del servidor sí, y con el nombre en la clave un doble toque con una copia local
+     y otra del servidor no se juntaría. Ahí es una sola persona por construcción: sólo el evento. */
+  const out = [], ultimo = {};
+  (lista || []).forEach(e => {
+    const k = (e.evento || '') + (porPersona ? '|' + dashNorm(e.persona || '') : ''), t = Date.parse(e.iso), prev = ultimo[k];
+    if (prev && isFinite(t) && isFinite(prev.t) && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
+      out[prev.i] = e; ultimo[k] = { t: t, i: prev.i };   // mismo hecho: gana el más nuevo
+      return;
+    }
+    ultimo[k] = { t: t, i: out.length }; out.push(e);
+  });
+  return out.sort((a,b) => new Date(a.iso) - new Date(b.iso));
+}
 function cicloMioAll(){
   const porClave = {};
   cicloMioServidor().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
   cicloMioLocal().forEach(e => { if (e && e.iso) porClave[(e.evento||'') + '|' + e.iso] = e; });
   const lista = Object.keys(porClave).map(k => porClave[k])
     .sort((a,b) => new Date(a.iso) - new Date(b.iso));
-  const out = [], ultimo = {};
-  lista.forEach(e => {
-    const ev = e.evento || '', t = Date.parse(e.iso), prev = ultimo[ev];
-    if (prev && isFinite(t) && isFinite(prev.t) && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
-      out[prev.i] = e; ultimo[ev] = { t: t, i: prev.i };   // mismo hecho: gana el más nuevo
-      return;
-    }
-    ultimo[ev] = { t: t, i: out.length }; out.push(e);
-  });
-  return out.sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  return cicloColapsarMismaOcurrencia(lista);
 }
 function cicloMioGuardar(evento, test, resultado){
   if (!evento) return;
@@ -21848,7 +21861,7 @@ function cicloDetenidoEn(c, ahora){
 
 function cicloAgruparEventos(eventos, ventana){
   const evInicial = cicloEventoInicial();
-  const evs = (eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  const evs = cicloColapsarMismaOcurrencia((eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso)), true);   // P186e
   let actual = null;
   evs.forEach(o => {
     const t = new Date(o.iso).getTime();
@@ -21885,7 +21898,7 @@ function cicloAgruparEventos(eventos, ventana){
    cuenta y una se olvide. */
 function cicloAgruparTodos(eventos, ventana){
   const evInicial = cicloEventoInicial();
-  const evs = (eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso));
+  const evs = cicloColapsarMismaOcurrencia((eventos || []).slice().sort((a,b) => new Date(a.iso) - new Date(b.iso)), true);   // P186e
   const ciclos = [];
   let actual = null;
   evs.forEach(o => {
