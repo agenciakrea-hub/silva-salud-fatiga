@@ -7212,7 +7212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11950,16 +11950,22 @@ function colaReintentar(){
    está esperando a una persona espera lo que haga falta; el tope de 50 es lo que acota la cola. */
 function flushPending(alSalir){
   const q = getPending();
-  if (!q.length) return;
+  if (!q.length) return Promise.resolve();
   const MAX_EDAD = 7 * 24 * 60 * 60 * 1000;
   const vivos = q.filter(x => x && (x.trabado || (Date.now() - x.ts) < MAX_EDAD));
   if (vivos.length !== q.length) setPending(vivos);
-  vivos.forEach(x => {
-    if (x.trabado && !alSalir) return;
-    if (_colaEnVuelo[x.url]) return;      // ya está viajando: no se manda dos veces
-    _colaEnVuelo[x.url] = 1;
-    enviarConCola(x.url, alSalir);
-  });
+  /* ⚠️ P186g · DE A UNO, no todos juntos. Mandados en paralelo, dos registros de la misma familia
+     (dos `salida_casa` del mismo día) llegan al servidor al mismo tiempo, se disputan el candado y
+     —visto en producción— quedaban como dos filas con el mismo id. En serie, el segundo encuentra
+     la fila del primero y la pisa. Al salir (`keepalive` antes de recargar) no hay tiempo de
+     esperar: van juntos como antes. Devuelve la promesa de la tanda para poder esperarla. */
+  const listos = vivos.filter(x => !(x.trabado && !alSalir) && !_colaEnVuelo[x.url]);
+  listos.forEach(x => { _colaEnVuelo[x.url] = 1; });   // se marcan todos ya: el timer de 60 s no los repite
+  if (!listos.length) return Promise.resolve();
+  if (alSalir) return Promise.all(listos.map(x => enviarConCola(x.url, true)));
+  /* El primero sale AHORA (sincrónico, como siempre); los demás, cada uno cuando termina el anterior. */
+  return listos.slice(1).reduce((cadena, x) => cadena.then(() => enviarConCola(x.url, false)),
+                                enviarConCola(listos[0].url, false));
 }
 /* ⚠️ `function(){ flushPending(); }` y NO `flushPending` a secas. El navegador le pasa el `Event`
    como primer argumento, o sea `alSalir` llegaba TRUTHY en cada reconexión: se mandaba con

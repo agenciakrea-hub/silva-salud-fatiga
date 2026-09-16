@@ -134,7 +134,9 @@ PRUEBAS.caso('🔴 el aviso: sale UNA vez, diferido, y también cuando el deteni
         PRUEBAS.igual(cicloEstado(cicloMio(), Date.now(), cicloPlan('')).estado, 'curso', 'guarda: el ciclo vigente es el de hoy, en curso');
         cicloDetenidoRevisar();
         PRUEBAS.igual(toasts.length, 0, 'no sale en el acto: es diferido');
-        await PRUEBAS.esperarA(() => toasts.length > 0, 3000);
+        /* 6 s y no 3: el diferido es de 1,5 s, pero con la pestaña oculta los timers se estrangulan y la
+           corrida completa con dos pestañas cargadas lo pasó de 3 s una vez (2026-09-16, rojo de entorno). */
+        await PRUEBAS.esperarA(() => toasts.length > 0, 6000);
         PRUEBAS.igual(toasts.filter(x => /24 h/.test(x)).length, 1, '⚠️ avisa del ciclo ANTERIOR, una vez');
         cicloDetenidoRevisar();
         await PRUEBAS.esperarA(() => false, 1800);
