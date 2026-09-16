@@ -181,6 +181,27 @@ que nada lo comprobaba.**
 
 Es sincrónico a propósito: ver arriba por qué acá no se puede esperar.
 
+## Medir en un tema (2026-09-16 · P184)
+
+`PRUEBAS.enTema(tema, fn[, sonda])` pone `data-tema`, **comprueba que el tema llegó a la resolución
+de estilos**, corre `fn(tema)` y restaura lo que había (también «nada»). No se cambia el tema a mano
+en un caso: P182 vio una vez a Chrome servir el color final CACHEADO después del cambio (81 lecturas
+en 2 s con el valor del tema anterior), y un auditor que mide así compara un tema consigo mismo y
+dice «0 defectos» sobre un tema que nunca miró. Hoy no se reproduce; por eso se comprueba cada vez.
+
+```js
+['claro', 'oscuro'].forEach(tema => PRUEBAS.enTema(tema, () => { /* medir acá */ }));
+PRUEBAS.enTema('oscuro', () => { /* … */ }, sel);   // sonda propia: el nodo que se va a medir
+```
+
+La sonda por defecto es un div fuera de pantalla pintado con `var(--card)`/`var(--text)`: una
+**propiedad** que depende de los tokens (lo que se vio cacheado). Tiene que medir distinto en los
+dos temas; si mide igual, lanza «el tema no se aplicó» y el caso se pone rojo POR ESO. Dos trampas
+ya pagadas: una `.card` suelta no sirve (la clase no existe global, mide transparente en los dos
+temas), y una sonda propia cuyos colores son iguales en los dos temas a propósito (un botón
+blanco sobre naranja) hace lanzar en falso — ahí se usa la sonda por defecto. `AUDITOR.barrer`
+hace lo mismo con `AUDITOR.sondaDeTema`. Al revés (el tema no se aplica): 17 casos rojos.
+
 ---
 
 ## Cómo correr la suite desde una sesión de Claude
