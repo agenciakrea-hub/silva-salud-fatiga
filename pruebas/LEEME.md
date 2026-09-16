@@ -231,7 +231,10 @@ condición observable (`!zona.hasAttribute('inert')`) con `CARGA_MIN_MS + 3000` 
 
 **Correr UN archivo suelto puede fallar por el ORDEN de la corrida** (P183). Dos casos de
 `q4d-cierre-del-inicio.js` («el prefill del gate…», «el botón atrás vuelve a la portada…») pasan en
-la corrida completa y caen sueltos: dependen de estado que dejan archivos anteriores. Y al revés: un
+la corrida completa y caen sueltos: dependen de estado que dejan archivos anteriores. Lo mismo «el
+cartel no dice "Enviando…" de algo que nadie está enviando» de `p087-error-del-servidor.js` (suelto,
+la barra sigue diciendo «1 registro no se pudo enviar»: otra cola con un pendiente que en la completa
+ya no está; visto 2026-09-16, también con el código anterior). Y al revés: un
 caso puede pasar suelto y caer en la completa por un `#dsec-ciclo` o un filtro de nómina que dejó
 otro. Antes de dar por bueno un archivo, la corrida completa; antes de dar por malo un caso suelto,
 mirar qué deja el archivo anterior.
