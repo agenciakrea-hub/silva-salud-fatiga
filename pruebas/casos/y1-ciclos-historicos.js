@@ -176,8 +176,12 @@ PRUEBAS.caso('⚠️ los ciclos históricos son TODOS, no sólo el último', () 
   const todos = cicloAgruparTodos(eventos, ventana);
   const ultimo = cicloAgruparEventos(eventos, ventana);
   PRUEBAS.igual(todos.length, 5, 'cinco días con su ciclo cada uno');
-  PRUEBAS.igual(JSON.stringify(todos[0]), JSON.stringify(ultimo),
+  /* P079 · el ciclo de siempre viaja además con `previo` (el anterior, para el descanso previo); fuera de
+     eso tiene que ser EXACTAMENTE el primero de la lista. */
+  const sinPrevio = Object.assign({}, ultimo); delete sinPrevio.previo;
+  PRUEBAS.igual(JSON.stringify(todos[0]), JSON.stringify(sinPrevio),
     'el primero de la lista (la más nueva) tiene que ser exactamente el que devuelve la función de siempre');
+  PRUEBAS.cierto(!!ultimo.previo && ultimo.previo.t0 === todos[1].t0, 'y su `previo` es el segundo de la lista (P079)');
   const t0 = todos.map(c => c.t0);
   PRUEBAS.igual(t0.slice().sort((a,b) => b - a), t0, 'la lista sale del más nuevo al más viejo');
 });
