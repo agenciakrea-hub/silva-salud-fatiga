@@ -49,6 +49,43 @@
   const t0 = Date.now();
   const aviso = [];
 
+  /* 0 · CANDADO DE RED (P183r, 2026-09-17). Ningún pedido de la suite llega al endpoint REAL.
+     Lo encontró el verificador de P074: un caso que entra por `onDashData` con credenciales dispara
+     `gestCanSync()` → niveles, reportes, opiniones, casos… contra `SHEETS_DASHBOARD_URL`, el
+     servidor rechaza la contraseña falsa y SUMA AL FRENO DE FUERZA BRUTA de esa cuenta (60 fallos en
+     10 min la frenan). Con el usuario de una empresa real, tres corridas seguidas dejaban al
+     supervisor sin poder entrar.
+     Todo `fetch` a `script.google.com` (los diez webhooks de Apps Script viven ahí) se corta con una
+     promesa que no se resuelve nunca —lo mismo que ya hacía `p043SinRed`— y se cuenta: el reporte y
+     el panel dicen cuántos hubo y a dónde iban, así el caso que los provoca se puede arreglar. Un
+     caso que quiera otra respuesta stubea `window.fetch` como siempre; al restaurarlo vuelve a este
+     candado, no al `fetch` pelado.
+     ⚠️ Lo que pasa ANTES de evaluar este archivo (el arranque de la app en el iframe) no lo cubre:
+     por eso el arnés limpia `localStorage` antes de cargar (sin perfil no hay `tareas_mias`). */
+  if (!window.__redCandado) {
+    const fetchReal = window.fetch;
+    const cortada = window.__redCortada = { n: 0, urls: [] };
+    const esReal = u => /script\.google\.com/.test(String(u && u.url ? u.url : u));
+    window.__redCandado = function (url, opts) {
+      if (esReal(url)) {
+        cortada.n++;
+        let s = String(url && url.url ? url.url : url).replace(/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/, '<endpoint>');
+        /* Los pedidos del panel van por POST con el cuerpo en JSON: sin mirar `action` y `usuario`
+           la lista sería veinte «<endpoint>» iguales y no diría qué caso los provoca. La contraseña
+           no se anota nunca. */
+        try {
+          const cuerpo = opts && opts.body ? String(opts.body) : '';
+          const o = cuerpo ? (cuerpo.charAt(0) === '{' ? JSON.parse(cuerpo) : Object.fromEntries(new URLSearchParams(cuerpo))) : null;
+          if (o) s += ' POST action=' + (o.action || '?') + (o.usuario ? ' usuario=' + String(o.usuario).slice(0, 24) : '');
+        } catch (e) {}
+        if (cortada.urls.length < 40) cortada.urls.push(s.replace(/([?&])(pass|sesion)=[^&]*/g, '$1$2=…').slice(0, 160));
+        return new Promise(function () {});
+      }
+      return fetchReal.apply(window, arguments);
+    };
+    window.fetch = window.__redCandado;
+  }
+
   try {
     /* 1 · El marco y el emulador. */
     await cargarScript('marco.js');
@@ -140,6 +177,18 @@
     /* 5 · Correr. */
     const rep = await PRUEBAS.correr();
     rep.duracionMs = Date.now() - t0;
+    /* P183r · lo que el candado cortó. No pone la corrida en rojo —el candado está para eso—, pero
+       se avisa: cada pedido cortado es un caso que hoy golpearía producción si el candado no estuviera. */
+    rep.redCortada = { n: window.__redCortada.n, urls: window.__redCortada.urls.slice() };
+    if (window.__redCortada.n) {
+      /* resumido por acción y cuenta: «action=supervisor usuario=* ×12», para saber a qué cuenta le
+         estaría sumando fallos cada corrida si el candado no estuviera */
+      const porClave = {};
+      window.__redCortada.urls.forEach(u => { const k = u.replace(/^<endpoint>\??[^ ]*/, '').trim() || u.slice(0, 60); porClave[k] = (porClave[k] || 0) + 1; });
+      aviso.push('el candado de red cortó ' + window.__redCortada.n + ' pedido(s) al endpoint real · ' +
+        Object.keys(porClave).map(k => k + ' ×' + porClave[k]).join(' · ') +
+        ' · algún caso entra por onDashData con credenciales y sin stubear la red (ver rep.redCortada)');
+    }
     rep.avisos = aviso;
     rep.version = (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '?';
     /* ⚠️ UNA CORRIDA INCOMPLETA NO ES UNA CORRIDA VERDE. Sin el emulador del endpoint levantado se

@@ -56,6 +56,21 @@ son del cambio. Y si el caso es **intermitente**, una corrida en verde no prueba
 con **cinco corridas seguidas**, porque algo que falla la mitad de las veces pasa la mitad de las
 veces por definición.
 
+## ⚠️ El candado de red (2026-09-17 · P183r)
+
+**Ningún pedido de la suite llega al endpoint real.** `correr.js` instala, antes de cargar los casos,
+un `window.fetch` que corta todo lo que vaya a `script.google.com` (los diez webhooks de Apps Script)
+con una promesa que no se resuelve nunca, y lo cuenta: el reporte trae `redCortada` y el panel avisa
+«el candado de red cortó N pedidos · action=… usuario=… ×k». El día que se puso, **la corrida completa
+cortó 182 pedidos**: la suite llevaba desde el 22/08 escribiendo `operacional_guardar` y `turno_guardar`
+en el CH de producción con «Persona De Prueba» (150 de las 239 filas de `Operacional` eran de la suite)
+y golpeando `supervisor`/`niveles`/`opiniones` con la cuenta real de una empresa y contraseñas falsas,
+que suman al freno de fuerza bruta (60 en 10 min la frenan).
+Reglas que quedan: un caso que necesite una respuesta stubea `window.fetch`/`fetchConReloj` como
+siempre y al restaurar vuelve al candado (`window.__redCandado`), no al `fetch` pelado. Lo que la
+app dispara ANTES de evaluar `correr.js` (el arranque del iframe) no lo cubre: por eso el arnés limpia
+`localStorage` antes de cargar. `humo-red.js` lo prueba con discriminador (un pedido local sí llega).
+
 ## Correr UN archivo mientras se trabaja (2026-09-15)
 
 `window.SOLO_CASOS = ['p185-visor-servidor.js']` en el iframe **antes** de evaluar `correr.js`
