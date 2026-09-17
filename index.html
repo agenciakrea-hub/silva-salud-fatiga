@@ -1017,7 +1017,7 @@
 
   /* ── Test interactivo (prueba) ── */
   #testOverlay .sheet { min-height: 600px; display: flex; flex-direction: column; }
-  .test-progress { width: 100%; height: 6px; background: var(--linea); border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
+  .test-progress { width: 100%; height: 8px; background: var(--pista); border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
   .test-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--orange), var(--orange-2)); border-radius: 999px; transition: width .3s ease; }
   .test-count { font-size: 0.74rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
   #testQuestion { min-height: 4.6rem; display: flex; align-items: center; }
@@ -1705,7 +1705,7 @@
   .pvt-info strong { color: var(--text); }
   .pvt-steps { text-align: left; font-size: .85rem; color: var(--text-soft); line-height: 1.6; margin: 1rem 0 1.3rem; padding-left: 1.1rem; }
   .pvt-steps li { margin: .25rem 0; }
-  .pvt-progress { height: 6px; background: var(--linea); border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
+  .pvt-progress { height: 8px; background: var(--pista); border-radius: 999px; overflow: hidden; margin-bottom: 1rem; }
   .pvt-progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--orange), var(--orange-2)); transition: width .2s linear; }
   .pvt-stage { height: 320px; background: #0e2a56; border-radius: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   .pvt-msg { color: #fff; font-size: 1.1rem; font-weight: 700; padding: 1rem; }
@@ -2010,6 +2010,8 @@
   .cargando-caja { display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: .7rem; padding: 2.2rem 1rem; color: var(--text-muted); }
   .cargando-caja .cargador { --cg: 52px; }
+  .tar-cargando .cargando-caja { padding: .5rem 0 .7rem; }   /* la franja arriba de la lista de tareas mientras se actualiza */
+  .tar-cargando .cargando-caja .cargador { --cg: 30px; }
   .cargando-caja span { font-size: .84rem; font-weight: 600; }
 
   /* P044 · Q2: el cargador quedaba 8-9 px más abajo que el centro del texto (medido en el
@@ -6061,7 +6063,7 @@
     <p class="lead" data-i18n="tar_lead">Lo que tu supervisor o el servicio médico te pidieron, y los avisos de la aplicación.</p>
     <div id="tareasLista"></div>
     <div class="nom-pie">
-      <button type="button" class="nom-link" onclick="tareasRefrescar()" data-i18n="tar_actualizar">Actualizar</button>
+      <button type="button" class="nom-link" onclick="tareasRefrescar(this)" data-i18n="tar_actualizar">Actualizar</button>
       <button type="button" class="nom-link" onclick="tareasCerrarUI()" data-i18n="cerrar">Cerrar</button>
     </div>
   </div>
@@ -7292,7 +7294,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.61';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.62';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7774,6 +7776,7 @@ const I18N = {
       lgn_luego:'Ahora no', lgn_listo:'Listo. Este dispositivo queda recordado.',
       lgn_faltan:'Escribe tu cédula y tu contraseña.',
       lgn_mal:'La cédula o la contraseña no coinciden.',
+      lgn_reiniciada_sin_perfil:'Tu contraseña se reinició y todavía no elegiste la nueva. Toca «Ingresar», escribe el código de tu empresa y tu cédula: la aplicación te va a pedir la contraseña nueva.',
       lgn_sin_red:'Necesitas conexión para entrar. Tus datos guardados aquí siguen disponibles.',
       lgn_olvide:'Olvidé mi contraseña',
       /* Se dice la verdad: la contraseña se guarda cifrada y nadie puede devolverla, tampoco
@@ -8894,7 +8897,7 @@ const I18N = {
       tar_lead:'Lo que tu supervisor o el servicio médico te pidieron, y los avisos de la aplicación.',
       tar_vacio:'No tienes tareas pendientes.',
       tar_sin_perfil:'Completa tus datos para ver tus tareas.',
-      tar_actualizar:'Actualizar',
+      tar_actualizar:'Actualizar', tar_actualizando:'Actualizando…',
       tar_de_medico:'Servicio médico', tar_de_supervisor:'Supervisor', tar_de_sistema:'Sistema',
       tar_vence:'Vence el {f}', tar_vencio:'Venció el {f}', tar_sin_plazo:'Sin plazo',
       tar_marcar:'Marcar como hecha', tar_hecha:'Hecha', tar_listo:'Listo, quedó registrado',
@@ -9641,6 +9644,7 @@ const I18N = {
       lgn_luego:'Not now', lgn_listo:'Done. This device will be remembered.',
       lgn_faltan:'Enter your ID number and your password.',
       lgn_mal:'The ID number or password do not match.',
+      lgn_reiniciada_sin_perfil:'Your password was reset and you have not chosen the new one yet. Tap "Sign in", enter your company code and your ID number: the app will ask you for the new password.',
       lgn_sin_red:'You need a connection to sign in. Your data saved here is still available.',
       lgn_olvide:'I forgot my password',
       lgn_olvide_d:'Your password is stored encrypted and cannot be recovered. Ask your supervisor or the medical service to reset it from their panel, in the staff list. Then you can choose a new one next time you open the app.',
@@ -10802,7 +10806,7 @@ const I18N = {
       tar_lead:'What your supervisor or the medical service asked of you, and the app\'s notices.',
       tar_vacio:'You have no pending tasks.',
       tar_sin_perfil:'Complete your details to see your tasks.',
-      tar_actualizar:'Refresh',
+      tar_actualizar:'Refresh', tar_actualizando:'Refreshing…',
       tar_de_medico:'Medical staff', tar_de_supervisor:'Supervisor', tar_de_sistema:'System',
       tar_vence:'Due {f}', tar_vencio:'Was due {f}', tar_sin_plazo:'No deadline',
       tar_marcar:'Mark as done', tar_hecha:'Done', tar_listo:'Done, it has been logged',
@@ -13387,9 +13391,25 @@ function cicloDetenidoRevisar(){
   clearTimeout(_cicDetRevisarT);
   _cicDetRevisarT = setTimeout(cicloDetenidoRevisarAhora, 1500);
 }
+/* ⚠️ Franco (2026-09-17): «inicié un ciclo y recién ahí me llegó el aviso de que el ciclo del 14 se
+   detuvo; ¿por qué esperar a que toque el botón?». No esperaba por diseño: la revisión corre con el
+   repintado del inicio, y si la app estaba en segundo plano en ese momento (`document.hidden`) se
+   saltaba «hasta el próximo repintado» — que era el toque del botón. Ahora, oculta, se anota UNA vez
+   para correr apenas la app vuelva a estar a la vista. R16: `var` sin asignar. */
+var _cicDetAlVolver;
+function cicloDetenidoRevisarAlVolver(){
+  if (_cicDetAlVolver) return;
+  _cicDetAlVolver = true;
+  document.addEventListener('visibilitychange', function h(){
+    if (document.hidden) return;
+    document.removeEventListener('visibilitychange', h);
+    _cicDetAlVolver = false;
+    cicloDetenidoRevisar();
+  });
+}
 function cicloDetenidoRevisarAhora(){
     try {
-      if (document.hidden) return;                       // se vuelve a intentar en el próximo repintado
+      if (document.hidden){ cicloDetenidoRevisarAlVolver(); return; }   // oculta: se revisa apenas vuelva a verse
       const plan = cicloPlan(cicloYo());
       const ciclos = cicloAgruparTodos(cicloMioAll(), cicloTotalMin(plan) * 60000) || [];
       const ahora = Date.now();
@@ -14360,11 +14380,21 @@ function tTest(clave, canonico){
   return (v === clave) ? canonico : v;   // t() devuelve la clave cuando no hay traducción
 }
 
+/* ⚠️ P083 · LA BARRA DE PROGRESO SE VEÍA VACÍA. Los seis flujos pintaban `idx / total`: la primera
+   pregunta era 0 % (nada), la última quedaba corta, y el 100 % sólo al terminar. Franco: «en los tests
+   no se ve la barra de progreso arriba». Una sola función: la pregunta N de T pinta N / T (20 % en la
+   primera de cinco) y llega a 100 % en la última. */
+function testProgresoPintar(idx, total){
+  const b = document.getElementById('testProgressBar');
+  if (!b) return;
+  const pct = (total > 0) ? Math.min(100, Math.max(0, Math.round((idx + 1) / total * 100))) : 0;
+  b.style.width = pct + '%';
+}
 function renderTestPaso(){
   const total = TEST_DEPRESION.length;
   updateBackBtn(testIdx > 0);
   document.getElementById('testCount').textContent = t('test_pregunta_n', { n: testIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (testIdx / total * 100) + '%';
+  testProgresoPintar(testIdx, total);
   document.getElementById('testQuestion').textContent = tTest('dep_q' + testIdx, TEST_DEPRESION[testIdx]);
   document.getElementById('testOptions').innerHTML = TEST_ESCALA.map((lbl, i) => `
     <button type="button" class="test-opt" onclick="responderTest(${i})">
@@ -14485,7 +14515,7 @@ function renderPerelliStep(){
   const total = PERELLI_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_pregunta_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = step.question;
   perelliState.currentMultiSelected = new Set();
   perelliState.currentGridRatings = {};
@@ -14743,7 +14773,7 @@ function renderKssStep(){
   const total = KSS_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_pregunta_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = tTest('kss_q' + stepIdx, step.question);
   if (step.type === 'single') renderKssSingle(step);
   else if (step.type === 'optional-text') renderKssComment(step);
@@ -14835,7 +14865,7 @@ function renderEstresStep(){
   const total = ESTRES_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = tTest('str_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
     const lbl = tTest('str_e' + i, opt).replace(/^\d+ = /, '');
@@ -14889,7 +14919,7 @@ function renderAnsiedadStep(){
   const total = ANSIEDAD_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = tTest('anx_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
     `<button type="button" class="test-opt" onclick="ansiedadPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${esc(tTest('anx_e' + i, opt).replace(/^\d+ = /,''))}</span></button>`
@@ -14938,7 +14968,7 @@ function renderGastroStep(){
   const total = GASTRO_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_sintoma_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = tTest('gas_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) =>
     `<button type="button" class="test-opt" onclick="gastroPickSingle(${i})"><span class="dot" style="background:${step.colors[i]}"></span><span class="lbl">${esc(tTest('gas_e' + i, opt).replace(/^\d+ = /,''))}</span></button>`
@@ -14989,7 +15019,7 @@ function renderCansancioStep(){
   const total = CANSANCIO_STEPS.length;
   updateBackBtn(stepIdx > 0);
   document.getElementById('testCount').textContent = t('test_pregunta_n', { n: stepIdx + 1, total: total });
-  document.getElementById('testProgressBar').style.width = (stepIdx / total * 100) + '%';
+  testProgresoPintar(stepIdx, total);
   document.getElementById('testQuestion').textContent = tTest('mbi_q' + stepIdx, step.question);
   document.getElementById('testOptions').innerHTML = step.options.map((opt, i) => {
     const lbl = tTest('mbi_e' + i, opt).replace(/^\d+ = /, '');
@@ -29019,6 +29049,18 @@ function lgnEntrar(btn){
     .then(r => r.json())
     .then(d => {
       btnSpin(btn, false);
+      /* Le reiniciaron la contraseña (2026-09-17): el servidor ahora lo dice también acá. Con el perfil
+         en el teléfono se abre «elige una nueva»; sin perfil (reingreso) no hay a quién ponérsela
+         todavía: se le dice el camino (Ingresar con el código de la empresa y su cédula). */
+      if (d && !d.ok && d.motivo === 'clave_reiniciada'){
+        const pp = getProfile() || {};
+        if (pp.cedula && pp.empresa && dashNorm(pp.cedula) === dashNorm(cedula)){
+          try { lgnCerrar(); } catch(e){}
+          if (clvReiniciadaAtender()) return;
+        }
+        err.textContent = t('lgn_reiniciada_sin_perfil');
+        return;
+      }
       if (!d || !d.ok){ err.textContent = tError(d && d.error) || t('lgn_mal'); return; }
       tieneClaveMarcar(true, cedula);                // P166c · entró con ella: la tiene · P174 · y es la de ESA cédula
       lgnAplicarEntrada(d, cedula, empresaLogin);   // P166b · lo mismo que aplica el atajo del admin
@@ -31141,14 +31183,22 @@ function tareasCerrar(){ document.getElementById('tareasOv').classList.remove('s
    5 aperturas y cierres por el X dejaban 5 entradas huérfanas, exactamente el número que P048
    midió en X2 — el botón físico "atrás" no responde una vez por cada una. */
 function tareasCerrarUI(){ tareasCerrar(); navConsumir(); }
-function tareasRefrescar(){
+function tareasRefrescar(btn){
   const cont = document.getElementById('tareasLista');
   /* Esqueleto con la FORMA de lo que va a llegar (filas de persona), no el texto "Cargando…". */
   if (cont && !TAREAS.lista.length && !notifLocalItems().length) cont.innerHTML = skeletonHtml('persona', 3);
+  /* ⚠️ Franco (2026-09-17): «le di a Actualizar y no hay feedback». Con la lista ya pintada no había
+     esqueleto, y el bloqueo de la hoja sólo la atenúa. Ahora el botón lleva el cargador de
+     cuadraditos mientras el pedido viaja, y la lista, una franja arriba con el mismo cargador. */
+  if (btn) btnSpin(btn, true, t('tar_actualizando'));
+  else if (cont && (TAREAS.lista.length || notifLocalItems().length) && !cont.querySelector('.tar-cargando'))
+    cont.insertAdjacentHTML('afterbegin', '<div class="tar-cargando">' + cargandoHtml(t('tar_actualizando')) + '</div>');
   /* Y la hoja entera queda fuera de alcance mientras tanto: sin esto se podía tocar "Actualizar"
      tres veces seguidas, o cerrar y reabrir, y quedaban pedidos pisándose. */
   const hoja = document.querySelector('#tareasOv .sheet');
-  return conCarga(hoja, tareasCargar().then(tareasPintar)).catch(() => {});
+  return conCarga(hoja, tareasCargar().then(tareasPintar))
+    .catch(() => {})
+    .finally(() => { if (btn) btnSpin(btn, false); const f = cont && cont.querySelector('.tar-cargando'); if (f) f.remove(); });
 }
 function tareasPintar(){
   const cont = document.getElementById('tareasLista');

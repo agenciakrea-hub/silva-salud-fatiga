@@ -229,3 +229,29 @@ PRUEBAS.caso('⚠️ el texto de «Olvidé mi contraseña» ahora nombra algo qu
     PRUEBAS.falso(/\bvos\b|\btenés\b|\bpodés\b/i.test(txt), 'R1 · español neutro');
   } finally { if (antes == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, antes); }
 });
+
+/* ── 2026-09-17 · Rafael perdió la contraseña, se la reiniciaron, y el LOGIN le decía «incorrecta» ── */
+PRUEBAS.caso('🔴 con la contraseña reiniciada, el LOGIN dice «elige una nueva» (clave_reiniciada), no «incorrecta», y no suma al freno', () => {
+  if (p174Sin()) return;
+  const api = p174Env(['accFrenado', 'accAnotarFallo']);
+  PRUEBAS.igual(api.__crearClave('V-111', 'ClaveVieja1').ok, true, 'precondición · Ana tenía contraseña');
+  PRUEBAS.igual(api.__reiniciar().ok, true, 'precondición · el supervisor la reinició');
+  /* Ana escribe una contraseña cualquiera en el login (es lo que hace quien la perdió) */
+  const r = api.__login('V-111', 'LaQueSeaNueva9');
+  PRUEBAS.igual([r.ok, r.motivo], [false, 'clave_reiniciada'], '🔴 el login responde clave_reiniciada, no «incorrecta» · ' + (r.error || ''));
+  /* y aunque lo intente seis veces, no queda frenada: cada intento antes sumaba un fallo */
+  for (let i = 0; i < 7; i++) api.__login('V-111', 'Otra' + i);
+  PRUEBAS.falso(api.accFrenado('__persona__Consorcio HELITEC|111', 'd2'), '🔴 siete intentos con la credencial reiniciada NO frenan a la persona');
+  /* elige la nueva y entra */
+  PRUEBAS.igual(api.__crearClave('V-111', 'ClaveNueva2').ok, true, 'crea la nueva');
+  PRUEBAS.igual(api.__login('V-111', 'ClaveNueva2').ok, true, 'y entra con ella');
+  /* DISCRIMINADOR · con hash puesto, una contraseña mala sigue siendo «incorrecta» y sí suma al freno */
+  const m = api.__login('V-111', 'Mala');
+  PRUEBAS.igual([m.ok, m.motivo], [false, 'credenciales'], 'DISCRIMINADOR · con contraseña vigente, la mala es «incorrecta»');
+  for (let i = 0; i < 7; i++) api.__login('V-111', 'Mala' + i);
+  PRUEBAS.cierto(api.accFrenado('__persona__Consorcio HELITEC|111', 'd2'), 'y ocho malas seguidas sí frenan');
+  /* una fila de baja sin hash no dice «reiniciada»: no revela nada de quien no está */
+  const bajaEnv = p174Env();
+  const r0 = bajaEnv.__login('V-999', 'x');
+  PRUEBAS.igual(r0.motivo, 'credenciales', 'sin credencial: «incorrecta», como siempre');
+});
