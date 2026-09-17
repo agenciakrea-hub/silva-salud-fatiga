@@ -137,7 +137,10 @@ PRUEBAS.caso('🔴 leerDuty entiende el detenido: la jornada queda detenida, sin
   const api = p186Api(['cicloDetenerVencidos', 'leerOperacional', 'leerDuty']);
   const antes = api.leerDuty(api.leerOperacional(3), 3);
   const fA0 = (antes.diario || []).find(f => f.persona === 'Ana Suárez');
-  PRUEBAS.cierto(!!fA0 && fA0.abierto === true && !fA0.detenido, 'DISCRIMINADOR · antes del disparador, la jornada de Ana está abierta y no detenida');
+  /* P077 · el «sin cierre» a 1,5× es una lectura del CLIENTE; el servidor sigue la regla de Y4: la jornada de
+     Ana a 25 h sigue ABIERTA (el `abandonado` recién entra a 2 × total = 28 h) y sin detener. Este
+     discriminador se había perdido en un intento de unificar las dos reglas que después se revirtió. */
+  PRUEBAS.cierto(!!fA0 && fA0.abierto === true && !fA0.detenido, 'DISCRIMINADOR · antes del disparador, la jornada de Ana está abierta y NO detenida');
   api.cicloDetenerVencidos(false, P186_AHORA, P186_DESDE_LEJOS);
   const despues = api.leerDuty(api.leerOperacional(3), 3);
   const fA = (despues.diario || []).find(f => f.persona === 'Ana Suárez');

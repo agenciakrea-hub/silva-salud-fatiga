@@ -4263,6 +4263,14 @@
      autoridades distintas y no se pueden leer como lo mismo de un vistazo. */
   .apt-restr { margin-top:.55rem; padding:.5rem .6rem; border-radius:var(--radius-sm);
     background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); }
+  /* P078 · el ciclo en la tarjeta de Aptitud y el semáforo en la del ciclo.
+     ⚠️ Fuera de cualquier bloque: la primera versión quedó ADENTRO de `.apt-restr { … }` y, con CSS
+     Nesting, el navegador leyó `.apt-restr .apt-ciclo` — ningún elemento lo cumplía y el botón salía
+     con el estilo nativo. La suite no lo vio porque miraba el HTML, no `getComputedStyle` (R17). */
+  .apt-ciclo { display:flex; align-items:center; gap:.45rem; margin:.45rem 0 0; padding:.35rem .5rem; border:1px solid var(--linea); border-radius:var(--radius-sm); background:transparent; color:var(--text); font:inherit; font-size:.78rem; cursor:pointer; width:100%; text-align:left; }
+  .apt-ciclo-lleva { color:var(--text-soft); }
+  .apt-ciclo-lleva b { color:var(--text); font-variant-numeric:tabular-nums; }
+  .cic-apt { display:inline-flex; align-items:center; gap:.3rem; margin:.35rem 0 0; padding:.22rem .55rem; border-radius:999px; font-size:.74rem; color:var(--anct); background:var(--anbg); }
   .apt-restr-top { font-size:.68rem; font-weight:800; color:var(--sem-azul); text-transform:uppercase; letter-spacing:.03em; }
   .apt-restr-tarea { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.2rem; }
   .apt-restr-mit { font-size:.76rem; font-weight:700; color:var(--sem-azul-int); margin-top:.15rem; }
@@ -4600,6 +4608,8 @@
   .apt-act-telem { border-color:var(--sem-azul-int); color:var(--sem-azul-int); }
   .fm-chip-telem { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
   .fm-chip-autorep { color:var(--sem-ambar-txt); background:var(--sem-ambar-bg); }   /* P075 */
+  .fm-chip-jornada { color:var(--text-soft); background:var(--sem-gris-bg); }         /* P078 · horas del período */
+  .fm-chip-jornada-exc { color:var(--sem-ambar-txt); background:var(--sem-ambar-bg); }   /* P078 · con exceso */
   .fm-telem-accion { font-size:.82rem; color:var(--text-soft); line-height:1.5; }
   .fm-telem-accion .fm-nota-btn { display:block; margin-top:.5rem; }
   /* Tarjeta de telemedicina en la vista de la PERSONA */
@@ -4661,6 +4671,8 @@
     border-radius: var(--radius-sm); padding: 1rem; }
   .cic-full-card.cic-est-excedido { border-color: var(--sem-rojo); }
   .cic-full-card.cic-est-detenido { border-color: var(--sem-ambar); }   /* P186 */
+  .cic-full-card.cic-est-cerrado { border-color: var(--sem-gris); }   /* P077 */
+  .cic-full-card.cic-est-sin_cierre { border-color: var(--sem-ambar); }   /* P077 */
 
   /* La barra: de 34 px fijos a una altura que sigue al ancho de la pantalla. El tope de 96 px no
      es estético — más alto que eso y los puntos de evento (13 px) quedan perdidos en el medio. */
@@ -4839,6 +4851,8 @@
   .cic-kpi-comp  b { color:var(--sem-verde-txt); }
   .cic-kpi-desc  b { color:var(--sem-azul-int); }
   .cic-kpi-det   b { color:var(--sem-ambar-txt); }   /* P186 */
+  .cic-kpi-sinc  b { color:var(--sem-ambar-txt); }   /* P077 · sin marcar la salida */
+  .cic-kpi-cerr  b { color:var(--sem-gris-txt); }    /* P077 · cerrado por el supervisor */
   /* ⚠️ `auto-fit` y no puntos de corte a mano: es lo que ya se hizo con los tramos del ciclo y con
      las tarjetas del inicio, y la razón es la misma — el número de columnas lo decide el espacio
      disponible, no una lista de anchos que hay que ir manteniendo. Con `minmax` en `rem` se adapta
@@ -4857,6 +4871,8 @@
     padding:.85rem .85rem .8rem; }
   .cic-est-excedido { border-color:var(--sem-rojo); }
   .cic-est-detenido { border-color:var(--sem-ambar); }   /* P186 · problema de registro: ámbar, no rojo */
+  .cic-est-cerrado { border-color:var(--sem-gris); }   /* P077 */
+  .cic-est-sin_cierre { border-color:var(--sem-ambar); }   /* P077 · problema de registro probable: ámbar, no rojo */
   .cic-est-inactivo { opacity:.66; }
   /* I2: medía 307x18. Además de quedar lejos de los 44, era la fila MÁS densa de la tarjeta
      más densa de la app. Subir el mínimo resuelve las dos cosas de una. */
@@ -4872,6 +4888,8 @@
   .cic-chip-completo { color:var(--sem-verde-int);  background:var(--sem-verde-int-bg); }
   .cic-chip-descanso { color:var(--sem-azul-int);   background:var(--sem-azul-bg); }
   .cic-chip-detenido { color:var(--sem-ambar-txt);  background:var(--sem-ambar-bg); }   /* P186 */
+  .cic-chip-cerrado { color:var(--sem-gris-txt); background:var(--sem-gris-bg); }      /* P077 · cerrado por el supervisor */
+  .cic-chip-sin_cierre { color:var(--sem-ambar-txt); background:var(--sem-ambar-bg); }  /* P077 · probablemente no marcó la salida */
   .cic-chip-inactivo { color:var(--text-muted);     background:var(--chip-bg); }
   .cic-sub { font-size:.75rem; color:var(--text-muted); font-weight:600; margin-top:.2rem; line-height:1.5; }
   .cic-reloj { font-weight:700; color:var(--text-soft); }
@@ -4931,6 +4949,8 @@
   .cic-tr-exc .cic-tr-det, .cic-tr-exc .cic-tr-val b { color:var(--sem-rojo-txt); font-weight:800; }
   .cic-tr-detenido { border-left-color:var(--sem-ambar); background:var(--sem-ambar-bg); }   /* P186 */
   .cic-tr-detenido .cic-tr-det { color:var(--sem-ambar-txt); font-weight:700; }
+  .cic-tr-sincierre { border-left-color:var(--sem-ambar); background:var(--sem-ambar-bg); }   /* P077 · probablemente no marcó el botón */
+  .cic-tr-sincierre .cic-tr-det, .cic-tr-sincierre .cic-tr-val b { color:var(--sem-ambar-txt); font-weight:700; }
   .cic-tr-futuro { border-left-color:var(--ch-neutro); }
   .cic-tr-futuro .cic-tr-val { color:var(--text-muted); }
   .cic-test { display:inline-block; font-size:.66rem; font-weight:800; padding:.05rem .4rem;
@@ -7217,7 +7237,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7847,7 +7867,7 @@ const I18N = {
       cic_cfg_reentrar:'Vuelve a entrar con tu usuario para poder guardar.',
       cic_cfg_conf_igual:'Sin cambios respecto de lo que muestra este panel',
       cic_cfg_conf_demo:'¿Guardar estas horas para toda la empresa? {cambios}. En el ejemplo no se registra nada.',
-      cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo-txt)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Si pasan <b>24 h sin el paso siguiente</b>, el ciclo se <b style="color:var(--sem-ambar-txt)">detiene solo</b>: deja de contar, queda registrado y no cuenta como exceso — es un olvido de registro, no una jornada larga. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
+      cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo-txt)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Si un tramo lleva <b>más de una vez y media lo previsto</b> sin el paso siguiente, se lee <b style="color:var(--sem-ambar-txt)">«Sin marcar la salida»</b>: lo más probable es que la persona ya salió y no tocó el botón; el reloj sigue, pero ya no es una alarma. Ahí aparece <b>«Cerrar ciclo»</b>: lo cierras tú, con confirmación, queda firmado en la bitácora con tu nombre y no se inventa la hora de salida (el tramo queda «—»). Si pasan <b>24 h sin el paso siguiente</b>, el ciclo se <b style="color:var(--sem-ambar-txt)">detiene solo</b>: deja de contar, queda registrado y no cuenta como exceso — es un olvido de registro, no una jornada larga. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
       cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
       rango_admin:'Administrador', rango_personal:'Personal',
@@ -8061,12 +8081,26 @@ const I18N = {
       cic_e_detenido:'Detenido a las {h} h',
       cic_detenido_detalle:'Se detuvo a las {h} h sin el paso siguiente',
       op_detenido:'Se detuvo a las {h} h',
-      jor_detenido:'detenido',
+      jor_detenido:'detenido', jor_cerrado:'cerrado por el supervisor',   // P077
       cic_kpi_det:'detenidos',
+      cic_kpi_sin_cierre:'sin marcar la salida', cic_kpi_cerrado:'cerrados por el supervisor',   // P077
       cic_mio_detenido:'Tu ciclo {f} se detuvo a las {h} h: no se registraron los pasos siguientes.{reg} Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
       cic_mio_registrado:' Quedó registrado.',
       cic_mio_detenido_corto:'Se detuvo a las {h} h porque no se registraron los pasos siguientes.',
       ts_ciclo_detenido:'Tu ciclo {f} se detuvo a las {h} h sin los pasos siguientes',
+      // P077 · cerrado por el supervisor y «sin marcar la salida»
+      cic_e_cerrado:'Cerrado por el supervisor', cic_e_sin_cierre:'Sin marcar la salida',
+      cic_apt_lbl:'Aptitud:',   // P078
+      fm_chip_jornada:'{h} de jornada · {e} de exceso · {n} día(s)',
+      cic_cerrado_detalle:'Lo cerró el supervisor a las {h}: no se sabe cuánto duró',
+      cic_sin_cierre_detalle:'Pasó de largo lo previsto sin «{ev}»: lo más probable es que no se marcó',
+      cic_act_cerrar:'Cerrar ciclo',
+      cic_cerrar_q:'¿Cerrar el ciclo de {p}?\n\nQueda registrado como cerrado por ti, con la hora. No cambia lo que la persona marcó: se agrega el cierre.',
+      ts_ciclo_cerrado:'Ciclo cerrado y registrado',
+      ts_ciclo_cerrado_sin_bitacora:'Ciclo cerrado, pero el registro en la bitácora no se pudo escribir. Avisa al administrador.',
+      cic_mio_cerrado:'Tu ciclo {f} lo cerró tu supervisor a las {h}. Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
+      ts_jornada_vencida:'No marcaste «{ev}» y ya pasó lo previsto. Si ya ocurrió, márcalo ahora (queda con la hora de ahora); si sigues en eso, no hace falta hacer nada.',
+      ts_jornada_vencida_tarde:'No marcaste «{ev}» y pasó demasiado tiempo. No lo marques ahora: avísale a tu supervisor para que cierre el ciclo.',
       cic_e_curso:'En curso', cic_e_exc:'Pasado de tiempo', cic_e_desc:'En descanso',
       cic_e_comp:'Completo', cic_e_sin:'Sin iniciar',
       cic_sin_jornadas:'No se pudieron leer las jornadas configuradas por persona. Se está midiendo a todos contra la jornada de la empresa.',
@@ -8545,6 +8579,7 @@ const I18N = {
       // P074 · las acciones que escribe el SERVIDOR salían con la clave cruda (R14)
       acc_ciclo_plan:'Horas del ciclo de la empresa cambiadas', acc_ciclo_persona:'Jornada propia asignada',
       acc_ciclo_persona_q:'Jornada propia quitada', acc_ciclo_detenido:'Ciclo detenido por el sistema',
+      acc_ciclo_cerrado:'Ciclo cerrado por el supervisor',   // P077
       acc_nomina_sync:'Nómina sincronizada', acc_cred_creada:'Contraseña creada',
       acc_cred_cambiada:'Contraseña cambiada', acc_cred_reiniciada:'Contraseña reiniciada',
       acc_cred_aviso:'Aviso de contraseña creada', acc_accesos_admin:'Acceso de administrador actualizado',
@@ -8797,6 +8832,9 @@ const I18N = {
       /* P186c · avisos que genera la propia app (no vienen del servidor). Se guardan como HECHO
          (tipo + datos) y el texto se arma al pintar, así cambia con el idioma. */
       notif_det_titulo:'Tu ciclo {f} se detuvo a las {h} h',
+      notif_exc_titulo:'Tu ciclo {f}: no marcaste «{ev}»',   // P077
+      notif_exc_detalle:'Ya pasó lo previsto para ese paso. Si ya ocurrió, toca «{ev}» en Data Operacional (queda con la hora de ahora); si sigues en eso, no hace falta hacer nada.',
+      notif_exc_detalle_tarde:'Pasó demasiado tiempo para marcarlo: quedaría con una hora que no es. Si ya ocurrió, avísale a tu supervisor para que cierre el ciclo; si sigues en eso, no hace falta hacer nada.',
       notif_det_detalle:'No se registraron los pasos siguientes. Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
       notif_entendido:'Entendido', notif_de:'Aviso {f}',
       tar_est_sin_leer:'Sin leer', tar_est_leida:'Leída', tar_est_hecha:'Hecha', tar_est_vencida:'Vencida',
@@ -9655,7 +9693,7 @@ const I18N = {
       cic_cfg_reentrar:'Sign in again with your user to be able to save.',
       cic_cfg_conf_igual:'No changes compared with what this panel shows',
       cic_cfg_conf_demo:'Save these hours for the whole company? {cambios}. Nothing is logged in the demo.',
-      cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo-txt)">red</b> with the excess counting up, so you can act on it. If <b>24 h go by without the next step</b>, the cycle <b style="color:var(--sem-ambar-txt)">stops by itself</b>: it stops counting, it is logged and it does not count as excess — it is a logging slip, not a long shift. Anyone who has not tapped anything still appears, <b>in grey</b>.',
+      cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo-txt)">red</b> with the excess counting up, so you can act on it. If a segment runs <b>more than one and a half times the plan</b> without the next step, it reads <b style="color:var(--sem-ambar-txt)">"Exit not marked"</b>: most likely the person already left and did not tap the button; the clock keeps running, but it is no longer an alarm. That is where <b>"Close cycle"</b> appears: you close it, with confirmation, it is signed in the log with your name and no exit time is made up (the segment shows "—"). If <b>24 h go by without the next step</b>, the cycle <b style="color:var(--sem-ambar-txt)">stops by itself</b>: it stops counting, it is logged and it does not count as excess — it is a logging slip, not a long shift. Anyone who has not tapped anything still appears, <b>in grey</b>.',
       cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
       // ── Perelli and KSS: what does NOT change by sector (C2). Instrument scales. ──
       pf_q_nivel:'How would you rate your overall level of fatigue right now?',
@@ -9897,12 +9935,26 @@ const I18N = {
       cic_e_detenido:'Stopped at {h} h',
       cic_detenido_detalle:'Stopped at {h} h without the next step',
       op_detenido:'Stopped at {h} h',
-      jor_detenido:'stopped',
+      jor_detenido:'stopped', jor_cerrado:'closed by the supervisor',   // P077
       cic_kpi_det:'stopped',
+      cic_kpi_sin_cierre:'exit not marked', cic_kpi_cerrado:'closed by the supervisor',   // P077
       cic_mio_detenido:'Your cycle {f} stopped at {h} h: the next steps were not recorded.{reg} When you go out again, tap "{primero}" and start a new one.',
       cic_mio_registrado:' It has been logged.',
       cic_mio_detenido_corto:'Stopped at {h} h because the next steps were not recorded.',
       ts_ciclo_detenido:'Your cycle {f} stopped at {h} h without the next steps',
+      // P077
+      cic_e_cerrado:'Closed by the supervisor', cic_e_sin_cierre:'Exit not marked',
+      cic_apt_lbl:'Fitness:',   // P078
+      fm_chip_jornada:'{h} on duty · {e} over · {n} day(s)',
+      cic_cerrado_detalle:'The supervisor closed it at {h}: duration unknown',
+      cic_sin_cierre_detalle:'Went past the plan without "{ev}": most likely it was not marked',
+      cic_act_cerrar:'Close cycle',
+      cic_cerrar_q:'Close the cycle for {p}?\n\nIt is logged as closed by you, with the time. What the person marked does not change: the closure is added.',
+      ts_ciclo_cerrado:'Cycle closed and logged',
+      ts_ciclo_cerrado_sin_bitacora:'Cycle closed, but the log entry could not be written. Tell the administrator.',
+      cic_mio_cerrado:'Your cycle {f} was closed by your supervisor at {h}. When you go out again, tap "{primero}" and start a new one.',
+      ts_jornada_vencida:'You did not mark "{ev}" and the planned time is over. If it already happened, mark it now (it is logged with the current time); if you are still at it, nothing to do.',
+      ts_jornada_vencida_tarde:'You did not mark "{ev}" and too much time has passed. Do not mark it now: tell your supervisor so they close the cycle.',
       cic_e_curso:'On duty', cic_e_exc:'Over time', cic_e_desc:'Resting',
       cic_e_comp:'Complete', cic_e_sin:'Not started',
       cic_sin_jornadas:'Per-person work schedules could not be read. Everyone is being measured against the company schedule.',
@@ -10428,6 +10480,7 @@ const I18N = {
       // P074
       acc_ciclo_plan:'Company cycle hours changed', acc_ciclo_persona:'Personal duty plan assigned',
       acc_ciclo_persona_q:'Personal duty plan removed', acc_ciclo_detenido:'Cycle stopped by the system',
+      acc_ciclo_cerrado:'Cycle closed by the supervisor',   // P077
       acc_nomina_sync:'Roster synced', acc_cred_creada:'Password created',
       acc_cred_cambiada:'Password changed', acc_cred_reiniciada:'Password reset',
       acc_cred_aviso:'Password-created notice', acc_accesos_admin:'Administrator access updated',
@@ -10672,6 +10725,9 @@ const I18N = {
       tar_vence:'Due {f}', tar_vencio:'Was due {f}', tar_sin_plazo:'No deadline',
       tar_marcar:'Mark as done', tar_hecha:'Done', tar_listo:'Done, it has been logged',
       notif_det_titulo:'Your cycle {f} stopped at {h} h',
+      notif_exc_titulo:'Your cycle {f}: you did not mark "{ev}"',   // P077
+      notif_exc_detalle:'The planned time for that step is over. If it already happened, tap "{ev}" in Operational Data (it is logged with the current time); if you are still at it, nothing to do.',
+      notif_exc_detalle_tarde:'Too much time has passed to mark it: it would be logged with a wrong time. If it already happened, tell your supervisor so they close the cycle; if you are still at it, nothing to do.',
       notif_det_detalle:'The next steps were not recorded. When you go out again, tap "{primero}" and start a new one.',
       notif_entendido:'Got it', notif_de:'Notice {f}',
       tar_est_sin_leer:'Unread', tar_est_leida:'Read', tar_est_hecha:'Done', tar_est_vencida:'Overdue',
@@ -12498,7 +12554,7 @@ function cicloColapsarMismaOcurrencia(lista, porPersona){
     /* P186f · `detenido` no entra al colapso (lo escribe el reloj; dos de dos ciclos distintos a
        menos de 20 min son dos hechos), igual que en el servidor. Y `t >= prev.t`: un ISO con
        desplazamiento ordena por texto antes que uno en Z más viejo; sin la guarda ganaba el viejo. */
-    if (e.evento === CICLO_EVENTO_DETENIDO){ out.push(e); return; }
+    if (e.evento === CICLO_EVENTO_DETENIDO || e.evento === CICLO_EVENTO_CERRADO){ out.push(e); return; }   // P077 · tampoco `cerrado`
     const k = (e.evento || '') + (porPersona ? '|' + dashNorm(e.persona || '') : ''), t = Date.parse(e.iso), prev = ultimo[k];
     if (prev && isFinite(t) && isFinite(prev.t) && t >= prev.t && t - prev.t < CICLO_MISMA_OCURRENCIA_MIN * 60000){
       out[prev.i] = e; ultimo[k] = { t: t, i: prev.i };   // mismo hecho: gana el más nuevo
@@ -13202,7 +13258,7 @@ function cicloMiBloque(){
   const apagado = (st.estado === 'inactivo');
   const stDib = apagado ? cicloEstadoVacio(plan) : st;
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
-                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }) };   // P186
+                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }), cerrado:t('cic_e_cerrado'), sin_cierre:t('cic_e_sin_cierre') };   // P186
   html += '<div class="cic-mio-linea' + (apagado ? ' cic-mio-off' : '') + '">' +
     '<div class="cic-mio-top"><span class="cic-mio-k">' + esc(t('cic_mi_ciclo')) + '</span>' +
       '<span class="cic-chip cic-chip-' + stDib.estado + '">' + ETIQ[stDib.estado] + '</span></div>' +
@@ -13211,6 +13267,8 @@ function cicloMiBloque(){
     /* P186 · el ciclo se detuvo a las 24 h: se dice acá, en la tarjeta, mientras éste sea el último
        ciclo. Y una vez por ciclo, el toast (`cicloDetenidoAvisar`). */
     (st.estado === 'detenido' ? '<div class="cic-mio-nota cic-mio-detenido">' + esc(cicloDetenidoTexto(st)) + '</div>' : '') +
+    /* P077 · lo cerró el supervisor: se dice, con la hora */
+    (st.estado === 'cerrado' ? '<div class="cic-mio-nota cic-mio-detenido">' + esc(t('cic_mio_cerrado', { f: cicloFechaDe(st.inicio), h: cicloHora(st.cerradoEn), primero: cicloEventoLabel(cicloEventoInicial()) })) + '</div>' : '') +
   '</div>';
   return html + '</div>';
 }
@@ -13255,6 +13313,21 @@ function cicloDetenidoRevisarAhora(){
       const ahora = Date.now();
       // del más nuevo al más viejo, como los devuelve cicloAgruparTodos; con dos alcanza
       let avisado = false;
+      /* P077 · el recordatorio de «no marcaste la salida»: SÓLO sobre el ciclo más reciente y SÓLO en
+         «sin cierre» (pasado el techo de previsto × 1,5): un traslado que lleva 5 min de más no es un
+         olvido, y avisarlo ahí gastaba el único aviso del ciclo con el botón equivocado. Uno por ciclo Y
+         tramo (id = inicio + tramo): el olvido de la jornada tiene que poder avisarse aunque antes se
+         avisó otro. El texto no acusa, y pasada la ventana (`CICLO_RECORDATORIO_MIN`) ya no dice
+         «márcalo»: dice que avise al supervisor. */
+      const reciente = ciclos[0] ? cicloEstado(ciclos[0], ahora, plan) : null;
+      if (reciente && reciente.estado === 'sin_cierre'){
+        const tra = reciente.tramos[reciente.activo];
+        if (tra && tra.hasta && tra.sinCierre){
+          const hasta = tra.ini + (cicloTechoSinCierreMin(tra.previsto) + CICLO_RECORDATORIO_MIN) * 60000;
+          const nuevo = notifLocalAgregar({ id: 'exc_' + reciente.inicio + '_' + tra.k, tipo: 'jornada_vencida', t0: reciente.inicio, ev: tra.hasta, tramo: tra.k, hasta: hasta });
+          if (nuevo){ try { showToast(t(ahora <= hasta ? 'ts_jornada_vencida' : 'ts_jornada_vencida_tarde', { ev: cicloEventoLabel(tra.hasta) })); } catch(e){} }
+        }
+      }
       for (const c of ciclos.slice(0, 2)){
         const st = cicloEstado(c, ahora, plan);
         if (st.estado !== 'detenido') continue;
@@ -20934,7 +21007,7 @@ function aptTarjeta(p, opts){
             esc(nivelLabel(p.nivel)) + ' — ' + esc(nivelDesc(p.nivel)) + '">' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) + '</span>' : '') +
         '</div></div>' +
       '<span class="apt-badge" style="background:' + semSolido(est.c) + ';color:#fff">' + est.t + '</span>' +
-    '</div>' + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +
+    '</div>' + aptCicloLineaHtml(p.nombre) + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +   // P078 · las horas, acá
     '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + avisoConf + acciones +
   '</div>';
 }
@@ -21419,7 +21492,7 @@ const HSEQ_ACCION_LABEL = {
   /* P074 · las que escribe el SERVIDOR (`bitacoraServidor`) salían con la clave cruda en
      Trazabilidad y en el CSV. Un caso recorre el `.gs` real y exige que cada acción esté acá. */
   ciclo_plan_guardado:'acc_ciclo_plan', ciclo_persona_guardado:'acc_ciclo_persona',
-  ciclo_persona_quitado:'acc_ciclo_persona_q', ciclo_detenido:'acc_ciclo_detenido',
+  ciclo_persona_quitado:'acc_ciclo_persona_q', ciclo_detenido:'acc_ciclo_detenido', ciclo_cerrado:'acc_ciclo_cerrado',
   nomina_sync:'acc_nomina_sync', credencial_creada:'acc_cred_creada',
   credencial_cambiada:'acc_cred_cambiada', credencial_reiniciada:'acc_cred_reiniciada',
   credencial_creada_aviso:'acc_cred_aviso', accesos_admin_set:'acc_accesos_admin'
@@ -21766,6 +21839,7 @@ function cicloEventoInicial(){ return cicloEventos()[0].k; }
 // de una empresa que cambió de sector), se devuelve la clave: visible y arreglable, nunca vacío.
 function cicloEventoLabel(k){
   if (k === CICLO_EVENTO_DETENIDO) return t('op_detenido', { h: CICLO_DETENIDO_HORAS });   // P186 · lo escribe el servidor, no es una tarjeta
+  if (k === CICLO_EVENTO_CERRADO) return t('cic_e_cerrado');                               // P077 · idem: Jornada lo lista entre los eventos
   const e = cicloEventos().find(x => x.k === k);
   return e ? t(e.lbl) : k;
 }
@@ -22021,6 +22095,29 @@ function cicloVentanaDe(persona){
    Detenido NO es excedido: es un problema de registro, no laboral. No suma «de más». */
 const CICLO_DETENIDO_HORAS = 24;
 const CICLO_EVENTO_DETENIDO = 'detenido';
+/* P077 · `cerrado`: lo escribió el supervisor (hecho nuevo, firmado); se pega a su ciclo como el
+   `detenido` (misma constante en `Código.js`, contrato). Y la regla de «se olvidó de tocar el
+   botón» para la TARJETA: un tramo abierto más de `previsto × 1,5` (y al menos 60 min) sin otro
+   evento se lee «Sin marcar la salida» (`sin_cierre`), aparte del exceso real. ⚠️ Es una lectura del
+   cliente, a propósito: Jornada (servidor) sigue contando el exceso hasta el `detenido` de 24 h, por
+   decisión de Y4 («el que no cerró tiene que seguir visible: es justo por quien hay que preguntar»). */
+const CICLO_EVENTO_CERRADO = 'cerrado';
+const CICLO_SIN_CIERRE_FACTOR = 1.5;
+/* El recordatorio a la persona («no marcaste «X»») dice «márcalo ahora» sólo dentro de estas 2 h después
+   del techo: marcar a la mañana siguiente escribiría el evento con la hora de ahora y fabricaría un exceso
+   de 11 h en Jornada (Y4, consecuencia laboral). Pasada la ventana, el texto cambia: no lo marques, avísale
+   al supervisor, que cierra el ciclo sin inventar una hora (ADR 010). */
+const CICLO_RECORDATORIO_MIN = 120;
+function cicloEsParada(k){ return k === CICLO_EVENTO_DETENIDO || k === CICLO_EVENTO_CERRADO; }
+function cicloTechoSinCierreMin(previsto){ return Math.max(Math.round((Number(previsto) || 0) * CICLO_SIN_CIERRE_FACTOR), 60); }
+/* El instante en que el supervisor cerró el ciclo: viaja en `resultado` (epoch ms); si no, el ISO de la fila. */
+function cicloCerradoEn(c){
+  const ev = (c && c.ev) || {};
+  const r = ev[CICLO_EVENTO_CERRADO];
+  if (!r) return null;
+  const n = Number(r.resultado), iso = Date.parse(r.iso) || 0;
+  return (isFinite(n) && n > 0) ? Math.max(n, iso) : (iso || null);   // nunca antes que su propio ISO (misma guarda que el .gs)
+}
 function cicloEsCierre(k){ return k === cicloTramos()[cicloTramos().length - 1].desde; }   // el evento que abre el descanso: llegada_casa
 /* El instante en que el ciclo `c` (de `cicloAgruparEventos`) queda detenido, o null. Si el servidor
    ya escribió el `detenido`, manda ese instante; si no, la regla. */
@@ -22032,8 +22129,20 @@ function cicloAnclaDetencion(c){
   const ev = (c && c.ev) || {};
   let ultimo = null;
   for (const k in ev){
-    if (k === CICLO_EVENTO_DETENIDO) continue;
+    if (cicloEsParada(k)) continue;                          // P077 · las paradas no son eventos de persona
     if (cicloEsCierre(k)) return null;                       // llegó a casa: el ciclo está completo
+    const t = new Date(ev[k].iso).getTime();
+    if (isFinite(t) && (ultimo == null || t > ultimo)) ultimo = t;
+  }
+  return ultimo;
+}
+/* El último evento de PERSONA del ciclo (ni «llegando a casa», ni las paradas), para «lo transcurrido» de
+   un ciclo parado — `cicloAnclaDetencion` devuelve null si hay un `cerrado`, y acá el instante hace falta. */
+function cicloUltimoDePersona(c){
+  const ev = (c && c.ev) || {};
+  let ultimo = null;
+  for (const k in ev){
+    if (cicloEsParada(k)) continue;
     const t = new Date(ev[k].iso).getTime();
     if (isFinite(t) && (ultimo == null || t > ultimo)) ultimo = t;
   }
@@ -22045,6 +22154,9 @@ function cicloDetenidoEn(c, ahora){
   if (ancla == null) return null;
   const en = ancla + CICLO_DETENIDO_HORAS * 3600000;
   if (ev[CICLO_EVENTO_DETENIDO]) return en;                  // registrado: es un hecho, no depende de «ahora»
+  /* P077 · cerrado por el supervisor y sin registro de detención: no se deriva nada (el servidor
+     tampoco: `dutyDePersona` sólo mira el `detenido` escrito). Con los dos, manda el más temprano. */
+  if (ev[CICLO_EVENTO_CERRADO]) return null;
   return (ahora >= en) ? en : null;
 }
 
@@ -22058,8 +22170,8 @@ function cicloAgruparEventos(eventos, ventana){
     /* P186 · un `detenido` NUNCA abre ciclo: se pega al vigente aunque caiga fuera de la ventana
        (está escrito en «último evento + 24 h», que con una jornada real queda a 30 h o más del
        inicio). Y lo que venga DESPUÉS de un detenido es otro ciclo, aunque caiga dentro. */
-    const esDet = o.evento === CICLO_EVENTO_DETENIDO;
-    const trasDetenido = !!(actual && actual.ev[CICLO_EVENTO_DETENIDO] && !esDet);
+    const esDet = cicloEsParada(o.evento);   // P077 · `cerrado` se pega igual que `detenido`
+    const trasDetenido = !!(actual && (actual.ev[CICLO_EVENTO_DETENIDO] || actual.ev[CICLO_EVENTO_CERRADO]) && !esDet);
     if (!actual || (!esDet && (o.evento === evInicial || (t - actual.t0) > ventana || trasDetenido))){
       actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
     }
@@ -22092,8 +22204,8 @@ function cicloAgruparTodos(eventos, ventana){
   let actual = null;
   evs.forEach(o => {
     const t = new Date(o.iso).getTime();
-    const esDet = o.evento === CICLO_EVENTO_DETENIDO;   // P186 · ver `cicloAgruparEventos`
-    const trasDetenido = !!(actual && actual.ev[CICLO_EVENTO_DETENIDO] && !esDet);
+    const esDet = cicloEsParada(o.evento);   // P186 · ver `cicloAgruparEventos` · P077 · también `cerrado`
+    const trasDetenido = !!(actual && (actual.ev[CICLO_EVENTO_DETENIDO] || actual.ev[CICLO_EVENTO_CERRADO]) && !esDet);
     if (!actual || (!esDet && (o.evento === evInicial || (t - actual.t0) > ventana || trasDetenido))){
       actual = { persona:o.persona, departamento:o.departamento, ev:{}, t0:t };
       ciclos.push(actual);
@@ -22343,11 +22455,14 @@ function cicloEstado(c, ahora, planVigente){
   if (!ev[evInicial]) return { estado:'inactivo', tramos:[], eventos:ev, inicio:null, activo:-1 };
   const t0 = new Date(ev[evInicial].iso).getTime();
   const ms = k => ev[k] ? new Date(ev[k].iso).getTime() : null;
-  let activo = -1, excedido = false, detenido = false;
+  let activo = -1, excedido = false, detenido = false, cerrado = false, sinCierre = false;
   /* P186 · si el ciclo está detenido (por registro del servidor o por la regla de las 24 h), el
      tramo que estaba abierto se cierra en ese instante y NO cuenta exceso. Es lo que apaga el
-     marcador de «200 h de tal etapa». */
-  const detenidoEn = cicloDetenidoEn(c, ahora);
+     marcador de «200 h de tal etapa». P077 · si el supervisor lo cerró, igual, en el instante del
+     cierre; si hay las dos cosas, manda la más temprana. */
+  let detenidoEn = cicloDetenidoEn(c, ahora);
+  let cerradoEn = cicloCerradoEn(c);
+  if (detenidoEn != null && cerradoEn != null){ if (cerradoEn <= detenidoEn) detenidoEn = null; else cerradoEn = null; }
   const TRAMOS = cicloTramos();
   const tramos = TRAMOS.map((tr, i) => {
     const ini = ms(tr.desde);
@@ -22366,13 +22481,23 @@ function cicloEstado(c, ahora, planVigente){
       return Object.assign({}, tr, { estado:'detenido', previsto:previsto, real:0, ini:ini, fin:detenidoEn,
         delta:null, excedido:false, detenido:true });
     }
+    if (cerradoEn != null && cerradoEn > ini){
+      /* P077 · Tramo CERRADO por el supervisor: igual que detenido, no se sabe cuánto duró. */
+      cerrado = true; activo = i;
+      return Object.assign({}, tr, { estado:'cerrado_sup', previsto:previsto, real:0, ini:ini, fin:cerradoEn,
+        delta:null, excedido:false, cerrado:true });
+    }
     // Tramo EN CURSO: arrancó y todavía no llegó su evento de cierre.
     const real = Math.round((ahora - ini)/60000);
     const pasado = real > previsto;
-    if (pasado) excedido = true;
+    /* P077 · pasado el techo (`previsto × 1,5`, mínimo 60 min) sin otro evento, la lectura más
+       probable es que la persona se fue y no tocó el botón: «sin cierre», aparte del exceso real.
+       El reloj sigue (se ve cuánto lleva), pero ya no es una alarma laboral. */
+    const sinCierreTramo = pasado && !!tr.hasta && real > cicloTechoSinCierreMin(previsto);   // el descanso no tiene botón que marcar
+    if (sinCierreTramo) sinCierre = true; else if (pasado) excedido = true;
     activo = i;
     return Object.assign({}, tr, { estado:'curso', previsto:previsto, real:real, ini:ini, fin:null,
-      delta: real - previsto, excedido:pasado });
+      delta: real - previsto, excedido:pasado && !sinCierreTramo, sinCierre:sinCierreTramo });
   });
   // El descanso es el último tramo: cuando se cumple, el ciclo terminó.
   const ultimo = tramos[tramos.length-1];
@@ -22380,7 +22505,9 @@ function cicloEstado(c, ahora, planVigente){
   const cerradoAlgunoDeMas = tramos.some(t => t.estado === 'cerrado' && t.delta > 0);
   let estado;
   if (detenido) estado = 'detenido';
+  else if (cerrado) estado = 'cerrado';           // P077 · lo cerró el supervisor
   else if (cerradoDelTodo) estado = 'completo';
+  else if (sinCierre) estado = 'sin_cierre';      // P077 · probablemente no marcó la salida
   else if (excedido)  estado = 'excedido';
   // El ultimo tramo es el descanso: quien esta ahi ya termino de trabajar y esta reposando en su
   // casa. Se separa de "en curso" porque para un supervisor que barre la lista "en curso" se lee
@@ -22389,10 +22516,12 @@ function cicloEstado(c, ahora, planVigente){
   else if (activo >= 0) estado = 'curso';
   else estado = 'completo';
   if (estado === 'completo' && cerradoAlgunoDeMas) estado = 'completo';   // cerrado, pero con excesos en el detalle
+  const parado = (detenidoEn != null || cerradoEn != null);
   return { estado:estado, tramos:tramos, eventos:ev, inicio:t0, activo:activo,
-           transcurrido: Math.round(((detenidoEn != null ? (cicloAnclaDetencion(c) || t0) : ahora) - t0)/60000),   // detenido: lo registrado de verdad
+           transcurrido: Math.round(((parado ? (cicloUltimoDePersona(c) || t0) : ahora) - t0)/60000),   // parado: lo registrado de verdad
            huboExceso: excedido || cerradoAlgunoDeMas,
-           detenidoEn: detenidoEn, detenidoRegistrado: !!ev[CICLO_EVENTO_DETENIDO] };   // P186
+           detenidoEn: detenidoEn, detenidoRegistrado: !!ev[CICLO_EVENTO_DETENIDO],   // P186
+           cerradoEn: cerradoEn, cerradoPor: (ev[CICLO_EVENTO_CERRADO] || null) };     // P077
 }
 
 /* La barra: los tramos son proporcionales a las horas CONFIGURADAS, así cambia sola cuando la
@@ -22404,7 +22533,7 @@ function cicloBarra(st, plan){
   const pct = m => Math.max(0, m / total * 100);
   const seg = (k, cls, txt, rotulo) => {
     const tr = st.tramos.find(x => x.k === k);          // `tr`, no `t`: t() es la traducción
-    const on = !off && tr && (tr.estado === 'cerrado' || tr.estado === 'curso' || tr.estado === 'detenido');   // P186
+    const on = !off && tr && (tr.estado === 'cerrado' || tr.estado === 'curso' || tr.estado === 'detenido' || tr.estado === 'cerrado_sup');   // P186 · P077
     const exc = !off && tr && ((tr.estado === 'curso' && tr.excedido) || (tr.estado === 'cerrado' && tr.delta > 0));
     return '<div class="cic-seg cic-' + cls + (on ? ' on' : '') + (exc ? ' exc' : '') +
       '" data-seg="' + k + '" style="flex:' + plan[k].toFixed(0) + ' 1 0" title="' + esc(txt + ' · ' + cicloHM(plan[k])) + '">' +
@@ -22416,7 +22545,7 @@ function cicloBarra(st, plan){
     const tit = cicloEventoLabel(evk) + (e ? (' · ' + cicloHora(new Date(e.iso).getTime())) : ' · ' + t('cic_sin_marcar'));
     return '<i class="cic-pt cic-pt-' + cls + '" title="' + esc(tit) + '"></i>';
   };
-  const aguja = (off || st.activo < 0 || st.estado === 'completo' || st.estado === 'detenido') ? ''   // P186 · nada corre
+  const aguja = (off || st.activo < 0 || st.estado === 'completo' || st.estado === 'detenido' || st.estado === 'cerrado') ? ''   // P186 · P077 · nada corre
     : '<i class="cic-now" data-cic-needle="' + st.inicio + '" data-cic-total="' + total + '"></i>';
   /* La barra se arma recorriendo la forma: punto de apertura, tramo, punto de apertura del
      siguiente… y el punto de cierre del último. Antes eran 8 líneas escritas a mano con los
@@ -22507,12 +22636,20 @@ function cicloTramosHtml(st, plan){
       clase = 'detenido';
       valor = '—';   // no se sabe cuánto duró: no se inventa
       detalle = t('cic_detenido_detalle', { h: CICLO_DETENIDO_HORAS }) + ' · ' + t('cic_previsto', { d: cicloHM(previsto) });
+    } else if (tra && tra.estado === 'cerrado_sup'){
+      /* P077 · lo cerró el supervisor: como detenido, no se sabe cuánto duró */
+      clase = 'detenido';
+      valor = '—';
+      detalle = t('cic_cerrado_detalle', { h: cicloHora(tra.fin) }) + ' · ' + t('cic_previsto', { d: cicloHM(previsto) });
     } else if (tra && tra.estado === 'curso'){
-      clase = tra.excedido ? 'exc' : 'curso';
+      clase = tra.sinCierre ? 'sincierre' : (tra.excedido ? 'exc' : 'curso');
       valor = '<b data-cic-from="' + tra.ini + '">' + cicloHM(tra.real) + '</b>';
-      detalle = tra.excedido
+      detalle = tra.sinCierre
+        /* P077 · pasado el techo sin otro evento: probablemente no marcó el botón siguiente */
+        ? t('cic_sin_cierre_detalle', { ev: cicloEventoLabel(tr.hasta) })
+        : (tra.excedido
         ? (t('cic_excedido') + ' · <b data-cic-from="' + (tra.ini + previsto*60000) + '">' + cicloHM(tra.real - previsto) + '</b> ' + t('cic_de_mas_suf'))
-        : t('cic_quedan', { q: cicloHM(previsto - tra.real), d: cicloHM(previsto) });
+        : t('cic_quedan', { q: cicloHM(previsto - tra.real), d: cicloHM(previsto) }));
     }
     // El test que dispara el evento que ABRE este tramo. Lo declara la forma del sector.
     const testLbl = cicloTestDe(tr.desde);
@@ -22569,13 +22706,96 @@ function personaNivelDe(persona){
   const c = cicloContextoDe(persona);
   return nivelRiesgoDe(persona, c.dep, c.empresa || (DASH && DASH.f.emp), c.cargo);
 }
-function cicloAccionesHtml(persona){
+/* P078 · LAS DOS MITADES DE LA MISMA DECISIÓN (hallazgo 8 de I1): la tarjeta del ciclo dice cómo
+   viene el semáforo y la de Aptitud cuántas horas lleva. Nada nuevo al endpoint: es lo que ya está
+   en `DASH`. El estado de aptitud sale de `aptGente` (con gestiones y determinaciones) y, sin tests
+   en el período, de la clasificación del servidor (`DASH.aptitud.auto`). */
+/* El estado de aptitud de TODOS, calculado una vez por render (`aptGente` sobre el filtro vigente es
+   caro: la tarjeta del ciclo lo pediría por persona). Tolera un `DASH` incompleto (sin `pvt`, sin
+   `registros`): devuelve vacío y el chip no se pinta, en vez de tirar el render entero. */
+function aptEstadosMapa(){
+  const out = {};
+  try { aptGente(dashFiltered()).forEach(p => { out[p.nombre] = p.estado; }); } catch(e){}
+  return out;
+}
+function aptEstadoDePersona(persona, mapa){
+  const m = mapa || aptEstadosMapa();
+  if (m[persona]) return m[persona];
+  /* sin tests en el período: la clasificación del servidor, resuelta con las mismas gestiones que
+     la tarjeta de Aptitud (`aptResolverFinal`: `auto` es un nivel —ok/medio/alto/sin—, no un estado) */
+  const a = (DASH && Array.isArray(DASH.aptitud)) ? DASH.aptitud.find(x => x && x.nombre === persona) : null;
+  if (!a) return 'sindato';
+  try { return aptResolverFinal(persona, a).estado || 'sindato'; } catch(e){ return 'sindato'; }
+}
+function cicloAptitudChipHtml(persona, mapa){
+  /* sólo quien ve el semáforo por persona: supervisor (y el admin en su vista). Dirección no llega acá. */
+  if (!restPuede()) return '';   // la vista de supervisor (también el admin mirándola); en la de Dirección no hay nombres
+  let estado = 'sindato';
+  try { estado = aptEstadoDePersona(persona, mapa); } catch(e){ return ''; }
+  const est = aptEstadoInfo(estado);
+  return '<span class="cic-apt" style="--anc:' + est.c + ';--anct:' + (est.ct || est.c) + ';--anbg:' + est.bg + '">' +
+    esc(t('cic_apt_lbl')) + ' <b>' + esc(est.t) + '</b></span>';
+}
+/* La línea del ciclo en la tarjeta de Aptitud: el estado y el tramo con lo que lleva, o nada si la
+   persona no tiene ciclo hoy. Toca → la pestaña Ciclo (el filtro por persona ya está puesto o no). */
+function aptCicloLineaHtml(persona){
+  if (!restPuede()) return '';   // sólo donde existe la pestaña Ciclo: en la vista médica el admin no tiene adónde ir
+  let c = null;
+  try { c = cicloArmar()[dashNorm(persona)]; } catch(e){ c = null; }
+  if (!c) return '';
+  const st = cicloEstado(c, Date.now(), cicloPlan(persona));
+  if (!st || st.estado === 'inactivo') return '';
+  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin'),
+                 detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }), cerrado:t('cic_e_cerrado'), sin_cierre:t('cic_e_sin_cierre') };
+  const tra = st.tramos[st.activo];
+  const lleva = (tra && tra.estado === 'curso') ? (esc(t(tra.corto)) + ' <b>' + cicloHM(tra.real) + '</b>' + (tra.previsto ? ' / ' + cicloHM(tra.previsto) : '')) : '';
+  return '<button type="button" class="apt-ciclo apt-ciclo-' + st.estado + '" onclick="dashScrollTo(\'ciclo\')">' +
+    '<span class="cic-chip cic-chip-' + st.estado + '">' + esc(ETIQ[st.estado] || st.estado) + '</span>' +
+    (lleva ? '<span class="apt-ciclo-lleva">' + lleva + '</span>' : '') + '</button>';
+}
+function cicloAccionesHtml(persona, st){
   if (!restPuede() || visorSoloLectura()) return '';
   const restr = restVigentesDe(persona)[0] || null;
   /* Misma regla que la tarjeta de Aptitud: sobre un último test poco confiable no se sugiere (la
      ayuda lo promete). La clasificación del servidor trae el dato aunque no haya tests en el período. */
   const a = (DASH && Array.isArray(DASH.aptitud)) ? DASH.aptitud.find(x => x && x.nombre === persona) : null;
-  return aptAccionesHtml(persona, restr, !telemVigenteDe(persona) && !(a && a.ultimoPocoConfiable));
+  const base = aptAccionesHtml(persona, restr, !telemVigenteDe(persona) && !(a && a.ultimoPocoConfiable));
+  /* P077 · «Cerrar ciclo» sólo cuando hay algo que cerrar: pasado de tiempo o sin marcar la salida. No en
+     la demo (no hay servidor que lo registre) y nunca sobre un ciclo ya parado. */
+  const cerrable = st && (st.estado === 'excedido' || st.estado === 'sin_cierre') && !DASH.demoMode;
+  if (!cerrable) return base;
+  const ultimo = cicloUltimoDePersona({ ev: st.eventos });
+  const ultimoEv = ultimo != null ? Object.keys(st.eventos).map(k => st.eventos[k]).find(e => new Date(e.iso).getTime() === ultimo) : null;
+  if (!ultimoEv) return base;
+  const boton = '<button type="button" class="apt-act apt-act-cerrar" onclick="cicloCerrar(' + argAttr(persona) + ',' + argAttr(String(ultimoEv.iso)) + ')">' + esc(t('cic_act_cerrar')) + '</button>';
+  return base.replace('</div>', boton + '</div>');
+}
+/* P077 · EL SUPERVISOR CIERRA EL CICLO. Hecho nuevo firmado (R3: no se toca el evento de la persona):
+   el servidor escribe la fila `cerrado` pegada a su ciclo y la bitácora con quién; acá se confirma
+   (R8), se manda y, con la respuesta, el evento se suma a `DASH.operacional` para que la tarjeta pase
+   a «Cerrado por el supervisor» sin volver a pedir todo. */
+function cicloCerrar(persona, ultimoIso){
+  if (!restPuede() || !persona || !ultimoIso) return;
+  if (visorBloquea(t('visor_jornada'))) return;
+  if (!confirm(t('cic_cerrar_q', { p: persona }))) return;
+  try { haptic(16); } catch(e){}
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass){ showToast(t('cic_cfg_reentrar')); return; }
+  conBloqueo('#portalDash', dashRequest(dashAuth({ action:'ciclo_cerrar', persona: persona, ultimoIso: ultimoIso,
+      quien: (getProfile() || {}).nombre || supervisorNombreGuardado() || '' }))
+    .then(d => {
+      if (!d || !d.ok){
+        showToast(tError(d && d.error));
+        /* el servidor ve otra cosa que el panel (ya cerrado, ya detenido, otro evento después): se vuelve a
+           pedir para que la tarjeta muestre lo que hay, en vez de quedarse con el botón */
+        if (d && /^(ya_cerrado|sin_ciclo|panel_viejo)$/.test(String(d.motivo || ''))) { try { dashRefresh(true); } catch(e){} }
+        return;
+      }
+      if (d.evento && Array.isArray(DASH.operacional)) DASH.operacional.push(d.evento);
+      cicloRepintar();
+      showToast(d.bitacora === null ? t('ts_ciclo_cerrado_sin_bitacora') : t('ts_ciclo_cerrado'));
+    })
+    .catch(() => { showToast(t('sin_conexion') + '.'); }));
 }
 function cicloCfgHtml(plan){
   const TRAMOS = cicloTramos();
@@ -23382,7 +23602,7 @@ function renderJornada(){
     h += '<tr' + (f.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
          '<td>' + esc(f.fecha) + '</td><td>' + esc(f.persona) + '</td>' +
          '<td class="jor-evs">' + jorEventosHtml(f.eventos) + '</td>' +
-         '<td>' + esc(jorMin(f.jornadaMin)) + (f.abierto ? ' <span class="jor-chip">' + esc(t('jor_abierto')) + '</span>' : '') + (f.detenido ? ' <span class="jor-chip jor-chip-detenido" title="' + esc(t('cic_mio_detenido_corto', { h: CICLO_DETENIDO_HORAS })) + '">' + esc(t('jor_detenido')) + '</span>' : '') + '</td>' +   // P186
+         '<td>' + esc(jorMin(f.jornadaMin)) + (f.abierto ? ' <span class="jor-chip">' + esc(t('jor_abierto')) + '</span>' : '') + (f.detenido ? ' <span class="jor-chip jor-chip-detenido" title="' + esc(t('cic_mio_detenido_corto', { h: CICLO_DETENIDO_HORAS })) + '">' + esc(t('jor_detenido')) + '</span>' : '') + (f.cerrado ? ' <span class="jor-chip jor-chip-detenido">' + esc(t('jor_cerrado')) + '</span>' : '') + '</td>' +   // P186 · P077
          '<td>' + (f.excesoMin > 0 ? '<b>+' + esc(jorMin(f.excesoMin)) + '</b>' : '—') +
          (f.umbralCongelado ? '' : ' <span class="jor-chip" title="' + esc(t('jor_sin_umbral_1')) + '">?</span>') + '</td></tr>';
   });
@@ -23517,9 +23737,11 @@ function renderCicloOperativo(){
   /* P186 · `detenido` va después de lo que está pasando ahora y antes de lo cerrado: es un problema
      de registro, no algo que requiera acción hoy. Los seis estados de `cicloEstado` están acá y en
      los tres `ETIQ`; un caso los compara para que el próximo no dé undefined/NaN. */
-  const ORD = { excedido:0, curso:1, descanso:2, detenido:3, completo:4, inactivo:5 };
+  /* P077 · `sin_cierre` va después de lo que está pasando ahora y antes de lo detenido: es un problema de
+     registro probable, no una alarma; `cerrado` (por el supervisor) va con lo detenido. */
+  const ORD = { excedido:0, curso:1, descanso:2, sin_cierre:3, detenido:4, cerrado:5, completo:6, inactivo:7 };
   filas.sort((a,b) => (ORD[a.st.estado] - ORD[b.st.estado]) || a.p.persona.localeCompare(b.p.persona));
-  const n = { curso:0, excedido:0, descanso:0, completo:0, inactivo:0, detenido:0 };
+  const n = { curso:0, excedido:0, descanso:0, completo:0, inactivo:0, detenido:0, sin_cierre:0, cerrado:0 };
   filas.forEach(f => { n[f.st.estado]++; });
   /* ⚠️ P059/A7 · H8 DEJÓ EL CANAL DE ERROR SIN NADIE QUE LO LEYERA. El `.gs` manda
      `cicloPlanPersonaError` cuando no puede leer la hoja `Ciclo Persona` —renombrarla, o un
@@ -23535,7 +23757,9 @@ function renderCicloOperativo(){
     '<span class="cic-kpi cic-kpi-venc"><b>' + n.excedido + '</b> ' + esc(t('cic_kpi_exc')) + '</span>' +
     '<span class="cic-kpi cic-kpi-desc"><b>' + n.descanso + '</b> ' + esc(t('cic_kpi_desc')) + '</span>' +
     '<span class="cic-kpi cic-kpi-comp"><b>' + n.completo + '</b> ' + esc(t('cic_kpi_comp')) + '</span>' +
+    (n.sin_cierre ? '<span class="cic-kpi cic-kpi-sinc"><b>' + n.sin_cierre + '</b> ' + esc(t('cic_kpi_sin_cierre')) + '</span>' : '') +   // P077
     (n.detenido ? '<span class="cic-kpi cic-kpi-det"><b>' + n.detenido + '</b> ' + esc(t('cic_kpi_det')) + '</span>' : '') +   // P186 · si no se cuentan, la suma no da
+    (n.cerrado ? '<span class="cic-kpi cic-kpi-cerr"><b>' + n.cerrado + '</b> ' + esc(t('cic_kpi_cerrado')) + '</span>' : '') +   // P077
     '<span class="cic-kpi cic-kpi-sin"><b>' + n.inactivo + '</b> ' + esc(t('cic_kpi_sin')) + '</span></div>';
   /* K1b: Dirección/HSEQ corta acá. Los agregados (`resumen`) ya están calculados y no llevan
      nada individual; lo que no se arma son las tarjetas por persona. Tampoco se expone
@@ -23566,7 +23790,7 @@ function renderCicloOperativo(){
      exactamente lo mismo que la tarjeta —mismas `cicloBarra()` y `cicloTramosHtml()`—, y para eso
      necesita el MISMO `st` ya calculado. Volver a calcularlo allá sería un segundo derivador del
      mismo dato: el defecto que más veces apareció en este repo. */
-  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }) };   // P186
+  const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'), completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }), cerrado:t('cic_e_cerrado'), sin_cierre:t('cic_e_sin_cierre') };   // P186
 
   /* ══ T1 · LISTAS LARGAS ═══════════════════════════════════════════════════════════════════════
      ⚠️ EL CORTE VA DESPUÉS DE LOS KPIs, Y ESO NO ES UN DETALLE DE ORDEN. Los contadores de arriba
@@ -23625,6 +23849,7 @@ function renderCicloOperativo(){
         svgIco('expandir', 15) + '<span>' + esc(t('cic_full_abrir')) + '</span></button>'
     : '';
 
+  const aptMapa = (DASH.vista === 'supervisor' || DASH.rol === 'admin') ? aptEstadosMapa() : {};   // P078 · una vez por render
   const cards = activosMostrados.map((f, i) => {
     const st = f.st, pe = f.p;
     let reloj;
@@ -23637,6 +23862,11 @@ function renderCicloOperativo(){
          eligió sacar el total: no se sabe cuánto duró, y un número que no se sabe no se muestra. */
       const tra = st.tramos[st.activo];
       reloj = '<span class="cic-reloj">' + esc(t(tra.corto)) + ': ' + esc(t('cic_detenido_detalle', { h: CICLO_DETENIDO_HORAS })) + '</span>';
+    }
+    else if (st.estado === 'cerrado'){
+      /* P077 · lo cerró el supervisor: tampoco corre nada ni hay total */
+      const tra = st.tramos[st.activo];
+      reloj = '<span class="cic-reloj">' + esc(t(tra.corto)) + ': ' + esc(t('cic_cerrado_detalle', { h: cicloHora(st.cerradoEn) })) + '</span>';
     }
     else {
       /* ⚠️ Esta local se llamaba `t` y TAPABA la función t() de traducción. Con C1, `corto` dejó
@@ -23672,9 +23902,10 @@ function renderCicloOperativo(){
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
+      cicloAptitudChipHtml(pe.persona, aptMapa) +   // P078 · el semáforo de la persona, en la misma tarjeta
       /* P076 · las acciones que el supervisor ya tiene, ACÁ, donde está mirando el exceso (hallazgo 2
          de I1: la única palanca era saltar a Aptitud, donde la persona podía no estar). */
-      cicloAccionesHtml(pe.persona) +
+      cicloAccionesHtml(pe.persona, st) +
       cicloTurnoHtml(pe.persona) +
       /* P057a · cada tarjeta se dibuja con el plan de SU persona. Hoy `cicloPlan(x)` devuelve el
          de la empresa para todos, así que no cambia nada; el día que exista un plan por persona,
@@ -23850,7 +24081,7 @@ function cicloFullPintar(){
   const st = f.st, pe = f.p;
   const plan = cicloPlan(pe.persona);   // P057a · el plan de ESTA persona, no el de la empresa
   const ETIQ = { curso:t('cic_e_curso'), excedido:t('cic_e_exc'), descanso:t('cic_e_desc'),
-                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }) };   // P186
+                 completo:t('cic_e_comp'), inactivo:t('cic_e_sin'), detenido:t('cic_e_detenido', { h: CICLO_DETENIDO_HORAS }), cerrado:t('cic_e_cerrado'), sin_cierre:t('cic_e_sin_cierre') };   // P186
   const fecha = st.inicio ? t('cic_ciclo_de', { f: cicloFechaDe(st.inicio) }) : t('cic_sin_iniciar');
   /* Mismo HTML que la tarjeta, con `cic-full` arriba: todo el cambio de tamaño vive en el CSS. */
   cuerpo.innerHTML =
@@ -27017,6 +27248,9 @@ function dashFichaMedica(rows){
      que está en la cola por un patrón sostenido. */
   const autoRep = reportesDePersona(DASH.f.per).filter(r => r.creada > Date.now() - 30 * 86400000).length;
   if (autoRep) chips.push('<span class="fm-chip fm-chip-autorep">' + esc(t('fm_chip_autoreportes', { n: autoRep })) + '</span>');
+  /* P078 · las horas de servicio del período (Y4 ya las manda al médico): la otra mitad de la firma */
+  const dj = (DASH.duty && Array.isArray(DASH.duty.personas)) ? DASH.duty.personas.find(x => x && x.persona === DASH.f.per) : null;
+  if (dj && dj.dias) chips.push('<span class="fm-chip ' + (Number(dj.excesoMin) > 0 ? 'fm-chip-jornada-exc' : 'fm-chip-jornada') + '">' + esc(t('fm_chip_jornada', { h: jorMin(dj.jornadaMin), e: jorMin(dj.excesoMin), n: dj.dias })) + '</span>');
 
   // Línea base por indicador: primer valor registrado vs. el último. Es lo que permite ver si la
   // persona viene mejorando o empeorando respecto de su propio punto de partida, que es distinto
@@ -30414,6 +30648,10 @@ function notifLocalItems(){
     if (x.tipo === 'ciclo_detenido'){
       titulo  = t('notif_det_titulo', { f: cicloFechaDe(x.t0), h: CICLO_DETENIDO_HORAS });
       detalle = t('notif_det_detalle', { primero: cicloEventoLabel(cicloEventoInicial()) });
+    }
+    if (x.tipo === 'jornada_vencida'){   // P077 · el texto se decide al MOSTRAR: pasada la ventana, ya no dice «márcalo»
+      titulo  = t('notif_exc_titulo', { f: cicloFechaDe(x.t0), ev: cicloEventoLabel(x.ev) });
+      detalle = t((Number(x.hasta) > 0 && Date.now() > Number(x.hasta)) ? 'notif_exc_detalle_tarde' : 'notif_exc_detalle', { ev: cicloEventoLabel(x.ev) });
     }
     return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', t0: Number(x.t0) || 0, local: true };
   })

@@ -34,12 +34,18 @@ PRUEBAS.caso('🔴 sin registro, a las 25 h en la misma fase el ciclo está DETE
   PRUEBAS.igual(st.activo, st.tramos.indexOf(jor), 'la aguja de la barra apunta al tramo detenido');
 });
 
-PRUEBAS.caso('DISCRIMINADOR · a las 23 h sigue en curso y excedido, como siempre', () => {
+PRUEBAS.caso('DISCRIMINADOR · a las 23 h todavía no se detuvo: es «sin cierre» (P077), no detenido; a las 15 h es excedido', () => {
   const c = p186cCiclo([p186cEv('salida_casa', p186cHace(24)), p186cEv('llegada_aero', p186cHace(23))]);
   const st = cicloEstado(c, P186C_AHORA, cicloPlan(''));
-  PRUEBAS.igual(st.estado, 'excedido', 'excedido (la jornada prevista son 12 h y lleva 23)');
+  /* P077 · pasado previsto × 1,5 (18 h de una jornada de 12) sin otro evento, la lectura es «no marcó la
+     salida», no «sigue trabajando»: `sin_cierre`, sin exceso. Lo que este discriminador mira es que NO
+     está detenido. */
+  PRUEBAS.igual(st.estado, 'sin_cierre', 'a 23 h: sin cierre (P077), no detenido');
   PRUEBAS.igual(st.detenidoEn, null, 'sin instante de detención');
-  PRUEBAS.cierto(st.huboExceso, 'y sí hubo exceso');
+  const c2 = p186cCiclo([p186cEv('salida_casa', p186cHace(16)), p186cEv('llegada_aero', p186cHace(15))]);
+  const st2 = cicloEstado(c2, P186C_AHORA, cicloPlan(''));
+  PRUEBAS.igual(st2.estado, 'excedido', 'a 15 h: excedido de verdad');
+  PRUEBAS.cierto(st2.huboExceso, 'y sí hubo exceso');
 });
 
 PRUEBAS.caso('un ciclo COMPLETO no se detiene aunque sea viejo, y uno en descanso tampoco', () => {
@@ -154,14 +160,16 @@ PRUEBAS.caso('los mapas de etiquetas y de orden cubren TODOS los estados que cic
   /* Un estado que falte no rompe: da `undefined` en el chip y `NaN` en el orden, sin excepción.
      Por eso se mira la FORMA del código: cada `const ETIQ = {` y el `ORD`/`n` tienen las seis. */
   const src = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
-  const estados = ['inactivo', 'curso', 'excedido', 'descanso', 'completo', 'detenido'];
+  /* P077 · dos estados más: `cerrado` (por el supervisor) y `sin_cierre`. P078 · un cuarto ETIQ, el de la
+     línea del ciclo en la tarjeta de Aptitud. */
+  const estados = ['inactivo', 'curso', 'excedido', 'descanso', 'completo', 'detenido', 'cerrado', 'sin_cierre'];
   const mapas = src.match(/const ETIQ = \{[\s\S]*?\};/g) || [];
-  PRUEBAS.igual(mapas.length, 3, 'guarda: hay tres ETIQ (piloto, supervisor, pantalla completa)');
+  PRUEBAS.igual(mapas.length, 4, 'guarda: hay cuatro ETIQ (piloto, supervisor, pantalla completa, tarjeta de Aptitud)');
   mapas.forEach((m, i) => estados.forEach(e => PRUEBAS.cierto(new RegExp('\\b' + e + ':').test(m), 'ETIQ #' + (i + 1) + ' tiene «' + e + '»')));
   const ord = (src.match(/const ORD = \{[^}]*\}/) || [''])[0], n = (src.match(/const n = \{ curso:0[^}]*\}/) || [''])[0];
   estados.forEach(e => { PRUEBAS.cierto(new RegExp('\\b' + e + ':').test(ord), 'ORD tiene «' + e + '»'); PRUEBAS.cierto(new RegExp('\\b' + e + ':').test(n), 'n{} tiene «' + e + '»'); });
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
-  ['cic-chip-detenido', 'cic-est-detenido', 'jor-chip-detenido'].forEach(c => PRUEBAS.cierto(new RegExp('\\.' + c + ' \\{').test(css), 'CSS ' + c));
+  ['cic-chip-detenido', 'cic-est-detenido', 'jor-chip-detenido', 'cic-chip-cerrado', 'cic-est-cerrado', 'cic-chip-sin_cierre', 'cic-est-sin_cierre'].forEach(c => PRUEBAS.cierto(new RegExp('\\.' + c + ' \\{').test(css), 'CSS ' + c));
 });
 
 PRUEBAS.caso('🔴 Jornada por onDashData: una jornada detenida lleva su chip y no cuenta como abierta ni como exceso', () => {
