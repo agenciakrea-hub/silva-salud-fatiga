@@ -252,6 +252,8 @@ PRUEBAS.caso('R13 · el CSS del visor no tiene ningún color escrito a mano', ()
 PRUEBAS.caso('R12 · a 375, 768 y 1366 el bloque entra en el ancho y los selectores no se cortan', () => {
   const fin = p185cEntrar();
   try {
+    /* 2026-09-17 · el visor arranca plegado (pedido de Franco): los selectores se miden con el cuerpo abierto */
+    visorPlegar(true);
     [375, 768, 1366].forEach(w => PRUEBAS.enVentana(w, 812, () => {
       const b = document.getElementById('visorBloque');
       const ov = document.getElementById('portalOverlay'); const tenia = ov.classList.contains('show'); ov.classList.add('show');
