@@ -2513,7 +2513,10 @@
        no queda "una caja adentro de otra caja" — el contenido respira directo sobre la página. */
     .portal-gate-card { width: min(560px, 94%); margin: 0 auto; background: none;
       border: none; border-radius: 0; padding: 0; box-shadow: none; }
-    .pg-logo { display: block; width: 76px; height: 76px; object-fit: contain; margin: 0 auto 1.1rem; }
+    /* El escudo es blanco (es el del splash navy): sobre la tarjeta clara «no se ve el logo porque es
+       blanco» (Franco). Va sobre un disco navy, como en la portada, en los dos temas. */
+    .pg-logo { display: block; width: 84px; height: 84px; object-fit: contain; margin: 0 auto 1.1rem;
+      padding: 12px; border-radius: 50%; background: var(--navy); box-sizing: border-box; }
     /* El título queda centrado arriba de todo (pestañas + lo que corresponda debajo) */
     #portalGate h2 { text-align: center; font-size: 1.65rem; }
     #portalGate .lead { text-align: center; margin-top: .5rem; margin-bottom: .6rem; font-size: .92rem; }
@@ -2525,7 +2528,11 @@
        marco): así se nota que es una acción alternativa aparte, no un paso más del login. */
     #portalDemoBloque { border: 1.5px solid var(--orange); border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; background: var(--orange-bg); }
     #portalDemoBloque .portal-demo-btn { padding: .95rem; }
-    .portal-demo-modo #portalCuerpo { min-height: 30rem; }
+    /* Franco (2026-09-17): «el botón no se ve en computadora, hay que scrollear». El pie a 30 rem más el
+       `margin-top:auto` mandaban «Ver el panel de…» a 830 px en una pantalla de 768. En escritorio el
+       bloque va debajo de la descripción; pegado al pie sólo en el teléfono (donde está el pulgar). */
+    .portal-demo-modo #portalCuerpo { min-height: 0; }
+    .portal-demo-modo #portalDemoBloque { margin-top: 1.25rem; }
     /* Administrador queda FIJO al pie de la tarjeta, sin importar la pestaña elegida. */
     #adminSep { margin-top: 1.8rem; }
   }
@@ -7198,7 +7205,7 @@
     <p class="adm-atajos-lead" id="dvLead" data-i18n="demo_bar_txt">Demostración con datos de ejemplo. Puedes tocar todo: nada de lo que hagas aquí se guarda.</p>
     <p class="adm-atajos-lead" data-i18n="demo_ojo_lead">Elige qué panel ver:</p>
     <div class="db-vistas" id="dbVistas" role="group" data-i18n-attr="aria-label:vista_grupo" aria-label="Vista"></div>
-    <button type="button" class="sim-salir demo-salir" onclick="closePortalUI()" data-i18n="demo_salir">Salir de la demostración</button>
+    <button type="button" class="sim-salir demo-salir" onclick="demoSalirUI()" data-i18n="demo_salir">Salir de la demostración</button>
     <button type="button" class="cancel-btn" onclick="demoVistasCerrarUI()" data-i18n="cerrar">Cerrar</button>
   </div>
 </div>
@@ -7294,7 +7301,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.62';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.63';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -17540,16 +17547,29 @@ function closePortalUI(){
   closePortal();
   if (apilo) navConsumir();
 }
+/* «Salir de la demostración»: de todo, con el payload borrado (la clave se vuelve a pedir la próxima vez). */
+function demoSalirUI(){
+  var apilo = !!_portalApilo;
+  closePortal(true);
+  if (apilo) navConsumir();
+}
 
-function closePortal(){
+/* `todo`: salir de la demostración entera (el botón «Salir de la demostración»). Sin `todo`, la ✕ o
+   el «atrás» dentro de un panel de la demo vuelven al SELECTOR de vistas, con el payload en memoria:
+   Franco (2026-09-17): «cuando doy ✕ no me tiene que sacar de todo, sólo del panel; quería ver
+   supervisor, salir y mostrar médico, y tengo que poner la clave de nuevo». */
+function closePortal(todo){
   _portalApilo = false;                         // P150 · la entrada, si la hubo, deja de ser suya
   const _eraDemo = !!(DASH && DASH.demoMode);   // se lee ANTES de perder DASH
+  /* sólo desde un PANEL abierto: la ✕ del propio gate de la demo cierra todo, como siempre */
+  const _panelAbierto = (document.getElementById('portalDash') || {}).style && document.getElementById('portalDash').style.display !== 'none';
+  const _volverAlSelector = _eraDemo && !todo && !!DEMO_PAYLOAD && _panelAbierto;
   DASH = null;
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
   stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); cicloTickStop();
   const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
   const pvtOv = document.getElementById('pvtOverlay'); if (pvtOv) pvtOv.classList.remove('show');
-  document.getElementById('portalOverlay').classList.remove('show');
+  if (!_volverAlSelector) document.getElementById('portalOverlay').classList.remove('show');
   // ⚠️ Al cerrar el panel hay que SALIR de la simulación. La barra que avisa "no se guarda nada"
   // vive dentro del panel: si quedara simulando con el panel cerrado, la app entera seguiría en
   // sólo lectura sin ningún aviso a la vista — alguien completaría un test y se perdería en
@@ -17569,9 +17589,16 @@ function closePortal(){
       const b = bitStoreAll();  delete b[k]; bitSaveStoreAll(b);
     } catch(e){}
   }
-  DEMO_PAYLOAD = null;                // S7: el payload de la demo no sobrevive al cierre
   const dbar = document.getElementById('demoFab'); if (dbar) dbar.style.display = 'none';
   try { demoVistasCerrar(); } catch(e){}
+  if (_volverAlSelector){
+    /* de vuelta al gate de la demostración (las cuatro pestañas), con el payload guardado: el próximo
+       «Ver el panel de…» entra sin viajar y sin clave (`demoAplicarGuardado`) */
+    marcarStatsActivo(false);
+    demoAbrirGate();
+    return;
+  }
+  DEMO_PAYLOAD = null;                // S7: el payload de la demo no sobrevive al cierre (sólo al salir del todo)
   portalDemoModo(false);              // salir del modo "sólo demo", si venía de ahí
   marcarStatsActivo(false); syncScrollLock();
   /* B5, 2026-08-25 — BUG REAL encontrado probando "Los otros tres caminos". El splash (B1) abre

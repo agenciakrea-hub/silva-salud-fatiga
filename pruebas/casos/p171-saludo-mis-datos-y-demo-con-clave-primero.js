@@ -185,12 +185,14 @@ PRUEBAS.caso('🔴 clave mal → error y la hoja sigue; clave bien → payload e
     PRUEBAS.igual(llamadas.length, 0, '🔴 «Ingresar» no pide nada a la red: el payload ya está');
     PRUEBAS.cierto(!!(DASH && DASH.demoMode) && DASH.vista === 'supervisor', 'y el panel quedó en la vista elegida');
     /* Volver al gate (lo que hace la flecha ← para quien tiene perfil de gestión) no tira el
-       payload en el portal sólo-demo: la clave ya se validó. La ✕ sí lo tira. */
+       payload en el portal sólo-demo: la clave ya se validó. 2026-09-17 (Franco): la ✕ dentro de un
+       PANEL de la demo tampoco —vuelve al selector de vistas para mostrar otro panel sin la clave—;
+       lo tiran «Salir de la demostración» (`closePortal(true)`) y la ✕ del gate. */
     openPortalGate();
     PRUEBAS.cierto(!!DEMO_PAYLOAD, '⚠️ volver al gate del portal sólo-demo conserva el payload: no se vuelve a pedir la clave');
-    closePortal();
-    PRUEBAS.falso(!!DEMO_PAYLOAD, 'la ✕ lo tira: la próxima vez se pide la clave otra vez');
-  } finally { try { closePortal(); } catch(e){} p171Restaurar(prev); }
+    closePortal();   // desde el gate (sin panel abierto): cierra todo
+    PRUEBAS.falso(!!DEMO_PAYLOAD, 'la ✕ del gate lo tira: la próxima vez se pide la clave otra vez');
+  } finally { try { closePortal(true); } catch(e){} p171Restaurar(prev); }
 });
 
 PRUEBAS.caso('⚠️ `splashVerDemo` ya no sondea la clave adentro del gate', () => {

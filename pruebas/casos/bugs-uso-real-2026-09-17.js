@@ -151,3 +151,65 @@ PRUEBAS.caso('🔴 el login con la contraseña reiniciada: con perfil abre «eli
     try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
   }
 });
+
+/* ── la demostración, vista en computadora (Franco, 2026-09-17) ───────────────────────────── */
+function bugDemoPayload(vista){
+  const hoy = new Date().toISOString().slice(0, 10);
+  return { ok:true, demo:true, rol:'supervisor', vista: vista || 'supervisor', combinada:true, referencia:{ kss:5 }, metricas:['kss'],
+    registros:[{ persona:'Ana Suárez', empresa:'Empresa Demo', departamento:'Administración', cargo:'Piloto', fecha:hoy, kss:6 }],
+    comentarios:[], pvt:[], aptitud:[], operacional:[], turnos:[], config:{ persistencia:3, anonN:5 }, marca:null, duty:null, ausencias:{} };
+}
+
+PRUEBAS.caso('🔴 en la demostración, la ✕ del panel vuelve al selector de vistas SIN pedir la clave; «Salir de la demostración» sí sale de todo', async () => {
+  const prevDash = DASH, prevPayload = DEMO_PAYLOAD, prevLS = Object.assign({}, localStorage);
+  const oFetch = window.fetch, oReloj = window.fetchConReloj, oToast = window.showToast;
+  window.fetch = () => new Promise(() => {}); window.fetchConReloj = () => new Promise(() => {}); window.showToast = () => {};
+  try {
+    const params = { action:'demo', dispositivoId:'bug', pass:'clave-demo' };
+    DEMO_PAYLOAD = { d: bugDemoPayload('supervisor'), params, scope: 'Empresa Demo' };
+    onDashData(DEMO_PAYLOAD.d, 'Empresa Demo', params, 'supervisor');
+    PRUEBAS.cierto(!!(DASH && DASH.demoMode) && getComputedStyle(document.getElementById('portalDash')).display !== 'none', 'guarda: el panel de la demo está abierto');
+    closePortalUI();
+    await PRUEBAS.esperarA(() => getComputedStyle(document.getElementById('portalGate')).display !== 'none', 2500);
+    PRUEBAS.cierto(document.getElementById('portalOverlay').classList.contains('show') && getComputedStyle(document.getElementById('portalDash')).display === 'none', '🔴 la ✕ cierra el panel y deja el gate de la demostración a la vista');
+    PRUEBAS.cierto(PORTAL_SOLO_DEMO && !!DEMO_PAYLOAD && DASH === null, '🔴 en modo demo, con el payload guardado (no se vuelve a pedir la clave)');
+    PRUEBAS.falso(document.getElementById('splashOv').classList.contains('show'), 'sin volver a la portada');
+    /* de ahí, otra vista entra sin viajar */
+    portalMode('med');
+    PRUEBAS.cierto(demoAplicarGuardado('medico'), '🔴 «Ver el panel de servicio médico» entra con lo guardado, sin red');
+    PRUEBAS.igual(DASH && DASH.vista, 'medico', 'en la vista médica');
+    /* «Salir de la demostración»: de todo */
+    demoSalirUI();
+    await PRUEBAS.esperarA(() => !document.getElementById('portalOverlay').classList.contains('show'), 2500);
+    PRUEBAS.cierto(!document.getElementById('portalOverlay').classList.contains('show') && DEMO_PAYLOAD === null && !PORTAL_SOLO_DEMO, 'DISCRIMINADOR · «Salir de la demostración» cierra todo y borra el payload: la próxima vez se pide la clave');
+  } finally {
+    window.fetch = oFetch; window.fetchConReloj = oReloj; window.showToast = oToast;
+    try { closePortal(true); } catch(e){}
+    try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+    DEMO_PAYLOAD = prevPayload; DASH = prevDash;
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
+});
+
+PRUEBAS.caso('🔴 R12 · el gate de la demostración en computadora (1366×768) entra sin scroll, con el botón a la vista, y el logo se ve sobre un disco navy', () => {
+  const prevLS = Object.assign({}, localStorage);
+  const oFetch = window.fetch, oReloj = window.fetchConReloj;
+  window.fetch = () => new Promise(() => {}); window.fetchConReloj = () => new Promise(() => {});
+  try {
+    PRUEBAS.enVentana(1366, 768, () => {
+      demoAbrirGate();
+      const gate = document.getElementById('portalGate'), btn = document.getElementById('portalDemoBtn'), logo = document.querySelector('#portalGate .pg-logo');
+      PRUEBAS.comoMucho(gate.scrollHeight, gate.clientHeight + 1, '🔴 el gate no scrollea (' + gate.scrollHeight + ' de ' + gate.clientHeight + ')');
+      const b = btn.getBoundingClientRect();
+      PRUEBAS.cierto(b.top > 0 && b.bottom <= 768, '🔴 «Ver el panel de…» está a la vista sin scrollear (' + Math.round(b.top) + '–' + Math.round(b.bottom) + ')');
+      const bg = getComputedStyle(logo).backgroundColor;
+      PRUEBAS.cierto(getComputedStyle(logo).display !== 'none' && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent', '🔴 el logo (escudo blanco) tiene un fondo detrás · ' + bg);
+      PRUEBAS.igual(bg, CTX.token('var(--navy)'), 'y es el navy de la marca (token, R13)');
+    });
+  } finally {
+    window.fetch = oFetch; window.fetchConReloj = oReloj;
+    try { closePortal(true); } catch(e){}
+    try { document.getElementById('splashOv').classList.remove('show'); } catch(e){}
+    try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+  }
+});

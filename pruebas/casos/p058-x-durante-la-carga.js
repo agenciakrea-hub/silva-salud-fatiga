@@ -68,7 +68,7 @@ PRUEBAS.caso('⚠️ tocar la ✕ durante una carga la CANCELA, no sólo cierra'
      carga en vuelo y restaura la interfaz. */
   const f = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');
   PRUEBAS.alMenos(f.length, 100000, 'guarda de medibilidad: se leyó la fuente');
-  const cp = (f.match(/function closePortal\(\)[\s\S]*?\n\}/) || [''])[0];
+  const cp = (f.match(/function closePortal\([a-z]*\)[\s\S]*?\n\}/) || [''])[0];   // 2026-09-17 · `closePortal(todo)`: con parámetro
   PRUEBAS.alMenos(cp.length, 100, 'guarda: se encontró `closePortal`');
   PRUEBAS.cierto(/cargaCancelar\(\)/.test(cp),
     '⚠️ `closePortal` cancela la carga en curso · sin eso, la respuesta tardía se aplicaría sola');
