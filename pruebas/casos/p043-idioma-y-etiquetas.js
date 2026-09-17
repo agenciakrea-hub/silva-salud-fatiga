@@ -155,7 +155,11 @@ PRUEBAS.caso('⚠️ ciclo operativo · "Guardar para toda la empresa": SEXTA ll
       onDashData(payload, 'Empresa P043', { usuario: 'usuario-p043', pass: 'clave-p043' }, 'supervisor');
       if (!CICLO_CFG_ABIERTO) cicloCfgToggle();   // abre el editor: es acá donde viven los cicCfg_*
       const btn = document.querySelector('.cic-cfg-ok');
-      cicloCfgGuardar(btn);
+      /* P074 · guardar lo mismo ya no manda nada, y guardar algo distinto pide confirmación (R8):
+         se cambia un tramo y se contesta que sí, para llegar al `btnSpin` que este caso mide. */
+      const jor = document.getElementById('cicCfg_jornada'); if (jor) jor.value = Number(jor.value) + 5;
+      const oC = window.confirm; window.confirm = () => true;
+      try { cicloCfgGuardar(btn); } finally { window.confirm = oC; }
       texto = btn.textContent;
       btnSpin(btn, false);
     });

@@ -102,19 +102,24 @@ PRUEBAS.caso('⚠️ los diez llamadores están conectados o documentados, ningu
     .filter(x => !/cicloPlanEmpresa|cicloPlanPersona|cicloPlanGuardar/.test(x)).length;
   PRUEBAS.alMenos(conArg, 3,
     '⚠️ hay llamadas que pasan la persona · encontré ' + conArg);
-  /* ⚠️ QUEDAN EXACTAMENTE DOS SIN PERSONA, y los dos están decididos:
-       1. `cicloPromedios`        · el promedio es del GRUPO; contra planes distintos no diría nada
-       2. `renderCicloOperativo`  · alimenta el EDITOR del plan de empresa y los promedios
-     Si aparece un tercero, alguien agregó un llamador sin decidir de quién es el plan — que es
-     exactamente como se pierde este arreglo.
+  /* ⚠️ NO QUEDA NINGUNO SIN PERSONA. Los dos que quedaban decididos —`cicloPromedios` (el promedio
+     es del GRUPO) y `renderCicloOperativo` (el EDITOR del plan de empresa)— querían el plan DE LA
+     EMPRESA, y `cicloPlan()` sin persona no devuelve eso: pasa antes por `cicloPlanPropioGuardado()`,
+     la jornada propia del dueño del dispositivo. P074 (2026-09-17) les dio su propia función,
+     `cicloPlanEmpresaCompleto()`. Si aparece un `cicloPlan()` pelado, alguien agregó un llamador sin
+     decidir de quién es el plan — que es exactamente como se pierde este arreglo.
 
-     ⚠️ Este número se movió DOS VECES y las dos por algo real:
+     ⚠️ Este número se movió TRES VECES y las tres por algo real:
      · empezó en 3 y dio 4, porque me había salteado `cicloEstado(p.ciclo, ahora, plan)` — LA línea
        que decide quién está excedido. El caso lo encontró;
-     · y bajó a 2 en P057c, cuando las dos ventanas de agrupación pasaron a calcularse por persona
-       y las variables `plan` de `cicloArmar` y `cicloHistorico` quedaron sin uso y se sacaron. */
-  PRUEBAS.igual(sinArg, 2,
-    '⚠️ quedan exactamente 2 sin persona, los dos decididos a propósito · encontré ' + sinArg);
+     · bajó a 2 en P057c, cuando las dos ventanas de agrupación pasaron a calcularse por persona
+       y las variables `plan` de `cicloArmar` y `cicloHistorico` quedaron sin uso y se sacaron;
+     · y a 0 en P074, cuando los dos «de empresa» pasaron a `cicloPlanEmpresaCompleto()`. */
+  PRUEBAS.igual(sinArg, 0,
+    '⚠️ no queda ningún cicloPlan() sin persona · encontré ' + sinArg);
+  const deEmpresa = (sinComentarios.match(/cicloPlanEmpresaCompleto\(\)/g) || []).length;
+  PRUEBAS.igual(deEmpresa, 4,
+    '⚠️ el plan DE LA EMPRESA se pide por su función en los dos lugares decididos (más la propia y la confirmación de P074) · encontré ' + deEmpresa);
 });
 
 PRUEBAS.caso('⚠️ `onDashData` NO descarta el campo nuevo (el hallazgo A4)', () => {

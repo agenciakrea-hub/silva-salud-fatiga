@@ -304,7 +304,7 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         PRUEBAS.igual(cicloEstado(cicloMio(), Date.now(), cicloPlan('')).estado, 'detenido', 'guarda: el ciclo está detenido');
         PRUEBAS.igual(notifLocalItems().length, 0, 'guarda: la lista de avisos arranca vacía');
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => revisiones >= 1 && toasts.length > 0, 3000);
+        await PRUEBAS.esperarA(() => revisiones >= 1 && toasts.length > 0, 6000);   // 6 s, ver abajo
         PRUEBAS.igual(revisiones, 1, 'guarda: la revisión diferida corrió una vez');
         const lista = notifLocalLeer();
         PRUEBAS.igual(lista.length, 1, '⚠️ queda UNA entrada en el almacén local');
@@ -326,7 +326,7 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         PRUEBAS.cierto(item && item.textContent.indexOf(t('notif_de', { f: t('cic_de_hoy') })) >= 0 && item.textContent.indexOf(t('tar_sin_plazo')) < 0, 'y dice «Aviso de hoy», no «Sin plazo»');
         /* idempotente: otra revisión no duplica */
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => revisiones >= 2, 3000);
+        await PRUEBAS.esperarA(() => revisiones >= 2, 6000);   // 6 s: el diferido es de 1,5 s, pero con la pestaña oculta y otra pestaña cargada los timers pasan de 3 s (rojo de entorno, 2026-09-17)
         PRUEBAS.igual(revisiones, 2, 'guarda: la segunda revisión corrió de verdad');
         PRUEBAS.igual(notifLocalLeer().length, 1, 'otra revisión no la duplica');
         /* «Entendido» */
@@ -343,7 +343,7 @@ PRUEBAS.caso('🔴 P186c · el aviso también queda en «Tus tareas»: entrada d
         localStorage.removeItem(K_NOTIF_LOCAL); localStorage.removeItem(K_CICLO_DETENIDO_VISTO);
         localStorage.setItem(K_CICLO_SRV, JSON.stringify([p186cEv('salida_casa', p186cHace(0.5))]));
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => revisiones >= 3, 3000);
+        await PRUEBAS.esperarA(() => revisiones >= 3, 6000);   // 6 s: el diferido es de 1,5 s, pero con la pestaña oculta y otra pestaña cargada los timers pasan de 3 s (rojo de entorno, 2026-09-17)
         PRUEBAS.igual(revisiones, 3, 'guarda: la tercera revisión corrió de verdad');
         PRUEBAS.igual(notifLocalLeer().length, 0, 'DISCRIMINADOR · un ciclo de media hora no deja aviso');
       } finally { try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){} }
@@ -406,7 +406,7 @@ PRUEBAS.caso('🔴 P186d · el doble toque («lo volví a tocar porque no estaba
         PRUEBAS.igual(ciclos.length, 1, 'un solo ciclo, no un fantasma más el real');
         PRUEBAS.igual(cicloEstado(ciclos[0], Date.now(), cicloPlan('')).estado, 'completo', 'y está completo');
         cicloDetenidoRevisar();
-        await PRUEBAS.esperarA(() => revisiones >= 1, 3000);
+        await PRUEBAS.esperarA(() => revisiones >= 1, 6000);   // 6 s: el diferido es de 1,5 s, pero con la pestaña oculta y otra pestaña cargada los timers pasan de 3 s (rojo de entorno, 2026-09-17)
         PRUEBAS.igual(revisiones, 1, 'guarda: la revisión corrió');
         PRUEBAS.igual(toasts.filter(x => /24 h/.test(x)).length, 0, 'ningún toast de «se detuvo»');
         PRUEBAS.igual(notifLocalLeer().length, 0, 'ninguna entrada en «Tus tareas»');

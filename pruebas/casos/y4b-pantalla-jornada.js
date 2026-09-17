@@ -196,7 +196,7 @@ PRUEBAS.caso('⚠️ ningún número queda sin decir qué es', () => {
     const dia = (fecha, exceso) => ({ persona: 'Ana Prueba', empresa: 'Helitec', departamento: 'Op', fecha: fecha, jornadaMin: 720 + exceso, previstoMin: 720, excesoMin: exceso, abierto: false, umbralCongelado: true, tramos: [] });
     onDashData({ ok: true, rol: 'supervisor', vista: 'medico', referencia: {}, metricas: [], registros: [], comentarios: [], pvt: [], aptitud: [], config: {}, marca: null, ausencias: {}, turnos: [], operacional: [],
       duty: { diario: [dia('2026-09-10', 60), dia('2026-09-11', 80), dia('2026-09-12', 0)], personas: [{ persona: 'Ana Prueba', empresa: 'Helitec', departamento: 'Op', dias: 3, jornadaMin: 2300, excesoMin: 140, diasConExceso: 2, umbralCongelado: true, promedioJornadaMin: 767 }], historico: [] } },
-      'Helitec', { action: 'supervisor', usuario: 'helitec', empresa: 'helitec', pass: 'x', dispositivoId: 'y4b' }, 'medico');
+      'Helitec', { action: 'supervisor', usuario: 'usuario-y4b', empresa: 'helitec', pass: 'x', dispositivoId: 'y4b' }, 'medico');   // P074 · usuario que no existe en producción: con credenciales, onDashData dispara pedidos al endpoint REAL y una contraseña falsa suma al freno de fuerza bruta de esa cuenta
     const cont = document.createElement('div'); cont.innerHTML = renderJornada();
     const fila = [...cont.querySelectorAll('table.jor-tabla tbody tr')].find(tr => /Ana Prueba/.test(tr.textContent));
     PRUEBAS.cierto(!!fila, 'guarda: la persona está en la tabla');

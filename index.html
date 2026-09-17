@@ -7212,7 +7212,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.55';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.56';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7837,6 +7837,11 @@ const I18N = {
       cic_per_quitado:'Vuelve a la jornada de la empresa',
       cic_per_conf_quitar:'¿Devolver a {q} a la jornada de la empresa? Su ciclo pasa a medirse contra esa.',
       cic_cfg_err:'Revisa los valores: cada tramo va entre 5 y 1440 minutos.',
+      // P074 · el cambio se confirma viendo qué cambia, y queda en la bitácora
+      cic_cfg_conf:'¿Guardar estas horas para toda la empresa? {cambios}. Desde ahora cada exceso se mide contra las nuevas; el cambio queda registrado con tu usuario.',
+      cic_cfg_reentrar:'Vuelve a entrar con tu usuario para poder guardar.',
+      cic_cfg_conf_igual:'Sin cambios respecto de lo que muestra este panel',
+      cic_cfg_conf_demo:'¿Guardar estas horas para toda la empresa? {cambios}. En el ejemplo no se registra nada.',
       cic_ayuda:'El <b>ciclo operativo</b> de cada persona, en vivo. Se arma solo con los {n} botones de <b>Data Operacional</b> de la app: al tocar «{primero}» arranca el ciclo, y al tocar «{jornadaEv}» arranca el reloj de <b>jornada</b>, que corre contra las horas configuradas abajo. Cada tramo muestra <b>cuánto duró contra cuánto debía durar</b>. Si un tramo se pasa, queda en <b style="color:var(--sem-rojo-txt)">rojo</b> con el exceso corriendo, para poder accionar sobre eso. Si pasan <b>24 h sin el paso siguiente</b>, el ciclo se <b style="color:var(--sem-ambar-txt)">detiene solo</b>: deja de contar, queda registrado y no cuenta como exceso — es un olvido de registro, no una jornada larga. Quien todavía no tocó nada aparece igual, <b>en gris</b>.',
       cic_kpi_curso:'en curso', cic_kpi_exc:'pasados de tiempo', cic_kpi_desc:'en descanso',
       cic_kpi_comp:'completos', cic_kpi_sin:'sin iniciar',
@@ -7908,6 +7913,8 @@ const I18N = {
       ts_archivo_ok:'Archivo generado',
       ts_archivo_error:'No se pudo generar el archivo',
       ts_ciclo_guardado:'Horas del ciclo guardadas para toda la empresa',
+      ts_ciclo_sin_cambio:'Las horas del ciclo quedan como estaban',
+      ts_ciclo_guardado_sin_bitacora:'Horas guardadas, pero el registro en la bitácora no se pudo escribir. Avisa al administrador.',
       ts_copiado:'Informe copiado al portapapeles',
       ts_no_copiar:'No se pudo copiar',
       ts_no_compartir:'Compartir no está disponible en este navegador',
@@ -8519,6 +8526,14 @@ const I18N = {
       acc_telem_sug:'Telemedicina sugerida', acc_telem_acep:'Telemedicina aceptada',
       acc_telem_rech:'Telemedicina rechazada', acc_telem_real:'Telemedicina realizada',
       acc_caso_odoo:'Caso enviado a gestión interna',
+      // P074 · las acciones que escribe el SERVIDOR salían con la clave cruda (R14)
+      acc_ciclo_plan:'Horas del ciclo de la empresa cambiadas', acc_ciclo_persona:'Jornada propia asignada',
+      acc_ciclo_persona_q:'Jornada propia quitada', acc_ciclo_detenido:'Ciclo detenido por el sistema',
+      acc_nomina_sync:'Nómina sincronizada', acc_cred_creada:'Contraseña creada',
+      acc_cred_cambiada:'Contraseña cambiada', acc_cred_reiniciada:'Contraseña reiniciada',
+      acc_cred_aviso:'Aviso de contraseña creada', acc_accesos_admin:'Acceso de administrador actualizado',
+      tz_cambio:'Cambio: {q}', tz_antes_general:'antes regía la configuración general',
+      tz_antes_ninguno:'antes no había horas configuradas', tz_quien:'tocado por {q}',
       tz_titulo:'Trazabilidad ({n})', tz_exportar:'Exportar como CSV',
       tz_sobre:'Sobre {q}', tz_del_sistema:'Del sistema', tz_por:'por {q}', tz_automatico:'automático',
       tz_umbral:'Umbral vigente: nivel {n} · amarillo {a} · rojo {r}',
@@ -9615,6 +9630,11 @@ const I18N = {
       cic_per_quitado:'Back to the company plan',
       cic_per_conf_quitar:'Move {q} back to the company duty plan? Their cycle will be measured against it.',
       cic_cfg_err:'Check the values: each segment must be between 5 and 1440 minutes.',
+      // P074
+      cic_cfg_conf:'Save these hours for the whole company? {cambios}. From now on every excess is measured against the new hours; the change is logged under your user.',
+      cic_cfg_reentrar:'Sign in again with your user to be able to save.',
+      cic_cfg_conf_igual:'No changes compared with what this panel shows',
+      cic_cfg_conf_demo:'Save these hours for the whole company? {cambios}. Nothing is logged in the demo.',
       cic_ayuda:'Each person\'s <b>operational cycle</b>, live. It builds itself from the {n} <b>Operational Data</b> buttons in the app: tapping "{primero}" starts the cycle, and tapping "{jornadaEv}" starts the <b>on-duty</b> clock, which runs against the hours configured below. Each segment shows <b>how long it took against how long it should have taken</b>. If a segment runs over, it turns <b style="color:var(--sem-rojo-txt)">red</b> with the excess counting up, so you can act on it. If <b>24 h go by without the next step</b>, the cycle <b style="color:var(--sem-ambar-txt)">stops by itself</b>: it stops counting, it is logged and it does not count as excess — it is a logging slip, not a long shift. Anyone who has not tapped anything still appears, <b>in grey</b>.',
       cic_kpi_curso:'on duty', cic_kpi_exc:'over time', cic_kpi_desc:'resting',
       // ── Perelli and KSS: what does NOT change by sector (C2). Instrument scales. ──
@@ -9720,6 +9740,8 @@ const I18N = {
       ts_archivo_ok:'File generated',
       ts_archivo_error:'Could not generate the file',
       ts_ciclo_guardado:'Cycle hours saved for the whole company',
+      ts_ciclo_sin_cambio:'Cycle hours left as they were',
+      ts_ciclo_guardado_sin_bitacora:'Hours saved, but the log entry could not be written. Tell the administrator.',
       ts_copiado:'Report copied to clipboard',
       ts_no_copiar:'Could not copy',
       ts_no_compartir:'Sharing is not available in this browser',
@@ -10372,6 +10394,14 @@ const I18N = {
       acc_telem_sug:'Telemedicine offered', acc_telem_acep:'Telemedicine accepted',
       acc_telem_rech:'Telemedicine declined', acc_telem_real:'Telemedicine completed',
       acc_caso_odoo:'Case sent to internal follow-up',
+      // P074
+      acc_ciclo_plan:'Company cycle hours changed', acc_ciclo_persona:'Personal duty plan assigned',
+      acc_ciclo_persona_q:'Personal duty plan removed', acc_ciclo_detenido:'Cycle stopped by the system',
+      acc_nomina_sync:'Roster synced', acc_cred_creada:'Password created',
+      acc_cred_cambiada:'Password changed', acc_cred_reiniciada:'Password reset',
+      acc_cred_aviso:'Password-created notice', acc_accesos_admin:'Administrator access updated',
+      tz_cambio:'Change: {q}', tz_antes_general:'the general setting applied before',
+      tz_antes_ninguno:'no hours were configured before', tz_quien:'by {q} (device profile)',
       tz_titulo:'Traceability ({n})', tz_exportar:'Export as CSV',
       tz_sobre:'About {q}', tz_del_sistema:'From the system', tz_por:'by {q}', tz_automatico:'automatic',
       tz_umbral:'Threshold in force: level {n} · amber {a} · red {r}',
@@ -21281,8 +21311,32 @@ const HSEQ_ACCION_LABEL = {
   alta_reincorporacion:'acc_alta', nota_clinica:'acc_nota_clinica',
   telemedicina_sugerida:'acc_telem_sug', telemedicina_aceptada:'acc_telem_acep',
   telemedicina_rechazada:'acc_telem_rech', telemedicina_realizada:'acc_telem_real',
-  caso_odoo:'acc_caso_odoo'
+  caso_odoo:'acc_caso_odoo',
+  /* P074 · las que escribe el SERVIDOR (`bitacoraServidor`) salían con la clave cruda en
+     Trazabilidad y en el CSV. Un caso recorre el `.gs` real y exige que cada acción esté acá. */
+  ciclo_plan_guardado:'acc_ciclo_plan', ciclo_persona_guardado:'acc_ciclo_persona',
+  ciclo_persona_quitado:'acc_ciclo_persona_q', ciclo_detenido:'acc_ciclo_detenido',
+  nomina_sync:'acc_nomina_sync', credencial_creada:'acc_cred_creada',
+  credencial_cambiada:'acc_cred_cambiada', credencial_reiniciada:'acc_cred_reiniciada',
+  credencial_creada_aviso:'acc_cred_aviso', accesos_admin_set:'acc_accesos_admin'
 };
+/* P074 · el «de qué a qué» de un cambio de horas, legible: sólo los tramos que cambiaron, con las
+   etiquetas de la forma del sector. Es el único `detalle` que Trazabilidad muestra: no es clínico,
+   y es exactamente lo que Dirección necesita para saber contra qué se midió a quién y desde
+   cuándo. Cualquier otra acción que quiera mostrar el suyo pasa por acá, nunca por el JSON crudo. */
+function bitCambioDe(e, canon){
+  if (!e || e.accion !== 'ciclo_plan_guardado' || !e.detalle) return '';
+  const tx = canon ? tCanon : t;   // el CSV va en la lengua canónica, como `accionLabelCanon`
+  const d = e.detalle, antes = d.antes || null, despues = d.despues || {};
+  const partes = cicloTramos()
+    .filter(tr => isFinite(Number(despues[tr.k])) && Number((antes || {})[tr.k]) !== Number(despues[tr.k]))
+    .map(tr => tx(tr.corto) + ' ' + (antes && isFinite(Number(antes[tr.k])) ? cicloHM(antes[tr.k]) : '—') + ' → ' + cicloHM(despues[tr.k]));
+  if (!partes.length) return '';
+  let txt = partes.join(' · ');
+  if (d.origenAntes === 'general') txt += ' (' + tx('tz_antes_general') + ')';
+  else if (d.origenAntes === 'ninguno' || !antes) txt += ' (' + tx('tz_antes_ninguno') + ')';
+  return txt;
+}
 /* 🔒 Acciones de la bitácora que NO se muestran en la consola de Dirección / HSEQ.
    `caso_odoo` (P13) es el traspaso al circuito interno de Silva (telemedicina). Dirección es la
    EMPRESA CONTRATANTE, y la regla heredada del otro proyecto es explícita: ni la empresa ni la
@@ -21296,6 +21350,7 @@ function renderHseqAuditoria(){
   if (!ev.length) return ayuda + dashVacio('acciones', 'nota');
   const filas = ev.map(e => {
     const u = e.umbral;
+    const cambio = bitCambioDe(e);
     return '<div class="hs-ev">' +
       '<div class="hs-ev-top"><span class="hs-ev-acc">' + esc(accionLabel(e.accion)) + '</span>' +
         '<span class="hs-ev-fecha">' + esc(gestFechaTs(e.ts)) + '</span></div>' +
@@ -21306,6 +21361,9 @@ function renderHseqAuditoria(){
         (e.origen === 'algoritmo' ? ' <small>· ' + esc(t('tz_automatico')) + '</small>' : '') +
       '</div>' +
       (u ? '<div class="hs-ev-um">' + esc(t('tz_umbral', { n: u.nivel, a: u.amarillo, r: u.rojo })) + '</div>' : '') +
+      /* P074 · el «de → a» del cambio de horas y quién lo tocó (nombre del perfil del dispositivo) */
+      (cambio ? '<div class="hs-ev-um">' + esc(t('tz_cambio', { q: cambio })) +
+        (e.detalle && e.detalle.quien ? ' · ' + esc(t('tz_quien', { q: e.detalle.quien })) : '') + '</div>' : '') +
     '</div>';
   });
   return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('tz_titulo', { n: ev.length })) + '</div>' +
@@ -21321,10 +21379,11 @@ function hseqExportar(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);   // mismo cortafuegos que la pantalla
   if (!ev.length){ showToast(t('ts_nada_exportar')); return; }
   const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g,'""') + '"';
-  const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version'];
+  const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version','Cambio'];
   const cuerpo = ev.map(e => [ gestFechaTs(e.ts), accionLabelCanon(e.accion), e.sujeto || '',
     e.actor || '', e.rol || '', e.origen || '', e.umbral ? e.umbral.nivel : '',
-    e.umbral ? e.umbral.amarillo : '', e.umbral ? e.umbral.rojo : '', e.app || '' ].map(esc2).join(','));
+    e.umbral ? e.umbral.amarillo : '', e.umbral ? e.umbral.rojo : '', e.app || '',
+    (function(){ const c = bitCambioDe(e, true); return c && e.detalle && e.detalle.quien ? c + ' · ' + e.detalle.quien : c; })() ].map(esc2).join(','));   // P074
   const csv = '﻿' + [head.map(esc2).join(',')].concat(cuerpo).join('\r\n');   // BOM: Excel abre los acentos bien
   try {
     const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }));
@@ -21719,6 +21778,22 @@ function cicloPlan(persona){
   }
   return p;
 }
+/* P074 · EL PLAN DE LA EMPRESA, COMPLETO, y nada más que el de la empresa. `cicloPlan()` sin
+   persona pasa por `cicloPlanPropioGuardado()` —la jornada PROPIA del dueño del dispositivo, que
+   `tareas_mias` deja en `K_CICLO_PLAN_PROPIO`—, así que un supervisor que además tiene jornada
+   propia veía SU jornada en el editor de la empresa y en los promedios del grupo. El editor edita
+   el de la empresa: se lee de ahí, con la base de la forma del sector para lo que falte. */
+function cicloPlanEmpresaCompleto(){
+  const p = Object.assign({}, cicloForma().plan);
+  const c = cicloPlanEmpresa();
+  if (c && typeof c === 'object'){
+    cicloTramos().forEach(tr => {
+      const v = Number(c[tr.k]);
+      if (isFinite(v) && v > 0) p[tr.k] = Math.round(v);
+    });
+  }
+  return p;
+}
 function cicloTotalMin(p){ return cicloTramos().reduce((s, tr) => s + (p[tr.k] || 0), 0); }
 
 function cicloHM(min){
@@ -21999,8 +22074,10 @@ var CICLO_ATIPICO_X = 3;
 function cicloPromedios(ciclosPorPersona, plan){
   /* P057a · El promedio es del GRUPO —cuánto se excede la gente contra lo previsto—, así que el
      plan de referencia es el de la empresa por definición. Si cada persona tuviera el suyo, un
-     promedio contra planes distintos no significaría nada. Se deja como está. */
-  plan = plan || cicloPlan();
+     promedio contra planes distintos no significaría nada. Se deja como está.
+     P074 · el respaldo era `cicloPlan()`, que sin persona devuelve la jornada PROPIA del dueño
+     del dispositivo si la tiene; el de la empresa es `cicloPlanEmpresaCompleto()`. */
+  plan = plan || cicloPlanEmpresaCompleto();
   const ahora = Date.now();
   const acum = {};
   cicloTramos().forEach(tr => { acum[tr.k] = { k:tr.k, corto:tr.corto, previsto:plan[tr.k], vals:[], fuera:0 }; });
@@ -22392,21 +22469,42 @@ function cicloCfgGuardar(btn){
   const malo = Object.keys(plan).find(k => !isFinite(plan[k]) || plan[k] < 5 || plan[k] > 1440);
   if (malo){ if (err) err.textContent = t('cic_cfg_err'); return; }
   if (visorBloquea(t('visor_jornada'))) return;   // P185
+  /* P074 · R8 · cambiar las horas de TODA la empresa es el número contra el que se juzga cada
+     exceso desde ahora: se confirma viendo el cambio («Jornada 12 h 00 min → 10 h 00 min»), con
+     háptico. Sin cambios no se pregunta ni se manda: guardar lo mismo no es un hecho. El «antes»
+     que se muestra es el que este panel tiene cargado; el que queda registrado lo lee el servidor
+     en el mismo pedido (otro supervisor pudo guardar entre medio). */
+  const vigente = cicloPlanEmpresaCompleto();
+  const cambios = cicloTramos().filter(tr => Number(vigente[tr.k]) !== plan[tr.k]);
+  /* ⚠️ NO se decide acá «sin cambios»: el «vigente» del panel puede ser viejo (otro supervisor guardó
+     entre medio) o de otra empresa (`K_CICLO_PLAN` del perfil del dispositivo), y un toque que
+     quería FIJAR estos números se perdería en silencio. Se manda siempre; el servidor, que tiene el
+     dato fresco, contesta `sinCambio` si corresponde (verificador P074). */
+  const resumen = cambios.map(tr => t(tr.corto) + ' ' + cicloHM(vigente[tr.k]) + ' → ' + cicloHM(plan[tr.k])).join(' · ');
+  const pregunta = DASH.demoMode ? t('cic_cfg_conf_demo', { cambios: resumen || t('cic_cfg_conf_igual') })
+                                 : t('cic_cfg_conf', { cambios: resumen || t('cic_cfg_conf_igual') });
+  if (!confirm(pregunta)) return;
+  try { haptic(16); } catch(e){}
   if (DASH.demoMode){
     DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
-    CICLO_CFG_ABIERTO = false; cicloRepintar(); showToast('Guardado (ejemplo)');
+    CICLO_CFG_ABIERTO = false; cicloRepintar(); showToast(t('demo_aplicado'));
     return;
   }
   const cred = (DASH && DASH.params) || {};
-  if (!cred.usuario || !cred.pass){ if (err) err.textContent = 'Vuelve a entrar con tu usuario para poder guardar.'; return; }
+  if (!cred.usuario || !cred.pass){ if (err) err.textContent = t('cic_cfg_reentrar'); return; }
   btnSpin(btn, true, t('guardando'));
-  conBloqueo('#portalDash', dashRequest(dashAuth({ action:'ciclo_config_guardar', plan:JSON.stringify(plan) }))
+  conBloqueo('#portalDash', dashRequest(dashAuth({ action:'ciclo_config_guardar', plan:JSON.stringify(plan),
+      quien: (getProfile() || {}).nombre || '' }))   // P074 · quién tocó, como en el plan por persona
     .then(d => {
       btnSpin(btn, false);
-      if (!d || !d.ok){ if (err) err.textContent = (d && d.error) || 'No se pudo guardar.'; return; }
-      DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
+      if (!d || !d.ok){ if (err) err.textContent = tError(d && d.error); return; }
+      DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan: d.plan || plan });
       CICLO_CFG_ABIERTO = false; cicloRepintar();
-      showToast(t('ts_ciclo_guardado'));
+      /* R3 · si el servidor guardó pero no pudo escribir la bitácora, se dice: un cambio sin
+         registro no es lo que se prometió, aunque el guardado esté hecho. */
+      if (d.sinCambio) showToast(t('ts_ciclo_sin_cambio'));
+      else if (d.bitacora === null) showToast(t('ts_ciclo_guardado_sin_bitacora'));
+      else showToast(t('ts_ciclo_guardado'));
     })
     .catch(() => { btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; }));
 }
@@ -23206,8 +23304,11 @@ function renderCicloOperativo(){
   /* ⚠️ P057a · ESTE `plan` ES EL DE LA EMPRESA A PROPÓSITO, y queda para dos usos donde eso es lo
      correcto: `cicloCfgHtml(plan)` —el EDITOR del plan de la empresa, que edita justamente eso— y
      `cicloPromediosHtml(...)`, donde el promedio es del grupo y contra planes distintos no
-     significaría nada. Todo lo que se dibuja o se juzga POR PERSONA usa `cicloPlan(pe.persona)`. */
-  const plan = cicloPlan();
+     significaría nada. Todo lo que se dibuja o se juzga POR PERSONA usa `cicloPlan(pe.persona)`.
+     P074 · era `cicloPlan()`, que sin persona cae en la jornada PROPIA del dispositivo antes que
+     en la de la empresa (ver `cicloPlanEmpresaCompleto`): el editor de la empresa mostraba la del
+     supervisor cuando él tenía una. */
+  const plan = cicloPlanEmpresaCompleto();
   /* R14: la ayuda nombraba "los cuatro botones" y "Llegando al aeropuerto" a mano. Ahora los
      nombres salen de la forma del sector y la cantidad se cuenta, así una planta lee su propio
      recorrido y un sector con otra cantidad de eventos no queda diciendo "cuatro". */
