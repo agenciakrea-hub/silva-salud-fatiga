@@ -214,11 +214,13 @@ function p049Medible(r, minRenders){
   return r.altoScroll > 0 && r.bloques > 0 && r.renders >= minRenders && (r.animados[0] || 0) > 0;
 }
 
-PRUEBAS.caso('⚠️ servicio médico: llegan 3 respuestas y el panel entra UNA sola vez', async () => {
+PRUEBAS.caso('⚠️ servicio médico: llegan 4 respuestas y el panel entra UNA sola vez', async () => {
+  /* P075 · eran 3; la cuarta es la bandeja de reportes, que desde P075 también se le pide al
+     médico y repinta al llegar (antes sólo repintaba si `DASH.tab === 'reportes'`, que nunca es). */
   const r = await p049Abrir('medico', 'empresa', {});
   if (!p049Medible(r, 2)) return;
-  PRUEBAS.igual(r.renders, 3,
-    'siguen siendo 3 pedidos con 3 repintados: este prompt NO cambia cuántas veces se piden los ' +
+  PRUEBAS.igual(r.renders, 4,
+    'siguen siendo 4 pedidos con 4 repintados: este prompt NO cambia cuántas veces se piden los ' +
     'datos, sólo cuántas veces el panel se vuelve a presentar · animados = ' + JSON.stringify(r.animados));
   PRUEBAS.igual(r.rearman, 1,
     '⚠️ y UNO solo rearma la animación de entrada. Antes eran los 3: el panel se veía entrar tres ' +
@@ -235,12 +237,14 @@ PRUEBAS.caso('⚠️ servicio médico con los niveles ya en el payload (la otra 
     'la rama de gestiones tiene que estar tan cubierta como la de niveles · animados = ' + JSON.stringify(r.animados));
 });
 
-PRUEBAS.caso('⚠️ supervisor: son 4 respuestas (una la dispara renderAptitud) y entra UNA sola vez', async () => {
+PRUEBAS.caso('⚠️ supervisor: son 5 respuestas (una la dispara renderAptitud) y entra UNA sola vez', async () => {
   /* El supervisor tiene una cascada más que nadie, y es la más fácil de pasar por alto: la
-     dispara `renderAptitud()` DESDE ADENTRO del primer render, no `onDashData`. */
+     dispara `renderAptitud()` DESDE ADENTRO del primer render, no `onDashData`.
+     P075 · eran 4: la bandeja de reportes ahora repinta al llegar (antes su repintado dependía de
+     `DASH.tab === 'reportes'`, que nunca se cumple, y la bandeja quedaba vacía si llegaba última). */
   const r = await p049Abrir('supervisor', 'supervisor', {});
   if (!p049Medible(r, 3)) return;
-  PRUEBAS.igual(r.renders, 4, 'las 4 respuestas siguen llegando y repintando · animados = ' + JSON.stringify(r.animados));
+  PRUEBAS.igual(r.renders, 5, 'las 5 respuestas siguen llegando y repintando · animados = ' + JSON.stringify(r.animados));
   PRUEBAS.igual(r.rearman, 1,
     '⚠️ pero una sola animación de entrada. La cuarta es la de renderAptitud(): si alguien la ' +
     'deja repintando a secas, este caso se pone rojo');
@@ -272,10 +276,10 @@ PRUEBAS.caso('⚠️ DISCRIMINADOR: sin dashRepintar(), las cuatro vistas vuelve
   } finally { dashRepintar = orig; }
 
   PRUEBAS.cierto(seUso, 'confirma que el mono-parche se usó de verdad — si no, el discriminador no discrimina nada');
-  PRUEBAS.igual(med.rearman, 3,
-    '⚠️ así se veía el servicio médico antes de P049: los 3 repintados rearmaban la entrada · ' + JSON.stringify(med.animados));
-  PRUEBAS.igual(sup.rearman, 4,
-    '⚠️ y el supervisor, 4 · ' + JSON.stringify(sup.animados));
+  PRUEBAS.igual(med.rearman, 4,
+    '⚠️ así se veía el servicio médico antes de P049: los 4 repintados rearmaban la entrada (P075 sumó el de reportes) · ' + JSON.stringify(med.animados));
+  PRUEBAS.igual(sup.rearman, 5,
+    '⚠️ y el supervisor, 5 · ' + JSON.stringify(sup.animados));
   PRUEBAS.igual(hseq.rearman, 2,
     '⚠️ y Dirección/HSEQ, 2 · ' + JSON.stringify(hseq.animados));
 });

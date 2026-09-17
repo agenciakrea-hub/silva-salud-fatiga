@@ -4595,6 +4595,7 @@
   .apt-caso-nota { font-size:.77rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
   .apt-act-telem { border-color:var(--sem-azul-int); color:var(--sem-azul-int); }
   .fm-chip-telem { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
+  .fm-chip-autorep { color:var(--sem-ambar-txt); background:var(--sem-ambar-bg); }   /* P075 */
   .fm-telem-accion { font-size:.82rem; color:var(--text-soft); line-height:1.5; }
   .fm-telem-accion .fm-nota-btn { display:block; margin-top:.5rem; }
   /* Tarjeta de telemedicina en la vista de la PERSONA */
@@ -7212,7 +7213,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.56';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.57';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8012,6 +8013,12 @@ const I18N = {
       sub_supuestos:'Calculado con los supuestos cargados por la empresa',
       sub_esqueleto:'Ninguno de estos indicadores es un dato real: son esqueletos para mostrar el alcance del próximo nivel comercial.',
       sub_identificados:'Sabes quién lo mandó. Toca para ver a la persona.',
+      // P075 · la bandeja también en la vista médica
+      sub_identificados_medico:'Lo dijo la persona, con su nombre. Toca para abrir su ficha: el reporte queda en su historia.',
+      hlp_reportes_medico:'Lo que las personas de tu alcance mandan con <b>Reporte rápido</b> diciendo quiénes son: «no dormí», «me siento fatigado», «malestar», «motivo personal». Es un autoreporte dicho con nombre, y por eso llega a ti: el supervisor lo ve para reasignar; tú, para la determinación. Los reportes anónimos (sobre el puesto o el turno) no llegan a esta vista: no son sobre una persona.',
+      rep_identificados:'Identificados ({n})', rep_anonimos:'Anónimos ({n})', rep_nuevo:'Nuevo', rep_anonimizado:'Anonimizado',
+      fm_autoreporte:'Autoreporte', fm_chip_autoreportes:'{n} autoreporte(s) en 30 días',
+      fm_sin_tests:'Sin tests registrados. Lo que hay es lo que la persona reportó y lo que se anotó.',
       sub_anonimos:'Sobre el puesto o el turno. Nadie puede saber quién los mandó.',
       sub_elegi_ajuste:'Elige lo que más se ajuste. Las opciones marcadas ',
       sub_barra_ref:'Cada barra es el promedio del grupo dividido por su referencia: 1.0 es el límite normal de ese indicador, así los siete entran en la misma escala. Toca un indicador abajo para aislarlo o volver a mostrarlo.',
@@ -9829,6 +9836,12 @@ const I18N = {
       sub_supuestos:'Calculated with the assumptions loaded by the company',
       sub_esqueleto:'None of these indicators is real data: they are placeholders showing the scope of the next commercial tier.',
       sub_identificados:'You know who sent it. Tap to see the person.',
+      // P075
+      sub_identificados_medico:'The person said it, with their name. Tap to open their record: the report stays in their history.',
+      hlp_reportes_medico:'What the people in your scope send with <b>Quick report</b> saying who they are: "did not sleep", "feeling fatigued", "unwell", "personal reason". It is a self-report given with a name, which is why it reaches you: the supervisor sees it to reassign; you, for the determination. Anonymous reports (about the job or the shift) do not reach this view: they are not about a person.',
+      rep_identificados:'Identified ({n})', rep_anonimos:'Anonymous ({n})', rep_nuevo:'New', rep_anonimizado:'Anonymized',
+      fm_autoreporte:'Self-report', fm_chip_autoreportes:'{n} self-report(s) in 30 days',
+      fm_sin_tests:'No tests on record. What is here is what the person reported and what was noted.',
       sub_anonimos:'About the job or the shift. Nobody can know who sent them.',
       sub_elegi_ajuste:'Choose the closest match. The options marked ',
       sub_barra_ref:'Each bar is the group average divided by its reference: 1.0 is the normal limit of that indicator, so all seven share one scale. Tap an indicator below to isolate it or show it again.',
@@ -18946,7 +18959,10 @@ function dashTabsFor(rol, hasPvt, vista, costosCfg){
   /* ✅ P054 · Agregar una pestaña acá alcanza: `dashOrderedTabs()` ya no descarta lo que no
      conoce. Si además se quiere en un lugar concreto del menú, se la nombra en `DASH_ORDEN`; si
      no, sale al final. */
-  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','informe','gestiones'];
+  /* P075 · `reportes` también en la vista médica: los autoreportes identificados («no dormí»,
+     «fatigado», «malestar») son un dato clínico dicho con nombre y sólo llegaban a la bandeja del
+     supervisor (hallazgo 5 de I1). El servidor le manda sólo ésos; los anónimos son de Dirección. */
+  const base = (rol === 'empleado') ? ['resumen','evolucion'] : ['resumen','comparar','individual','evolucion','comentarios','reportes','informe','gestiones'];
   /* ⚠️ A4 · Y4 DEJÓ ESTO A MEDIO CAMINO. El endpoint ya le manda `duty` al servicio médico
      (`acc.vista === "medico"` en la condición), pero no había ninguna pantalla donde verlo: el dato
      viajaba y se tiraba. Es el hallazgo I1 nº 4, textual — "el médico es el único que puede firmar
@@ -19059,6 +19075,10 @@ function onDashData(d, scopeLabel, params, vista){
   const costosPayload = (cfgPayload && cfgPayload.costos != null && cfgPayload.costos !== '') ? cfgPayload.costos : null;
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista, costosPayload);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
+           /* P075 · `combinada` (la clave única de la empresa abre las dos secciones) se guarda: dos guardas
+              del cliente —`cicloPuedeEditarPlan` y la bandeja de reportes— la leían y nunca estaba (el
+              verificador de P075 lo midió: el médico combinado veía menos que lo que el servidor le manda). */
+           combinada: !!d.combinada,
            operacional: d.operacional || [],   // ciclo operativo (endpoint viejo no lo manda → [])
            /* ⚠️ P057a · ESTE CAMPO VA ACÁ AHORA, aunque el servidor todavía no lo mande. Esta lista
               es EXPLÍCITA: un campo que el endpoint manda y que no esté nombrado se descarta en
@@ -19138,6 +19158,8 @@ function onDashData(d, scopeLabel, params, vista){
     dashSembrarComentariosDemo();
     if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
+    /* P075 · el servicio médico ve los identificados (los de causa personal): la demo también */
+    if (vista === 'medico') DASH._reportes = dashReportesDemo().filter(r => r.identificado);
     DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
     /* ⚠️ S7 · ESTOS TRES FALTABAN y la demo mostraba menos de lo que el producto hace.
        `turnos` estaba en `[]` con el comentario "no es el foco": el efecto era que TODAS las
@@ -19157,8 +19179,9 @@ function onDashData(d, scopeLabel, params, vista){
     gestPull().then(ok => { if (ok && DASH) dashRepintar(); }).then(() => casosOdooListo('gestiones'));
   }
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
-  // La bandeja de reportes es propia del supervisor: se pide aparte (no depende de niveles/gestiones).
-  if (!DASH.demoMode && vista === 'supervisor' && gestCanSync()) dashCargarReportes();
+  // La bandeja de reportes se pide aparte (no depende de niveles/gestiones). P075 · también para el
+  // servicio médico: el servidor le manda SÓLO los identificados (autoreportes de causa personal).
+  if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()) dashCargarReportes();
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'hseq') && gestCanSync()) dashCargarOpiniones();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
@@ -19224,8 +19247,15 @@ function dashCargarReportes(){
   const mio = DASH;
   gestPost(gestAuth({ action:'reportes' })).then(d => {
     if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
-    DASH._reportes = d.reportes;
-    if (DASH.tab === 'reportes') dashRepintar();   // P049 · idem: llega tarde, no re-anima
+    /* P075 · el nombre del reporte es el del PERFIL del teléfono; el panel trabaja con el canónico de
+       los registros. Se canoniza por `dashNorm` para que el toque en la bandeja abra la ficha correcta
+       y la Historia lo encuentre (perfiles anteriores a la nómina escribían «ANA SUAREZ»). */
+    const canon = {};
+    (DASH.registros || []).forEach(r => { if (r && r.persona) canon[dashNorm(r.persona)] = r.persona; });
+    DASH._reportes = d.reportes.map(r => (r && r.persona && canon[dashNorm(r.persona)]) ? Object.assign({}, r, { persona: canon[dashNorm(r.persona)] }) : r);
+    /* P075 · repinta siempre: `DASH.tab` no sigue al scroll (vale `tabs[0]` o «resumen»), así que la
+       condición vieja dejaba la bandeja en «no hay reportes» cuando esta respuesta llegaba última. */
+    dashRepintar();   // P049 · llega tarde, no re-anima
   }).catch(()=>{});
 }
 
@@ -19433,7 +19463,7 @@ const DASH_ORDEN = {
   supervisor: ['aptitud','reportes','ciclo','opiniones'],
   hseq:       ['idc','mrfo','intervenciones','auditoria','costos','ciclo','jornada','opiniones'],
   empleado:   ['resumen','evolucion','pvt'],
-  medico:     ['resumen','comparar','individual','evolucion','pvt','comentarios','informe','gestiones','jornada']
+  medico:     ['resumen','comparar','individual','evolucion','pvt','comentarios','reportes','informe','gestiones','jornada']   // P075 · reportes
 };
 function dashOrderedTabs(){
   const orden = DASH_ORDEN[DASH.vista] || DASH_ORDEN.medico;
@@ -23883,8 +23913,11 @@ function dashIsoDeEpoch(ms){
   return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
 }
 function renderReportesSupervisor(){
-  const reps = reportesFiltrados().slice().sort((a,b) => b.creada - a.creada);
-  const ayuda = dashHelp(t('hlp_reportes', { n: cfg('anonN') }));
+  /* P075 · en la vista médica sólo los identificados: el servidor ya recorta, y el cliente no confía
+     (un `_reportes` de otra sesión, la demo, un payload viejo). */
+  const esMedico = DASH.vista === 'medico' && !DASH.combinada;
+  const reps = reportesFiltrados().filter(r => !esMedico || r.identificado).slice().sort((a,b) => b.creada - a.creada);
+  const ayuda = dashHelp(esMedico ? t('hlp_reportes_medico') : t('hlp_reportes', { n: cfg('anonN') }));
   if (!DASH._reportesPedidos && !DASH.demoMode){
     return ayuda + dashWarn(t('dw_reportes_reintentar'));
   }
@@ -23906,7 +23939,7 @@ function renderReportesSupervisor(){
     return '<div class="rep-item' + (nuevo ? ' rep-nuevo' : '') + '" tabindex="0" role="button" onclick="dashGoPerson(DASH._repNames[' + i + '])">' +
       (nuevo ? APT_TAP_INLINE : '') +
       '<div class="rep-top"><span class="rep-name">' + esc(r.persona) + '</span>' +
-        (nuevo ? '<span class="rep-badge-nuevo">Nuevo</span>' : '') +
+        (nuevo ? '<span class="rep-badge-nuevo">' + esc(t('rep_nuevo')) + '</span>' : '') +
         '<span class="rep-fecha">' + esc(gestFechaTs(r.creada)) + '</span></div>' +
       '<div class="rep-op">' + esc(op ? reporteOpcionLabel(op.k) : r.opcion) + '</div>' +
       (r.comentario ? '<div class="rep-coment">' + esc(r.comentario) + '</div>' : '') +
@@ -23919,8 +23952,8 @@ function renderReportesSupervisor(){
     const depVisible = reporteDeptoVisible(r.departamento);
     return '<div class="rep-item rep-item-anon' + (nuevo ? ' rep-nuevo' : '') + '">' +
       (nuevo ? APT_TAP_INLINE : '') +
-      '<div class="rep-top"><span class="rep-anon-badge">' + svgIco('candado', 12) + ' Anonimizado</span>' +
-        (nuevo ? '<span class="rep-badge-nuevo">Nuevo</span>' : '') +
+      '<div class="rep-top"><span class="rep-anon-badge">' + svgIco('candado', 12) + ' ' + esc(t('rep_anonimizado')) + '</span>' +
+        (nuevo ? '<span class="rep-badge-nuevo">' + esc(t('rep_nuevo')) + '</span>' : '') +
         '<span class="rep-fecha">' + esc(gestFechaTs(r.creada)) + '</span></div>' +
       '<div class="rep-op">' + esc(op ? reporteOpcionLabel(op.k) : r.opcion) + '</div>' +
       (r.comentario ? '<div class="rep-coment">' + esc(r.comentario) + '</div>' : '') +
@@ -23929,11 +23962,11 @@ function renderReportesSupervisor(){
   };
 
   const bloqueIdent = idents.length
-    ? '<div class="dash-block"><div class="db-title">Identificados (' + idents.length + ')</div>' +
-      '<div class="db-sub">' + esc(t('sub_identificados')) + '</div>' +
+    ? '<div class="dash-block"><div class="db-title">' + esc(t('rep_identificados', { n: idents.length })) + '</div>' +
+      '<div class="db-sub">' + esc(esMedico ? t('sub_identificados_medico') : t('sub_identificados')) + '</div>' +
       dashVerMas(idents.map(filaIdent), 3) + '</div>' : '';
   const bloqueAnon = anons.length
-    ? '<div class="dash-block rep-block-anon"><div class="db-title">Anónimos (' + anons.length + ')</div>' +
+    ? '<div class="dash-block rep-block-anon"><div class="db-title">' + esc(t('rep_anonimos', { n: anons.length })) + '</div>' +
       '<div class="db-sub">' + esc(t('sub_anonimos')) + '</div>' +
       dashVerMas(anons.map(filaAnon), 3) + '</div>' : '';
 
@@ -26760,6 +26793,13 @@ function notaClinicaGuardar(){
 }
 // Línea de tiempo unificada: determinaciones + restricciones operativas + notas, todo junto y en
 // orden. Es lo que permite leer la historia de una persona sin armar el rompecabezas a mano.
+/* P075 · los reportes rápidos IDENTIFICADOS de una persona, del más nuevo al más viejo. Sólo los
+   identificados pueden tener persona: un anónimo no matchea nunca, por construcción. */
+function reportesDePersona(persona){
+  const k = dashNorm(persona || '');
+  return (DASH && DASH._reportes || []).filter(r => r.identificado && r.persona && dashNorm(r.persona) === k)
+    .slice().sort((a,b) => b.creada - a.creada);
+}
 function fmTimeline(persona){
   const ev = [];
   gestAnotacionesTodasDe(persona).forEach(g => {
@@ -26783,6 +26823,12 @@ function fmTimeline(persona){
   });
   // Telemedicina: el RECHAZO también entra en la historia. Que alguien no quiera atenderse es
   // información clínica, no un evento a descartar.
+  /* P075 · los autoreportes identificados de la persona («no dormí», «fatigado», «malestar»):
+     un dato clínico dicho con nombre que hasta acá sólo llegaba a la bandeja del supervisor. */
+  reportesDePersona(persona).forEach(r => {
+    ev.push({ ts:r.creada, c:'var(--sem-ambar)', bg:'var(--sem-ambar-bg)', tipo:t('fm_autoreporte'),
+      txt:reporteOpcionLabel(r.opcion), nota:r.comentario || '', pie:'' });
+  });
   telemTodasDe(persona).forEach(g => {
     const i = telemInfo(g.estado);
     ev.push({ ts:g.creada, c:i.c, bg:i.bg, tipo:'Telemedicina',
@@ -26804,8 +26850,26 @@ function fmTimeline(persona){
 }
 function dashFichaMedica(rows){
   if (!DASH || DASH.vista !== 'medico' || !DASH.f.per) return '';
-  const regs = (rows || []).filter(r => r.persona === DASH.f.per);
-  if (!regs.length) return '';
+  let regs = (rows || []).filter(r => r.persona === DASH.f.per);
+  /* P075 · sin tests en el PERÍODO del panel se cae a todos sus registros: el médico llega acá tocando un
+     autoreporte de hoy, y el último test de la persona puede ser de hace diez días con «semana» puesto.
+     Y si nunca hizo un test pero sí reportó, la ficha se pinta igual, reducida: la Historia (con el
+     autoreporte) y la nota clínica. Lo cazó el verificador de P075: la bajada de la bandeja promete
+     «toca para abrir su ficha» y la ficha devolvía vacío. */
+  if (!regs.length) regs = (DASH.registros || []).filter(r => r.persona === DASH.f.per);
+  if (!regs.length){
+    if (!reportesDePersona(DASH.f.per).length) return '';
+    return '<div class="dash-block fm-block">' +
+      '<div class="db-title">' + esc(t('fm_titulo', { q: DASH.f.per })) + '</div>' +
+      '<div class="db-sub">' + esc(t('fm_sin_tests')) + '</div>' +
+      '<div class="fm-sec-t">' + esc(t('fm_historia')) + '</div>' + fmTimeline(DASH.f.per) +
+      '<div class="fm-sec-t">' + esc(t('fm_nota_clinica')) + '</div>' +
+      (visorSoloLectura() ? '<div class="fm-nota-aviso">' + esc(t('visor_solo_lectura_nota')) + '</div>' :
+      '<textarea id="fmNota" class="fm-nota" maxlength="600" placeholder="' + esc(t('fm_ph_nota')) + '"></textarea>' +
+      '<div class="fm-nota-aviso">' + t('fm_nota_aviso') + '</div>' +
+      '<button type="button" class="fm-nota-btn" onclick="notaClinicaGuardar()">' + esc(t('fm_guardar_nota')) + '</button>') +
+    '</div>';
+  }
   const p = aptPersona(DASH.f.per, regs, dashFilteredPVT().filter(r => r.persona === DASH.f.per));
   const ni = nivelInfo(p.nivel);
   const est = aptEstadoInfo(p.estado);
@@ -26823,6 +26887,10 @@ function dashFichaMedica(rows){
     (p.pocoConfiable === 1 ? '' : 's') + ' poco confiable' + (p.pocoConfiable === 1 ? '' : 's') + '</span>');
   if (p.telem) chips.push('<span class="fm-chip fm-chip-telem">' + esc(telemInfo(p.telem.estado).t) + '</span>');
   else if (p.telemRealizada) chips.push('<span class="fm-chip fm-chip-telem">Telemedicina realizada</span>');
+  /* P075 · autoreportes de los últimos 30 días: es lo primero que el médico quiere saber de alguien
+     que está en la cola por un patrón sostenido. */
+  const autoRep = reportesDePersona(DASH.f.per).filter(r => r.creada > Date.now() - 30 * 86400000).length;
+  if (autoRep) chips.push('<span class="fm-chip fm-chip-autorep">' + esc(t('fm_chip_autoreportes', { n: autoRep })) + '</span>');
 
   // Línea base por indicador: primer valor registrado vs. el último. Es lo que permite ver si la
   // persona viene mejorando o empeorando respecto de su propio punto de partida, que es distinto
