@@ -250,7 +250,7 @@ PRUEBAS.caso('⚠️ supervisor: son 5 respuestas (una la dispara renderAptitud)
     'deja repintando a secas, este caso se pone rojo');
 });
 
-PRUEBAS.caso('Dirección/HSEQ y personal: dos respuestas, una sola entrada', async () => {
+PRUEBAS.caso('Dirección/HSEQ (tres respuestas desde P081) y personal (dos): una sola entrada', async () => {
   const h = await p049Abrir('hseq', 'empresa', {});
   if (p049Medible(h, 2)){
     PRUEBAS.igual(h.rearman, 1, 'HSEQ tiene 9 bloques: verlos entrar dos veces es igual de molesto · ' + JSON.stringify(h.animados));
@@ -280,8 +280,8 @@ PRUEBAS.caso('⚠️ DISCRIMINADOR: sin dashRepintar(), las cuatro vistas vuelve
     '⚠️ así se veía el servicio médico antes de P049: los 4 repintados rearmaban la entrada (P075 sumó el de reportes) · ' + JSON.stringify(med.animados));
   PRUEBAS.igual(sup.rearman, 5,
     '⚠️ y el supervisor, 5 · ' + JSON.stringify(sup.animados));
-  PRUEBAS.igual(hseq.rearman, 2,
-    '⚠️ y Dirección/HSEQ, 2 · ' + JSON.stringify(hseq.animados));
+  PRUEBAS.igual(hseq.rearman, 3,
+    '⚠️ y Dirección/HSEQ, 3 (P081 le sumó la bandeja de reportes anónimos) · ' + JSON.stringify(hseq.animados));
 });
 
 PRUEBAS.caso('el flag no queda pegado: el próximo render SÍ vuelve a animar', async () => {

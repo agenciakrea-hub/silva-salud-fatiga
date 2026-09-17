@@ -4536,6 +4536,10 @@
   .hs-cell-bar > i { display:block; height:100%; background:var(--hc); }
   .hs-agregado { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-morado-bg); border-left:3px solid var(--sem-morado); font-size:.8rem; color:var(--text-soft); }
+  .hs-senales { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }   /* P081 */
+  .hs-senal { font-size:.8rem; padding:.3rem .55rem; border-radius:999px; background:var(--chip-bg); color:var(--text); }
+  .hs-senal b { font-weight:800; }
+  .hs-senal-dep { background:var(--sem-morado-bg); color:var(--sem-morado); }
   .hs-agregado-n { font-size:.72rem; color:var(--text-muted); margin-top:.2rem; }
   .hs-nota { margin-top:.6rem; font-size:.78rem; color:var(--text-soft); line-height:1.45;
     padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
@@ -7213,7 +7217,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.57';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8086,6 +8090,11 @@ const I18N = {
       apt_vencen_24:'Indicaciones que vencen en 24 h',
       apt_ind_pesa:'Indicador que más pesa', apt_dep_mirar:'Departamento a mirar',
       apt_ficha_ind:'Ficha individual · toca <b>‹ Quitar filtro</b> arriba para volver al equipo',
+      // P076 · acciones del supervisor (estaban a mano) y la persona sin tests
+      apt_act_restringir:'Restringir tarea', apt_act_levantar:'Levantar restricción', apt_act_telem:'Sugerir telemedicina',
+      apt_sin_tests_periodo:'Sin tests en el período elegido: no hay ficha de aptitud que mostrar.',
+      apt_sin_tests_acciones:'Las acciones siguen disponibles.',
+      telem_sugerir_q:'¿Sugerir una telemedicina para {p}?\n\nLe va a aparecer en su app y puede aceptarla o rechazarla.\nEn cualquiera de los dos casos, el servicio médico queda notificado.',
       apt_nota_pendiente:'<b>Pendiente de revisión</b> = según la app esta persona no está en condiciones, pero <b>todavía no la revisó el servicio médico</b>: no está declarada no apta. Sólo el servicio médico puede determinar <b>No apto</b> o <b>Apto con condiciones</b>.<br>Esta vista es orientativa y <b>no es un diagnóstico</b>.',
       apt_lg_bien:'Bien', apt_lg_medio:'Cerca del límite', apt_lg_alto:'Por encima', apt_lg_sin:'Sin datos',
       cic_hseq_t:'Estado de la operación', cic_hseq_d:'{n} personas con ciclo registrado hoy. Sin datos individuales.',
@@ -8370,7 +8379,7 @@ const I18N = {
       // Corregidos a neutro al pasarlos al diccionario.
       hlp_sin_registros:'Sin registros para este filtro.',
       hlp_idc:'<b>Disponibilidad cognitiva</b>: qué proporción de la nómina está en condiciones de operar, según sus registros más recientes.<br><br>Se calcula <b>sólo sobre las personas que tienen datos</b>. Las que no hicieron tests se informan aparte, nunca se cuentan como disponibles: un indicador alto porque nadie se midió no es una buena noticia, es falta de información.<br><br>Son <b>cantidades de personas</b>: esta vista no muestra valores de tests ni datos clínicos de nadie.',
-      hlp_mrfo:'<b>Mapa de riesgo por área</b>: qué proporción de cada departamento tiene indicadores que requieren atención. Sirve para saber <b>dónde mirar primero</b>, no para evaluar a nadie en particular.<br><br>Los departamentos con menos de <b>{n} personas</b> no se desglosan: con tan poca gente, el número del área es prácticamente el de una persona.',
+      hlp_mrfo:'<b>Mapa de riesgo por área</b>: qué proporción de cada departamento tiene indicadores que requieren atención. Sirve para saber <b>dónde mirar primero</b>, no para evaluar a nadie en particular.<br><br>Los departamentos con menos de <b>{n} personas</b> no se desglosan: con tan poca gente, el número del área es prácticamente el de una persona.<br><br><b>Señales del puesto y del turno</b>: los reportes rápidos <b>anónimos</b> del período (carga, entorno, turnos), contados por tipo y por área con la misma regla de {n} personas. Son problemas del diseño del trabajo, no de una persona: la decisión es de esta consola.',
       hlp_intervenciones:'<b>Intervenciones preventivas</b>: cada vez que alguien actuó <b>antes</b> de que pasara algo — una tarea reasignada, una consulta ofrecida, una determinación médica.<br><br>Se llaman <b>no punitivas</b> porque ninguna es una sanción: son medidas de cuidado. Que este número sea alto es una buena señal, no una mala: significa que el sistema se está usando.<br><br>Muestra <b>qué se hizo</b>, nunca el contenido clínico de esas acciones.',
       hlp_trazabilidad:'<b>Trazabilidad</b>: el registro de todo lo que se hizo, en orden. No se puede editar ni borrar desde la aplicación — si algo se hizo mal, la corrección se anota como un hecho nuevo y el error queda a la vista.<br><br>Cada línea guarda además <b>con qué umbral se juzgó</b> a esa persona en ese momento. Sin eso, cambiar un umbral mañana reescribiría en silencio el sentido de todas las decisiones pasadas.<br><br>Se ve <b>qué se hizo y quién lo hizo</b>. El contenido clínico de cada acción no se muestra acá: eso es del servicio médico.',
       hlp_costos:'<b>Costos y retorno</b>: cuánto cuesta la fatiga y cuánto se evita al intervenir a tiempo.<br><br>Estos números dependen de datos que <b>sólo tiene la empresa</b> (costo de hora-hombre, de una parada, de un incidente). Mientras no estén cargados, esta sección no muestra ninguna cifra: <b>preferimos no mostrar nada antes que mostrar un número inventado</b>, porque una cifra de ahorro sin respaldo, frente a una auditoría, juega en contra.',
@@ -8554,6 +8563,10 @@ const I18N = {
       hs_cob_completa:'Cobertura de medición completa: las {n} personas tienen registros.',
       hs_sub_reparto:'Cantidad de personas en cada estado · {n} en total',
       hs_areas_chicas:'Áreas pequeñas agrupadas',
+      // P081 · señales anónimas del puesto y del turno
+      hseq_senales_t:'Señales del puesto y del turno ({n})',
+      hseq_senales_sub:'Reportes rápidos anónimos del período: sobre la carga, el entorno o el esquema de turnos. Nadie puede saber quién los mandó; lo que se ve es cuántos y dónde.',
+      hseq_senales_vacio:'Sin reportes anónimos en el período.', hseq_senales_otras:'en otras áreas',
       hs_requiere_atencion:'% requiere atención.',
       hs_no_desglosan:'No se desglosan porque tienen menos de {n} personas.',
       hs_interv_1:'intervención registrada', hs_interv_n:'intervenciones registradas',
@@ -9757,6 +9770,11 @@ const I18N = {
       ts_restr_ok:'Restriction logged',
       ts_restr_off:'Restriction lifted',
       ts_telem_sug:'Telemedicine suggested',
+      // P076
+      apt_act_restringir:'Restrict task', apt_act_levantar:'Lift restriction', apt_act_telem:'Suggest telemedicine',
+      apt_sin_tests_periodo:'No tests in the selected period: there is no fitness record to show.',
+      apt_sin_tests_acciones:'The actions are still available.',
+      telem_sugerir_q:'Suggest a telemedicine consultation for {p}?\n\nIt will appear in their app and they can accept or decline it.\nEither way, the medical service is notified.',
       ts_telem_ok:'Telemedicine accepted',
       ts_telem_no:'Telemedicine declined',
       ts_telem_hecha:'Telemedicine marked as done',
@@ -10184,7 +10202,7 @@ const I18N = {
       // ══════ F3 · Long help texts (the ⓘ panel on each block) ══════
       hlp_sin_registros:'No records for this filter.',
       hlp_idc:'<b>Cognitive availability</b>: what share of the workforce is fit to operate, based on their most recent records.<br><br>It is calculated <b>only over people who have data</b>. Those who have not taken any test are reported separately and are never counted as available: a high figure because nobody was measured is not good news, it is missing information.<br><br>These are <b>counts of people</b>: this view shows no test values and no clinical data about anyone.',
-      hlp_mrfo:'<b>Risk map by area</b>: what share of each department has indicators needing attention. It tells you <b>where to look first</b>, not how to assess any individual.<br><br>Departments with fewer than <b>{n} people</b> are not broken down: with so few, the area figure is practically one person\u2019s.',
+      hlp_mrfo:'<b>Risk map by area</b>: what share of each department has indicators needing attention. It tells you <b>where to look first</b>, not how to assess any individual.<br><br>Departments with fewer than <b>{n} people</b> are not broken down: with so few, the area figure is practically one person\u2019s.<br><br><b>Job and shift signals</b>: the <b>anonymous</b> quick reports of the period (workload, environment, shifts), counted by type and by area under the same {n}-people rule. They are problems of how the work is designed, not of one person: the decision belongs to this console.',
       hlp_intervenciones:'<b>Preventive interventions</b>: every time someone acted <b>before</b> something happened — a task reassigned, a consultation offered, a medical determination.<br><br>They are called <b>non-punitive</b> because none of them is a sanction: they are acts of care. A high number here is a good sign, not a bad one: it means the system is being used.<br><br>It shows <b>what was done</b>, never the clinical content of those actions.',
       hlp_trazabilidad:'<b>Traceability</b>: the record of everything that was done, in order. It cannot be edited or deleted from the application — if something was done wrong, the correction is recorded as a new fact and the error stays visible.<br><br>Each line also stores <b>which threshold that person was judged against</b> at that moment. Without it, changing a threshold tomorrow would silently rewrite the meaning of every past decision.<br><br>You see <b>what was done and who did it</b>. The clinical content of each action is not shown here: that belongs to medical staff.',
       hlp_costos:'<b>Costs and return</b>: what fatigue costs and what is avoided by intervening in time.<br><br>These figures depend on data <b>only the company has</b> (cost per person-hour, of downtime, of an incident). Until they are entered, this section shows no figure at all: <b>we would rather show nothing than show a made-up number</b>, because a savings figure with nothing behind it works against you in an audit.',
@@ -10428,6 +10446,10 @@ const I18N = {
       hs_cob_completa:'Full measurement coverage: all {n} people have records.',
       hs_sub_reparto:'Number of people in each status · {n} in total',
       hs_areas_chicas:'Small areas grouped together',
+      // P081
+      hseq_senales_t:'Job and shift signals ({n})',
+      hseq_senales_sub:'Anonymous quick reports in the period: about workload, environment or the shift pattern. Nobody can know who sent them; what you see is how many and where.',
+      hseq_senales_vacio:'No anonymous reports in the period.', hseq_senales_otras:'in other areas',
       hs_requiere_atencion:'% need attention.',
       hs_no_desglosan:'They are not broken down because they have fewer than {n} people.',
       hs_interv_1:'intervention logged', hs_interv_n:'interventions logged',
@@ -13217,9 +13239,15 @@ function cicloDetenidoAvisar(st){
   return true;
 }
 let _cicDetRevisarT = 0;
+/* El diferido (1,5 s) y el trabajo van separados a propósito: la suite prueba el trabajo llamando
+   `cicloDetenidoRevisarAhora()` directo y el diferido comprobando que `cicloDetenidoRevisar()` NO
+   hace nada sincrónico. Con la pestaña oculta los timers se estrangulan y una prueba que espere el
+   timer cae sola una de cada tres corridas (2026-09-17, tres veces en un día). */
 function cicloDetenidoRevisar(){
   clearTimeout(_cicDetRevisarT);
-  _cicDetRevisarT = setTimeout(function(){
+  _cicDetRevisarT = setTimeout(cicloDetenidoRevisarAhora, 1500);
+}
+function cicloDetenidoRevisarAhora(){
     try {
       if (document.hidden) return;                       // se vuelve a intentar en el próximo repintado
       const plan = cicloPlan(cicloYo());
@@ -13238,7 +13266,6 @@ function cicloDetenidoRevisar(){
         if (!avisado && cicloDetenidoAvisar(st)) avisado = true;   // el toast: uno por vez
       }
     } catch(e){}
-  }, 1500);
 }
 /* ══ P167 · EL HISTORIAL DE MIS CICLOS ══════════════════════════════════════════════════════════
    Franco: «uno no sólo podría ver la data operacional actual y el gráfico, sino ver además las
@@ -19160,6 +19187,8 @@ function onDashData(d, scopeLabel, params, vista){
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
     /* P075 · el servicio médico ve los identificados (los de causa personal): la demo también */
     if (vista === 'medico') DASH._reportes = dashReportesDemo().filter(r => r.identificado);
+    /* P081 · Dirección ve los anónimos, agregados en el Mapa de riesgo */
+    if (vista === 'hseq') DASH._reportes = dashReportesDemo().filter(r => !r.identificado);
     DASH.operacional = cicloDemo();   // el ejemplo SIEMPRE usa su propio set: determinista y con los 4 estados
     /* ⚠️ S7 · ESTOS TRES FALTABAN y la demo mostraba menos de lo que el producto hace.
        `turnos` estaba en `[]` con el comentario "no es el foco": el efecto era que TODAS las
@@ -19181,7 +19210,8 @@ function onDashData(d, scopeLabel, params, vista){
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes se pide aparte (no depende de niveles/gestiones). P075 · también para el
   // servicio médico: el servidor le manda SÓLO los identificados (autoreportes de causa personal).
-  if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()) dashCargarReportes();
+  // P081 · y para Dirección: el servidor le manda SÓLO los anónimos, sin nombres (P075), que van al Mapa de riesgo.
+  if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico' || vista === 'hseq') && gestCanSync()) dashCargarReportes();
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'hseq') && gestCanSync()) dashCargarOpiniones();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
@@ -20806,6 +20836,21 @@ function aptOrden(p){
 // servicio médico la llama SIN opts, así ve exactamente la misma tarjeta pero de sólo lectura.
 // La BANDA de restricción, en cambio, se muestra siempre: que el supervisor sacó a alguien de una
 // tarea es información que el médico también necesita ver, y ocultarla desincronizaría el espejo.
+/* P076 · LAS ACCIONES DEL SUPERVISOR SOBRE UNA PERSONA, en un solo lugar: las usa la tarjeta de
+   Aptitud y, desde P076, la tarjeta del CICLO —que es donde el supervisor está mirando el exceso— y
+   el bloque de Aptitud de alguien sin tests. Restringir abre el formulario (R8: se confirma al
+   guardar); levantar y sugerir telemedicina confirman antes. Textos por `t()` (R14: estaban a mano). */
+function aptAccionesHtml(nombre, restriccion, puedeTelem){
+  const nomAttr = argAttr(nombre);   // H4 · escapa `&`, tildes y apóstrofes
+  return '<div class="apt-acciones">' +
+    (restriccion
+      ? '<button type="button" class="apt-act apt-act-off" onclick="restLevantar(\'' + esc(restriccion.id) + '\')">' + esc(t('apt_act_levantar')) + '</button>'
+      : '<button type="button" class="apt-act" onclick="restAbrir(' + nomAttr + ')">' + esc(t('apt_act_restringir')) + '</button>') +
+    (puedeTelem
+      ? '<button type="button" class="apt-act apt-act-telem" onclick="telemSugerirDesde(' + nomAttr + ')">' + esc(t('apt_act_telem')) + '</button>'
+      : '') +
+  '</div>';
+}
 function aptTarjeta(p, opts){
   const est = aptEstadoInfo(p.estado);
   const cuadros = p.metricas.map(x =>
@@ -20877,17 +20922,10 @@ function aptTarjeta(p, opts){
   // Controles: SÓLO en el panel del supervisor (opts.acciones). El espejo del médico no los lleva.
   // El nombre va con JSON.stringify + &quot; (patrón ya probado en esta función): así un nombre con
   // tilde o apóstrofe no rompe el atributo.
-  const nomAttr = argAttr(p.nombre);   // H4 · antes no escapaba `&`
   const puedeSugerirTelem = !p.telem && !p.ultimoPocoConfiable;
+  /* P076 · los botones salen de `aptAccionesHtml`, la MISMA función que usa la tarjeta del ciclo. */
   const acciones = (opts && opts.acciones && !visorSoloLectura())   // P185 · el visor no ofrece acciones
-    ? '<div class="apt-acciones">' +
-        (p.restriccion
-          ? '<button type="button" class="apt-act apt-act-off" onclick="restLevantar(\'' + p.restriccion.id + '\')">Levantar restricción</button>'
-          : '<button type="button" class="apt-act" onclick="restAbrir(' + nomAttr + ')">Restringir tarea</button>') +
-        (puedeSugerirTelem
-          ? '<button type="button" class="apt-act apt-act-telem" onclick="telemSugerirDesde(' + nomAttr + ')">Sugerir telemedicina</button>'
-          : '') +
-      '</div>' : '';
+    ? aptAccionesHtml(p.nombre, p.restriccion, puedeSugerirTelem) : '';
   return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + (p.restriccion ? ' apt-con-restr' : '') + '">' +
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
@@ -21239,7 +21277,10 @@ function renderHseqIdc(rows){
    lo accionable: dónde mirar primero. Nunca valores de tests. */
 function renderHseqMrfo(rows){
   const gente = hseqGente(rows);
-  if (!gente.length) return dashVacio('mrfo', 'grafico');
+  /* P081 · las señales anónimas van ANTES del corte por gente: sin tests en el período (un área que
+     no mide, «Hoy» a las 7:00, una empresa que sólo usa el reporte rápido) el mapa está vacío pero los
+     reportes existen igual — y eran justo el caso que motivó P081 (verificador). */
+  if (!gente.length) return hseqSenalesHtml() + dashVacio('mrfo', 'grafico');
   const min = cfg('anonN');
   const porDep = {};
   gente.forEach(p => {
@@ -21275,7 +21316,7 @@ function renderHseqMrfo(rows){
   const totChicos = chicos.reduce((s,k) => s + porDep[k].n, 0);
   const malChicos = chicos.reduce((s,k) => s + porDep[k].mal, 0);
 
-  return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_mapa_area')) + '</div>' +
+  return ayuda + hseqSenalesHtml() + '<div class="dash-block"><div class="db-title">' + esc(t('db_mapa_area')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_pct_atencion')) + '</div>' +
     (grandes.length ? '<div class="hs-grid">' + grandes.map(celda).join('') + '</div>'
                     : dashVacioTexto(t('vac_areas_t'), t('hs_ninguna_area', { n: min }), 'grafico')) +
@@ -21284,6 +21325,39 @@ function renderHseqMrfo(rows){
       (totChicos ? Math.round(malChicos/totChicos*100) : 0) + esc(t('hs_requiere_atencion')) +
       '<div class="hs-agregado-n">' + esc(t('hs_no_desglosan', { n: min })) + '</div></div>' : '') +
   '</div>';
+}
+
+/* P081 · SEÑALES DEL PUESTO Y DEL TURNO: los reportes rápidos ANÓNIMOS (`carga_excesiva`, `entorno`,
+   `turno_rotativo`), agregados para Dirección. Hallazgo 11 de I1: son problemas de diseño del trabajo,
+   no de una persona —el supervisor no cambia el esquema de turnos ni la carga de un área— y como son
+   anónimos no hay nada que proteger al agregarlos. El servidor le manda a Dirección sólo éstos y sin
+   nombres (P075); acá se cuentan por opción y por departamento con la MISMA regla de `anonN` del resto
+   del mapa: un departamento con menos de N personas no se desglosa, se suma a «otras áreas». Sólo se
+   cuentan los `identificado:false`, aunque llegara otra cosa. */
+function hseqSenalesHtml(){
+  if (!DASH || DASH.vista !== 'hseq') return '';
+  const min = cfg('anonN');
+  const reps = reportesFiltrados().filter(r => r && r.identificado === false);
+  const pedido = !!DASH._reportesPedidos || !!DASH.demoMode;
+  const cuerpo = (function(){
+    if (!reps.length) return '<div class="hs-agregado-n">' + esc(pedido ? t('hseq_senales_vacio') : t('dw_reportes_reintentar')) + '</div>';
+    const porOp = {}, porDep = {}; let otras = 0;
+    reps.forEach(r => {
+      porOp[r.opcion] = (porOp[r.opcion] || 0) + 1;
+      const dep = reporteDeptoVisible(r.departamento);
+      if (dep) porDep[dep] = (porDep[dep] || 0) + 1; else otras++;
+    });
+    const ops = Object.keys(porOp).sort((a,b) => porOp[b] - porOp[a])
+      .map(k => '<span class="hs-senal"><b>' + porOp[k] + '</b> ' + esc(reporteOpcionLabel(k)) + '</span>').join('');
+    const deps = Object.keys(porDep).sort((a,b) => porDep[b] - porDep[a])
+      .map(k => '<span class="hs-senal hs-senal-dep"><b>' + porDep[k] + '</b> ' + esc(k) + '</span>').join('') +
+      (otras ? '<span class="hs-senal hs-senal-dep"><b>' + otras + '</b> ' + esc(t('hseq_senales_otras')) + '</span>' : '');
+    return '<div class="hs-senales">' + ops + '</div>' +
+      '<div class="hs-senales">' + deps + '</div>' +
+      '<div class="hs-agregado-n">' + esc(t('hs_no_desglosan', { n: min })) + '</div>';
+  })();
+  return '<div class="dash-block"><div class="db-title">' + esc(t('hseq_senales_t', { n: reps.length })) + '</div>' +
+    '<div class="db-sub">' + esc(t('hseq_senales_sub')) + '</div>' + cuerpo + '</div>';
 }
 
 /* Intervenciones preventivas no punitivas — la métrica estrella del pitch.
@@ -22469,6 +22543,40 @@ function cicloTramosHtml(st, plan){
    supervisor y la ven TODOS, no queda en el dispositivo de quien la tocó. */
 let CICLO_CFG_ABIERTO = false;
 function cicloCfgToggle(){ CICLO_CFG_ABIERTO = !CICLO_CFG_ABIERTO; cicloRepintar(); }
+/* P076 · los botones de acción en la tarjeta del ciclo. Sólo el supervisor (`restPuede`) y nunca en el
+   visor; restricción y telemedicina vigentes se resuelven por nombre, sin pasar por `aptGente` (que
+   se arma con los TESTS: alguien puede estar en el ciclo y no tener ninguno en el período). */
+/* P076 · EL CONTEXTO DE UNA PERSONA (departamento, empresa, cargo) cuando NO tiene tests en el
+   período: sale de su evento de ciclo MÁS NUEVO (`DASH.operacional` trae los tres campos). Lo usan
+   `restAbrir`, `restGuardar`, `telemSugerir` y `bitContextoDe`: sin esto, restringir desde el ciclo
+   guardaba departamento vacío y la bitácora registraba el umbral del nivel por defecto (R3) —lo
+   encontró el verificador de P076. */
+function cicloContextoDe(persona){
+  const k = dashNorm(persona || '');
+  let mejor = null;
+  (DASH && DASH.operacional || []).forEach(o => {
+    if (!o || !o.persona || dashNorm(o.persona) !== k) return;
+    if (!mejor || String(o.iso || '') > String(mejor.iso || '')) mejor = o;
+  });
+  return mejor ? { dep: mejor.departamento || '', empresa: mejor.empresa || '', cargo: mejor.cargo || '' } : {};
+}
+function cicloDepartamentoDe(persona){ return cicloContextoDe(persona).dep || ''; }
+/* El nivel de riesgo de alguien SIN tarjeta de Aptitud: primero la clasificación que ya mandó el
+   servidor (`DASH.aptitud`, sin filtro de período); si no está, por su contexto en `Niveles Riesgo`. */
+function personaNivelDe(persona){
+  const a = (DASH && Array.isArray(DASH.aptitud)) ? DASH.aptitud.find(x => x && x.nombre === persona) : null;
+  if (a && a.nivel) return a.nivel;
+  const c = cicloContextoDe(persona);
+  return nivelRiesgoDe(persona, c.dep, c.empresa || (DASH && DASH.f.emp), c.cargo);
+}
+function cicloAccionesHtml(persona){
+  if (!restPuede() || visorSoloLectura()) return '';
+  const restr = restVigentesDe(persona)[0] || null;
+  /* Misma regla que la tarjeta de Aptitud: sobre un último test poco confiable no se sugiere (la
+     ayuda lo promete). La clasificación del servidor trae el dato aunque no haya tests en el período. */
+  const a = (DASH && Array.isArray(DASH.aptitud)) ? DASH.aptitud.find(x => x && x.nombre === persona) : null;
+  return aptAccionesHtml(persona, restr, !telemVigenteDe(persona) && !(a && a.ultimoPocoConfiable));
+}
 function cicloCfgHtml(plan){
   const TRAMOS = cicloTramos();
   if (!CICLO_CFG_ABIERTO){
@@ -23564,6 +23672,9 @@ function renderCicloOperativo(){
         '<span class="cic-nom">' + esc(pe.persona) + '</span>' +
         '<span class="cic-chip cic-chip-' + st.estado + '">' + ETIQ[st.estado] + '</span></div>' +
       '<div class="cic-sub">' + (pe.departamento ? (esc(pe.departamento) + ' · ') : '') + fecha + cuantos + ' · ' + reloj + '</div>' +
+      /* P076 · las acciones que el supervisor ya tiene, ACÁ, donde está mirando el exceso (hallazgo 2
+         de I1: la única palanca era saltar a Aptitud, donde la persona podía no estar). */
+      cicloAccionesHtml(pe.persona) +
       cicloTurnoHtml(pe.persona) +
       /* P057a · cada tarjeta se dibuja con el plan de SU persona. Hoy `cicloPlan(x)` devuelve el
          de la empresa para todos, así que no cambia nada; el día que exista un plan por persona,
@@ -24012,6 +24123,18 @@ function renderAptitud(rows){
 
   const gente = aptGente(rows);
   if (!gente.length){
+    /* P076 · con UNA persona elegida (se llega tocando su tarjeta del ciclo) y sin tests en el período,
+       el vacío genérico decía «no hay personas» — «Ana no está ahí» (hallazgo 2 de I1). Ahora la
+       pantalla dice de quién se trata, por qué no hay ficha, y deja actuar igual. */
+    if (DASH.f.per){
+      const restr = restVigentesDe(DASH.f.per)[0] || null;
+      const conAcciones = restPuede() && !visorSoloLectura();
+      return ayuda + '<div class="dash-block"><div class="db-title">' + esc(DASH.f.per) + '</div>' +
+        '<div class="db-sub">' + esc(t('apt_sin_tests_periodo')) + (conAcciones ? ' ' + esc(t('apt_sin_tests_acciones')) : '') + '</div>' +
+        (restr ? '<div class="apt-nota">' + esc(t('fm_no_asignar', { q: restr.tarea || '—' })) + '</div>' : '') +
+        (conAcciones ? cicloAccionesHtml(DASH.f.per) : '') +
+      '</div>';
+    }
     return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('db_aptitud')) + '</div>' +
       dashVacio('personas', 'gente') + '</div>';
   }
@@ -26008,7 +26131,10 @@ function bitContextoDe(persona){
     if (r.persona !== persona) return;
     if (!mejor || String(r.fecha||'') > String(mejor.fecha||'')) mejor = r;
   });
-  return mejor ? { dep: mejor.departamento, empresa: mejor.empresa, cargo: mejor.cargo } : {};
+  if (mejor) return { dep: mejor.departamento, empresa: mejor.empresa, cargo: mejor.cargo };
+  /* P076 · sin tests, el contexto del ciclo: si no, `bitUmbralDe` registraba el nivel por defecto
+     para una persona de nivel 5 —justo lo que este comentario dice que vacía la bitácora. */
+  return cicloContextoDe(persona);
 }
 // Snapshot de la tolerancia operativa con la que se juzgó a esta persona EN ESTE MOMENTO.
 function bitUmbralDe(persona, ctx){
@@ -26627,7 +26753,7 @@ function telemSugerir(persona, motivo, quien){
   const fila = (DASH.registros || []).find(r => r.persona === persona) || {};
   const id = gestNewId();
   gestUpsert({ id:id, tipo:GEST_TIPO_TELEMEDICINA, persona:persona,
-    departamento: fila.departamento || '', estado:'sugerida', motivo: motivo || '',
+    departamento: fila.departamento || cicloDepartamentoDe(persona) || '', estado:'sugerida', motivo: motivo || '',   // P076 · o el del ciclo
     sugeridaPor: quien || '', rolSugiere: (DASH && DASH.vista) || '', creada: Date.now() });
   bitacoraRegistrar('telemedicina_sugerida', persona, { id:id, motivo:motivo || '', por:quien || '' });
   return id;
@@ -27086,11 +27212,17 @@ function restPuede(){ return !!(DASH && DASH.vista === 'supervisor'); }
 function restAbrir(persona){
   if (!restPuede()) return;
   RESTR.persona = persona; RESTR.tarea = ''; RESTR.mitigacion = ''; RESTR.motivo = '';
-  const p = aptGente(dashFiltered()).find(x => x.nombre === persona);
-  const durs = restDuracionesPara(p ? p.nivel : NIVEL_DEFAULT);
+  /* P076 · desde la tarjeta del ciclo la persona puede no tener tests en el período: `p` queda
+     undefined y `restFormHtml` tiene que sostenerlo (antes hacía `p.nivel` y tiraba). */
+  const p = aptGente(dashFiltered()).find(x => x.nombre === persona) || null;
+  /* Sin tarjeta de Aptitud (sin tests en el período) el nivel NO es el default: es el de la persona
+     —clasificación del servidor o `Niveles Riesgo` por su contexto—, porque el tope de horas y el
+     umbral que queda en la bitácora salen de ahí (verificador de P076: nivel 5 se trataba como 3). */
+  const nivel = p ? p.nivel : personaNivelDe(persona);
+  const durs = restDuracionesPara(nivel);
   RESTR.horas = durs[0];
   const ov = document.getElementById('restrOverlay');
-  document.getElementById('restrBody').innerHTML = restFormHtml(p, durs);
+  document.getElementById('restrBody').innerHTML = restFormHtml(p, durs, nivel);
   ov.classList.add('show');
   navPush();
 }
@@ -27098,11 +27230,12 @@ function restCerrar(){
   const ov = document.getElementById('restrOverlay'); if (ov) ov.classList.remove('show');
   RESTR.persona = null;
 }
-function restFormHtml(p, durs){
-  const nv = p ? p.nivel : NIVEL_DEFAULT, ni = nivelInfo(nv);
+function restFormHtml(p, durs, nivel){
+  const nv = nivel || (p ? p.nivel : NIVEL_DEFAULT), ni = nivelInfo(nv);
   const mits = mitigaciones();
+  const dep = (p && p.dep) || cicloDepartamentoDe(RESTR.persona) || '—';   // P076 · sin tests, el del ciclo
   return '<div class="restr-quien">' + esc(RESTR.persona) + '</div>' +
-    '<div class="restr-sub">' + esc((p && p.dep) || '—') + ' · ' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) +
+    '<div class="restr-sub">' + esc(dep) + ' · ' + esc(t('riesgo_n', { n: nivelLabel(nv) })) +
       ' <span class="restr-tope">' + esc(t('restr_tope', { d: restTextoDuracion(ni.maxRestrH) })) + '</span></div>' +
     '<div class="restr-aviso">' + t('restr_aviso') + '</div>' +
     '<label class="restr-lbl" for="restrTarea">' + esc(t('restr_q_tarea')) + '</label>' +
@@ -27164,7 +27297,8 @@ function restGuardar(){
   const fila = (DASH.registros || []).find(r => r.persona === RESTR.persona) || {};
   const id = gestNewId();
   gestUpsert({ id:id, tipo:GEST_TIPO_RESTRICCION, persona:RESTR.persona,
-    departamento: fila.departamento || '', tarea:tarea, mitigacion:RESTR.mitigacion || '',
+    departamento: fila.departamento || cicloDepartamentoDe(RESTR.persona) || '',   // P076 · o el del ciclo
+    tarea:tarea, mitigacion:RESTR.mitigacion || '',
     motivo:motivo, supervisor:quien, creada:ahora, hasta: ahora + horas*3600000,
     horas:horas, levantada:false, escalada:false });
   // Queda en el registro inalterable con el umbral vigente: es lo que después alimenta la
@@ -27195,8 +27329,7 @@ function restLevantar(id){
 function telemSugerirDesde(persona){
   if (!DASH || (DASH.vista !== 'supervisor' && DASH.vista !== 'medico')) return;
   const quien = (DASH.vista === 'medico') ? medicoNombreGuardado() : supervisorNombreGuardado();
-  if (!confirm('¿Sugerir una telemedicina para ' + persona + '?\n\n' +
-    'Le va a aparecer en su app y puede aceptarla o rechazarla.\nEn cualquiera de los dos casos, el servicio médico queda notificado.')) return;
+  if (!confirm(t('telem_sugerir_q', { p: persona }))) return;   // P076 · R14: estaba a mano
   telemSugerir(persona, '', quien);
   haptic(14);
   renderDash();
