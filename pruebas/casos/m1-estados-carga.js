@@ -501,8 +501,9 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        es peor que no tenerlo, porque los porcentajes quedan iguales y uno cree que están corregidos.
        Lo que la hace segura no es el bloqueo sino la REVERSIÓN: si el servidor falla, el cambio se
        deshace y se avisa. Hay un caso que lo verifica en `y5-de-guardia.js` ("si el guardado FALLA,
-       la pantalla se revierte"). Si esa reversión se rompe, esta excepción deja de ser válida. */
-    'ausTocar'
+       la pantalla se revierte"). Si esa reversión se rompe, esta excepción deja de ser válida.
+       P189 · el envío se separó en `ausEnviar` (candado, cola con paridad y reversión): misma excepción. */
+    'ausTocar', 'ausEnviar'
   ];
 
   const fuente = [...document.querySelectorAll('script')].map(s => s.textContent).join('\n');

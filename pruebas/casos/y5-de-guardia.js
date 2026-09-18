@@ -299,9 +299,17 @@ PRUEBAS.caso('⚠️ repintar la lista usa la función que pinta FILAS', () => {
   /* Lo encontré verificando en el navegador: `ausTocar` llamaba a `nominaListPintarDeptos`, que sólo
      rehace el desplegable de departamentos. El dato cambiaba y la fila se quedaba igual — el
      supervisor tocaba el botón y no pasaba nada visible. */
-  PRUEBAS.falso(/nominaListPintarDeptos\(\)/.test(String(ausTocar)),
+  /* P189 · la pintura vive en `ausPintar` (la usan el toque y la reversión de `ausEnviar`); se mide el
+     conjunto y, mejor que el texto, el efecto: pintar con la lista puesta llama a Filtrar y no a PintarDeptos */
+  const fuente = String(ausTocar) + String(ausPintar) + String(ausEnviar);
+  PRUEBAS.falso(/nominaListPintarDeptos\(\)/.test(fuente),
     '⚠️ PintarDeptos NO repinta las filas: sólo el desplegable de departamentos');
-  PRUEBAS.cierto(/nominaListFiltrar\(\)/.test(String(ausTocar)), 'tiene que ser Filtrar');
+  PRUEBAS.cierto(/nominaListFiltrar\(\)/.test(String(ausPintar)), 'tiene que ser Filtrar');
+  PRUEBAS.cierto(/ausPintar\(/.test(String(ausTocar)) && /ausPintar\(/.test(String(ausEnviar)), 'y tanto el toque como la reversión pintan por ahí');
+  const oF = window.nominaListFiltrar, oP = window.nominaListPintarDeptos; let f = 0, pd = 0;
+  window.nominaListFiltrar = () => { f++; }; window.nominaListPintarDeptos = () => { pd++; };
+  try { ausPintar({}, ['1|2026-01-01'], true); } finally { window.nominaListFiltrar = oF; window.nominaListPintarDeptos = oP; }
+  PRUEBAS.cierto(f === 1 && pd === 0, 'medido: pintar llama a Filtrar (' + f + ') y no a PintarDeptos (' + pd + ')');
 });
 
 PRUEBAS.caso('los textos del interruptor están en los dos idiomas (R14)', () => {
@@ -384,7 +392,7 @@ PRUEBAS.caso('⚠️ una fila SIN cédula igual sirve por nombre, en vez de desc
   PRUEBAS.falso(!!idx['|2026-09-01'], 'y NO puede quedar una clave con la cédula vacía');
 });
 
-PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una sola', () => {
+PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una sola', async () => {
   /* Encontrado en A4, y lo había introducido yo el mismo día al agregar la clave por nombre.
      `ausTocar` pintaba el cambio local usando SÓLO la clave de cédula. Al marcar, la lista de
      nómina se actualizaba (busca por cédula) y la cobertura del IDC no (busca por nombre): dos
@@ -398,6 +406,10 @@ PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una so
   const hoy = todayStr(), kCed = '12345678|' + hoy, kNom = 'n:' + ausNombreClave('Ana Prueba') + '|' + hoy;
   const btn = document.createElement('button'); btn.setAttribute('data-ced', 'V-12345678'); btn.setAttribute('data-per', 'Ana Prueba');
   let responder = null;
+  /* P189 · con el candado por persona, un toque con pedido en vuelo se ENCOLA: cada toque de este caso
+     resuelve su pedido antes del siguiente, así los tres miden lo que siempre midieron (la pintura). */
+  const tick = async () => { for (let i = 0; i < 10; i++) await null; };
+  const oShowAccion = window.showToastAccion; window.showToastAccion = () => {};
   try {
     window.offHayConexion = () => true; window.showToast = () => {};
     window.fetchConReloj = () => new Promise(res => { responder = res; });
@@ -405,19 +417,19 @@ PRUEBAS.caso('⚠️ QUITAR una ausencia la quita de las DOS vías, no de una so
     ausTocar(btn);
     PRUEBAS.cierto(DASH.ausencias[kCed] && DASH.ausencias[kNom], '⚠️ MARCAR pone las DOS claves (cédula y nombre): la nómina busca por una y la cobertura por la otra');
     PRUEBAS.cierto(ausenteHoy({ cedula: '12345678', nombre: 'Ana Prueba' }), 'y el panel la ve ausente');
+    responder({ json: () => Promise.resolve({ ok: true }) }); await tick();
     /* ahora una ausencia que vino SÓLO por nombre (de otro dispositivo): quitar la quita entera */
     DASH.ausencias = { [kNom]: 'otro' };
     PRUEBAS.cierto(ausenteHoy({ cedula: '12345678', nombre: 'Ana Prueba' }), 'guarda: con la clave por nombre sola, el panel la ve ausente');
     ausTocar(btn);
     PRUEBAS.cierto(!DASH.ausencias[kCed] && !DASH.ausencias[kNom], '⚠️ QUITAR se lleva las DOS vías · antes quedaba la de nombre y la persona seguía descontada de la cobertura');
+    responder({ json: () => Promise.resolve({ ok: true }) }); await tick();
     /* y si el servidor rechaza, se revierte entero */
     DASH.ausencias = {};
     ausTocar(btn);
-    responder({ json: () => Promise.resolve({ ok: false, error: 'no' }) });
-    return new Promise(res => setTimeout(res, 40)).then(() => {
-      PRUEBAS.cierto(!DASH.ausencias[kCed] && !DASH.ausencias[kNom], 'si el servidor rechaza, se revierten las dos claves: no queda media ausencia puesta');
-    }).finally(() => { window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; DASH = prevDash; });
-  } catch (e) {
-    window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; DASH = prevDash; throw e;
+    responder({ json: () => Promise.resolve({ ok: false, error: 'no' }) }); await tick();
+    PRUEBAS.cierto(!DASH.ausencias[kCed] && !DASH.ausencias[kNom], 'si el servidor rechaza, se revierten las dos claves: no queda media ausencia puesta');
+  } finally {
+    window.fetchConReloj = oFetch; window.offHayConexion = oOff; window.showToast = oToast; window.showToastAccion = oShowAccion; DASH = prevDash;
   }
 });

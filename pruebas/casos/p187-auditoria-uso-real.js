@@ -101,6 +101,7 @@ PRUEBAS.caso('🔴 volver a la vista el MISMO día también revisa el ciclo (ant
   const orig = window.cicloDetenidoRevisar; let n = 0; window.cicloDetenidoRevisar = () => { n++; };
   const oTar = window.tareasCargar; let tar = 0; window.tareasCargar = () => { tar++; return Promise.resolve(); };
   const oSw = swReg; swReg = null;
+  const pedidoEn0 = TAREAS.pedidoEn; TAREAS.pedidoEn = Date.now();   // P188 · recién pedidas: la regla de la hora no aplica acá
   return PRUEBAS.conOculto(true, async (setOculto) => {
     try {
       document.dispatchEvent(new Event('visibilitychange'));   // se oculta: anota el día
@@ -114,7 +115,7 @@ PRUEBAS.caso('🔴 volver a la vista el MISMO día también revisa el ciclo (ant
       setOculto(false); document.dispatchEvent(new Event('visibilitychange'));
       PRUEBAS.igual(tar, 1, '🔴 con cambio de día se vuelven a pedir las tareas (antes: sólo al arrancar o al tocar la campana)');
       PRUEBAS.cierto(n >= 2, 'y el ciclo se revisa igual (la propia; y una más por renderInicio si hay perfil — el diferido las funde en una) · ' + n);
-    } finally { window.cicloDetenidoRevisar = orig; window.tareasCargar = oTar; swReg = oSw; }
+    } finally { window.cicloDetenidoRevisar = orig; window.tareasCargar = oTar; swReg = oSw; TAREAS.pedidoEn = pedidoEn0; }
   });
 });
 

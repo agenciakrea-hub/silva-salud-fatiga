@@ -1090,10 +1090,19 @@
     background: #16233d; color: #fff; padding: 0.7rem 1.1rem; border-radius: 12px; font-size: 0.84rem; font-weight: 600;
     box-shadow: 0 10px 30px rgba(0,0,0,0.35); z-index: 1100; display: flex; align-items: center; gap: 0.5rem;
     opacity: 0; visibility: hidden; pointer-events: none; max-width: 90vw; cursor: pointer;
+    /* P188 · `width: max-content`, medido a 375 px: con `left:50%` y sin `right`, un `fixed` se encoge al ancho
+       que queda A LA DERECHA del 50 % (regla de shrink-to-fit), o sea que NINGÚN toast pasaba de ~188 px en un
+       celular: «Reporte registrado · 10:15» iba en dos líneas y el de la nómina ocupaba 175 px de alto en una
+       columna angosta. Con esto usa lo que el texto pide, hasta el 90 % del ancho. */
+    width: max-content;
     transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .3s ease, visibility 0s linear .35s; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; pointer-events: auto;
     transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .3s ease, visibility 0s; }
   .toast svg { width: 16px; height: 16px; color: #38d39f; flex-shrink: 0; }
+  /* P189 · el botón de acción del toast («Deshacer»): hereda el color del toast, sin colores a mano (R13) */
+  .toast-btn { background: none; border: 0; color: inherit; font: inherit; font-weight: 800; text-decoration: underline;
+    text-underline-offset: 3px; padding: .25rem .4rem; margin-left: .2rem; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+  .toast-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -7301,7 +7310,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.64';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.65';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8109,6 +8118,7 @@ const I18N = {
       aus_puesta:'{p} no se cuenta hoy', aus_quitada:'{p} vuelve a contarse hoy',
       aus_sin_red:'Necesitas conexión para cambiar esto.',
       aus_error:'No se pudo guardar. Vuelve a intentarlo.',
+      aus_deshacer:'Deshacer',   // P189
       sub_gente_nivel:'Cuánta gente hay en cada nivel y qué proporción está en condiciones',
       sub_pct_atencion:'% de personas con indicadores que requieren atención · ordenado de mayor a menor',
       sub_total_acc:'Total de acciones de cuidado registradas',
@@ -9989,6 +9999,7 @@ const I18N = {
       aus_puesta:'{p} is not counted today', aus_quitada:'{p} counts again today',
       aus_sin_red:'You need a connection to change this.',
       aus_error:'Could not save. Please try again.',
+      aus_deshacer:'Undo',
       sub_gente_nivel:'How many people are at each level and what share is fit',
       sub_pct_atencion:'% of people with indicators needing attention · highest first',
       sub_total_acc:'Total care actions logged',
@@ -17174,15 +17185,56 @@ function comboBlur(which){ setTimeout(function(){ const p = document.getElementB
 
 /* ════════════════ TOAST ════════════════ */
 let toastT;
-function showToast(msg){
+/* P188 · el toast VIVO ahora mismo (para reponerlo si un cambio de app lo corta) y el que quedó pendiente.
+   `mark()` mostraba «Reporte registrado · hh:mm» y en el mismo toque la tarjeta abría WhatsApp: la app se
+   ocultaba al instante y `hideToast()` lo mataba al volver — en un celular no se veía NUNCA. Ahora, si al
+   ocultarse el toast todavía estaba a la vista, se vuelve a mostrar apenas la app vuelve al frente (como el
+   aviso del ciclo). Uno que ya expiró, o que la persona tocó para cerrarlo, no vuelve. R16: `var` sin asignar. */
+var _toastVivo, _toastPendiente;
+function showToast(msg, ms){
   const t = document.getElementById('toast');
   document.getElementById('toastMsg').textContent = msg;
+  t.querySelectorAll('.toast-btn').forEach(b => b.remove());   // P189 · sin botón de un aviso anterior (todos: nunca dos)
   t.classList.remove('show'); void t.offsetWidth;   // reinicia la animación
   t.classList.add('show');
   clearTimeout(toastT);
-  toastT = setTimeout(hideToast, 2600);
+  ms = Number(ms) > 0 ? Number(ms) : 2600;
+  toastT = setTimeout(hideToast, ms);
+  _toastVivo = { msg: msg, ms: ms, hasta: Date.now() + ms, boton: null, ocultoEn: 0 };
+  /* Un toast nuevo INVALIDA el pendiente: lo que se repone al volver es lo último que se dijo, no una foto de
+     antes del resultado (verificador: marcar, irse con «no se cuenta hoy · Deshacer» vivo, fallar afuera, y al
+     volver ver ese toast sobre una fila que dice «presente»). Si la app está oculta cuando sale el nuevo, el
+     nuevo es el pendiente. */
+  _toastPendiente = document.hidden ? Object.assign(_toastVivo, { ocultoEn: Date.now() }) : null;
 }
-function hideToast(){ clearTimeout(toastT); const t = document.getElementById('toast'); if (t) t.classList.remove('show'); }
+/* P189 · un toast con una acción («Deshacer»). El botón no propaga el toque al toast (que lo cerraría) y se
+   lleva consigo si el toast se repone al volver de otra app. */
+function showToastAccion(msg, etiqueta, fn, ms){
+  showToast(msg, ms);
+  const t = document.getElementById('toast');
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'toast-btn'; b.textContent = etiqueta;
+  b.addEventListener('click', function(e){ e.stopPropagation(); hideToast(); try { fn(); } catch(e2){} });
+  t.appendChild(b);
+  if (_toastVivo) _toastVivo.boton = b;
+}
+function hideToast(){
+  clearTimeout(toastT); _toastVivo = null;
+  const t = document.getElementById('toast');
+  if (t){ t.classList.remove('show'); t.querySelectorAll('.toast-btn').forEach(b => b.remove()); }
+}
+/* P188 · al ocultarse: si el toast seguía vivo, queda pendiente. Al volver: se repone o, si no había, se cierra. */
+const TOAST_REPONER_MAX_MS = 15 * 60000;   // pasado esto en segundo plano, el aviso ya es noticia vieja
+function toastAnotarAlOcultarse(){
+  if (_toastVivo && Date.now() < _toastVivo.hasta){ _toastVivo.ocultoEn = Date.now(); _toastPendiente = _toastVivo; }
+}
+function toastReponerAlVolver(){
+  const p = _toastPendiente; _toastPendiente = null;
+  if (!p || (Date.now() - (p.ocultoEn || 0)) > TOAST_REPONER_MAX_MS){ hideToast(); return; }
+  const boton = p.boton;
+  showToast(p.msg, p.ms);
+  if (boton){ document.getElementById('toast').appendChild(boton); if (_toastVivo) _toastVivo.boton = boton; }
+}
 function hide(id){ document.getElementById(id).classList.remove('show'); }
 
 /* ════════════════ PORTAL / DASHBOARD ════════════════ */
@@ -17610,6 +17662,9 @@ function demoSalirUI(){
    supervisor, salir y mostrar médico, y tengo que poner la clave de nuevo». */
 function closePortal(todo){
   _portalApilo = false;                         // P150 · la entrada, si la hubo, deja de ser suya
+  /* P189 · el aviso que pertenece al panel se va con él: un «Deshacer» sin panel no puede actuar, y dejarlo a la
+     vista sobre el inicio era un botón que cerraba el toast sin hacer nada (verificador, 3ª pasada) */
+  try { hideToast(); _toastPendiente = null; } catch(e){}
   const _eraDemo = !!(DASH && DASH.demoMode);   // se lee ANTES de perder DASH
   /* sólo desde un PANEL abierto: la ✕ del propio gate de la demo cierra todo, como siempre */
   const _panelAbierto = (document.getElementById('portalDash') || {}).style && document.getElementById('portalDash').style.display !== 'none';
@@ -19530,7 +19585,7 @@ function onDashData(d, scopeLabel, params, vista){
               parecía un dato: la cobertura volvía al denominador viejo y decía "100% medido" sin
               que nada avisara. Ahora el motivo viaja y la pantalla lo dice. */
            nominaError: d.nominaError || null,
-           rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]) };
+           rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[])+'|'+JSON.stringify(d.ausencias||{}) };   // P189 · misma firma que dashRefresh (con ausencias)
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
   // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
@@ -19805,7 +19860,10 @@ function dashRefresh(manual){
        por persona, sin fecha) y `pvt` siempre viene vacío — sin esto, un test nuevo no cambiaría
        NADA de lo que se compara acá, y dashRefresh() diría "sin cambios" aunque haya uno recién
        llegado. El auto-refresh se quedaría mostrando una foto vieja hasta recargar la página. */
-    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[]);
+    /* P189 · `ausencias` entra en la firma: sin esto, el índice sólo se reemplazaba cuando cambiaba OTRA cosa, así
+       que una ausencia marcada por otro supervisor (o la propia, llegando por el GET) no se veía hasta el próximo
+       evento de ciclo o test — en una empresa quieta, horas (verificador, 3ª pasada). */
+    const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[])+'|'+JSON.stringify(d.ausencias||{});
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
     if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return true; }   // sin cambios → no re-renderiza (no salta el scroll)
     const nuevosRegs = Math.max(0, d.registros.length - (DASH.registros || []).length);
@@ -19820,7 +19878,10 @@ function dashRefresh(manual){
        inicial y este refresco— y `duty`/`ausencias` faltaban en LOS DOS. Si sólo se arreglara arriba,
        marcar una ausencia y esperar al refresco la borraría de la pantalla. (`duty` se copia más
        arriba, antes del corte por `changed`: P169.) */
-    if (d.ausencias && typeof d.ausencias === 'object') DASH.ausencias = d.ausencias;
+    if (d.ausencias && typeof d.ausencias === 'object'){
+      DASH.ausencias = d.ausencias; ausReaplicarLocales(DASH);   // P189 · lo escrito hace un rato manda sobre una foto anterior
+      try { nominaListFiltrar(); } catch(e){}                    // P189 · la lista de nómina, si está abierta, repinta sus filas (no la rehace `renderDash`)
+    }
     if (DASH.pickInd !== '__all__' && metrics.indexOf(DASH.pickInd) < 0) DASH.pickInd = '__all__';
     if (DASH.pickEvo !== '__all__' && metrics.indexOf(DASH.pickEvo) < 0) DASH.pickEvo = '__all__';
     if (metrics.indexOf(DASH.pickTiempo) < 0) DASH.pickTiempo = metrics[0] || null;
@@ -30736,19 +30797,34 @@ function credReiniciarTocar(btn){
     })
     .catch(() => { btnSpin(btn, false); showToast(t('sin_conexion_reintenta')); }));
 }
-function ausTocar(btn){
+function ausTocar(btn, diaFijo, destino){
   if (!btn || !DASH || !DASH.params) return;
   const ced = btn.getAttribute('data-ced') || '';
   const persona = btn.getAttribute('data-per') || '';
-  const hoy = todayStr();
-  const yaEsta = ausenteHoy({ cedula: ced, nombre: persona });
+  /* P189 · el día se fija en el primer toque y viaja con «Deshacer»: un toast repuesto pasada la medianoche
+     deshace la ausencia de AYER (la que se marcó), no marca una de hoy. */
+  const hoy = diaFijo || todayStr();
+  const yaEsta = ausenteEse(ced, hoy) || ausentePersonaEse(persona, hoy);
+  /* «Deshacer» trae su DESTINO (el estado de antes del toque que deshace): si la fila ya está así —otro
+     supervisor la dejó así mientras el toast estaba repuesto—, no hay nada que deshacer y no se invierte. */
+  if (destino != null && !!destino === yaEsta) return;
   const cedNum = String(ced).replace(/\D/g, '');
   if (!cedNum) return;
   const id = 'aus_' + cedNum + '_' + hoy;
   if (!offHayConexion()){ showToast(t('aus_sin_red')); return; }
-
-  /* Se pinta el cambio ANTES de que conteste el servidor y se revierte si falla: el supervisor está
-     marcando varias personas seguidas y esperar 3 s por cada una lo haría abandonar. */
+  /* ⚠️ P189 · R8, decidido por Franco (2026-09-17): sin diálogo —el supervisor marca a varias personas
+     seguidas y un `confirm()` por cada una lo haría abandonar—, pero con HÁPTICO, CANDADO y DESHACER.
+     · La pantalla muestra SIEMPRE el último toque (optimista, como antes). Lo que cambia es el envío: con un
+       pedido en vuelo para esta persona y día, el toque no sale en paralelo —antes `guardar` y `anular`
+       viajaban juntos y, si llegaban al revés, el CH quedaba «ausente» con la pantalla en «presente»— sino que
+       se anota el ESTADO DESEADO (`DASH._ausPendiente[id].quiere`, el del último toque) y, cuando el pedido en
+       vuelo resuelve bien, el servidor se pone al día con UN pedido más sólo si lo logrado no es lo deseado.
+       Se anota el estado y no se cuentan toques (verificador): con el índice pisado por un refresco, un toque
+       puede haberse calculado sobre una fila vieja, y lo único fiable es lo que la persona quiso ver.
+       Si el pedido falla, la pantalla vuelve a lo que el servidor tiene, se avisa y lo deseado se descarta:
+       rehacer una acción fallida sería lo contrario del último toque.
+     · «Deshacer» durante 4 s en el toast: el mismo toque, otra vez, sobre el mismo día y el mismo panel. */
+  try { haptic(16); } catch(e){}
   /* ⚠️ LAS DOS CLAVES, igual que el servidor. Encontrado en A4: acá se ponía sólo la de cédula, y
      eso rompía distinto en cada dirección. Al MARCAR, la lista de nómina se actualizaba (busca por
      cédula) pero la cobertura del IDC no (busca por nombre), así que dos partes de la misma pantalla
@@ -30757,8 +30833,7 @@ function ausTocar(btn){
      ausencia — y sin nada en pantalla que lo delatara hasta el siguiente refresco. */
   const idx = DASH.ausencias || (DASH.ausencias = {});
   const claves = [cedNum + '|' + hoy, 'n:' + ausNombreClave(persona) + '|' + hoy];
-  claves.forEach(k => { if (yaEsta) delete idx[k]; else idx[k] = 'franco'; });
-  try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+  ausPintar(idx, claves, !yaEsta);
 
   /* ⚠️ EN LA DEMOSTRACIÓN EL CAMBIO SE VE, PERO NO SALE NADA A LA RED. El índice de arriba ya se
      tocó, así que la pantalla muestra la ausencia aplicada —que es el punto de poder mostrarla— y
@@ -30768,27 +30843,82 @@ function ausTocar(btn){
   if (visorBloquea(t('visor_ausencia'))) return;   // P185
   if (DASH.demoMode){ showToast(t('demo_aplicado')); return; }
 
-  const cuerpo = { action:'ausencia_guardar', usuario: DASH.params.usuario || DASH.params.empresa,
-                   empresa: DASH.params.empresa || '', pass: DASH.params.pass || '',
-                   dispositivoId: dispositivoId(), id: id, cedula: ced, persona: persona,
-                   desde: hoy, hasta: hoy, motivo: 'franco',
+  const mio = DASH;   // P185 · «Deshacer» y la cola sólo valen sobre ESTE panel
+  showToastAccion(t(yaEsta ? 'aus_quitada' : 'aus_puesta', { p: persona }), t('aus_deshacer'), function(){ if (DASH === mio) ausTocar(btn, hoy, yaEsta); }, 4000);
+  ausRecordarLocal(mio, id, claves, !yaEsta);   // lo que la pantalla muestra, protegido del refresco que trae una foto anterior
+  const enVuelo = DASH._ausEnVuelo || (DASH._ausEnVuelo = {});
+  const pendiente = DASH._ausPendiente || (DASH._ausPendiente = {});
+  if (enVuelo[id]){ pendiente[id] = { quiere: !yaEsta }; return; }
+  ausEnviar(mio, { ced: ced, persona: persona, hoy: hoy, id: id, claves: claves }, yaEsta);
+}
+/* P189 · la pintura de una ausencia (las dos claves) y el repintado de la lista */
+function ausPintar(idx, claves, ausente){
+  claves.forEach(k => { if (ausente) idx[k] = 'franco'; else delete idx[k]; });
+  try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
+}
+/* ⚠️ P189 · LAS ESCRITURAS LOCALES RECIENTES SOBREVIVEN AL REFRESCO. `dashRefresh` (cada minuto con la pestaña de
+   ciclo a la vista; la sección está siempre en el DOM del supervisor) REEMPLAZA `DASH.ausencias` por el índice del
+   servidor, y ese índice puede ser una foto de ANTES de lo que acá se acaba de escribir (el GET salió antes del
+   POST y aterrizó después: hasta 120 s de reloj). Sin esto, la fila volvía a «presente» con la ausencia ya en el
+   CH, y un toque más sobre esa fila vieja mandaba lo contrario de lo que se quería. Se recuerda por persona y día
+   lo último que la pantalla mostró (al tocar) o el servidor confirmó (al resolver), y al reemplazar el índice se
+   vuelve a aplicar mientras sea más joven que el reloj más largo del panel. */
+const AUS_LOCAL_MS = 3 * 60000;
+function ausRecordarLocal(mio, id, claves, ausente){
+  if (!mio) return;
+  const loc = mio._ausLocal || (mio._ausLocal = {});
+  loc[id] = { claves: claves, ausente: !!ausente, en: Date.now() };
+}
+function ausOlvidarLocal(mio, id){ if (mio && mio._ausLocal) delete mio._ausLocal[id]; }
+function ausReaplicarLocales(dash){
+  const loc = dash && dash._ausLocal; if (!loc) return;
+  const idx = dash.ausencias || (dash.ausencias = {});
+  const ahora = Date.now();
+  Object.keys(loc).forEach(id => {
+    const l = loc[id];
+    if (ahora - l.en > AUS_LOCAL_MS){ delete loc[id]; return; }
+    l.claves.forEach(k => { if (l.ausente) idx[k] = 'franco'; else delete idx[k]; });
+  });
+}
+/* P189 · el envío, separado de la pintura: es lo que se encadena. `anular` = quitar la ausencia. */
+function ausEnviar(mio, a, anular){
+  const enVuelo = mio._ausEnVuelo || (mio._ausEnVuelo = {});
+  const pendiente = mio._ausPendiente || (mio._ausPendiente = {});
+  const cuerpo = { action:'ausencia_guardar', usuario: mio.params.usuario || mio.params.empresa,
+                   empresa: mio.params.empresa || '', pass: mio.params.pass || '',
+                   dispositivoId: dispositivoId(), id: a.id, cedula: a.ced, persona: a.persona,
+                   desde: a.hoy, hasta: a.hoy, motivo: 'franco',
                    quien: (getProfile() || {}).nombre || '' };
-  if (yaEsta) cuerpo.anular = '1';
-  fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
+  if (anular) cuerpo.anular = '1';
+  /* ⚠️ Se pinta sobre `mio.ausencias` LEÍDO AHORA, no sobre el índice capturado al tocar: `dashRefresh` muta
+     `DASH` pero REEMPLAZA `DASH.ausencias`, y pintar sobre el viejo no cambiaría la fila. Y sólo si este panel
+     sigue siendo el que está en pantalla: cerrado o cambiado, no hay nada que pintar — pero el aviso y el envío
+     encadenado salen igual (verificador: cerrar el panel con un pedido en vuelo se tragaba el error y perdía el
+     «Deshacer» encolado). */
+  const pintar = (ausente) => { if (DASH === mio) ausPintar(mio.ausencias || (mio.ausencias = {}), a.claves, ausente); };
+  const fallo = (d) => {
+    delete pendiente[a.id];
+    /* con respuesta del servidor el estado es CONOCIDO (rechazó: tiene lo de antes) y se recuerda, así una foto
+       vieja del refresco no pisa la fila después del error (verificador, 3ª pasada); sin respuesta (reloj, red)
+       no se sabe si escribió, y lo que diga el próximo refresco es lo mejor que hay */
+    if (d) ausRecordarLocal(mio, a.id, a.claves, !!anular); else ausOlvidarLocal(mio, a.id);
+    pintar(!!anular);   // lo que el servidor TIENE: el estado de antes de este pedido
+    showToast(d ? tError(d.error) : t('aus_error'));   // rechazo: el motivo del servidor · red: «no se pudo guardar»
+  };
+  enVuelo[a.id] = fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
     .then(r => r.json())
     .then(d => {
-      if (d && d.ok){ showToast(t(yaEsta ? 'aus_quitada' : 'aus_puesta', { p: persona })); return; }
-      /* Falló: se deshace lo que se había pintado. Dejar el cambio en pantalla haría creer que la
-         ausencia quedó cargada cuando en el CH no está, y esa persona seguiría contando. */
-      claves.forEach(k => { if (yaEsta) idx[k] = 'franco'; else delete idx[k]; });
-      try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
-      showToast(tError(d && d.error) || t('aus_error'));
+      delete enVuelo[a.id];
+      if (!d || !d.ok){ fallo(d); return; }
+      const logrado = !anular;   // lo que el servidor tiene ahora
+      const p = pendiente[a.id]; delete pendiente[a.id];
+      if (p && p.quiere !== logrado){ ausEnviar(mio, a, !p.quiere); return; }   // lo que la pantalla ya muestra, ahora al servidor
+      /* sin toques pendientes, pantalla y servidor tienen que coincidir: se reafirma, por si un refresco en medio
+         del vuelo trajo el índice de ANTES de este pedido y pisó la fila */
+      ausRecordarLocal(mio, a.id, a.claves, logrado);
+      pintar(logrado);
     })
-    .catch(() => {
-      claves.forEach(k => { if (yaEsta) idx[k] = 'franco'; else delete idx[k]; });
-      try { nominaListFiltrar(); } catch(e){}   // ⚠️ Filtrar, no PintarDeptos: la segunda sólo rehace el desplegable de departamentos, no las filas
-      showToast(t('aus_error'));
-    });
+    .catch(() => { delete enVuelo[a.id]; fallo(null); });
 }
 
 /* ════════════════ P039 · T5 · DEPARTAMENTOS, ALTA Y BAJA (2026-09-06) ════════════════════════
@@ -31069,7 +31199,8 @@ function depEnviar(accion, nombre, extra, tipo){
    del servicio médico son privadas de esta persona, y con sólo el nombre —que es público dentro
    de la empresa— cualquiera podría leerlas. La cédula ya la tiene el perfil, así que no se le
    pide nada a la persona. */
-const TAREAS = { lista: [], pendientes: 0, cargando: false };
+const TAREAS = { lista: [], pendientes: 0, cargando: false, pedidoEn: 0 };   // P188 · `pedidoEn`: cuándo salió el último pedido al servidor
+const TAREAS_RELECTURA_MS = 3600000;   // P188 · al volver a la vista, se vuelve a pedir si pasó más de esto
 
 function tareasPuedeConsultar(){
   const p = getProfile();
@@ -31205,6 +31336,7 @@ function tareasCargar(){
     try { tareasPintarBadge(); } catch(e){}
   }
   TAREAS.cargando = true;
+  TAREAS.pedidoEn = Date.now();   // P188 · se anota al DISPARAR (no al llegar): un pedido que falla también cuenta para la hora
   /* ⚠️ L10 · LA VERSIÓN VIAJA ACÁ, y es lo que permite apretar una defensa sin dejar a nadie
      afuera. Esta llamada corre en CADA apertura de la app, así que es el único lugar donde se
      puede saber qué versión tiene cada teléfono. Sin este dato, cargar el código de empresa es a
@@ -31847,7 +31979,7 @@ document.addEventListener('visibilitychange', () => {
      verdad, no leyendo el commit.
      Anotarlo al OCULTARSE es además lo correcto conceptualmente: lo que hay que comparar es el día
      en que la app se fue a segundo plano contra el día en que volvió. */
-  if (document.hidden){ try { _diaPintado = todayStr(); } catch(e){} return; }
+  if (document.hidden){ try { _diaPintado = todayStr(); } catch(e){} try { toastAnotarAlOcultarse(); } catch(e){} return; }   // P188
   if (!document.hidden){
     /* ⚠️ P174 · SI CAMBIÓ EL DÍA, TAMBIÉN SE REPINTA EL INICIO. `refreshStates()` relee
        `getReports()`, que hace el reset diario, así que las tarjetas vuelven a pendientes — pero
@@ -31858,15 +31990,20 @@ document.addEventListener('visibilitychange', () => {
     try { _hoy = todayStr(); } catch(e){}
     const _cambio = !!(_hoy && _diaPintado && _hoy !== _diaPintado);
     if (_hoy) _diaPintado = _hoy;
-    refreshStates(); hideToast();
+    refreshStates();
+    try { toastReponerAlVolver(); } catch(e){ hideToast(); }   // P188 · el toast que un cambio de app cortó vuelve; si no, se cierra como antes
     if (_cambio){
       try { renderInicio(); } catch(e){}
       try { renderActividad(); } catch(e){}
-      /* P187 · y se vuelven a pedir las tareas: se leían SÓLO al arrancar y al tocar la campana, así que
-         con la app en segundo plano desde ayer, una tarea nueva del médico no aparecía hasta relanzarla.
-         Sólo con cambio de día, por la misma política de cuota que el panel (una línea más abajo). */
-      try { tareasCargar(); } catch(e){}
     }
+    /* P187 · y se vuelven a pedir las tareas: se leían SÓLO al arrancar y al tocar la campana, así que con
+       la app en segundo plano desde ayer, una tarea nueva del médico no aparecía hasta relanzarla.
+       P188 · decisión de Franco: además del cambio de día, al volver a la vista si pasó más de una hora
+       desde el último pedido (`TAREAS.pedidoEn`): como mucho un pedido extra por hora y por persona, y sólo
+       cuando la persona vuelve a mirar la app. Minimizar y volver a los diez minutos sigue sin gastar nada. */
+    try {
+      if (_cambio || (Date.now() - (TAREAS.pedidoEn || 0)) > TAREAS_RELECTURA_MS) tareasCargar();
+    } catch(e){}
     /* P187 · volver al frente el MISMO día también revisa el ciclo: la revisión vivía sólo en
        `renderInicio`, y nada repinta el inicio por el paso del tiempo. Escenario de Franco: la app
        quedó abierta desde ayer, se minimiza y vuelve hoy con el ciclo ya pasado de 24 h — el chip
