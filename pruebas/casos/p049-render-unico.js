@@ -237,14 +237,14 @@ PRUEBAS.caso('⚠️ servicio médico con los niveles ya en el payload (la otra 
     'la rama de gestiones tiene que estar tan cubierta como la de niveles · animados = ' + JSON.stringify(r.animados));
 });
 
-PRUEBAS.caso('⚠️ supervisor: son 5 respuestas (una la dispara renderAptitud) y entra UNA sola vez', async () => {
+PRUEBAS.caso('⚠️ supervisor: son 6 respuestas (una la dispara renderAptitud; P187 sumó el repintado de opiniones) y entra UNA sola vez', async () => {
   /* El supervisor tiene una cascada más que nadie, y es la más fácil de pasar por alto: la
      dispara `renderAptitud()` DESDE ADENTRO del primer render, no `onDashData`.
      P075 · eran 4: la bandeja de reportes ahora repinta al llegar (antes su repintado dependía de
      `DASH.tab === 'reportes'`, que nunca se cumple, y la bandeja quedaba vacía si llegaba última). */
   const r = await p049Abrir('supervisor', 'supervisor', {});
   if (!p049Medible(r, 3)) return;
-  PRUEBAS.igual(r.renders, 5, 'las 5 respuestas siguen llegando y repintando · animados = ' + JSON.stringify(r.animados));
+  PRUEBAS.igual(r.renders, 6, 'las 6 respuestas siguen llegando y repintando (P187: opiniones repinta siempre, como reportes desde P075) · animados = ' + JSON.stringify(r.animados));
   PRUEBAS.igual(r.rearman, 1,
     '⚠️ pero una sola animación de entrada. La cuarta es la de renderAptitud(): si alguien la ' +
     'deja repintando a secas, este caso se pone rojo');
@@ -278,10 +278,10 @@ PRUEBAS.caso('⚠️ DISCRIMINADOR: sin dashRepintar(), las cuatro vistas vuelve
   PRUEBAS.cierto(seUso, 'confirma que el mono-parche se usó de verdad — si no, el discriminador no discrimina nada');
   PRUEBAS.igual(med.rearman, 4,
     '⚠️ así se veía el servicio médico antes de P049: los 4 repintados rearmaban la entrada (P075 sumó el de reportes) · ' + JSON.stringify(med.animados));
-  PRUEBAS.igual(sup.rearman, 5,
-    '⚠️ y el supervisor, 5 · ' + JSON.stringify(sup.animados));
-  PRUEBAS.igual(hseq.rearman, 3,
-    '⚠️ y Dirección/HSEQ, 3 (P081 le sumó la bandeja de reportes anónimos) · ' + JSON.stringify(hseq.animados));
+  PRUEBAS.igual(sup.rearman, 6,
+    '⚠️ y el supervisor, 6 (P187) · ' + JSON.stringify(sup.animados));
+  PRUEBAS.igual(hseq.rearman, 4,
+    '⚠️ y Dirección/HSEQ, 4 (P081 le sumó la bandeja de reportes anónimos; P187, las opiniones) · ' + JSON.stringify(hseq.animados));
 });
 
 PRUEBAS.caso('el flag no queda pegado: el próximo render SÍ vuelve a animar', async () => {

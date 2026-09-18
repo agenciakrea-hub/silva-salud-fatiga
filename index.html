@@ -617,7 +617,7 @@
      · A `bottom:5.2rem` se montaba sobre el cartel de "recordar dispositivo" (5rem) y le tapaba los
        botones — el MISMO choque que ya se pagó con `.gest-fab` y por el que ese cartel está a 5rem.
        Va arriba de esa franja, que está reservada. */
-  .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 9.2rem; z-index: 60;
+  .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 9.2rem; z-index: 1100;   /* P187 · era 60: se muestra sólo con un overlay (1000) abierto y nacía tapada; 1100 = el toast */
     display: flex; align-items: center; gap: .5rem;
     width: calc(100% - 2rem); max-width: 460px; box-sizing: border-box;
     background: var(--sobre-claro); color: var(--sobre-claro-txt); border-radius: 12px;
@@ -6638,7 +6638,7 @@
 <!-- iOS install modal -->
 <div class="ios-modal" id="iosModal">
   <div class="ios-card">
-    <button class="x" onclick="hide('iosModal')">✕</button>
+    <button class="x" onclick="instalGuiaCerrarUI('iosModal')">✕</button>
     <h3 data-i18n="inst_ios_tit">Instalar en iPhone</h3>
     <p data-i18n="inst_ios_sub">Funciona en Safari y también en Chrome. Para agregar esta app a tu pantalla de inicio:</p>
     <ol>
@@ -6654,7 +6654,7 @@
 <!-- Android install modal (guía si Chrome no ofrece el instalador nativo en el momento) -->
 <div class="ios-modal" id="androidModal">
   <div class="ios-card">
-    <button class="x" onclick="hide('androidModal')">✕</button>
+    <button class="x" onclick="instalGuiaCerrarUI('androidModal')">✕</button>
     <h3 data-i18n="inst_and_tit">Instalar en Android</h3>
     <p data-i18n="inst_and_sub">Si no apareció el cartel de instalación automático:</p>
     <ol>
@@ -7301,7 +7301,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.63';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.64';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7555,7 +7555,6 @@ const I18N = {
       nom_l_persona:'Toca tu nombre. Si no aparece, avísale a tu supervisor.',
       nom_t_cedula:'Confirma que eres tú',
       nom_l_cedula:'Escribe tu número de cédula para completar tu alta.',
-      nom_ced_falta:'Escribe tu número de cédula.',
       nom_sin_coincidencia:'Ningún nombre coincide con lo que escribiste.',
       nom_sin_personas:'Todavía no hay personas cargadas para esta empresa.',
       nom_sin_conexion:'No se pudo conectar. Puedes cargar tus datos a mano con “No estoy en la lista”.',
@@ -7670,7 +7669,7 @@ const I18N = {
       // ── Inicio: sensaciones personales y test de reacción ──
       sens_titulo:'Sensaciones Personales', sens_sub:'Reporta tu condición actual de turno',
       sens_cansancio:'Cansancio', sens_estres:'Estrés', sens_ansiedad:'Ansiedad',
-      sens_malestar:'Malestar', sens_somnol:'Somnoliencia', sens_fatiga:'Fatiga',
+      sens_malestar:'Malestar', sens_somnol:'Somnolencia', sens_fatiga:'Fatiga',
       sens_depresion:'Depresión', sens_gastro:'Gastrointestinal',
       sens_d_cansancio:'Test Cansancio · luego a WhatsApp',
       sens_d_estres:'Test Estrés · luego a WhatsApp',
@@ -7904,7 +7903,6 @@ const I18N = {
       adm_gate_nota:'Este acceso abre el panel de todas las empresas y el visor para mirar cada una como su supervisor, su servicio médico o su dirección. Este dispositivo queda recordado hasta que cierres sesión, y cada sesión se registra con el dispositivo.',
       adm_gate_tec:'Cuenta «*» de la hoja Accesos. Si la contraseña no entra, revisa esa fila antes que nada.',
       adm_gate_ph:'Contraseña',
-      adm_salir:'Cerrar la sesión de administrador en este dispositivo',
       adm_salir_confirmar:'Se va a retirar el acceso de administrador de este dispositivo. La próxima vez tendrás que escribir la contraseña. ¿Continuar?',
       adm_salido:'Sesión de administrador cerrada en este dispositivo.',
       adm_verificando:'Verificando…',
@@ -7927,7 +7925,7 @@ const I18N = {
       cic_c_traslado:'Traslado', cic_c_jornada:'Jornada', cic_c_regreso:'Regreso', cic_c_descanso:'Descanso',
       cic_sin_marcar:'sin marcar',
       cic_previsto:'Previsto {d}', cic_de_previsto:'de {d}',
-      cic_de_mas:'+{d} de más', cic_de_mas_suf:'de más', cic_menos:'{d} menos', cic_justo:'Justo',
+      cic_de_mas:'{d} de más', cic_de_mas_suf:'de más', cic_menos:'{d} menos', cic_justo:'Justo',
       cic_excedido:'Excedido', cic_quedan:'Quedan {q} de {d}',
       cic_horas:'Horas del ciclo', cic_cfg_tit:'Horas del ciclo de esta empresa',
       cic_cfg_ayuda:'Se aplica a todo el personal del alcance actual y la ven todos los supervisores, no sólo este dispositivo. Cuando alguien toca «{evento}», el reloj de jornada corre contra las horas que pongas aquí.',
@@ -8027,6 +8025,12 @@ const I18N = {
       ts_telem_ok:'Telemedicina aceptada',
       ts_telem_no:'Telemedicina rechazada',
       ts_telem_hecha:'Telemedicina marcada como realizada',
+      /* P187 · la tarjeta de telemedicina del panel personal (antes a mano: una local `t` tapaba t()) */
+      tm_hecha_t:'Ya tuviste una telemedicina', tm_hecha_x:'Realizada el {f}.',
+      tm_aceptada_t:'Telemedicina aceptada', tm_aceptada_x:'El servicio médico se va a comunicar contigo para coordinar la consulta.',
+      tm_sug_t:'Te sugerimos una telemedicina', tm_sug_x1:'Es una consulta con el servicio médico, sin costo para ti.',
+      tm_sug_por:'La sugirió {p}.', tm_sug_x2:'<b>Puedes aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.',
+      tm_no:'Ahora no', tm_si:'Aceptar',
       // ── F1 · Títulos de bloque ──
       db_estado_equipo:'Estado general del equipo',
       db_disp_cognitiva:'Disponibilidad cognitiva',
@@ -8192,7 +8196,7 @@ const I18N = {
       cic_hist_hoy:'hoy', cic_hist_dur:'Duración del ciclo: {h} h {m} min',
       cic_hist_todo:'Ver todo el historial',
       cic_hist_ver:'Ver los {n} ciclos del período: qué botón tocó y a qué hora',
-      cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando acá.',
+      cic_mi_vacio:'Todavía no registraste nada hoy. A medida que toques los botones de arriba, cada tramo se va completando aquí.',
       rep_grupo_agregado:'Empresa (grupo agregado)',
       // ── F1 · Aptitud: panel de equipo, ficha y leyenda ──
       apt_eq_cap:'del equipo <b>en condiciones</b>',
@@ -8218,18 +8222,18 @@ const I18N = {
       quitar_filtro:'Quitar filtro',
       vac_areas_t:'Sin áreas para desglosar',
       vac_tareas_t:'Todavía no le pediste nada',
-      vac_tareas_d:'Acá aparecen las tareas que le pidas a esta persona. Las ve en su app, con un contador, y puede marcarlas como hechas.',
+      vac_tareas_d:'Aquí aparecen las tareas que le pidas a esta persona. Las ve en su app, con un contador, y puede marcarlas como hechas.',
       // ══════ G3 · Los cuatro estados ══════
       // Cada vacío dice DOS cosas: qué va a aparecer ahí y cómo se llena. Un "Sin datos." no
       // distingue entre "está roto", "todavía nadie cargó nada" y "tus filtros dejaron todo fuera".
       vac_tests_t:'Todavía no hay tests',
-      vac_tests_d:'Acá van los promedios de cada indicador. Aparecen en cuanto alguien del equipo completa su primer test.',
+      vac_tests_d:'Aquí van los promedios de cada indicador. Aparecen en cuanto alguien del equipo completa su primer test.',
       vac_idc_t:'Todavía no hay a quién medir',
       vac_idc_d:'La disponibilidad se calcula sobre las personas con registros. En cuanto alguien complete un test, este número aparece solo.',
       vac_mrfo_t:'Sin datos para el mapa',
       vac_mrfo_d:'El mapa compara departamentos entre sí. Necesita registros de al menos un área para poder dibujarse.',
       vac_acciones_t:'Todavía no se registró ninguna acción',
-      vac_acciones_d:'Acá se cuentan las tareas reasignadas, las consultas ofrecidas y las determinaciones médicas. Que esté vacío es normal al empezar.',
+      vac_acciones_d:'Aquí se cuentan las tareas reasignadas, las consultas ofrecidas y las determinaciones médicas. Que esté vacío es normal al empezar.',
       vac_personal_t:'Todavía no hay personal en este alcance',
       vac_personal_d:'Aparece cada persona con su semáforo en cuanto complete un test. Si esperabas ver a alguien, revisa los filtros de arriba.',
       /* ── P162 · el buzón anónimo ─────────────────────────────────────────────────────────
@@ -8237,7 +8241,7 @@ const I18N = {
       vac_opiniones_t:'Sin opiniones por ahora',
       vac_opiniones_d:'Aquí llega lo que tu equipo escribe en <b>Dejar una opinión</b>, sin nombre. No hace falta que hagas nada para recibirlas.',
       vac_reportes_t:'Sin reportes por ahora',
-      vac_reportes_d:'Acá llega lo que tu equipo manda con <b>Reporte rápido</b> desde su app. No hace falta que hagas nada para recibirlos.',
+      vac_reportes_d:'Aquí llega lo que tu equipo manda con <b>Reporte rápido</b> desde su app. No hace falta que hagas nada para recibirlos.',
       vac_personas_t:'Todavía no hay con quién comparar',
       vac_personas_d:'Esta vista compara grupos entre sí. Necesita registros de al menos dos departamentos.',
       vac_filtros_t:'Nadie coincide con estos filtros',
@@ -8247,9 +8251,9 @@ const I18N = {
       vac_endpoint_t:'Los comentarios todavía no están habilitados',
       vac_endpoint_d:'Hace falta actualizar el endpoint del maestro. Es un cambio del lado del servidor: avísale a quien administra el sistema.',
       vac_comentarios_t:'Sin comentarios en este filtro',
-      vac_comentarios_d:'Acá aparece el texto libre que las personas escriben al terminar un test. Es opcional, así que puede pasar tiempo sin ninguno.',
+      vac_comentarios_d:'Aquí aparece el texto libre que las personas escriben al terminar un test. Es opcional, así que puede pasar tiempo sin ninguno.',
       vac_ficha_t:'Ficha sin movimientos',
-      vac_ficha_d:'Acá se va a ir armando la historia de esta persona: determinaciones, restricciones del supervisor y tus notas clínicas.',
+      vac_ficha_d:'Aquí se va a ir armando la historia de esta persona: determinaciones, restricciones del supervisor y tus notas clínicas.',
       vac_indicadores_t:'Sin indicadores con datos',
       vac_indicadores_d:'La línea base compara el primer registro con el último. Necesita al menos un test completado.',
       // ── Error accionable ──
@@ -8275,6 +8279,9 @@ const I18N = {
       mot_empeoro:'empeoró', mot_ya_revisado:'ya revisado antes',
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
       dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
+      dw_reportes_error:'No se pudieron traer los reportes. Toca ↻ arriba para volver a intentar.', rep_cargando:'Trayendo los reportes…',
+      dw_opiniones_error:'No se pudieron traer las opiniones. Toca ↻ arriba para volver a intentar.', op_cargando:'Trayendo las opiniones…',
+      tar_ficha_cargando:'Trayendo lo que le pediste…', tar_ficha_error:'No se pudieron traer las tareas de esta persona. Toca ↻ arriba para volver a intentar.',
       dw_opiniones_reintentar:'Todavía no se pudo conectar con el buzón de opiniones. Se va a reintentar solo.',
       opi_nota_orden:'Aparecen en orden aleatorio, y cambia cada vez que abres esta pantalla. Es a propósito: en un equipo pequeño, el orden de llegada indicaría quién escribió cada una.',
       hlp_opiniones:'Lo que tu equipo escribe en <b>Dejar una opinión</b>. Son <b>anónimas de verdad</b>: no llevan nombre, ni departamento, ni fecha exacta en ningún punto del circuito, y ni tú ni nadie puede saber quién escribió cada una. Solo se guarda el mes. El orden en que las ves es al azar y cambia en cada carga, porque el orden de llegada sería una forma de adivinarlo. Si algo de lo que leas necesita una respuesta, la respuesta va para todo el equipo, nunca para una persona.',
@@ -8324,7 +8331,7 @@ const I18N = {
       ini_tend_k:'vs. la semana pasada',
       // ── Panel de actividad (restos que la fase F no alcanzó) ──
       act_dia_mes:'{d} de {m}', act_dia_sin:'{d}: sin registros', act_dia_con:'{d}: {n} {u}',
-      act_nada:'Todavía no registraste nada',
+      act_vacio:'Todavía no registraste nada',   // P187 · era `act_nada` y pisaba la leyenda «Nada» del mapa (clave duplicada)
       act_resumen:'{n} {u} en {a} {ua}',
       n_dia_activo:'día activo', n_dias_activos:'días activos',
       ts_reporte_registrado:'Reporte registrado · {h}',
@@ -8350,7 +8357,7 @@ const I18N = {
       doc_h_frecuencia:'Frecuencia sugerida', doc_h_parte:'Parte',
       doc_c_persona:'Persona', doc_c_medico:'Médico', doc_c_direccion:'Dirección',
       doc_pct_limite:'{p}% del límite', doc_pie:'Versión {v}',
-      doc_intro:'Esto explica <b>cómo decide la aplicación</b>. Todos los números que ves acá salen de la configuración real que está usando la app en este momento: no es un documento aparte que se pueda quedar viejo.',
+      doc_intro:'Esto explica <b>cómo decide la aplicación</b>. Todos los números que ves aquí salen de la configuración real que está usando la app en este momento: no es un documento aparte que se pueda quedar viejo.',
       doc_1_t:'1 · Los cuatro niveles y qué pregunta responde cada uno',
       doc_1_p:'<p>La app no es un tablero único: son cuatro miradas distintas sobre la misma información, y cada una responde una pregunta diferente.</p>',
       doc_1_r1a:'La persona', doc_1_r1b:'¿Estoy en condiciones de trabajar hoy?',
@@ -8412,7 +8419,7 @@ const I18N = {
       doc_13_sin_refs:'<p>Las referencias clínicas de cada indicador las envía el servidor junto con los datos, para que sean las mismas en todos los dispositivos. Se ven en el panel de estadísticas.</p>',
       doc_13_ej:'<b>Recuerda el punto 4:</b> esta referencia es clínica y es igual para todo el mundo. Lo que cambia según el puesto no es este número, sino a qué distancia de él se actúa.',
       doc_14_t:'14 · El test de reacción (PVT), que funciona al revés',
-      doc_14_p:'<p>Todos los indicadores anteriores son cuestionarios: la persona responde cómo se siente. El PVT es distinto — <b>mide una reacción real</b>, en milisegundos, y por eso es la medición más difícil de falsear de todas.</p><p>Tiene una particularidad que conviene tener presente: <b>acá menos es mejor</b>. En todos los demás indicadores un número más alto es peor; en este, un número más alto significa que la persona tardó más en reaccionar.</p><p>Se miran dos cosas: el <b>tiempo de reacción promedio</b> y los <b>lapsos</b> (las veces que la persona directamente no reaccionó a tiempo). Los cortes se ajustan por nivel de riesgo del puesto, con el mismo criterio que el resto:</p>',
+      doc_14_p:'<p>Todos los indicadores anteriores son cuestionarios: la persona responde cómo se siente. El PVT es distinto — <b>mide una reacción real</b>, en milisegundos, y por eso es la medición más difícil de falsear de todas.</p><p>Tiene una particularidad que conviene tener presente: <b>aquí menos es mejor</b>. En todos los demás indicadores un número más alto es peor; en este, un número más alto significa que la persona tardó más en reaccionar.</p><p>Se miran dos cosas: el <b>tiempo de reacción promedio</b> y los <b>lapsos</b> (las veces que la persona directamente no reaccionó a tiempo). Los cortes se ajustan por nivel de riesgo del puesto, con el mismo criterio que el resto:</p>',
       doc_14_p2:'<p>El nivel 3 da exactamente {ok} y {med} ms, que son los valores de referencia históricos. Los demás niveles se calculan a partir de ese.</p>',
       doc_15_t:'15 · Cómo se decide el nivel de riesgo de cada persona',
       doc_15_p:'<p>El nivel del puesto es lo que determina cuándo se actúa (punto 4). Se resuelve buscando la regla <b>más específica</b> que aplique a esa persona, en este orden:</p>',
@@ -8486,7 +8493,7 @@ const I18N = {
       doc_25_p9:'Wearables y predicción a 24 h', doc_25_p9b:'<b>No disponible</b> · requiere el plan con dispositivos',
       doc_25_p10:'Envío automático al circuito de atención', doc_25_p10b:'Hecho · <b>apagado</b> hasta que se decida encenderlo',
       doc_25_encendido:'Encendido',
-      doc_25_ej:'<b>Si al leer esto encontraste algo que preferirías distinto</b> — un plazo, una acción de la lista, quién ve qué, cada cuánto se mide — anótalo y dilo. Casi todo lo que está acá es configurable sin rehacer la aplicación.',
+      doc_25_ej:'<b>Si al leer esto encontraste algo que preferirías distinto</b> — un plazo, una acción de la lista, quién ve qué, cada cuánto se mide — anótalo y dilo. Casi todo lo que está aquí es configurable sin rehacer la aplicación.',
       // ══════ F3 · Textos de ayuda largos (los paneles ⓘ de cada bloque) ══════
       // R1: acá había tres restos de voseo ("necesitás", "podés", "si vos ya diste el alta").
       // Corregidos a neutro al pasarlos al diccionario.
@@ -8494,10 +8501,10 @@ const I18N = {
       hlp_idc:'<b>Disponibilidad cognitiva</b>: qué proporción de la nómina está en condiciones de operar, según sus registros más recientes.<br><br>Se calcula <b>sólo sobre las personas que tienen datos</b>. Las que no hicieron tests se informan aparte, nunca se cuentan como disponibles: un indicador alto porque nadie se midió no es una buena noticia, es falta de información.<br><br>Son <b>cantidades de personas</b>: esta vista no muestra valores de tests ni datos clínicos de nadie.',
       hlp_mrfo:'<b>Mapa de riesgo por área</b>: qué proporción de cada departamento tiene indicadores que requieren atención. Sirve para saber <b>dónde mirar primero</b>, no para evaluar a nadie en particular.<br><br>Los departamentos con menos de <b>{n} personas</b> no se desglosan: con tan poca gente, el número del área es prácticamente el de una persona.<br><br><b>Señales del puesto y del turno</b>: los reportes rápidos <b>anónimos</b> del período (carga, entorno, turnos), contados por tipo y por área con la misma regla de {n} personas. Son problemas del diseño del trabajo, no de una persona: la decisión es de esta consola.',
       hlp_intervenciones:'<b>Intervenciones preventivas</b>: cada vez que alguien actuó <b>antes</b> de que pasara algo — una tarea reasignada, una consulta ofrecida, una determinación médica.<br><br>Se llaman <b>no punitivas</b> porque ninguna es una sanción: son medidas de cuidado. Que este número sea alto es una buena señal, no una mala: significa que el sistema se está usando.<br><br>Muestra <b>qué se hizo</b>, nunca el contenido clínico de esas acciones.',
-      hlp_trazabilidad:'<b>Trazabilidad</b>: el registro de todo lo que se hizo, en orden. No se puede editar ni borrar desde la aplicación — si algo se hizo mal, la corrección se anota como un hecho nuevo y el error queda a la vista.<br><br>Cada línea guarda además <b>con qué umbral se juzgó</b> a esa persona en ese momento. Sin eso, cambiar un umbral mañana reescribiría en silencio el sentido de todas las decisiones pasadas.<br><br>Se ve <b>qué se hizo y quién lo hizo</b>. El contenido clínico de cada acción no se muestra acá: eso es del servicio médico.',
+      hlp_trazabilidad:'<b>Trazabilidad</b>: el registro de todo lo que se hizo, en orden. No se puede editar ni borrar desde la aplicación — si algo se hizo mal, la corrección se anota como un hecho nuevo y el error queda a la vista.<br><br>Cada línea guarda además <b>con qué umbral se juzgó</b> a esa persona en ese momento. Sin eso, cambiar un umbral mañana reescribiría en silencio el sentido de todas las decisiones pasadas.<br><br>Se ve <b>qué se hizo y quién lo hizo</b>. El contenido clínico de cada acción no se muestra aquí: eso es del servicio médico.',
       hlp_costos:'<b>Costos y retorno</b>: cuánto cuesta la fatiga y cuánto se evita al intervenir a tiempo.<br><br>Estos números dependen de datos que <b>sólo tiene la empresa</b> (costo de hora-hombre, de una parada, de un incidente). Mientras no estén cargados, esta sección no muestra ninguna cifra: <b>preferimos no mostrar nada antes que mostrar un número inventado</b>, porque una cifra de ahorro sin respaldo, frente a una auditoría, juega en contra.',
       hlp_predictivo:'Esta pestaña muestra el <b>Plan Predictivo (360°)</b>: el próximo escalón después de lo que ya está funcionando hoy. Necesita <b>wearables</b> (pulseras o relojes que miden sueño y frecuencia cardíaca) conectados a cada persona — todavía no están integrados. <b>Nada de esto calcula nada real todavía.</b> Son esqueletos visibles para mostrar qué se va a poder ver el día que se sume el wearable, y contra qué dato de los que <b>ya existen hoy</b> (autoreportes, turnos, nivel de riesgo) se va a poder contrastar. Ningún número de esta pantalla es real.',
-      hlp_reportes:'Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia se decide del lado del empleado, no acá: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — necesitas saber quién es para poder reasignarlo) y <b style="color:var(--sem-morado)">anónimos</b> (algo del puesto o el turno — no llevan nombre en ningún punto del circuito, ni tú ni nadie más puede saberlo). En un reporte anónimo, el departamento sólo se muestra si tiene <b>{n} personas o más</b>: con menos, mostrar el depto casi identificaría a la persona igual, así que se agrega al total de la empresa.',
+      hlp_reportes:'Lo que tu equipo manda con <b>Reporte rápido</b>. Hay dos tipos, y la diferencia se decide del lado del empleado, no aquí: <b>identificados</b> (algo lo afecta a él/ella ahora mismo — necesitas saber quién es para poder reasignarlo) y <b style="color:var(--sem-morado)">anónimos</b> (algo del puesto o el turno — no llevan nombre en ningún punto del circuito, ni tú ni nadie más puede saberlo). En un reporte anónimo, el departamento sólo se muestra si tiene <b>{n} personas o más</b>: con menos, mostrar el depto casi identificaría a la persona igual, así que se agrega al total de la empresa.',
       hlp_aptitud:'Vista <b>operativa</b>: si cada persona está en condiciones de trabajar, según sus tests <b>más recientes</b>.<br><br><b>La app no declara a nadie no apto.</b> Cuando el control automático detecta un indicador por encima del límite, la persona aparece como <b style="color:var(--sem-rojo-txt)">Pendiente de revisión</b>: quiere decir que <i>según la app</i> no está en condiciones, pero que <b>falta que el servicio médico la revise</b> para determinarlo. No es un "no apto".<br><br><b style="color:var(--sem-rojo-int)">No apto</b> y <b style="color:var(--sem-ambar-txt)">Apto con condiciones</b> aparecen SÓLO cuando los firma el servicio médico, y en ese caso la tarjeta lo aclara y muestra quién lo determinó y hasta cuándo vale.<br><br>Cada cuadrito es un indicador y su color dice cómo viene el <b>último test</b>: <b style="color:var(--sem-verde-txt)">verde</b> bien, <b style="color:var(--sem-ambar-txt)">amarillo</b> cerca del límite, <b style="color:var(--sem-rojo-txt)">rojo</b> por encima en los dos últimos tests. Los <b>valores y el detalle médico no se muestran</b>: eso lo maneja el servicio médico.<br><br><b>Tests poco confiables.</b> Si alguien responde el test tan rápido que no alcanzó a leerlo, ese resultado <b>no cuenta para el semáforo</b> y la tarjeta lo avisa. No es una sanción: es que ese dato no sirve para decidir nada, y conviene que lo repita.<br><br><b>Telemedicina.</b> Puedes sugerirle una consulta con el servicio médico. <b>La persona decide</b> si la acepta o la rechaza, y en los dos casos queda registrado. No la sugieras sobre un test poco confiable: el botón se bloquea solo en ese caso.<br><br><b>Puedes restringir una tarea.</b> Con <b>Restringir tarea</b> registras que una persona no haga <b>esa tarea</b> por un tiempo. Es una decisión <b>operativa y tuya</b>: no necesitas al servicio médico y la puedes levantar cuando quieras. <b>No es un "no apto"</b>: eso sigue siendo sólo del servicio médico, y las dos cosas conviven sin pisarse. Una persona puede tener el alta médica y aun así no hacer una tarea puntual porque tú lo decidiste, o al revés.<br><br>El <b>tiempo máximo</b> depende del nivel de riesgo del puesto: a mayor riesgo, menos tiempo se puede sostener una decisión operativa sin que la vea el servicio médico. Al vencerse, el caso pasa a la cola del servicio médico.',
       hlp_aptitud_nivel:'<br><br><b>Nivel de riesgo del puesto.</b> Cada persona tiene un nivel del 1 al 5 según la tarea que realiza (norma LOPCYMAT). El <b>límite clínico de cada indicador es siempre el mismo</b>: lo que cambia con el nivel es <b>a qué distancia de ese límite se empieza a actuar</b>. Por eso un mismo valor puede quedar en amarillo en un puesto administrativo (nivel 1) y en rojo en uno de riesgo máximo (nivel 5): el dato clínico es el mismo, la consecuencia operativa no.',
       hlp_res_otra:'Detalle de {q}: el promedio de sus tests. Toca <b>‹ Quitar filtro</b> arriba para volver al grupo.',
@@ -8525,7 +8532,7 @@ const I18N = {
       hlp_informe_limite:'Se puede generar <b>1 por día</b> por empresa.',
       hlp_numeros:'Para quien quiera el detalle fino de cada indicador:<br>· <b>Media</b>: el promedio de todos los tests.<br>· <b>Mediana</b>: el valor del medio (no lo mueven los casos extremos).<br>· <b>Desv.</b>: qué tan parejos o dispersos están los datos entre sí.<br>· <b>Máx</b>: el valor más alto registrado. · <b>Suma</b>: el total. · <b>N</b>: cuántos tests hay.<br>· <b>Ref</b>: el valor normal de referencia. Si la media lo supera, sale en <b style="color:var(--sem-rojo-txt)">rojo</b>.',
       hlp_alertas:'Quiénes superan lo normal en alguna métrica, ordenados por gravedad. <b>Toca</b> cualquiera para ver su detalle.',
-      hlp_casos:'Cuando una persona queda <b>en rojo</b> con un test confiable, se abre un <b>caso</b> para el circuito de telemedicina. Se abre <b>un caso por persona por test</b>: aunque haya hecho cinco tests el mismo día, no se abren cinco casos.<br><br><b>Esto no depende de este panel.</b> Lo hace el servidor solo, cada 15 minutos, mire quien mire. No hace falta que nadie entre acá para que el caso se abra.<br><br>Un <b>test poco confiable no abre caso</b>: si el dato no sirve, lo que corresponde es repetir el test, no abrir un expediente. Y si ya diste el alta, tampoco se abre.<br><br>Al caso se le suman el <b>teléfono y el correo</b> de la persona, tomados de su perfil, para que el equipo que la va a atender pueda contactarla. Esos datos <b>no pasan por este panel</b>.<br><br><b>Ni la empresa ni la persona reciben ningún aviso automático</b>: el contacto lo hace una persona.',
+      hlp_casos:'Cuando una persona queda <b>en rojo</b> con un test confiable, se abre un <b>caso</b> para el circuito de telemedicina. Se abre <b>un caso por persona por test</b>: aunque haya hecho cinco tests el mismo día, no se abren cinco casos.<br><br><b>Esto no depende de este panel.</b> Lo hace el servidor solo, cada 15 minutos, mire quien mire. No hace falta que nadie entre aquí para que el caso se abra.<br><br>Un <b>test poco confiable no abre caso</b>: si el dato no sirve, lo que corresponde es repetir el test, no abrir un expediente. Y si ya diste el alta, tampoco se abre.<br><br>Al caso se le suman el <b>teléfono y el correo</b> de la persona, tomados de su perfil, para que el equipo que la va a atender pueda contactarla. Esos datos <b>no pasan por este panel</b>.<br><br><b>Ni la empresa ni la persona reciben ningún aviso automático</b>: el contacto lo hace una persona.',
       // ── F3 · Restricción de tarea (supervisor) ──
       restr_titulo:'Restringir tarea', restr_tope:'tope {d}',
       restr_aviso:'Esto es una decisión <b>operativa</b>: dice que esta persona no haga <b>esa tarea</b> por un rato. <b>No es un "no apto"</b> ni una determinación médica, y no reemplaza al servicio médico.',
@@ -8591,7 +8598,7 @@ const I18N = {
       mit_suspende:'Suspender tarea crítica', mit_medico:'Derivar al servicio médico',
       mit_telemed:'Sugerir telemedicina',
       dur_horas:'{n} horas', dur_24h:'24 horas (1 día)', dur_dias:'{n} días',
-      si:'Sí', restr_confirmar:'¿Registrar',
+      restr_confirmar:'¿Registrar',   // P187 · `si` estaba repetida (ya vive arriba, en el vocabulario compartido)
       // ── F2 · Controles compartidos de los tests ──
       test_siguiente:'Siguiente', test_continuar:'Continuar',
       pf_ph_otros:'¿Cuál? (máx. 50 caracteres)',
@@ -8845,11 +8852,13 @@ const I18N = {
       inf_obj_titulo:'Objetivo del análisis', inf_obj_opcional:'opcional',
       inf_obj_placeholder:'Ej: el 10/07 pasamos a horario rotativo. Quiero ver el efecto en los indicadores.',
       inf_obj_fecha:'Fecha del cambio', inf_obj_fecha_sub:'compara antes/después',
-      inf_cargando:'Cargando informes previos…',
+      gest_sync_on:'Sincronizando con el servidor…', gest_sync_ok:'Sincronizado con el servidor · compartido con tu equipo', gest_sync_off:'Sin conexión: se guardó en este dispositivo y se sincronizará al reconectar.',
+      inf_cargando:'Cargando informes previos…', inf_generando:'Generando informe… (puede tardar unos 40 s)', inf_analizando:'Analizando los datos con la IA…',
+      inf_error:'No se pudo generar el informe.', inf_error_red:'Sin conexión o el servidor tardó demasiado. Inténtalo de nuevo.',
       inf_hist_vacio:'Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.',
       casos_odoo_titulo:'Casos para atención interna',
       casos_odoo_off_1:'El traspaso automático al circuito de atención interna está <b>desactivado</b> para esta empresa. <b>No es una falla:</b> viene apagado de fábrica y se enciende sólo cuando la empresa lo aprueba, empresa por empresa.',
-      casos_odoo_off_2:'Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo acá arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre es el traspaso solo.',
+      casos_odoo_off_2:'Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo aquí arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre es el traspaso solo.',
       casos_odoo_vacio:'Todavía no hay ningún caso abierto. Se abre solo cuando alguien queda en rojo con un test confiable{extra}.',
       casos_odoo_vacio_extra:' o en amarillo',
       inf_historial:'Historial ({n})', inf_ver:'Ver ▾', inf_ocultar:'Ocultar ▴',
@@ -8915,6 +8924,8 @@ const I18N = {
       notif_exc_detalle:'Ya pasó lo previsto para ese paso. Si ya ocurrió, toca «{ev}» en Data Operacional (queda con la hora de ahora); si sigues en eso, no hace falta hacer nada.',
       notif_exc_detalle_tarde:'Pasó demasiado tiempo para marcarlo: quedaría con una hora que no es. Si ya ocurrió, avísale a tu supervisor para que cierre el ciclo; si sigues en eso, no hace falta hacer nada.',
       notif_det_detalle:'No se registraron los pasos siguientes. Cuando vuelvas a salir, toca «{primero}» y empieza uno nuevo.',
+      notif_nom_titulo:'Tu cédula todavía no está en la nómina de tu empresa',   // P187
+      notif_nom_detalle:'Pide a tu supervisor que te cargue. Mientras tanto, lo que registres se guarda en este dispositivo.',
       notif_entendido:'Entendido', notif_de:'Aviso {f}',
       tar_est_sin_leer:'Sin leer', tar_est_leida:'Leída', tar_est_hecha:'Hecha', tar_est_vencida:'Vencida',
       // ── Crear tareas desde la ficha ──
@@ -9399,7 +9410,6 @@ const I18N = {
       nom_l_persona:'Tap your name. If it is not there, let your supervisor know.',
       nom_t_cedula:'Confirm it is you',
       nom_l_cedula:'Enter your ID number to complete your sign-up.',
-      nom_ced_falta:'Enter your ID number.',
       nom_sin_coincidencia:'No name matches what you typed.',
       nom_sin_personas:'No people have been loaded for this company yet.',
       nom_sin_conexion:'Could not connect. You can enter your details manually with “I am not on the list”.',
@@ -9745,7 +9755,6 @@ const I18N = {
       adm_gate_nota:'This access opens the panel for all companies and the viewer to look at each one as its supervisor, its medical service or its management. This device stays signed in until you sign out, and every session is logged with the device.',
       adm_gate_tec:'Account "*" in the Accesos sheet. If the password does not work, check that row first.',
       adm_gate_ph:'Password',
-      adm_salir:'Sign out of the administrator session on this device',
       adm_salir_confirmar:'Administrator access will be removed from this device. You will need to enter the password next time. Continue?',
       adm_salido:'Administrator session signed out on this device.',
       adm_verificando:'Verifying…',
@@ -9767,7 +9776,7 @@ const I18N = {
       cic_c_traslado:'Commute', cic_c_jornada:'On duty', cic_c_regreso:'Return', cic_c_descanso:'Rest',
       cic_sin_marcar:'not logged',
       cic_previsto:'Planned {d}', cic_de_previsto:'of {d}',
-      cic_de_mas:'+{d} over', cic_de_mas_suf:'over', cic_menos:'{d} under', cic_justo:'On plan',
+      cic_de_mas:'{d} over', cic_de_mas_suf:'over', cic_menos:'{d} under', cic_justo:'On plan',
       cic_excedido:'Over', cic_quedan:'{q} left of {d}',
       cic_horas:'Cycle hours', cic_cfg_tit:'Cycle hours for this company',
       cic_cfg_ayuda:'Applies to everyone in the current scope and is seen by every supervisor, not just this device. When someone taps "{evento}", the on-duty clock runs against the hours you set here.',
@@ -9907,6 +9916,11 @@ const I18N = {
       ts_telem_ok:'Telemedicine accepted',
       ts_telem_no:'Telemedicine declined',
       ts_telem_hecha:'Telemedicine marked as done',
+      tm_hecha_t:'You already had a telemedicine consultation', tm_hecha_x:'Done on {f}.',
+      tm_aceptada_t:'Telemedicine accepted', tm_aceptada_x:'The medical service will contact you to arrange the consultation.',
+      tm_sug_t:'We suggest a telemedicine consultation', tm_sug_x1:'It is a consultation with the medical service, at no cost to you.',
+      tm_sug_por:'Suggested by {p}.', tm_sug_x2:'<b>You can accept or decline it</b>: it is not mandatory and has no consequence for your job.',
+      tm_no:'Not now', tm_si:'Accept',
       // ── F1 · Block titles ──
       db_estado_equipo:'Overall team status',
       db_disp_cognitiva:'Cognitive availability',
@@ -10133,6 +10147,9 @@ const I18N = {
       mot_empeoro:'got worse', mot_ya_revisado:'reviewed before',
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
       dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
+      dw_reportes_error:'The reports could not be loaded. Tap ↻ above to try again.', rep_cargando:'Loading the reports…',
+      dw_opiniones_error:'The opinions could not be loaded. Tap ↻ above to try again.', op_cargando:'Loading the opinions…',
+      tar_ficha_cargando:'Loading what you asked them…', tar_ficha_error:'The tasks for this person could not be loaded. Tap ↻ above to try again.',
       dw_opiniones_reintentar:'Could not connect to the feedback inbox yet. It will retry automatically.',
       opi_nota_orden:'These appear in random order, and it changes every time you open this screen. That is on purpose: in a small team, the order they arrived in would point to who wrote each one.',
       hlp_opiniones:'What your team writes in <b>Leave feedback</b>. It is <b>truly anonymous</b>: no name, no department and no exact date at any point in the chain, and neither you nor anyone else can find out who wrote what. Only the month is stored. The order you see is random and changes on every load, because the order of arrival would be a way to guess it. If something you read needs an answer, the answer goes to the whole team, never to one person.',
@@ -10182,7 +10199,7 @@ const I18N = {
       ini_tend_k:'vs. last week',
       // ── Activity panel (leftovers phase F did not reach) ──
       act_dia_mes:'{d} {m}', act_dia_sin:'{d}: no records', act_dia_con:'{d}: {n} {u}',
-      act_nada:'You have not recorded anything yet',
+      act_vacio:'You have not recorded anything yet',   // P187
       act_resumen:'{n} {u} over {a} {ua}',
       n_dia_activo:'active day', n_dias_activos:'active days',
       ts_reporte_registrado:'Report recorded · {h}',
@@ -10446,7 +10463,7 @@ const I18N = {
       mit_suspende:'Suspend the critical task', mit_medico:'Refer to medical staff',
       mit_telemed:'Offer telemedicine',
       dur_horas:'{n} hours', dur_24h:'24 hours (1 day)', dur_dias:'{n} days',
-      si:'Yes', restr_confirmar:'Record this',
+      restr_confirmar:'Record this',
       // ── F2 · Shared test controls ──
       test_siguiente:'Next', test_continuar:'Continue',
       pf_ph_otros:'Which one? (max. 50 characters)',
@@ -10754,7 +10771,9 @@ const I18N = {
       inf_obj_titulo:'Analysis objective', inf_obj_opcional:'optional',
       inf_obj_placeholder:'E.g.: on 07/10 we switched to a rotating schedule. I want to see the effect on the indicators.',
       inf_obj_fecha:'Date of the change', inf_obj_fecha_sub:'compares before/after',
-      inf_cargando:'Loading previous reports…',
+      gest_sync_on:'Syncing with the server…', gest_sync_ok:'Synced with the server · shared with your team', gest_sync_off:'No connection: saved on this device and will sync when back online.',
+      inf_cargando:'Loading previous reports…', inf_generando:'Generating report… (may take about 40 s)', inf_analizando:'Analysing the data with the AI…',
+      inf_error:'The report could not be generated.', inf_error_red:'No connection or the server took too long. Try again.',
       inf_hist_vacio:'No reports have been generated for this company yet. Tap “Generate report” to create the first one.',
       casos_odoo_titulo:'Cases for internal follow-up',
       casos_odoo_off_1:'Automatic hand-off to the internal follow-up workflow is <b>disabled</b> for this company. <b>This is not a malfunction:</b> it ships off by default and is turned on only when the company approves it, company by company.',
@@ -10822,6 +10841,8 @@ const I18N = {
       notif_exc_detalle:'The planned time for that step is over. If it already happened, tap "{ev}" in Operational Data (it is logged with the current time); if you are still at it, nothing to do.',
       notif_exc_detalle_tarde:'Too much time has passed to mark it: it would be logged with a wrong time. If it already happened, tell your supervisor so they close the cycle; if you are still at it, nothing to do.',
       notif_det_detalle:'The next steps were not recorded. When you go out again, tap "{primero}" and start a new one.',
+      notif_nom_titulo:'Your ID is not in your company\u2019s roster yet',   // P187
+      notif_nom_detalle:'Ask your supervisor to add you. Meanwhile, what you record is kept on this device.',
       notif_entendido:'Got it', notif_de:'Notice {f}',
       tar_est_sin_leer:'Unread', tar_est_leida:'Read', tar_est_hecha:'Done', tar_est_vencida:'Overdue',
       // ── Creating tasks from the record ──
@@ -11901,12 +11922,22 @@ async function sincronizarRegistro(perfil){
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })
       .then(r => r.json())
       .then(d => {
-        if (d && d.ok){ try { localStorage.setItem(K_REG_SIG, sig); } catch(e){} return; }
+        if (d && d.ok){
+          try { localStorage.setItem(K_REG_SIG, sig); } catch(e){}
+          try { notifLocalQuitar('nomina_' + perfil.cedula); } catch(e){}   // P187 · ya está en la nómina: el aviso se va
+          return;
+        }
         /* P165 · el servidor sólo acepta filas nuevas que estén en la nómina. Si esta persona no
            está, se le dice — antes el rechazo era mudo y se reintentaba en cada apertura, y ella
            usaba la app creyendo que estaba registrada. No se guarda la firma: cuando RRHH la
            cargue, la próxima apertura la registra sola. */
-        if (d && d.motivo === 'no_en_nomina'){ try { showToast(t('reg_no_en_nomina')); } catch(e){} }
+        if (d && d.motivo === 'no_en_nomina'){
+          try { showToast(t('reg_no_en_nomina')); } catch(e){}
+          /* P187 · el toast dura 2,6 s y `visibilitychange` lo mata al volver: la persona que abrió la
+             app y cambió de pantalla no lo veía nunca, y seguía «creyendo que estaba registrada» (P165).
+             Queda como aviso en «Tus tareas», con la campana, hasta que el registro entre. */
+          try { notifLocalAgregar({ id: 'nomina_' + perfil.cedula, tipo: 'no_en_nomina' }); } catch(e){}
+        }
       })
       .catch(() => {});   // si falla, se reintenta en la próxima apertura (la firma no se guarda)
   } catch(e){}
@@ -13338,8 +13369,17 @@ function iniTieneCiclo(){ const p = getProfile(); return !!(p && p.esPiloto); }
    propio ciclo. La línea reusa cicloEstado/cicloBarra/cicloTramosHtml — LAS MISMAS que dibujan la
    tarjeta del supervisor, no una copia — con la única diferencia de que los eventos salen de
    cicloMio() (registro local) en vez del payload del servidor. */
+/* P187 · la firma del estado del propio ciclo: todo lo que cambia un color o un texto fijo del
+   bloque. El reloj la compara una vez por minuto y repinta sólo si cambió. */
+function cicloMiFirma(){
+  const plan = cicloPlan(cicloYo());
+  const c = cicloMio();
+  const st = c ? cicloEstado(c, Date.now(), plan) : cicloEstadoVacio(plan);
+  return st.estado + '|' + st.activo + '|' + (st.tramos || []).map(x =>
+    x.estado + (x.sinCierre ? 'S' : '') + (x.excedido ? 'E' : '') + (x.cumplido ? 'C' : '') + (x.estado === 'curso' && x.real > x.previsto ? 'P' : '')).join(',');
+}
 function cicloMiBloque(){
-  let html = '<div class="cic-mio">' + iniAhoraHtml();
+  let html = '<div class="cic-mio" data-cic-firma="' + esc(cicloMiFirma()) + '">' + iniAhoraHtml();
   const plan = cicloPlan(cicloYo());
   const c = cicloMio();
   /* La línea de tiempo se dibuja SIEMPRE. Antes aparecía recién después del primer evento, así
@@ -13434,7 +13474,7 @@ function cicloDetenidoRevisarAhora(){
         if (tra && tra.hasta && tra.sinCierre){
           const hasta = tra.ini + (cicloTechoSinCierreMin(tra.previsto) + CICLO_RECORDATORIO_MIN) * 60000;
           const nuevo = notifLocalAgregar({ id: 'exc_' + reciente.inicio + '_' + tra.k, tipo: 'jornada_vencida', t0: reciente.inicio, ev: tra.hasta, tramo: tra.k, hasta: hasta });
-          if (nuevo){ try { showToast(t(ahora <= hasta ? 'ts_jornada_vencida' : 'ts_jornada_vencida_tarde', { ev: cicloEventoLabel(tra.hasta) })); } catch(e){} }
+          if (nuevo){ try { showToast(t(ahora <= hasta ? 'ts_jornada_vencida' : 'ts_jornada_vencida_tarde', { ev: cicloEventoLabel(tra.hasta) })); avisado = true; } catch(e){} }   // P187 · `avisado`: el toast de «se detuvo» del bucle de abajo lo pisaba a 0 ms; queda para la próxima revisión
         }
       }
       for (const c of ciclos.slice(0, 2)){
@@ -13503,20 +13543,24 @@ function cicloMiHistorialBloque(){
 }
 /* Cuántos días pidió la persona la última vez (30 en el arranque). `var` sin valor (R16). */
 var _cicloHistDias;
-function cicloMiHistorialTodo(btn){
-  if (!offHayConexion()){ showToast(t('sin_conexion')); return; }
+function cicloMiHistorialTodo(btn, intento){
+  /* el reintento (P187) vuelve a entrar por acá: si la señal se fue en la espera, el cargador se apaga igual */
+  if (!offHayConexion()){ btnSpin(btn, false); if (intento) _cicloHistDias = 0; showToast(t('sin_conexion')); return; }
   btnSpin(btn, true, t('cargando'));
   _cicloHistDias = 400;
   misSincronizar(400).then(ok => {
-    btnSpin(btn, false);
     /* ⚠️ P174 · `misSincronizar` devuelve `false` TAMBIÉN cuando ya hay una sincronización en curso
        —la del arranque— y eso no es un fallo de red. Quien tocaba «Ver todo el historial» en los
        primeros segundos leía «no hay conexión, intenta de nuevo» con conexión perfecta, y encima se
        perdía el pedido de los 400 días. Se distingue mirando la conexión de verdad. */
     if (!ok){
-      if (offHayConexion()){ setTimeout(() => { try { cicloMiHistorialTodo(btn); } catch(e){} }, 1200); return; }
-      showToast(t('sin_conexion_reintenta')); _cicloHistDias = 0; return;
+      /* P187 · el cargador se QUEDA durante la espera: apagarlo dejaba el botón vivo 1,2 s y un segundo
+         toque disparaba otra cadena (dos pedidos de 400 días). Y con tope: 25 esperas (30 s) y se avisa. */
+      if (offHayConexion() && (intento || 0) < 25){ setTimeout(() => { try { cicloMiHistorialTodo(btn, (intento || 0) + 1); } catch(e){} }, 1200); return; }
+      btnSpin(btn, false);
+      showToast(t(intento ? 'err_generico' : 'sin_conexion_reintenta')); _cicloHistDias = 0; return;   // en el tope hay conexión: no decir «sin conexión»
     }
+    btnSpin(btn, false);
     const abierto = !!(document.getElementById('cicHist') || {}).open;
     renderSections();
     const det = document.getElementById('cicHist'); if (det && abierto) det.open = true;
@@ -13944,7 +13988,7 @@ function renderActividad(){
   if (sc) sc.scrollLeft = sc.scrollWidth;   // arranca mostrando lo más reciente
   const res = document.getElementById('actResumen');
   if (res) res.textContent = total === 0
-    ? t('act_nada')
+    ? t('act_vacio')   // P187
     : t('act_resumen', { n: total, u: t(total === 1 ? 'n_registro' : 'n_registros'),
                          a: activos, ua: t(activos === 1 ? 'n_dia_activo' : 'n_dias_activos') });
 }
@@ -15458,6 +15502,14 @@ function altaAbandonar(){
 }
 function silvaAtras(){
   const visible = id => { const e = document.getElementById(id); return e && e.classList.contains('show'); };
+  /* ⚠️ P187 · LAS TRES PANTALLAS DE CONTRASEÑA VAN PRIMERO: son las únicas con `z-index:1010` y se
+     abren SOLAS encima de lo que esté (el login aparece a los 5 s del arranque cuando el servidor
+     contesta `necesita_clave`, aunque la persona ya esté en un test). Estaban después de 19 overlays
+     de 1000: «atrás» con el login sobre un test retrocedía el test TAPADO, y al segundo toque lo
+     cerraba con las respuestas perdidas. Recuperar va antes que login porque se abre desde él. */
+  if (visible('recuperarOv')){ recuperarCerrar(); return true; }
+  if (visible('loginOv')){ lgnCerrar(); return true; }
+  if (visible('claveOv')){ clvPosponer(); return true; }
   if (visible('docOverlay')){ admCerrarDoc(); return true; }           // documentación: va arriba de todo
   if (visible('restrOverlay')){ restCerrar(); return true; }           // la hoja de restricción va arriba de todo
   if (visible('admAtajosOv')){ admAtajosCerrar(); return true; }        // P166 · la hoja del flotante de admin
@@ -15470,7 +15522,6 @@ function silvaAtras(){
   if (visible('cicFullOv')){ cicloFullCerrar(); return true; }         // P055
   if (visible('depOv')){ depCerrar(); return true; }                   // P039: va ENCIMA de la nómina, que es de donde se abre
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
-  if (visible('recuperarOv')){ recuperarCerrar(); return true; }       // recuperar perfil idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
   /* ⚠️ Las dos pantallas de contraseña, ANTES del portal: se abren por encima de él (el login
      aparece cuando el panel del empleado recibe `necesita_clave`). Sin esto, "atrás" cerraba el
@@ -15500,8 +15551,7 @@ function silvaAtras(){
   if (visible('misDatosOv')){ misDatosCerrar(); return true; }        // P171 · la ficha de sólo lectura
   if (visible('demoVistasOv')){ demoVistasCerrar(); return true; }    // P171 · la hoja del ojo de la demostración
   if (visible('demoClaveOv')){ demoClaveCerrar(); return true; }      // P171 · la clave de la demostración, sobre el splash
-  if (visible('loginOv')){ lgnCerrar(); return true; }
-  if (visible('claveOv')){ clvPosponer(); return true; }
+  /* P187 · `loginOv` y `claveOv` subieron al principio de la lista (ver arriba) */
   /* ⚠️ P100 · SIN ESTA LÍNEA LA PANTALLA NUEVA ERA UN CALLEJÓN SIN SALIDA con el botón físico del
      teléfono, exactamente el defecto que R1 tuvo que corregir para las cuatro pantallas del alta:
      este manejador tiene una lista EXPLÍCITA, así que un overlay que no se nombre acá no existe
@@ -16823,7 +16873,7 @@ function saveProfile(){
   // el endpoint ANTES de guardarlas en el dispositivo. Si activó las dos, se validan juntas.
   if ((esSupervisor && supPass) || (esServicioMedico && medPass)){
     const btn = document.querySelector('#setup .save-btn');
-    if (btn){ btn.disabled = true; btn.textContent = t('f_verificando'); }
+    if (btn) btnSpin(btn, true, t('f_verificando'));   // P187 · el cargador, no un texto
     /* ⚠️ P135 · CONBLOQUEO, NO SÓLO EL BOTÓN. `saveProfile` era la única acción de red del bloque
        de identidad sin `conBloqueo`, y la guarda que debía cubrir el hueco estaba muerta:
        `setupCheckReady()` (arriba) sólo toca `disabled` si `!btn.dataset.busy`, pero nada en todo
@@ -16839,7 +16889,7 @@ function saveProfile(){
       (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass) : Promise.resolve(null),
       (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass) : Promise.resolve(null)
     ])).then(([resSup, resMed]) => {
-      if (btn){ btn.disabled = false; btn.textContent = t('f_guardar_cont'); }
+      if (btn) btnSpin(btn, false);
       let bad = false;
       if (resSup === 'bad'){
         fSupPass.classList.add('invalid');
@@ -17591,6 +17641,10 @@ function closePortal(todo){
   }
   const dbar = document.getElementById('demoFab'); if (dbar) dbar.style.display = 'none';
   try { demoVistasCerrar(); } catch(e){}
+  /* P187 · el reloj del inicio vuelve a correr: `renderDash` lo apaga cuando el panel no tiene pestaña de
+     ciclo (el piloto en «Mis estadísticas») y nadie lo volvía a prender hasta un cambio de visibilidad —
+     con la app a la vista, el chip del ciclo quedaba congelado. Se apaga solo si no hay nada vivo. */
+  try { cicloTickStart(); } catch(e){}
   if (_volverAlSelector){
     /* de vuelta al gate de la demostración (las cuatro pestañas), con el payload guardado: el próximo
        «Ver el panel de…» entra sin viajar y sin clave (`demoAplicarGuardado`) */
@@ -17931,8 +17985,13 @@ function conBloqueo(sel, promesa){
    bloquear terminan siendo cuatro criterios distintos. */
 function cargaZona(el){
   if (!el) return el;
+  if (!el.querySelector) return el;
   /* La tarjeta del login tiene todo lo interactivo salvo la ✕, que es hermana suya. */
-  return el.querySelector ? (el.querySelector('.portal-gate-card') || el) : el;
+  /* P187 · y en el PANEL, lo que se bloquea es el cuerpo (`#dashScroll`): ocho cargas hacían
+     `conBloqueo('#portalDash')` y dejaban inertes la ✕, la ← y el ↻ hasta 120 s (el informe de la IA,
+     40-90 s con el panel entero muerto). Mismo criterio que P058 con el gate. */
+  if (el.id === 'portalDash') return el.querySelector('#dashScroll') || el;
+  return el.querySelector('.portal-gate-card') || el;
 }
 function cargaBloquear(el0, on){
   const el = cargaZona(el0);   // P058 · el contenido, no el marco con la ✕
@@ -18295,9 +18354,9 @@ function simEntrar(vista){
       /* Endpoint viejo, o sesión que el servidor no reconoce: se dice QUÉ pasó, no un aviso
          genérico que manda a nadie a ningún lado. */
       if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
-        showToast(t('ts_sim_demo_pass')); simSalir(); return;
+        showToast(t('ts_sim_demo_pass')); simSalir(true); return;
       }
-      if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(); return; }
+      if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(true); return; }
       /* ⚠️ S7 · SIN ESTO, QUIEN ENTRA POR ACÁ NO TIENE EL SELECTOR. Es la otra puerta al mismo
          payload, y es la que usa la Dirección para revisar cómo se ve cada rol. Sin guardarlo,
          `demoPintarBarra()` calculaba que no hay demo y escondía la barra: la misma pantalla se
@@ -18315,16 +18374,18 @@ function simEntrar(vista){
         onDashData(d, 'Empresa Demo', paramsSim, vista);
       }
     })
-    .catch(() => { showToast(t('sin_conexion')); simSalir(); });
+    .catch(() => { showToast(t('sin_conexion')); simSalir(true); });
 }
-function simSalir(){
+function simSalir(silencioso){
+  /* P187 · `silencioso`: cuando se sale por un ERROR, el toast del error ya está en pantalla y éste
+     lo pisaba en el mismo tick (showToast no tiene cola): «qué pasó» no se alcanzaba a leer. */
   /* P150 · `closePortalUI` y no `closePortal`: entrar a la simulación apiló una entrada
      (`simEntrar` hace `navPush`), así que salir —aunque sea por un error de red— tiene que
      descartarla. No viene del botón físico. */
   try { closePortalUI(); } catch(e){}   // closePortal ya limpia SIMUL y repinta la barra
   SIMUL = null; simPintarBarra();     // por si closePortal fallara, no quedar simulando
   mostrarVista('mas');
-  showToast(t('ts_sim_salida'));
+  if (!silencioso) showToast(t('ts_sim_salida'));
 }
 function simPintarBarra(){
   const bar = document.getElementById('simBar'); if (!bar) return;
@@ -19569,22 +19630,46 @@ function dashCargarNiveles(){
    contraseña porque el empleado no tiene una), LEER la bandeja sí exige contraseña de supervisor
    (gestAuth): son datos internos, aunque una parte venga sin nombre. Falla en silencio si el
    endpoint todavía no tiene la acción `reportes` — la bandeja simplemente queda vacía, no rompe. */
+/* ⚠️ P187 · TRES ESTADOS, no dos. Mientras el pedido viajaba la pestaña decía «Sin reportes por ahora»
+   (afirmaba ausencia antes de preguntar), y si el pedido fallaba lo decía toda la sesión: `_reportesPedidos`
+   quedaba en true y nadie volvía a pedir. Ahora: `_reportes === null` con pedido en vuelo → cargador;
+   `_reportesError` → aviso con «toca ↻», y el ↻ vuelve a pedir. Mismo patrón en opiniones, señales de
+   Dirección y tareas de la ficha. */
 function dashCargarReportes(){
   if (!DASH || DASH._reportesPedidos) return;
-  DASH._reportesPedidos = true;
+  DASH._reportesPedidos = true; DASH._reportesError = false;
   const mio = DASH;
   gestPost(gestAuth({ action:'reportes' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.reportes) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
+    if (!DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
+    if (!d || !d.ok || !Array.isArray(d.reportes)){ DASH._reportesError = true; dashRepintar(); return; }
     /* P075 · el nombre del reporte es el del PERFIL del teléfono; el panel trabaja con el canónico de
        los registros. Se canoniza por `dashNorm` para que el toque en la bandeja abra la ficha correcta
        y la Historia lo encuentre (perfiles anteriores a la nómina escribían «ANA SUAREZ»). */
     const canon = {};
     (DASH.registros || []).forEach(r => { if (r && r.persona) canon[dashNorm(r.persona)] = r.persona; });
     DASH._reportes = d.reportes.map(r => (r && r.persona && canon[dashNorm(r.persona)]) ? Object.assign({}, r, { persona: canon[dashNorm(r.persona)] }) : r);
+    DASH._reportesError = false;   // un pedido anterior pudo haber fallado (↻ mientras el primero seguía en vuelo)
     /* P075 · repinta siempre: `DASH.tab` no sigue al scroll (vale `tabs[0]` o «resumen»), así que la
        condición vieja dejaba la bandeja en «no hay reportes» cuando esta respuesta llegaba última. */
     dashRepintar();   // P049 · llega tarde, no re-anima
-  }).catch(()=>{});
+  }).catch(()=>{ if (DASH && DASH === mio){ DASH._reportesError = true; dashRepintar(); } });
+}
+/* P187 · lo que el ↻ vuelve a pedir: lo que nunca llegó o falló (reportes, opiniones, tareas de la ficha) */
+function dashRecargarPendientes(){
+  if (!DASH || DASH.demoMode || !gestCanSync()) return;
+  /* el MISMO gateo por vista que `onDashData`: un empleado o un médico no tienen bandeja de opiniones, y
+     pedirla sólo gasta cuota y provoca un repintado con el rechazo del servidor */
+  const v = DASH.vista;
+  if (DASH._reportes === null && (v === 'supervisor' || v === 'medico' || v === 'hseq')){ DASH._reportesPedidos = false; dashCargarReportes(); }
+  if (DASH._opiniones === null && (v === 'supervisor' || v === 'hseq')){ DASH._opinionesPedidas = false; dashCargarOpiniones(); }
+  if (TAREAS_FICHA.error){ TAREAS_FICHA.error = false; TAREAS_FICHA.persona = null; }
+}
+/* El estado de una carga de tres valores, para los renders: 'viajando' | 'error' | 'ok' */
+function cargaEstado(pedido, valor, error){
+  if (valor !== null && valor !== undefined) return 'ok';   // los datos ganan: un pedido anterior que falló no tapa al que llegó
+  if (error) return 'error';
+  if (pedido) return 'viajando';
+  return 'ok';
 }
 
 /* ══ P162 · EL BUZÓN ANÓNIMO, LEÍDO DESDE LA APP ══════════════════════════════════════════════
@@ -19610,17 +19695,21 @@ function dashCargarReportes(){
    dos cargas. */
 function dashCargarOpiniones(){
   if (!DASH || DASH._opinionesPedidas) return;
-  DASH._opinionesPedidas = true;
+  DASH._opinionesPedidas = true; DASH._opinionesError = false;
   const mio = DASH;
   gestPost(gestAuth({ action:'opiniones' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.opiniones) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
-    DASH._opiniones = d.opiniones;
-    if (DASH.tab === 'opiniones') dashRepintar();   // P049 · llega tarde, no re-anima el panel
-  }).catch(()=>{});
+    if (!DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
+    if (!d || !d.ok || !Array.isArray(d.opiniones)){ DASH._opinionesError = true; dashRepintar(); return; }   // P187
+    DASH._opiniones = d.opiniones; DASH._opinionesError = false;
+    dashRepintar();   // P049 · llega tarde, no re-anima el panel · P187 · siempre: `DASH.tab` no sigue al scroll
+  }).catch(()=>{ if (DASH && DASH === mio){ DASH._opinionesError = true; dashRepintar(); } });
 }
 function renderOpiniones(){
   const ayuda = dashHelp(t('hlp_opiniones'));
   if (!DASH._opinionesPedidas && !DASH.demoMode) return ayuda + dashWarn(t('dw_opiniones_reintentar'));
+  const estOp = DASH.demoMode ? 'ok' : cargaEstado(DASH._opinionesPedidas, DASH._opiniones, DASH._opinionesError);
+  if (estOp === 'viajando') return ayuda + cargandoHtml(t('op_cargando'));   // P187
+  if (estOp === 'error') return ayuda + dashWarn(t('dw_opiniones_error'));    // P187
   /* El orden es EL QUE MANDÓ EL SERVIDOR, tal cual. No se copia el array para ordenarlo ni se
      filtra por mes: agrupar por mes con pocas opiniones es otra forma de estrechar el cuándo. */
   const ops = (DASH._opiniones || []).filter(o => o && String(o.texto || '').trim());
@@ -19678,20 +19767,25 @@ function dashApplyMarca(marca){
    ⚠️ `true` también cuando NO hubo cambios: el pedido igual entró. Devolver `undefined` ahí
    (que es lo que salía antes de este `return true`) haría que el llamador leyera un éxito como
    un fallo y revirtiera el período por nada. */
+var _dashRefreshEnVuelo;   // P187 · tres toques al ↻ eran tres lecturas completas del CH en paralelo (R16: `var` sin asignar)
 function dashRefresh(manual){
   if (!DASH || !DASH.params) return Promise.resolve(false);
+  /* sólo el ↻ MANUAL se encadena: el cambio de período (P089) y el refresco automático tienen sus propias
+     reglas de carrera («gana el último») y no se tocan */
+  if (manual && _dashRefreshEnVuelo) return _dashRefreshEnVuelo;
   const btn = document.getElementById('dashRefreshBtn');
-  if (btn) btn.classList.add('spin');
+  if (btn){ btn.classList.add('spin'); if (manual) btn.disabled = true; }
   const keep = { desde:DASH.f.desde, hasta:DASH.f.hasta, dep:DASH.f.dep, per:DASH.f.per };
   // Refresco manual (botón ↻) → fresh:'1': saltea la cache del endpoint y relee la hoja al instante.
   const params = manual ? Object.assign({}, DASH.params, { fresh:'1' }) : DASH.params;
   const mio = DASH;
-  return dashRequest(params).then(d => {
-    if (btn) btn.classList.remove('spin');
+  const enVuelo = dashRequest(params).then(d => {
+    if (btn){ btn.classList.remove('spin'); btn.disabled = false; }
     if (DASH !== mio) return false;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return false; }
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
+    if (manual) dashRecargarPendientes();   // P187 · el ↻ vuelve a pedir reportes/opiniones/tareas de la ficha que nunca llegaron o fallaron
     /* Y1: el periodo que el servidor sirvio DE VERDAD, que no siempre es el pedido (a un supervisor
        se le ignora y a cualquiera se le recorta a 365). Se guarda para poder decir en pantalla
        cuanto se esta viendo, en vez de suponer que dieron lo que se pidio.
@@ -19736,7 +19830,10 @@ function dashRefresh(manual){
     renderDash();
     if (manual) showToast(nuevosRegs > 0 ? t('ts_actualizado_n', { n: nuevosRegs }) : t('ts_actualizado'));
     return true;
-  }).catch(() => { if (btn) btn.classList.remove('spin'); if (manual) showToast(t('ts_sin_conexion')); return false; });
+  }).catch(() => { if (btn){ btn.classList.remove('spin'); btn.disabled = false; } if (manual) showToast(t('ts_sin_conexion')); return false; })
+    .finally(() => { if (manual) _dashRefreshEnVuelo = null; });
+  if (manual) _dashRefreshEnVuelo = enVuelo;
+  return enVuelo;
 }
 function setFilterValues(f){
   const set = (id,v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
@@ -20341,7 +20438,7 @@ function renderDash(){
   const vacia = (h, tb) => {
     if (!h || !h.trim()) return true;
     if (ANTICIPO.indexOf(tb) >= 0) return true;
-    if (h.indexOf('class="dv"') >= 0) return true;
+    if (h.indexOf('class="dv"') >= 0) return true;   // `class="dv dv-fijo"` NO entra a propósito: ver dashVacioTexto
     const propio = h.replace(/<details class="dash-help">[\s\S]*?<\/details>/g, '').trim();
     return propio.length < 120;     // lo que queda además de la ayuda: un título suelto, nada más
   };
@@ -21563,9 +21660,13 @@ function renderHseqIdc(rows){
           '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: baseCob })) + '</small></div></div>' +
       '</div>' +
       '<div class="hs-bar"><i style="width:' + (pct || 0) + '%"></i></div>' +
-      (sinDato ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: sinDato, u: t(sinDato===1?'n_persona':'n_personas') }) +
+      /* ⚠️ P187 · «Cobertura completa» se medía entre quienes YA tenían registros (`sinDato`), no contra la
+         nómina: al lado de «50 % de la nómina medida · 2 de 4» decía «cobertura completa: las 2 personas
+         tienen registros». Los sin registro son los que faltan de la NÓMINA (P096 arregló el número, no
+         esta nota). */
+      ((sinDato || conDato.length < baseCob) ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: Math.max(sinDato, baseCob - conDato.length), u: t(Math.max(sinDato, baseCob - conDato.length)===1?'n_persona':'n_personas') }) +
         (cobFlaca ? (' ' + t('hs_cob_flaca')) : '') + '</div>'
-              : '<div class="hs-ok">' + esc(t('hs_cob_completa', { n: cuentan.length })) + '</div>') +
+              : '<div class="hs-ok">' + esc(t('hs_cob_completa', { n: conDato.length })) + '</div>') +
       /* ⚠️ A quién NO se le contó el día se DICE, siempre. Sacarlos del denominador en silencio
          sería inflar la cobertura sin que nadie pueda revisarlo, y una ausencia mal cargada se
          volvería invisible: nadie la corregiría nunca. */
@@ -21654,7 +21755,10 @@ function hseqSenalesHtml(){
   const min = cfg('anonN');
   const reps = reportesFiltrados().filter(r => r && r.identificado === false);
   const pedido = !!DASH._reportesPedidos || !!DASH.demoMode;
+  const estSen = DASH.demoMode ? 'ok' : cargaEstado(DASH._reportesPedidos, DASH._reportes, DASH._reportesError);   // P187
   const cuerpo = (function(){
+    if (estSen === 'viajando') return cargandoHtml(t('rep_cargando'));
+    if (estSen === 'error') return '<div class="hs-agregado-n">' + esc(t('dw_reportes_error')) + '</div>';
     if (!reps.length) return '<div class="hs-agregado-n">' + esc(pedido ? t('hseq_senales_vacio') : t('dw_reportes_reintentar')) + '</div>';
     const porOp = {}, porDep = {}; let otras = 0;
     reps.forEach(r => {
@@ -22224,7 +22328,7 @@ function cicloPlanEmpresaCompleto(){
 function cicloTotalMin(p){ return cicloTramos().reduce((s, tr) => s + (p[tr.k] || 0), 0); }
 
 function cicloHM(min){
-  const m = Math.max(0, Math.round(min)), h = Math.floor(m/60), r = m%60;
+  const m = Math.max(0, Math.round(Number(min) || 0)), h = Math.floor(m/60), r = m%60;   // P187 · nunca «NaN min»
   return h ? (h + ' h ' + String(r).padStart(2,'0') + ' min') : (r + ' min');
 }
 /* Duración VIVA, la que corre segundo a segundo. Se usa sólo en los contadores que se actualizan
@@ -22234,7 +22338,7 @@ function cicloHM(min){
    nunca, que es justo lo contrario de lo que se pidió ("que cuente segundo por segundo, para que
    entiendan que pasa el tiempo"). El ancho se resolvió midiendo, no recortando el dato. */
 function cicloVivo(min){
-  const seg = Math.max(0, Math.round(min * 60));
+  const seg = Math.max(0, Math.round((Number(min) || 0) * 60));   // P187
   const h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), sgs = seg % 60;
   const ss = String(sgs).padStart(2, '0');
   if (h) return h + ' h ' + String(m).padStart(2, '0') + ' min ' + ss + ' s';
@@ -23065,23 +23169,25 @@ function cicloAccionesHtml(persona, st){
   const ultimo = cicloUltimoDePersona({ ev: st.eventos });
   const ultimoEv = ultimo != null ? Object.keys(st.eventos).map(k => st.eventos[k]).find(e => new Date(e.iso).getTime() === ultimo) : null;
   if (!ultimoEv) return base;
-  const boton = '<button type="button" class="apt-act apt-act-cerrar" onclick="cicloCerrar(' + argAttr(persona) + ',' + argAttr(String(ultimoEv.iso)) + ')">' + esc(t('cic_act_cerrar')) + '</button>';
+  const boton = '<button type="button" class="apt-act apt-act-cerrar" onclick="cicloCerrar(' + argAttr(persona) + ',' + argAttr(String(ultimoEv.iso)) + ', this)">' + esc(t('cic_act_cerrar')) + '</button>';
   return base.replace('</div>', boton + '</div>');
 }
 /* P077 · EL SUPERVISOR CIERRA EL CICLO. Hecho nuevo firmado (R3: no se toca el evento de la persona):
    el servidor escribe la fila `cerrado` pegada a su ciclo y la bitácora con quién; acá se confirma
    (R8), se manda y, con la respuesta, el evento se suma a `DASH.operacional` para que la tarjeta pase
    a «Cerrado por el supervisor» sin volver a pedir todo. */
-function cicloCerrar(persona, ultimoIso){
+function cicloCerrar(persona, ultimoIso, btn){
   if (!restPuede() || !persona || !ultimoIso) return;
   if (visorBloquea(t('visor_jornada'))) return;
   if (!confirm(t('cic_cerrar_q', { p: persona }))) return;
   try { haptic(16); } catch(e){}
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ showToast(t('cic_cfg_reentrar')); return; }
+  if (btn) btnSpin(btn, true, t('guardando'));   // P187 · el cargador en el botón, no sólo la atenuación
   conBloqueo('#portalDash', dashRequest(dashAuth({ action:'ciclo_cerrar', persona: persona, ultimoIso: ultimoIso,
       quien: (getProfile() || {}).nombre || supervisorNombreGuardado() || '' }))
     .then(d => {
+      if (btn) btnSpin(btn, false);
       if (!d || !d.ok){
         showToast(tError(d && d.error));
         /* el servidor ve otra cosa que el panel (ya cerrado, ya detenido, otro evento después): se vuelve a
@@ -23093,7 +23199,7 @@ function cicloCerrar(persona, ultimoIso){
       cicloRepintar();
       showToast(d.bitacora === null ? t('ts_ciclo_cerrado_sin_bitacora') : t('ts_ciclo_cerrado'));
     })
-    .catch(() => { showToast(t('sin_conexion') + '.'); }));
+    .catch(() => { if (btn) btnSpin(btn, false); showToast(t('sin_conexion') + '.'); }));
 }
 function cicloCfgHtml(plan){
   const TRAMOS = cicloTramos();
@@ -23799,7 +23905,7 @@ function renderJornada(){
   const d = DASH && DASH.duty;
   /* `null` es "no te corresponde ver esto" (el servidor lo recorta por rol); un objeto vacío sería
      "no hubo excesos". No se pueden confundir. */
-  if (!d) return dashHelp(t('jor_sin_permiso'));
+  if (!d) return dashVacioTexto(t('jor_sin_permiso'), '', 'gente');   // P187 · visible, no dentro del ⓘ plegado
   const filas = d.diario || [], personas = d.personas || [], hist = d.historico || [];
   /* P169 · EL PERÍODO SE ELIGE ACÁ TAMBIÉN. Los botones de 7/30/90 vivían sólo en la pestaña de
      ciclo, que el servicio médico NO tiene (`dashTabsFor`): el médico veía siempre 7 días y no
@@ -23808,9 +23914,9 @@ function renderJornada(){
      En la demostración no se ofrece: `DASH.duty` es de ejemplo y no hay a quién pedirle más. */
   const perHtml = (cicloPuedeHistorico() && !DASH.demoMode) ? jorPeriodoHtml() : '';
   const cargando = CICLO_PIDIENDO
-    ? '<div class="cic-cargando" role="status" aria-live="polite">' + esc(t('per_cargando', { n: CICLO_PIDIENDO })) + '</div>'
+    ? '<div class="cic-cargando" role="status" aria-live="polite">' + esc(t('per_cargando', { n: CICLO_PIDIENDO })) + '</div>' + skeletonHtml('bloque_tx', 2)   // P187 · como Ciclo
     : '';
-  if (!filas.length) return perHtml + cargando + dashHelp(t('jor_vacio'));
+  if (!filas.length) return perHtml + cargando + dashVacioTexto(t('jor_vacio'), '', 'grafico', null, !!perHtml);   // P187 · idem: la sección se veía vacía; con selector, se queda en su lugar
 
   const conExceso = filas.filter(f => f.excesoMin > 0);
   const totalExceso = filas.reduce((a, f) => a + f.excesoMin, 0);
@@ -24470,6 +24576,7 @@ function cicloRepintarLista(secDada){
    scroll y parpadea). Una vez por minuto rearma la sección: es cuando un tramo puede pasar de
    "en curso" a "excedido" y cambiar de color, no sólo de número. */
 let _cicloTimer = null, _cicloUltimoRender = 0, _cicloUltimoPull = 0;
+var _cicMioUltimaFirma = 0;   // P187 · última comparación de la firma del inicio
 /* ⚠️ El reloj YA NO ES DEL PANEL: corre sobre todo el documento.
    Antes `cicloTick` empezaba con `document.getElementById('dsec-ciclo')` y se apagaba solo si esa
    sección no estaba en pantalla. Consecuencia: en el inicio del EMPLEADO los minutos quedaban
@@ -24531,6 +24638,22 @@ function cicloTick(){
      No hace falta más: al soltar el foco vuelve a repintar solo en el tic siguiente. */
   const buscando = document.activeElement && document.activeElement.id === 'cicBuscar';
   if (sec && DASH && !buscando && ahora - _cicloUltimoRender > 60000){ cicloRepintar(); return; }
+  /* P187 · EL INICIO TAMBIÉN REDERIVA SU ESTADO, una vez por minuto y SÓLO si cambió: el chip
+     («en curso» → «detenido» a las 24 h), un tramo que pasa a excedido, «quedan» → «de más». Hasta
+     acá el reloj sólo movía los minutos y la aguja, así que con la app a la vista (una tablet, la
+     pestaña del escritorio) el chip decía «en curso» a las 30 h hasta que alguien tocaba algo.
+     Se compara una firma del estado: si no cambió, no se toca el DOM (no hay parpadeo ni se pierde
+     un toque a medias). Cuando cambia, repinta el bloque y corre la revisión del aviso. */
+  /* `sec && DASH` y no `sec`: la sección del panel queda en el DOM después de cerrarlo (sin `DASH`), y con
+     `!sec` el inicio no rederivaba después de abrir el panel una vez. (Y `closePortal` vuelve a prender el
+     reloj, que `renderDash` apaga cuando el panel no tiene pestaña de ciclo.) */
+  if (mio && !(sec && DASH) && ahora - _cicMioUltimaFirma > 60000){
+    _cicMioUltimaFirma = ahora;
+    try {
+      const firma = cicloMiFirma();
+      if (firma !== mio.getAttribute('data-cic-firma')){ cicloMiRefrescar(); cicloDetenidoRevisar(); return; }
+    } catch(e){}
+  }
   /* Los números y la aguja se actualizan en TODO el documento: el panel y el inicio a la vez.
      Cada segundo se tocan textos y una posición; no se rearma HTML, que perdería el scroll. */
   document.querySelectorAll('[data-cic-from]').forEach(el => {
@@ -24574,6 +24697,9 @@ function renderReportesSupervisor(){
   if (!DASH._reportesPedidos && !DASH.demoMode){
     return ayuda + dashWarn(t('dw_reportes_reintentar'));
   }
+  const estRep = DASH.demoMode ? 'ok' : cargaEstado(DASH._reportesPedidos, DASH._reportes, DASH._reportesError);
+  if (estRep === 'viajando') return ayuda + cargandoHtml(t('rep_cargando'));      // P187 · no se afirma «sin reportes» antes de preguntar
+  if (estRep === 'error') return ayuda + dashWarn(t('dw_reportes_error'));          // P187 · y si falló, se dice y el ↻ vuelve a pedir
   if (!reps.length){
     return ayuda + dashVacio('reportes', 'buzon');
   }
@@ -24853,8 +24979,11 @@ const DV_ICONOS = {
 
 /* `k` es el sufijo: busca vac_<k>_t y vac_<k>_d. Si falta la explicación, cae al texto corto que
    ya existía — así una clave sin traducir muestra menos, pero nunca un hueco. */
-function dashVacioTexto(titulo, desc, icono, accion){
-  return '<div class="dv">' +
+/* `fijo`: el bloque se ve igual, pero `renderDash` NO lo cuenta como «sin datos» (no lo manda abajo). Es para
+   una sección vacía que tiene un control para pedir más (Jornada con 7/30/90): si bajara, al traer los 30
+   días subiría de golpe y la persona quedaría mirando la sección que ocupó su lugar. */
+function dashVacioTexto(titulo, desc, icono, accion, fijo){
+  return '<div class="' + (fijo ? 'dv dv-fijo' : 'dv') + '">' +
     '<div class="dv-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
       (DV_ICONOS[icono] || DV_ICONOS.grafico) + '</svg></div>' +
     '<div class="dv-t">' + esc(titulo) + '</div>' +
@@ -25079,28 +25208,30 @@ function dashSemaforoPersonal(rows){
 function dashTelemedicinaCard(rows){
   const nombre = (rows && rows.length && rows[0].persona) || (getProfile()||{}).nombre || '';
   if (!nombre) return '';
-  const t = telemVigenteDe(nombre);
-  if (!t){
+  /* ⚠️ P187 · esta local se llamaba `t` y TAPABA la función t() en todo el cuerpo (tercer caso del
+     mismo tropiezo: `cicloTramosHtml`, `restrGuardar`). Por eso los ocho textos estaban a mano. */
+  const tv = telemVigenteDe(nombre);
+  if (!tv){
     const hecha = telemRealizadaDe(nombre);
     if (!hecha) return '';
     return '<div class="dash-block tm-block tm-hecha">' +
-      '<div class="tm-t">Ya tuviste una telemedicina</div>' +
-      '<div class="tm-x">Realizada el ' + esc(gestFechaTs(hecha.actualizadaEn || hecha.creada)) + '.</div></div>';
+      '<div class="tm-t">' + esc(t('tm_hecha_t')) + '</div>' +
+      '<div class="tm-x">' + esc(t('tm_hecha_x', { f: gestFechaTs(hecha.actualizadaEn || hecha.creada) })) + '</div></div>';
   }
-  if (t.estado === 'aceptada'){
+  if (tv.estado === 'aceptada'){
     return '<div class="dash-block tm-block tm-aceptada">' +
-      '<div class="tm-t">Telemedicina aceptada</div>' +
-      '<div class="tm-x">El servicio médico se va a comunicar contigo para coordinar la consulta.</div></div>';
+      '<div class="tm-t">' + esc(t('tm_aceptada_t')) + '</div>' +
+      '<div class="tm-x">' + esc(t('tm_aceptada_x')) + '</div></div>';
   }
   // sugerida → se le pregunta
   return '<div class="dash-block tm-block tm-sugerida">' +
-    '<div class="tm-t">Te sugerimos una telemedicina</div>' +
-    '<div class="tm-x">Es una consulta con el servicio médico, sin costo para ti.' +
-      (t.sugeridaPor ? ' La sugirió ' + esc(t.sugeridaPor) + '.' : '') +
-      ' <b>Puedes aceptarla o rechazarla</b>: no es obligatoria y no tiene ninguna consecuencia para tu trabajo.</div>' +
+    '<div class="tm-t">' + esc(t('tm_sug_t')) + '</div>' +
+    '<div class="tm-x">' + esc(t('tm_sug_x1')) +
+      (tv.sugeridaPor ? ' ' + esc(t('tm_sug_por', { p: tv.sugeridaPor })) : '') +
+      ' ' + t('tm_sug_x2') + '</div>' +
     '<div class="an-actions">' +
-      '<button type="button" class="an-cancel" onclick="telemRechazar(\'' + t.id + '\')">Ahora no</button>' +
-      '<button type="button" class="tm-si" onclick="telemAceptar(\'' + t.id + '\')">Aceptar</button>' +
+      '<button type="button" class="an-cancel" onclick="telemRechazar(\'' + tv.id + '\')">' + esc(t('tm_no')) + '</button>' +
+      '<button type="button" class="tm-si" onclick="telemAceptar(\'' + tv.id + '\')">' + esc(t('tm_si')) + '</button>' +
     '</div></div>';
 }
 
@@ -25679,9 +25810,9 @@ function renderPVT(){
     body = '<div class="dash-block"><div class="db-title">' + (DASH.f.per ? 'Tests de ' + esc(DASH.f.per) : 'Mis tests de reacción') + '</div>' +
       sorted.slice(0,40).map(r => { const v = pvtVerdict(r.rt_prom, r.lapsos);
         return '<div class="hist-item"><span class="hi-date">' + esc(dashFechaLinda(r.fecha)||'—') + '</span>' +
-          '<span class="hi-m">RT ' + r.rt_prom + ' ms</span>' +
-          '<span class="hi-m ' + (r.lapsos>3?'over':'') + '">Lapsos ' + r.lapsos + '</span>' +
-          '<span class="hi-m" style="background:' + (v.over?'var(--sem-rojo-bg)':'#eef3ff') + ';color:' + v.c + '">' + v.t + '</span></div>';
+          '<span class="hi-m">RT ' + (r.rt_prom == null ? '—' : r.rt_prom) + ' ms</span>' +   // P187 · «RT null ms» con una celda a mano
+          '<span class="hi-m ' + (r.lapsos>3?'over':'') + '">Lapsos ' + (r.lapsos == null ? '—' : r.lapsos) + '</span>' +
+          '<span class="hi-m" style="background:' + (v.over?'var(--sem-rojo-bg)':'var(--chip-bg)') + ';color:' + v.c + '">' + v.t + '</span></div>';
       }).join('') + '</div>';
   } else {
     const g = {}; pv.forEach(r => { const k = r.persona || '—'; (g[k]=g[k]||[]).push(r); });
@@ -25784,7 +25915,7 @@ function renderInforme(rows){
   const objBlock = DASH.demoMode ? '' : obj;    // en la demo el objetivo no aplica (no se genera nada)
   const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
   let hist;
-  if (!DASH._informesLoaded) hist = '<div class="informe-loading">' + esc(t('inf_cargando')) + '</div>';
+  if (!DASH._informesLoaded) hist = cargandoHtml(t('inf_cargando'));   // P187
   else if (!DASH._informes.length) hist = '<div class="informe-empty">' + esc(t('inf_hist_vacio')) + '</div>';
   else hist = '<div class="db-sub2">' + esc(t('inf_historial', { n: DASH._informes.length })) + '</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_informe_ia')) + '</div>' + sub + objBlock + btn + out + hist + '</div>';
@@ -25835,9 +25966,11 @@ function dashShareInforme(id){
 }
 function dashGenerarInforme(){
   const btn = document.getElementById('informeBtn');
-  if (btn){ btn.disabled = true; btn.textContent = 'Generando informe… (puede tardar ~40s)'; }
+  /* P187 · el cargador de cuadraditos (no un texto a mano), y el botón VUELVE si falla: antes quedaba
+     muerto diciendo «Generando informe…» hasta cambiar de pestaña */
+  if (btn) btnSpin(btn, true, t('inf_generando'));
   const out = document.getElementById('informeOut');
-  if (out) out.innerHTML = '<div class="informe-loading">Analizando los datos con la IA…</div>';
+  if (out) out.innerHTML = cargandoHtml(t('inf_analizando'));
   stopDashAutoRefresh();
   const payload = dashAuth({ action:'informe',   // P185 · por dashAuth (A15): así el visor viaja
     resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) });
@@ -25846,8 +25979,9 @@ function dashGenerarInforme(){
     .then(d => {
       startDashAutoRefresh();
       if (!d || !d.ok){
+        if (btn) btnSpin(btn, false);
         if (d && d.limitado){ DASH._informesProximo = d.proximo || null; renderDash(); }
-        else if (out) out.innerHTML = '<div class="informe-aviso">' + esc((d && d.error) || 'No se pudo generar el informe.') + '</div>';
+        else if (out) out.innerHTML = '<div class="informe-aviso">' + esc(tError(d && d.error) || t('inf_error')) + '</div>';
         return;
       }
       DASH._informes = DASH._informes || [];
@@ -25856,7 +25990,7 @@ function dashGenerarInforme(){
       renderDash();
       showToast(t('ts_informe_ok'));   // aparece MINIMIZADO en el historial
     })
-    .catch(() => { startDashAutoRefresh(); if (out) out.innerHTML = '<div class="informe-aviso">Sin conexión o el servidor tardó demasiado. Reintenta.</div>'; }));
+    .catch(() => { startDashAutoRefresh(); if (btn) btnSpin(btn, false); if (out) out.innerHTML = '<div class="informe-aviso">' + esc(t('inf_error_red')) + '</div>'; }));
 }
 // Markdown-lite: **negrita**, *itálica*, ## títulos, viñetas
 function dashMdLite(t){
@@ -28168,9 +28302,10 @@ function openGestiones(){
 // Estado de sincronización visible (para que se entienda si está en el sheet o solo local).
 function gestSyncStatus(st){
   const el = document.getElementById('gestSync'); if(!el) return;
-  if (st==='sync'){ el.textContent = 'Sincronizando con el servidor…'; el.className = 'gest-sync on'; }
-  else if (st==='ok'){ el.textContent = 'Sincronizado con el servidor · compartido con tu equipo'; el.className = 'gest-sync ok'; }
-  else if (st==='off'){ el.textContent = 'Sin conexión: se guardó en este dispositivo y se sincronizará al reconectar.'; el.className = 'gest-sync off'; }
+  /* P187 · con el cargador de cuadraditos mientras sincroniza, y los tres textos por t() (estaban a mano) */
+  if (st==='sync'){ el.innerHTML = '<span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(t('gest_sync_on')); el.className = 'gest-sync on'; }
+  else if (st==='ok'){ el.textContent = t('gest_sync_ok'); el.className = 'gest-sync ok'; }
+  else if (st==='off'){ el.textContent = t('gest_sync_off'); el.className = 'gest-sync off'; }
   else { el.textContent = ''; el.className = 'gest-sync'; }   // 'local' (demo / sin credenciales): sin ruido
 }
 function closeGestiones(){
@@ -28495,13 +28630,18 @@ installBtn.addEventListener('click', async () => {
     deferredPrompt = null;
     return;
   }
-  if (isIOS){ document.getElementById('iosModal').classList.add('show'); return; }   // iPhone: guía Safari
-  document.getElementById('androidModal').classList.add('show');                     // Android sin instalador nativo: guía
+  instalGuiaAbrir(isIOS ? 'iosModal' : 'androidModal');   // iPhone: guía Safari · Android sin instalador nativo: guía
 });
 window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; deferredPrompt = null; });
+/* P187 · con `navPush`/`navConsumir` como cualquier overlay. Se abrían sin entrada en el historial: en
+   una pestaña del navegador (que es el único lugar donde se ofrece instalar) el gesto «atrás» con la
+   guía abierta no tenía nada propio que sacar y el navegador salía de la app. `silvaAtras` sigue
+   llamando `hide()` pelado, porque ahí el navegador ya sacó la entrada. */
+function instalGuiaAbrir(id){ const el = document.getElementById(id); if (!el) return; el.classList.add('show'); navPush(); }
+function instalGuiaCerrarUI(id){ hide(id); navConsumir(); }
 ['iosModal','androidModal'].forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('click', (e)=>{ if(e.target.id===id) hide(id); });
+  if (el) el.addEventListener('click', (e)=>{ if(e.target.id===id) instalGuiaCerrarUI(id); });
 });
 
 /* ════════════════ INIT ════════════════ */
@@ -31013,6 +31153,10 @@ function notifLocalItems(){
       titulo  = t('notif_det_titulo', { f: cicloFechaDe(x.t0), h: CICLO_DETENIDO_HORAS });
       detalle = t('notif_det_detalle', { primero: cicloEventoLabel(cicloEventoInicial()) });
     }
+    if (x.tipo === 'no_en_nomina'){   // P187 · la persona no está en la nómina de su empresa
+      titulo  = t('notif_nom_titulo');
+      detalle = t('notif_nom_detalle');
+    }
     if (x.tipo === 'jornada_vencida'){   // P077 · el texto se decide al MOSTRAR: pasada la ventana, ya no dice «márcalo»
       titulo  = t('notif_exc_titulo', { f: cicloFechaDe(x.t0), ev: cicloEventoLabel(x.ev) });
       detalle = t((Number(x.hasta) > 0 && Date.now() > Number(x.hasta)) ? 'notif_exc_detalle_tarde' : 'notif_exc_detalle', { ev: cicloEventoLabel(x.ev) });
@@ -31023,6 +31167,14 @@ function notifLocalItems(){
      avisarlos), y lo más nuevo va arriba: por `creada` y, a igual revisión, por el inicio del ciclo. */
   .filter(x => x.estado !== 'hecha' || (Date.now() - (Date.parse(x.creada) || 0)) < 7 * 86400000)
   .sort((a, b) => (Date.parse(b.creada) || 0) - (Date.parse(a.creada) || 0) || b.t0 - a.t0);
+}
+/* P187 · se saca del almacén (no «hecha»: un aviso resuelto por el sistema no tiene que verse una semana) */
+function notifLocalQuitar(id){
+  const lista = notifLocalLeer();
+  if (!lista.some(x => x.id === id)) return false;
+  notifLocalGuardar(lista.filter(x => x.id !== id));
+  try { tareasPintarBadge(); } catch(e){}
+  return true;
 }
 function notifLocalHecha(id){
   const lista = notifLocalLeer();
@@ -31304,6 +31456,7 @@ function tareaMarcarHecha(id, btn){
       const it = TAREAS.lista.find(x => x.id === id);
       if (it) it.estado = 'hecha';
       TAREAS.pendientes = TAREAS.lista.filter(x => x.estado !== 'hecha').length;
+      tareasCacheGuardar();   // P187 · sin esto el próximo arranque pintaba el contador viejo ~5 s (caché M2)
       tareasPintarBadge(); tareasPintar();
       haptic(12);
       showToast(t('tar_listo'));
@@ -31334,13 +31487,16 @@ function tareasPlantillas(){
 function tareasFichaHtml(){
   const per = (DASH && DASH.f && DASH.f.per) || '';
   if (TAREAS_FICHA.persona !== per){ TAREAS_FICHA.persona = per; TAREAS_FICHA.lista = []; tareasFichaCargar(); }
+  /* P187 · tres estados: mientras viaja, el cargador; si falló, se dice; el vacío sólo cuando el servidor contestó */
   const yaHay = TAREAS_FICHA.lista.length
     ? '<div class="tar-ficha-lista">' + TAREAS_FICHA.lista.map(x =>
         '<div class="tar-mini tar-mini-' + esc(x.estado) + '">' +
           '<span class="tar-mini-t">' + esc(x.titulo) + '</span>' +
           '<span class="tar-mini-e">' + esc(t('tar_est_' + x.estado)) + '</span>' +
         '</div>').join('') + '</div>'
-    : dashVacioTexto(t('vac_tareas_t'), t('vac_tareas_d'), 'nota');
+    : (TAREAS_FICHA.cargando ? cargandoHtml(t('tar_ficha_cargando'))
+      : (TAREAS_FICHA.error ? dashWarn(t('tar_ficha_error'))
+      : dashVacioTexto(t('vac_tareas_t'), t('vac_tareas_d'), 'nota')));
   const opts = tareasPlantillas().map(p =>
     '<option value="' + esc(p.k) + '">' + esc(p.t) + '</option>').join('');
   if (visorSoloLectura()) return yaHay;   // P185 · el visor ve las tareas, no crea
@@ -31366,16 +31522,18 @@ function tareasFichaCargar(){
   if (!per || TAREAS_FICHA.cargando || !DASH || DASH.demoMode) return;
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass) return;
-  TAREAS_FICHA.cargando = true;
+  TAREAS_FICHA.cargando = true; TAREAS_FICHA.error = false; TAREAS_FICHA.llego = false;
+  const pintar = () => { const sec = document.getElementById('dsec-ficha'); if (sec && typeof renderDash === 'function') renderDash(); };
   dashRequest(dashAuth({ action:'tareas_persona', persona:per }))
     .then(d => {
       TAREAS_FICHA.cargando = false;
-      if (!d || !d.ok || TAREAS_FICHA.persona !== per) return;
+      if (TAREAS_FICHA.persona !== per) return;
+      if (!d || !d.ok){ TAREAS_FICHA.error = true; pintar(); return; }   // P187 · se dice, no queda «todavía no le pediste nada»
       TAREAS_FICHA.lista = d.tareas || [];
-      const sec = document.getElementById('dsec-ficha');
-      if (sec && typeof renderDash === 'function') renderDash();
+      TAREAS_FICHA.llego = true;
+      pintar();
     })
-    .catch(() => { TAREAS_FICHA.cargando = false; });
+    .catch(() => { TAREAS_FICHA.cargando = false; if (TAREAS_FICHA.persona === per){ TAREAS_FICHA.error = true; pintar(); } });
 }
 function tareaCrear(btn){
   const err = document.getElementById('tarErr');
@@ -31397,7 +31555,7 @@ function tareaCrear(btn){
   // sobre la misma fila en vez de crear dos pedidos iguales (R15).
   const id = 'tar_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   btnSpin(btn, true, t('guardando'));
-  conBloqueo('#tareasOv .sheet', dashRequest(dashAuth({ action:'tarea_guardar',
+  conBloqueo('#portalDash', dashRequest(dashAuth({ action:'tarea_guardar',   // P187 · la ficha donde está el médico, no la hoja del piloto (cerrada)
       tarea: JSON.stringify({ id:id, persona:per, titulo:titulo, detalle:detalle, vence:vence }) }))
     .then(d => {
       btnSpin(btn, false);
@@ -31704,7 +31862,16 @@ document.addEventListener('visibilitychange', () => {
     if (_cambio){
       try { renderInicio(); } catch(e){}
       try { renderActividad(); } catch(e){}
+      /* P187 · y se vuelven a pedir las tareas: se leían SÓLO al arrancar y al tocar la campana, así que
+         con la app en segundo plano desde ayer, una tarea nueva del médico no aparecía hasta relanzarla.
+         Sólo con cambio de día, por la misma política de cuota que el panel (una línea más abajo). */
+      try { tareasCargar(); } catch(e){}
     }
+    /* P187 · volver al frente el MISMO día también revisa el ciclo: la revisión vivía sólo en
+       `renderInicio`, y nada repinta el inicio por el paso del tiempo. Escenario de Franco: la app
+       quedó abierta desde ayer, se minimiza y vuelve hoy con el ciclo ya pasado de 24 h — el chip
+       decía «en curso» y el aviso salía recién al tocar un botón. Diferido e idempotente: gratis. */
+    try { cicloDetenidoRevisar(); } catch(e){}
     /* Volver al frente es EL momento de chequear si hay versión nueva: es cuando la persona va a
        usar la app. Es gratis (el navegador compara el sw.js y corta si no cambió) y es lo único
        que corre de verdad en un celular. Si hay versión nueva, el flujo sigue solo:
