@@ -7322,7 +7322,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.67';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.68';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8125,6 +8125,8 @@ const I18N = {
       hs_no_tocaba:'{n} personas estuvieron ausentes hoy y no se cuentan en la cobertura.',
       hs_no_tocaba_1:'1 persona estuvo ausente hoy y no se cuenta en la cobertura.',
       ver_nueva:'Hay una versión nueva de la app.', ver_nueva_btn:'Actualizar',
+      ver_nueva_enviando_1:'Hay una versión nueva. Enviando 1 registro antes de actualizar…',   // P193
+      ver_nueva_enviando_n:'Hay una versión nueva. Enviando {n} registros antes de actualizar…',
       aus_marcar:'Marcar como ausente hoy', aus_marcar_corto:'Marcar ausente',
       aus_quitar:'Volver a contarlo hoy', aus_no_guardia:'No está hoy', aus_vuelve:'Volver a contar',
       aus_puesta:'{p} no se cuenta hoy', aus_quitada:'{p} vuelve a contarse hoy',
@@ -10008,6 +10010,8 @@ const I18N = {
       hs_no_tocaba:'{n} people were absent today and are not counted in coverage.',
       hs_no_tocaba_1:'1 person was absent today and is not counted in coverage.',
       ver_nueva:'A new version of the app is available.', ver_nueva_btn:'Update',
+      ver_nueva_enviando_1:'A new version is available. Sending 1 record before updating…',
+      ver_nueva_enviando_n:'A new version is available. Sending {n} records before updating…',
       aus_marcar:'Mark as absent today', aus_marcar_corto:'Mark absent',
       aus_quitar:'Count them again today', aus_no_guardia:'Off today', aus_vuelve:'Count again',
       aus_puesta:'{p} is not counted today', aus_quitada:'{p} counts again today',
@@ -12120,7 +12124,19 @@ function envioLeeRespuesta(url){
   return typeof SHEETS_DASHBOARD_URL === 'string' && !!SHEETS_DASHBOARD_URL &&
          String(url).indexOf(SHEETS_DASHBOARD_URL) === 0;
 }
-function enviarConCola(url, sobrevive){
+/* P193 · la marca «en vuelo» de una URL: CUÁNTOS viajan con esa URL y desde cuándo el más nuevo. Es un contador y no un
+   booleano porque dos envíos pueden llevar la misma URL (el operacional no lleva fecha ni hora: «salida de casa» de ayer
+   en la cola y la de hoy recién tocada), y con un booleano el primero en terminar liberaba al segundo con el segundo
+   todavía viajando (verificador). `desde` es lo que acota la espera de la actualización: una marca más vieja que el
+   reloj de la red (90 s) es un candado colgado, no un envío. */
+function colaMarcarVuelo(url){ const m = _colaEnVuelo[url]; _colaEnVuelo[url] = { n: (m && m.n) ? m.n + 1 : 1, desde: Date.now() }; }
+function colaSoltarVuelo(url){ const m = _colaEnVuelo[url]; if (!m) return; if (m.n > 1) m.n--; else delete _colaEnVuelo[url]; }
+function enviarConCola(url, sobrevive, yaMarcado){
+  /* P193 · se anota EN VUELO también el primer envío (antes sólo los reintentos, en `flushPending`): es lo que la
+     actualización de versión mira para no recargar en el medio — un primer envío abortado por la recarga no corre su
+     `.catch` y se pierde; un reintento `no-cors` abortado que sí llegó se reenvía y duplica la fila. Los reintentos
+     vienen marcados por `flushPending` (`yaMarcado`): la marca es una sola por envío. */
+  if (!yaMarcado) colaMarcarVuelo(url);
   const leible = envioLeeRespuesta(url);
   const opts = { mode: leible ? 'cors' : 'no-cors' };
   if (sobrevive) opts.keepalive = true;
@@ -12138,7 +12154,7 @@ function enviarConCola(url, sobrevive){
     });
   }).then(() => { colaConfirmar(url); })
      .catch(err => { colaGuardar(url, err); })
-     .then(() => { delete _colaEnVuelo[url]; });
+     .then(() => { colaSoltarVuelo(url); });
 }
 /* Tope de reintentos automáticos. La cola corre cada 60 s: sin tope, un envío que sigue fallando
    se reintentaría 1.440 veces por día y el cartel diría "Enviando…" para siempre. */
@@ -12237,12 +12253,12 @@ function flushPending(alSalir){
      la fila del primero y la pisa. Al salir (`keepalive` antes de recargar) no hay tiempo de
      esperar: van juntos como antes. Devuelve la promesa de la tanda para poder esperarla. */
   const listos = vivos.filter(x => !(x.trabado && !alSalir) && !_colaEnVuelo[x.url]);
-  listos.forEach(x => { _colaEnVuelo[x.url] = 1; });   // se marcan todos ya: el timer de 60 s no los repite
+  listos.forEach(x => { colaMarcarVuelo(x.url); });   // se marcan todos ya: el timer de 60 s no los repite (P193: contador)
   if (!listos.length) return Promise.resolve();
-  if (alSalir) return Promise.all(listos.map(x => enviarConCola(x.url, true)));
+  if (alSalir) return Promise.all(listos.map(x => enviarConCola(x.url, true, true)));
   /* El primero sale AHORA (sincrónico, como siempre); los demás, cada uno cuando termina el anterior. */
-  return listos.slice(1).reduce((cadena, x) => cadena.then(() => enviarConCola(x.url, false)),
-                                enviarConCola(listos[0].url, false));
+  return listos.slice(1).reduce((cadena, x) => cadena.then(() => enviarConCola(x.url, false, true)),
+                                enviarConCola(listos[0].url, false, true));
 }
 /* ⚠️ `function(){ flushPending(); }` y NO `flushPending` a secas. El navegador le pasa el `Event`
    como primer argumento, o sea `alSalir` llegaba TRUTHY en cada reconexión: se mandaba con
@@ -30196,33 +30212,79 @@ function appOcupada(){
   return false;
 }
 
-/* Aplica la versión nueva. Si hay algo en curso, espera y reintenta cada 5 s en vez de rendirse:
-   así el caso "estaba ocupado" termina actualizando igual, sin depender de que nadie toque nada. */
+/* ⚠️ P193 · LOS ENVÍOS EN VUELO TAMBIÉN FRENAN LA RECARGA. `appOcupada()` mira pantallas con algo escrito; esto mira
+   la red: un test o un botón del ciclo cuyo envío está viajando. Recargar en el medio abortaba el pedido: si era el
+   primer envío, no corría su `.catch` y el registro no quedaba ni en el CH ni en el teléfono; si era un reintento
+   `no-cors` que sí había llegado, se reenviaba y quedaba una fila duplicada en la hoja clínica (los webhooks de los
+   tests no mandan `id`). Se cuentan los tres candados de «viajando ahora». */
+const ENVIO_VUELO_MAX_MS = 100000;   // el reloj de fetchConReloj (90 s) + margen: una marca más vieja no es un envío, es un candado colgado
+function enviosEnVuelo(){
+  let n = 0;
+  const ahora = Date.now();
+  try { Object.keys(_colaEnVuelo).forEach(k => { const m = _colaEnVuelo[k]; if (m && typeof m === 'object' && ahora - (m.desde || 0) <= ENVIO_VUELO_MAX_MS) n += (m.n || 1); }); } catch(e){}
+  try { n += Object.keys(_empEnVuelo).length; } catch(e){}
+  try { n += Object.keys(_gestEnVuelo).length; } catch(e){}
+  return n;
+}
+/* El único `location.reload()` de la actualización: una indirección para que las pruebas puedan medir cuándo se
+   recarga sin recargar de verdad. */
+function versionRecargar(){ location.reload(); }
+/* Aplica la versión nueva. Si hay algo en curso —una pantalla con datos o un envío viajando—, avisa con la barra y
+   reintenta cada 2 s en vez de rendirse: así el caso "estaba ocupado" termina actualizando igual, sin depender de que
+   nadie toque nada, y sin abortar un envío. */
 var versionEspera;
 function versionAplicar(){
-  if (!appOcupada()){ location.reload(); return; }
+  if (!appOcupada() && !enviosEnVuelo()){ versionRecargar(); return; }
   try { versionNuevaAvisar(); } catch(e){}
   /* Se guarda el temporizador y no se instala dos veces: sin esto quedaba uno nuevo por cada
      aviso, corriendo por el resto de la sesión sin que nadie los pudiera apagar. */
   if (versionEspera) return;
-  versionEspera = setInterval(function(){
-    if (appOcupada()) return;
-    clearInterval(versionEspera); versionEspera = null;
-    location.reload();
-  }, 5000);
+  versionEspera = setInterval(versionEsperaTick, 2000);
+}
+function versionEsperaTick(){
+  try { versionAvisoPintar(); } catch(e){}
+  if (appOcupada() || enviosEnVuelo()) return;
+  if (versionEspera){ clearInterval(versionEspera); versionEspera = null; }
+  versionRecargar();
 }
 
 /* El aviso de "hay una versión nueva". Sólo se ve si `versionAplicar()` encontró la app ocupada;
-   es la salida manual para quien quiera cortar el test y actualizar ya. */
+   es la salida manual para quien quiera cortar el test y actualizar ya. P193 · si lo que frena es un envío en vuelo,
+   lo dice («Enviando N registros antes de actualizar…»), y el botón espera a que termine en vez de abortarlo. */
 function versionNuevaAvisar(){
   if (document.getElementById('verNuevaBar')) return;
   const b = document.createElement('div');
   b.id = 'verNuevaBar';
   b.className = 'ver-nueva';
-  b.innerHTML = '<span>' + esc(t('ver_nueva')) + '</span>' +
-    '<button type="button" onclick="location.reload()">' + esc(t('ver_nueva_btn')) + '</button>' +
+  b.innerHTML = '<span id="verNuevaTx"></span>' +
+    '<button type="button" id="verNuevaBtn" onclick="versionRecargarAhora(this)">' + esc(t('ver_nueva_btn')) + '</button>' +
     '<button type="button" class="vn-x" onclick="this.parentNode.remove()" aria-label="' + esc(t('cerrar')) + '">×</button>';
   document.body.appendChild(b);
+  versionAvisoPintar();
+}
+function versionAvisoPintar(){
+  const tx = document.getElementById('verNuevaTx'); if (!tx) return;
+  const n = enviosEnVuelo();
+  tx.textContent = n ? t(n === 1 ? 'ver_nueva_enviando_1' : 'ver_nueva_enviando_n', { n: n }) : t('ver_nueva');
+}
+/* El botón de la barra: con envíos en vuelo, el cargador y la espera; sin envíos, recarga en el acto.
+   ⚠️ La espera vuelve a preguntar `appOcupada()` antes de recargar (verificador): en los segundos que tarda el envío la
+   persona pudo abrir la opinión anónima y escribir, y una recarga «pedida hace 40 s» se lo llevaría puesto. Y no hay
+   tope desde el toque: el tope es por envío (`ENVIO_VUELO_MAX_MS` en `enviosEnVuelo`), así un botón del ciclo tocado a
+   los 95 s de la espera no queda abortado a los 100. Si la persona sigue escribiendo, la barra sigue ahí y el tick de
+   `versionAplicar` recarga cuando termine; el botón sólo adelanta lo que la app haría sola. */
+var _versionRecargaPedida;
+function versionRecargarAhora(btn){
+  if (!enviosEnVuelo() && !appOcupada()){ versionRecargar(); return; }
+  if (btn) btnSpin(btn, true, t('cargando'));
+  _versionRecargaPedida = Date.now();
+  versionRecargarCuandoLibre();
+}
+function versionRecargarCuandoLibre(){
+  if (!_versionRecargaPedida) return;
+  if (enviosEnVuelo() || appOcupada()){ setTimeout(versionRecargarCuandoLibre, 500); return; }
+  _versionRecargaPedida = 0;
+  versionRecargar();
 }
 
 function appRevelar(ver){

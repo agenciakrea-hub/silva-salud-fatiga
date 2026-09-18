@@ -312,7 +312,9 @@ PRUEBAS.caso('⚠️ pero NO recarga sola', () => {
   const bar = document.getElementById('verNuevaBar');
   return new Promise(res => setTimeout(res, 120)).then(() => {
     PRUEBAS.igual(window.__u1Marca, 'sigo-viva', '⚠️ mostrar el aviso NO recarga sola: la persona puede estar a mitad de un test de reacción');
-    PRUEBAS.cierto(!!bar && [...bar.querySelectorAll('button')].some(b => /location\.reload/.test(b.getAttribute('onclick') || '')), 'y la recarga está en un botón, que decide la persona');
+    /* P193 · el botón pasa por `versionRecargarAhora` (espera un envío en vuelo antes de recargar) y ésta por `versionRecargar`, que es el `location.reload()` */
+    PRUEBAS.cierto(!!bar && [...bar.querySelectorAll('button')].some(b => /versionRecargarAhora|location\.reload/.test(b.getAttribute('onclick') || '')), 'y la recarga está en un botón, que decide la persona');
+    PRUEBAS.cierto(/location\.reload\(\)/.test(versionRecargar.toString()), 'y ese botón termina en location.reload()');
   }).finally(() => { delete window.__u1Marca; const b = document.getElementById('verNuevaBar'); if (b) b.remove(); });
 });
 
