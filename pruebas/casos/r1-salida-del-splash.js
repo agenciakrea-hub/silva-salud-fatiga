@@ -35,7 +35,9 @@ PRUEBAS.caso('⚠️ ninguna pantalla del alta queda sin salida en la PANTALLA',
     if (!ov) { sinSalida.push(id + ': no existe'); return; }
     const salidas = [...ov.querySelectorAll('button')].filter(b => {
       const on = (b.getAttribute('onclick') || '');
-      return /altaAbandonar|Cerrar\(|closeSetup|carruselCerrar|nominaVolver|recuperarAbrir/.test(on);
+      /* P192 · `consentAtras` es el «Atrás» del consentimiento: abandona el alta como siempre, salvo para la persona
+         ya registrada con el texto actualizado, que no tiene adónde volver (y ahí el botón se oculta) */
+      return /altaAbandonar|Cerrar\(|closeSetup|carruselCerrar|nominaVolver|recuperarAbrir|consentAtras/.test(on);
     });
     if (!salidas.length) sinSalida.push(id);
   });
