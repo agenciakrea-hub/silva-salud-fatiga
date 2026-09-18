@@ -144,9 +144,11 @@ PRUEBAS.caso('🟡 «Ver todo el historial» con la sincronización del arranque
     resp = true; cicloMiHistorialTodo(btn, 0); await tick();
     PRUEBAS.cierto(!btn.disabled && llamadas === 3, 'DISCRIMINADOR · con respuesta, suelta el botón');
   } finally {
-    btn.remove(); window.offHayConexion = oOff; window.showToast = oToast; window.renderSections = oRender; _cicloHistDias = dias0;
-    /* el timer de la espera 24→25 (1,2 s) cae en el stub, que ya responde ok; recién después se restaura */
-    resp = true; setTimeout(() => { window.misSincronizar = oSync; }, 4000);
+    btn.remove(); window.offHayConexion = oOff; window.showToast = oToast; window.renderSections = oRender; window.misSincronizar = oSync; _cicloHistDias = dias0;
+    /* R18 · el timer de la espera 24→25 (1,2 s) llama a `cicloMiHistorialTodo` por el nombre global: se lo neutraliza 3 s
+       y se restaura, en vez de dejar `misSincronizar` estubada (eso contaminaba al caso siguiente que la usa: P190) */
+    const oHist = window.cicloMiHistorialTodo; window.cicloMiHistorialTodo = () => {};
+    setTimeout(() => { window.cicloMiHistorialTodo = oHist; }, 3000);
   }
 });
 

@@ -547,4 +547,32 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
   PRUEBAS.igual(sinBloqueo, [],
     'estas funciones piden al servidor por una acción de la persona y no bloquean su pantalla: ' +
     'o se envuelven con conBloqueo(), o se agregan a la lista de las que corren en segundo plano');
+
+  /* ⚠️ P190 · EL SEGUNDO TRINQUETE: QUE SE VEA. Este caso garantizaba sólo el bloqueo (`inert` + atenuación a .72),
+     que es justo lo que Franco NO cuenta como feedback («la animación de cargando que te di, la de los cuadraditos»).
+     Por eso «Actualizar» de Tus tareas estaba en verde sin cargador (auditoría de uso real, barrido A). Ahora toda
+     función de red disparada por la persona tiene que mostrar algo en su cuerpo —el cargador en el botón, el esqueleto,
+     la caja de cuadraditos, la franja de relectura, el esqueleto del panel, el giro del ↻— o estar en DELEGAN con la
+     justificación de dónde vive su feedback. Una función nueva sin nada de esto pone el caso en rojo. */
+  /* `btnSpin(x, true` y no `btnSpin(`: apagarlo en un `.finally` no es feedback. Y se mide el código sin comentarios:
+     una función que sólo MENCIONA el cargador en la prosa no lo muestra (instrumentos-que-mienten). Las que corren
+     de fondo (`FONDO`) no entran: su feedback, si lo tienen, vive en quien las pinta (`renderInforme`, `tareasFichaHtml`,
+     la fila optimista de `ausTocar`). */
+  const VISIBLE = /\bbtnSpin\s*\([^,]+,\s*true|\b(skeletonHtml|cargandoHtml|cargaConMinimo|dashMostrarEsqueleto|franjaCargando)\s*\(|classList\.add\('spin'\)/;
+  const sinComentarios = c => c.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const sinFeedback = [];
+  rangos.forEach(r => {
+    const cuerpo = sinComentarios(lineas.slice(r.desde, r.hasta).join('\n'));
+    if (!/\b(dashRequest|fetchConReloj)\s*\(/.test(cuerpo)) return;
+    if (FONDO.indexOf(r.nombre) >= 0) return;
+    if (VISIBLE.test(cuerpo)) return;
+    sinFeedback.push(r.nombre);
+  });
+  PRUEBAS.igual(sinFeedback, [],
+    'estas funciones piden al servidor por una acción de la persona y NO MUESTRAN NADA mientras viaja (sólo la ' +
+    'atenuación): btnSpin en el botón, esqueleto, cargandoHtml o franjaCargando — o DELEGAN, con el porqué');
+  /* DISCRIMINADOR del trinquete: una función inventada con fetch y sin feedback tiene que caer */
+  const falsa = 'function p190Falsa(){ /* btnSpin(b, true) */ return conBloqueo(el, fetchConReloj(url)).finally(() => btnSpin(b, false)); }';
+  PRUEBAS.cierto(/\b(dashRequest|fetchConReloj)\s*\(/.test(sinComentarios(falsa)) && !VISIBLE.test(sinComentarios(falsa)), 'DISCRIMINADOR · una función con fetch, que sólo apaga el cargador y lo menciona en un comentario, cae en el trinquete');
+  PRUEBAS.cierto(VISIBLE.test('function x(){ btnSpin(b, true); return fetchConReloj(u); }'), 'y una que lo enciende pasa');
 });

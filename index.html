@@ -2015,6 +2015,7 @@
   html.sin-animaciones .cargador i { animation: none; opacity: .55; }
   /* Dentro de un botón: chico y en línea con el texto. */
   .cargador--btn { --cg: 20px; margin-right: .5em; }
+  .cargador--solo { margin-right: 0; }   /* P190 · sin rótulo al lado */
   /* En el medio de un panel: centrado, con su leyenda debajo. */
   .cargando-caja { display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: .7rem; padding: 2.2rem 1rem; color: var(--text-muted); }
@@ -2214,13 +2215,18 @@
      justo en la zona del disco. Con la animación de tres puntos el cartel es más alto todavía.
      `--nav-alto` la mide de verdad (`navAltoSincronizar`), con el 64 px viejo de respaldo por si
      algo corriera antes de la primera medición. */
-  .off-bar { position: fixed; left: 0; right: 0; z-index: 901;
+  /* P190 · z 1005: por encima de los overlays (1000) y por debajo de las pantallas de contraseña (1010) y el toast
+     (1100). Con 901 el cartel «Enviando N registros…» quedaba DEBAJO del panel y de las hojas, que es justo donde la
+     persona escribe lo que se está enviando (auditoría de uso real #17). */
+  .off-bar { position: fixed; left: 0; right: 0; z-index: 1005;
     bottom: calc(var(--nav-alto, 64px) + .45rem + env(safe-area-inset-bottom));
     max-width: 560px; margin: 0 auto;
     background: var(--sem-ambar-bg); color: var(--sem-ambar-txt);
     border-top: 1px solid var(--sem-ambar); text-align: center;
     padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
   .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
+  /* P190 · durante un test o el PVT no hay nada que enviar y el cartel taparía las respuestas de abajo */
+  body:has(#testOverlay.show) .off-bar, body:has(#pvtOverlay.show) .off-bar { display: none !important; }
   /* ── P045 · «enviando» tiene que MOVERSE ──────────────────────────────────────────────────────
      Un cartel quieto que dice «Enviando…» es indistinguible de uno colgado — que es exactamente lo
      que pasó cuando se colgó de verdad. Tres puntos que laten, escalonados: el movimiento es la
@@ -5437,6 +5443,11 @@
      `-txt` es el verde calibrado para TEXTO y existe justamente para esto. */
   .clv-regla.ok  { color: var(--sem-verde-txt); }
   .clv-regla.mal { color: var(--sem-rojo-txt); }
+  /* P190 · la píldora «Actualizando…» al lado de «Tu estado hoy» mientras se sincroniza con el servidor */
+  .ini-sync { display: inline-flex; align-items: center; gap: .3rem; margin-left: .55rem; font-size: .68rem;
+    font-weight: 700; letter-spacing: .02em; color: var(--text-soft); vertical-align: middle; }
+  .ini-sync[hidden] { display: none; }
+  .cargador--mini { --cg: 13px; }
   .ini-recuperando { background: var(--sem-azul-bg); border: 1px solid var(--sem-azul);
     border-radius: var(--radius); padding: .7rem .9rem; margin-bottom: .7rem;
     font-size: .84rem; font-weight: 600; color: var(--sem-azul-int); line-height: 1.45; }
@@ -7133,7 +7144,7 @@
         <input id="depNuevo" class="gest-search dep-alta-in" type="text" maxlength="60" autocomplete="off"
                data-i18n-attr="placeholder:dep_nuevo_ph;aria-label:dep_agregar"
                onkeydown="if(event.key==='Enter'){event.preventDefault();depAgregar();}">
-        <button class="gest-quick-btn" onclick="depAgregar()" data-i18n-attr="aria-label:dep_agregar">+</button>
+        <button class="gest-quick-btn" onclick="depAgregar(this)" data-i18n-attr="aria-label:dep_agregar">+</button>
       </div>
       <div id="depBody"></div>
     </div>
@@ -7310,7 +7321,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.65';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.66';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8650,6 +8661,7 @@ const I18N = {
       sf_t_revisar:'Hay indicadores para revisar',
       sf_x_revisar:'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.',
       mis_recuperando:'Estamos trayendo tu historial. Tus registros anteriores están guardados y van a aparecer en unos segundos.',
+      ini_sincronizando:'Actualizando…',   // P190
       sf_t_sindato:'Todavía sin registros', sf_x_sindato:'Cuando completes tu primer test verás tu estado aquí.',
       sf_t_ok:'Estás en condiciones', sf_x_ok:'Tus indicadores más recientes están dentro de lo esperado.',
       sf_no_hagas:'No hagas hoy: {q}', sf_tarea_indicada:'la tarea indicada',
@@ -8864,6 +8876,7 @@ const I18N = {
       inf_obj_fecha:'Fecha del cambio', inf_obj_fecha_sub:'compara antes/después',
       gest_sync_on:'Sincronizando con el servidor…', gest_sync_ok:'Sincronizado con el servidor · compartido con tu equipo', gest_sync_off:'Sin conexión: se guardó en este dispositivo y se sincronizará al reconectar.',
       inf_cargando:'Cargando informes previos…', inf_generando:'Generando informe… (puede tardar unos 40 s)', inf_analizando:'Analizando los datos con la IA…',
+      inf_tarda:'Suele tardar alrededor de un minuto; puedes seguir mirando el resto del panel.',   // P190
       inf_error:'No se pudo generar el informe.', inf_error_red:'Sin conexión o el servidor tardó demasiado. Inténtalo de nuevo.',
       inf_hist_vacio:'Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.',
       casos_odoo_titulo:'Casos para atención interna',
@@ -10576,6 +10589,7 @@ const I18N = {
       sf_t_revisar:'There are indicators to review',
       sf_x_revisar:'Some of your indicators suggest fatigue. Medical staff have not reviewed it yet — it is not a determination, only an alert from the automatic check.',
       mis_recuperando:'We are fetching your history. Your previous records are saved and will appear in a few seconds.',
+      ini_sincronizando:'Updating…',
       sf_t_sindato:'No records yet', sf_x_sindato:'Once you complete your first test you will see your status here.',
       sf_t_ok:'You are fit to work', sf_x_ok:'Your most recent indicators are within the expected range.',
       sf_no_hagas:'Do not do today: {q}', sf_tarea_indicada:'the task indicated',
@@ -10784,6 +10798,7 @@ const I18N = {
       inf_obj_fecha:'Date of the change', inf_obj_fecha_sub:'compares before/after',
       gest_sync_on:'Syncing with the server…', gest_sync_ok:'Synced with the server · shared with your team', gest_sync_off:'No connection: saved on this device and will sync when back online.',
       inf_cargando:'Loading previous reports…', inf_generando:'Generating report… (may take about 40 s)', inf_analizando:'Analysing the data with the AI…',
+      inf_tarda:'It usually takes about a minute; you can keep looking at the rest of the panel.',
       inf_error:'The report could not be generated.', inf_error_red:'No connection or the server took too long. Try again.',
       inf_hist_vacio:'No reports have been generated for this company yet. Tap “Generate report” to create the first one.',
       casos_odoo_titulo:'Cases for internal follow-up',
@@ -12380,6 +12395,10 @@ function offPintar(){
   // nunca iban a salir de verdad, se quedaba así para siempre. En demo no hay nada que "avisar
   // que se guardó": el usuario no generó ese dato.
   if (typeof DASH !== 'undefined' && DASH && DASH.demoMode){ el.style.display = 'none'; return; }
+  /* P190 · durante un test o el PVT no hay nada que enviar y el cartel (ahora sobre los overlays) taparía las
+     respuestas. El CSS con `:has()` lo cubre en el acto; esto es el respaldo para navegadores sin `:has()`. */
+  const enTest = ['testOverlay', 'pvtOverlay'].some(id => { const o = document.getElementById(id); return o && o.classList.contains('show'); });
+  if (enTest){ el.style.display = 'none'; return; }
   const n = offPendientes(), online = offHayConexion();
   // Sin pendientes y con conexión no se muestra nada: un cartel permanente diciendo "todo bien"
   // es ruido, y termina ignorándose justo cuando pasa a decir otra cosa.
@@ -13155,6 +13174,18 @@ function iniEstadoAltura(){
    320 a 240 px el contenido crece de 280 a 408 y se perdían 128 px por debajo del corte, sin
    scroll ni aviso. Un solo listener; `iniEstadoAltura` no hace nada si está cerrado. */
 window.addEventListener('resize', iniEstadoAltura);
+/* P190 · «Actualizando…» en la cabecera de «Tu estado hoy» mientras `misSincronizar` está en vuelo: sin esto el
+   semáforo podía cambiar frente a los ojos sin explicación cuando llegaba el servidor. R16: `var` sin asignar (lo lee
+   `renderInicio`, que corre en el arranque; `misSincronizar` la escribe más abajo). */
+var _iniSyncEnCurso;
+function iniSyncPintar(on){
+  _iniSyncEnCurso = !!on;
+  const el = document.getElementById('iniSync'); if (el) el.hidden = !on;
+}
+function iniSyncHtml(){
+  return '<span class="ini-sync" id="iniSync"' + (_iniSyncEnCurso ? '' : ' hidden') + ' role="status" aria-live="polite">' +
+    '<span class="cargador cargador--mini" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(t('ini_sincronizando')) + '</span>';
+}
 function renderInicio(){
   const cont = document.getElementById('inicio');
   if (!cont) return;
@@ -13222,7 +13253,7 @@ function renderInicio(){
     : '';
   let html = bajaAviso + firmada + recuperando + '<div class="ini-estado' + (estAbierto ? ' open' : '') + '" id="iniEstado" style="--inic-c:' + color + ';--inic-bg:' + bg + ';--inic-txt:' + txt + '">' +
     '<button type="button" class="ini-est-head" onclick="iniEstadoToggle()" aria-expanded="' + (estAbierto?'true':'false') + '" aria-controls="iniEstBody">' +
-      '<span class="ini-est-headtx"><span class="ini-est-k">' + esc(t('ini_estado_k')) + '</span>' +
+      '<span class="ini-est-headtx"><span class="ini-est-k">' + esc(t('ini_estado_k')) + iniSyncHtml() + '</span>' +
       '<span class="ini-est-t">' + esc(titulo) + '</span></span>' +
       chevSVG +
     '</button>' +
@@ -13861,6 +13892,7 @@ function misSincronizar(dias){
   const p = getProfile();
   if (!p || !p.nombre || !p.empresa) return Promise.resolve(false);
   _misSincronizando = true;
+  try { iniSyncPintar(true); } catch(e){}   // P190
   /* Z0b: la cédula VIAJA. Hasta acá esto mandaba sólo empresa + nombre, y el servidor entregaba
      los datos clínicos de esa persona con eso: bastaba saber un nombre. Ahora el servidor la exige,
      así que sin esto la sincronización se caería en silencio. */
@@ -13873,6 +13905,7 @@ function misSincronizar(dias){
     .then(r => r.json())
     .then(d => {
       _misSincronizando = false;
+      try { iniSyncPintar(false); } catch(e){}   // P190
       /* ⚠️ A3 (2026-09-03): un fallo acá NO puede ser mudo. Verificado contra producción: el
          servidor responde `falta_cedula` a toda app que no la mande, y esta línea la descartaba en
          silencio — la persona veía su pantalla sin actualizarse y nada le decía por qué. Los datos
@@ -13922,7 +13955,7 @@ function misSincronizar(dias){
       try { renderInicio(); } catch(e){}
       return true;
     })
-    .catch(() => { _misSincronizando = false; return false; });
+    .catch(() => { _misSincronizando = false; try { iniSyncPintar(false); } catch(e){} return false; });
 }
 
 const K_ACTIVIDAD = 'silva_fatiga_actividad_v1';
@@ -17977,6 +18010,14 @@ function skeletonHtml(tipo, n){
   }
   return '<div class="sk-wrap" aria-hidden="true">' + h + '</div>';
 }
+/* P190 · la FRANJA de relectura: el cargador arriba de una lista que ya tiene contenido (la primera carga usa el
+   esqueleto; después, la lista vieja se queda a la vista y esto dice que se está trayendo la nueva). Es la misma
+   franja que Tus tareas usa desde el 2026-09-17; acá para que Nómina y Departamentos no sean sólo atenuación. */
+function franjaCargando(cont, texto){
+  if (!cont || cont.querySelector('.tar-cargando')) return;
+  cont.insertAdjacentHTML('afterbegin', '<div class="tar-cargando">' + cargandoHtml(texto || t('cargando')) + '</div>');
+}
+function franjaQuitar(cont){ const f = cont && cont.querySelector('.tar-cargando'); if (f) f.remove(); }
 /* El cargador de cuadraditos con su leyenda, para el medio de un panel que todavía no tiene forma.
    Donde SÍ se sabe qué forma va a tener lo que llega, es mejor un esqueleto: dice más. */
 function cargandoHtml(texto){
@@ -18060,7 +18101,8 @@ function btnSpin(btn, on, labelOn){
   if (on){
     if (btn.dataset.orig == null) btn.dataset.orig = btn.innerHTML;
     btn.disabled = true; btn.classList.add('btn-loading');
-    btn.innerHTML = '<span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(labelOn || t('cargando'));
+    /* P190 · `labelOn === false`: sólo el cargador, para botones sin rótulo (el «+» de departamentos) */
+    btn.innerHTML = '<span class="cargador cargador--btn' + (labelOn === false ? ' cargador--solo' : '') + '" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + (labelOn === false ? '' : esc(labelOn || t('cargando')));
   } else {
     /* ⚠️ NO SE REHABILITA A CIEGAS. Esta línea decía `btn.disabled = false` y punto, así que
        cualquier gateo por campo vacío se perdía en cuanto un pedido volvía con error: el botón
@@ -20697,17 +20739,23 @@ function admAtajoIr(i){
      persona — sólo si su cédula está en los atajos y en la nómina. Lo que vuelve se aplica con lo
      mismo que usa el login normal (`lgnAplicarEntrada`): sesión, perfil, consentimientos. */
   const cuerpo = dashAuth({ action:'admin_entrar_como', cedula: a.cedula, recordar:'1' });
-  showToast(t('adm_atajo_entrando', { nombre: a.nombre }));
+  /* P190 · el cuerpo del panel muestra el cargador con «Entrando como X…» (antes: un toast de 2,6 s y el panel gris
+     durante los 2-10 s del pedido). Si falla, el panel vuelve (`dashRepintar`) y se dice por qué. */
+  const cuerpoPanel = document.getElementById('dashBody'), scrollPanel = document.getElementById('dashScroll');
+  const scrollAntes = scrollPanel ? scrollPanel.scrollTop : 0;
+  if (cuerpoPanel) cuerpoPanel.innerHTML = cargandoHtml(t('adm_atajo_entrando', { nombre: a.nombre }));
+  const mio = DASH;
+  const volver = () => { if (DASH !== mio) return; dashRepintar(); if (scrollPanel) scrollPanel.scrollTop = scrollAntes; };   // el panel vuelve donde estaba
   conBloqueo('#portalDash',
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(cuerpo) })
     .then(r => r.json())
     .then(d => {
-      if (!d || !d.ok){ showToast(tError(d && d.error) || t('lgn_mal')); return; }
+      if (!d || !d.ok){ volver(); showToast(tError(d && d.error) || t('lgn_mal')); return; }
       closePortalUI();
       splashCerrarUI();   // P174 · `closePortalUI` puede volver a encender el splash: hay que frenarlo
       lgnAplicarEntrada(d, String(a.cedula || ''), a.empresa, true);   // P170b · desde admin
     })
-    .catch(() => { showToast(t('sin_conexion_reintenta')); }));
+    .catch(() => { volver(); showToast(t('sin_conexion_reintenta')); }));
 }
 
 function dashUpdateGestFab(){
@@ -25964,6 +26012,10 @@ function renderInforme(rows){
     ? '<div class="informe-demo-nota">' + esc(t('visor_informe_nota')) + '</div>'   // P185 · el visor lee el historial, no genera
     : (bloqueado
       ? '<button class="save-btn informe-btn" disabled title="' + esc(t('inf_bloqueado_tt')) + '">' + esc(t('inf_bloqueado_prox', { f: DASH._informesProximo })) + '</button>'
+      : DASH._informeEnVuelo
+      /* P190 · un `renderDash()` en medio de los 40-90 s (cambio de indicador, de período, ↻ con datos nuevos) rehace esta
+         sección: se vuelve a pintar EN VUELO, con el botón apagado — si no, el botón nacía tocable y salía un segundo `informe` */
+      ? '<button class="save-btn informe-btn btn-loading" id="informeBtn" disabled><span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(t('inf_generando')) + '</button>'
       : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">' + esc(t('inf_generar')) + '</button>');
   const sub = '<div class="db-sub">' + t('inf_analisis_de', { q: '<b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || DASH.scope) + '</b>' }) + '</div>';
   // Objetivo opcional: si se pone una fecha de cambio, el informe compara antes/después (como correlación, no causa)
@@ -25974,7 +26026,7 @@ function renderInforme(rows){
     '<input type="date" id="infObjetivoFecha" value="' + esc(DASH._objetivoFecha||'') + '" onchange="DASH._objetivoFecha=this.value"></div>' +
     '</div>';
   const objBlock = DASH.demoMode ? '' : obj;    // en la demo el objetivo no aplica (no se genera nada)
-  const out = '<div id="informeOut"></div>';   // acá aparece el que se está generando ahora
+  const out = '<div id="informeOut">' + (DASH._informeEnVuelo ? cargandoHtml(t('inf_analizando') + ' ' + t('inf_tarda')) : '') + '</div>';   // acá aparece el que se está generando ahora (P190: también tras un repintado en vuelo)
   let hist;
   if (!DASH._informesLoaded) hist = cargandoHtml(t('inf_cargando'));   // P187
   else if (!DASH._informes.length) hist = '<div class="informe-empty">' + esc(t('inf_hist_vacio')) + '</div>';
@@ -25995,8 +26047,18 @@ function dashLoadInformes(){
   fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) }).then(r => r.json()).then(d => {
     DASH._informesLoading = false; DASH._informesLoaded = true;
     if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; }
-    if (DASH.tab === 'informe') renderDash();
-  }).catch(() => { DASH._informesLoading = false; DASH._informesLoaded = true; if (DASH.tab === 'informe') renderDash(); });
+    /* P190 · repinta SIEMPRE, pero SÓLO la sección del informe (verificador): `DASH.tab` nunca vale 'informe' —el
+       scrollspy usa `_dashActiveTab`—, así que «Cargando informes previos…» quedaba latiendo con la respuesta ya llegada
+       hasta que otra cosa repintara. Local y no `dashRepintar()`: rehacer el panel entero desde una respuesta tardía
+       le sacaría el `inert` a otra sección que esté cargando (el período de Jornada, por ejemplo). */
+    dashRepintarInforme();
+  }).catch(() => { DASH._informesLoading = false; DASH._informesLoaded = true; dashRepintarInforme(); });
+}
+/* P190 · sólo la sección del informe, en su lugar; si no está en pantalla, nada que repintar */
+function dashRepintarInforme(){
+  if (!DASH) return;
+  const sec = document.getElementById('dsec-informe'); if (!sec) return;
+  try { sec.innerHTML = renderInforme(dashFiltered()); } catch(e){}
 }
 // Primera línea de texto útil del informe, para el preview colapsado
 function informePreview(txt){
@@ -26026,23 +26088,31 @@ function dashShareInforme(id){
   else showToast(t('ts_no_compartir'));
 }
 function dashGenerarInforme(){
-  const btn = document.getElementById('informeBtn');
+  if (!DASH || DASH._informeEnVuelo) return;   // P190 · uno por vez, aunque un repintado haya rehecho el botón
+  DASH._informeEnVuelo = true;
+  const mio = DASH;
   /* P187 · el cargador de cuadraditos (no un texto a mano), y el botón VUELVE si falla: antes quedaba
-     muerto diciendo «Generando informe…» hasta cambiar de pestaña */
+     muerto diciendo «Generando informe…» hasta cambiar de pestaña. P190 · el botón y la caja se buscan por id al
+     terminar, no se capturan: un `renderDash()` en el medio los reemplaza. */
+  const btn = document.getElementById('informeBtn');
   if (btn) btnSpin(btn, true, t('inf_generando'));
   const out = document.getElementById('informeOut');
-  if (out) out.innerHTML = cargandoHtml(t('inf_analizando'));
+  if (out) out.innerHTML = cargandoHtml(t('inf_analizando') + ' ' + t('inf_tarda'));   // P190 · y cuánto suele tardar
+  const soltar = () => { if (DASH === mio) DASH._informeEnVuelo = false; const b = document.getElementById('informeBtn'); if (b) btnSpin(b, false); };
   stopDashAutoRefresh();
   const payload = dashAuth({ action:'informe',   // P185 · por dashAuth (A15): así el visor viaja
     resumen: dashBuildSummary(dashFiltered(), { objetivo: DASH._objetivo, objetivoFecha: DASH._objetivoFecha }) });
-  conBloqueo('#portalDash', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
+  /* P190 · se bloquea SÓLO la sección del informe, no el panel entero: durante los 40-90 s la persona puede seguir
+     mirando el resto (y la ✕, ← y ↻ siguen vivos desde P187). Si la sección no está, cae al cuerpo. */
+  conBloqueo(document.getElementById('dsec-informe') || '#portalDash', fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) })   // text/plain → sin preflight CORS
     .then(r => r.json())
     .then(d => {
       startDashAutoRefresh();
+      soltar();
+      if (DASH !== mio) return;   // P185 · el panel cambió mientras esto volaba
       if (!d || !d.ok){
-        if (btn) btnSpin(btn, false);
         if (d && d.limitado){ DASH._informesProximo = d.proximo || null; renderDash(); }
-        else if (out) out.innerHTML = '<div class="informe-aviso">' + esc(tError(d && d.error) || t('inf_error')) + '</div>';
+        else { const o = document.getElementById('informeOut'); if (o) o.innerHTML = '<div class="informe-aviso">' + esc(tError(d && d.error) || t('inf_error')) + '</div>'; }
         return;
       }
       DASH._informes = DASH._informes || [];
@@ -26051,7 +26121,7 @@ function dashGenerarInforme(){
       renderDash();
       showToast(t('ts_informe_ok'));   // aparece MINIMIZADO en el historial
     })
-    .catch(() => { startDashAutoRefresh(); if (btn) btnSpin(btn, false); if (out) out.innerHTML = '<div class="informe-aviso">' + esc(t('inf_error_red')) + '</div>'; }));
+    .catch(() => { startDashAutoRefresh(); soltar(); if (DASH !== mio) return; const o = document.getElementById('informeOut'); if (o) o.innerHTML = '<div class="informe-aviso">' + esc(t('inf_error_red')) + '</div>'; }));
 }
 // Markdown-lite: **negrita**, *itálica*, ## títulos, viñetas
 function dashMdLite(t){
@@ -30634,6 +30704,7 @@ function nominaListCerrar(){
 function nominaListCargar(){
   const body = document.getElementById('nomListBody');
   if (!NOMLIST.datos.length && body) body.innerHTML = skeletonHtml('persona', 5);
+  else franjaCargando(body, t('cargando'));   // P190 · relectura: la lista se queda y la franja dice que viene la nueva
   const cred = (DASH && DASH.params) || {};
   /* ⚠️ S7 · EN LA DEMOSTRACIÓN SE MUESTRA UNA NÓMINA DE EJEMPLO. Antes caía en la rama de abajo y
      pintaba un ERROR DE CREDENCIALES — que es peor que no mostrar nada: quien está viendo la
@@ -30667,7 +30738,8 @@ function nominaListCargar(){
       nominaListPintarDeptos();
       nominaListFiltrar();
     })
-    .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; }));
+    .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
+    .finally(() => franjaQuitar(body)));   // P190
 }
 function nominaListPintarDeptos(){
   const sel = document.getElementById('nomListDepto'); if (!sel) return;
@@ -31001,6 +31073,7 @@ function depCargar(){
     DEPS.lista = []; DEPS.puedeEditar = false; DEPS.duplicadas = 0; DEPS.empresa = '';
   }
   if (!DEPS.lista.length && body) body.innerHTML = skeletonHtml('persona', 4);
+  else franjaCargando(body, t('cargando'));   // P190 · relectura (después de agregar/dar de baja): la franja, no sólo la atenuación
   const cred = (DASH && DASH.params) || {};
 
   /* En la demostración se ven las áreas del ejemplo y los botones responden, pero no sale nada a
@@ -31039,7 +31112,8 @@ function depCargar(){
       DEPS.duplicadas = Number(d.duplicadas) || 0;
       depPintar();
     })
-    .catch(() => { DEPS.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; }));
+    .catch(() => { DEPS.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
+    .finally(() => franjaQuitar(body)));   // P190
 }
 
 function depPintar(){
@@ -31086,12 +31160,15 @@ function depSeccion(titulo, filas, esBaja){
 }
 
 /* ── Agregar ────────────────────────────────────────────────────────────────────────────────── */
-function depAgregar(){
+function depAgregar(btn){
   const inp = document.getElementById('depNuevo'); if (!inp) return;
   const nombre = String(inp.value || '').trim().replace(/\s+/g, ' ');
   if (!nombre) return;
-  inp.value = '';
-  depEnviar('departamento_guardar', nombre, {}, 'alta');
+  /* P190 · el «+» muestra el cargador (desde Enter también: se busca el botón de la caja) y el campo se vacía SÓLO
+     si el servidor aceptó — antes se vaciaba en el acto y nada decía «agregando»; si fallaba, lo escrito se perdía */
+  const b = btn || document.querySelector('#depAltaCaja .gest-quick-btn');
+  const r = depEnviar('departamento_guardar', nombre, {}, 'alta', b);
+  if (r && r.then) r.then(ok => { if (ok) inp.value = ''; });
 }
 
 /* ── Volver a activar ───────────────────────────────────────────────────────────────────────── */
@@ -31099,7 +31176,7 @@ function depPedirAlta(btn){
   const nombre = btn && btn.getAttribute('data-dep'); if (!nombre) return;
   if (!confirm(t('dep_conf_alta', { d: nombre }))) return;
   haptic(12);
-  depEnviar('departamento_guardar', nombre, {}, 'react');
+  depEnviar('departamento_guardar', nombre, {}, 'react', btn);
 }
 
 /* ── Dar de baja ────────────────────────────────────────────────────────────────────────────
@@ -31118,7 +31195,7 @@ function depPedirBaja(btn){
      su cuenta para armar el mensaje, habría dos derivaciones del mismo dato y la pantalla podría
      decir "3 personas" mientras el servidor ve 5 —porque otro supervisor asignó dos mientras esta
      pantalla estaba abierta— y el supervisor confirmaría una cosa distinta de la que ocurre. */
-  depEnviar('departamento_baja', nombre, {}, 'baja');
+  depEnviar('departamento_baja', nombre, {}, 'baja', btn);
 }
 
 /* ── El envío, uno solo para las tres acciones ───────────────────────────────────────────────
@@ -31126,11 +31203,15 @@ function depPedirBaja(btn){
    el supervisor marca diez personas seguidas y esperar sería insoportable; acá es una acción
    ocasional y con consecuencia, y mostrarla aplicada antes de que el CH la tenga sería justo la
    clase de mentira que hace desconfiar de la pantalla. */
-function depEnviar(accion, nombre, extra, tipo){
+function depEnviar(accion, nombre, extra, tipo, btn){
   if (visorBloquea(t('visor_departamento'))) return;   // P185
-  if (DASH && DASH.demoMode){ showToast(t('demo_aplicado')); return; }
+  if (DASH && DASH.demoMode){ showToast(t('demo_aplicado')); return Promise.resolve(true); }   // P190 · «aplicado en el ejemplo»: el campo se vacía como antes
   const cred = (DASH && DASH.params) || {};
   if (!cred.usuario || !cred.pass){ showToast(t('tar_err_creds')); return; }
+  /* P190 · el botón que disparó muestra el cargador (el «+» sin rótulo; baja/alta con «Guardando…»), además de la
+     atenuación de la hoja, que Franco no cuenta como feedback. Se apaga al terminar, pase lo que pase. */
+  const sinRotulo = !!(btn && btn.classList && btn.classList.contains('gest-quick-btn'));
+  if (btn) btnSpin(btn, true, sinRotulo ? false : t('guardando'));
   const cuerpo = Object.assign({ action: accion, usuario: cred.usuario,
     empresa: (DASH.f.emp || cred.empresa || cred.usuario), pass: cred.pass,
     dispositivoId: dispositivoId(), nombre: nombre,
@@ -31175,7 +31256,7 @@ function depEnviar(accion, nombre, extra, tipo){
            cambia con esto — pero el combo del alta sí, y la caché de `listas` puede quedar vieja.
            Se limpia para que la próxima apertura del alta pida la lista nueva. */
         try { listasCacheLimpiar(); } catch(e){}
-        return;
+        return true;   // P190 · para que `depAgregar` vacíe el campo sólo si salió bien
       }
       /* Y si el servidor se negó por gente adentro (llegó acá porque otro supervisor asignó
          personas mientras esta pantalla estaba abierta), se dice con el número REAL del
@@ -31183,13 +31264,15 @@ function depEnviar(accion, nombre, extra, tipo){
       if (d && d.motivo === 'con_gente'){
         if (confirm(t('dep_conf_baja_gente', { d: nombre, n: d.n || 0, p: (d.personas || []).join(', ') }))){
           haptic(16);
-          depEnviar('departamento_baja', nombre, { forzar: '1' }, 'baja');
+          return depEnviar('departamento_baja', nombre, { forzar: '1' }, 'baja', btn);   // P190 · se devuelve: el cargador del botón dura hasta el pedido forzado
         }
-        return;
+        return false;
       }
       showToast(tError(d && d.error) || t('dep_error'));
+      return false;
     })
-    .catch(() => showToast(t('dep_error'))));
+    .catch(() => { showToast(t('dep_error')); return false; })
+    .finally(() => { if (btn) btnSpin(btn, false); }));   // P190
 }
 
 /* ════════════════ TAREAS Y NOTIFICACIONES · lado de la persona (D1, 2026-08-26) ═════════════

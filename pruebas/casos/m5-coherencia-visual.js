@@ -72,6 +72,7 @@ PRUEBAS.caso('nada entra antes que lo que tiene arriba', () => {
   renderSections();
   const orden = [];
   document.querySelectorAll('#viewInicio *').forEach(e => {
+    if (e.closest('.cargador')) return;   // P190 · el cargador de cuadraditos late siempre: no es una animación de ENTRADA
     const cs = getComputedStyle(e);
     if (cs.animationName && cs.animationName !== 'none') {
       orden.push({ el: String(e.className).split(' ')[0], d: parseFloat(cs.animationDelay), y: e.getBoundingClientRect().top });
@@ -94,6 +95,7 @@ PRUEBAS.caso('todas usan la misma animación', () => {
   renderSections();
   const nombres = new Set();
   document.querySelectorAll('#viewInicio *').forEach(e => {
+    if (e.closest('.cargador')) return;   // P190 · ídem: el cargador late, no entra
     const n = getComputedStyle(e).animationName;
     if (n && n !== 'none') nombres.add(n);
   });
