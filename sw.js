@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v479';
+const VERSION = 'v480';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -156,3 +156,98 @@ self.addEventListener('fetch', event => {
       .catch(() => caches.match(event.request))
   );
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   P194 · NOTIFICACIONES DEL SISTEMA (Web Push)
+   El push llega VACÍO (el .gs no cifra nada): sólo despierta este worker. Acá se lee la configuración que la app dejó
+   en IndexedDB (`silva-push` → `config` → `actual`: dispositivoId, url del endpoint, textos en el idioma de la persona)
+   y se le pregunta al endpoint qué hay pendiente (`action=avisos`). Se muestra UNA notificación por hecho, con `tag`
+   para que un push repetido reemplace en vez de apilar. Si no hay nada o algo falla, se muestra igual una genérica:
+   Chrome exige mostrar una notificación por cada push que se acepta (si no, muestra una suya y luego revoca).
+   Un toque en la notificación enfoca la app si está abierta (o la abre) y le dice a dónde ir. */
+const VAPID_PUBLICA = 'BN0ELRLQM8Gs4CeaFKC2_VbpSlb81bnNtUOo6luDPo2BZduaUN8_k3bbD-F8bHYhyDv1Zh9Dottnkl3Qx6pbntw';
+const PUSH_FETCH_MS = 25000;   // Apps Script en frío pasa de 20 s (el reloj de la app es de 90 s); el push tiene ~30 s de vida
+
+function pushConfigLeer() {
+  return new Promise(res => {
+    try {
+      const req = indexedDB.open('silva-push', 1);
+      req.onupgradeneeded = () => { try { req.result.createObjectStore('config', { keyPath: 'clave' }); } catch (e) {} };
+      req.onsuccess = () => {
+        try {
+          const db = req.result;
+          const r = db.transaction('config', 'readonly').objectStore('config').get('actual');
+          r.onsuccess = () => { db.close(); res(r.result || null); };
+          r.onerror = () => { db.close(); res(null); };
+        } catch (e) { res(null); }
+      };
+      req.onerror = () => res(null);
+    } catch (e) { res(null); }
+  });
+}
+/* fetch con tope: al vencer se ABORTA el pedido (no queda un fetch vivo manteniendo despierto al worker) */
+function fetchConTope(url, opts, ms) {
+  const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+  const timer = setTimeout(() => { try { if (ctrl) ctrl.abort(); } catch (e) {} }, ms);
+  return fetch(url, Object.assign({}, opts, ctrl ? { signal: ctrl.signal } : {})).finally(() => clearTimeout(timer));
+}
+/* Los avisos del endpoint → notificaciones. Devuelve cuántas mostró (para las pruebas). */
+async function avisosMostrar(config) {
+  const cfg = config || await pushConfigLeer();
+  const tx = (cfg && cfg.textos) || {};
+  const titulo = tx.titulo || 'Silva Fatiga';
+  const base = { icon: './icon-192.png', badge: './icon-192.png' };
+  let avisos = null;
+  if (cfg && cfg.url && cfg.dispositivoId) {
+    try {
+      const r = await fetchConTope(cfg.url + '?action=avisos&dispositivoId=' + encodeURIComponent(cfg.dispositivoId) + '&v=' + Date.now(), { cache: 'no-store' }, PUSH_FETCH_MS);
+      const d = await r.json();
+      if (d && d.ok && Array.isArray(d.avisos)) avisos = d.avisos;
+    } catch (e) { avisos = null; }
+  }
+  const mostrar = [];
+  if (avisos) {
+    avisos.forEach(a => {
+      // renotify: una tarea nueva sobre una que ya estaba avisada tiene que volver a sonar (el tag reemplaza la anterior)
+      if (a.tipo === 'tareas' && a.n > 0) mostrar.push({ body: (a.n === 1 ? (tx.tarea_1 || 'Tienes 1 tarea pendiente') : String(tx.tarea_n || 'Tienes {n} tareas pendientes').split('{n}').join(a.n)), tag: 'tareas', ir: 'tareas', renotify: true });
+      if (a.tipo === 'ciclo_detenido') mostrar.push({ body: tx.ciclo_detenido || 'Tu ciclo se detuvo: no se marcó la llegada a casa', tag: String(a.tag || 'ciclo'), ir: 'inicio' });
+    });
+  }
+  // sin nada pendiente, o sin poder preguntar: igual hay que mostrar algo (ver arriba); la app en sí es el destino
+  if (!mostrar.length) mostrar.push({ body: tx.generico || 'Tienes novedades en la app', tag: 'generico', ir: 'inicio' });
+  await Promise.all(mostrar.map(m => self.registration.showNotification(titulo, Object.assign({}, base, { body: m.body, tag: m.tag, data: { ir: m.ir }, renotify: !!m.renotify }))));
+  return mostrar.length;
+}
+self.addEventListener('push', event => {
+  event.waitUntil(avisosMostrar());
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const ir = (event.notification.data && event.notification.data.ir) || 'inicio';
+  event.waitUntil((async () => {
+    const lista = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of lista) {
+      if ('focus' in c) { try { await c.focus(); } catch (e) {} c.postMessage({ tipo: 'abrir', ir: ir }); return; }
+    }
+    if (self.clients.openWindow) { const c = await self.clients.openWindow('./'); if (c) { try { c.postMessage({ tipo: 'abrir', ir: ir }); } catch (e) {} } }
+  })());
+});
+/* El navegador cambió la suscripción (rota las claves cada tanto): se vuelve a suscribir y se reenvía al endpoint con
+   la identidad que la app dejó en la configuración. Sin esto la persona dejaría de recibir avisos sin enterarse. */
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil((async () => {
+    const cfg = await pushConfigLeer();
+    if (!cfg || !cfg.url) return;
+    const clave = b64urlABytesSw(cfg.vapid || VAPID_PUBLICA);
+    const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: clave });
+    const j = sub.toJSON();
+    await fetch(cfg.url, { method: 'POST', body: JSON.stringify({ action: 'suscripcion_guardar', dispositivoId: cfg.dispositivoId, endpoint: j.endpoint,
+      p256dh: (j.keys && j.keys.p256dh) || '', auth: (j.keys && j.keys.auth) || '', persona: cfg.persona || '', cedula: cfg.cedula || '', empresa: cfg.empresa || '', idioma: cfg.idioma || 'es' }) });
+  })());
+});
+function b64urlABytesSw(s) {
+  const t = String(s || '').replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - String(s || '').length % 4) % 4);
+  const bin = atob(t); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}

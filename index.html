@@ -2642,6 +2642,8 @@
   .tema-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin: .25rem 1.1rem 0; }
   /* Idioma tiene DOS opciones, no tres: sin esto la grilla de 3 columnas le deja un hueco. */
   #idiomaBody .tema-opts { grid-template-columns: 1fr 1fr; }
+  /* P194 · Avisos tiene uno o dos botones según el estado (Activar · Probar + Desactivar): columnas automáticas; la nota va arriba y los botones cierran */
+  #avisosBody .tema-opts { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); margin-bottom: .95rem; }
   .tc-body .tema-nota { margin-bottom: .95rem; }
   .tema-opt { min-height: 44px; padding: .5rem .4rem; border-radius: var(--radius-sm);
     border: 1.5px solid var(--sup-borde); background: var(--card); color: var(--text-soft);
@@ -5721,6 +5723,19 @@
       </div>
     </div>
 
+    <!-- P194 · avisos del sistema (Web Push). El estado lo pinta `avisosPintar()`; el permiso se pide sólo con el toque. -->
+    <div class="rbtn mas-item tema-ctrl mas-desplegable" id="avisosCtrl">
+      <button type="button" class="tc-head" onclick="masToggle('avisosCtrl')" aria-expanded="false" aria-controls="avisosBody">
+        <div class="ic" style="background:var(--sem-azul-bg);color:var(--sem-azul)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+        <div class="tx"><span class="tt" data-i18n="avisos_titulo">Avisos</span><span class="ds" id="avisosLbl">—</span></div>
+        <div class="st"><svg class="chev" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+      </button>
+      <div class="tc-body" id="avisosBody">
+        <div class="tema-nota" id="avisosNota"></div>
+        <div class="tema-opts" id="avisosOpts"></div>
+      </div>
+    </div>
+
     <div class="mas-sep" data-i18n="mas_sep_sueno">Sueño &amp; Descanso</div>
     <div class="stack">
       <button type="button" class="rbtn" id="appleHealthBtn" onclick="enDesarrollo()">
@@ -7336,7 +7351,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.70';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.71';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9099,6 +9114,22 @@ const I18N = {
       an_espejo_t:'Así lo ve el supervisor',
       an_espejo_n:'Es exactamente la tarjeta que aparece en el panel del supervisor: sin valores de los tests ni detalle clínico. Cambia en cuanto guardes una determinación.',
       ver_tag:'Versión {v}', alert_g_dep:'Departamentos', alert_g_per:'Empleados', car_pantalla_n:'Pantalla {n}',
+      // ── P194 · avisos del sistema (Web Push) ──
+      avisos_titulo:'Avisos',
+      avisos_ds_sin_soporte:'No disponible en este navegador', avisos_ds_default:'Desactivados', avisos_ds_granted:'Activados',
+      avisos_ds_denied:'Bloqueados en el navegador',
+      avisos_nota:'Te avisa aunque la app esté cerrada: cuando el servicio médico o tu supervisor te asignan algo, y si tu ciclo se detuvo sin marcar la llegada a casa. Nunca incluye datos de tus tests.',
+      avisos_nota_ios:'En iPhone funciona con la app agregada a la pantalla de inicio (Compartir → Agregar a inicio).',
+      avisos_nota_denied:'Los avisos están bloqueados para esta app. Para activarlos: en el navegador, toca el candado de la barra de direcciones → Notificaciones → Permitir; con la app instalada, Ajustes del teléfono → Aplicaciones → Silva Fatiga → Notificaciones. Después vuelve aquí.',
+      avisos_activar:'Activar avisos', avisos_desactivar:'Desactivar', avisos_probar:'Enviar un aviso de prueba',
+      avisos_activando:'Activando…', avisos_activados_ts:'Avisos activados en este dispositivo', avisos_no_activados_ts:'No se activaron los avisos',
+      avisos_bloqueados_ts:'El navegador bloqueó los avisos. Se pueden destrabar desde Ajustes.', avisos_error_ts:'No se pudo activar. Intenta de nuevo.',
+      avisos_desactivados_ts:'Avisos desactivados', avisos_prueba_ts:'Aviso de prueba enviado',
+      avisos_prueba_titulo:'Silva Fatiga', avisos_prueba_cuerpo:'Así se ven los avisos en este dispositivo.',
+      notif_ofrecer_titulo:'Recibe avisos en este teléfono', notif_ofrecer_detalle:'Te avisamos aunque la app esté cerrada si te asignan algo o si tu ciclo se detuvo. Sin datos de tus tests.',
+      // textos que el service worker muestra (los guarda la app en el idioma de la persona)
+      push_titulo:'Silva Fatiga', push_tarea_1:'Tienes 1 tarea pendiente', push_tarea_n:'Tienes {n} tareas pendientes',
+      push_ciclo_detenido:'Tu ciclo se detuvo: no se marcó la llegada a casa', push_generico:'Tienes novedades en la app',
       // P196 · el informe de ejemplo de la demostración (markdown liviano, lo pinta dashMdLite)
       inf_demo_texto:'# Informe Ejecutivo de Análisis de Riesgo Psicosocial y Fatiga\n\n**Fecha de emisión:** Informe de ejemplo\n\n## Introducción\nEste informe fue elaborado por el sistema de análisis de inteligencia artificial de AEROAMBULANCIAS SILVA, entrenado con documentación oficial sobre salud ocupacional, gestión de la fatiga (FRMS) y riesgo psicosocial. Su propósito es analizar los datos aportados por la empresa para identificar tendencias y posibles situaciones de riesgo. Los hallazgos y recomendaciones tienen carácter orientativo.\n\n## Panorama general\nEn el período analizado, el conjunto de indicadores se mantiene en general por debajo de sus valores de referencia. El estrés y el cansancio muestran una tendencia leve al alza en el departamento de Operaciones, mientras que el resto del grupo se mantiene estable.\n\n## Tendencias y picos por indicador\n- **Estrés:** en aumento (+18% de la primera a la última semana). El pico se observa en la última semana del período, todavía por debajo de la referencia.\n- **Cansancio:** en aumento leve, concentrado en el personal de turnos rotativos.\n- **Ansiedad, Gastrointestinal y Depresión:** estables y dentro de lo normal.\n\n## Patrones y comportamiento dominante\nEl patrón dominante es un incremento gradual del estrés y el cansancio en Operaciones, coincidente con las semanas de mayor carga operativa. No se observan valores por encima de la referencia de forma sostenida.\n\n## Departamentos y personas a seguir de cerca\nSe sugiere seguir de cerca al departamento de **Operaciones**, en particular a quienes acumulan más turnos consecutivos, por la tendencia al alza del estrés y el cansancio.\n\n## Recomendaciones concretas y accionables\n1. Revisar la distribución de turnos en Operaciones para evitar acumulación de jornadas consecutivas.\n2. Reforzar las pausas de descanso en las semanas de mayor actividad.\n3. Repetir los tests luego de aplicar los ajustes para confirmar si la tendencia se estabiliza.\n\n## Consideraciones\nEste análisis tiene carácter orientativo y no reemplaza la evaluación de un profesional de la salud. Describe correlaciones observadas en los datos, no relaciones de causa y efecto. La información es confidencial.'
     },
@@ -11036,6 +11067,21 @@ const I18N = {
       an_espejo_t:'This is how the supervisor sees it',
       an_espejo_n:'It is exactly the card shown on the supervisor panel: no test values and no clinical detail. It changes as soon as you save a determination.',
       ver_tag:'Version {v}', alert_g_dep:'Departments', alert_g_per:'Employees', car_pantalla_n:'Screen {n}',
+      // ── P194 · avisos del sistema (Web Push) ──
+      avisos_titulo:'Alerts',
+      avisos_ds_sin_soporte:'Not available in this browser', avisos_ds_default:'Off', avisos_ds_granted:'On',
+      avisos_ds_denied:'Blocked in the browser',
+      avisos_nota:'Alerts you even when the app is closed: when the medical staff or your supervisor assign you something, and if your cycle stopped without marking the arrival home. Never includes your test data.',
+      avisos_nota_ios:'On iPhone it works with the app added to the Home Screen (Share → Add to Home Screen).',
+      avisos_nota_denied:'Alerts are blocked for this app. To enable them: in the browser, tap the lock in the address bar → Notifications → Allow; with the app installed, phone Settings → Apps → Silva Fatiga → Notifications. Then come back here.',
+      avisos_activar:'Turn on alerts', avisos_desactivar:'Turn off', avisos_probar:'Send a test alert',
+      avisos_activando:'Turning on…', avisos_activados_ts:'Alerts turned on for this device', avisos_no_activados_ts:'Alerts were not turned on',
+      avisos_bloqueados_ts:'The browser blocked alerts. They can be unblocked from Settings.', avisos_error_ts:'Could not turn on. Try again.',
+      avisos_desactivados_ts:'Alerts turned off', avisos_prueba_ts:'Test alert sent',
+      avisos_prueba_titulo:'Silva Fatiga', avisos_prueba_cuerpo:'This is how alerts look on this device.',
+      notif_ofrecer_titulo:'Get alerts on this phone', notif_ofrecer_detalle:'We alert you even when the app is closed if you are assigned something or if your cycle stopped. No test data.',
+      push_titulo:'Silva Fatiga', push_tarea_1:'You have 1 pending task', push_tarea_n:'You have {n} pending tasks',
+      push_ciclo_detenido:'Your cycle stopped: the arrival home was not marked', push_generico:'There is news in the app',
       inf_demo_texto:'# Executive Report on Psychosocial Risk and Fatigue Analysis\n\n**Issue date:** Sample report\n\n## Introduction\nThis report was prepared by the artificial intelligence analysis system of AEROAMBULANCIAS SILVA, trained on official documentation on occupational health, fatigue risk management (FRMS) and psychosocial risk. Its purpose is to analyze the data provided by the company to identify trends and possible risk situations. The findings and recommendations are for guidance only.\n\n## Overview\nIn the period analyzed, the set of indicators remains generally below its reference values. Stress and tiredness show a slight upward trend in the Operations department, while the rest of the group remains stable.\n\n## Trends and peaks by indicator\n- **Stress:** rising (+18% from the first to the last week). The peak is in the last week of the period, still below the reference.\n- **Tiredness:** slightly rising, concentrated in staff on rotating shifts.\n- **Anxiety, Gastrointestinal and Depression:** stable and within the normal range.\n\n## Patterns and dominant behavior\nThe dominant pattern is a gradual increase in stress and tiredness in Operations, coinciding with the weeks of highest operational load. No values above the reference are observed on a sustained basis.\n\n## Departments and people to watch closely\nWe suggest keeping a close eye on the **Operations** department, particularly those who accumulate the most consecutive shifts, given the upward trend in stress and tiredness.\n\n## Concrete, actionable recommendations\n1. Review the shift distribution in Operations to avoid accumulating consecutive workdays.\n2. Reinforce rest breaks in the weeks of highest activity.\n3. Repeat the tests after applying the adjustments to confirm whether the trend stabilizes.\n\n## Considerations\nThis analysis is for guidance only and does not replace an evaluation by a health professional. It describes correlations observed in the data, not cause-and-effect relationships. The information is confidential.'
     },
     aviacion: {
@@ -11384,6 +11430,7 @@ function aplicarIdioma(){
      tiene que estar en el idioma correcto. */
   try { temaPintarControl(); } catch(e){}
   try { versionTagPintar(); } catch(e){}   // P191
+  try { avisosPintar(); pushRevisar(); } catch(e){}   // P194 · el bloque de avisos y los textos que muestra el SW siguen al idioma
   /* R14 · el ícono del banner de rol depende del SECTOR, y el sector cambia sin recargar
      (`sectorRefrescar()` al arrancar, `onDashData` al abrir el panel). Si no se repinta acá,
      la etiqueta pasa a "Personal operativo" y el avión se queda. */
@@ -13873,6 +13920,7 @@ function mark(id){
   try { renderInicio(); } catch(e){}       // cambia "lo que te toca ahora" y la racha
   setTimeout(refreshStates, 60);           // tras abrir WhatsApp
   showToast(t('ts_reporte_registrado', { h: time }));
+  try { notifOfrecerSiCorresponde(); } catch(e){}   // P194 · el primer registro es el momento de ofrecer los avisos (nunca en el alta)
 }
 
 /* ── Panel de actividad (estilo GitHub) ──
@@ -15411,7 +15459,7 @@ function mostrarVista(v, desdeAtras){
   document.getElementById('bnMas').classList.toggle('active', v === 'mas');
   // El estado de la contraseña y el del acceso al panel se releen al entrar: los dos pueden haber
   // cambiado desde otra pantalla (P100: la nómina puede haber quitado el rol en el refresco).
-  if (v === 'mas'){ navPush(); try { miClavePintar(); } catch(e){} try { miRolPintar(); } catch(e){} }
+  if (v === 'mas'){ navPush(); try { miClavePintar(); } catch(e){} try { miRolPintar(); } catch(e){} try { avisosPintar(); } catch(e){} }   // P194 · el bloque de avisos
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 function marcarStatsActivo(on){
@@ -15885,8 +15933,11 @@ function nominaEl(id){ return document.getElementById(id); }
    empresa entera tirando códigos malos a propósito.
 
    Es un número al azar, no una huella: no se deriva del navegador ni del hardware, no identifica
-   a la persona, no viaja con ningún test ni reporte, y no se escribe en ninguna hoja del CH. */
+   a la persona, no viaja con ningún test ni reporte. Se escribe en UNA hoja del CH: `Suscripciones` (P194), donde
+   identifica al teléfono que activó los avisos, y se borra al desactivarlos o cerrar sesión. */
 const K_DISPOSITIVO_ID = 'silva_fatiga_disp_id_v1';
+// P194 · avisos del sistema: activado por ESTA persona en este dispositivo, la firma de lo último enviado, el endpoint y si ya se ofreció
+const K_PUSH_ACTIVO = 'silva_fatiga_push_activo_v1', K_PUSH_FIRMA = 'silva_fatiga_push_firma_v1', K_PUSH_ENDPOINT = 'silva_fatiga_push_endpoint_v1', K_NOTIF_OFRECIDO = 'silva_fatiga_avisos_ofrecido_v1';
 function dispositivoId(){
   try {
     let v = localStorage.getItem(K_DISPOSITIVO_ID);
@@ -18472,6 +18523,7 @@ function sesionClavesBorrar(){
        viva la credencial del panel de Dirección para la persona siguiente. Es la misma clase de
        olvido que P175 tuvo que corregir con `K_CICLO_PLAN_PROPIO` y `K_ROL_OFRECIDO`. */
     K_DASH_CREDS, K_DASH_CREDS_MED, K_DASH_CREDS_HSEQ, K_DASH_CREDS_ADM, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
+    K_PUSH_ACTIVO, K_PUSH_FIRMA, K_PUSH_ENDPOINT, K_NOTIF_OFRECIDO,   // P194 · los avisos del sistema son de la persona
     /* ⚠️ EL CICLO OPERATIVO FALTABA, y es dato de salud (2026-09-03, auditoría). `K_CICLO_MIO`
        guarda cada evento con su `test` y su `resultado`; `K_CICLO_SRV`, el histórico que manda el
        servidor. `cicloMioAll()` las une SIN ninguna guarda de dueño, así que en un teléfono
@@ -18548,6 +18600,7 @@ function cerrarSesion(){
      ⚠️ `keepalive` es lo que hace que el pedido sobreviva al `location.reload()` de abajo. Sin eso
      el navegador aborta la petición al recargar y la sesión no se cierra nunca del lado del CH. */
   sesionAvisarCierre();
+  try { pushCerrarSesion(); } catch(e){}   // P194 · la suscripción de avisos es de la persona, no del teléfono
   /* ⚠️ P121 · SE GUARDA LA EMPRESA ANTES DE BORRAR, y el orden importa: `sesionClavesBorrar`
      incluye `K_PROFILE`, así que después de esa línea ya no hay de dónde sacarla. Es lo único que
      sobrevive, y es lo que permite que el reingreso sea cédula + contraseña, sin el código otra
@@ -28975,6 +29028,176 @@ function instalGuiaCerrarUI(id){ hide(id); navConsumir(); }
   if (el) el.addEventListener('click', (e)=>{ if(e.target.id===id) instalGuiaCerrarUI(id); });
 });
 
+/* ════════════════ P194 · AVISOS DEL SISTEMA (Web Push) ════════════════
+   Con la app cerrada no llegaba nada a nadie (auditoría de uso real #35). Lo único que despierta un teléfono con la app
+   cerrada es un push del servicio del navegador, y ése lo manda el endpoint (`pushEnviar` en el .gs) cuando el hecho nace
+   allá: el reloj detiene un ciclo, el médico o el supervisor crean una tarea.
+   ⚠️ EL PUSH LLEGA VACÍO. El service worker (sw.js) se despierta, pregunta `action=avisos&dispositivoId=…` y muestra lo
+   que vuelve con los TEXTOS que esta app dejó en IndexedDB en el idioma de la persona (`pushConfigGuardar`): el .gs no
+   traduce ni cifra nada, y el contenido viaja por el canal de siempre.
+   ⚠️ LA VERDAD LOCAL ES `K_PUSH_ACTIVO` (por persona: se borra al cerrar sesión), NO `Notification.permission`. El
+   permiso es del navegador y sobrevive a la persona: en un teléfono compartido, la siguiente arrancaría «activada» con
+   la suscripción de la anterior. Verificador de P194: con sólo el permiso, «Desactivar» era una puerta de una sola vía
+   y un fallo al suscribir dejaba Ajustes diciendo «Activados» para siempre.
+   El permiso se pide SÓLO con un toque (el navegador lo exige) y en un momento con sentido: después del primer registro
+   del ciclo (`mark`), como aviso en «Tus tareas» con su botón; nunca en el alta. La tarjeta se va recién cuando la
+   suscripción quedó hecha (o si la persona bloqueó): un fallo sin señal la deja para reintentar.
+   La suscripción se REENVÍA (upsert por endpoint, R15) cuando cambia su firma —persona, cédula, empresa, idioma,
+   endpoint— y una vez por semana: así el servidor nunca queda con una identidad vieja ni con la fila borrada tras
+   cinco fallos sin que el teléfono se entere. Todo declarado como función (R16). */
+function vapidPublica(){ return 'BN0ELRLQM8Gs4CeaFKC2_VbpSlb81bnNtUOo6luDPo2BZduaUN8_k3bbD-F8bHYhyDv1Zh9Dottnkl3Qx6pbntw'; }
+function notifSoporte(){ return !!(window.Notification && navigator.serviceWorker && window.PushManager); }
+function notifEstado(){ return notifSoporte() ? Notification.permission : 'sin_soporte'; }   // 'default' | 'granted' | 'denied' | 'sin_soporte'
+function notifOfrecido(){ try { return !!localStorage.getItem(K_NOTIF_OFRECIDO); } catch(e){ return true; } }
+function notifMarcarOfrecido(){ try { localStorage.setItem(K_NOTIF_OFRECIDO, new Date().toISOString()); } catch(e){} }
+function pushActivoLocal(){ try { return localStorage.getItem(K_PUSH_ACTIVO) === '1'; } catch(e){ return false; } }
+function pushMarcarActivo(on){ try { if (on) localStorage.setItem(K_PUSH_ACTIVO, '1'); else { localStorage.removeItem(K_PUSH_ACTIVO); localStorage.removeItem(K_PUSH_FIRMA); localStorage.removeItem(K_PUSH_ENDPOINT); } } catch(e){} }
+function pushPerfilListo(){ const p = getProfile(); return !!(p && p.nombre && p.empresa && p.cedula); }   // lo que la suscripción lleva (la cédula es la identidad de tareas_mias)
+function notifPuedeOfrecer(){
+  return notifSoporte() && notifEstado() !== 'denied' && !pushActivoLocal() && !notifOfrecido() && pushPerfilListo() && !simulando() && !demoBloqueaEscritura();
+}
+// El ofrecimiento: UNA entrada en «Tus tareas», con botón. Idempotente. Devuelve si la agregó.
+function notifOfrecerSiCorresponde(){
+  if (!notifPuedeOfrecer()) return false;
+  return notifLocalAgregar({ id: 'avisos_ofrecer', tipo: 'avisos_ofrecer' });
+}
+function b64urlABytes(s){
+  const t = String(s || '').replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - String(s || '').length % 4) % 4);
+  const bin = atob(t); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function pushRegistro(){ return swReg ? Promise.resolve(swReg) : navigator.serviceWorker.ready; }
+/* Activar: pedir el permiso (con el toque) si falta, y suscribir. `btn` es el botón que tocó la persona. */
+function notifActivar(btn){
+  if (!notifSoporte()) return Promise.resolve(false);
+  if (simulando() || demoBloqueaEscritura()){ try { showToast(t(simulando() ? 'ts_simulacion' : 'ts_demo_no_guarda')); } catch(e){} return Promise.resolve(false); }
+  if (btn) btnSpin(btn, true, t('avisos_activando'));
+  return Promise.resolve().then(() => notifEstado() === 'granted' ? 'granted' : Notification.requestPermission()).then(permiso => {
+    if (permiso !== 'granted'){
+      if (permiso === 'denied'){ notifMarcarOfrecido(); notifLocalQuitar('avisos_ofrecer'); }   // bloqueado: no se vuelve a ofrecer
+      showToast(t(permiso === 'denied' ? 'avisos_bloqueados_ts' : 'avisos_no_activados_ts'));
+      return false;
+    }
+    return pushSuscribir().then(ok => {
+      if (ok){ notifMarcarOfrecido(); notifLocalQuitar('avisos_ofrecer'); try { haptic(12); } catch(e){} }
+      showToast(t(ok ? 'avisos_activados_ts' : 'avisos_error_ts'));
+      return ok;
+    });
+  }).catch(() => { showToast(t('avisos_error_ts')); return false; })
+    .finally(() => { if (btn && btn.isConnected) btnSpin(btn, false); avisosPintar(); try { tareasPintar(); } catch(e){} });
+}
+/* La firma de lo que el servidor tiene que saber: si cambia, se reenvía. La semana entra a propósito (latido). */
+function pushFirma(endpoint){
+  const p = getProfile() || {};
+  return [p.nombre || '', p.cedula || '', p.empresa || '', idiomaActual(), endpoint || '', Math.floor(Date.now() / (7 * 86400000))].join('|');
+}
+function pushEncolarSuscripcion(sub){
+  const j = sub.toJSON ? sub.toJSON() : { endpoint: sub.endpoint, keys: {} };
+  const p = getProfile() || {};
+  empEncolar('susc_' + dispositivoId(), 'suscripcion_guardar', {
+    endpoint: j.endpoint, p256dh: (j.keys && j.keys.p256dh) || '', auth: (j.keys && j.keys.auth) || '',
+    persona: p.nombre || '', cedula: p.cedula || '', empresa: p.empresa || '', idioma: idiomaActual()
+  });
+  try { localStorage.setItem(K_PUSH_FIRMA, pushFirma(j.endpoint)); localStorage.setItem(K_PUSH_ENDPOINT, j.endpoint || ''); } catch(e){}
+}
+/* Suscribir en el navegador y mandar la suscripción por la cola del empleado (sobrevive sin señal, R7). */
+function pushSuscribir(){
+  if (!pushPerfilListo()) return Promise.resolve(false);
+  return pushRegistro().then(reg => reg.pushManager.getSubscription().then(sub => sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlABytes(vapidPublica()) })))
+    .then(sub => { pushMarcarActivo(true); pushEncolarSuscripcion(sub); return pushConfigGuardar().then(() => true); })
+    .catch(() => false);
+}
+function pushDesactivar(){
+  try { haptic(12); } catch(e){}
+  return pushRegistro().then(reg => reg.pushManager.getSubscription()).then(sub => {
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    return sub.unsubscribe().then(() => { empEncolar('susc_baja_' + dispositivoId(), 'suscripcion_borrar', { endpoint: endpoint }); });
+  }).catch(() => {}).then(() => { pushMarcarActivo(false); return pushConfigBorrar(); }).then(() => { showToast(t('avisos_desactivados_ts')); avisosPintar(); });
+}
+/* Al cerrar sesión: la fila del servidor se borra con `keepalive` (sobrevive al reload) y lo local se apaga. La persona
+   siguiente en este teléfono arranca sin avisos y con el ofrecimiento disponible. */
+function pushCerrarSesion(){
+  let endpoint = ''; try { endpoint = localStorage.getItem(K_PUSH_ENDPOINT) || ''; } catch(e){}
+  if (endpoint && SHEETS_DASHBOARD_URL){
+    try { fetch(SHEETS_DASHBOARD_URL, { method: 'POST', keepalive: true, body: JSON.stringify({ action: 'suscripcion_borrar', endpoint: endpoint, dispositivoId: dispositivoId() }) }).catch(() => {}); } catch(e){}
+  }
+  try { pushRegistro().then(reg => reg.pushManager.getSubscription()).then(sub => sub && sub.unsubscribe()).catch(() => {}); } catch(e){}
+  try { pushConfigBorrar(); } catch(e){}
+}
+// Lo que el service worker necesita saber, en el idioma de la persona.
+function pushConfigObjeto(){
+  const p = getProfile() || {};
+  return { clave: 'actual', dispositivoId: dispositivoId(), idioma: idiomaActual(), url: SHEETS_DASHBOARD_URL, vapid: vapidPublica(),
+    persona: p.nombre || '', cedula: p.cedula || '', empresa: p.empresa || '',
+    textos: { titulo: t('push_titulo'), tarea_1: t('push_tarea_1'), tarea_n: t('push_tarea_n'), ciclo_detenido: t('push_ciclo_detenido'), generico: t('push_generico') } };
+}
+function pushDb(){
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('indexeddb'));   // interno: nadie lo lee (el barrido de P191 lo vigila)
+    const req = indexedDB.open('silva-push', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('config', { keyPath: 'clave' }); };
+    req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+  });
+}
+function pushConfigGuardar(){
+  return pushDb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction('config', 'readwrite'); tx.objectStore('config').put(pushConfigObjeto());
+    tx.oncomplete = () => { db.close(); res(true); }; tx.onerror = () => { db.close(); rej(tx.error); };
+  })).catch(() => false);
+}
+function pushConfigBorrar(){
+  return pushDb().then(db => new Promise((res) => {
+    const tx = db.transaction('config', 'readwrite'); tx.objectStore('config').delete('actual');
+    tx.oncomplete = () => { db.close(); res(true); }; tx.onerror = () => { db.close(); res(false); };
+  })).catch(() => false);
+}
+/* Al arrancar y al cambiar de idioma, si esta persona activó los avisos en este dispositivo: se rehacen los textos del
+   SW, se vuelve a suscribir si el navegador soltó la suscripción, y se reenvía al servidor si cambió la firma. Si el
+   permiso fue retirado desde el navegador, se apaga lo local (Ajustes vuelve a ofrecer «Activar»). */
+function pushRevisar(){
+  if (!notifSoporte() || !pushActivoLocal()) return Promise.resolve(false);
+  if (notifEstado() !== 'granted'){ pushMarcarActivo(false); return Promise.resolve(false); }
+  if (!pushPerfilListo()) return Promise.resolve(false);
+  return pushRegistro().then(reg => reg.pushManager.getSubscription().then(sub => sub || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlABytes(vapidPublica()) })))
+    .then(sub => {
+      let firma = ''; try { firma = localStorage.getItem(K_PUSH_FIRMA) || ''; } catch(e){}
+      if (firma !== pushFirma(sub.endpoint)) pushEncolarSuscripcion(sub);
+      return pushConfigGuardar();
+    }).catch(() => false);
+}
+/* El bloque de Ajustes: estado, nota y botones. La verdad es `pushActivoLocal()` + el permiso; se repinta al abrir Más,
+   al cambiar de idioma y después de cada acción. */
+function avisosPintar(){
+  const lbl = document.getElementById('avisosLbl'), nota = document.getElementById('avisosNota'), opts = document.getElementById('avisosOpts');
+  if (!lbl || !nota || !opts) return;
+  const permiso = notifEstado();
+  const est = (permiso === 'sin_soporte' || permiso === 'denied') ? permiso : (pushActivoLocal() ? 'granted' : 'default');
+  lbl.textContent = t('avisos_ds_' + est);
+  const esIos = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  nota.innerHTML = esc(est === 'denied' ? t('avisos_nota_denied') : t('avisos_nota')) + (esIos && est !== 'granted' ? '<br><br>' + esc(t('avisos_nota_ios')) : '');
+  let html = '';
+  if (est === 'default') html = '<button type="button" class="tema-opt" onclick="notifActivar(this)">' + esc(t('avisos_activar')) + '</button>';
+  if (est === 'granted') html = '<button type="button" class="tema-opt" onclick="avisosProbar(this)">' + esc(t('avisos_probar')) + '</button>' +
+                                '<button type="button" class="tema-opt" onclick="pushDesactivar()">' + esc(t('avisos_desactivar')) + '</button>';
+  opts.innerHTML = html;
+  opts.style.display = html ? '' : 'none';
+}
+/* Un aviso local, sin push: para que la persona (y Franco) vea cómo se ve en ESTE dispositivo. Pasa por el mismo
+   `showNotification` del SW que usa el push real; no prueba el servidor (para eso está `push_prueba` en mantenimiento). */
+function avisosProbar(btn){
+  if (btn) btnSpin(btn, true, t('cargando'));
+  return pushRegistro().then(reg => reg.showNotification(t('avisos_prueba_titulo'), { body: t('avisos_prueba_cuerpo'), icon: './icon-192.png', badge: './icon-192.png', tag: 'prueba', data: { ir: 'inicio' } }))
+    .then(() => showToast(t('avisos_prueba_ts'))).catch(() => showToast(t('avisos_error_ts')))
+    .finally(() => { if (btn && btn.isConnected) btnSpin(btn, false); });
+}
+/* Toque en una notificación: el SW enfoca la app y manda a dónde ir. */
+function pushAbrir(ir){
+  try { mostrarVista('inicio'); } catch(e){}
+  if (ir === 'tareas'){ try { tareasAbrir(); } catch(e){} }
+}
+
 /* ════════════════ INIT ════════════════ */
 /* P191 · declarada (R16: corre en el arranque) y llamada también desde `aplicarIdioma`: «Versión N» cambiaba de idioma
    con todo lo demás menos con la etiqueta de la pantalla de instalación. */
@@ -31691,7 +31914,11 @@ function notifLocalItems(){
       titulo  = t('notif_exc_titulo', { f: cicloFechaDe(x.t0), ev: cicloEventoLabel(x.ev) });
       detalle = t((Number(x.hasta) > 0 && Date.now() > Number(x.hasta)) ? 'notif_exc_detalle_tarde' : 'notif_exc_detalle', { ev: cicloEventoLabel(x.ev) });
     }
-    return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', t0: Number(x.t0) || 0, local: true };
+    if (x.tipo === 'avisos_ofrecer'){   // P194 · el ofrecimiento de avisos del sistema, con su botón «Activar»
+      titulo  = t('notif_ofrecer_titulo');
+      detalle = t('notif_ofrecer_detalle');
+    }
+    return { id: x.id, titulo, detalle, origen: 'sistema', estado: x.estado === 'hecha' ? 'hecha' : 'sin_leer', vence: '', creada: x.creada || '', t0: Number(x.t0) || 0, local: true, tipo: x.tipo };
   })
   /* P186d · los ya vistos se van de la lista a la semana (siguen en el almacén, para no volver a
      avisarlos), y lo más nuevo va arriba: por `creada` y, a igual revisión, por el inicio del ciclo. */
@@ -31707,6 +31934,7 @@ function notifLocalQuitar(id){
   return true;
 }
 function notifLocalHecha(id){
+  if (id === 'avisos_ofrecer'){ notifMarcarOfrecido(); notifLocalQuitar('avisos_ofrecer'); try { tareasPintar(); } catch(e){} return; }   // P194 · «Entendido» = no, gracias
   const lista = notifLocalLeer();
   const it = lista.find(x => x.id === id);
   if (!it) return;
@@ -31945,7 +32173,8 @@ function tareasPintar(){
         (hecha
           ? '<span class="tar-hecha-lbl">' + esc(t('tar_hecha')) + '</span>'
           : x.local
-            ? '<button type="button" class="tar-btn" onclick="notifLocalHecha(\'' + esc(x.id) + '\')">' + esc(t('notif_entendido')) + '</button>'
+            ? ((x.tipo === 'avisos_ofrecer' ? '<button type="button" class="tar-btn" onclick="notifActivar(this)">' + esc(t('avisos_activar')) + '</button> ' : '') +   // P194
+               '<button type="button" class="tar-btn" onclick="notifLocalHecha(\'' + esc(x.id) + '\')">' + esc(t('notif_entendido')) + '</button>')
             : '<button type="button" class="tar-btn" onclick="tareaMarcarHecha(\'' + esc(x.id) + '\', this)">' + esc(t('tar_marcar')) + '</button>') +
       '</div>' +
     '</div>';
@@ -32439,6 +32668,7 @@ if ('serviceWorker' in navigator){
      superior: `versionAplicar` es una función declarada (izada), así que no hay zona muerta (R16). */
   let avisoVersion = false;
   navigator.serviceWorker.addEventListener('message', ev => {
+    if (ev.data && ev.data.tipo === 'abrir'){ try { pushAbrir(ev.data.ir); } catch(e){} return; }   // P194 · toque en una notificación
     if (!ev.data || ev.data.tipo !== 'version-nueva' || avisoVersion) return;
     avisoVersion = true;
     versionAplicar();
@@ -32446,6 +32676,7 @@ if ('serviceWorker' in navigator){
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(reg => {
       swReg = reg;
+      try { pushRevisar(); } catch(e){}   // P194 · si esta persona activó los avisos: textos del SW, resuscripción y reenvío si cambió la firma
       reg.update();
       /* ⚠️ EL INTERVALO NO ALCANZA EN CELULAR. Un `setInterval` de una hora se suspende cuando la
          app pasa a segundo plano, y `load` no vuelve a dispararse al traerla al frente desde el

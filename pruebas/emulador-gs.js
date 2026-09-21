@@ -44,8 +44,12 @@ function sha256Bytes(texto) {
   /* El texto se pasa a bytes UTF-8: una "ñ" son DOS bytes, y hashear sus code units daría otro
      resultado que el de Apps Script. Es el error silencioso más fácil de cometer acá. */
   var bytes = [], i, c;
-  var utf8 = unescape(encodeURIComponent(texto));
-  for (i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i) & 0xff);
+  /* P194 · también acepta un arreglo de bytes (con o sin signo), como `Utilities.computeDigest(alg, byte[])`. */
+  if (Array.isArray(texto)) { for (i = 0; i < texto.length; i++) bytes.push(texto[i] & 0xff); }
+  else {
+    var utf8 = unescape(encodeURIComponent(texto));
+    for (i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i) & 0xff);
+  }
   var largoBits = bytes.length * 8;
   bytes.push(0x80);
   while (bytes.length % 64 !== 56) bytes.push(0);
@@ -85,6 +89,22 @@ function sha256Bytes(texto) {
   }
   return out;
 }
+/* P194 · HMAC-SHA256 (RFC 2104) para `Utilities.computeHmacSha256Signature(valor, clave)`. Entradas: texto o bytes
+   (con o sin signo); salida: bytes CON SIGNO, como Apps Script. Se autocomprueba con el vector de RFC 4231. */
+function hmacSha256Bytes(valor, clave) {
+  var aBytes = function (x) { var o = [], i; if (Array.isArray(x)) { for (i = 0; i < x.length; i++) o.push(x[i] & 0xff); return o; }
+    var u = unescape(encodeURIComponent(String(x))); for (i = 0; i < u.length; i++) o.push(u.charCodeAt(i) & 0xff); return o; };
+  var k = aBytes(clave), m = aBytes(valor);
+  if (k.length > 64) k = sha256Bytes(k).map(function (b) { return b & 0xff; });
+  while (k.length < 64) k.push(0);
+  var ipad = k.map(function (b) { return b ^ 0x36; }), opad = k.map(function (b) { return b ^ 0x5c; });
+  var interno = sha256Bytes(ipad.concat(m)).map(function (b) { return b & 0xff; });
+  return sha256Bytes(opad.concat(interno));
+}
+(function __hmacAutoprueba() {
+  var dio = __digestHex(hmacSha256Bytes('what do ya want for nothing?', 'Jefe'));
+  if (dio !== '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843') throw new Error('HMAC-SHA256 del emulador INCORRECTO: ' + dio);
+})();
 function __digestHex(bytes) {
   return bytes.map(function (b) { return ((b + 256) % 256).toString(16).padStart(2, '0'); }).join('');
 }
@@ -418,7 +438,25 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
         sleep: function () {},
         getUuid: function () { return 'uuid-de-prueba-' + (++env.__uuid); },
         base64Encode: function (s) { return btoa(unescape(encodeURIComponent(String(s)))); },
-        base64Decode: function (s) { return atob(String(s)); },
+        /* P194 · con un arreglo de bytes devuelve bytes CON SIGNO (Apps Script); con texto, el texto (como antes) */
+        base64Decode: function (s) {
+          var bin = atob(String(s)); var o = [];
+          for (var i = 0; i < bin.length; i++) { var b = bin.charCodeAt(i) & 0xff; o.push(b > 127 ? b - 256 : b); }
+          return o;
+        },
+        base64EncodeWebSafe: function (x) {
+          var bin = '';
+          if (Array.isArray(x)) { for (var i = 0; i < x.length; i++) bin += String.fromCharCode(x[i] & 0xff); }
+          else bin = unescape(encodeURIComponent(String(x)));
+          return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_');
+        },
+        base64DecodeWebSafe: function (s) {
+          var t = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '=';
+          var bin = atob(t); var o = [];
+          for (var i = 0; i < bin.length; i++) { var b = bin.charCodeAt(i) & 0xff; o.push(b > 127 ? b - 256 : b); }
+          return o;
+        },
+        computeHmacSha256Signature: function (valor, clave) { return hmacSha256Bytes(valor, clave); },
         /* ⚠️ SHA-256 DE VERDAD, no un doble. Hace falta desde Z0/Z2: sin esto, todo lo que toque
            contraseñas queda sin poder probarse y volvemos a "debería funcionar".
            Se implementa el algoritmo real y no un valor inventado a propósito: un doble haría pasar
@@ -434,7 +472,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
           if (String(algoritmo) !== 'SHA_256') {
             throw new Error('El emulador sólo implementa SHA_256 (pedido: ' + algoritmo + ')');
           }
-          return sha256Bytes(String(texto));
+          return sha256Bytes(Array.isArray(texto) ? texto : String(texto));   // P194 · bytes o texto
         }
       },
       __uuid: 0,
