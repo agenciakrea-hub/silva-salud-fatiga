@@ -3,7 +3,7 @@
    ▸ SUBÍ ESTE NÚMERO CADA VEZ QUE ACTUALICES LA APP  ◂
    (debe coincidir conceptualmente con APP_VERSION del index.html)
    ═══════════════════════════════════════════════════════════════ */
-const VERSION = 'v477';
+const VERSION = 'v478';
 const CACHE = 'silva-fatiga-' + VERSION;
 
 const ASSETS = [
@@ -32,10 +32,41 @@ const ASSETS = [
 
 // Instala y activa de inmediato la nueva versión
 self.addEventListener('install', event => {
+  /* ⚠️ P191 · `cache: 'reload'` PARA LA APP (`./` y `./index.html`), y esto es lo que evitaba una tercera recarga
+     con vuelta atrás. `addAll` pide con el modo de caché por defecto, y el hosting responde `cache-control:
+     max-age=600`: el caché HTTP del navegador podía entregar el `index.html` VIEJO al worker nuevo (el
+     `fetch(no-store)` de la revalidación no alimenta ese caché). Entonces el caché nuevo nacía con la app vieja: la
+     recarga que sigue al `controllerchange` servía la vieja, la revalidación avisaba «versión nueva» y venía otra
+     recarga más. Con `reload` se pide siempre a la red y de paso se actualiza el caché HTTP. Los íconos, el logo y
+     el manifest siguen como antes (verificador: con señal débil, un asset que no responda hace fallar `addAll`
+     entero, y en la PRIMERA instalación eso deja sin caché offline; la app es lo único que puede cambiar). */
   event.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(c => c.addAll(ASSETS.map(a => new Request(a, { cache: /index\.html$|\/$/.test(a) ? 'reload' : 'default' })))).then(() => self.skipWaiting())
   );
 });
+
+/* P191 · la app pregunta, al cambiar de controlador, qué `APP_VERSION` tiene ESTE worker en su caché. Si es la
+   misma que ya tiene cargada, no recarga: antes el flujo normal era mensaje `version-nueva` → recarga (ya nueva)
+   → el `sw.js` nuevo se instala → `controllerchange` → SEGUNDA recarga de una app que ya era la nueva. Se contesta
+   por el puerto que manda la app (MessageChannel), no por `postMessage` a todos los clientes, para que la respuesta
+   llegue a quien preguntó y sólo a él. */
+self.addEventListener('message', event => {
+  if (!event.data || event.data.tipo !== 'version?' || !event.ports || !event.ports[0]) return;
+  const puerto = event.ports[0];
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.match('./index.html'))
+      .then(r => r ? r.text() : '')
+      .then(txt => { puerto.postMessage({ tipo: 'version', app: swAppVersionDe(txt) }); })
+      .catch(() => { puerto.postMessage({ tipo: 'version', app: null }); })
+  );
+});
+/* Lee `APP_VERSION` del texto del index. La forma exacta (`const APP_VERSION = '6.69';`) la vigila la suite
+   (`p191-textos-y-recarga.js`, contrato sw ↔ index): si alguien la cambia, falla ahí y no en producción. */
+function swAppVersionDe(txt) {
+  const m = /const APP_VERSION = '([0-9][0-9.]*)'/.exec(String(txt || ''));
+  return m ? m[1] : null;
+}
 
 // Borra cachés viejos y toma control sin esperar
 self.addEventListener('activate', event => {
