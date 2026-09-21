@@ -124,7 +124,8 @@ const P191_EXENTOS_DECL = {
   // lo que viaja a Odoo (P13): otro sistema, un solo idioma
   casosOdooMotivo: 'a Odoo', casosOdooDescarte: 'a Odoo (motivo del descarte, no se pinta)', casosOdooValores: 'a Odoo', casosOdooFila: 'a Odoo',
   // datos de ejemplo (demostración): quedan en español en todos los idiomas (fuera de alcance de P191)
-  DEMO_GENTE: 'demo', DEMO_ACTIVOS: 'demo', DEMO_NIVELES: 'demo', DEMO_AUSENTE: 'demo', MOCK_DASH: 'demo', INFORME_DEMO: 'demo',
+  // ⚠️ los DEPARTAMENTOS de la demo son DATO que agrupa con los registros que manda el servidor (en español): no se traducen
+  DEMO_GENTE: 'demo', DEMO_ACTIVOS: 'demo', DEMO_NIVELES: 'demo', DEMO_AUSENTE: 'demo', MOCK_DASH: 'demo',   // INFORME_DEMO ya no: P196
   cicloDemo: 'demo', gestSembrarDemo: 'demo', gestSembrarDemoAnotaciones: 'demo', dashReportesDemo: 'demo', nominaDemo: 'demo',
   dashSembrarComentariosDemo: 'demo', dutyDemo: 'demo', turnosDemo: 'demo', EMPRESA_DEMO_NOMBRE: 'demo (centinela)',
   simEntrar: 'demo (Empresa Demo)', portalVerDemo: 'demo (Empresa Demo)', portalVerDemoEmpleado: 'demo (Empresa Demo)',
