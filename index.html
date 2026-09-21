@@ -7351,7 +7351,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.71';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.72';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -11498,6 +11498,7 @@ function aplicarIdioma(){
      terminología nueva menos esa palabra, que se queda con «Piloto» toda la sesión. Es el mismo
      defecto que ya estaba documentado para el ícono del banner de rol: se arregló el ícono. */
   try { paintProfile(); } catch(e){}
+  try { demoIdiomaCambio(); } catch(e){}   // P197 · al FINAL: la demostración abierta se vuelve a pedir en el idioma nuevo (después del renderDash de arriba, para que el esqueleto no quede tapado)
 }
 function fijarIdioma(k){
   try { localStorage.setItem(K_LANG, k); } catch(e){}
@@ -18686,7 +18687,7 @@ function simEntrar(vista){
      administrador —Ajustes → Administrador → ver como…— dejó de abrir para todo el mundo, con un
      "No se pudo abrir la simulación" que no dice nada. Con la credencial adentro, el servidor
      reconoce la sesión y no le pide la clave de los de afuera (ver `accionDemo` en el `.gs`). */
-  const paramsSim = dashAuth({ action:'demo' });
+  const paramsSim = dashAuth({ action:'demo', lang: idiomaActual() });   // P197
   dashRequest(paramsSim)
     .then(d => {
       /* Endpoint viejo, o sesión que el servidor no reconoce: se dice QUÉ pasó, no un aviso
@@ -18700,7 +18701,7 @@ function simEntrar(vista){
          `demoPintarBarra()` calculaba que no hay demo y escondía la barra: la misma pantalla se
          comportaba distinto según por dónde se hubiera entrado, y por acá seguía costando 4 toques
          y hasta 12 segundos. */
-      DEMO_PAYLOAD = { d: d, params: paramsSim, scope: 'Empresa Demo' };
+      DEMO_PAYLOAD = { d: d, params: paramsSim, scope: 'Empresa Demo', lang: paramsSim.lang };
       if (vista === 'empleado'){
         /* Se reusa el recorte de S7 en vez de repetirlo. La copia que había acá elegía
            `registros[0].persona` —la primera fila que viniera—, mientras `demoPersonaEjemplo`
@@ -19102,8 +19103,9 @@ function portalVerDemo(btn){
   /* Z1: la clave viaja SIEMPRE que la persona haya escrito una. Quién decide si hace falta es el
      servidor — acá no hay ninguna comparación, y no puede haberla: este archivo es público. */
   const passEl = document.getElementById('pDemoPass');
-  const params = { action:'demo', dispositivoId: dispositivoId() };
+  const params = { action:'demo', dispositivoId: dispositivoId(), lang: idiomaActual() };   // P197
   if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
+  else if (DEMO_PAYLOAD && DEMO_PAYLOAD.params && DEMO_PAYLOAD.params.pass) params.pass = DEMO_PAYLOAD.params.pass;   // P197 · el payload guardado no sirvió por idioma: su clave sí (P171)
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('pg_demo_abriendo'));
   conBloqueo('#portalGate', dashRequest(params)
@@ -19116,7 +19118,7 @@ function portalVerDemo(btn){
         portalDemoPedirClave(d.motivo); return;
       }
       if (!d || !d.ok){ if (errEl) errEl.textContent = (d && d.error) ? tError(d.error) : t('pg_demo_no_abrio'); return; }
-      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };   // S7: para cambiar de vista sin red
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo', lang: params.lang };   // S7: para cambiar de vista sin red
       onDashData(d, 'Empresa Demo', params, PORTAL_VISTA);   // la demo respeta la pestaña elegida
     })
     .catch(() => { if (!cargaVigente(carga)) return; btnSpin(btn, false); if (errEl) errEl.textContent = t('sin_conexion') + '.'; }));
@@ -19138,8 +19140,9 @@ function portalVerDemoEmpleado(btn){
   const errEl = document.getElementById('portalDemoErr'); if (errEl) errEl.textContent = '';
   if (demoAplicarGuardado('empleado')) return;   // P171 · ídem `portalVerDemo`
   const passEl = document.getElementById('pDemoPass');
-  const params = { action:'demo', dispositivoId: dispositivoId() };
+  const params = { action:'demo', dispositivoId: dispositivoId(), lang: idiomaActual() };   // P197
   if (passEl && passEl.value.trim()) params.pass = passEl.value.trim();
+  else if (DEMO_PAYLOAD && DEMO_PAYLOAD.params && DEMO_PAYLOAD.params.pass) params.pass = DEMO_PAYLOAD.params.pass;   // P197 · el payload guardado no sirvió por idioma: su clave sí (P171)
   const carga = cargaIniciar({ btn: btn, gate: document.getElementById('portalGate') });
   btnSpin(btn, true, t('cargando'));
   conBloqueo('#portalGate', dashRequest(params)
@@ -19156,7 +19159,7 @@ function portalVerDemoEmpleado(btn){
       /* ⚠️ S7 · SE GUARDA EL PAYLOAD COMPLETO, NO EL RECORTADO. Guardar el recortado dejaría a la
          demostración encerrada en la vista personal: al pasar a supervisor se vería la empresa
          entera con los datos de una sola persona, y nadie entendería por qué. */
-      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo', lang: params.lang };
       /* Se recorta a esa persona y se entra como EMPLEADO: mismas pestañas y misma pantalla que
          ve un piloto de verdad, que es el punto de mostrarlo. */
       onDashData(demoRecortarAPersona(d, uno), uno, params, 'empleado');
@@ -19879,9 +19882,10 @@ function onDashData(d, scopeLabel, params, vista){
   nivelCacheClear();
   casosOdooArmar();                       // P13: abre la espera del puente a Odoo para ESTA carga
   if (DASH.demoMode){
+    DASH._demoLang = (d.lang === 'en') ? 'en' : 'es';   // P197 · lo que el servidor confirmó haber traducido
     demoSembrando(function(){ gestSembrarDemoAnotaciones(); bitacoraSembrarDemo(); });   // re-sella la vigencia cada vez que se entra a la demo
     dashSembrarComentariosDemo();
-    if (!DASH._niveles) DASH._niveles = DEMO_NIVELES;             // la demo muestra la función completa
+    if (!DASH._niveles) DASH._niveles = demoTraducirLista(DEMO_NIVELES.map(x => Object.assign({}, x)));   // la demo muestra la función completa (P197: copia traducida)
     if (vista === 'supervisor') DASH._reportes = dashReportesDemo();
     /* P075 · el servicio médico ve los identificados (los de causa personal): la demo también */
     if (vista === 'medico') DASH._reportes = dashReportesDemo().filter(r => r.identificado);
@@ -19895,6 +19899,9 @@ function onDashData(d, scopeLabel, params, vista){
     DASH.turnos = turnosDemo();
     DASH.duty = dutyDemo();
     DASH.ausencias = ausenciasDemo();
+    /* P197 · lo sembrado, en el idioma que el servidor confirmó (sin confirmación queda en español, como los registros) */
+    demoTraducirLista(DASH.operacional); demoTraducirLista(DASH.turnos); demoTraducirLista(DASH._reportes);
+    if (DASH.duty){ demoTraducirLista(DASH.duty.diario); demoTraducirLista(DASH.duty.personas); }
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -23836,6 +23843,43 @@ var DEMO_ACTIVOS = ['Nicolás Herrera', 'Ana Suárez', 'Martín Ibáñez'];
 // único caso donde el descuento de la cobertura se ve, que es la función que Y5 vino a mostrar.
 var DEMO_AUSENTE = 'Rocío Vega';
 
+/* P197 · LA DEMOSTRACIÓN EN INGLÉS. Los departamentos y cargos de la Empresa Demo son DATO que agrupa: los registros
+   los manda el servidor y lo que esta app siembra (ciclo, jornada, turnos, nómina, reportes, niveles) tiene que caer en
+   los MISMOS grupos. Por eso el servidor traduce su payload (`action=demo` con `lang`, tabla `DEMO_TRADUCCIONES` del
+   .gs) y acá se traduce lo sembrado con la misma tabla (`demoTablaEn`) — pero SÓLO si el servidor
+   confirmó que tradujo (`d.lang === 'en'`, guardado en `DASH._demoLang`): con un endpoint viejo todo queda en español y
+   nada se parte en dos. Un nombre sin entrada pasa tal cual. */
+/* La tabla, FUERA del diccionario a propósito: no es texto de interfaz sino el nombre de un dato de la empresa de
+   ejemplo (que es aérea: «Tripulación», «Piloto»), y el trinquete de R14 no admite términos de sector en el diccionario
+   común. Es la MISMA tabla que `DEMO_TRADUCCIONES.en` del .gs; la suite las compara par por par. */
+function demoTablaEn(){
+  return {
+    departamento: { 'administracion': 'Administration', 'administrativo': 'Administrative', 'mantenimiento': 'Maintenance', 'operaciones': 'Operations', 'tripulacion': 'Crew', 'direccion': 'Management', 'legal': 'Legal', 'medico': 'Medical', 'logistica': 'Logistics', 'seguridad': 'Safety', 'calidad': 'Quality', 'recursos humanos': 'Human Resources', 'sistemas': 'IT', 'comercial': 'Sales', 'finanzas': 'Finance', 'hseq': 'HSEQ', 'planta': 'Plant', 'campo': 'Field' },
+    cargo: { 'piloto': 'Pilot', 'copiloto': 'Co-pilot', 'tecnico': 'Technician', 'tecnica': 'Technician', 'analista': 'Analyst', 'despachante': 'Dispatcher', 'enfermera': 'Nurse', 'enfermero': 'Nurse', 'supervisor': 'Supervisor', 'supervisora': 'Supervisor', 'director': 'Director', 'directora': 'Director', 'abogado': 'Lawyer', 'abogada': 'Lawyer', 'medico': 'Physician', 'medica': 'Physician', 'mecanico': 'Mechanic', 'paramedico': 'Paramedic', 'paramedica': 'Paramedic', 'gerente': 'Manager', 'coordinador': 'Coordinator', 'coordinadora': 'Coordinator', 'operador': 'Operator', 'operadora': 'Operator', 'asistente': 'Assistant', 'conductor': 'Driver', 'inspector': 'Inspector' }
+  };
+}
+function demoTraducido(campo, v){
+  if (!v || !(DASH && DASH._demoLang === 'en')) return v;
+  const tabla = demoTablaEn()[campo], k = dashNorm(v);
+  return Object.prototype.hasOwnProperty.call(tabla, k) ? tabla[k] : v;
+}
+function demoDep(v){ return demoTraducido('departamento', v); }
+function demoCargo(v){ return demoTraducido('cargo', v); }
+/* El filtro de departamento al idioma de la demo VIGENTE: hacia inglés por la tabla; hacia español, con el nombre tal
+   como viene en los registros nuevos (la tabla guarda claves normalizadas, no la forma con tilde). */
+function demoFiltroDep(v){
+  if (!v || !DASH) return v;
+  if (DASH._demoLang === 'en') return demoDep(v);
+  const tabla = demoTablaEn().departamento;
+  const k = Object.keys(tabla).find(x => tabla[x] === v);
+  if (!k) return v;
+  const reg = (DASH.registros || []).find(r => r && dashNorm(r.departamento) === k);
+  return reg ? reg.departamento : v;
+}
+function demoTraducirLista(lista){
+  (lista || []).forEach(r => { if (!r) return; if (r.departamento) r.departamento = demoDep(r.departamento); if (r.cargo) r.cargo = demoCargo(r.cargo); });
+  return lista;
+}
 function demoDepDe(nombre){
   for (var i = 0; i < DEMO_GENTE.length; i++) if (DEMO_GENTE[i][0] === nombre) return DEMO_GENTE[i][2];
   return '';
@@ -23937,12 +23981,12 @@ function nominaDemo(){
     persona: q[0], cedula: q[1], empresa: P, departamento: q[2], cargo: q[3],
     registrado: true, desde: fechaMasDias(hoy, -(60 - i))
   }));
-  return alta.concat([
+  return demoTraducirLista(alta.concat([   // P197 · en el idioma que el servidor confirmó
     { persona:'Mariana Cárdenas', cedula:'V-9020', empresa:P, departamento:'Operaciones',
       cargo:'Despachante', registrado:false, desde:'' },
     { persona:'Esteban Rivas',    cedula:'V-9021', empresa:P, departamento:'Mantenimiento',
       cargo:'Técnico',     registrado:false, desde:'' }
-  ]);
+  ]));
 }
 
 /* Una ausencia, para que se vea la función y el aviso de "no se cuentan en la cobertura".
@@ -28494,7 +28538,7 @@ function bitacoraSembrarDemo(){
   s.items = s.items.filter(e => String(e.id||'').indexOf('bdemo') !== 0);
 
   const gente = (typeof DEMO_GENTE !== 'undefined' && DEMO_GENTE.length)
-    ? DEMO_GENTE.map(g => g.nombre)
+    ? DEMO_GENTE.map(g => g[0])   // P197 · eran arrays: `g.nombre` daba undefined y las 26 entradas quedaban «del sistema» (lo cazó el verificador)
     : Array.from(new Set((DASH.registros||[]).map(r => r.persona).filter(Boolean)));
   if (!gente.length) return;
   const quien = i => gente[i % gente.length];
@@ -28624,7 +28668,7 @@ function gestSembrarDemo(){
   const depDe = n => (DASH.registros.find(r => r.persona === n) || {}).departamento || '';
   const ahora = Date.now(), dia = 86400000;
   const items = [
-    { titulo:'Fatiga elevada — turno noche', personas:[p(0)], departamento: depDe(p(0)) || 'Operaciones',
+    { titulo:'Fatiga elevada — turno noche', personas:[p(0)], departamento: depDe(p(0)) || demoDep('Operaciones'),
       estado:'seguimiento', prioridad:'alta', pin:true, creada: ahora - 6*dia,
       /* R14 · estos dos decían "el piloto". Van por t() y en neutro: el cuaderno de ejemplo lo
          ve cualquier sector. ⚠️ El RESTO de los textos de esta siembra sigue escrito a mano en
@@ -28636,18 +28680,18 @@ function gestSembrarDemo(){
       tareas: [ {t:t('demo_gest_t1'), ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
       seguimientos: [ {ts: ahora - dia, texto:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.'},
                        {ts: ahora - 5*dia, texto:'Primer contacto: refiere dificultad para dormir de día.'} ] },
-    { titulo:'Ansiedad — evaluación pendiente', personas:[p(1)], departamento: depDe(p(1)) || 'Administración',
+    { titulo:'Ansiedad — evaluación pendiente', personas:[p(1)], departamento: depDe(p(1)) || demoDep('Administración'),
       estado:'abierta', prioridad:'media', pin:false, creada: ahora - 3*dia,
       detalle:'Test de ansiedad (BAI) sobre el límite. Todavía no se agendó la evaluación con salud ocupacional.',
       revisa: (new Date(ahora - dia)).toISOString().slice(0,10),   // vencida a propósito, para mostrar esa insignia
       tareas: [ {t:'Agendar evaluación con salud ocupacional', ok:false} ], seguimientos: [] },
-    { titulo:'Estrés alto — resuelto con cambio de turno', personas:[p(2)], departamento: depDe(p(2)) || 'Tripulación',
+    { titulo:'Estrés alto — resuelto con cambio de turno', personas:[p(2)], departamento: depDe(p(2)) || demoDep('Tripulación'),
       estado:'resuelta', prioridad:'baja', pin:false, creada: ahora - 20*dia,
       detalle:'Estrés por encima de referencia durante 3 semanas seguidas. Se resolvió tras reasignar a un horario diurno.',
       revisa:'', tareas: [ {t:'Reasignar horario', ok:true}, {t:'Repetir test a las 2 semanas', ok:true} ],
       seguimientos: [ {ts: ahora - 6*dia, texto:'Repetido el test de estrés: valores ya dentro de lo normal.'},
                        {ts: ahora - 18*dia, texto:'Se reasignó a horario diurno desde el lunes.'} ] },
-    { titulo:'Somnolencia — seguimiento mensual', personas:[p(3), p(4)], departamento: depDe(p(3)) || 'Mantenimiento',
+    { titulo:'Somnolencia — seguimiento mensual', personas:[p(3), p(4)], departamento: depDe(p(3)) || demoDep('Mantenimiento'),
       estado:'seguimiento', prioridad:'media', pin:false, creada: ahora - 10*dia,
       detalle:'KSS elevado en ambos durante el cierre de mes. Se están monitoreando junto con el resto del equipo.',
       revisa: (new Date(ahora + 5*dia)).toISOString().slice(0,10),
@@ -31039,7 +31083,7 @@ function demoClaveEnviar(btn){
   const pass = (document.getElementById('dcPass').value || '').trim();
   if (!pass){ if (err) err.textContent = t('pg_demo_pass_pide'); return; }
   if (!offHayConexion()){ if (err) err.textContent = t('sin_conexion') + '.'; return; }
-  const params = { action:'demo', dispositivoId: dispositivoId(), pass: pass };
+  const params = { action:'demo', dispositivoId: dispositivoId(), pass: pass, lang: idiomaActual() };   // P197
   btnSpin(btn, true, t('pg_demo_abriendo'));
   conBloqueo('#demoClaveOv .sheet', dashRequest(params)
     .then(d => {
@@ -31049,7 +31093,7 @@ function demoClaveEnviar(btn){
         return;
       }
       if (!d || !d.ok){ if (err) err.textContent = tError(d && d.error) || t('pg_demo_error'); return; }
-      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo' };
+      DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo', lang: params.lang };
       demoClaveCerrar();
       demoAbrirGate();
     })
@@ -31059,6 +31103,7 @@ function demoClaveEnviar(btn){
 function demoAplicarGuardado(vista){
   const g = DEMO_PAYLOAD;
   if (!g || !g.d) return false;
+  if ((g.lang || 'es') !== idiomaActual()) return false;   // P197 · vino en otro idioma: se pide de nuevo
   if (vista === 'empleado'){
     const uno = demoPersonaEjemplo(g.d);
     if (!uno) return false;
@@ -31067,6 +31112,56 @@ function demoAplicarGuardado(vista){
     onDashData(g.d, g.scope, g.params, vista);
   }
   return true;
+}
+/* P197 · cambiar de idioma con la demostración abierta: se vuelve a pedir en el idioma nuevo (los departamentos vienen
+   traducidos del servidor), se purga lo sembrado en local (gestiones `gdemo*`, anotaciones `ademo_*`, bitácora `bdemo*`:
+   llevan el departamento del idioma viejo) y se vuelve a entrar con la misma vista. Sin red no pasa nada: la demo
+   queda como estaba, en el idioma anterior, sin partir ningún grupo. Devuelve la promesa para medirla. */
+function demoSembradoPurgar(){
+  /* en TODAS las particiones de la demo (la de «Empresa Demo» y la de la persona de ejemplo en la vista personal): lo
+     sembrado lleva el departamento del idioma viejo y se vuelve a sembrar al abrir el cuaderno */
+  demoSembrando(function(){
+    try {
+      const all = gestStoreAll(); let toco = false;
+      Object.keys(all).forEach(k => { const s = all[k]; if (!s || !Array.isArray(s.items)) return; const v = s.items.filter(g => !/^(gdemo|ademo_)/.test(String((g && g.id) || ''))); if (v.length !== s.items.length){ s.items = v; toco = true; } });
+      if (toco){ gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); telemCacheClear(); }
+    } catch(e){}
+    try {
+      const all = bitStoreAll(); let toco = false;
+      Object.keys(all).forEach(k => { const s = all[k]; if (!s || !Array.isArray(s.items)) return; const v = s.items.filter(e => String((e && e.id) || '').indexOf('bdemo') !== 0); if (v.length !== s.items.length){ s.items = v; toco = true; } });
+      if (toco) bitSaveStoreAll(all);
+    } catch(e){}
+  });
+}
+var _demoPedidoN;   // R16 · número del último pedido de idioma: una respuesta vieja que llega después se descarta
+function demoIdiomaCambio(){
+  if (!DASH || !DASH.demoMode || !DEMO_PAYLOAD || !DEMO_PAYLOAD.params) return Promise.resolve(false);
+  if ((DEMO_PAYLOAD.lang || 'es') === idiomaActual()) return Promise.resolve(false);
+  const params = Object.assign({}, DEMO_PAYLOAD.params, { lang: idiomaActual() });
+  const vista = DASH.vista, per = (DASH.f && DASH.f.per) || '', tab = DASH.tab, filtros = Object.assign({}, DASH.f || {});
+  const n = (_demoPedidoN = (_demoPedidoN || 0) + 1);
+  try { dashMostrarEsqueleto(); } catch(e){}   // mientras viaja, el esqueleto del panel (m1: feedback visible)
+  return conBloqueo('#portalDash', dashRequest(params).then(d => {
+    if (n !== _demoPedidoN) return false;                       // llegó otra después: ésta ya no vale (verificador: es→en→es)
+    if (!d || !d.ok || !DASH || !DASH.demoMode){ try { renderDash(); } catch(e){} return false; }
+    /* se guarda el idioma que VIAJÓ (params.lang), no el de la app al llegar: si en el medio cambió otra vez, la guarda
+       de arriba lo ve distinto y vuelve a pedir */
+    DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo', lang: params.lang };
+    demoSembradoPurgar();
+    if (vista === 'empleado'){ const uno = per || demoPersonaEjemplo(d); if (!uno) return false; onDashData(demoRecortarAPersona(d, uno), uno, params, 'empleado'); }
+    else onDashData(d, 'Empresa Demo', params, vista);
+    /* la pestaña y los filtros sobreviven al reingreso (el de departamento, traducido: el nombre cambió de idioma) */
+    try {
+      if (DASH && DASH.demoMode){
+        if (tab) DASH.tab = tab;
+        if (filtros.dep) DASH.f.dep = demoFiltroDep(filtros.dep);
+        if (filtros.per) DASH.f.per = filtros.per;
+        renderDash();
+      }
+    } catch(e){}
+    if (idiomaActual() !== params.lang) demoIdiomaCambio();   // cambió de nuevo mientras viajaba: se pide la última
+    return true;
+  }).catch(() => { try { renderDash(); } catch(e){} return false; }));
 }
 /* ⚠️ NO usa openPortalGate(): esa función oculta las pestañas de Supervisor/Servicio médico
    salvo que el PERFIL DE EMPLEADO ya tenga esPiloto/esSupervisor marcado — correcto para quien

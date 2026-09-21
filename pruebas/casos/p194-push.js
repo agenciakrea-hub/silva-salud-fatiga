@@ -144,7 +144,8 @@ PRUEBAS.caso('🔴 P194 · servidor · pushEnviar manda un POST vacío con TTL y
   PRUEBAS.igual([r.ok, r.actualizado, respuestas.length], [true, true, 1], 'editarla no vuelve a avisar');
   /* y el reloj que detiene ciclos también llama a pushEnviar (sobre la FUENTE: el camino entero tiene su caso en P186) */
   PRUEBAS.cierto(/bitacoraServidor\(ultimo\.empresa, "ciclo_detenido"[\s\S]{0,400}pushEnviar\(ultimo\.empresa, ultimo\.persona, "", "ciclo_detenido"\)/.test(CTX.gs), 'cicloDetenerVencidos llama a pushEnviar después de registrar el detenido');
-  PRUEBAS.cierto(/if \(accion === "suscripcion_guardar"\)|if \(accion === "avisos"\)/.test(CTX.gs) && /GS_VERSION = "2026-09-21\.1"/.test(CTX.gs), 'despacho de las acciones nuevas y GS_VERSION 2026-09-21.1');
+  const gsv = (/GS_VERSION = "([0-9.-]+)"/.exec(CTX.gs) || [])[1] || '';
+  PRUEBAS.cierto(/if \(accion === "suscripcion_guardar"\)/.test(CTX.gs) && /if \(accion === "avisos"\)/.test(CTX.gs) && gsv >= '2026-09-21.1', 'despacho de las acciones nuevas y GS_VERSION ≥ 2026-09-21.1 · ' + gsv);
 });
 
 /* ── el service worker en un `self` de mentira, con el IndexedDB REAL de este origen ── */

@@ -129,7 +129,8 @@ const P191_EXENTOS_DECL = {
   cicloDemo: 'demo', gestSembrarDemo: 'demo', gestSembrarDemoAnotaciones: 'demo', dashReportesDemo: 'demo', nominaDemo: 'demo',
   dashSembrarComentariosDemo: 'demo', dutyDemo: 'demo', turnosDemo: 'demo', EMPRESA_DEMO_NOMBRE: 'demo (centinela)',
   simEntrar: 'demo (Empresa Demo)', portalVerDemo: 'demo (Empresa Demo)', portalVerDemoEmpleado: 'demo (Empresa Demo)',
-  demoClaveEnviar: 'demo (Empresa Demo)', dashRequest: 'mock de la demo (Maria Gonzalez)',
+  demoClaveEnviar: 'demo (Empresa Demo)', demoIdiomaCambio: 'demo (Empresa Demo)', demoTablaEn: 'tabla de la demo en inglés (P197: dato, no interfaz; espejo de DEMO_TRADUCCIONES del .gs)',
+  dashRequest: 'mock de la demo (Maria Gonzalez)',
   dashScopeTodas: 'centinela del servidor y de gestKey(): es dato; lo visible sale de dashScopeVisible()'
 };
 const P191_EXENTOS_TEXTO = { 'Escudo 360 · Silva Salud': 'nombre de marca (alt del escudo)' };
