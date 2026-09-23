@@ -5306,8 +5306,13 @@
     letter-spacing: .03em; margin-bottom: .55rem; }
   .an-espejo-n { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .2rem; }
   /* Campo "quién lo determina" (opcional) */
+  /* ⚠️ `background` EXPLÍCITO, y no es decoración: sin él un campo hereda el blanco del navegador y
+     en tema oscuro queda tinta casi blanca sobre blanco. Medido: 1,18:1 en los tres, contra 13,94:1
+     de `.an-dur-unidad` y `.fm-nota`, que sí lo declaran — ése es el discriminador. Es el formulario
+     donde el médico escribe la vigencia, quién determina y la nota clínica: la firma que después
+     queda en la bitácora (R3), ilegible. Lo cazó la auditoría de cierre de tanda (P091). */
   .an-medico { width: 100%; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
-    font-family: inherit; font-size: .86rem; color: var(--text); box-sizing: border-box; }
+    font-family: inherit; font-size: .86rem; color: var(--text); background: var(--card); box-sizing: border-box; }
   .an-medico:focus { border-color: var(--orange); }
   .an-opt { font-size: .64rem; font-weight: 800; color: var(--text-muted); background: var(--sem-azul-bg);
     padding: .1rem .35rem; border-radius: 999px; margin-left: .3rem; text-transform: none; }
@@ -5367,12 +5372,12 @@
   /* Vigencia: número libre + selector de unidad, en vez de chips fijos */
   .an-dur-row { display: flex; gap: .5rem; }
   .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem; font-variant-numeric: tabular-nums;
-    font-family: inherit; font-size: .88rem; color: var(--text); box-sizing: border-box; }
+    font-family: inherit; font-size: .88rem; color: var(--text); background: var(--card); box-sizing: border-box; }
   .an-dur-unidad { flex: 1; min-width: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .86rem; font-weight: 700; color: var(--text); background: var(--card); box-sizing: border-box; }
   .an-dur-num:focus, .an-dur-unidad:focus { border-color: var(--orange); }
   .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .8rem;
-    font-family: inherit; font-size: .86rem; color: var(--text); resize: vertical; min-height: 70px; box-sizing: border-box; }
+    font-family: inherit; font-size: .86rem; color: var(--text); background: var(--card); resize: vertical; min-height: 70px; box-sizing: border-box; }
   .an-nota:focus { border-color: var(--orange); }
   .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
   .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
@@ -7468,7 +7473,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12407,6 +12412,15 @@ function zonaOpGuardar(z){
   if (!z || typeof z !== 'string') return;
   try { localStorage.setItem(K_ZONA_OP, z); } catch(e){}
 }
+/* ⚠️ Hace falta poder BORRARLA, y esto no es simetría por prolijidad. `zonaOpGuardar('')` no hace
+   nada —la guarda de arriba corta— así que un servidor que deja de declarar zona no puede deshacer
+   lo que declaró antes: la clave sobrevive a todo menos a cerrar sesión, y el piloto no cierra
+   sesión nunca. Medido: con `America/Argentina/Buenos_Aires` guardado, las 23:30 hora Caracas del 23
+   se leen como el 24. El arreglo del servidor (GS 2026-09-23.1, que pasó a devolver vacío sin
+   config) no llegaba a ningún teléfono ya usado. */
+function zonaOpBorrar(){
+  try { localStorage.removeItem(K_ZONA_OP); } catch(e){}
+}
 function zonaOperacion(){
   /* P090 · el panel primero: `DASH.zonaOp` lo pone `onDashData` con lo que manda el servidor. `cfg('zonaOp')` se
      conserva por si algún día la config de empresa la trae, pero hoy NUNCA resuelve (ver el comentario de onDashData). */
@@ -14198,10 +14212,21 @@ function cmesMatriz(ym){
 
 /* El caso a nivel DÍA, en ESTE orden exacto. Los ciclos GANAN sobre la ausencia: si alguien marcado
    ausente igual registró una jornada, se muestra lo que registró. */
+/* ⚠️ LA JORNADA REGISTRADA MANDA SOBRE LA COBERTURA, y el orden de estas dos líneas es el arreglo.
+   Estaban al revés: se preguntaba por la cobertura ANTES de mirar si el día tenía ciclos, así que un
+   día con su jornada armada salía «Sin datos cargados de este día» y su casilla quedaba `disabled`.
+   La etiqueta se contradecía sola —medido: «23 de septiembre de 2026. Sin datos cargados de este día.
+   Pendiente de enviar.»— y las 30 casillas del mes quedaban muertas.
+   Pasa en dos caminos reales: el piloto que registra sin señal o en el primer pintado de cada
+   arranque (`K_CICLO_SRV_PER` todavía no llegó, y `sesionClavesBorrar` la borra al salir), y el
+   médico con el período de 7 días, donde el servidor recorta por un instante en SU zona y el cliente
+   ubica la casilla en la de la operación: una jornada de noche llega entera y cae fuera del corte.
+   La cobertura existe para no afirmar de más sobre lo que no se pidió; usarla para negar un dato que
+   está en la mano es afirmar de menos, y eso también es R2. */
 function cmesCasoDia(f, info, ambito, persona, cob){
+  if (info && info.n) return info.caso;
   if (f > todayStr()) return 'futuro';
   if (!cob || f < cob.desde || f > cob.hasta) return 'fuera';
-  if (info && info.n) return info.caso;
   if (ambito === 'panel' && ausentePersonaEse(persona, f)) return 'franco';
   return 'sin_jornada';
 }
@@ -33027,7 +33052,12 @@ function tareasCargar(){
       if (d.cicloPlan) cicloPlanGuardar(d.cicloPlan);
       if (d.cicloPlanPropio) cicloPlanPropioGuardar(d.cicloPlanPropio);
       // L1: la zona de la operación. Se cachea para que el día siga bien definido sin conexión.
-      if (d.zonaOp) zonaOpGuardar(d.zonaOp);
+      /* ⚠️ `'zonaOp' in d` y no `d.zonaOp`: hay que distinguir «el servidor no mandó el campo» —un
+         endpoint viejo, y entonces no se toca nada— de «mandó vacío», que significa «esta empresa no
+         declara zona, usá la del dispositivo». Con la guarda por valor, el vacío no borraba y la zona
+         vieja quedaba clavada para siempre. `accionTareasMias` nombra la clave SIEMPRE en su rama
+         `ok:true`, así que el `in` distingue de verdad. */
+      if ('zonaOp' in d){ if (d.zonaOp) zonaOpGuardar(d.zonaOp); else zonaOpBorrar(); }
       /* La determinación médica vigente sobre ESTA persona. Viene por este canal porque es el
          único del endpoint que identifica a alguien sin contraseña (nombre + cédula contra la
          nómina), y el empleado no tiene credenciales. El servidor manda el HECHO y nunca la nota
