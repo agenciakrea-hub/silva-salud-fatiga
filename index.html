@@ -4958,6 +4958,10 @@
   .cic-chip-cerrado { color:var(--sem-gris-txt); background:var(--sem-gris-bg); }      /* P077 · cerrado por el supervisor */
   .cic-chip-sin_cierre { color:var(--sem-ambar-txt); background:var(--sem-ambar-bg); }  /* P077 · probablemente no marcó la salida */
   .cic-chip-inactivo { color:var(--text-muted);     background:var(--chip-bg); }
+  /* P090 · los dos casos que `cmesCaso` agrega sobre los estados de `cicloEstado`, con el mismo par
+     que su casilla en el calendario: si el chip y la celda no dicen lo mismo, una de las dos miente. */
+  .cic-chip-exceso   { color:var(--sem-rojo-txt);   background:var(--sem-rojo-bg); }
+  .cic-chip-parcial  { color:var(--sem-azul-int);   background:var(--sem-azul-int-bg); }
   .cic-sub { font-size:.75rem; color:var(--text-muted); font-weight:600; margin-top:.2rem; line-height:1.5; }
   .cic-reloj { font-weight:700; color:var(--text-soft); }
   .cic-reloj b { color:var(--orange-legible); font-variant-numeric:tabular-nums; }
@@ -5045,6 +5049,119 @@
   .cic-mio-off { opacity: .62; }
   .cic-mio-nota { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .5rem; }
   /* P167 · el historial de mis ciclos. Sobrio, plegado; ni un color a mano (R13). */
+  /* ── P090 · CALENDARIO DE JORNADAS ──────────────────────────────────────────────────────────
+     Los pares color/fondo salen medidos, no elegidos: los cinco casos con fondo propio y los
+     neutros dan todos ≥ 4.5:1 en LOS DOS temas (el más ajustado es `sin_cierre` en claro, 5.08).
+     Ninguna celda usa `linear-gradient`: el auditor de contraste (`pruebas/cliente-contraste.js`)
+     devuelve null ante cualquier `background-image` y la celda quedaría sin medir — o sea sin
+     control, que es peor que un color feo. Nada de color escrito a mano (R13). */
+  .cmes { margin-top: .9rem; border: 1px solid var(--linea); border-radius: 14px; padding: .2rem .9rem .9rem; background: var(--card); }
+  /* En un teléfono chico el bloque cede su margen lateral antes que la casilla: son 28 px que van a
+     parar a las columnas, y con eso el desplazamiento de arriba deja de hacer falta en el inicio. */
+  @media (max-width: 380px){ .cmes { padding-left: .35rem; padding-right: .35rem; } }
+  .cmes-cab { padding-top: .7rem; }
+  .cmes-t { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
+  .cmes-lead { margin-top: .2rem; font-size: .82rem; line-height: 1.45; color: var(--text-muted); }
+  .cmes-nav { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: .7rem 0 .5rem; }
+  .cmes-mes { flex: 1; text-align: center; font-weight: 700; font-size: .95rem; color: var(--text); }
+  .cmes-flecha { width: 44px; height: 44px; flex: 0 0 44px; border: 1px solid var(--linea); border-radius: 12px;
+    background: var(--card); color: var(--text); font-size: 1.3rem; line-height: 1; cursor: pointer; }
+  .cmes-flecha:disabled { opacity: .45; cursor: default; }
+  .cmes-res { font-size: .86rem; line-height: 1.5; color: var(--text); }
+  /* Las fichas de lo que pide una mirada: ancho completo y 44 px de alto, el objetivo táctil
+     garantizado a CUALQUIER ancho — a diferencia de las casillas de la grilla, que a 320 px no
+     pueden pasar de ~40 px sin partir la semana en dos filas. R6: esto va ANTES del mes. */
+  .cmes-fichas { display: flex; flex-direction: column; gap: .35rem; margin-top: .55rem; }
+  .cmes-ficha { display: flex; align-items: center; gap: .55rem; width: 100%; min-height: 44px; padding: .35rem .6rem;
+    border: 1px solid var(--linea); border-radius: 12px; background: var(--card); cursor: pointer; text-align: left; }
+  .cmes-ficha-d { flex: 0 0 auto; min-width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-weight: 700; font-size: .8rem; }
+  .cmes-ficha-t { font-size: .84rem; color: var(--text); }
+  /* ⚠️ UN SOLO contenedor desplaza, y las dos rejillas van adentro. Con `overflow-x` en cada una se
+     movían por separado y los rótulos de los días quedaban arriba de la columna equivocada — que es
+     peor que el desborde que se quería arreglar. */
+  .cmes-scroll { overflow-x: auto; }
+  .cmes-dias { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 3px; margin-top: .8rem; }
+  .cmes-dias span { text-align: center; font-size: .68rem; font-weight: 700; letter-spacing: .02em; color: var(--text-muted); }
+  /* ⚠️ La grilla desplaza DENTRO DE SÍ MISMA cuando siete columnas no entran, y la página no se
+     mueve. Pasa de verdad: en la ficha del médico a 320 px con la letra al 135 % quedan 150 px útiles
+     —el panel gasta 67 en sus propios márgenes— y siete casillas de 44 más sus separaciones son 326.
+     El piso es 44 y no 24 porque este proyecto ya tiene una regla propia, más exigente que WCAG 2.2:
+     todo botón mide 44×44, «con guantes y de noche». Antes que achicar el objetivo táctil se
+     desplaza, que es lo que ya hace la tabla de Jornada. A 375 px entra sin desplazar. */
+  .cmes-grid { display: flex; flex-direction: column; gap: 3px; margin-top: .25rem; }
+  .cmes-fila { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 3px; }
+  .cmes-cel { display: block; }
+  .cmes-rel { min-height: 44px; }
+  .cmes-d { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    min-width: 44px;
+    /* ⚠️ SIN `aspect-ratio`, y medido: con proporción fija el mínimo de 44 px de alto le impone 44 px
+       de ancho, y siete columnas de 44 con sus separaciones son 326 px — la grilla se salía a 320 y a
+       375. El ancho lo manda la columna (`1fr`) y el alto tiene piso propio: a 320 px la casilla queda
+       de 41×44, tocable, y la semana entra entera. */
+    width: 100%; min-height: 44px; padding: 0; border: 1px solid transparent; border-radius: 10px;
+    background: var(--chip-bg); color: var(--text-soft); font: inherit; cursor: pointer; }
+  .cmes-d:disabled { background: transparent; color: var(--text-muted); cursor: default; }
+  .cmes-n { font-size: .8rem; font-weight: 600; line-height: 1; }
+  .cmes-p { font-size: .62rem; font-weight: 700; line-height: 1; }
+  .cmes-p2 { font-size: .58rem; }
+  /* Marca de dos jornadas en un día: la celda es una sola (decisión de Franco) y el «2» dice que
+     hay más de una; las dos quedan alcanzables abriendo el detalle. */
+  .cmes-c-completo    { background: var(--sem-verde-bg);    color: var(--sem-verde-txt); }
+  .cmes-c-exceso,
+  .cmes-c-excedido    { background: var(--sem-rojo-bg);     color: var(--sem-rojo-txt); }
+  .cmes-c-sin_cierre  { background: var(--sem-ambar-bg);    color: var(--sem-ambar-txt); }
+  .cmes-c-detenido    { background: var(--sem-morado-bg);   color: var(--sem-morado); }
+  .cmes-c-parcial     { background: var(--sem-azul-int-bg); color: var(--sem-azul-int); }
+  /* ⚠️ Estos tres estaban SIN regla y caían en el gris de `.cmes-d`: «cerrada por el supervisor»,
+     «en curso» y «en descanso» se veían idénticos a «sin jornada registrada» — cuatro hechos
+     distintos con el mismo dibujo. Lo cazó el caso de tokens. `--orange-legible` y no `--orange-txt`:
+     medido, el segundo da 2.91:1 sobre `--orange-bg` en el tema oscuro. */
+  .cmes-c-cerrado     { background: var(--sem-gris-bg);     color: var(--sem-gris-txt); }
+  .cmes-c-curso       { background: var(--orange-bg);       color: var(--orange-legible); }
+  .cmes-c-descanso    { background: var(--sem-violeta-bg);  color: var(--sem-violeta); }
+  .cmes-c-franco,
+  .cmes-c-sin_jornada { background: var(--chip-bg);         color: var(--text-soft); }
+  .cmes-c-futuro,
+  .cmes-c-fuera       { background: transparent;            color: var(--text-muted); }
+  /* Hoy y la selección se distinguen por FORMA, no sólo por color: quien no separa tonos igual ve
+     el anillo y el relleno invertido. */
+  .cmes-d.cmes-hoy { border-color: var(--text); }
+  .cmes-d.cmes-sel { outline: 2px solid var(--sem-azul-int); outline-offset: 1px; }
+  .cmes-d.cmes-arr::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: 2px; height: 2px;
+    border-radius: 2px; background: currentColor; opacity: .55; }
+  /* Pendiente de envío: punto arriba a la derecha. Usa `::before` porque `::after` ya es del
+     arrastre y las dos marcas pueden caer en el mismo día. */
+  .cmes-d.cmes-pend::before { content: ''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px;
+    border-radius: 50%; background: currentColor; }
+  .cmes-d:focus-visible { outline: 2px solid var(--sem-azul-int); outline-offset: 2px; }
+  .cmes-det { margin-top: .7rem; border: 1px solid var(--linea); border-radius: 12px; padding: .6rem .7rem; background: var(--sobre-card); }
+  .cmes-det-top { display: flex; align-items: center; gap: .5rem; }
+  .cmes-det-t { flex: 1; margin: 0; font-size: .92rem; font-weight: 700; color: var(--text); }
+  .cmes-det-t:focus-visible { outline: 2px solid var(--sem-azul-int); outline-offset: 2px; }
+  .cmes-det-x { width: 34px; height: 34px; flex: 0 0 34px; border: 1px solid var(--linea); border-radius: 10px;
+    background: var(--card); color: var(--text); cursor: pointer; }
+  .cmes-det-ciclo { margin-top: .55rem; }
+  .cmes-det-nota { margin-top: .4rem; font-size: .8rem; line-height: 1.5; color: var(--text-muted); }
+  .cmes-det-sueltos { margin-top: .6rem; border-top: 1px solid var(--linea-2); padding-top: .5rem; font-size: .82rem; color: var(--text); }
+  .cmes-det-lista { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .35rem; }
+  .cmes-suelto { display: inline-block; padding: .15rem .45rem; border-radius: 8px; background: var(--chip-bg);
+    font-size: .74rem; color: var(--text-soft); }
+  .cmes-pie { margin-top: .7rem; font-size: .76rem; line-height: 1.55; color: var(--text-muted); }
+  .cmes-traer { border: 1px solid var(--linea); border-radius: var(--radius-xs); padding: .2rem .5rem; background: var(--card);
+    color: var(--text); font-size: .74rem; cursor: pointer; }
+  .cmes-leyenda { display: flex; flex-wrap: wrap; gap: .3rem .7rem; margin-top: .7rem; font-size: .72rem; color: var(--text-muted); }
+  .cmes-ley { display: inline-flex; align-items: center; gap: .3rem; }
+  .cmes-ley-c { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 5px; font-size: .55rem; font-weight: 700; font-style: normal; }
+  @media (min-width: 720px){
+    .cmes-fichas { flex-direction: row; flex-wrap: wrap; }
+    .cmes-ficha { width: auto; flex: 1 1 200px; }
+    .cmes-d, .cmes-rel { min-height: 64px; }
+    .cmes-n { font-size: .9rem; }
+    .cmes-p { font-size: .68rem; }
+  }
+  @media print { .cmes-nav, .cmes-det-x, .cmes-traer { display: none; } }
   .cic-hist { margin-top: .9rem; border: 1px solid var(--linea); border-radius: 14px; padding: .2rem .9rem .8rem; background: var(--card); }
   .cic-hist-sum { cursor: pointer; font-weight: 800; font-size: .88rem; color: var(--text); padding: .7rem 0; list-style: none;
                   min-height: 44px; display: flex; align-items: center; }   /* P174 · medía 40,4 px */
@@ -7351,7 +7468,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.72';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.73';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7740,6 +7857,61 @@ const I18N = {
       op_salir_sitio_d:'Test Perelli · luego a WhatsApp',
       // ── Meses (arreglo, ver mesesAbr) ──
       meses_abr:'Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic',
+      /* ── P090 · Calendario de jornadas ──────────────────────────────────────────────────────
+         `meses` y `dias_abr` son listas separadas por espacios que lee `tLista`: el orden de las
+         partes de una fecha lo decide el idioma (`cmes_mes_anio`, `cmes_fecha_larga`), no el código. */
+      meses:'Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre Octubre Noviembre Diciembre',
+      meses_min:'enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre',
+      cmes_mes_anio:'{m} de {a}',
+      cmes_fecha_larga:'{d} de {m} de {a}',
+      cmes_titulo:'Calendario de jornadas',
+      cmes_lead_mio:'Un día por casilla, con lo que quedó registrado de tu jornada.',
+      cmes_lead_medico:'Un día por casilla, con lo que quedó registrado de sus jornadas.',
+      hlp_cmes_mio:'Cada casilla es un día. El color sale de lo que tú registraste con los botones, no del uso de la aplicación. Una jornada que empieza de noche y termina al día siguiente se cuenta en el día en que empezó; el detalle muestra las horas completas. Esta pantalla no sabe qué días te correspondía descansar, así que una casilla vacía sólo dice que no hay jornada registrada.',
+      hlp_cmes_medico:'Cada casilla es un día y el color resume la jornada de esa persona. Se colorea sólo lo que quedó registrado: una casilla vacía no afirma que la persona no haya trabajado. Los días marcados como ausencia aprobada se muestran aparte. Una jornada que cruza la medianoche se cuenta en el día en que empezó.',
+      cmes_mes_ant:'Mes anterior: {m}', cmes_mes_sig:'Mes siguiente: {m}',
+      cmes_tope:'No hay datos cargados antes del {f}.',
+      cmes_traer:'Traer todo el historial',
+      cmes_ampliar_medico:'Para ver meses anteriores, amplía el período en la pestaña Jornada.',
+      cmes_res_dias:'{mes}: {n} días con jornada registrada.',
+      cmes_res_dias_1:'{mes}: 1 día con jornada registrada.',
+      cmes_res_mirada:'{n} necesitan una mirada.', cmes_res_mirada_1:'1 necesita una mirada.',
+      cmes_res_sin_mirada:'Ninguno necesita una mirada.',
+      cmes_res_vacio:'{mes}: sin jornadas registradas.',
+      cmes_res_vacio_parcial:'{mes}: sin jornadas registradas en los días cargados. De este mes faltan {n} días por cargar.',
+      cmes_res_sin_datos:'{mes}: no hay datos cargados de este mes.',
+      cmes_e_completo:'Jornada completa',
+      cmes_e_exceso:'Completa, con tiempo de más',
+      cmes_e_excedido:'Por encima de lo previsto',
+      cmes_e_sin_cierre:'Sin marcar la salida',
+      cmes_e_detenido:'Detenida a las {h} horas',
+      cmes_e_cerrado:'Cerrada por el supervisor',
+      cmes_e_curso:'En curso', cmes_e_descanso:'En descanso',
+      cmes_e_parcial:'Registró sin marcar la salida de casa',
+      cmes_e_sin_jornada:'Sin jornada registrada',
+      cmes_e_franco:'No le correspondía trabajar',
+      cmes_e_fuera:'Sin datos cargados de este día',
+      cmes_e_futuro:'Día que todavía no llegó',
+      cmes_n_jornadas:'{n} jornadas', cmes_hoy:'hoy',
+      cmes_det_dos:'Este día tiene {n} jornadas registradas.',
+      cmes_det_cerrar:'Cerrar el detalle del día',
+      cmes_det_sueltos:'{n} registros de este día no quedaron dentro de ninguna jornada.',
+      cmes_det_sueltos_1:'1 registro de este día no quedó dentro de ninguna jornada.',
+      cmes_det_por_que:'Cuando hay dos jornadas seguidas sin volver a casa, esta pantalla las junta en una sola. El servidor las guarda por separado.',
+      cmes_det_arrastre:'Una jornada del día anterior llegó hasta las {h}.',
+      cmes_det_plan_vigente:'Esta jornada se mide contra la jornada vigente: no quedó guardada la que regía ese día.',
+      cmes_cobertura:'Hay datos cargados desde el {f}.',
+      cmes_cobertura_no:'No se sabe desde qué día hay datos cargados.',
+      cmes_sin_ausencias:'No hay ausencias cargadas: un día sin jornada puede ser un descanso.',
+      cmes_ilegibles:'{n} registros con fecha ilegible: no se pueden ubicar en un día.',
+      cmes_ilegibles_1:'1 registro con fecha ilegible: no se puede ubicar en un día.',
+      cmes_pendiente:'Pendiente de enviar',
+      cmes_fuente_mio:'Sale de tus registros de jornada, no del uso de la aplicación.',
+      cmes_leyenda:'Leyenda',
+      /* Las marcas son de UNA letra y se leen sobre el color, no en vez de él: quien no separa
+         tonos igual distingue las casillas. No son emojis: no tienen tamaño ni color propio. */
+      cmes_m_exceso:'+', cmes_m_abierto:'○', cmes_m_detenido:'■', cmes_m_parcial:'·', cmes_m_franco:'–',
+      cmes_m_cerrado:'✕', cmes_m_curso:'▸', cmes_m_descanso:'~',
       dias_abr:'Dom Lun Mar Mié Jue Vie Sáb',
       // ── Inicio, navegación y ajustes ──
       hola:'¡Hola,', editar_datos:'Editar mis datos', documento:'Documento', hecho:'Hecho',
@@ -9700,6 +9872,57 @@ const I18N = {
       op_lleg_sitio_d:'KSS test · then to WhatsApp',
       op_salir_sitio_d:'Perelli test · then to WhatsApp',
       meses_abr:'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
+      /* ── P090 · Duty calendar ───────────────────────────────────────────────────────────── */
+      meses:'January February March April May June July August September October November December',
+      meses_min:'January February March April May June July August September October November December',
+      cmes_mes_anio:'{m} {a}',
+      cmes_fecha_larga:'{m} {d}, {a}',
+      cmes_titulo:'Duty calendar',
+      cmes_lead_mio:'One box per day, showing what was recorded of your duty.',
+      cmes_lead_medico:'One box per day, showing what was recorded of their duty.',
+      hlp_cmes_mio:'Each box is one day. The colour comes from what you recorded with the buttons, not from app usage. A duty that starts at night and ends the next day counts on the day it started; the detail shows the full times. This screen does not know which days you were off, so an empty box only means no duty was recorded.',
+      hlp_cmes_medico:'Each box is one day and the colour summarises that person\'s duty. Only what was recorded is coloured: an empty box does not claim the person did not work. Days marked as approved absence are shown separately. A duty crossing midnight counts on the day it started.',
+      cmes_mes_ant:'Previous month: {m}', cmes_mes_sig:'Next month: {m}',
+      cmes_tope:'No data loaded before {f}.',
+      cmes_traer:'Load the full history',
+      cmes_ampliar_medico:'To see earlier months, widen the period on the Duty tab.',
+      cmes_res_dias:'{mes}: {n} days with recorded duty.',
+      cmes_res_dias_1:'{mes}: 1 day with recorded duty.',
+      cmes_res_mirada:'{n} need a look.', cmes_res_mirada_1:'1 needs a look.',
+      cmes_res_sin_mirada:'None need a look.',
+      cmes_res_vacio:'{mes}: no recorded duty.',
+      cmes_res_vacio_parcial:'{mes}: no recorded duty in the days loaded. {n} days of this month are not loaded.',
+      cmes_res_sin_datos:'{mes}: no data loaded for this month.',
+      cmes_e_completo:'Duty complete',
+      cmes_e_exceso:'Complete, with time over',
+      cmes_e_excedido:'Over the planned time',
+      cmes_e_sin_cierre:'Exit not marked',
+      cmes_e_detenido:'Stopped after {h} hours',
+      cmes_e_cerrado:'Closed by the supervisor',
+      cmes_e_curso:'In progress', cmes_e_descanso:'Resting',
+      cmes_e_parcial:'Recorded without marking leaving home',
+      cmes_e_sin_jornada:'No duty recorded',
+      cmes_e_franco:'Not scheduled to work',
+      cmes_e_fuera:'No data loaded for this day',
+      cmes_e_futuro:'Day not yet reached',
+      cmes_n_jornadas:'{n} duties', cmes_hoy:'today',
+      cmes_det_dos:'This day has {n} recorded duties.',
+      cmes_det_cerrar:'Close day detail',
+      cmes_det_sueltos:'{n} records from this day did not fit into any duty.',
+      cmes_det_sueltos_1:'1 record from this day did not fit into any duty.',
+      cmes_det_por_que:'When two duties follow each other without going home, this screen merges them into one. The server stores them separately.',
+      cmes_det_arrastre:'A duty from the previous day ran until {h}.',
+      cmes_det_plan_vigente:'This duty is measured against the current schedule: the one in force that day was not saved.',
+      cmes_cobertura:'Data loaded since {f}.',
+      cmes_cobertura_no:'It is not known from which day data is loaded.',
+      cmes_sin_ausencias:'No absences loaded: a day without duty may be a rest day.',
+      cmes_ilegibles:'{n} records with an unreadable date: they cannot be placed on a day.',
+      cmes_ilegibles_1:'1 record with an unreadable date: it cannot be placed on a day.',
+      cmes_pendiente:'Pending upload',
+      cmes_fuente_mio:'Comes from your duty records, not from app usage.',
+      cmes_leyenda:'Key',
+      cmes_m_exceso:'+', cmes_m_abierto:'○', cmes_m_detenido:'■', cmes_m_parcial:'·', cmes_m_franco:'–',
+      cmes_m_cerrado:'✕', cmes_m_curso:'▸', cmes_m_descanso:'~',
       dias_abr:'Sun Mon Tue Wed Thu Fri Sat',
       // ── Home, navigation and settings ──
       hola:'Hello,', editar_datos:'Edit my details', documento:'ID', hecho:'Done',
@@ -12185,6 +12408,9 @@ function zonaOpGuardar(z){
   try { localStorage.setItem(K_ZONA_OP, z); } catch(e){}
 }
 function zonaOperacion(){
+  /* P090 · el panel primero: `DASH.zonaOp` lo pone `onDashData` con lo que manda el servidor. `cfg('zonaOp')` se
+     conserva por si algún día la config de empresa la trae, pero hoy NUNCA resuelve (ver el comentario de onDashData). */
+  try { if (typeof DASH !== 'undefined' && DASH && typeof DASH.zonaOp === 'string' && DASH.zonaOp) return DASH.zonaOp; } catch(e){}
   const deDash = cfg('zonaOp');
   if (deDash && typeof deDash === 'string') return deDash;
   try { const g = localStorage.getItem(K_ZONA_OP); if (g) return g; } catch(e){}
@@ -12866,6 +13092,11 @@ const K_CICLO_MIO = 'silva_fatiga_ciclo_mio_v1';
    Con dos claves cada una hace lo suyo: lo local se poda, lo del servidor se reemplaza entero en
    cada sincronización, y `cicloMioAll()` las une. */
 const K_CICLO_SRV = 'silva_fatiga_ciclo_srv_v1';
+/* P090 · QUÉ DÍAS PIDIÓ ESTE TELÉFONO, que es distinto de qué días tienen jornada. Sin esto el
+   calendario del piloto no puede separar «no trabajaste ese día» de «no pedí ese día», y las dos se
+   verían como una casilla vacía. El servidor ya lo manda (`operacionalPeriodo` en `accionMis`); el
+   cliente lo tiraba. */
+const K_CICLO_SRV_PER = 'silva_fatiga_ciclo_srv_per_v1';
 function cicloMioLocal(){ try { return JSON.parse(localStorage.getItem(K_CICLO_MIO)) || []; } catch(e){ return []; } }
 function cicloMioServidor(){ try { return JSON.parse(localStorage.getItem(K_CICLO_SRV)) || []; } catch(e){ return []; } }
 
@@ -13531,6 +13762,16 @@ function cicloMiRefrescar(){
      guardados», y segundos después `misSincronizar` trae sus 30 días y llama a `renderInicio()`
      —que pasa por acá— así que el bloque seguía diciendo (0) con los datos ya en memoria toda la
      sesión. Es justo el caso de uso que P167 existe para cubrir. Se conserva si estaba desplegado. */
+  /* P090 · y el calendario, por la misma razón que el historial: `misSincronizar` trae los ciclos
+     después del primer pintado. Repinta SIN tocar el mes ni el día abiertos —viven en `CMES`, que
+     `cmesRepintar` no toca— así que a quien esté mirando marzo no se le va el mes de abajo. */
+  /* Repone el foco SÓLO si estaba dentro del calendario: la sincronización del arranque llega sola y
+     no puede robarle el foco a quien está en otra parte de la pantalla, pero tampoco puede tirárselo
+     al `body` a quien sí estaba navegando el mes. */
+  try {
+    const cal = document.getElementById('cmesMio');
+    if (cal) cmesRepintar('mio', cal.contains(document.activeElement) ? 'dia' : null);
+  } catch(e){}
   try {
     const histViejo = document.getElementById('cicHist');
     if (histViejo){
@@ -13762,9 +14003,675 @@ function cicloCiclosListaHtml(ciclos){
              filas + dur + '</div>';
   }).join('');
 }
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P090 · CALENDARIO DE JORNADAS — el mes de UNA persona, una casilla por día
+
+   LA REGLA QUE ORDENA TODO: el calendario pinta lo que la persona REGISTRÓ. Nunca pinta la ausencia
+   de dato y nunca dice «no reportó». Una casilla vacía tiene tres explicaciones distintas y las tres
+   se dibujan distinto: cubierta y sin jornada · fuera de lo que se pidió · ausencia aprobada (esto
+   último sólo en el panel, que es el único lado donde llegan las ausencias). R4 no es un adorno acá:
+   una casilla roja sobre un día de vacaciones es una afirmación falsa sobre una persona, en una
+   pantalla que un médico lee como evidencia.
+
+   DOS ÁMBITOS, UNA SOLA DERIVACIÓN: `'mio'` (el inicio del piloto, con sus eventos locales) y
+   `'panel'` (la ficha del servicio médico, con `DASH.operacional`). Cambia la fuente; el motor, los
+   colores y los textos son los mismos.
+
+   ⚠️ TODAS SON FUNCIONES DECLARADAS Y NO HAY UN SOLO `const`/`let` DE NIVEL SUPERIOR EN ESTE BLOQUE
+   (R16): el arranque del piloto llega acá por `renderSections` → `cicloMiCalendarioBloque`, y un
+   `const` leído en zona muerta corta la ejecución del script de ahí para abajo. El único estado es
+   `var CMES;` — declarado SIN asignar, porque una declaración con valor que se ejecuta después pisa
+   lo que el arranque ya guardó.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* El instante de un evento, o null si su ISO no es confiable. DOS guardas, y la segunda es la que
+   importa: `Date.parse('9/12/2026 18:52:00')` devuelve un número perfecto, al día equivocado. Como el
+   escritor SIEMPRE escribe `new Date().toISOString()` (ver `cicloMioGuardar`), cualquier cosa sin
+   forma ISO volvió reinterpretada por Sheets (R15) y no se puede ubicar en un día: se cuenta aparte
+   y se declara en el pie, en vez de dibujar una casilla en el mes equivocado. */
+function cmesInstanteDe(o){
+  if (!o || typeof o.iso !== 'string') return null;
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(o.iso)) return null;
+  const t = Date.parse(o.iso);
+  return isFinite(t) ? t : null;
+}
+function cmesDiaDeEvento(o){
+  const t = cmesInstanteDe(o);
+  if (t == null) return null;
+  const f = fechaOpDe(new Date(t));
+  return /^\d{4}-\d{2}-\d{2}$/.test(f) ? f : null;
+}
+/* El día de un CICLO es el día en que ARRANCÓ (decisión de Franco, 2026-09-22, y la misma regla que
+   ya usan el servidor en `leerDuty` y el cliente en `cicloCiclosListaHtml`). Un turno de noche NO se
+   parte en dos medias casillas: el detalle muestra las horas completas.
+   ⚠️ Con `c.t0` y NUNCA con `st.inicio`: `cicloEstado` devuelve `inicio:null` para un ciclo sin evento
+   de apertura, y ese ciclo desaparecería del mes sin un error. */
+function cmesDiaDe(c){
+  const t = Number(c && c.t0);
+  if (!isFinite(t)) return null;
+  const f = fechaOpDe(new Date(t));
+  return /^\d{4}-\d{2}-\d{2}$/.test(f) ? f : null;
+}
+
+/* La escala de gravedad: con dos jornadas en un día, qué hecho pesa más.
+   ⚠️ NO es `ORD` (el del panel): ése ordena «a quién miro primero HOY» y por eso pone `curso` arriba
+   de `sin_cierre`; acá la pregunta es «qué pasó ese día», y un día pasado no puede estar en curso.
+   El mapa vive ADENTRO de la función, no en un `const` de nivel superior (R16). */
+function cmesPesos(){
+  return { excedido:0, exceso:1, sin_cierre:2, detenido:3, parcial:4,
+           curso:5, descanso:6, cerrado:7, completo:8 };
+}
+function cmesPeso(caso){ const p = cmesPesos()[caso]; return isFinite(p) ? p : 99; }
+
+/* Los ocho estados de `cicloEstado` traducidos a los nueve casos visuales.
+   ⚠️ LA LÍNEA QUE IMPORTA: un ciclo PASADO que se pasó de tiempo devuelve `completo`, no `excedido`.
+   La bandera `excedido` del ciclo sólo se prende en la rama del tramo EN CURSO; un tramo cerrado con
+   exceso alimenta `cerradoAlgunoDeMas`, y el único sobreviviente de las dos es `huboExceso`. Con la
+   regla ingenua (`st.estado === 'excedido'`) TODOS los días pasados con exceso salían verdes. */
+function cmesCaso(st){
+  if (!st) return 'parcial';
+  if (st.estado === 'completo') return st.huboExceso === true ? 'exceso' : 'completo';
+  if (st.estado === 'inactivo') return 'parcial';
+  return st.estado;          // excedido · sin_cierre · detenido · cerrado · curso · descanso
+}
+
+/* ¿El ciclo trae guardado el plan que regía ese día? `cicloPlanCongelado` sólo lee
+   `c.ev[evInicial].plan` y cae al vigente si falta, y `cicloMioGuardar` no guarda el plan: en el
+   teléfono, las últimas ~48 h se juzgan contra la jornada de HOY. Se dice en el detalle, nunca como
+   un glifo más en una casilla de 45 px. */
+/* ⚠️ Se le PREGUNTA a `cicloPlanCongelado`, no se reimplementa. Antes bastaba con que la cadena
+   `plan` no estuviera vacía, y `cicloPlanCongelado` —el que de verdad juzga— además exige que parsee
+   y que al menos un tramo del sector VIGENTE salga con un número finito mayor que cero. Con una
+   empresa que cambió de sector (R14), las filas viejas traen claves de otro ciclo: el juez caía al
+   plan de hoy y esta función decía «congelado», así que **la nota que avisa que se está midiendo
+   contra la jornada vigente no se emitía** y el médico veía un veredicto de exceso derivado de un
+   umbral que no regía ese día. Dos derivaciones de la misma pregunta: el error más repetido de este
+   proyecto. Se compara contra un plan vigente centinela para no depender de la identidad del objeto. */
+function cmesPlanCongelado(c){
+  try {
+    const vig = cicloPlan(cicloYo());
+    return cicloPlanCongelado(c, vig) !== vig;
+  } catch(e){ return false; }
+}
+
+/* El ÚNICO lugar del calendario que llama a `cicloEstado`.
+   ⚠️ El plan viaja como argumento: `cicloPlan()` sin persona cae en la jornada PROPIA del dueño del
+   dispositivo y juzgaría a otra gente con el plan equivocado — el defecto exacto que ya arreglaron
+   P057a y P074. */
+function cmesEstadoDia(ciclosDelDia, plan, ahora){
+  const items = (ciclosDelDia || []).map(function(c){
+    const st = cicloEstado(c, ahora, plan);
+    return { c: c, st: st, caso: cmesCaso(st) };
+  }).sort(function(a, b){ return (a.c.t0 || 0) - (b.c.t0 || 0); });   // cronológico: mañana → tarde
+  let peor = items[0] || null;
+  items.forEach(function(x){ if (peor && cmesPeso(x.caso) < cmesPeso(peor.caso)) peor = x; });
+  return { n: items.length, caso: peor ? peor.caso : null, ciclos: items,
+           planVigente: items.some(function(x){ return !cmesPlanCongelado(x.c); }) };
+}
+
+function cmesAgruparPorDia(ciclos){
+  const dias = {}, sinFecha = [];
+  (ciclos || []).forEach(function(c){
+    const f = cmesDiaDe(c);
+    if (!f){ sinFecha.push(c); return; }
+    (dias[f] = dias[f] || []).push(c);
+  });
+  return { dias: dias, sinFecha: sinFecha };
+}
+
+/* LOS SUELTOS: los registros de un día que el motor pisó.
+   ⚠️ SE COMPARA CONTRA LA LISTA YA COLAPSADA, NUNCA CONTRA LA CRUDA. `cicloAgruparNucleo` corre
+   `cicloColapsarMismaOcurrencia(evs, true)` en su primera línea y esa función DESCARTA filas a
+   propósito: dos toques del mismo botón a menos de 20 minutos son uno solo, y están documentados dos
+   casos reales de producción. Contra la lista cruda, cada doble toque legítimo y cada reintento de la
+   cola —o sea, lo normal— habría pintado «hay más registros que jornadas» en un día sano: una
+   afirmación falsa sobre una persona, en su propia pantalla.
+   Lo que SÍ queda suelto es lo que `actual.ev[o.evento] = o` pisó: una segunda jornada sin volver a
+   casa, cuyo `llegada_aero` reemplaza al primero. Ése es el residuo de P086 del lado del cliente, y
+   es lo único que esta función tiene que encontrar. */
+function cmesSueltosPorDia(colapsados, ciclos){
+  const dentro = {};
+  (ciclos || []).forEach(function(c){
+    for (const k in (c.ev || {})){ const o = c.ev[k]; if (o) dentro[k + '|' + o.iso] = 1; }
+  });
+  const out = {};
+  (colapsados || []).forEach(function(o){
+    if (dentro[(o.evento || '') + '|' + o.iso]) return;
+    const f = cmesDiaDeEvento(o);
+    if (!f) return;                    // los ilegibles ya se contaron aparte
+    (out[f] = out[f] || []).push(o);
+  });
+  return out;
+}
+
+/* El arrastre nocturno. El ciclo pertenece SÓLO al día en que arrancó, y eso deja el día siguiente de
+   un turno de noche visualmente vacío; sin una marca se leería como «no trabajó».
+   ⚠️ Con `cicloUltimoDePersona(c)`, que EXCLUYE `detenido` y `cerrado` a propósito: con el máximo
+   sobre todo `c.ev`, un `cerrado` que el supervisor escribe tres días después haría que un día en que
+   nadie trabajó dijera «una jornada del día anterior llegó hasta las HH:MM». Y sólo si el día del
+   último evento es EXACTAMENTE el siguiente: con un hueco mayor no hubo continuidad. */
+function cmesArrastre(dias){
+  const out = {};
+  Object.keys(dias || {}).forEach(function(f){
+    dias[f].forEach(function(c){
+      const t = cicloUltimoDePersona(c);
+      if (t == null || !isFinite(t)) return;
+      const fu = fechaOpDe(new Date(t));
+      if (fu === fechaMasDias(f, 1)) out[fu] = { desde: f, hasta: horaOpDe(new Date(t)) };
+    });
+  });
+  return out;
+}
+
+/* Hasta dónde hay datos DE VERDAD. Devuelve null cuando no se sabe, y null se dibuja distinto de
+   vacío: es la diferencia entre «esta persona no trabajó» y «no pedí esos días».
+   ⚠️ Cuando el servidor manda `desde:null` —que es SIEMPRE en el canal del piloto— se deriva con
+   `hoy − dias`, que es el mismo corte que hace `leerOperacional`. Se yerra por generoso a propósito:
+   un día cubierto y vacío dice «sin jornada registrada», que es cierto; uno pedido y marcado «fuera
+   del período» sería falso. */
+function cmesCobertura(ambito){
+  let p = null;
+  if (ambito === 'mio'){ try { p = JSON.parse(localStorage.getItem(K_CICLO_SRV_PER)); } catch(e){ p = null; } }
+  else p = (typeof DASH !== 'undefined' && DASH) ? DASH.operacionalPeriodo : null;
+  if (!p) return null;
+  const dias = Number(p.dias);
+  if (!isFinite(dias) || dias <= 0) return null;
+  const hoy = todayStr();
+  return { desde: p.desde || fechaMasDias(hoy, -dias), hasta: p.hasta || hoy, dias: dias };
+}
+
+/* Seis semanas FIJAS: así la altura del bloque no salta al cambiar de mes. Domingo primero, igual que
+   `tLista('dias_abr')`. Toda la aritmética sobre TEXTO con `fechaUTCDe`/`fechaMasDias`: ni un
+   `getMonth()` local — `new Date('2026-06-01')` devuelve el 30 de mayo al oeste de Greenwich, que es
+   la lección L1 y ya la cobró Y1. */
+function cmesMatriz(ym){
+  const primero = ym + '-01';
+  const dow = fechaUTCDe(primero).getUTCDay();          // 0 = domingo
+  const ini = fechaMasDias(primero, -dow);
+  const out = [];
+  for (let i = 0; i < 42; i++){
+    const f = fechaMasDias(ini, i);
+    out.push({ f: f, delMes: f.slice(0, 7) === ym });
+  }
+  return out;
+}
+
+/* El caso a nivel DÍA, en ESTE orden exacto. Los ciclos GANAN sobre la ausencia: si alguien marcado
+   ausente igual registró una jornada, se muestra lo que registró. */
+function cmesCasoDia(f, info, ambito, persona, cob){
+  if (f > todayStr()) return 'futuro';
+  if (!cob || f < cob.desde || f > cob.hasta) return 'fuera';
+  if (info && info.n) return info.caso;
+  if (ambito === 'panel' && ausentePersonaEse(persona, f)) return 'franco';
+  return 'sin_jornada';
+}
+
+/* Lo que se lee ANTES de la grilla (R6): cuántos días tuvieron jornada y cuáles piden una mirada.
+   `cerrado` no entra en «mirada»: es un hecho firmado por el supervisor, no un problema. */
+function cmesResumen(ym, ambito, persona, mapa, cob){
+  const MIRAR = ['exceso', 'excedido', 'sin_cierre', 'detenido', 'parcial'];
+  let conJornada = 0, sinCobertura = 0;
+  const mirada = [];
+  cmesMatriz(ym).forEach(function(d){
+    if (!d.delMes) return;
+    const info = mapa.dias[d.f];
+    const caso = cmesCasoDia(d.f, info, ambito, persona, cob);
+    if (caso === 'fuera'){ sinCobertura++; return; }
+    if (info && info.n) conJornada++;
+    if (MIRAR.indexOf(caso) >= 0) mirada.push({ f: d.f, caso: caso, n: (info && info.n) || 0 });
+  });
+  mirada.sort(function(a, b){ return cmesPeso(a.caso) - cmesPeso(b.caso) || (a.f < b.f ? -1 : 1); });
+  return { conJornada: conJornada, mirada: mirada, sinCobertura: sinCobertura };
+}
+
+/* ── El estado de la pantalla ────────────────────────────────────────────────────────────────────
+   El piloto lo guarda en `CMES` (memoria: su calendario vive mientras la app esté abierta); el panel
+   lo guarda en `DASH`, porque `cicloRepintar` rehace la sección entera cada 60 s y cualquier cosa
+   guardada fuera de `DASH` se perdería en el primer tic. `var` SIN asignar (R16). */
+var CMES;
+function cmesEstado(){ if (!CMES) CMES = { mes: null, dia: null }; return CMES; }
+function cmesMes(ambito){
+  if (ambito === 'mio') return cmesEstado().mes || todayStr().slice(0, 7);
+  if (typeof DASH === 'undefined' || !DASH) return todayStr().slice(0, 7);
+  /* Al cambiar de persona el mes se resetea: abrir la ficha de otra gente en el mes que quedó de la
+     anterior mostraría un mes vacío que no es de nadie. */
+  if (DASH._cmesPer !== DASH.f.per){ DASH._cmesPer = DASH.f.per; DASH._cmesMes = null; DASH._cmesDia = null; }
+  return DASH._cmesMes || todayStr().slice(0, 7);
+}
+function cmesMesSet(ambito, ym){
+  if (ambito === 'mio'){ cmesEstado().mes = ym; return; }
+  if (typeof DASH !== 'undefined' && DASH) DASH._cmesMes = ym;
+}
+function cmesDia(ambito){
+  if (ambito === 'mio') return cmesEstado().dia;
+  return (typeof DASH !== 'undefined' && DASH) ? (DASH._cmesDia || null) : null;
+}
+function cmesDiaSet(ambito, f){
+  if (ambito === 'mio'){ cmesEstado().dia = f; return; }
+  if (typeof DASH !== 'undefined' && DASH) DASH._cmesDia = f;
+}
+function cmesPersonaDe(ambito){
+  return ambito === 'mio' ? cicloYo() : ((typeof DASH !== 'undefined' && DASH && DASH.f.per) || '');
+}
+/* El orden de las partes es del IDIOMA, no del código: en español «14 de marzo de 2026» y en inglés
+   «March 14, 2026». Por eso la plantilla entera es una clave con marcadores y acá no se concatena
+   nada — concatenar es lo que obliga después a un `if` por idioma. */
+/* ⚠️ UNA sola función decide hasta dónde se puede navegar, y la usan LAS DOS puertas: las flechas
+   (para deshabilitarse) y el teclado (PageUp/PageDown). Cuando cada lado deriva lo suyo terminan
+   diciendo cosas distintas — es el error más repetido de este proyecto. Medido: con la regla sólo en
+   el render, PageUp se iba a julio con la flecha de atrás deshabilitada. */
+function cmesVecino(ym, delta){
+  return delta < 0 ? fechaMasDias(ym + '-01', -1).slice(0, 7)
+                   : fechaMasDias(ym + '-01', 31).slice(0, 7);
+}
+function cmesPuedeIr(ambito, ym, delta){
+  const destino = cmesVecino(ym, delta);
+  if (delta > 0) return destino <= todayStr().slice(0, 7);
+  const cob = cmesCobertura(ambito);
+  return !!(cob && destino >= cob.desde.slice(0, 7));
+}
+function cmesMesLabel(ym){
+  return t('cmes_mes_anio', { m: (tLista('meses')[Number(String(ym).slice(5, 7)) - 1] || ''), a: String(ym).slice(0, 4) });
+}
+/* ⚠️ `meses_min` y no `meses`: en español el mes va en MINÚSCULA dentro de una frase («desde el 23
+   de agosto») y en mayúscula sólo como título. En inglés va siempre en mayúscula. Son dos listas y
+   no una transformación en el código porque la regla es del idioma, no del programa: en `en` las dos
+   listas son idénticas y nadie tiene que acordarse de un `if`. Medido en vivo: decía «23 de Agosto». */
+function cmesFechaLarga(f){
+  const d = fechaUTCDe(f);
+  return t('cmes_fecha_larga', { d: d.getUTCDate(), m: (tLista('meses_min')[d.getUTCMonth()] || ''), a: d.getUTCFullYear() });
+}
+function cmesGlifo(caso){
+  const g = { exceso:'cmes_m_exceso', excedido:'cmes_m_exceso', sin_cierre:'cmes_m_abierto',
+              detenido:'cmes_m_detenido', parcial:'cmes_m_parcial', franco:'cmes_m_franco',
+              cerrado:'cmes_m_cerrado', curso:'cmes_m_curso', descanso:'cmes_m_descanso' }[caso];
+  return g ? t(g) : '';
+}
+function cmesRotulo(caso){
+  return caso === 'detenido' ? t('cmes_e_detenido', { h: CICLO_DETENIDO_HORAS }) : t('cmes_e_' + caso);
+}
+
+/* El nombre accesible completo de una casilla. NO hay `title` en ninguna: en táctil no existe y un
+   lector de pantalla no lo anuncia de forma confiable (el precedente, `renderActividad`, lo emite
+   además sin `esc()`). */
+function cmesEtiquetaDia(f, caso, info, arr, pend){
+  const partes = [cmesFechaLarga(f)];
+  if (info && info.n > 1) partes.push(t('cmes_n_jornadas', { n: info.n }));
+  partes.push(cmesRotulo(caso));
+  if (arr) partes.push(t('cmes_det_arrastre', { h: arr.hasta }));
+  if (pend) partes.push(t('cmes_pendiente'));
+  if (f === todayStr()) partes.push(t('cmes_hoy'));
+  return partes.join('. ') + '.';
+}
+
+function cmesCeldaHtml(ambito, d, caso, info, arr, sel, foco, pend){
+  if (!d.delMes) return '<div role="gridcell" class="cmes-rel"></div>';
+  const muerta = (caso === 'futuro' || caso === 'fuera');
+  const dia = Number(String(d.f).slice(8, 10));
+  const glifo = cmesGlifo(caso);
+  const esHoy = (d.f === todayStr());
+  const cls = 'cmes-d cmes-c-' + caso + (esHoy ? ' cmes-hoy' : '') + (sel ? ' cmes-sel' : '') + (arr ? ' cmes-arr' : '') + (pend ? ' cmes-pend' : '');
+  return '<div role="gridcell" class="cmes-cel">' +
+    '<button type="button" class="' + cls + '"' +
+      ' data-cmes="' + esc(ambito) + '" data-f="' + esc(d.f) + '"' +
+      (muerta ? ' disabled' : ' onclick="cmesSeleccionar(\'' + esc(ambito) + '\', \'' + esc(d.f) + '\')"') +
+      ' tabindex="' + (foco ? '0' : '-1') + '"' +
+      (muerta ? '' : ' aria-pressed="' + (sel ? 'true' : 'false') + '"') +
+      ' aria-label="' + esc(cmesEtiquetaDia(d.f, caso, info, arr, pend)) + '">' +
+      '<span class="cmes-n">' + dia + '</span>' +
+      /* ⚠️ El glifo y la CANTIDAD van los dos, no uno u otro. Antes el glifo ganaba y un día con dos
+         jornadas en descanso mostraba «~» a secas: la marca de que hay más de una —que es la decisión
+         de Franco para no partir la casilla— desaparecía justo en los días con más para contar. */
+      (info && info.n > 1
+        ? '<span class="cmes-p cmes-p2" aria-hidden="true">' + (glifo ? esc(glifo) : '') + info.n + '</span>'
+        : (glifo ? '<span class="cmes-p" aria-hidden="true">' + esc(glifo) + '</span>' : '')) +
+    '</button></div>';
+}
+
+/* El detalle va EN EL LUGAR, debajo de la grilla, y NO como overlay: `silvaAtras()` es una cadena
+   explícita de `if (visible('<id>'))` y lo que no se nombra ahí queda como callejón sin salida para el
+   botón físico «atrás» — ya pasó cuatro veces. Un `<div>` no toca el historial, no lo abre
+   `@media print` y deja el mes a la vista mientras se compara. Escape lo cierra. */
+function cmesDetalleHtml(ambito, persona, f, mapa, sueltos, arr, cob, pend){
+  const info = mapa.dias[f];
+  const caso = cmesCasoDia(f, info, ambito, persona, cob);
+  let cuerpo = '';
+  if (info && info.n){
+    if (info.n > 1) cuerpo += '<div class="cmes-det-nota">' + esc(t('cmes_det_dos', { n: info.n })) + '</div>';
+    cuerpo += info.ciclos.map(function(x){
+      return '<div class="cmes-det-ciclo">' +
+        /* ⚠️ El chip se pinta con el CASO, no con el estado crudo. Con `x.st.estado` un día cerrado
+           con exceso salía `cic-chip-completo` —VERDE— debajo de una casilla ROJA, sobre el mismo
+           hecho y en la pantalla que el médico lee como evidencia. Es la regla ingenua que `cmesCaso`
+           existe para no cometer, colándose por la puerta de al lado. */
+        '<span class="cic-chip cic-chip-' + esc(x.caso) + '">' + esc(cmesRotulo(x.caso)) + '</span>' +
+        cicloCiclosListaHtml([x.c]) + '</div>';
+    }).join('');
+    if (info.planVigente) cuerpo += '<div class="cmes-det-nota">' + esc(t('cmes_det_plan_vigente')) + '</div>';
+  } else {
+    cuerpo += '<div class="cmes-det-nota">' + esc(cmesRotulo(caso)) + '</div>';
+  }
+  if (arr) cuerpo += '<div class="cmes-det-nota">' + esc(t('cmes_det_arrastre', { h: arr.hasta })) + '</div>';
+  if (pend) cuerpo += '<div class="cmes-det-nota">' + esc(t('cmes_pendiente')) + '</div>';
+  const sl = sueltos[f] || [];
+  if (sl.length){
+    cuerpo += '<div class="cmes-det-sueltos">' +
+      esc(t(sl.length === 1 ? 'cmes_det_sueltos_1' : 'cmes_det_sueltos', { n: sl.length })) +
+      '<div class="cmes-det-nota">' + esc(t('cmes_det_por_que')) + '</div>' +
+      '<div class="cmes-det-lista">' + sl.map(function(o){
+        return '<span class="cmes-suelto">' + esc(cicloEventoLabel(o.evento)) + ' ' + esc(horaOpDe(new Date(o.iso))) + '</span>';
+      }).join('') + '</div></div>';
+  }
+  /* ⚠️ El `onkeydown` va TAMBIÉN acá. El detalle es hermano de la grilla, no descendiente, y al
+     abrirlo el foco aterriza en su título: apretar Escape desde ahí —que es donde la app te deja— no
+     hacía nada, y había que volver con Shift+Tab hasta la grilla para poder cerrarlo. El caso no lo
+     veía porque enfocaba la casilla antes de mandar la tecla: probaba la pieza, no el uso. */
+  return '<div class="cmes-det" id="cmesDet-' + esc(ambito) + '" data-cmes="' + esc(ambito) + '" data-f="' + esc(f) + '" onkeydown="cmesTeclaDetalle(event)">' +
+    '<div class="cmes-det-top">' +
+      '<h4 class="cmes-det-t" tabindex="-1">' + esc(cmesFechaLarga(f)) + '</h4>' +
+      '<button type="button" class="cmes-det-x" onclick="cmesSeleccionar(\'' + esc(ambito) + '\', \'' + esc(f) + '\')"' +
+        ' aria-label="' + esc(t('cmes_det_cerrar')) + '">✕</button>' +
+    '</div>' + cuerpo + '</div>';
+}
+
+/* Todo el bloque. El orden es el de R6: primero la frase y las fichas de lo que pide una mirada
+   —filas de ancho completo y 44 px, que son el objetivo táctil garantizado a cualquier ancho—, y
+   después la grilla, que en un mes sano NO es una pared de color. */
+function cmesBloqueHtml(ambito, persona, ym){
+  const fuente = cmesFuente(ambito, persona, ym);
+  const mapa = cmesAgruparPorDia(fuente.ciclos);
+  const sueltos = cmesSueltosPorDia(fuente.colapsados, fuente.ciclos);
+  const arrastre = cmesArrastre(mapa.dias);
+  const cob = cmesCobertura(ambito);
+  const pend = (ambito === 'mio') ? cmesPendientes() : {};
+  const ahora = Date.now();
+  Object.keys(mapa.dias).forEach(function(f){ mapa.dias[f] = cmesEstadoDia(mapa.dias[f], fuente.plan, ahora); });
+  const res = cmesResumen(ym, ambito, persona, mapa, cob);
+  const sel = cmesDia(ambito);
+  const hoyYm = todayStr().slice(0, 7);
+  const antYm = cmesVecino(ym, -1), sigYm = cmesVecino(ym, 1);
+  const puedeAnt = cmesPuedeIr(ambito, ym, -1), puedeSig = cmesPuedeIr(ambito, ym, 1);
+  /* El foco del teclado: una sola parada de tabulación en la grilla (tabindex móvil), nunca 42
+     paradas delante de la nota clínica del médico. */
+  /* ⚠️ La única parada de tabulación de la grilla tiene que ser una casilla ALCANZABLE. Los días
+     futuros y los anteriores al período cargado son `disabled` y no reciben foco: en un mes cuyo día 1
+     cae fuera de la cobertura, el `tabindex="0"` quedaba en una casilla muerta y la grilla entera se
+     volvía inalcanzable con el teclado. Se elige el primer día del mes que sí se pueda enfocar. */
+  const focoPref = (sel && sel.slice(0, 7) === ym) ? sel : (ym === hoyYm ? todayStr() : ym + '-01');
+  let foco = null;
+  cmesMatriz(ym).forEach(function(d){
+    if (!d.delMes || foco) return;
+    const cc = cmesCasoDia(d.f, mapa.dias[d.f], ambito, persona, cob);
+    if (cc === 'futuro' || cc === 'fuera') return;
+    if (d.f === focoPref || !foco) foco = d.f;
+  });
+  const cPref = cmesCasoDia(focoPref, mapa.dias[focoPref], ambito, persona, cob);
+  if (cPref !== 'futuro' && cPref !== 'fuera') foco = focoPref;
+  if (!foco) foco = focoPref;          // mes entero inalcanzable: no hay nada que enfocar igual
+  let celdas = '', fila = '', hayDelMes = false;
+  cmesMatriz(ym).forEach(function(d, i){
+    const info = mapa.dias[d.f];
+    const caso = cmesCasoDia(d.f, info, ambito, persona, cob);
+    if (d.delMes) hayDelMes = true;
+    fila += cmesCeldaHtml(ambito, d, caso, info, arrastre[d.f], sel === d.f, d.f === foco, !!pend[d.f]);
+    if (i % 7 === 6){
+      /* La matriz son siempre 42 casillas, y una fila entera puede quedar fuera del mes: febrero de
+         28 días que arranca en domingo entra en cuatro filas y dejaba dos vacías abajo. */
+      if (hayDelMes) celdas += '<div role="row" class="cmes-fila">' + fila + '</div>';
+      fila = ''; hayDelMes = false;
+    }
+  });
+  const fichas = res.mirada.slice(0, 3).map(function(x){
+    return '<button type="button" class="cmes-ficha cmes-c-' + x.caso + '" onclick="cmesSeleccionar(\'' + esc(ambito) + '\', \'' + esc(x.f) + '\')">' +
+      '<span class="cmes-ficha-d">' + Number(String(x.f).slice(8, 10)) + '</span>' +
+      '<span class="cmes-ficha-t">' + esc(cmesRotulo(x.caso)) + '</span></button>';
+  }).join('');
+  const frase = res.conJornada
+    ? esc(t(res.conJornada === 1 ? 'cmes_res_dias_1' : 'cmes_res_dias', { mes: cmesMesLabel(ym), n: res.conJornada })) + ' ' +
+      esc(res.mirada.length ? t(res.mirada.length === 1 ? 'cmes_res_mirada_1' : 'cmes_res_mirada', { n: res.mirada.length }) : t('cmes_res_sin_mirada'))
+    /* ⚠️ «Sin jornadas registradas» sólo se puede decir del mes que SE PIDIÓ ENTERO. Con el período
+       por defecto del panel (7 días) el médico abría marzo y leía «Marzo: sin jornadas registradas»
+       sobre un mes del que se cargaron 7 días de 31 — y esa frase va en un `aria-live`, o sea que se
+       anuncia sola. R2: la app no afirma lo que no sabe. El contador ya lo calculaba `cmesResumen` y
+       no llegaba a ningún texto. */
+    : esc(!cob ? t('cmes_res_sin_datos', { mes: cmesMesLabel(ym) })
+               : (res.sinCobertura ? t('cmes_res_vacio_parcial', { mes: cmesMesLabel(ym), n: res.sinCobertura })
+                                   : t('cmes_res_vacio', { mes: cmesMesLabel(ym) })));
+  const pie = [];
+  pie.push(cob ? esc(t('cmes_cobertura', { f: cmesFechaLarga(cob.desde) })) : esc(t('cmes_cobertura_no')));
+  /* Sin ausencias cargadas una casilla vacía no distingue «descansó» de «no registró», y el médico
+     tiene que saberlo ANTES de sacar una conclusión (R2: la app no afirma lo que no sabe). */
+  /* ⚠️ `DASH.ausencias` es un OBJETO indexado por «n:<clave>|<fecha>», no un array: con `.length`
+     daba `undefined` y el aviso salía SIEMPRE, incluso con ausencias cargadas. Medido en el panel
+     con una ausencia real: el día se pintaba «no le correspondía trabajar» y el pie, abajo, decía
+     que no había ninguna cargada. */
+  if (ambito === 'panel' && !Object.keys((typeof DASH !== 'undefined' && DASH && DASH.ausencias) || {}).length)
+    pie.push(esc(t('cmes_sin_ausencias')));
+  if (!puedeAnt && cob) pie.push(esc(t('cmes_tope', { f: cmesFechaLarga(cob.desde) })) +
+    (ambito === 'mio'
+      ? ' <button type="button" class="cmes-traer" onclick="cicloMiHistorialTodo(this)">' + esc(t('cmes_traer')) + '</button>'
+      : ' ' + esc(t('cmes_ampliar_medico'))));
+  if (fuente.ilegibles.length) pie.push(esc(t(fuente.ilegibles.length === 1 ? 'cmes_ilegibles_1' : 'cmes_ilegibles', { n: fuente.ilegibles.length })));
+  return '<div class="cmes-cab">' +
+      '<h3 class="cmes-t">' + esc(t('cmes_titulo')) + '</h3>' +
+      '<div class="cmes-lead">' + esc(t(ambito === 'mio' ? 'cmes_lead_mio' : 'cmes_lead_medico')) + '</div>' +
+      dashHelp(t(ambito === 'mio' ? 'hlp_cmes_mio' : 'hlp_cmes_medico')) +
+    '</div>' +
+    '<div class="cmes-nav">' +
+      '<button type="button" class="cmes-flecha" ' + (puedeAnt ? '' : 'disabled ') +
+        'onclick="cmesMesIr(\'' + esc(ambito) + '\', -1)" aria-label="' + esc(t('cmes_mes_ant', { m: cmesMesLabel(antYm) })) + '">‹</button>' +
+      '<span class="cmes-mes">' + esc(cmesMesLabel(ym)) + '</span>' +
+      '<button type="button" class="cmes-flecha" ' + (puedeSig ? '' : 'disabled ') +
+        'onclick="cmesMesIr(\'' + esc(ambito) + '\', 1)" aria-label="' + esc(t('cmes_mes_sig', { m: cmesMesLabel(sigYm) })) + '">›</button>' +
+    '</div>' +
+    '<div class="cmes-res"><div class="cmes-frase" aria-live="polite">' + frase + '</div>' +
+      (fichas ? '<div class="cmes-fichas">' + fichas + '</div>' : '') + '</div>' +
+    '<div class="cmes-scroll">' +
+      '<div class="cmes-dias" aria-hidden="true">' + tLista('dias_abr').map(function(d){ return '<span>' + esc(d) + '</span>'; }).join('') + '</div>' +
+      '<div class="cmes-grid" role="grid" aria-label="' + esc(t('cmes_titulo') + ' · ' + cmesMesLabel(ym)) + '" onkeydown="cmesTecla(event)">' + celdas + '</div>' +
+    '</div>' +
+    (sel && sel.slice(0, 7) === ym ? cmesDetalleHtml(ambito, persona, sel, mapa, sueltos, arrastre[sel], cob, !!pend[sel]) : '') +
+    (pie.length ? '<div class="cmes-pie">' + pie.join('<br>') + '</div>' : '') +
+    '<div class="cmes-leyenda">' + ['completo', 'curso', 'exceso', 'sin_cierre', 'detenido', 'sin_jornada'].map(function(c){
+      return '<span class="cmes-ley"><i class="cmes-ley-c cmes-c-' + c + '" aria-hidden="true">' + esc(cmesGlifo(c)) + '</i>' + esc(cmesRotulo(c)) + '</span>';
+    }).join('') + '</div>';
+}
+
+/* Repintar SIN perder el foco: reemplazar `innerHTML` lo destruye y deja a quien usa teclado tirado
+   al principio del documento. */
+function cmesRepintar(ambito, focoEn){
+  const cont = document.getElementById(ambito === 'mio' ? 'cmesMio' : 'cmesPanel');
+  if (!cont) return;
+  const persona = cmesPersonaDe(ambito);
+  cont.innerHTML = cmesBloqueHtml(ambito, persona, cmesMes(ambito));
+  try {
+    if (focoEn === 'detalle'){
+      const h = cont.querySelector('.cmes-det-t');
+      if (h){ h.focus(); return; }
+    }
+    if (focoEn === 'flecha'){
+      const fl = cont.querySelectorAll('.cmes-flecha');
+      const b = fl[0] && !fl[0].disabled ? fl[0] : (fl[1] && !fl[1].disabled ? fl[1] : null);
+      if (b){ b.focus(); return; }
+    }
+    const d = cont.querySelector('.cmes-d[tabindex="0"]');
+    if (d && focoEn) d.focus();
+  } catch(e){}
+}
+/* Mirar un día no tiene consecuencia operativa: háptico suave y sin confirmación (R8 reserva la
+   confirmación para lo que sí la tiene). Tocar el mismo día lo cierra. */
+function cmesSeleccionar(ambito, f){
+  const abierto = cmesDia(ambito) === f;
+  cmesDiaSet(ambito, abierto ? null : f);
+  try { haptic(6); } catch(e){}
+  cmesRepintar(ambito, abierto ? null : 'detalle');
+  /* Al CERRAR, el foco vuelve a la celda que se estaba mirando. Sin esto volvía a la de hoy —que es
+     a donde apunta el tabindex cuando no hay día abierto— y quien cierra el detalle del 5 con Escape
+     aparecía de golpe en el 22. */
+  if (abierto) cmesFocoEn(ambito, f);
+}
+function cmesMesIr(ambito, delta){
+  const ym = cmesMes(ambito);
+  if (!cmesPuedeIr(ambito, ym, delta)) return;
+  cmesMesSet(ambito, cmesVecino(ym, delta));
+  cmesDiaSet(ambito, null);
+  cmesRepintar(ambito, 'flecha');
+}
+/* Escape desde el detalle: cierra y devuelve el foco a su casilla. Es la misma acción que hace
+   `cmesTecla`, pero el detalle está fuera de la grilla y no le llega ese manejador. */
+function cmesTeclaDetalle(ev){
+  if (ev.key !== 'Escape') return;
+  const caja = ev.currentTarget || (ev.target && ev.target.closest ? ev.target.closest('.cmes-det') : null);
+  if (!caja) return;
+  const ambito = caja.getAttribute('data-cmes'), f = caja.getAttribute('data-f');
+  if (!ambito || !f) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  cmesDiaSet(ambito, null);
+  cmesRepintar(ambito, null);
+  cmesFocoEn(ambito, f);
+}
+/* Tabindex móvil: una sola parada de tabulación en toda la grilla. */
+function cmesTecla(ev){
+  const b = ev.target && ev.target.closest ? ev.target.closest('.cmes-d') : null;
+  if (!b) return;
+  const ambito = b.getAttribute('data-cmes'), f = b.getAttribute('data-f');
+  if (!ambito || !f) return;
+  const saltos = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7, PageUp: 'ant', PageDown: 'sig' };
+  if (ev.key === 'Escape'){
+    if (cmesDia(ambito)){ ev.preventDefault(); cmesDiaSet(ambito, null); cmesRepintar(ambito, null); cmesFocoEn(ambito, f); }
+    return;
+  }
+  if (ev.key === 'Home' || ev.key === 'End'){
+    ev.preventDefault();
+    const ym = f.slice(0, 7);
+    const destino = ev.key === 'Home' ? ym + '-01' : fechaMasDias(fechaMasDias(ym + '-01', 31).slice(0, 7) + '-01', -1);
+    cmesFocoEn(ambito, destino, ev.key === 'Home' ? 1 : -1);
+    return;
+  }
+  const s = saltos[ev.key];
+  if (s == null) return;
+  ev.preventDefault();
+  if (s === 'ant' || s === 'sig'){ cmesMesIr(ambito, s === 'ant' ? -1 : 1); return; }
+  cmesFocoEn(ambito, fechaMasDias(f, s), s > 0 ? -1 : 1);
+}
+/* Mueve el foco a un día; si cae en otro mes, navega y lo deja enfocado.
+   ⚠️ `retroceso` es la dirección desde la que se llegó: los días futuros y los que quedan fuera del
+   período cargado son casillas `disabled` y NO reciben foco, así que bajar una semana desde el 18 con
+   hoy 22 dejaba el foco clavado en el 18 sin que pasara nada visible. Con el retroceso se busca hacia
+   atrás el último día alcanzable —o sea hoy—, que es lo que la persona quiso decir. */
+function cmesFocoEn(ambito, f, retroceso){
+  const cont = document.getElementById(ambito === 'mio' ? 'cmesMio' : 'cmesPanel');
+  if (!cont) return;
+  /* ⚠️ Cruzar de mes con una flecha pasa por LA MISMA regla que la flecha ‹ ›. Sin esto, ↑ desde la
+     primera semana se iba a un mes que el botón declara inalcanzable —el teclado abría una puerta que
+     la pantalla dice que está cerrada—, que es el mismo desacuerdo que ya había con PageUp. */
+  const ymDestino = f.slice(0, 7), ymActual = cmesMes(ambito);
+  if (ymDestino !== ymActual){
+    if (!cmesPuedeIr(ambito, ymActual, ymDestino < ymActual ? -1 : 1)) return;
+    cmesMesSet(ambito, ymDestino);
+    cmesDiaSet(ambito, null);
+    cmesRepintar(ambito, null);
+  }
+  let b = cont.querySelector('.cmes-d[data-f="' + f + '"]');
+  if ((!b || b.disabled) && retroceso){
+    for (let i = 1; i <= 42 && (!b || b.disabled); i++){
+      const g = fechaMasDias(f, retroceso * i);
+      if (g.slice(0, 7) !== cmesMes(ambito)) break;      // no se salta de mes a espaldas de nadie
+      b = cont.querySelector('.cmes-d[data-f="' + g + '"]');
+    }
+  }
+  if (!b || b.disabled) return;
+  cont.querySelectorAll('.cmes-d').forEach(function(x){ x.setAttribute('tabindex', '-1'); });
+  b.setAttribute('tabindex', '0');
+  try { b.focus(); } catch(e){}
+}
+
+/* Los dos enganches.
+   ⚠️ NINGUNO se emite en la demostración ni con datos sembrados. El calendario sólo puede pintar lo
+   que de verdad se registró, y ahí no hay cobertura: el mes entero saldría «sin datos cargados de
+   este día», que es una pantalla que no enseña nada y hace dudar de la que sí tiene datos. */
+function cmesEnDemo(){
+  try { if (simulando()) return true; } catch(e){}
+  return !!(typeof DASH !== 'undefined' && DASH && DASH.demoMode);
+}
+function cicloMiCalendarioBloque(){
+  if (cmesEnDemo()) return '';
+  return '<div class="cmes" id="cmesMio">' + cmesBloqueHtml('mio', cicloYo(), cmesMes('mio')) + '</div>';
+}
+function dashFmCalendario(){
+  if (typeof DASH === 'undefined' || !DASH || DASH.vista !== 'medico' || !DASH.f.per) return '';
+  if (cmesEnDemo()) return '';
+  return '<div class="cmes" id="cmesPanel">' + cmesBloqueHtml('panel', DASH.f.per, cmesMes('panel')) + '</div>';
+}
+
+/* Los días con algo escrito por la persona que el servidor TODAVÍA no confirmó (R7). La misma
+   jornada se ve distinta según quién mire —ella la tiene, el médico no— y eso no es un error que
+   haya que ocultar: la celda lleva un punto y el detalle lo dice con todas las letras.
+   Se compara por `id` porque `cicloMioAll` funde las dos listas y ya no distingue el origen. */
+/* ⚠️ SE COMPARA POR LA MISMA IDENTIDAD QUE USA EL UPSERT DEL SERVIDOR: día de la operación + evento.
+   El primer intento comparó por `o.id`, y **ningún lado guarda ese campo**: `cicloMioGuardar` escribe
+   `{evento, iso, test, resultado}` y `leerOperacional` devuelve `{fecha, hora, iso, persona, …}` — el
+   `id` (`op_<persona>_<fecha>_<evento>`) sólo existe dentro del query string de `enviarOperacional`.
+   Con eso el mapa quedaba vacío y **cada día con un evento local salía marcado «pendiente de enviar»,
+   incluso con señal perfecta y el servidor ya confirmando**: la marca que existe para avisar de la
+   cola estaba encendida justo cuando no había cola. Lo cazó el verificador ejecutando las tres
+   funciones con las formas de dato reales.
+   Y NO se compara por `evento|iso`: `enviarOperacional` llama a `cicloMioGuardar` con un `new Date()`
+   y arma el envío con otro, así que los dos ISO difieren en milisegundos y nunca coincidirían. */
+function cmesPendientes(){
+  const clave = function(o){
+    const f = cmesDiaDeEvento(o);
+    return (f && o && o.evento) ? (f + '|' + o.evento) : null;
+  };
+  const srv = {};
+  cicloMioServidor().forEach(function(o){ const k = clave(o); if (k) srv[k] = 1; });
+  const dias = {};
+  cicloMioLocal().forEach(function(o){
+    const k = clave(o);
+    if (!k || srv[k]) return;
+    dias[k.slice(0, 10)] = 1;
+  });
+  return dias;
+}
+/* La fuente del calendario, por ámbito. Devuelve TODO lo que el dibujo necesita, y `colapsados` es
+   exactamente la lista que el motor vio, para que `cmesSueltosPorDia` no mienta.
+   ⚠️ En el panel se pide ANCHO (el mes ±1 día) y se ubica FINO por instante: `cicloHistoricoFilas`
+   recorta con `o.fecha || iso.slice(0,10)` —la fecha que escribió el EMISOR— mientras la casilla sale
+   de `fechaOpDe(c.t0)` —la del LECTOR—. Un calendario de mes tiene DOS bordes por pantalla, no uno, y
+   ahí es donde escritor y lector se pelean. */
+function cmesFuente(ambito, persona, ym){
+  const ilegibles = [];
+  const limpiar = function(lista){
+    return (lista || []).filter(function(o){
+      if (cmesInstanteDe(o) != null) return true;
+      ilegibles.push(o); return false;
+    });
+  };
+  if (ambito === 'mio'){
+    const colapsados = limpiar(cicloMioAll());          // `cicloMioAll` ya colapsa el doble toque
+    const plan = cicloPlan(cicloYo());
+    return { colapsados: colapsados, plan: plan, ilegibles: ilegibles,
+             ciclos: cicloAgruparTodos(colapsados, cicloTotalMin(plan) * 60000) || [] };
+  }
+  const desde = fechaMasDias(ym + '-01', -1);
+  const finMes = fechaMasDias(fechaMasDias(ym + '-01', 31).slice(0, 7) + '-01', -1);
+  const hasta = fechaMasDias(finMes, 1);
+  const filas = limpiar(cicloHistoricoFilas(desde, hasta, dashNorm(persona)));
+  const colapsados = cicloColapsarMismaOcurrencia(
+    filas.slice().sort(function(a, b){ return new Date(a.iso) - new Date(b.iso); }), true);
+  return { colapsados: colapsados, plan: cicloPlan(persona), ilegibles: ilegibles,
+           ciclos: cicloAgruparTodos(filas, cicloVentanaDe(persona)) || [] };
+}
+
+/* P090 · EXTRAÍDA de `cicloMiHistorialBloque`, que ahora la llama. Misma razón que
+   `cicloHistoricoFilas`: el calendario y la lista tienen que ver los MISMOS ciclos, y con una sola
+   expresión es imposible que diverjan. */
+function cicloMisCiclos(){
+  return cicloAgruparTodos(cicloMioAll(), cicloTotalMin(cicloPlan(cicloYo())) * 60000) || [];
+}
 function cicloMiHistorialBloque(){
-  const ventana = cicloTotalMin(cicloPlan(cicloYo())) * 60000;
-  const ciclos = cicloAgruparTodos(cicloMioAll(), ventana) || [];
+  const ciclos = cicloMisCiclos();
   const tarjetas = cicloCiclosListaHtml(ciclos);
   const periodo = (typeof DASH !== 'undefined' && DASH && DASH.operacionalPeriodo) || null;
   const completo = !!(_cicloHistDias && _cicloHistDias > 30);
@@ -13826,7 +14733,8 @@ function renderSections(){
     // J3: al final de Data Operacional, "lo que te toca ahora" + la línea de tiempo del ciclo.
     if (sec.id === 'operacional'){
       const extra = document.createElement('div');
-      extra.innerHTML = cicloMiBloque() + cicloMiHistorialBloque();   // P167 · y el historial
+      // P090 · el calendario va ANTES del historial: es el resumen, y la lista es el detalle (R6).
+      extra.innerHTML = cicloMiBloque() + cicloMiCalendarioBloque() + cicloMiHistorialBloque();
       while (extra.firstChild) s.appendChild(extra.firstChild);
     }
     root.appendChild(s);
@@ -14144,6 +15052,15 @@ function misSincronizar(dias){
          toca nada: la app sigue funcionando con lo local, como hasta ahora. */
       if (Array.isArray(d.operacional)) {
         try { localStorage.setItem(K_CICLO_SRV, JSON.stringify(d.operacional)); } catch(e){}
+      }
+      /* P090 · y hasta dónde llegó ese pedido. `desde` viene null en este canal, así que el calendario
+         lo deriva con `hoy − dias` (el mismo corte que hace `leerOperacional`), y se yerra por generoso:
+         un día cubierto y vacío dice «sin jornada registrada», que es cierto; uno pedido y marcado
+         «fuera del período» sería falso. */
+      if (d.operacionalPeriodo && typeof d.operacionalPeriodo === 'object') {
+        try { localStorage.setItem(K_CICLO_SRV_PER, JSON.stringify({
+          dias: Number(d.operacionalPeriodo.dias) || 0, desde: d.operacionalPeriodo.desde || null,
+          hasta: d.operacionalPeriodo.hasta || null, ts: Date.now() })); } catch(e){}
       }
       try { renderInicio(); } catch(e){}
       return true;
@@ -18538,7 +19455,7 @@ function sesionClavesBorrar(){
        propia— llega `null` y NO se pisa, así que `enviarOperacional` escribe el plan ajeno en la
        columna `Plan` de `Operacional`. El endpoint mide el exceso de jornada contra ese número, y
        ese dato «no se corrige después: es el que tiene consecuencias laborales». */
-    K_CICLO_MIO, K_CICLO_SRV, K_CICLO_PLAN, K_CICLO_PLAN_PROPIO, K_CICLO_DETENIDO_VISTO, K_TAREAS_CACHE, K_ZONA_OP,   // P186 · la marca de avisos también
+    K_CICLO_MIO, K_CICLO_SRV, K_CICLO_SRV_PER, K_CICLO_PLAN, K_CICLO_PLAN_PROPIO, K_CICLO_DETENIDO_VISTO, K_TAREAS_CACHE, K_ZONA_OP,   // P186 · la marca de avisos también
     K_NOTIF_LOCAL,          // P186c · los avisos de la app son de esta persona (dicen cuándo salió y cuándo se olvidó)
     K_SES_PERSONA,          // Z2-cliente: la sesión propia también se cierra
     /* Y la marca de "ya se le ofreció contraseña": es un mapa por CÉDULA, así que se iba
@@ -19852,6 +20769,13 @@ function onDashData(d, scopeLabel, params, vista){
            duty: d.duty || null,
            ausencias: (d.ausencias && typeof d.ausencias === 'object') ? d.ausencias : {},
            operacionalPeriodo: d.operacionalPeriodo || null,
+           /* P090 · LA ZONA DE LA OPERACIÓN, que hasta hoy se tiraba en este camino. El servidor la manda en la RAÍZ
+              (`zonaOp`, Código.js:1845) y el único lector era `zonaOpGuardar` en el canal de TAREAS del empleado
+              (:32094): en la computadora de un supervisor, un médico o Dirección —que nunca fue teléfono de piloto—
+              `zonaOperacion()` devolvía null y `fechaOpDe`/`horaOpDe` caían en la zona del dispositivo. `cfg('zonaOp')`
+              tampoco podía encontrarla: `DASH._cfg` es `leerConfigEmpresa()`, cuya clave es `zonaHoraria`. Una celda
+              del calendario ES un día, así que esto es su unidad de medida. */
+           zonaOp: d.zonaOp || null,
            /* ⚠️ P096 · SE NOMBRAN ACÁ O NO EXISTEN. Este objeto es una lista CERRADA de campos:
               lo que el servidor mande y no esté escrito acá se descarta sin error. Es exactamente
               lo que ya se comió `duty` y `ausencias` (A4). */
@@ -22941,13 +23865,18 @@ function cicloAgruparNucleo(eventos, ventana){
    por período dejaría la pestaña vacía apenas alguien eligiera "último mes"—. Acá la pregunta es
    la contraria: el período ES lo que se está mirando. Son dos vistas distintas del mismo dato y
    por eso son dos funciones, no un parámetro. */
-function cicloHistorico(desdeF, hastaF){
-  /* ✅ P057c · Igual que `cicloArmar`: la ventana se calcula por persona en el bucle de abajo, y
-     la variable `plan` quedó sin uso. */
-  const rows = (DASH.operacional || []).filter(o => {
+/* P090 · EXTRAÍDO del cuerpo de `cicloHistorico`, que ahora lo llama. Un predicado, dos consumidores
+   (el histórico del panel y el calendario), cero duplicación: si el recorte por fecha y el mapa
+   divergieran, sería el defecto más repetido de este repo. */
+function cicloHistoricoFilas(desdeF, hastaF, personaNorm){
+  return (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
-    if (DASH.f.per && o.persona !== DASH.f.per) return false;
+    /* P090 · con `personaNorm` se compara NORMALIZADO. El filtro de siempre usa igualdad exacta contra
+       `DASH.f.per`, y los nombres de `Operacional` no pasan por `dashMergeNombres` como los registros:
+       una tilde o un espacio de más dejaría el calendario de esa persona vacío sin decir por qué. */
+    if (personaNorm){ if (dashNorm(o.persona) !== personaNorm) return false; }
+    else if (DASH.f.per && o.persona !== DASH.f.per) return false;
     if (DASH.f.nivel && String(nivelRiesgoDe(o.persona, o.departamento, o.empresa, o.cargo)) !== String(DASH.f.nivel)) return false;
     if (!o.iso || isNaN(new Date(o.iso).getTime())) return false;
     /* Se compara la FECHA de la operación como texto, no el instante: es el mismo criterio que usa
@@ -22959,6 +23888,11 @@ function cicloHistorico(desdeF, hastaF){
     if (hastaF && f > hastaF) return false;
     return true;
   });
+}
+function cicloHistorico(desdeF, hastaF){
+  /* ✅ P057c · Igual que `cicloArmar`: la ventana se calcula por persona en el bucle de abajo, y
+     la variable `plan` quedó sin uso. */
+  const rows = cicloHistoricoFilas(desdeF, hastaF);
   const porPersona = {};
   rows.forEach(o => { const k = dashNorm(o.persona); (porPersona[k] = porPersona[k] || []).push(o); });
   const out = {};
@@ -28097,6 +29031,7 @@ function dashFichaMedica(rows){
     return '<div class="dash-block fm-block">' +
       '<div class="db-title">' + esc(t('fm_titulo', { q: DASH.f.per })) + '</div>' +
       '<div class="db-sub">' + esc(t('fm_sin_tests')) + '</div>' +
+      dashFmCalendario() +
       '<div class="fm-sec-t">' + esc(t('fm_historia')) + '</div>' + fmTimeline(DASH.f.per) +
       '<div class="fm-sec-t">' + esc(t('fm_nota_clinica')) + '</div>' +
       (visorSoloLectura() ? '<div class="fm-nota-aviso">' + esc(t('visor_solo_lectura_nota')) + '</div>' :
@@ -28160,6 +29095,7 @@ function dashFichaMedica(rows){
     '<div class="fm-chips">' + chips.join('') + '</div>' + persistTxt +
     '<div class="fm-sec-t">' + esc(t('fm_linea_base')) + '</div>' +
     '<div class="fm-lb">' + (lineas || dashVacio('indicadores', 'grafico')) + '</div>' +
+    dashFmCalendario() +
     '<div class="fm-sec-t">' + esc(t('fm_historia')) + '</div>' + fmTimeline(DASH.f.per) +
     // El médico cierra el ciclo: marcar que la telemedicina efectivamente se hizo.
     (p.telem && p.telem.estado === 'aceptada'

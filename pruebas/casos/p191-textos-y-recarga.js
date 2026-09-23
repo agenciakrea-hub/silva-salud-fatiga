@@ -119,6 +119,7 @@ const P191_EXENTOS_DECL = {
   hseqExportar: 'cabeceras del CSV: dato', CASOS_ODOO_COLUMNAS: 'a Odoo', dashBuildSummary: 'resumen que viaja al endpoint del informe',
   gestEmpresaActual: '«General» es la clave de respaldo del almacén, no un texto', CICLO_FORMAS: '«Perelli» es el id del test',
   splashLangHintPalabra: 'muestra las dos palabras (Idioma ⇄ Language) a propósito', navAltoSincronizar: 'nombre de tecla', _hapticSwitch: 'nombre de tecla', cicloFullTecla: 'nombre de tecla',
+  cmesTecla: 'nombre de tecla (KeyboardEvent.key: Escape, Home, End…)', cmesTeclaDetalle: 'nombre de tecla',
   // WhatsApp: EVA lee el texto para saber qué test iniciar; traducirlo dejaría de matchear (nota en seccionesApp)
   seccionesApp: 'mensaje a EVA', buildMessage: 'mensaje a EVA',
   // lo que viaja a Odoo (P13): otro sistema, un solo idioma

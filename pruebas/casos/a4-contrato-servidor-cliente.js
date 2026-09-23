@@ -29,7 +29,7 @@ const A4_FUERA_DE_DASH = {
   config:    'se guarda como DASH._cfg',
   niveles:   'se guarda como DASH._niveles',
   sesion:    'lo consume el guardado de sesión (S4), antes de llegar acá',
-  zonaOp:    'lo consume zonaOpGuardar() (L1): es del dispositivo, no del panel',
+  zonaOp:    'P090 · se guarda como DASH.zonaOp (onDashData) y lo lee zonaOperacion(); antes sólo lo consumía zonaOpGuardar() en el canal de tareas (L1)',
   combinada: 'se guarda como DASH.combinada (P075: lo leen cicloPuedeEditarPlan y la bandeja del médico)'
 };
 
