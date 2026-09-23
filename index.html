@@ -7488,7 +7488,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -20753,6 +20753,91 @@ function cargaConMinimo(promesa, alVencerSinRespuesta){
   });
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   LOS CAMPOS DE CONTEXTO DEL PAYLOAD, DERIVADOS UNA SOLA VEZ
+
+   Son los que el servidor manda y que NO entran en la firma de cambios (`rawSig`): config, marca,
+   nómina, plan por persona, visor, zona. Los usan `onDashData` (la primera carga) y `dashRefresh`
+   (el refresco, que corre cada 60 s mientras la pestaña de ciclo esté abierta, y también con el ↻).
+
+   ⚠️ POR QUÉ ESTÁN ACÁ Y NO ESCRITOS DOS VECES. Hasta P201 cada función armaba lo suyo: `onDashData`
+   con una lista explícita de 28 campos y `dashRefresh` con otra de 15. Las dos listas se separaron y
+   quedaron **13 claves que el refresco nunca copiaba**, así que el panel las mostraba con el valor
+   del primer pedido durante todo el turno. Es el bug A4 por segunda vez —la primera se comió `duty`
+   y `ausencias`— y lo encontró la refutación de A8 (P200).
+
+   El síntoma que más importa no es el que se ve: cuando el servidor responde `nominaError` («no pude
+   leer la nómina, así que la cobertura se calcula sobre quienes ya tienen mediciones»), ese aviso
+   viajaba y el refresco lo tiraba, así que el panel seguía presentando un porcentaje como si fuera
+   contra la nómina completa. El servidor avisaba y la pantalla no lo decía (R2).
+
+   Agregar un campo nuevo acá lo deja resuelto para los dos caminos a la vez. Ésa es toda la idea. */
+function dashCamposDelServidor(d){
+  const cfgPayload = (d.config && typeof d.config === 'object') ? d.config : null;
+  return {
+    /* P075 · `combinada` (la clave única de la empresa abre las dos secciones): dos guardas del
+       cliente la leían y nunca estaba — el médico combinado veía menos de lo que el servidor manda. */
+    combinada: !!d.combinada,
+    cicloPlanPersona: d.cicloPlanPersona || null,
+    cicloPlanPersonaError: d.cicloPlanPersonaError || null,
+    marca: d.marca || null,
+    _cfg: cfgPayload,
+    /* P166 · los atajos del administrador sólo llegan con rol admin, y acá se vuelve a exigir: si un
+       payload los trajera con otro rol, no se guardan. */
+    atajosAdmin: ((d.rol === 'admin' || !!d.visor) && Array.isArray(d.atajosAdmin)) ? d.atajosAdmin : null,
+    /* P185 · el visor del administrador: como quién se está mirando, el aviso de que esa empresa no
+       existe en `Accesos`, y la lista del selector — que nunca trae contraseñas. */
+    visor: (d.visor && typeof d.visor === 'object') ? d.visor : null,
+    visorError: d.visorError || null,
+    cuentas: Array.isArray(d.cuentas) ? d.cuentas : null,
+    zonaOp: d.zonaOp || null,
+    nominaTotal: demoNominaTotal(d),
+    nominaSinDato: demoNominaSinDato(d),
+    nominaError: d.nominaError || null
+  };
+}
+/* Lo que el supervisor guardó hace un rato manda sobre la foto que trae el refresco, igual que con
+   las ausencias (P189). Dos cosas se escriben en local al guardar un plan —con lo que CONFIRMÓ el
+   servidor, no con lo que se mandó—: el plan de UNA persona (`cicloPlanPersona`) y el de TODA la
+   empresa (`_cfg.cicloPlan`). Los dos editores viven en la misma sección, a doce líneas de
+   distancia, y desde que el refresco copia esos campos los dos necesitan la misma protección.
+
+   ⚠️ LA CAUSA NO ES LA CACHÉ DEL ENDPOINT, y decirlo mal importa: `cicloPlanPersonaDe` y
+   `leerConfigEmpresa` leen la hoja en vivo, sin `CacheService`. La causa es **el GET en vuelo**:
+   `DASH_TIMEOUT_MS` son 120 s, así que un refresco que salió antes del guardado puede aterrizar
+   después y traer la foto anterior. Es el mismo reloj con el que P189 dimensionó `AUS_LOCAL_MS`.
+
+   ⚠️ Y NO SE REAPLICA EN EL ↻ MANUAL. Ese botón existe para traer la verdad del servidor: si otro
+   supervisor cambió el plan desde otro dispositivo, reaplicar lo local se lo pisaría y el botón que
+   se toca para estar seguro devolvería lo viejo. La protección es para el refresco automático, que
+   la persona no pidió. */
+function dashLocalRecordar(mio, campo, clave, valor){
+  if (!mio || !campo) return;
+  const loc = mio._locales || (mio._locales = {});
+  const porCampo = loc[campo] || (loc[campo] = {});
+  porCampo[clave || '_'] = { valor: valor || null, en: Date.now() };
+}
+function dashLocalReaplicar(dash){
+  const loc = dash && dash._locales; if (!loc) return;
+  const ahora = Date.now();
+  Object.keys(loc).forEach(campo => {
+    const porCampo = loc[campo];
+    Object.keys(porCampo).forEach(k => {
+      const l = porCampo[k];
+      if (ahora - l.en > AUS_LOCAL_MS){ delete porCampo[k]; return; }
+      if (campo === 'cicloPlanPersona'){
+        const mapa = Object.assign({}, dash.cicloPlanPersona || {});
+        if (l.valor) mapa[k] = l.valor; else delete mapa[k];
+        dash.cicloPlanPersona = mapa;
+      } else if (campo === 'cicloPlan'){
+        /* La jornada de la empresa vive DENTRO de `_cfg`, y el refresco reemplaza ese objeto entero:
+           hay que volver a meterla, no mezclar el objeto. */
+        dash._cfg = Object.assign({}, dash._cfg || {}, { cicloPlan: l.valor });
+      }
+    });
+    if (!Object.keys(porCampo).length) delete loc[campo];
+  });
+}
 function onDashData(d, scopeLabel, params, vista){
   if (!d || !d.ok){ showToast(tError(d && d.error)); return; }
   /* ⚠️ R14 · SE MIDE ANTES DE PISAR `DASH`. `sectorActual()` mira `DASH._cfg.sector` PRIMERO, así
@@ -20772,7 +20857,11 @@ function onDashData(d, scopeLabel, params, vista){
   // ANTERIOR (o no existe, en la primera carga de la sesión) — `DASH._cfg` recién se pisa con el
   // payload que acaba de llegar unas líneas más abajo. Leer `cfg()` acá adentro habría dado la
   // config vieja (o ninguna) justo el llamado que más importa: el de la carga que se está pintando.
-  const cfgPayload = (d.config && typeof d.config === 'object') ? d.config : null;
+  /* P201 · los campos de contexto se derivan UNA vez, en `dashCamposDelServidor`, que usan esta
+     función y `dashRefresh`. `cfgPayload` sale de ahí porque `dashTabsFor` lo necesita antes de que
+     exista `DASH`. */
+  const ctxServidor = dashCamposDelServidor(d);
+  const cfgPayload = ctxServidor._cfg;
   /* ⚠️ SE PASA `costosPayload` (el CAMPO costos ya resuelto), NO `cfgPayload` entero. Error real
      que se corrigió acá mismo antes de llegar a la suite: pasar el config completo hace que
      `hseqTieneCostos` vea "hay un objeto" con SÓLO que exista la hoja "Config Empresa" — aunque
@@ -20783,36 +20872,26 @@ function onDashData(d, scopeLabel, params, vista){
   const costosPayload = (cfgPayload && cfgPayload.costos != null && cfgPayload.costos !== '') ? cfgPayload.costos : null;
   const tabs = dashTabsFor(d.rol, !!(pvt && pvt.length), vista, costosPayload);
   DASH = { rol:d.rol, vista:vista, ref:d.referencia, metrics, registros:d.registros, comentarios:d.comentarios||null, pvt:pvt, scope:scopeLabel,
-           /* P075 · `combinada` (la clave única de la empresa abre las dos secciones) se guarda: dos guardas
-              del cliente —`cicloPuedeEditarPlan` y la bandeja de reportes— la leían y nunca estaba (el
-              verificador de P075 lo midió: el médico combinado veía menos que lo que el servidor le manda). */
-           combinada: !!d.combinada,
            operacional: d.operacional || [],   // ciclo operativo (endpoint viejo no lo manda → [])
            /* ⚠️ P057a · ESTE CAMPO VA ACÁ AHORA, aunque el servidor todavía no lo mande. Esta lista
               es EXPLÍCITA: un campo que el endpoint manda y que no esté nombrado se descarta en
               silencio. Ya pasó con `duty` y `ausencias` (hallazgo A4) — el servidor los mandaba, el
               cliente los tiraba, y dos prompts enteros «funcionaban» en las pruebas y no en
               producción. Dejarlo puesto desde ahora es lo que evita repetirlo en P057b. */
-           cicloPlanPersona: d.cicloPlanPersona || null,
            /* ⚠️ H8 · Y SU CANAL DE ERROR. Lo cazó el contrato de A4, que compara qué manda el
               servidor contra qué guarda el cliente: agregué el campo en el `.gs` y me olvidé de
               nombrarlo acá, que es EXACTAMENTE el defecto que ese caso existe para evitar y que yo
               mismo cité al escribirlo. Sin esta línea, el aviso de «no pude leer las jornadas»
               viajaba y se tiraba. */
-           cicloPlanPersonaError: d.cicloPlanPersonaError || null,
-           demoMode: !!(d.demo), marca: d.marca || null,
+           demoMode: !!(d.demo),
            f:{period:'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
-           _niveles:null, _cfg:cfgPayload, _reportes:null, _reportesPedidos:false,
+           _niveles:null, _reportes:null, _reportesPedidos:false,
            /* P166 · los atajos del administrador. Sólo llegan con rol admin, y acá se vuelve a
               exigir: si un payload los trajera con otro rol, no se guardan. */
-           atajosAdmin: ((d.rol === 'admin' || !!d.visor) && Array.isArray(d.atajosAdmin)) ? d.atajosAdmin : null,   // P185 · también en el visor
            /* P185 · EL VISOR DEL ADMINISTRADOR. `visor` dice como quién se está mirando ({empresa,
               vista} o null); `visorError` avisa que la empresa pedida no existe en `Accesos`;
               `cuentas` es la lista del selector, sólo llega a una sesión de admin y nunca trae
               contraseñas. Los tres nombrados acá porque esta lista es EXPLÍCITA (ver `duty`). */
-           visor: (d.visor && typeof d.visor === 'object') ? d.visor : null,
-           visorError: d.visorError || null,
-           cuentas: Array.isArray(d.cuentas) ? d.cuentas : null,
            _opiniones:null, _opinionesPedidas:false,   // P162 · el buzón anónimo
            pickInd:'__all__', pickEvo:'__all__', pickTiempo:metrics[0], pickDist:metrics[0],
            _informes:[], _informesLoaded:false, _informesLoading:false, _informesProximo:null, _infExp:{}, _objetivo:'', _objetivoFecha:'',
@@ -20838,7 +20917,6 @@ function onDashData(d, scopeLabel, params, vista){
               `zonaOperacion()` devolvía null y `fechaOpDe`/`horaOpDe` caían en la zona del dispositivo. `cfg('zonaOp')`
               tampoco podía encontrarla: `DASH._cfg` es `leerConfigEmpresa()`, cuya clave es `zonaHoraria`. Una celda
               del calendario ES un día, así que esto es su unidad de medida. */
-           zonaOp: d.zonaOp || null,
            /* ⚠️ P096 · SE NOMBRAN ACÁ O NO EXISTEN. Este objeto es una lista CERRADA de campos:
               lo que el servidor mande y no esté escrito acá se descarta sin error. Es exactamente
               lo que ya se comió `duty` y `ausencias` (A4). */
@@ -20853,16 +20931,17 @@ function onDashData(d, scopeLabel, params, vista){
               `nominaDemo()` ya tenía a las dos personas sin registrar (Mariana Cárdenas y Esteban
               Rivas): existían y no llegaban a la cuenta. Se usa el elenco que ya está, no una lista
               nueva, para que nadie aparezca en una pantalla y no en la de al lado. */
-           nominaTotal: demoNominaTotal(d),
-           nominaSinDato: demoNominaSinDato(d),
            /* A11 · si al servidor se le rompió la lectura de la nómina, el síntoma era un 0 que
               parecía un dato: la cobertura volvía al denominador viejo y decía "100% medido" sin
               que nada avisara. Ahora el motivo viaja y la pantalla lo dice. */
-           nominaError: d.nominaError || null,
            rawSig:JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[])+'|'+JSON.stringify(d.ausencias||{}) };   // P189 · misma firma que dashRefresh (con ausencias)
   // Niveles de riesgo y configuración de la empresa. Pueden venir en el mismo payload (si el
   // endpoint ya los devuelve) o pedirse aparte. Si no llegan, todo queda en los defaults del
   // código y la app se comporta EXACTAMENTE como antes: nunca bloquear por config faltante.
+  /* P201 · y los campos de contexto, con la MISMA derivación que usa el refresco. Van por
+     `Object.assign` y no dentro del literal para que el día que se agregue uno no haya que acordarse
+     de tocar dos lugares: se agrega en `dashCamposDelServidor` y llega solo a los dos. */
+  Object.assign(DASH, ctxServidor);
   DASH._niveles = Array.isArray(d.niveles) ? d.niveles : null;
   // _cfg ya quedó puesto arriba (cfgPayload), antes de llamar a dashTabsFor: no se reasigna acá
   // para no tener dos lugares que puedan quedar diciendo cosas distintas.
@@ -21131,6 +21210,38 @@ function dashRefresh(manual){
        tuvo eventos nuevos en los 23 anteriores devuelve la MISMA lista de eventos, la firma no
        cambia, y Jornada quedaría diciendo «últimos 7 días» con el botón de 30 encendido. */
     DASH.duty = d.duty || null;
+    /* ⚠️ P201 · Y LOS CAMPOS DE CONTEXTO, TAMBIÉN ANTES DEL CORTE POR `changed`, con la MISMA
+       derivación que usa `onDashData`. Antes esta función tenía su propia lista de qué copiar, se
+       fue separando de la de allá, y quedaron **13 claves que no se refrescaban nunca**: el panel
+       las mostraba con el valor del primer pedido durante todo el turno, y esto corre cada 60 s.
+       El caso que más duele: el servidor manda `nominaError` cuando no pudo leer la nómina, y ese
+       aviso se tiraba acá — la pantalla seguía mostrando una cobertura como si fuera contra la
+       nómina completa, sin decir que el dato no estaba (R2).
+       Va arriba del corte por la misma razón que `operacionalPeriodo` y `duty`: estos campos pueden
+       cambiar sin que cambie un solo registro, así que si esperaran al `changed` no llegarían nunca
+       en una empresa quieta. */
+    /* Se guarda cómo estaba para saber si de verdad cambió: no alcanza con copiar, hay que
+       REPINTAR. El corte por `changed` de más abajo mira sólo la firma de datos (registros, pvt,
+       ciclo, aptitud, turnos, ausencias), así que en una empresa quieta —nadie se midió, ningún
+       evento— el contexto entraba en `DASH` y la pantalla no se enteraba. El caso que motivó todo
+       esto es justo ése: se rompe la lectura de `Nómina`, llega `nominaError`, y el panel seguía
+       mostrando el porcentaje de cobertura de antes sin decir que el dato no estaba. */
+    const ctxAntes = JSON.stringify(dashCamposDelServidor({ config: DASH._cfg, marca: DASH.marca,
+      combinada: DASH.combinada, cicloPlanPersona: DASH.cicloPlanPersona,
+      cicloPlanPersonaError: DASH.cicloPlanPersonaError, rol: DASH.rol, visor: DASH.visor,
+      visorError: DASH.visorError, cuentas: DASH.cuentas, zonaOp: DASH.zonaOp,
+      atajosAdmin: DASH.atajosAdmin, nominaTotal: DASH.nominaTotal,
+      nominaSinDato: DASH.nominaSinDato, nominaError: DASH.nominaError }));
+    /* R14 · el sector se mide ANTES de pisar `_cfg`, igual que en `onDashData`: `sectorActual()` lo
+       lee de ahí, así que cambiarlo a mitad de camino deja la terminología mezclada entre el panel y
+       lo que ya estaba pintado afuera. Antes de P201 era imposible, porque `_cfg` no se refrescaba. */
+    const secAntes = sectorActual();
+    Object.assign(DASH, dashCamposDelServidor(d));
+    /* ⚠️ En el ↻ MANUAL no se reaplica lo local: ese botón existe para traer la verdad del servidor.
+       Si otro supervisor cambió el plan desde otro dispositivo, reaplicar lo de acá se lo pisaría y
+       el botón que se toca para estar seguro devolvería lo viejo. */
+    if (!manual) dashLocalReaplicar(DASH);
+    if (sectorActual() !== secAntes){ try { aplicarIdioma(); } catch(e){} }
     const pvt = d.pvt || null;
     // El ciclo operativo entra en la firma: si no, un evento nuevo (alguien que acaba de llegar al
     // aeropuerto) no dispararía el re-render y la vista en vivo se quedaría vieja.
@@ -21143,7 +21254,15 @@ function dashRefresh(manual){
        evento de ciclo o test — en una empresa quieta, horas (verificador, 3ª pasada). */
     const sig = JSON.stringify(d.registros)+'|'+JSON.stringify(pvt||[])+'|'+JSON.stringify(d.operacional||[])+'|'+JSON.stringify(d.aptitud||[])+'|'+JSON.stringify(d.turnos||[])+'|'+JSON.stringify(d.ausencias||{});
     const changed = sig !== DASH.rawSig || JSON.stringify(d.referencia) !== JSON.stringify(DASH.ref);
-    if (!changed){ if (manual) showToast(t('ts_ya_al_dia')); return true; }   // sin cambios → no re-renderiza (no salta el scroll)
+    if (!changed){
+      /* Los datos no cambiaron, pero el CONTEXTO sí puede haber cambiado (la nómina, la config, el
+         aviso de que no se pudo leer). En ese caso hay que repintar igual — con `dashRepintar`, que
+         no vuelve a animar todo — porque si no el dato llega a `DASH` y muere ahí. */
+      const ctxAhora = JSON.stringify(dashCamposDelServidor(d));
+      if (ctxAhora !== ctxAntes){ try { dashRepintar(); } catch(e){} }
+      if (manual) showToast(t('ts_ya_al_dia'));
+      return true;                                  // sin cambios de datos → no se re-renderiza entero (no salta el scroll)
+    }
     const nuevosRegs = Math.max(0, d.registros.length - (DASH.registros || []).length);
     const metrics = d.metricas.filter(m => d.registros.some(r => r[m] != null));
     const hadPvt = !!(DASH.pvt && DASH.pvt.length), hasPvt = !!(pvt && pvt.length);
@@ -24612,6 +24731,7 @@ function cicloCfgGuardar(btn){
   try { haptic(16); } catch(e){}
   if (DASH.demoMode){
     DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan:plan });
+    dashLocalRecordar(DASH, 'cicloPlan', '', plan);   // P201 · el refresco reemplaza `_cfg` entero
     CICLO_CFG_ABIERTO = false; cicloRepintar(); showToast(t('demo_aplicado'));
     return;
   }
@@ -24624,6 +24744,11 @@ function cicloCfgGuardar(btn){
       btnSpin(btn, false);
       if (!d || !d.ok){ if (err) err.textContent = tError(d && d.error); return; }
       DASH._cfg = Object.assign({}, DASH._cfg || {}, { cicloPlan: d.plan || plan });
+      /* ⚠️ P201 · la jornada de la EMPRESA vive dentro de `_cfg`, y el refresco reemplaza ese objeto
+         entero. Sin esto, un GET que salió antes de este guardado aterriza después y le devuelve la
+         jornada vieja a la pantalla — con el agravante de que el «antes» que la confirmación R8 le
+         muestra la próxima vez sale de ahí, así que le afirmaría un valor que el servidor ya cambió. */
+      dashLocalRecordar(DASH, 'cicloPlan', '', d.plan || plan);
       CICLO_CFG_ABIERTO = false; cicloRepintar();
       /* R3 · si el servidor guardó pero no pudo escribir la bitácora, se dice: un cambio sin
          registro no es lo que se prometió, aunque el guardado esté hecho. */
@@ -24720,6 +24845,7 @@ function cicloPerEnviar(btn, persona, cuerpo, msgOk){
     const mapa = Object.assign({}, DASH.cicloPlanPersona || {});
     if (cuerpo.quitar) delete mapa[k]; else mapa[k] = limpio;
     DASH.cicloPlanPersona = mapa;
+    dashLocalRecordar(DASH, 'cicloPlanPersona', k, cuerpo.quitar ? null : limpio);   // P201 · que el refresco no lo deshaga
     CICLO_PER_ABIERTO = ''; cicloRepintar(); showToast(t('demo_aplicado'));
     return;
   }
@@ -24736,6 +24862,10 @@ function cicloPerEnviar(btn, persona, cuerpo, msgOk){
       const mapa = Object.assign({}, DASH.cicloPlanPersona || {});
       if (d.quitado || !d.plan) delete mapa[k]; else mapa[k] = d.plan;
       DASH.cicloPlanPersona = mapa;
+      /* P201 · se recuerda por unos minutos: desde que el refresco copia `cicloPlanPersona`, un GET
+         que salió antes del guardado puede aterrizar después y desharía en pantalla el cambio que el
+         supervisor acaba de confirmar. Mismo patrón que las ausencias (P189). */
+      dashLocalRecordar(DASH, 'cicloPlanPersona', k, (d.quitado || !d.plan) ? null : d.plan);
       /* R3 · queda en la bitácora: cambiar la jornada contra la que se juzga a alguien es una
          decisión con consecuencia operativa, y dentro de seis meses alguien va a preguntar quién
          la tomó. */
