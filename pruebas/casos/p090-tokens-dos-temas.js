@@ -21,7 +21,7 @@ PRUEBAS.grupo('P090 · calendario de jornadas · cada caso sale de un token (R13
 
 const P090T_DIA = '2020-01-15';        // un día pasado cualquiera: así `esHoy` nunca interfiere
 const P090T_VISUALES = ['completo', 'exceso', 'excedido', 'sin_cierre', 'detenido',
-                        'cerrado', 'curso', 'descanso', 'parcial'];   // los 9 del ciclo, para contrastar la derivación
+                        'cerrado', 'curso', 'descanso', 'sin_apertura'];   // los 9 del ciclo (P200 renombró `parcial`)
 
 /* Los OCHO valores que `cicloEstado` puede devolver, sacados de su propio código (como hace
    `p186-ciclo-detenido-cliente.js:165`, que congela la lista a mano: acá se deriva y se compara

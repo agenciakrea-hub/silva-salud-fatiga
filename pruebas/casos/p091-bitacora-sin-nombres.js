@@ -144,3 +144,40 @@ PRUEBAS.caso('🔒 P091 · la lista es BLANCA: un campo nuevo en el detalle no v
   PRUEBAS.igual((r.eventos || []).length, 1, 'DISCRIMINADOR · pero el evento sigue llegando: se recortan campos, no se pierden hechos');
   PRUEBAS.igual((r.eventos || [])[0].accion, 'accion_inventada', 'y su acción viaja, que es lo que Dirección cuenta');
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   Y DIRECCIÓN TAMPOCO ESCRIBE (P200, la refutación de A8)
+
+   `accionBitacoraGuardar` sólo miraba `accesoPanel_` y `acc.soloLectura`: le faltaba el candado de
+   vista que las otras diez acciones sobre personas ya tienen. Con la contraseña de la columna
+   «Contraseña HSEQ» se podía dejar una línea PERMANENTE —R3: la bitácora no se edita ni se borra—
+   con el sujeto, el actor y el rol que el cliente quisiera mandar. Los dos escépticos lo
+   confirmaron por separado, cada uno reproduciéndolo contra el `.gs` real.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔒 P200 · con la contraseña de Dirección NO se puede escribir en la bitácora', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  const env = GS.crearEntorno({
+    'Accesos': P091B_ACCESOS.map(f => f.slice()),
+    'Bitácora': [P091B_BITA_CAB.slice()]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionBitacoraGuardar']);
+  const evento = JSON.stringify({ id: 'falso_1', ts: Date.now(), empresa: 'Empresa Uno',
+    actor: 'quien yo quiera', rol: 'supervisor', accion: 'determinacion_medica',
+    sujeto: P091B_NOMBRE, detalle: {}, origen: 'panel' });
+
+  const r = JSON.parse(api.accionBitacoraGuardar({ usuario: 'empresa1', pass: 'claveHseq',
+    empresa: 'Empresa Uno', evento: evento }).getContent());
+  PRUEBAS.falso(r.ok, '🔒 la escritura se rechaza · antes respondía ok y la fila quedaba escrita para siempre');
+  PRUEBAS.igual(r.motivo, 'sin_permiso', 'con el mismo motivo que usan las otras acciones sobre personas');
+
+  const hoja = env.__libro.getSheetByName('Bitácora');
+  PRUEBAS.igual(hoja.getLastRow(), 1, 'y la hoja sigue teniendo sólo el encabezado · nada se escribió');
+
+  /* DISCRIMINADOR · el supervisor SÍ escribe. Sin esto, «no se escribió» podría ser un emulador que
+     no sabe escribir, o una acción rota para todos. */
+  const r2 = JSON.parse(api.accionBitacoraGuardar({ usuario: 'empresa1', pass: 'claveSup',
+    empresa: 'Empresa Uno', evento: evento }).getContent());
+  PRUEBAS.cierto(r2.ok, '🔒 DISCRIMINADOR · el supervisor sí puede registrar · el candado es de vista, no un rechazo general');
+  PRUEBAS.igual(hoja.getLastRow(), 2, 'y su fila quedó escrita');
+});

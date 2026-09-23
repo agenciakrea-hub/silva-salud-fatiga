@@ -101,8 +101,13 @@ PRUEBAS.caso('cmesCaso cubre los OCHO estados que cicloEstado puede devolver, y 
   PRUEBAS.igual(cmesCaso({ estado: 'completo', huboExceso: true }), 'exceso', 'completo + huboExceso → «exceso» (rojo), no «completo»');
   PRUEBAS.igual(cmesCaso({ estado: 'completo', huboExceso: false }), 'completo', 'completo sin exceso → «completo»');
   PRUEBAS.igual(cmesCaso({ estado: 'completo' }), 'completo', 'sin la bandera (ciclos viejos) → «completo»: sólo `true` cuenta');
-  PRUEBAS.igual(cmesCaso({ estado: 'inactivo' }), 'parcial', 'inactivo (falta el evento inicial) → «parcial», que es lo que dice el rótulo');
-  PRUEBAS.igual(cmesCaso(null), 'parcial', 'sin estado → «parcial», nunca `undefined` en la clase de la casilla');
+  /* ⚠️ RENOMBRADO en P200 (2026-09-23): era «parcial», con el rótulo «Registró sin marcar la salida
+     de casa». La auditoría de cierre de tanda mostró que el caso más común de `inactivo` no es un
+     descuido de la persona sino el PRIMER día del período traído, cuya jornada empezó antes del
+     corte — así que el calendario le atribuía a alguien, todos los meses, un olvido que no cometió,
+     y lo subía a las fichas de excepción. El caso ahora se llama `sin_apertura` y nombra el hecho. */
+  PRUEBAS.igual(cmesCaso({ estado: 'inactivo' }), 'sin_apertura', 'inactivo (falta el evento inicial) → «sin_apertura»: nombra el hecho, no a la persona');
+  PRUEBAS.igual(cmesCaso(null), 'sin_apertura', 'sin estado → «sin_apertura», nunca `undefined` en la clase de la casilla');
 
   /* DISCRIMINADOR · un estado inventado tiene que caerse por los tres lados. Si `cmesPeso` diera un
      número para cualquier cosa, o `t()` inventara un rótulo, las tres listas vacías de arriba serían
