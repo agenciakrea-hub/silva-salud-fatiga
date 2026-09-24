@@ -4437,6 +4437,11 @@
   .sf-rep-coment { width:100%; min-height:60px; padding:.5rem .65rem; border-radius:var(--radius-sm);
     border:1.5px solid var(--sup-borde); font-size:.85rem; font-family:inherit; resize:vertical; background: var(--card); color:var(--text); }
   .sf-rep-send { flex:1; }
+  /* P200 lote 3 · el aviso de R4 debajo del comentario anónimo. Sin color de alarma a propósito:
+     no avisa de un peligro, da la información que la persona necesita para decidir cuánto contar.
+     Todo por tokens (R13). */
+  .sf-rep-aviso { margin:.45rem 0 .1rem; padding:.5rem .65rem; border-radius:var(--radius-sm);
+    background:var(--chip-bg); color:var(--text-soft); font-size:.78rem; line-height:1.4; }
 
   /* ── Modo simulación (P8): imposible de confundir con la sesión real ── */
   /* ⚠️ Tenía tres colores escritos a mano (`#4338ca`, `#3c32b8`, `#fff`), que es R13. Pasaron a
@@ -7512,7 +7517,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.78';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9361,6 +9366,7 @@ const I18N = {
       apt_caso_nota:'La atiende el equipo médico. No es una determinación de aptitud.',
       apt_nivel_title:'Nivel de riesgo del puesto: {n} — {d}',
       rep_ph_coment:'Comentario opcional…', rep_ph_coment_anon:'Comentario opcional (no escribas datos que puedan identificarte)…',
+      rep_aviso_texto:'Tu supervisor lee lo que escribas aquí, tal como lo escribas. Tu nombre no se envía, pero un detalle muy específico puede decir quién eres.',
       evo_faltan:'Todavía no hay registros suficientes para ver la evolución. Con al menos <b>2 registros</b> (mejor en fechas distintas) empiezan a aparecer los gráficos.',
       lg_ambos_normales:'Ambos normales',
       pvt_p_fatiga:'Signos de fatiga',
@@ -11410,6 +11416,7 @@ const I18N = {
       apt_caso_nota:'The medical team is handling it. It is not a fitness determination.',
       apt_nivel_title:'Job risk level: {n} — {d}',
       rep_ph_coment:'Optional comment…', rep_ph_coment_anon:'Optional comment (do not write anything that could identify you)…',
+      rep_aviso_texto:'Your supervisor reads what you write here, exactly as you write it. Your name is not sent, but a very specific detail can reveal who you are.',
       evo_faltan:'There are not enough records yet to see the evolution. With at least <b>2 records</b> (ideally on different dates) the charts start to appear.',
       lg_ambos_normales:'Both normal',
       pvt_p_fatiga:'Signs of fatigue',
@@ -27032,6 +27039,15 @@ function dashReporteCard(){
     '<div class="sf-rep-chips">' + chips + '</div>' +
     (op ? ('<textarea id="repComentario" class="sf-rep-coment" maxlength="300" placeholder="' +
       esc(t(op.identificado ? 'rep_ph_coment' : 'rep_ph_coment_anon')) + '"></textarea>' +
+      /* ⚠️ R4 · LA CULTURA JUSTA SE VE, NO SE SUPONE, y acá se ve donde la persona decide qué
+         escribir. Decisión de Franco (2026-09-24), al cerrar el hallazgo #2 de A8: el servidor ya
+         no manda el área de un reporte anónimo cuando el área es chica, pero el COMENTARIO va
+         entero, y en un área de una persona un texto como «solo yo cubro todo el turno» identifica
+         igual que el nombre. Recortarlo le sacaría al reporte casi todo su valor justo donde más
+         hace falta; avisar deja que la persona elija cuánto contar, con el dato en la mano.
+         ⚠️ Y VA COMO BLOQUE, NO COMO PLACEHOLDER. El `placeholder` ya decía algo parecido, pero
+         desaparece en cuanto se escribe la primera letra — o sea justo cuando el aviso importa. */
+      (op.identificado ? '' : '<div class="sf-rep-aviso">' + esc(t('rep_aviso_texto')) + '</div>') +
       '<div class="an-actions"><button type="button" class="an-cancel" onclick="dashReporteToggle()">' + esc(t('cancelar')) + '</button>' +
       '<button type="button" class="sf-rep-send" onclick="dashReporteEnviarClick()">' + esc(t('enviar')) + '</button></div>') :
       '<div class="an-actions"><button type="button" class="an-cancel" onclick="dashReporteToggle()">' + esc(t('cancelar')) + '</button></div>') +

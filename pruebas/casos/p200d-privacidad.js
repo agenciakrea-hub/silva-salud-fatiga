@@ -312,3 +312,42 @@ PRUEBAS.caso('⚠️ P200d · el umbral no mete la lectura más cara del CH en c
   PRUEBAS.cierto(/construirResolutor\(\)\.aplicar/.test(cuerpo),
     'y resuelve identidad antes de contar, que es lo que hace el panel con los mismos registros');
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   EL AVISO A QUIEN ESCRIBE (decisión de Franco, 2026-09-24)
+
+   El área ya no viaja por debajo del umbral, pero el comentario sí. Recortarlo le sacaría al
+   reporte casi todo su valor justo donde más hace falta, así que en vez de recortar se AVISA: R4
+   dice que la cultura justa se ve, y se ve donde la persona decide qué contestar.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 P200d · el reporte ANÓNIMO avisa que el supervisor lee el texto tal cual, y el identificado no', () => {
+  const prev = DASH;
+  try {
+    /* Por el camino real: el HTML lo arma `dashReporteCard()` a partir de la opción elegida. */
+    const anon = REPORTE_OPCIONES.filter(o => !o.identificado)[0];
+    const ident = REPORTE_OPCIONES.filter(o => o.identificado)[0];
+    PRUEBAS.cierto(!!anon && !!ident, 'guarda: hay opciones de los dos tipos · ' + REPORTE_OPCIONES.map(o => o.k).join(', '));
+
+    DASH = { _reporteAbierto: true, _reporteOpcion: anon.k };
+    const htmlAnon = dashReporteCard();
+    PRUEBAS.cierto(htmlAnon.indexOf('sf-rep-aviso') >= 0,
+      '🔴 el anónimo muestra el aviso · el `placeholder` decía algo parecido pero desaparece al escribir la primera letra, que es justo cuando importa');
+    PRUEBAS.cierto(htmlAnon.indexOf(esc(t('rep_aviso_texto'))) >= 0, 'con el texto del diccionario, no escrito a mano');
+
+    DASH = { _reporteAbierto: true, _reporteOpcion: ident.k };
+    PRUEBAS.igual(dashReporteCard().indexOf('sf-rep-aviso'), -1,
+      'DISCRIMINADOR · y el IDENTIFICADO no lo muestra: quien firma con su nombre ya decidió que se sepa, y repetirle la advertencia sería ruido');
+  } finally { try { DASH = prev; } catch(e){} }
+});
+
+PRUEBAS.caso('⚠️ P200d · el aviso está en los dos idiomas y usa tokens, no colores a mano', () => {
+  ['es', 'en'].forEach(l => {
+    PRUEBAS.cierto(_i18nBuscar(l, sectorActual(), 'rep_aviso_texto') != null, '⚠️ la clave existe en ' + l);
+  });
+  return fetch('/index.html?v=' + Date.now()).then(r => r.text()).then(src => {
+    const regla = src.slice(src.indexOf('.sf-rep-aviso {'), src.indexOf('}', src.indexOf('.sf-rep-aviso {')));
+    PRUEBAS.igual((regla.match(/#[0-9a-fA-F]{3,8}\b/g) || []), [], '⚠️ R13 · sin colores a mano · «' + regla.replace(/\s+/g, ' ').slice(0, 110) + '»');
+    PRUEBAS.cierto(/var\(--/.test(regla), 'y con tokens');
+  });
+});
