@@ -196,6 +196,10 @@
        a --apt-box i en el CSS. */
     --sem-glyph: #1a1a1a;
     --sem-ambar-txt: #8a6400;
+    /* El azul legible como TINTA. No es un color nuevo: alía `--sem-azul-int`, que ya está medido
+       en 6,83:1 sobre `--sem-azul-bg` en claro y 7,56 en oscuro. Faltaba sólo el nombre, y su
+       ausencia se había documentado dos veces en este archivo como «no usarlo». */
+    --sem-azul-txt: var(--sem-azul-int);
 
     /* Escala de 5 niveles de riesgo del puesto (P1): verde → oliva → ámbar → naranja → rojo.
        Repetida igual en las insignias de nivel, la documentación y la consola HSEQ. */
@@ -450,6 +454,7 @@
     --sem-rojo-txt:  #ffb3af;
     --sem-glyph: #1a1a1a;
     --sem-ambar-txt: #f5d488;
+    --sem-azul-txt: var(--sem-azul-int);
 
     --niv-1: #5fc99a;  --niv-1-bg: #123328;
     --niv-2: #8fcf6c;  --niv-2-bg: #1c3018;
@@ -1183,8 +1188,11 @@
   #portalDash { display: flex; flex-direction: column; min-height: 0; flex: 1; }
   .dash-top { flex-shrink: 0; display: flex; align-items: center; gap: .6rem; padding: 1rem 1.2rem .85rem;
     background: var(--navy); flex-shrink: 0; }
-  .portal-back { width: 36px; height: 36px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
-    border-radius: 10px; font-size: 1.15rem; color: #fff; cursor: pointer; flex-shrink: 0; }
+  /* 44, como sus dos hermanos de la misma barra, que ya lo medían. La barra los centra, así que no
+     reacomoda nada. Volver atrás en el panel es la salida más usada: no puede ser la más chica. */
+  .portal-back { width: 44px; height: 44px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
+    border-radius: 10px; font-size: 1.15rem; color: #fff; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; }
   .dash-scope-wrap { flex: 1; min-width: 0; }
   .dash-scope-top { display: flex; align-items: center; gap: .45rem; min-width: 0; }
   /* T3: SIN text-overflow:ellipsis a propósito — con el desplazamiento (más abajo) el texto entero
@@ -1863,7 +1871,8 @@
 
   /* Barra de contexto (breadcrumb) */
   .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
-  .ctx-back { border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
+  /* 44 de alto · es un chip suelto en su fila, con `flex-wrap` en el contenedor: no reacomoda nada. */
+  .ctx-back { min-height: 44px; display: inline-flex; align-items: center; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs); padding: .35rem .7rem; font-family: inherit; font-weight: 800; font-size: .78rem; cursor: pointer; flex-shrink: 0; }
   .ctx-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
   /* Q4c · La salida del portal. Discreta a propósito: es una acción de excepción, no un camino.
      Sin color propio: hereda el de texto atenuado, que ya está medido en los dos temas. */
@@ -2087,7 +2096,7 @@
   /* ⚠️ ZD · LA DESCRIPCIÓN DEL PANEL EN LA DEMOSTRACIÓN. Abierta y arriba de todo, y sólo en
      demostración, así que no le come una línea a nadie que esté trabajando.
      R13 · ni un color a mano: --sem-azul, --sem-azul-bg, --text-soft y --linea están definidos en
-     los DOS temas. (`--sem-azul-txt` NO existe — no usarlo, aunque el nombre suene lógico.) */
+     los DOS temas. (`--sem-azul-txt` SÍ existe desde P200: alía `--sem-azul-int`.) */
   .demo-desc { background: var(--sem-azul-bg); border: 1px solid var(--sem-azul); border-radius: 12px;
                padding: .8rem .95rem; margin-bottom: 1rem; }
   .demo-desc .dd-t { font-size: .92rem; font-weight: 800; color: var(--text); line-height: 1.35; }
@@ -2643,7 +2652,9 @@
 
   /* ── Selector de apariencia (claro/oscuro/automático) ── */
   .tema-ctrl { display: block; }
-  .tema-opts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; margin: .25rem 1.1rem 0; }
+  /* `auto-fit` en vez de tres columnas fijas: desde el 118 % de letra la tercera opción se salía de
+     su tarjeta. Misma fórmula que ya usa el bloque de avisos, unas líneas abajo. */
+  .tema-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .5rem; margin: .25rem 1.1rem 0; }
   /* Idioma tiene DOS opciones, no tres: sin esto la grilla de 3 columnas le deja un hueco. */
   #idiomaBody .tema-opts { grid-template-columns: 1fr 1fr; }
   /* P194 · Avisos tiene uno o dos botones según el estado (Activar · Probar + Desactivar): columnas automáticas; la nota va arriba y los botones cierran */
@@ -4070,12 +4081,16 @@
   .gest-overlay { padding: 0; }
   .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
     padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sup-suave); }
-  .gest-top { display: flex; align-items: center; gap: .6rem; padding: .9rem 1rem;
+  /* `flex-wrap` · a 320 px con la letra grande el botón de la derecha quedaba 62 px fuera de la
+     pantalla, sin forma de tocarlo. La cabecera la comparten Nómina, Departamentos y Gestiones. */
+  .gest-top { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .9rem 1rem;
     background: var(--card); border-bottom: 1px solid var(--sup-borde); flex-shrink: 0; }
   /* I2: los controles del cuaderno del servicio médico estaban todos entre 34 y 39 px de alto. */
   .gest-back { border: none; background: var(--chip-bg); color: var(--text); border-radius: 10px; min-height: 44px;
     padding: .5rem .8rem; font-family: inherit; font-weight: 800; font-size: .86rem; cursor: pointer; flex-shrink: 0; }
-  .gest-title { flex: 1; min-width: 0; font-weight: 800; font-size: 1.02rem; color: var(--text);
+  /* Piso de 6rem: con `flex: 1` a secas el título colapsaba a 0 desde el 118 % de letra y la fila se
+     leía vacía antes de envolver. */
+  .gest-title { flex: 1 1 6rem; min-width: 0; font-weight: 800; font-size: 1.02rem; color: var(--text);
     text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .gest-new { border: none; background: var(--orange-txt); color: #fff; min-height: 44px;
     border-radius: 10px; padding: .5rem .85rem; font-family: inherit; font-weight: 800; font-size: .86rem;
@@ -4337,7 +4352,10 @@
      ⚠️ Fuera de cualquier bloque: la primera versión quedó ADENTRO de `.apt-restr { … }` y, con CSS
      Nesting, el navegador leyó `.apt-restr .apt-ciclo` — ningún elemento lo cumplía y el botón salía
      con el estilo nativo. La suite no lo vio porque miraba el HTML, no `getComputedStyle` (R17). */
-  .apt-ciclo { display:flex; align-items:center; gap:.45rem; margin:.45rem 0 0; padding:.35rem .5rem; border:1px solid var(--linea); border-radius:var(--radius-sm); background:transparent; color:var(--text); font:inherit; font-size:.78rem; cursor:pointer; width:100%; text-align:left; }
+  /* `flex-wrap` · a 320 px con la letra grande y el chip «Pasado de tiempo» puesto, el tiempo de
+     jornada se salía del botón y se cortaba contra el borde de la tarjeta. Medido: el span pasa de
+     x=322,4 a x=224,3, dentro del botón. */
+  .apt-ciclo { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; margin:.45rem 0 0; padding:.35rem .5rem; border:1px solid var(--linea); border-radius:var(--radius-sm); background:transparent; color:var(--text); font:inherit; font-size:.78rem; cursor:pointer; width:100%; text-align:left; }
   .apt-ciclo-lleva { color:var(--text-soft); }
   .apt-ciclo-lleva b { color:var(--text); font-variant-numeric:tabular-nums; }
   .cic-apt { display:inline-flex; align-items:center; gap:.3rem; margin:.35rem 0 0; padding:.22rem .55rem; border-radius:999px; font-size:.74rem; color:var(--anct); background:var(--anbg); }
@@ -4384,7 +4402,9 @@
   .sf-x { font-size:.86rem; color:var(--text-soft); margin-top:.3rem; line-height:1.5; }
   .sf-restr { margin-top:.7rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.82rem; color:var(--sem-azul-int); }
-  /* ⚠️ `--sem-azul-txt` NO EXISTE, y yo lo escribí igual con una medición al lado que no pude haber
+  /* ⚠️ (P200 · YA EXISTE: se creó en los dos temas como alias de `--sem-azul-int`. Lo de abajo se
+     conserva porque el error que cuenta sigue valiendo.)
+     ⚠️ `--sem-azul-txt` NO EXISTÍA, y yo lo escribí igual con una medición al lado que no pude haber
      hecho. Un token inexistente no cae a la regla anterior: computa a `inherit` y se lleva el color
      del padre, en silencio. Los tokens azules reales son `--sem-azul` y `--sem-azul-int`. */
   .sf-restr-pie { font-size:.71rem; color:var(--sem-azul-int); font-weight:700; margin-top:.25rem; }
@@ -4645,12 +4665,16 @@
   .pred-grid { display:grid; grid-template-columns:1fr; gap:.6rem; margin-top:.7rem; }
   @media (min-width: 700px){ .pred-grid { grid-template-columns:1fr 1fr; } }
   @media (min-width: 1280px){ .pred-grid { grid-template-columns:1fr 1fr 1fr; } }
+  /* `min-width:0` · sin esto la tarjeta no puede achicarse por debajo de su contenido y el bloque
+     desbordaba 51 px, recortado contra un contenedor que no desplaza. */
   .pred-card { padding:.7rem .8rem; border-radius:var(--radius-sm); background:var(--sup-suave);
-    border:1.5px dashed var(--sup-borde); filter:grayscale(1); opacity:.82; }
+    border:1.5px dashed var(--sup-borde); filter:grayscale(1); opacity:.82; min-width:0; }
   .pred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; flex-wrap:wrap; }
   .pred-t { font-size:.87rem; font-weight:800; color:var(--text); }
-  .pred-badge { flex:0 0 auto; font-size:.66rem; font-weight:800; padding:.15rem .45rem; border-radius:999px;
-    background:var(--sup-borde); color:var(--text-soft); white-space:nowrap; }
+  /* El badge podía encogerse y envolver: con `0 0 auto` + `nowrap` era él quien empujaba la tarjeta
+     fuera del contenedor. Medido: 51 px de desborde → 0. */
+  .pred-badge { flex:0 1 auto; min-width:0; font-size:.66rem; font-weight:800; padding:.15rem .45rem; border-radius:999px;
+    background:var(--sup-borde); color:var(--text-soft); }
   .pred-mock { font-size:1.6rem; font-weight:800; color:var(--text-muted); margin:.35rem 0; font-variant-numeric:tabular-nums; }
   .pred-d { font-size:.78rem; color:var(--text-soft); line-height:1.45; }
   .pred-cruce { margin-top:.45rem; font-size:.75rem; color:var(--text-muted); line-height:1.4; }
@@ -5249,7 +5273,7 @@
   .fm-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--anbg);
     border-left:3px solid var(--anc); margin-bottom:.35rem; }
   .fm-ev-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
-  .fm-ev-tipo { font-size:.68rem; font-weight:800; color:var(--anc); text-transform:uppercase; letter-spacing:.03em; }
+  .fm-ev-tipo { font-size:.68rem; font-weight:800; color:var(--anct, var(--anc)); text-transform:uppercase; letter-spacing:.03em; }
   .fm-ev-fecha { font-size:.7rem; color:var(--text-muted); font-weight:600; }
   .fm-ev-txt { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.15rem; }
   .fm-ev-nota { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; line-height:1.45; }
@@ -7488,7 +7512,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.76';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.77';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -28839,13 +28863,15 @@ const GEST_TIPO_ANOTACION = 'anotacion_aptitud';
 /* `t` y `corto` pasan a ser CLAVES; apAnotInfo() las resuelve al leer. La clave del nivel
    ('alto'/'medio'/'ok') es lo que se guarda y lo que compara el motor: no se toca. */
 const APT_ANOT_NIVELES_DEF = [
-  { k:'alto',  t:'apt_a_noapto',      corto:'apt_c_noapto',      c:'var(--sem-rojo-int)', bg:'var(--sem-rojo-int-bg)' },
-  { k:'medio', t:'apt_a_condiciones', corto:'apt_c_condiciones', c:'var(--sem-ambar)',    bg:'var(--sem-ambar-bg)' },
-  { k:'ok',    t:'apt_a_alta',        corto:'apt_c_apto',        c:'var(--sem-verde)',    bg:'var(--sem-verde-bg)' }
+  /* `c` es el RELLENO (el punto, la barra) y `ct` la variante legible como TINTA. Van las dos porque
+     quien pinta un chip necesita la segunda: con el relleno de fondo dan entre 2,81 y 3,95:1. */
+  { k:'alto',  t:'apt_a_noapto',      corto:'apt_c_noapto',      c:'var(--sem-rojo-int)', ct:'var(--sem-rojo-txt)',  bg:'var(--sem-rojo-int-bg)' },
+  { k:'medio', t:'apt_a_condiciones', corto:'apt_c_condiciones', c:'var(--sem-ambar)',    ct:'var(--sem-ambar-txt)', bg:'var(--sem-ambar-bg)' },
+  { k:'ok',    t:'apt_a_alta',        corto:'apt_c_apto',        c:'var(--sem-verde)',    ct:'var(--sem-verde-txt)', bg:'var(--sem-verde-bg)' }
 ];
 // Se devuelven copias con la etiqueta YA RESUELTA (no un Proxy: `find`/`map` sobre un Proxy de
 // array recorren el objeto crudo y devolverían la clave sin traducir).
-function _anotResuelto(v){ return { k:v.k, t:t(v.t), corto:t(v.corto), c:v.c, bg:v.bg }; }
+function _anotResuelto(v){ return { k:v.k, t:t(v.t), corto:t(v.corto), c:v.c, ct:v.ct, bg:v.bg }; }
 function aptAnotNiveles(){ return APT_ANOT_NIVELES_DEF.map(_anotResuelto); }
 function apAnotInfo(k){ return _anotResuelto(APT_ANOT_NIVELES_DEF.find(n=>n.k===k) || APT_ANOT_NIVELES_DEF[1]); }
 // Memoizada por render: aptPersona() la consulta DOS veces por persona (vigentes + historial), y
@@ -28965,12 +28991,12 @@ const GEST_TIPO_TELEMEDICINA = 'telemedicina';
 /* P191 · `t` y `corto` son CLAVES del diccionario; `telemInfo()` las resuelve al leer (mismo patrón que `_anotResuelto`).
    Antes eran textos en español y la tarjeta de aptitud, la ficha y la historia quedaban en español con la app en inglés. */
 const TELEM_ESTADOS = {
-  sugerida:  { t:'tm_e_sugerida',  corto:'tm_c_sugerida',  c:'var(--sem-azul-int)',  bg:'var(--sem-azul-int-bg)' },
-  aceptada:  { t:'tm_e_aceptada',  corto:'tm_c_aceptada',  c:'var(--sem-verde-int)', bg:'var(--sem-verde-int-bg)' },
-  rechazada: { t:'tm_e_rechazada', corto:'tm_c_rechazada', c:'var(--sem-ambar)',     bg:'var(--sem-ambar-bg)' },
-  realizada: { t:'tm_e_realizada', corto:'tm_c_realizada', c:'var(--sem-verde-int)', bg:'var(--sem-verde-int-bg)' }
+  sugerida:  { t:'tm_e_sugerida',  corto:'tm_c_sugerida',  c:'var(--sem-azul-int)',  ct:'var(--sem-azul-txt)',  bg:'var(--sem-azul-int-bg)' },
+  aceptada:  { t:'tm_e_aceptada',  corto:'tm_c_aceptada',  c:'var(--sem-verde-int)', ct:'var(--sem-verde-txt)', bg:'var(--sem-verde-int-bg)' },
+  rechazada: { t:'tm_e_rechazada', corto:'tm_c_rechazada', c:'var(--sem-ambar)',     ct:'var(--sem-ambar-txt)', bg:'var(--sem-ambar-bg)' },
+  realizada: { t:'tm_e_realizada', corto:'tm_c_realizada', c:'var(--sem-verde-int)', ct:'var(--sem-verde-txt)', bg:'var(--sem-verde-int-bg)' }
 };
-function telemInfo(k){ const v = TELEM_ESTADOS[k] || TELEM_ESTADOS.sugerida; return { t: t(v.t), corto: t(v.corto), c: v.c, bg: v.bg }; }
+function telemInfo(k){ const v = TELEM_ESTADOS[k] || TELEM_ESTADOS.sugerida; return { t: t(v.t), corto: t(v.corto), c: v.c, ct: v.ct, bg: v.bg }; }
 let _telemCache = null;
 function telemCacheClear(){ _telemCache = null; }
 function telemTodas(){
@@ -29166,13 +29192,13 @@ function fmTimeline(persona){
   const ev = [];
   gestAnotacionesTodasDe(persona).forEach(g => {
     const i = apAnotInfo(g.nivel);
-    ev.push({ ts:g.creada, c:i.c, bg:i.bg, tipo:t('fm_determinacion'),
+    ev.push({ ts:g.creada, c:i.c, ct:i.ct, bg:i.bg, tipo:t('fm_determinacion'),
       txt:(i.corto || i.t) + (g.medico ? ' · ' + g.medico : ''), nota:g.nota || '',
       pie:t('an_vigente_hasta', { f: gestFechaTs(g.vigenciaHasta) }) });
   });
   restTodasDe(persona).forEach(g => {
     const m = g.mitigacion ? mitigacionInfo(g.mitigacion) : null;
-    ev.push({ ts:g.creada, c:'var(--sem-azul)', bg:'var(--sem-azul-bg)', tipo:t('fm_restr_operativa'),
+    ev.push({ ts:g.creada, c:'var(--sem-azul)', ct:'var(--sem-azul-txt)', bg:'var(--sem-azul-bg)', tipo:t('fm_restr_operativa'),
       txt:t('fm_no_asignar', { q: (g.tarea || '—') }) + (g.supervisor ? ' · ' + g.supervisor : ''),
       nota:(m ? (t('fm_accion') + ': ' + mitigacionT(m) + (g.motivo ? ' · ' + g.motivo : '')) : (g.motivo || '')),
       pie:(g.levantada ? t('fm_levantada_el', { f: gestFechaTs(g.levantadaEn) })
@@ -29180,7 +29206,7 @@ function fmTimeline(persona){
                                                : t('fm_vencio_el', { f: gestFechaTs(g.hasta) }))) });
   });
   notasClinicasDe(persona).forEach(g => {
-    ev.push({ ts:g.creada, c:'var(--sem-gris)', bg:'var(--sem-gris-bg)', tipo:t('fm_nota_clinica'),
+    ev.push({ ts:g.creada, c:'var(--sem-gris)', ct:'var(--sem-gris-txt)', bg:'var(--sem-gris-bg)', tipo:t('fm_nota_clinica'),
       txt:(g.medico || t('vista_medico')), nota:g.texto || '', pie:'' });
   });
   // Telemedicina: el RECHAZO también entra en la historia. Que alguien no quiera atenderse es
@@ -29188,12 +29214,12 @@ function fmTimeline(persona){
   /* P075 · los autoreportes identificados de la persona («no dormí», «fatigado», «malestar»):
      un dato clínico dicho con nombre que hasta acá sólo llegaba a la bandeja del supervisor. */
   reportesDePersona(persona).forEach(r => {
-    ev.push({ ts:r.creada, c:'var(--sem-ambar)', bg:'var(--sem-ambar-bg)', tipo:t('fm_autoreporte'),
+    ev.push({ ts:r.creada, c:'var(--sem-ambar)', ct:'var(--sem-ambar-txt)', bg:'var(--sem-ambar-bg)', tipo:t('fm_autoreporte'),
       txt:reporteOpcionLabel(r.opcion), nota:r.comentario || '', pie:'' });
   });
   telemTodasDe(persona).forEach(g => {
     const i = telemInfo(g.estado);
-    ev.push({ ts:g.creada, c:i.c, bg:i.bg, tipo:t('fm_telemedicina'),
+    ev.push({ ts:g.creada, c:i.c, ct:i.ct, bg:i.bg, tipo:t('fm_telemedicina'),
       txt:i.corto + (g.sugeridaPor ? ' · ' + t('apt_sugerida_por', { q: g.sugeridaPor }) : ''),
       nota:g.motivo || '',
       pie:(g.estado !== 'sugerida' && g.actualizadaEn) ? t('fm_telem_el', { e: i.corto, f: gestFechaTs(g.actualizadaEn) }) : '' });
@@ -29201,7 +29227,11 @@ function fmTimeline(persona){
   ev.sort((a,b) => b.ts - a.ts);
   if (!ev.length) return dashVacio('ficha', 'nota');
   const filas = ev.map(e =>
-    '<div class="fm-ev" style="--anc:' + e.c + ';--anbg:' + e.bg + '">' +
+    /* ⚠️ `--anct` además de `--anc`: `.fm-ev-tipo` pintaba el rótulo con el color de RELLENO, que es
+       el del punto del semáforo, no el legible como tinta. Cinco de las SEIS familias de fila daban
+       entre 2,81 y 4,28:1 en tema claro — la Historia de la ficha es lo que el médico lee para
+       decidir. El patrón `--anc`/`--anct` ya existía en otros dos lugares del archivo. */
+    '<div class="fm-ev" style="--anc:' + e.c + ';--anct:' + (e.ct || e.c) + ';--anbg:' + e.bg + '">' +
       '<div class="fm-ev-top"><span class="fm-ev-tipo">' + esc(e.tipo) + '</span>' +
         '<span class="fm-ev-fecha">' + esc(gestFechaTs(e.ts)) + '</span></div>' +
       '<div class="fm-ev-txt">' + esc(e.txt) + '</div>' +
