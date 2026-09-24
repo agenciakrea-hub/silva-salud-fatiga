@@ -7517,7 +7517,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.79';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.81';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8996,6 +8996,7 @@ const I18N = {
       acc_nomina_sync:'Nómina sincronizada', acc_cred_creada:'Contraseña creada',
       acc_cred_cambiada:'Contraseña cambiada', acc_cred_reiniciada:'Contraseña reiniciada',
       acc_cred_aviso:'Aviso de contraseña creada', acc_accesos_admin:'Acceso de administrador actualizado',
+      acc_aus_marcada:'Ausencia marcada', acc_aus_anulada:'Ausencia anulada',
       tz_cambio:'Cambio: {q}', tz_antes_general:'antes regía la configuración general',
       tz_antes_ninguno:'antes no había horas configuradas', tz_quien:'tocado por {q}',
       tz_titulo:'Trazabilidad ({n})', tz_exportar:'Exportar como CSV',
@@ -11092,6 +11093,7 @@ const I18N = {
       acc_nomina_sync:'Roster synced', acc_cred_creada:'Password created',
       acc_cred_cambiada:'Password changed', acc_cred_reiniciada:'Password reset',
       acc_cred_aviso:'Password-created notice', acc_accesos_admin:'Administrator access updated',
+      acc_aus_marcada:'Marked absent', acc_aus_anulada:'Absence removed',
       tz_cambio:'Change: {q}', tz_antes_general:'the general setting applied before',
       tz_antes_ninguno:'no hours were configured before', tz_quien:'by {q} (device profile)',
       tz_titulo:'Traceability ({n})', tz_exportar:'Export as CSV',
@@ -12700,7 +12702,47 @@ function saveReports(r){ return lsSet(K_REPORTS, JSON.stringify(r)); }
    Google), se guarda acá y se reintenta solo al volver la conexión o
    al reabrir la app. Evita perder datos en silencio. */
 const K_PENDING = 'silva_fatiga_pending_v1';
-function getPending(){ try { return JSON.parse(localStorage.getItem(K_PENDING)) || []; } catch(e){ return []; } }
+/* ⚠️ A8 #14 · CADA ITEM LLEVA SU PROPIO ID, Y ESTO NO ES COSMÉTICO.
+   La cola se indexaba por URL, y la URL del webhook viejo de `Operacional` no lleva fecha ni hora:
+   `?nombre=…&empresa=…&campo=salida_casa` es IDÉNTICA el lunes y el martes. Entonces: el piloto
+   toca «Salida de casa» el lunes sin señal, el item se reintenta diez veces y queda retenido; el
+   martes vuelve a tocarlo, ese envío sale bien, y `colaConfirmar(url)` borraba TODOS los items con
+   esa URL — incluido el del lunes, que nunca llegó. El cartel desaparecía y la persona quedaba con
+   la impresión de que salió todo. R7: nunca un «se perdió».
+   La MIGRACIÓN va acá y no en el arranque a propósito: los teléfonos que ya tienen cola la tienen
+   con items sin `id`, y esta es la única puerta por la que se leen. Persiste en la primera lectura,
+   así que el id no cambia entre llamadas —si se asignara en memoria, `colaConfirmar` buscaría un id
+   que `colaGuardar` nunca vio—. */
+/* ⚠️ EL ID SE DERIVA DEL HECHO: DÍA + URL. No es aleatorio, y la primera versión de este arreglo sí
+   lo era — el verificador encontró que eso rompía dos cosas a la vez, las dos medidas corriendo
+   este bloque en node:
+   · dos toques del mismo botón sin señal dejaban DOS items en vez de fundirse en uno, y los ocho
+     webhooks viejos van en `no-cors` sin id, así que el servidor no puede deduplicar: rehacer un
+     test con las mismas respuestas sin señal escribía DOS filas en la hoja clínica;
+   · y el respaldo por URL de `colaConfirmar` seguía borrando el item de ayer, porque sólo protegía
+     a los `trabado` — y un item llega a trabado recién con diez fallos, o sea que el estado NORMAL
+     de un item joven no estaba protegido.
+   Con el día adentro, las dos preguntas se contestan solas: dos toques el MISMO día son el mismo
+   hecho y se funden; el retenido de ayer y el envío de hoy tienen ids distintos y no se tocan.
+   Y de paso desaparece el `colaConfirmar` por URL, que era el agujero.
+   ⚠️ Es DETERMINISTA a propósito: la migración de los items que ya están en los teléfonos
+   reconstruye el id desde su propio `ts`, y si `setPending` no puede persistir —cuota llena— el id
+   sigue siendo el mismo en la lectura siguiente. Con un id aleatorio, ahí `colaGuardar` dejaba de
+   encontrar su item y volvía a `push` en cada fallo. */
+function colaIdDe(url, ts){
+  const d = new Date(ts || Date.now());
+  const dia = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return 'q' + dia + '|' + String(url || '');
+}
+function getPending(){
+  try {
+    const q = JSON.parse(localStorage.getItem(K_PENDING)) || [];
+    let falta = false;
+    for (let i = 0; i < q.length; i++) if (q[i] && !q[i].id){ q[i].id = colaIdDe(q[i].url, q[i].ts); falta = true; }
+    if (falta) setPending(q);
+    return q;
+  } catch(e){ return []; }
+}
 function setPending(arr){ try { localStorage.setItem(K_PENDING, JSON.stringify(arr)); } catch(e){} }
 
 /* `sobrevive` marca los envíos que salen justo antes de una recarga —el caso de "cerrar sesión",
@@ -12737,7 +12779,10 @@ function envioLeeRespuesta(url){
    reloj de la red (90 s) es un candado colgado, no un envío. */
 function colaMarcarVuelo(url){ const m = _colaEnVuelo[url]; _colaEnVuelo[url] = { n: (m && m.n) ? m.n + 1 : 1, desde: Date.now() }; }
 function colaSoltarVuelo(url){ const m = _colaEnVuelo[url]; if (!m) return; if (m.n > 1) m.n--; else delete _colaEnVuelo[url]; }
-function enviarConCola(url, sobrevive, yaMarcado){
+/* `id` lo pasa `flushPending` cuando reintenta un item que YA está en la cola; un envío nuevo
+   estrena el suyo. Sin él, dos hechos distintos con la misma URL eran indistinguibles. */
+function enviarConCola(url, sobrevive, yaMarcado, id){
+  const qid = id || colaIdDe(url);
   /* P193 · se anota EN VUELO también el primer envío (antes sólo los reintentos, en `flushPending`): es lo que la
      actualización de versión mira para no recargar en el medio — un primer envío abortado por la recarga no corre su
      `.catch` y se pierde; un reintento `no-cors` abortado que sí llegó se reenvía y duplica la fila. Los reintentos
@@ -12758,8 +12803,8 @@ function enviarConCola(url, sobrevive, yaMarcado){
       if (d && d.ok === false) throw new Error('rechazo:' + String(d.error || ''));
       return d;
     });
-  }).then(() => { colaConfirmar(url); })
-     .catch(err => { colaGuardar(url, err); })
+  }).then(() => { colaConfirmar(qid); })
+     .catch(err => { colaGuardar(url, err, qid); })
      .then(() => { colaSoltarVuelo(url); });
 }
 /* Tope de reintentos automáticos. La cola corre cada 60 s: sin tope, un envío que sigue fallando
@@ -12780,9 +12825,13 @@ const _colaEnVuelo = {};
    que `intentos` volvía a 1 en cada vuelta y el tope de arriba era INALCANZABLE: un envío que
    fallaba siempre se reintentaba para siempre, que es justo lo que el tope venía a evitar.
    Medido con el bloque real corriendo en node: 21 envíos, `intentos` = 1. */
-function colaConfirmar(url){
+/* Saca de la cola EL item que acaba de confirmarse, por su id, y NADA MÁS. Sin respaldo por URL:
+   ese respaldo fue la primera versión de este arreglo y seguía borrando el retenido de ayer, porque
+   protegía sólo a los `trabado` —diez fallos— cuando el estado normal de un item joven es
+   `intentos: 1..3`. Con el id derivado del día, el de ayer y el de hoy ya no comparten clave. */
+function colaConfirmar(id){
   const q = getPending();
-  const n = q.filter(x => x && x.url !== url);
+  const n = q.filter(x => x && x.id !== id);
   if (n.length !== q.length){ setPending(n); try { offPintar(); } catch(e){} }
 }
 /* El recorte del tope. NO es `slice(-50)`: eso descarta los más VIEJOS, y los retenidos son
@@ -12794,13 +12843,17 @@ function colaRecortar(q){
   const trab = q.filter(x => x && x.trabado).slice(-COLA_TOPE);
   return trab.concat(q.filter(x => x && !x.trabado).slice(-(COLA_TOPE - trab.length)));
 }
-function colaGuardar(url, err){
+function colaGuardar(url, err, id){
   const q = getPending();
   const motivo = String((err && err.message) || err || 'error');
+  /* Por ID, que ya lleva el día adentro: el fallo de hoy encuentra el item de hoy y le suma
+     intentos, y el retenido de ayer —otro id— no se toca. Con la URL sola, los dos eran el mismo. */
+  const qid = id || colaIdDe(url);
   let i = -1;
-  for (let k = 0; k < q.length; k++){ if (q[k] && q[k].url === url){ i = k; break; } }
+  for (let k = 0; k < q.length; k++){ if (q[k] && q[k].id === qid){ i = k; break; } }
   const prev = i >= 0 ? q[i] : null;
-  const item = { url: url, ts: prev && prev.ts ? prev.ts : Date.now(),
+  const item = { id: qid,
+                 url: url, ts: prev && prev.ts ? prev.ts : Date.now(),
                  intentos: ((prev && prev.intentos) || 0) + 1, motivo: motivo };
   /* ⚠️ TODO FALLO SE REINTENTA, incluido un `{ok:false}`. La primera versión retenía los `ok:false`
      al primer golpe, con el argumento de que "un rechazo del servidor es determinista". Es FALSO
@@ -12832,9 +12885,14 @@ function colaReintentar(){
     Object.keys(c).forEach(k => { if (c[k]){ c[k].trabado = false; c[k].intentos = 0; } });
     empColaSave(c);
   } catch(e){}
+  /* A8 #11 · la bitácora también: el cartel es UNO y ahora cuenta sus trabados, así que tocarlo
+     tiene que poder rescatarlos. Y `casosOdooPush`, que tampoco estaba. */
+  try { bitDestrabar(); } catch(e){}
   try { offPintar(); } catch(e){}
   flushPending();
   try { empFlush(); } catch(e){}
+  try { bitPush(); } catch(e){}
+  try { casosOdooPush(); } catch(e){}
 }
 /* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
    Los envíos van con `keepalive`, o el navegador los aborta al recargar: la app ofrece "toca
@@ -12861,10 +12919,10 @@ function flushPending(alSalir){
   const listos = vivos.filter(x => !(x.trabado && !alSalir) && !_colaEnVuelo[x.url]);
   listos.forEach(x => { colaMarcarVuelo(x.url); });   // se marcan todos ya: el timer de 60 s no los repite (P193: contador)
   if (!listos.length) return Promise.resolve();
-  if (alSalir) return Promise.all(listos.map(x => enviarConCola(x.url, true, true)));
+  if (alSalir) return Promise.all(listos.map(x => enviarConCola(x.url, true, true, x.id)));
   /* El primero sale AHORA (sincrónico, como siempre); los demás, cada uno cuando termina el anterior. */
-  return listos.slice(1).reduce((cadena, x) => cadena.then(() => enviarConCola(x.url, false, true)),
-                                enviarConCola(listos[0].url, false, true));
+  return listos.slice(1).reduce((cadena, x) => cadena.then(() => enviarConCola(x.url, false, true, x.id)),
+                                enviarConCola(listos[0].url, false, true, listos[0].id));
 }
 /* ⚠️ `function(){ flushPending(); }` y NO `flushPending` a secas. El navegador le pasa el `Event`
    como primer argumento, o sea `alSalir` llegaba TRUTHY en cada reconexión: se mandaba con
@@ -12908,7 +12966,10 @@ function empEncolar(id, accion, payload){
   empFlush();
   try { offPintar(); } catch(e){}   // el cartel de pendientes refleja la cola al instante
 }
-function empFlush(){
+/* `alSalir`: ver `gestPost`. Sin él este flush tampoco llegaba a salir antes de la recarga, y el
+   comentario de `cerrarSesionPedir` decía que sí — era deuda previa que ese comentario nuevo
+   habría dado por resuelta. */
+function empFlush(alSalir){
   if (simulando()) return;                              // ni siquiera se sube lo que ya estaba en cola
   /* ⚠️ ESTA LÍNEA ES LA QUE IMPIDE QUE LA DEMOSTRACIÓN ESCRIBA EN EL CH DE VERDAD, y faltaba.
      `simulando()` mira `SIMUL` —la simulación de rol—, NO `DASH.demoMode`. Son cosas distintas, y
@@ -12946,7 +13007,7 @@ function empFlush(){
          TODAS las acciones de la cola sin mirar. El precio es que la opinión queda sin freno de
          tasa; el anonimato vale más que ese freno. */
       const _sinId = (item.accion === 'opinion_guardar');
-      fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(
+      fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', keepalive: !!alSalir, body: JSON.stringify(
         Object.assign({ action:item.accion },
                       _sinId ? {} : { dispositivoId: dispositivoId() },
                       item.payload)) })
@@ -12984,7 +13045,13 @@ function empTrabados(){
   try { return Object.keys(empColaAll()).filter(k => empColaAll()[k] && empColaAll()[k].trabado); }
   catch(e){ return []; }
 }
-window.addEventListener('online', empFlush);
+/* ⚠️ ENVUELTO, NO PASADO DIRECTO. `addEventListener` le pasa el objeto `Event` como primer
+   argumento, así que desde que `empFlush` acepta `alSalir` un `empFlush` pelado acá llegaría con
+   `alSalir` TRUTHY en cada reconexión y mandaría con `keepalive` con la página bien viva. Es
+   exactamente el defecto que el comentario de `flushPending` documenta haber cerrado —lo mismo
+   pasaba con `online → flushPending`— y lo reintroduje acá al cambiar la firma. */
+function empFlushOnline(){ empFlush(); }
+window.addEventListener('online', empFlushOnline);
 /* ⚠️ P045 · Y CON SU PROPIO TEMPORIZADOR. El comentario del `.catch` decía que se reintentaba
    «cada 1 min, mismo timer que flushPending» y era FALSO: ese `setInterval` llama a
    `flushPending()`, que no toca esta cola. Con conexión estable y una respuesta sin `ok`, nada
@@ -13041,7 +13108,9 @@ function offPintar(){
   el.style.display = '';
   /* P087 · los que el servidor RECHAZÓ ya no se están reintentando. Decir "Enviando…" de eso sería
      la misma mentira que el `no-cors`, sólo que en la pantalla. Se avisa y se ofrece la salida. */
-  const trabados = colaTrabados().length + empTrabados().length;   // P045: las dos colas, no una
+  /* A8 #11 · y los de la bitácora. `offPendientes()` ya los contaba como pendientes, así que el
+     cartel decía «Enviando N» de algo que nadie estaba enviando y sin ofrecer «intentar otra vez». */
+  const trabados = colaTrabados().length + empTrabados().length + bitTrabados().length;
   el.className = 'off-bar' + (trabados ? ' off-bar-trabada' : (online ? ' off-bar-sync' : ''));
   el.onclick = trabados ? colaReintentar : null;
   el.style.cursor = trabados ? 'pointer' : '';
@@ -19757,7 +19826,13 @@ function cerrarSesionPedir(){
     // Todavía hay registros sin llegar al CH. Se ofrece sincronizar primero; salir igual exige
     // una segunda confirmación que dice el número exacto.
     if (!confirm(t('salir_pendientes', { n: pend }))) return;
-    try { flushPending(true); empFlush(); gestPush(); } catch(e){}   // true = la página se va a recargar
+    /* ⚠️ A8 #11 · LAS CINCO COLAS, NO TRES. `offPendientes()` cuenta las cinco para armar el
+       número que este cartel le muestra a la persona («hay N registros que todavía no se
+       enviaron… toca Aceptar para intentar enviarlos primero»), y el flush mandaba tres —
+       `cerrarSesion()` borra `K_BITACORA` y `K_CASOS_ODOO` un instante después, así que lo que no
+       salía acá no salía nunca—. Con `true`/`alSalir` van con `keepalive` y se mandan también los
+       trabados: es el último intento que van a tener. */
+    try { flushPending(true); empFlush(true); gestPush(true); bitPush(true); casosOdooPush(true); } catch(e){}
     if (!confirm(t('salir_pendientes_2', { n: pend }))) return;
   }
   if (!confirm(msg)) return;
@@ -23523,7 +23598,10 @@ const HSEQ_ACCION_LABEL = {
   ciclo_persona_quitado:'acc_ciclo_persona_q', ciclo_detenido:'acc_ciclo_detenido', ciclo_cerrado:'acc_ciclo_cerrado',
   nomina_sync:'acc_nomina_sync', credencial_creada:'acc_cred_creada',
   credencial_cambiada:'acc_cred_cambiada', credencial_reiniciada:'acc_cred_reiniciada',
-  credencial_creada_aviso:'acc_cred_aviso', accesos_admin_set:'acc_accesos_admin'
+  credencial_creada_aviso:'acc_cred_aviso', accesos_admin_set:'acc_accesos_admin',
+  /* A8 #12 · marcar a alguien ausente lo saca del denominador de la cobertura de ese día: es una
+     decisión con consecuencia y no dejaba ninguna línea. */
+  ausencia_marcada:'acc_aus_marcada', ausencia_anulada:'acc_aus_anulada'
 };
 /* P074 · el «de qué a qué» de un cambio de horas, legible: sólo los tramos que cambiaron, con las
    etiquetas de la forma del sector. Es el único `detalle` que Trazabilidad muestra: no es clínico,
@@ -25079,7 +25157,13 @@ function cicloPerEnviar(btn, persona, cuerpo, msgOk){
       /* R3 · queda en la bitácora: cambiar la jornada contra la que se juzga a alguien es una
          decisión con consecuencia operativa, y dentro de seis meses alguien va a preguntar quién
          la tomó. */
-      try { bitacoraRegistrar(cuerpo.quitar ? 'ciclo_persona_quitado' : 'ciclo_persona_guardado', '',
+      /* ⚠️ A8 #10 · EL SUJETO ES LA PERSONA, y estaba en `''`. Sin sujeto, `bitUmbralDe(sujeto)`
+         devuelve null, así que Trazabilidad mostraba «Del sistema» y sin la línea del umbral —
+         justo debajo de un texto (`hlp_trazabilidad`) que promete «cada línea guarda además con qué
+         umbral se juzgó a esa persona en ese momento». El CSV de auditoría exportaba Sujeto y los
+         tres campos de umbral vacíos. La persona viajaba en `detalle`, que la pantalla no muestra
+         a propósito. */
+      try { bitacoraRegistrar(cuerpo.quitar ? 'ciclo_persona_quitado' : 'ciclo_persona_guardado', persona,
         { persona: persona, empresa: (DASH.f && DASH.f.emp) || '', plan: d.plan || null }); } catch(e){}
       CICLO_PER_ABIERTO = ''; cicloRepintar();
       showToast(msgOk);
@@ -28495,7 +28579,13 @@ function gestAuth(extra){
   return Object.assign(base, extra||{});
 }
 function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
-function gestPost(body){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
+/* `alSalir` = la página se va a recargar en un instante (`cerrarSesion`): sin `keepalive` el
+   navegador aborta el POST y la app acaba de prometer que iba a intentar enviarlo. Mismo modo que
+   `flushPending(true)`. */
+function gestPost(body, alSalir){ return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(body), keepalive: !!alSalir }).then(r=>r.json()); }
+/* Mismo `gestPost` con los argumentos al revés, para no reordenar los diez llamadores de `gestPush`
+   que ya pasan el cuerpo primero. */
+function gestPostSalir(alSalir, body){ return gestPost(body, alSalir); }
 // Candado de envíos en vuelo — mismo motivo que `_empEnVuelo` (ver el comentario de K_EMP_COLA):
 // el borrado de la cola pasa recién cuando responde el servidor, así que dos gestPush seguidos
 // mandaban el mismo registro dos veces. Se prefija 'u'/'d' porque un mismo id puede estar a la vez
@@ -28513,7 +28603,8 @@ function demoEsIdSembrado(id){
   return x.indexOf('gdemo') === 0 || x.indexOf('ademo_') === 0 || x.indexOf('bdemo') === 0;
 }
 
-function gestPush(){
+/* `alSalir`: ídem. `cerrarSesion()` borra `K_GESTIONES` justo después. */
+function gestPush(alSalir){
   if(simulando()) return Promise.resolve();   // guard de simulación: nada sale al servidor
   if(!gestCanSync()) return Promise.resolve();
   const s=gestStore(); const jobs=[];
@@ -28522,13 +28613,13 @@ function gestPush(){
     if(demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
     if(_gestEnVuelo['u'+id]) return;
     _gestEnVuelo['u'+id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; gestSaveStore(s2); } }).catch(()=>{})
       .then(()=>{ delete _gestEnVuelo['u'+id]; })); });
   Object.keys(s.del).forEach(id=>{
     if(_gestEnVuelo['d'+id]) return;
     _gestEnVuelo['d'+id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'gestion_borrar', id:id }))
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; gestSaveStore(s2); } }).catch(()=>{})
       .then(()=>{ delete _gestEnVuelo['d'+id]; })); });
   gestSaveStore(s);
@@ -28610,10 +28701,13 @@ function bitacoraRegistrar(accion, sujeto, detalle, origen){
     empresa: gestEmpresaActual(),
     actor: p.usuario || p.empresa || '',
     rol: (DASH && (DASH.vista || DASH.rol)) || '',
-    accion: accion, sujeto: sujeto || '',
+    /* ⚠️ A8 #10 · SI EL DETALLE DECLARA UNA PERSONA, ESA ES EL SUJETO. El llamador del plan de
+       jornada pasaba `''` y mandaba la persona en `detalle`: la línea salía sin sujeto y sin
+       umbral. Acá se cierra para todos los llamadores presentes y futuros, no sólo para aquél. */
+    accion: accion, sujeto: sujeto || (detalle && detalle.persona) || '',
     detalle: detalle || {},
     origen: origen || 'app',
-    umbral: sujeto ? bitUmbralDe(sujeto) : null,
+    umbral: (sujeto || (detalle && detalle.persona)) ? bitUmbralDe(sujeto || detalle.persona) : null,
     app: APP_VERSION
   };
   const s = bitStore();
@@ -28627,23 +28721,70 @@ let _bitSyncT = null;
 // que se usa como prueba, y un evento duplicado haría dudar de la cuenta entera.
 const _bitEnVuelo = {};
 function bitScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_bitSyncT); _bitSyncT = setTimeout(bitPush, 900); }
-function bitPush(){
+/* ⚠️ A8 #11 · ESTA ERA LA ÚNICA DE LAS CINCO COLAS SIN REINTENTO AUTOMÁTICO NI NOCIÓN DE TRABADO.
+   El único llamador de `bitPush` era `bitScheduleSync`, o sea el momento de escribir el evento. Si
+   ese envío fallaba —sin señal, endpoint caído— nada volvía a intentarlo nunca: ni al reconectar,
+   ni por temporizador, ni al tocar el cartel. Y el cartel decía «Enviando 1 registro» con nadie
+   enviando, porque `offPintar` cuenta `bitacoraPendientes()` pero sólo mira `colaTrabados()` y
+   `empTrabados()` para saber si ya se rindió. Es literalmente el defecto que P045 arregló en la
+   cola del empleado, en la cola que R3 dice que nunca se edita ni se borra.
+   El estado de fallo va en `s.fallos` y NO dentro de `s.up`: `s.up[id]` vale `1` en los teléfonos
+   que ya tienen cola, y cambiarle la forma dejaría esos items en un limbo. Una estructura aparte
+   los deja intactos. */
+function bitFallo(id){
+  try {
+    const s = bitStore();
+    if (!s.up[id]) return;                     // ya salió: no hay nada que anotar
+    if (!s.fallos) s.fallos = {};
+    const f = s.fallos[id] || { intentos: 0 };
+    f.intentos = (f.intentos || 0) + 1;
+    if (f.intentos >= COLA_MAX_INTENTOS) f.trabado = true;
+    s.fallos[id] = f;
+    bitSaveStore(s);
+    offPintar();
+  } catch(e){}
+}
+/* Los de ESTA cola que ya no se reintentan solos. Sin esto el cartel decía «Enviando» para siempre. */
+function bitTrabados(){
+  try { const f = bitStore().fallos || {}; return Object.keys(f).filter(k => f[k] && f[k].trabado); }
+  catch(e){ return []; }
+}
+function bitDestrabar(){
+  try { const s = bitStore(); s.fallos = {}; bitSaveStore(s); } catch(e){}
+}
+function bitPush(alSalir){
   if(simulando()) return Promise.resolve();   // guard de simulación
   if(!gestCanSync()) return Promise.resolve();
   const s = bitStore(); const jobs = [];
+  const fallos = s.fallos || {};
   Object.keys(s.up).forEach(id => {
     const ev = s.items.find(x => x.id === id);
     if (!ev){ delete s.up[id]; return; }
     if (demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
+    /* Un trabado no se reintenta solo —si no, el cartel diría «Enviando» para siempre— pero SÍ se
+       manda al salir: es el último intento que va a tener antes de que `cerrarSesion` borre la
+       cola. Mismo criterio que `flushPending`. */
+    if (fallos[id] && fallos[id].trabado && !alSalir) return;
     if (_bitEnVuelo[id]) return;
     _bitEnVuelo[id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }))
-      .then(d => { if (d && d.ok){ const s2 = bitStore(); delete s2.up[id]; bitSaveStore(s2); } }).catch(()=>{})
+    jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }), alSalir)
+      .then(d => {
+        if (d && d.ok){
+          const s2 = bitStore(); delete s2.up[id];
+          if (s2.fallos) delete s2.fallos[id];
+          bitSaveStore(s2);
+          try { offPintar(); } catch(e){}
+        } else bitFallo(id);                   // el servidor contestó que no: cuenta como intento
+      })
+      .catch(() => { bitFallo(id); })          // ni siquiera respondió
       .then(() => { delete _bitEnVuelo[id]; }));
   });
   bitSaveStore(s);
   return Promise.all(jobs);
 }
+/* Las otras dos colas ya tenían las dos puertas desde P045. Ésta no tenía ninguna. */
+window.addEventListener('online', function(){ bitScheduleSync(); });
+setInterval(function(){ bitPush(); }, 60000);
 function bitPull(){
   if(!gestCanSync()) return Promise.resolve(false);
   return gestPost(gestAuth({ action:'bitacora' })).then(d => {
@@ -28935,7 +29076,10 @@ let _casosT = null;
 // simultáneos mandan la misma fila dos veces: medido de verdad en P10, no es teórico.
 const _casosEnVuelo = {};
 function casosOdooSchedulePush(){ if(!gestCanSync()) return; clearTimeout(_casosT); _casosT = setTimeout(casosOdooPush, 900); }
-function casosOdooPush(){
+/* `alSalir`: ver `gestPost`. El flush de `cerrarSesionPedir` pasa por acá y `cerrarSesion()` borra
+   `K_CASOS_ODOO` y recarga un instante después — sin `keepalive` el POST se aborta y la cola ya no
+   existe, o sea que la línea que promete «intentar enviarlos primero» no intentaba nada. */
+function casosOdooPush(alSalir){
   if(simulando()) return Promise.resolve();
   if(!gestCanSync()) return Promise.resolve();
   const s = casosStore(); const jobs = [];
@@ -28944,7 +29088,7 @@ function casosOdooPush(){
     if (!c){ delete s.up[id]; return; }
     if (_casosEnVuelo[id]) return;
     _casosEnVuelo[id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }))
+    jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }), alSalir)
       .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; casosSaveStore(s2); } }).catch(()=>{})
       // El candado se libera SIEMPRE, falle o no: si no, un error de red dejaría ese caso
       // trabado para siempre sin reintentarse.
@@ -29233,7 +29377,12 @@ function telemCambiarEstado(id, nuevo, porPersona){
    documentado — Apple lo puede romper en cualquier actualización y sólo da un tipo de toque.
    Por eso es mejora progresiva: si no funciona, no pasa absolutamente nada. NUNCA condicionar
    el flujo a que el háptico ande. */
-let _hapticSwitch = null;
+/* ⚠️ R16 · `var` SIN ASIGNAR, no `let = null`. `orden-declaracion.py` empezó a marcar esta línea al
+   agregarse una arista nueva en la cadena de las colas: el camino es diferido (`setInterval` no
+   invoca en el arranque) así que hoy no muerde, pero un `let` en zona muerta LANZA —`typeof` no
+   protege— y cortaría la ejecución del script de acá para abajo. `var` se iza, y sin valor no pisa
+   nada; `if (!_hapticSwitch)` se comporta igual con `undefined` que con `null`. */
+var _hapticSwitch;
 /* G4: activa con Enter/Espacio cualquier elemento con role="button" que no sea nativamente
    enfocable (las tarjetas armadas como <div onclick=...> en vez de <button>). Un solo listener
    delegado en el documento, en vez de un onkeydown repetido en cada una de esas tarjetas. */
@@ -32012,6 +32161,14 @@ function enviosEnVuelo(){
   try { Object.keys(_colaEnVuelo).forEach(k => { const m = _colaEnVuelo[k]; if (m && typeof m === 'object' && ahora - (m.desde || 0) <= ENVIO_VUELO_MAX_MS) n += (m.n || 1); }); } catch(e){}
   try { n += Object.keys(_empEnVuelo).length; } catch(e){}
   try { n += Object.keys(_gestEnVuelo).length; } catch(e){}
+  /* ⚠️ A8 #13 · FALTABAN DOS CANDADOS, Y LOS DOS SE AGREGARON DESPUÉS DE QUE P193 ESCRIBIERA ESTA
+     FUNCIÓN. La ausencia (P188/P189) es la peor: el supervisor toca «Marcar ausente», la fila
+     cambia y el toast dice «X no se cuenta hoy · Deshacer», y en los 0,5–3 s que tarda el POST la
+     barra de versión nueva puede recargar y abortarlo. `DASH._ausEnVuelo` vive en memoria: no hay
+     cola, no queda nada en disco, y la persona ya leyó que estaba hecho. La bitácora
+     (`_bitEnVuelo`) sí tiene cola, pero abortarla igual cuesta un reintento y el cartel. */
+  try { n += Object.keys(_bitEnVuelo).length; } catch(e){}
+  try { if (typeof DASH !== 'undefined' && DASH && DASH._ausEnVuelo) n += Object.keys(DASH._ausEnVuelo).length; } catch(e){}
   return n;
 }
 /* El único `location.reload()` de la actualización: una indirección para que las pruebas puedan medir cuándo se
