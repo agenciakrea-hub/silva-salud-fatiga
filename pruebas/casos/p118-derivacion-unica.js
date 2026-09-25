@@ -99,12 +99,37 @@ PRUEBAS.caso('⚠️ el teléfono de Registrados sobrevive a la celda vacía de 
     '⚠️ el dato que Nómina no tiene lo pone Registrados · antes volvía vacío y borraba el del teléfono');
 });
 
-PRUEBAS.caso('⚠️ y donde Nómina SÍ tiene dato, Nómina gana', () => {
-  /* El discriminador del caso de arriba: si el merge diera vuelta la precedencia, este falla. */
-  const api = p118Env(['accionRecuperarPerfil'], { telNom:'0424-9998877' });
+PRUEBAS.caso('⚠️ y donde Nómina SÍ tiene dato: manda la PERSONA en lo suyo, RRHH en lo de la empresa', () => {
+  /* El discriminador del caso de arriba: si el merge diera vuelta la precedencia, este falla.
+
+     ⚠️ ESTA REGLA CAMBIÓ EL 2026-09-25, por decisión de Franco, y sólo para CUATRO campos: sexo,
+     edad, teléfono y correo. Antes la nómina era techo para todo. Qué la reemplaza y por qué:
+
+     · **El motivo.** Se pidió que la hoja de la empresa muestre lo que los empleados cargan en su
+       alta (14 de 20 filas la tenían vacía). Con la nómina como techo, llenar esas celdas CONGELA
+       el dato: la persona cambia su teléfono en «Editar mis datos», el login siguiente se lo
+       revierte al viejo, y `sincronizarRegistro` reescribe el viejo en `Registrados Fatiga` — la
+       edición desaparece de las dos hojas y ella no tiene forma de arreglarla.
+     · **Por qué no rompe a RRHH.** Franco lo dijo mejor que el análisis: si la nómina ya trae el
+       teléfono, la app NO se lo pide — `nomina_confirmar` devuelve el perfil y el formulario del
+       alta se abre YA COMPLETO. Así que «RRHH puso uno y la persona otro» no puede salir del alta:
+       sale de que ella lo EDITÓ a propósito, y ahí tiene que ganar ella.
+     · **Qué NO cambió.** Departamento, cargo, rol, nivel de riesgo, nombre y cédula siguen siendo
+       techo de RRHH: los declara la empresa. Y los cuatro de la persona siguen usando la nómina
+       como RESPALDO —`perfilPonerSiFalta`— para quien nunca los cargó.
+
+     Lo que este caso vigila ahora es que la línea esté donde se decidió, no que no exista. */
+  /* Los dos campos en conflicto A LA VEZ, y con valores DISTINTOS en cada hoja: el teléfono es de
+     la persona, el cargo lo declara la empresa. `Registrados` dice «Piloto» y la nómina «Copiloto».
+     Con los dos iguales, la segunda comprobación no discriminaría nada. */
+  const api = p118Env(['accionRecuperarPerfil'], { telNom:'0424-9998877', cargoNom:'Copiloto' });
   const r = p118Recuperar(api);
-  PRUEBAS.igual(r.perfil.telefono, '0424-9998877',
-    '⚠️ RRHH es el techo: donde cargó el dato, manda · quedó «' + r.perfil.telefono + '»');
+  PRUEBAS.igual(r.perfil.telefono, '0412-1112233',
+    '⚠️ el teléfono es de la PERSONA: gana el de `Registrados Fatiga` · quedó «' + r.perfil.telefono + '»');
+  /* El discriminador de la línea: en lo que es de la EMPRESA, RRHH sigue mandando. Sin esto, un
+     merge que diera vuelta TODA la precedencia pasaría en verde con la comprobación de arriba. */
+  PRUEBAS.igual(r.perfil.cargo, 'Copiloto',
+    '⚠️ pero el cargo sigue siendo de RRHH · quedó «' + r.perfil.cargo + '»');
 });
 
 PRUEBAS.caso('🔴 `esSupervisor` VIAJA aunque la persona esté en Nómina', () => {

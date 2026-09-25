@@ -248,6 +248,42 @@ function __digestHex(bytes) {
         this._h._formatos[(this._f + i) + ',' + (this._c + j)] = fmts[i][j];
     return this;
   };
+  /* ⚠️ FÓRMULAS. Faltaban, y su ausencia hizo pasar por buenos diez casos que en realidad no
+     escribían nada: el `.gs` pregunta `getFormula()` antes de tocar una celda —una fórmula que
+     evalúa a vacío NO es un hueco— y acá eso lanzaba, así que caía en el catch por celda.
+     `getValues` devuelve el VALOR, igual que Apps Script: la fórmula se guarda aparte y su valor
+     calculado va al dato. No se evalúa nada; el caso pone el valor que quiere ver. */
+  RangoFalso.prototype.getFormula = function () {
+    return this._h._formulas ? (this._h._formulas[this._f + ',' + this._c] || '') : '';
+  };
+  RangoFalso.prototype.getFormulas = function () {
+    const out = [];
+    for (let i = 0; i < this._nf; i++) {
+      const fila = [];
+      for (let j = 0; j < this._nc; j++)
+        fila.push((this._h._formulas && this._h._formulas[(this._f + i) + ',' + (this._c + j)]) || '');
+      out.push(fila);
+    }
+    return out;
+  };
+  /* `setFormula` guarda la fórmula y deja la celda con el valor que ya tenía (vacío si no había):
+     es lo que hace falta para probar «una fórmula que se ve vacía no es un hueco». */
+  RangoFalso.prototype.setFormula = function (f) {
+    if (!this._h._formulas) this._h._formulas = {};
+    this._h._formulas[this._f + ',' + this._c] = String(f == null ? '' : f);
+    return this;
+  };
+  /* Escribir un valor BORRA la fórmula, igual que en Sheets. Sin esto, una prueba podría creer que
+     la fórmula sobrevivió a un `setValue` que la pisó. */
+  const _setValuesOrig = RangoFalso.prototype.setValues;
+  RangoFalso.prototype.setValues = function (vals) {
+    if (this._h._formulas) {
+      for (let i = 0; i < this._nf; i++)
+        for (let j = 0; j < this._nc; j++)
+          delete this._h._formulas[(this._f + i) + ',' + (this._c + j)];
+    }
+    return _setValuesOrig.call(this, vals);
+  };
   RangoFalso.prototype.setFontWeight = function () { return this; };
   RangoFalso.prototype.setBackground = function () { return this; };
   RangoFalso.prototype.getNumberFormat = function () { return this._h.__formatoDe(this._f, this._c) || 'General'; };
