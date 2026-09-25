@@ -419,7 +419,9 @@ PRUEBAS.caso('🟡 el ↻ manual pide reportes/opiniones con el MISMO gateo por 
       return acciones.slice();
     } finally { fin(); }
   };
-  PRUEBAS.igual(probar('hseq').sort(), ['opiniones', 'reportes'], 'Dirección: reportes y opiniones');
+  /* P199 · y la bitácora del servidor, que es lo que alimenta Trazabilidad, Intervenciones y
+     Estimación de retorno. Antes no estaba porque `bitPull()` no tenía llamadores. */
+  PRUEBAS.igual(probar('hseq').sort(), ['bitacora', 'opiniones', 'reportes'], 'Dirección: reportes, opiniones y bitácora');
   PRUEBAS.igual(probar('medico'), ['reportes'], 'médico: sólo reportes (no tiene buzón de opiniones)');
   PRUEBAS.igual(probar('empleado'), [], '🟡 empleado: nada (antes salían dos POST que el servidor rechazaba, con un repintado cada uno)');
 });

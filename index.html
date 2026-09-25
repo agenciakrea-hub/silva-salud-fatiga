@@ -7517,7 +7517,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.81';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.82';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8606,6 +8606,7 @@ const I18N = {
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
       dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
       dw_reportes_error:'No se pudieron traer los reportes. Toca ↻ arriba para volver a intentar.', rep_cargando:'Trayendo los reportes…',
+      tz_cargando:'Leyendo las acciones registradas…', dw_bitacora_error:'No se pudieron leer las acciones registradas en el servidor. Toca ↻ para volver a intentarlo.', tz_parcial:'Puede que falten acciones: no se pudo consultar el servidor.',
       dw_opiniones_error:'No se pudieron traer las opiniones. Toca ↻ arriba para volver a intentar.', op_cargando:'Trayendo las opiniones…',
       tar_ficha_cargando:'Trayendo lo que le pediste…', tar_ficha_error:'No se pudieron traer las tareas de esta persona. Toca ↻ arriba para volver a intentar.',
       dw_opiniones_reintentar:'Todavía no se pudo conectar con el buzón de opiniones. Se va a reintentar solo.',
@@ -10646,6 +10647,7 @@ const I18N = {
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
       dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
       dw_reportes_error:'The reports could not be loaded. Tap ↻ above to try again.', rep_cargando:'Loading the reports…',
+      tz_cargando:'Reading the recorded actions…', dw_bitacora_error:'The actions recorded on the server could not be read. Tap ↻ to try again.', tz_parcial:'Some actions may be missing: the server could not be reached.',
       dw_opiniones_error:'The opinions could not be loaded. Tap ↻ above to try again.', op_cargando:'Loading the opinions…',
       tar_ficha_cargando:'Loading what you asked them…', tar_ficha_error:'The tasks for this person could not be loaded. Tap ↻ above to try again.',
       dw_opiniones_reintentar:'Could not connect to the feedback inbox yet. It will retry automatically.',
@@ -21269,6 +21271,11 @@ function onDashData(d, scopeLabel, params, vista){
   // P081 · y para Dirección: el servidor le manda SÓLO los anónimos, sin nombres (P075), que van al Mapa de riesgo.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico' || vista === 'hseq') && gestCanSync()) dashCargarReportes();
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'hseq') && gestCanSync()) dashCargarOpiniones();
+  /* P199 · la bitácora del servidor, para las tres pantallas de Dirección. Sólo `hseq`: el
+     supervisor y el médico leen `bitacoraDe(persona)` en las fichas, que es otra pregunta y otro
+     recorte —el suyo llega con nombres— y ampliarlo sin medir esas pantallas sería cambiar lo que
+     ven sin haberlo mirado. */
+  if (!DASH.demoMode && vista === 'hseq' && gestCanSync()) dashCargarBitacora();
   // Casos abiertos del puente, en su versión recortada (ver casosResumenPull). Supervisor y médico:
   // el médico la usa para que su espejo "Así lo ve el supervisor" no mienta.
   if (!DASH.demoMode && (vista === 'supervisor' || vista === 'medico') && gestCanSync()){
@@ -21351,6 +21358,29 @@ function dashCargarReportes(){
     dashRepintar();   // P049 · llega tarde, no re-anima
   }).catch(()=>{ if (DASH && DASH === mio){ DASH._reportesError = true; dashRepintar(); } });
 }
+/* ⚠️ P199 · LA BITÁCORA DEL SERVIDOR NO SE PEDÍA NUNCA, Y ERA EL ÚNICO «ROMPE» DE A8 SIN CERRAR.
+   `bitPull()` existía desde hace meses y NO TENÍA LLAMADORES —lo decía su propio comentario y lo
+   confirmaba `alcanzabilidad.py`, que lo tenía en su lista de funciones muertas—. Entonces
+   «Trazabilidad», «Intervenciones preventivas» y «Estimación de retorno» se alimentaban 100 % de
+   `localStorage`: Dirección entraba desde SU teléfono, veía 0 intervenciones y $0 de ahorro, con la
+   hoja `Bitácora` del CH llena. Y aunque entrara desde el aparato del supervisor, las acciones que
+   escribe el SERVIDOR —`ciclo_cerrado`, `ciclo_plan_guardado`, `ciclo_detenido`, las credenciales,
+   `nomina_sync`, y ahora las ausencias de P200— no podían aparecer nunca, porque sólo existen allá.
+   Es el patrón de A4: el dato viaja y del otro lado nadie lo recibe.
+   ⚠️ `bitPull` NO toca `s.up`, así que lo que baja del servidor no entra en la cola de subida: el
+   cliente no le reenvía al servidor lo que el servidor acaba de darle. `K_BITACORA` es las dos
+   cosas —caché y cola— y esa separación es lo único que lo hace seguro. */
+function dashCargarBitacora(){
+  if (!DASH || DASH._bitPedida) return;
+  DASH._bitPedida = true; DASH._bitError = false;
+  const mio = DASH;
+  bitPull().then(ok => {
+    if (!DASH || DASH !== mio) return;   // el visor cambió de empresa mientras esto volaba: se descarta
+    if (!ok){ DASH._bitError = true; dashRepintar(); return; }
+    DASH._bitBajada = true; DASH._bitError = false;
+    dashRepintar();
+  }).catch(() => { if (DASH && DASH === mio){ DASH._bitError = true; dashRepintar(); } });
+}
 /* P187 · lo que el ↻ vuelve a pedir: lo que nunca llegó o falló (reportes, opiniones, tareas de la ficha) */
 function dashRecargarPendientes(){
   if (!DASH || DASH.demoMode || !gestCanSync()) return;
@@ -21359,6 +21389,7 @@ function dashRecargarPendientes(){
   const v = DASH.vista;
   if (DASH._reportes === null && (v === 'supervisor' || v === 'medico' || v === 'hseq')){ DASH._reportesPedidos = false; dashCargarReportes(); }
   if (DASH._opiniones === null && (v === 'supervisor' || v === 'hseq')){ DASH._opinionesPedidas = false; dashCargarOpiniones(); }
+  if (!DASH._bitBajada && v === 'hseq'){ DASH._bitPedida = false; dashCargarBitacora(); }   // P199
   if (TAREAS_FICHA.error){ TAREAS_FICHA.error = false; TAREAS_FICHA.persona = null; }
 }
 /* El estado de una carga de tres valores, para los renders: 'viajando' | 'error' | 'ok' */
@@ -23538,7 +23569,18 @@ function hseqSenalesHtml(){
 
 /* Intervenciones preventivas no punitivas — la métrica estrella del pitch.
    Sale sola de la bitácora de P2/P3/P6: cada vez que alguien actuó ANTES de que pasara algo. */
+/* P199 · el estado de la bajada, con el MISMO helper que usan reportes y opiniones. Las tres
+   pantallas de Dirección afirman números —«0 intervenciones», «$0 de ahorro», «no hay acciones»— y
+   un número es una afirmación: antes de preguntarle al servidor no se puede hacer, y si la pregunta
+   falló hay que decirlo en vez de contestar cero. */
+function hseqBitEstado(){
+  if (!DASH || DASH.demoMode) return 'ok';
+  return cargaEstado(DASH._bitPedida, DASH._bitBajada ? 1 : null, DASH._bitError);
+}
 function renderHseqIntervenciones(){
+  const est = hseqBitEstado();
+  if (est === 'viajando') return dashHelp(t('hlp_intervenciones')) + cargandoHtml(t('tz_cargando'));
+  if (est === 'error') return dashHelp(t('hlp_intervenciones')) + dashWarn(t('dw_bitacora_error'));
   const ev = bitacoraDe();
   const cuenta = a => ev.filter(e => e.accion === a).length;
   const restricciones = cuenta('restriccion_tarea');
@@ -23630,6 +23672,10 @@ const HSEQ_ACCIONES_OCULTAS = { caso_odoo:1 };
 function renderHseqAuditoria(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);
   const ayuda = dashHelp(t('hlp_trazabilidad'));
+  const est = hseqBitEstado();
+  /* P199 · «no hay acciones registradas» era falso: no se había preguntado nunca. */
+  if (est === 'viajando') return ayuda + cargandoHtml(t('tz_cargando'));
+  if (est === 'error' && !ev.length) return ayuda + dashWarn(t('dw_bitacora_error'));
   if (!ev.length) return ayuda + dashVacio('acciones', 'nota');
   const filas = ev.map(e => {
     const u = e.umbral;
@@ -23649,7 +23695,8 @@ function renderHseqAuditoria(){
         (e.detalle && e.detalle.quien ? ' · ' + esc(t('tz_quien', { q: e.detalle.quien })) : '') + '</div>' : '') +
     '</div>';
   });
-  return ayuda + '<div class="dash-block"><div class="db-title">' + esc(t('tz_titulo', { n: ev.length })) + '</div>' +
+  return ayuda + (est === 'error' ? '<p class="dash-aviso">' + esc(t('tz_parcial')) + '</p>' : '') +
+    '<div class="dash-block"><div class="db-title">' + esc(t('tz_titulo', { n: ev.length })) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_inalterable')) + '</div>' +
     dashVerMas(filas, 5) +
     '<button type="button" class="hs-exp" onclick="hseqExportar()">' + esc(t('tz_exportar')) + '</button></div>';
@@ -23710,6 +23757,11 @@ function renderHseqCostos(rows){
       '<div class="hs-nota">' + esc(t('hs_costos_nota')) + '</div></div>';
   }
   // Con datos: todo se muestra como estimación, con los supuestos visibles.
+  /* P199 · y sólo si la bitácora del servidor llegó: la cuenta de intervenciones es el numerador de
+     todo lo que sigue, y con la bajada rota el ahorro daba $0 — un número inventado con cara de dato. */
+  const estC = hseqBitEstado();
+  if (estC === 'viajando') return ayuda + cargandoHtml(t('tz_cargando'));
+  if (estC === 'error') return ayuda + dashWarn(t('dw_bitacora_error'));
   const gente = hseqGente(rows);
   const ev = bitacoraDe();
   const intervenciones = ev.filter(e => e.accion === 'restriccion_tarea' || e.accion === 'determinacion_medica').length;
@@ -29111,7 +29163,7 @@ window.addEventListener('online', function(){ casosOdooSchedulePush(); });
    campos que corresponden; si filtráramos en la pantalla, el dato igual ya habría viajado hasta
    su navegador y estaría a un F12 de distancia. Mismo criterio que ya usa `accionGestiones()`
    con el cuaderno del médico.
-   (Nota al pasar: `bitPull()` hoy no lo llama nadie — está definida y sin uso.)
+   (P199 · `bitPull()` ya tiene llamador: `dashCargarBitacora()`, para las tres pantallas de Dirección.)
 
    El médico también la usa, en vez de leer su store local: así el espejo "Así lo ve el
    supervisor" muestra literalmente lo mismo que el supervisor, sin una segunda fuente de verdad

@@ -280,8 +280,8 @@ PRUEBAS.caso('⚠️ DISCRIMINADOR: sin dashRepintar(), las cuatro vistas vuelve
     '⚠️ así se veía el servicio médico antes de P049: los 4 repintados rearmaban la entrada (P075 sumó el de reportes) · ' + JSON.stringify(med.animados));
   PRUEBAS.igual(sup.rearman, 6,
     '⚠️ y el supervisor, 6 (P187) · ' + JSON.stringify(sup.animados));
-  PRUEBAS.igual(hseq.rearman, 4,
-    '⚠️ y Dirección/HSEQ, 4 (P081 le sumó la bandeja de reportes anónimos; P187, las opiniones) · ' + JSON.stringify(hseq.animados));
+  PRUEBAS.igual(hseq.rearman, 5,
+    '⚠️ y Dirección/HSEQ, 5 (P081 le sumó la bandeja de reportes anónimos; P187, las opiniones; P199, la bitácora del servidor) · ' + JSON.stringify(hseq.animados));
 });
 
 PRUEBAS.caso('el flag no queda pegado: el próximo render SÍ vuelve a animar', async () => {
