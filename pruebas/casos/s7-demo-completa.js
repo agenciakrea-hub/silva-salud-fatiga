@@ -47,9 +47,31 @@ PRUEBAS.caso('⚠️ los turnos ya no están vacíos: las tarjetas no quedan tod
   PRUEBAS.alMenos(t2.length, 3, '⚠️ tiene que haber turnos registrados');
   PRUEBAS.cierto(t2.some(x => x.tipo === 'checkin'), 'con check-in');
   PRUEBAS.cierto(t2.some(x => x.tipo === 'checkout'), 'y alguno cerrado, para que se vea el ciclo completo');
-  const hoy = todayStr();
-  PRUEBAS.cierto(t2.every(x => x.fecha === hoy),
-    'del día de hoy: con fecha vieja, la ventana de 14 h los descarta y volveríamos a cero');
+  /* ⚠️ ESTA COMPROBACIÓN DECÍA `x.fecha === hoy`, Y ERA LA PREGUNTA EQUIVOCADA. El razonamiento
+     escrito era «con fecha vieja, la ventana de 14 h los descarta»: falso, `cicloTurnoDe()` trae
+     los de AYER si caen dentro de la ventana — para eso existe. Y exigir la fecha de hoy obligaba a
+     `turnosDemo()` a usar horas fijas contra el día, que a las 00:33 dibujaba un check-out de las
+     18:00 que todavía no había pasado. La condición prohibía el arreglo del defecto.
+     Lo que importa no es la fecha de la fila: es que el turno LLEGUE a la tarjeta. Se prueba por
+     `cicloTurnoDe()`, que es quien la arma (R17), y se mide a siete horas del día, porque el
+     defecto sólo se veía fuera de la franja de la tarde. */
+  const real = Date.now;
+  try {
+    [6, 9, 12, 14, 17, 20, 23].forEach(h => {
+      const base = new Date(); base.setHours(h, 0, 0, 0);
+      Date.now = () => base.getTime();
+      const prev = DASH;
+      try {
+        DASH = { turnos: turnosDemo() };
+        const conTurno = DEMO_ACTIVOS.filter(nom => !!cicloTurnoDe(nom));
+        PRUEBAS.igual(conTurno.length, DEMO_ACTIVOS.length,
+          '⚠️ ' + h + ':00 · los tres activos llegan a su tarjeta con turno · sin esto vuelven todas a «pendiente», que es lo que S7 vino a sacar');
+        const inst = r => new Date(r.fecha + 'T' + r.hora + ':00').getTime();
+        PRUEBAS.igual(turnosDemo().filter(r => inst(r) > base.getTime()).length, 0,
+          '🔴 ' + h + ':00 · y ninguno está en el futuro');
+      } finally { DASH = prev; }
+    });
+  } finally { Date.now = real; }
 });
 
 PRUEBAS.caso('⚠️ la nómina de la demo muestra datos, no un error de credenciales', () => {

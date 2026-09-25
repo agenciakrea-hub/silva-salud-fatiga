@@ -1197,6 +1197,11 @@
   .dash-scope-top { display: flex; align-items: center; gap: .45rem; min-width: 0; }
   /* T3: SIN text-overflow:ellipsis a propósito — con el desplazamiento (más abajo) el texto entero
      tiene que poder pintarse para deslizarse; la elipsis y la animación se pisan entre sí. */
+  /* ⚠️ SIN `text-overflow`, Y ES DELIBERADO. Se intentó agregarle `ellipsis` viendo que a 375 px
+     «Empresa Demo · ejemplo» entra a la mitad — pero T3 ya resolvió esto MEJOR: `dashWireMarquees`
+     le pone `.marquee` cuando el texto no entra y lo desplaza, así se lee ENTERO. La elipsis
+     compite con esa animación: recorta antes de que el deslizamiento pueda mostrar el final.
+     Hay un caso que se pone en rojo si alguien se la vuelve a agregar (`t3-textos-marquee.js`). */
   .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; }
   /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
      viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
@@ -1253,7 +1258,7 @@
   .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
     padding: .12rem .5rem; white-space: nowrap; }
-  .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; margin-top: 1px; }
+  .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; margin-top: 1px; }   /* idem: sin elipsis a propósito, lo desplaza `dashWireMarquees` */
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
     background: var(--card); padding: 2px; }
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: 999px;
@@ -4272,14 +4277,21 @@
   .apt-t-n { font-weight: 700; color: var(--text-muted); font-size: .9rem; }
   /* Insignia chiquita ("›" en un círculo) que marca que ese cuadro/fila se toca — sin ella, los
      contadores y los items de la cola se leen como texto informativo, no como controles. */
+  /* ⚠️ R13 · el fondo era `rgba(255,255,255,.75)`, escrito a mano: un círculo BLANCO sobre la
+     tarjeta oscura, con la flecha en el color claro del estado encima. Medido en tema oscuro:
+     blanco contra `rgb(240,192,74)` da 1,7 — la flecha desaparecía justo en la insignia que existe
+     para decir «esto se toca». `--sobre-card` es el token de las superficies que tapan y está
+     definido en los dos temas.
+     ⚠️ Y la tinta es `--act`, no `--ac`: `--ac` es el color de RELLENO del estado. Es el mismo
+     error que I6 encontró en la nota médica y P198 en el veredicto del PVT. */
   .apt-tap { position: absolute; top: .4rem; right: .4rem; width: 15px; height: 15px; border-radius: 50%;
-    background: rgba(255,255,255,.75); display: flex; align-items: center; justify-content: center; }
-  .apt-tap svg { width: 8px; height: 8px; color: var(--ac); }
+    background: var(--sobre-card); display: flex; align-items: center; justify-content: center; }
+  .apt-tap svg { width: 8px; height: 8px; color: var(--act, var(--ac)); }
   /* Variante EN LÍNEA (filas de la cola médica): va primero en la fila, no flota arriba a la
      derecha — ahí podía superponerse con la fecha, que ya usa esa esquina. */
   .apt-tap-inline { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; background: var(--card);
     display: flex; align-items: center; justify-content: center; }
-  .apt-tap-inline svg { width: 8px; height: 8px; color: var(--anc); }
+  .apt-tap-inline svg { width: 8px; height: 8px; color: var(--anct, var(--anc)); }   /* idem: `--anc` es relleno, `--anct` es tinta */
   /* Controles de "Estado por persona": invertir el orden / quedarse sólo con indicación médica. */
   .apt-ctrls { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
   /* I2: medían 32 px de alto. */
@@ -7517,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.84';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.89';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7829,6 +7841,7 @@ const I18N = {
       opcional:'Opcional',
       rol_aviacion:'Personal de aviación',
       rol_supervisor:'Supervisor',
+      rol_empleado:'Empleado',
       rol_medico:'Servicio médico',
       setup_titulo:'Bienvenido',
       setup_titulo_faltantes:'Falta muy poco',
@@ -9236,6 +9249,26 @@ const I18N = {
       demo_com_1:'Dolor de cabeza fuerte desde la mañana.',
       demo_gest_det1:'Perelli y KSS por encima de lo normal en los últimos tests. Se conversó con la persona sobre calidad de sueño diurno.',
       demo_gest_t1:'Hablar con la persona',
+      demo_gest_ti1:'Fatiga elevada — turno noche',
+      demo_gest_ti2:'Ansiedad — evaluación pendiente',
+      demo_gest_ti3:'Estrés alto — resuelto con cambio de turno',
+      demo_gest_ti4:'Somnolencia — seguimiento mensual',
+      demo_gest_det2:'Test de ansiedad (BAI) sobre el límite. Todavía no se agendó la evaluación con salud ocupacional.',
+      demo_gest_det3:'Estrés por encima de referencia durante 3 semanas seguidas. Se resolvió tras reasignar a un horario diurno.',
+      demo_gest_det4:'KSS elevado en ambos durante el cierre de mes. Se están monitoreando junto con el resto del equipo.',
+      demo_gest_t2:'Ajustar rotación de turnos',
+      demo_gest_t3:'Agendar evaluación con salud ocupacional',
+      demo_gest_t4:'Reasignar horario',
+      demo_gest_t5:'Repetir test a las 2 semanas',
+      demo_gest_sg1:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.',
+      demo_gest_sg2:'Primer contacto: refiere dificultad para dormir de día.',
+      demo_gest_sg3:'Repetido el test de estrés: valores ya dentro de lo normal.',
+      demo_gest_sg4:'Se reasignó a horario diurno desde el lunes.',
+      demo_gest_sg5:'Sin cambios significativos esta semana.',
+      demo_anot_med:'Dr. Ejemplo',
+      demo_anot_n1:'No apto para turno noche por 24 h: fatiga y somnolencia por encima de lo normal en el último test.',
+      demo_anot_n2:'Apto para tareas en tierra. Evitar turnos rotativos hasta la próxima evaluación.',
+      demo_anot_n3:'Evaluado y en seguimiento. Los indicadores altos ya están explicados: apto para trabajar normal.',
       demo_com_2:'El taller está muy ruidoso esta semana.',
       sub_determ:'Tus determinaciones activas · al vencer, la persona vuelve a Pendientes de revisión',
       // ── Tareas y notificaciones (D1) ──
@@ -9863,6 +9896,7 @@ const I18N = {
       opcional:'Optional',
       rol_aviacion:'Aviation personnel',
       rol_supervisor:'Supervisor',
+      rol_empleado:'Employee',
       rol_medico:'Medical staff',
       setup_titulo:'Welcome',
       setup_titulo_faltantes:'Almost done',
@@ -11328,6 +11362,26 @@ const I18N = {
       demo_com_1:'Bad headache since this morning.',
       demo_gest_det1:'Perelli and KSS above normal in the latest tests. We talked with the person about daytime sleep quality.',
       demo_gest_t1:'Talk with the person',
+      demo_gest_ti1:'High fatigue — night shift',
+      demo_gest_ti2:'Anxiety — assessment pending',
+      demo_gest_ti3:'High stress — resolved with a shift change',
+      demo_gest_ti4:'Sleepiness — monthly follow-up',
+      demo_gest_det2:'Anxiety test (BAI) at the limit. The occupational health assessment has not been scheduled yet.',
+      demo_gest_det3:'Stress above the reference for 3 weeks in a row. Resolved after moving the person to a daytime schedule.',
+      demo_gest_det4:'High KSS in both during the month-end close. They are being monitored along with the rest of the team.',
+      demo_gest_t2:'Adjust the shift rotation',
+      demo_gest_t3:'Schedule the occupational health assessment',
+      demo_gest_t4:'Reassign the schedule',
+      demo_gest_t5:'Repeat the test in 2 weeks',
+      demo_gest_sg1:'The move to a rotating shift starting next week was arranged with Operations.',
+      demo_gest_sg2:'First contact: reports difficulty sleeping during the day.',
+      demo_gest_sg3:'Stress test repeated: values already within the normal range.',
+      demo_gest_sg4:'Moved to a daytime schedule starting Monday.',
+      demo_gest_sg5:'No significant changes this week.',
+      demo_anot_med:'Dr. Example',
+      demo_anot_n1:'Not fit for the night shift for 24 h: fatigue and sleepiness above normal in the latest test.',
+      demo_anot_n2:'Fit for ground duties. Avoid rotating shifts until the next assessment.',
+      demo_anot_n3:'Assessed and under follow-up. The high indicators are already explained: fit to work normally.',
       demo_com_2:'The workshop is very noisy this week.',
       sub_determ:'Your active determinations · on expiry, the person returns to Pending review',
       // ── Tasks and notifications (D1) ──
@@ -23684,8 +23738,25 @@ function bitCambioDe(e, canon){
    ni lo altera — sigue en la bitácora, entero, y el servicio médico lo ve en su propio panel.
    Es el mismo cortafuegos por el que esta vista ya no muestra el `detalle` clínico. */
 const HSEQ_ACCIONES_OCULTAS = { caso_odoo:1 };
-function renderHseqAuditoria(){
+/* Lo que la trazabilidad de Dirección puede leer. En el producto real el recorte lo hace el
+   servidor (`bitacoraParaHseq_`): reemplaza cada `sujeto` por «P1, P2…» y NO manda el `actor`. La
+   demostración no pasa por ahí —`action:'demo'` arma todo en el cliente—, así que si esto no
+   estuviera, la pantalla que existe para mostrar que Dirección no ve individuos mostraría los
+   diecinueve nombres del elenco, con su historial y su fecha.
+   ⚠️ Numera por orden de aparición EN LOS EVENTOS, con un mapa propio, igual que el servidor: los
+   «P» de acá no son los mismos que los de los registros, y en producción tampoco lo son.
+   ⚠️ Recorta al LEER, nunca al guardar. Guardarlo anonimizado fue el intento anterior y dejó al
+   supervisor sin nombres y a los pseudónimos escalando en cada vuelta (ver demoAnonimizarHseq). */
+function hseqEventos(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);
+  if (!(typeof DASH !== 'undefined' && DASH && DASH.demoMode && DASH.vista === 'hseq')) return ev;
+  const mapa = {}; let n = 0;
+  const pid = nom => { const k = dashNorm(nom || ''); if (!k) return '';
+    if (!mapa[k]) mapa[k] = 'P' + (++n); return mapa[k]; };
+  return ev.map(e => e ? Object.assign({}, e, { sujeto: pid(e.sujeto), actor: '' }) : e);
+}
+function renderHseqAuditoria(){
+  const ev = hseqEventos();
   const ayuda = dashHelp(t('hlp_trazabilidad'));
   const est = hseqBitEstado();
   /* P199 · «no hay acciones registradas» era falso: no se había preguntado nunca. */
@@ -23701,7 +23772,7 @@ function renderHseqAuditoria(){
       '<div class="hs-ev-sub">' +
         (e.sujeto ? t('tz_sobre', { q: '<b>' + esc(e.sujeto) + '</b>' }) : esc(t('tz_del_sistema'))) +
         (e.actor ? (' · ' + esc(t('tz_por', { q: e.actor }))) : '') +
-        (e.rol ? ' <small>(' + esc(e.rol) + ')</small>' : '') +
+        (e.rol ? ' <small>(' + esc(bitRolLabel(e.rol)) + ')</small>' : '') +
         (e.origen === 'algoritmo' ? ' <small>· ' + esc(t('tz_automatico')) + '</small>' : '') +
       '</div>' +
       (u ? '<div class="hs-ev-um">' + esc(t('tz_umbral', { n: u.nivel, a: u.amarillo, r: u.rojo })) + '</div>' : '') +
@@ -23718,10 +23789,24 @@ function renderHseqAuditoria(){
 }
 /* Exportación del log. Mismo criterio que la pantalla: acción/actor/sujeto/umbral, sin contenido
    clínico. Se arma como CSV y se descarga; no sale de la aplicación por ningún otro canal. */
+/* El rol que firma cada línea de Trazabilidad, con el nombre que la persona conoce. Se pintaba
+   CRUDO —«(medico)», «(hseq)»— en la única pantalla que ve quien firma el contrato, y sin tilde.
+   ⚠️ NO se reusa `rolNombre()`: esa cae a «Supervisor» para CUALQUIER valor desconocido, y acá el
+   rol viene de eventos guardados hace meses, incluidos los de versiones que ya no existen. Un rol
+   que no se reconoce se muestra tal cual: decir «Supervisor» sobre una acción que no fue suya es
+   peor que mostrar una palabra fea. */
+function bitRolLabel(rol){
+  const r = String(rol || '');
+  if (r === 'medico')     return t('rol_medico');
+  if (r === 'hseq')       return t('vista_hseq');
+  if (r === 'supervisor') return t('rol_supervisor');
+  if (r === 'empleado')   return t('rol_empleado');
+  return r;
+}
 function accionLabel(a){ const k = HSEQ_ACCION_LABEL[a]; return k ? t(k) : String(a || ''); }
 function accionLabelCanon(a){ const k = HSEQ_ACCION_LABEL[a]; return k ? tCanon(k) : String(a || ''); }
 function hseqExportar(){
-  const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);   // mismo cortafuegos que la pantalla
+  const ev = hseqEventos();   // mismo recorte que la pantalla: pseudónimos incluidos
   if (!ev.length){ showToast(t('ts_nada_exportar')); return; }
   const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g,'""') + '"';
   const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version','Cambio'];
@@ -25260,6 +25345,21 @@ function cicloPerQuitar(btn, persona){
 }
 
 function cicloRepintar(){
+  /* ⚠️ EN LA DEMOSTRACIÓN, LOS DATOS SE VUELVEN A GENERAR ANTES DE REPINTAR, y esto no es un
+     detalle: `turnosDemo()`/`dutyDemo()`/`cicloDemo()` se arman UNA vez, en `onDashData`, y están
+     anclados al instante en que se armaron — pero `cicloTurnoDe()` evalúa la ventana de 14 h
+     (`TURNO_VENTANA_MS`) contra el reloj VIVO, y este repintado corre cada 60 s también en demo.
+     El check-in de la jornada excedida nace a 800 min de ahora, o sea a 40 minutos del borde: con
+     el panel abierto en la vista de supervisor, a los 40 minutos su chip se apagaba, a los 55 el
+     siguiente y a los 75 el tercero — y quedaban tarjetas mostrando «Carga» y «Check-out»
+     encendidos con el check-in apagado, que se lee como «marcó la carga pero nunca entró». A los
+     75 minutos los tres vuelven a «pendiente», el estado que S7 vino a sacar de la demostración.
+     Lo encontró el verificador, calculando el margen; una demostración dura más de 40 minutos.
+     Regenerarlos los deja siempre a la misma distancia del ahora, y de paso la jornada abierta
+     crece en vivo, que es lo que «todavía adentro» significa. */
+  if (DASH && DASH.demoMode){
+    try { DASH.turnos = turnosDemo(); DASH.duty = dutyDemo(); DASH.operacional = cicloDemo(); } catch(e){}
+  }
   const sec = document.getElementById('dsec-ciclo');
   if (sec){
     sec.innerHTML = renderCicloOperativo();
@@ -25385,33 +25485,55 @@ function dutyDemo(){
   const hoy = todayStr(), ayer = fechaMasDias(hoy, -1), antes = fechaMasDias(hoy, -2);
   const P = 'Empresa Demo';
   /* P169 · Los botones con su hora, como los manda el servidor real (`leerDuty` → `eventos`):
-     salida de casa a las 06:10, llegada 55 min después, salida al cumplir la jornada, y la
-     llegada a casa 50 min más tarde. Una jornada abierta no tiene salida ni vuelta todavía. */
-  const evs = (fecha, jornada, abierto) => {
+     salida de casa, llegada 55 min después, salida al cumplir la jornada, y la llegada a casa
+     50 min más tarde. Una jornada abierta no tiene salida ni vuelta todavía.
+
+     ⚠️ ANCLADO A LA HORA REAL, Y ANTES NO LO ESTABA. El arranque era fijo —`fecha + 'T06:10:00'`—
+     así que la jornada de «hoy» se dibujaba entera desde las 06:10 sin mirar el reloj: medido a las
+     00:31, DIEZ de los veinticuatro eventos del día estaban EN EL FUTURO (salida de casa 06:10,
+     vuelta 18:55), y la fila abierta de Ana decía «lleva 14 h adentro» a las doce y media de la
+     noche. Peor: `cicloDemo()` sí es relativo a `ahora`, así que las dos pestañas que cuentan la
+     MISMA operación —Ciclo y Jornada— se contradecían delante del cliente.
+     Ahora cada fila se ancla hacia atrás desde ahora: la abierta termina EN ESTE INSTANTE (que es
+     lo que «todavía adentro» significa) y las cerradas terminaron hace un rato.
+     ⚠️ Un inicio puede caer en la noche anterior, y es correcto: una jornada de 14 h abierta a las
+     diez de la mañana empezó anoche, por definición. El día que etiqueta la fila es el día
+     OPERATIVO, que es el mismo criterio de traspaso nocturno que ya usa `cicloTurnoDe()`. */
+  const M = 60000, AHORA = Date.now();
+  const evs = (t0, jornada, abierto) => {
     const ev = cicloEventos().map(e => e.k);
-    const t0 = new Date(fecha + 'T06:10:00').getTime();
-    const iso = min => new Date(t0 + min * 60000).toISOString();
+    const iso = min => new Date(t0 + min * M).toISOString();
     const lista = [{ evento: ev[0], iso: iso(0) }, { evento: ev[1], iso: iso(55) }];
     if (!abierto) lista.push({ evento: ev[2], iso: iso(55 + jornada) }, { evento: ev[3], iso: iso(55 + jornada + 50) });
     return lista;
   };
-  const fila = (persona, fecha, jornada, previsto, abierto) => ({
+  /* Cuánto hace que terminó esta jornada. La abierta no terminó: su último instante es ahora. */
+  const t0De = (jornada, abierto, terminoHaceMin, diasAtras) =>
+    AHORA - ((abierto ? (jornada + 55) : (jornada + 105 + terminoHaceMin)) + diasAtras * 1440) * M;
+  const fila = (persona, fecha, jornada, previsto, abierto, terminoHaceMin, diasAtras) => ({
     persona: persona, empresa: P, departamento: demoDepDe(persona), fecha: fecha,
     jornadaMin: jornada, previstoMin: previsto, excesoMin: Math.max(0, jornada - previsto),
     abierto: !!abierto, umbralCongelado: true,
     tramos: [{ tramo:'jornada', previsto: previsto, real: jornada,
                exceso: Math.max(0, jornada - previsto), abierto: !!abierto,
                abandonado: false, umbralCongelado: true }],
-    eventos: evs(fecha, jornada, abierto)
+    eventos: evs(t0De(jornada, abierto, terminoHaceMin, diasAtras), jornada, abierto)
   });
   const A = DEMO_ACTIVOS[0], B = DEMO_ACTIVOS[1], C = DEMO_ACTIVOS[2];
+  /* Los dos cerrados de hoy no terminan a la misma hora: dos barras idénticas se leen como un
+     dibujo, no como una operación. */
+  /* ⚠️ EL CHECK-IN DE HOY TIENE QUE ENTRAR EN LA VENTANA DE 14 h (`TURNO_VENTANA_MS`), o
+     `cicloTurnoDe()` lo descarta y la tarjeta vuelve a «pendiente» — que es exactamente el estado
+     que S7 vino a sacar de la demostración. Con jornada + 105 min de traslados, el arranque queda
+     a `jornada + 50 + terminoHace` minutos de ahora: por eso los cerrados de hoy terminaron hace
+     poco y la jornada abierta es de 13 h 20 y no de 14 h 05. Sigue excedida (previsto 720). */
   const diario = [
-    fila(A, hoy,   660, 720, false),
-    fila(B, hoy,   845, 720, true),    // el único excedido de HOY, y todavía adentro
-    fila(C, hoy,   690, 720, false),
-    fila(A, ayer,  700, 720, false),
-    fila(B, ayer,  735, 720, false),   // el mismo, ayer: así se ve que es un patrón y no un mal día
-    fila(C, antes, 655, 720, false)
+    fila(A, hoy,   660, 720, false,  75, 0),
+    fila(B, hoy,   800, 720, true,    0, 0),    // el único excedido de HOY, y todavía adentro
+    fila(C, hoy,   670, 720, false,  45, 0),
+    fila(A, ayer,  700, 720, false,  75, 1),
+    fila(B, ayer,  735, 720, false, 120, 1),    // el mismo, ayer: así se ve que es un patrón y no un mal día
+    fila(C, antes, 655, 720, false, 190, 2)
   ];
   const porPersona = {};
   diario.forEach(f => {
@@ -25494,12 +25616,14 @@ function demoAnonimizarHseq(){
     if (DASH.duty) DASH.duty = Object.assign({}, DASH.duty, {
       diario:   copiar(DASH.duty.diario, 'persona'),
       personas: copiar(DASH.duty.personas, 'persona') });
-    /* La bitácora sembrada vive en el almacén local, no en `DASH`, así que acá sí se escribe — y se
-       vuelve a sembrar entera en cada entrada a la demo (`bitacoraSembrarDemo`), que es lo que
-       devuelve los nombres cuando se pasa a supervisor. */
-    const st = bitStore();
-    st.items = (st.items || []).map(e => e ? Object.assign({}, e, { sujeto: pid(e.sujeto), actor: '' }) : e);
-    bitSaveStore(st);
+    /* ⚠️ LA BITÁCORA NO SE TOCA ACÁ, Y SE INTENTÓ. La primera versión reescribía el almacén local
+       —`sujeto: pid(...)`, `actor: ''`— y rompió dos cosas a la vez, las dos medidas en el
+       navegador: (1) `bitacoraSembrarDemo()` es idempotente POR DÍA, así que al volver a supervisor
+       no re-sembraba y el supervisor se quedaba con «P19, P2, P18…» en su trazabilidad para el
+       resto de la demostración; (2) cada vuelta a Dirección anonimizaba lo YA anonimizado con un
+       mapa nuevo, y los pseudónimos escalaban — P1…P19, después P20…P38, sin techo.
+       El servidor no guarda recortado: recorta AL SERVIR (`bitacoraParaHseq_`). Acá igual, en
+       `hseqEventos()`, que es idempotente por construcción. */
     /* Y la nómina sin dato, que es una lista de NOMBRES. */
     if (Array.isArray(DASH.nominaSinDato)) DASH.nominaSinDato = [];
   } catch(e){}
@@ -25532,17 +25656,34 @@ function ausenciasDemo(){
 /* Turnos del día. Estaban en `[]` con el comentario "no es el foco": el efecto era que TODAS las
    tarjetas quedaban en "pendiente", o sea que la demo mostraba la app como si nadie la usara. */
 function turnosDemo(){
-  const hoy = todayStr();
-  const t = (persona, tipo, hora, kss, carga) => ({
-    fecha: hoy, hora: hora, id: 'demo_' + dashNorm(persona) + '_' + hoy + '_' + tipo,
-    tipo: tipo, persona: persona, empresa: 'Empresa Demo', departamento: demoDepDe(persona),
-    cargo: '', kss: (kss == null ? '' : kss), carga: (carga == null ? '' : carga)
-  });
+  /* ⚠️ RELATIVO A AHORA, igual que `cicloDemo()` y `dutyDemo()`. Las seis horas estaban FIJAS
+     («06:10», «18:00») contra la fecha de hoy, así que a cualquier hora que no fuera la tarde el
+     chip del turno mostraba un check-out que todavía no había pasado. Y los minutos de abajo
+     siguen a `dutyDemo`: A cerró hace 75 min, B sigue adentro desde hace 800, C cerró hace 45.
+     La FECHA sale del instante real, no de `hoy`: un check-in de anoche con fecha de hoy se lee
+     como futuro. `cicloTurnoDe()` ya sabe traer el de ayer dentro de su ventana de 14 h. */
+  const M = 60000, AHORA = Date.now();
+  /* ⚠️ `fechaOpDe`/`horaOpDe`, NO el calendario del dispositivo. `cicloTurnoDe()` compara contra
+     `todayStr()`, que es la zona de la OPERACIÓN: si el dispositivo está en otra zona —una clave
+     `zonaOp` que quedó de una sesión anterior—, `d.getDate()` y `todayStr()` pueden dar días
+     distintos y los tres chips quedan apagados. Y la HORA se pinta al lado de los eventos del
+     ciclo, que ya usan `horaOpDe`: mezclarlas las desfasa por el offset en la misma tarjeta. */
+  const t = (persona, tipo, haceMin, kss, carga) => {
+    const d = new Date(AHORA - haceMin * M);
+    const fecha = fechaOpDe(d);
+    return { fecha: fecha, hora: horaOpDe(d),
+      id: 'demo_' + dashNorm(persona) + '_' + fecha + '_' + tipo,
+      tipo: tipo, persona: persona, empresa: 'Empresa Demo', departamento: demoDepDe(persona),
+      cargo: '', kss: (kss == null ? '' : kss), carga: (carga == null ? '' : carga) };
+  };
   const A = DEMO_ACTIVOS[0], B = DEMO_ACTIVOS[1], C = DEMO_ACTIVOS[2];
+  /* Espejo de los instantes de `dutyDemo()` para HOY: el check-in es la llegada al lugar de
+     trabajo (arranque + 55) y el check-out la salida (arranque + 55 + jornada). Los tres quedan
+     dentro de la ventana de 14 h; si alguno se pasara, su tarjeta volvería a «pendiente». */
   return [
-    t(A, 'checkin', '06:10', 3), t(A, 'carga', '12:30', null, 2),
-    t(B, 'checkin', '05:40', 6), t(B, 'carga', '13:05', null, 4),
-    t(C, 'checkin', '06:25', 4), t(C, 'checkout', '18:00', 5)
+    t(A, 'checkin', 785, 3),  t(A, 'carga',   455, null, 2),
+    t(B, 'checkin', 800, 6),  t(B, 'carga',   400, null, 4),
+    t(C, 'checkin', 765, 4),  t(C, 'checkout',  95, 5)
   ];
 }
 
@@ -25556,18 +25697,27 @@ function cicloDemo(){
       evento:evento, test:test||'', resultado:(res==null?null:res) };
   };
   const A = ahora - 4*60*M;    // en curso, dentro de su jornada
-  const B = ahora - 15*60*M;   // jornada excedida: entró hace 14 h y no marcó la salida
+  /* ⚠️ 855 Y NO 900: la llegada cae en `B + 55`, o sea a 800 min de ahora, que es EXACTAMENTE la
+     jornada abierta de `dutyDemo()` y el check-in de `turnosDemo()`. Con 900 y +64, Ciclo decía
+     13 h 56 min adentro y Jornada 13 h 20: 36 minutos de diferencia entre dos pestañas que cuentan
+     la misma operación, con la hora de cada evento a la vista. Lo encontró el verificador. */
+  const B = ahora - 855*M;     // jornada excedida: entró hace 13 h 20 y no marcó la salida
   /* P079 · la historia se cuenta entera: Nicolás (el sano) descansó 12 h antes de salir hoy —su ciclo
      completo va 30 h atrás—; Ana (la excedida) llegó a casa 5 h antes de volver a salir: la tarjeta lo
      dice («Descanso previo corto»), donde tiene sentido, y no en el ejemplo que no tenía que tener nada. */
   const C = ahora - 30*60*M;   // ciclo completo de Nicolás (llegó a casa 12 h antes de salir de nuevo)
-  const D = ahora - 34*60*M;   // ciclo completo de Ana (llegó a casa 5 h antes de salir de nuevo)
+  /* ⚠️ 1995 min y no 34 h: el descanso previo de Ana es su `salida_casa` menos la `llegada_casa`
+     anterior (`D + 840`), y tiene que dar 300 min exactos — las 5 h que su tarjeta nombra y que
+     `p079-alarma-por-tramo.js` verifica. Al mover `B` de 900 a 855 para que Ciclo y Jornada
+     dijeran lo mismo, el descanso se estiró a 345 y el caso se puso en rojo: el ancla anterior
+     se mueve con ella. */
+  const D = ahora - 1995*M;    // ciclo completo de Ana (llegó a casa 5 h antes de salir de nuevo)
   return [
     ev('Nicolás Herrera','Tripulación','salida_casa',  A),
     ev('Nicolás Herrera','Tripulación','llegada_aero', A + 55*M, 'kss', 3),
 
     ev('Ana Suárez','Administración','salida_casa',  B),
-    ev('Ana Suárez','Administración','llegada_aero', B + 64*M, 'kss', 6),
+    ev('Ana Suárez','Administración','llegada_aero', B + 55*M, 'kss', 6),   // = 800 min: el mismo instante que su check-in y su jornada abierta
 
     ev('Nicolás Herrera','Tripulación','salida_casa',  C),
     ev('Nicolás Herrera','Tripulación','llegada_aero', C + 58*M,  'kss', 3),
@@ -30157,7 +30307,14 @@ function bitacoraSembrarDemo(){
   /* Idempotente: si ya está sembrada no se duplica. Se re-siembra sí cuando cambió el día, para
      que "hace 2 días" siga diciendo la verdad si alguien deja la demo abierta. */
   const hoy = todayStr();
-  const yaHay = s.items.some(e => String(e.id||'').indexOf('bdemo') === 0 && e.dia === hoy);
+  /* ⚠️ Y TAMBIÉN CUANDO CAMBIA LA VERSIÓN DE LA APP, no sólo el día. La guarda miraba sólo
+     `e.dia === hoy`: cualquier dispositivo que ya hubiera abierto la demostración HOY se quedaba
+     con lo sembrado por la versión anterior, y el arreglo del guion —el tiempo que corría al revés,
+     el médico restringiendo tareas— no llegaba nunca. Peor que no llegar: **verificar el deploy el
+     mismo día devolvía «no cambió nada»**, y el diagnóstico obvio (service worker, Pages) es el
+     equivocado. Cada ítem ya guarda su `app`; sólo había que mirarlo. Lo encontró el verificador. */
+  const yaHay = s.items.some(e => String(e.id||'').indexOf('bdemo') === 0 &&
+                                  e.dia === hoy && e.app === APP_VERSION);
   if (yaHay) return;
   s.items = s.items.filter(e => String(e.id||'').indexOf('bdemo') !== 0);
 
@@ -30170,7 +30327,15 @@ function bitacoraSembrarDemo(){
 
   /* El reparto cuenta una historia: se restringe, se levanta parte, el médico firma, alguien se
      reincorpora, y la telemedicina tiene su embudo (sugeridas > aceptadas > realizadas, con una
-     rechazada, que es lo que pasa de verdad). */
+     rechazada, que es lo que pasa de verdad).
+
+     ⚠️ EL TERCER NÚMERO ES EL MOMENTO EN LA HISTORIA, NO «HACE N DÍAS», y confundir las dos cosas
+     hacía correr la demostración AL REVÉS: la restricción de la persona 1 se ponía hoy y se
+     levantaba hace dos días; el médico daba el alta seis días ANTES de firmar la determinación; y
+     el embudo de telemedicina se veía realizada → aceptada → sugerida. En la pantalla que se le
+     muestra a quien firma, y con la fecha de cada línea a la vista. Acá el número CRECE con el
+     tiempo (0 = lo más viejo) y se convierte a «hace N días» restándolo del máximo, así agregar
+     una fila al guion no puede volver a invertir el eje sin que se note. */
   const guion = [
     ['restriccion_tarea',      1,  0], ['restriccion_tarea',      2,  1],
     ['restriccion_tarea',      3,  3], ['restriccion_tarea',      5,  6],
@@ -30186,12 +30351,28 @@ function bitacoraSembrarDemo(){
     ['telemedicina_aceptada', 10,  9], ['telemedicina_rechazada',12, 15],
     ['telemedicina_realizada', 6,  4], ['telemedicina_realizada', 7,  8]
   ];
+  let ultimo = 0;
+  for (let gi = 0; gi < guion.length; gi++) if (guion[gi][2] > ultimo) ultimo = guion[gi][2];
+  /* ⚠️ Y QUIÉN LO HIZO TAMPOCO ERA CIERTO: las 26 entradas decían «Servicio médico», incluidas las
+     seis restricciones de tarea, que son la decisión operativa del SUPERVISOR y el ejemplo vivo de
+     los dos «no apto» que no se pisan. Un cliente que lee la trazabilidad y ve al médico
+     restringiendo tareas se lleva exactamente el modelo equivocado. */
+  const ROL_DE = {
+    restriccion_tarea:      'supervisor', restriccion_levantada:  'supervisor',
+    telemedicina_sugerida:  'supervisor',
+    determinacion_medica:   'medico',     alta_reincorporacion:   'medico',
+    telemedicina_realizada: 'medico',
+    telemedicina_aceptada:  'empleado',   telemedicina_rechazada: 'empleado'
+  };
   guion.forEach((g, i) => {
-    const [accion, iPersona, diasAtras] = g;
+    const [accion, iPersona, paso] = g;
+    const sujeto = quien(iPersona);
+    const rol = ROL_DE[accion] || 'supervisor';
     s.items.push({
-      id: 'bdemo' + i, ts: ahora - diasAtras * dia, dia: hoy,
-      empresa: gestEmpresaActual(), actor: t('vista_medico'), rol: 'medico',
-      accion: accion, sujeto: quien(iPersona), detalle: {}, origen: 'app',
+      id: 'bdemo' + i, ts: ahora - (ultimo - paso) * dia, dia: hoy,
+      /* El empleado que acepta o rechaza su propia telemedicina es su propio actor. */
+      empresa: gestEmpresaActual(), actor: (rol === 'empleado' ? sujeto : bitRolLabel(rol)), rol: rol,
+      accion: accion, sujeto: sujeto, detalle: {}, origen: 'app',
       umbral: null, app: APP_VERSION
     });
   });
@@ -30214,10 +30395,14 @@ function gestSembrarDemoAnotaciones(){
   if (!nombres.length) return;
   // Los 3 casos muestran el flujo completo: restringido, restringido parcial, y una alerta CERRADA
   // por el médico (la persona sigue con indicadores altos pero él ya la evaluó y la dejó apta).
+  /* R14/R1 · los tres textos y el nombre del médico estaban escritos A MANO en español, así que
+     con la app en inglés la ficha clínica del ejemplo salía en castellano. Van por `t()`. Acá es
+     seguro traducir en el momento de sembrar porque estas tres se BORRAN Y SE VUELVEN A SEMBRAR en
+     cada entrada a la demostración (arriba), a diferencia de `gestSembrarDemo()`. */
   const specs = [
-    { nivel:'alto',  ms: 1*dia, nota:'No apto para turno noche por 24 h: fatiga y somnolencia por encima de lo normal en el último test.' },
-    { nivel:'medio', ms: 3*dia, nota:'Apto para tareas en tierra. Evitar turnos rotativos hasta la próxima evaluación.' },
-    { nivel:'ok',    ms: 7*dia, nota:'Evaluado y en seguimiento. Los indicadores altos ya están explicados: apto para trabajar normal.' }
+    { nivel:'alto',  ms: 1*dia, nota:t('demo_anot_n1') },
+    { nivel:'medio', ms: 3*dia, nota:t('demo_anot_n2') },
+    { nivel:'ok',    ms: 7*dia, nota:t('demo_anot_n3') }
   ];
   /* ⚠️ LAS ANOTACIONES VAN SOBRE QUIEN ESTÁ MAL, NO SOBRE EL PRIMERO DEL ABECEDARIO.
      Antes se repartían con `nombres[i % nombres.length]` sobre la lista ordenada alfabéticamente,
@@ -30246,7 +30431,7 @@ function gestSembrarDemoAnotaciones(){
     const persona = paraSpec(i);
     const fila = DASH.registros.find(r => r.persona === persona) || {};
     gestUpsert({ id:'ademo_' + i, tipo:GEST_TIPO_ANOTACION, persona:persona, departamento: fila.departamento || '',
-      nivel:s.nivel, nota:s.nota, medico:'Dr. Ejemplo', creada:ahora, vigenciaHasta: ahora + s.ms });
+      nivel:s.nivel, nota:s.nota, medico:t('demo_anot_med'), creada:ahora, vigenciaHasta: ahora + s.ms });
   });
 }
 // Comentarios adicionales de EJEMPLO para la Empresa Demo: son texto libre que ESCRIBE el
@@ -30287,12 +30472,23 @@ function gestSembrarDemo(){
   const nombresSet = {}; nombres.forEach(n => { nombresSet[n] = 1; });
   const existentes = gestCasos().filter(g => /^gdemo/.test(g.id));
   const desactualizado = existentes.some(g => gestPersonasDe(g).some(p => !nombresSet[p]));
-  if (gestCasos().length && !desactualizado) return;   // ya sembrado y con nombres válidos
+  /* ⚠️ Y TAMBIÉN SE RE-SIEMBRA CUANDO CAMBIA EL IDIOMA. `gestUpsert` PERSISTE el texto, no la
+     clave: sembrado en español, el cuaderno de ejemplo se quedaba en español aunque la
+     demostración se abriera en inglés. Como los ids son los mismos, re-sembrar actualiza en vez de
+     duplicar. Se guarda el idioma con el que se sembró en el propio almacén. */
+  const lang = idiomaActual();
+  /* ⚠️ `g.lang` NO EXISTE en los `gdemo*` que sembró una versión anterior, y la primera forma de
+     esta línea (`g.lang && g.lang !== lang`) los daba por buenos: en cualquier dispositivo que ya
+     hubiera abierto la demostración alguna vez —el de Franco, seguro— el cuaderno seguía en
+     español con la app en inglés, que es justo el defecto que esto vino a cerrar. Sin `lang` = de
+     otro idioma, así se re-siembra UNA vez y queda marcado. Lo encontró el verificador. */
+  const otroIdioma = existentes.length && existentes.some(g => (g.lang || '') !== lang);
+  if (gestCasos().length && !desactualizado && !otroIdioma) return;   // ya sembrado, con nombres válidos y en este idioma
   const p = i => nombres[i % nombres.length];
   const depDe = n => (DASH.registros.find(r => r.persona === n) || {}).departamento || '';
   const ahora = Date.now(), dia = 86400000;
   const items = [
-    { titulo:'Fatiga elevada — turno noche', personas:[p(0)], departamento: depDe(p(0)) || demoDep('Operaciones'),
+    { titulo:t('demo_gest_ti1'), personas:[p(0)], departamento: depDe(p(0)) || demoDep('Operaciones'),
       estado:'seguimiento', prioridad:'alta', pin:true, creada: ahora - 6*dia,
       /* R14 · estos dos decían "el piloto". Van por t() y en neutro: el cuaderno de ejemplo lo
          ve cualquier sector. ⚠️ El RESTO de los textos de esta siembra sigue escrito a mano en
@@ -30301,27 +30497,27 @@ function gestSembrarDemo(){
          estuviera activo al sembrar. Se anota, no se tapa. */
       detalle:t('demo_gest_det1'),
       revisa: (new Date(ahora + 2*dia)).toISOString().slice(0,10),
-      tareas: [ {t:t('demo_gest_t1'), ok:true}, {t:'Ajustar rotación de turnos', ok:false} ],
-      seguimientos: [ {ts: ahora - dia, texto:'Se coordinó con Operaciones el cambio a turno rotativo desde la próxima semana.'},
-                       {ts: ahora - 5*dia, texto:'Primer contacto: refiere dificultad para dormir de día.'} ] },
-    { titulo:'Ansiedad — evaluación pendiente', personas:[p(1)], departamento: depDe(p(1)) || demoDep('Administración'),
+      tareas: [ {t:t('demo_gest_t1'), ok:true}, {t:t('demo_gest_t2'), ok:false} ],
+      seguimientos: [ {ts: ahora - dia, texto:t('demo_gest_sg1')},
+                       {ts: ahora - 5*dia, texto:t('demo_gest_sg2')} ] },
+    { titulo:t('demo_gest_ti2'), personas:[p(1)], departamento: depDe(p(1)) || demoDep('Administración'),
       estado:'abierta', prioridad:'media', pin:false, creada: ahora - 3*dia,
-      detalle:'Test de ansiedad (BAI) sobre el límite. Todavía no se agendó la evaluación con salud ocupacional.',
+      detalle:t('demo_gest_det2'),
       revisa: (new Date(ahora - dia)).toISOString().slice(0,10),   // vencida a propósito, para mostrar esa insignia
-      tareas: [ {t:'Agendar evaluación con salud ocupacional', ok:false} ], seguimientos: [] },
-    { titulo:'Estrés alto — resuelto con cambio de turno', personas:[p(2)], departamento: depDe(p(2)) || demoDep('Tripulación'),
+      tareas: [ {t:t('demo_gest_t3'), ok:false} ], seguimientos: [] },
+    { titulo:t('demo_gest_ti3'), personas:[p(2)], departamento: depDe(p(2)) || demoDep('Tripulación'),
       estado:'resuelta', prioridad:'baja', pin:false, creada: ahora - 20*dia,
-      detalle:'Estrés por encima de referencia durante 3 semanas seguidas. Se resolvió tras reasignar a un horario diurno.',
-      revisa:'', tareas: [ {t:'Reasignar horario', ok:true}, {t:'Repetir test a las 2 semanas', ok:true} ],
-      seguimientos: [ {ts: ahora - 6*dia, texto:'Repetido el test de estrés: valores ya dentro de lo normal.'},
-                       {ts: ahora - 18*dia, texto:'Se reasignó a horario diurno desde el lunes.'} ] },
-    { titulo:'Somnolencia — seguimiento mensual', personas:[p(3), p(4)], departamento: depDe(p(3)) || demoDep('Mantenimiento'),
+      detalle:t('demo_gest_det3'),
+      revisa:'', tareas: [ {t:t('demo_gest_t4'), ok:true}, {t:t('demo_gest_t5'), ok:true} ],
+      seguimientos: [ {ts: ahora - 6*dia, texto:t('demo_gest_sg3')},
+                       {ts: ahora - 18*dia, texto:t('demo_gest_sg4')} ] },
+    { titulo:t('demo_gest_ti4'), personas:[p(3), p(4)], departamento: depDe(p(3)) || demoDep('Mantenimiento'),
       estado:'seguimiento', prioridad:'media', pin:false, creada: ahora - 10*dia,
-      detalle:'KSS elevado en ambos durante el cierre de mes. Se están monitoreando junto con el resto del equipo.',
+      detalle:t('demo_gest_det4'),
       revisa: (new Date(ahora + 5*dia)).toISOString().slice(0,10),
-      tareas: [], seguimientos: [ {ts: ahora - 2*dia, texto:'Sin cambios significativos esta semana.'} ] }
+      tareas: [], seguimientos: [ {ts: ahora - 2*dia, texto:t('demo_gest_sg5')} ] }
   ];
-  items.forEach((it,i) => gestUpsert(Object.assign({ id:'gdemo'+i }, it)));
+  items.forEach((it,i) => gestUpsert(Object.assign({ id:'gdemo'+i, lang: lang }, it)));
   // gestUpsert siempre pone actualizada=ahora; para la demo queremos fechas variadas y creíbles
   // (la del último seguimiento, o la de creación si no tiene), así que se corrigen después.
   const s = gestStore();
