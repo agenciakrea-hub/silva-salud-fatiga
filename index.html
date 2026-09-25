@@ -7517,7 +7517,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.83';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.84';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -21255,6 +21255,21 @@ function onDashData(d, scopeLabel, params, vista){
     /* P197 · lo sembrado, en el idioma que el servidor confirmó (sin confirmación queda en español, como los registros) */
     demoTraducirLista(DASH.operacional); demoTraducirLista(DASH.turnos); demoTraducirLista(DASH._reportes);
     if (DASH.duty){ demoTraducirLista(DASH.duty.diario); demoTraducirLista(DASH.duty.personas); }
+    /* ⚠️ LA DEMOSTRACIÓN DE «DIRECCIÓN» TIENE QUE VERSE COMO DIRECCIÓN, Y NO SE VEÍA.
+       El cortafuegos K1b dice que Dirección ve agregados, nunca individuos: en el producto real sus
+       registros llegan con `P1`, `P2`… porque `accionSupervisor` los pasa por `anonimizarHseq`.
+       Pero la demostración pública entra por `action:'demo'` → `accionDemo`, que NO anonimiza, y ahí
+       se pinta el payload crudo: nombre y apellido de cada persona de ejemplo en la pantalla que
+       existe justamente para mostrar que Dirección no los ve.
+       P200 creyó cerrar esto agregando el recorte a la rama `p.demo === "1"` de `accionSupervisor`
+       —que es OTRA cosa: un supervisor ya logueado mirando la Empresa Demo— y ningún camino del
+       cliente la llama. El defecto siguió vivo con su arreglo escrito al lado.
+       Se hace ACÁ y no en el endpoint porque los datos son ficticios (no hay nadie que proteger) y
+       lo que está roto es la FIDELIDAD de la demostración. El arreglo de verdad va en `accionDemo`,
+       y queda anotado: mientras el `.gs` no se pueda publicar, esto es lo que hay.
+       ⚠️ El ojo flotante vuelve a pasar por acá en cada cambio de vista (`demoElegirVista` →
+       `onDashData`), así que alcanza con anonimizar en este punto. */
+    if (vista === 'hseq') demoAnonimizarHseq();
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
   else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
@@ -25448,6 +25463,47 @@ function demoNominaSinDato(d){
   } catch(e){ return []; }
 }
 
+/* Los mismos pseudónimos que `anonimizarHseq` del endpoint: numerados por orden de aparición en
+   `registros`, estables dentro de esta carga, y aplicados a TODAS las colecciones que llevan
+   nombre — si una quedara afuera, el nombre reaparece por esa puerta y el ejercicio no sirve.
+   También se limpia la bitácora sembrada: su `sujeto` es el nombre y `actor` el de quien lo hizo. */
+function demoAnonimizarHseq(){
+  try {
+    const mapa = {}; let n = 0;
+    const pid = nom => { const k = dashNorm(nom || ''); if (!k) return nom || '';
+      if (!mapa[k]) mapa[k] = 'P' + (++n); return mapa[k]; };
+    (DASH.registros || []).forEach(r => { if (r && r.persona) pid(r.persona); });   // numera por orden
+    /* ⚠️ COPIA, NUNCA MUTACIÓN EN EL LUGAR. `DASH.registros` y las demás son las MISMAS referencias
+       que guarda `DEMO_PAYLOAD`, y el ojo flotante repinta ese payload en cada cambio de vista
+       (`demoAplicarGuardado`). Mutando los objetos, la primera visita a Dirección dejaba `P1, P2…`
+       grabado en el payload y el supervisor —que sí tiene que ver nombres— los perdía para el resto
+       de la demostración. Lo cazó el discriminador, no la lectura. */
+    const copiar = (lista, k) => (lista || []).map(x => {
+      if (!x) return x;
+      const c = Object.assign({}, x);
+      if (c[k]) c[k] = pid(c[k]);
+      delete c.cedula; delete c.id;      // A13 · un identificador fuerte al lado de «P1» lo deshace
+      return c;
+    });
+    DASH.registros   = copiar(DASH.registros, 'persona');
+    DASH.aptitud     = DASH.aptitud ? copiar(DASH.aptitud, 'nombre') : DASH.aptitud;
+    DASH.operacional = copiar(DASH.operacional, 'persona');
+    DASH.turnos      = copiar(DASH.turnos, 'persona');
+    DASH.pvt         = copiar(DASH.pvt, 'persona');
+    DASH.comentarios = copiar(DASH.comentarios, 'persona');
+    if (DASH.duty) DASH.duty = Object.assign({}, DASH.duty, {
+      diario:   copiar(DASH.duty.diario, 'persona'),
+      personas: copiar(DASH.duty.personas, 'persona') });
+    /* La bitácora sembrada vive en el almacén local, no en `DASH`, así que acá sí se escribe — y se
+       vuelve a sembrar entera en cada entrada a la demo (`bitacoraSembrarDemo`), que es lo que
+       devuelve los nombres cuando se pasa a supervisor. */
+    const st = bitStore();
+    st.items = (st.items || []).map(e => e ? Object.assign({}, e, { sujeto: pid(e.sujeto), actor: '' }) : e);
+    bitSaveStore(st);
+    /* Y la nómina sin dato, que es una lista de NOMBRES. */
+    if (Array.isArray(DASH.nominaSinDato)) DASH.nominaSinDato = [];
+  } catch(e){}
+}
 function nominaDemo(){
   const P = 'Empresa Demo', hoy = todayStr();
   const alta = DEMO_GENTE.map((q, i) => ({
