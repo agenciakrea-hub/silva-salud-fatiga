@@ -7517,7 +7517,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.82';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.83';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -27664,11 +27664,20 @@ function dashFilteredPVT(){
   });
 }
 // Veredicto según tiempo de reacción y lapsos (misma lógica que el test en la app)
+/* ⚠️ `c` ES TINTA, NO RELLENO, y dos de los cuatro devolvían el relleno.
+   Los DOS consumidores (`renderPVT`: la lista del historial y el ranking de reacción) usan este
+   color como `color:` de un texto, ninguno como fondo. Con `--green` y `--sem-rojo` —que son los
+   colores del PUNTO del semáforo— el número del ranking quedaba a 3,12:1 en tema claro, medido en
+   la demostración. El CSS de al lado ya lo decía desde I6 («--green como tinta da 3.12») y por eso
+   `.rank-val.ok` usa `--sem-verde-txt`; lo que pasaba es que el `style` inline de la tarjeta pisaba
+   esa clase. Mismo defecto que P200b arregló en la Historia de la ficha médica.
+   No se agrega un campo `ct` aparte a propósito: con dos campos, el día que alguien use el que no
+   corresponde vuelve el mismo problema. Acá el color siempre es tinta. */
 function pvtVerdict(rt, lap){
   if (rt == null || rt <= 0) return { t:'—', c:'var(--text-muted)', over:false };
-  if (rt < 300 && lap <= 1) return { t: t('pvt_v_buena'), c:'var(--green)', over:false };
-  if (rt < 400 && lap <= 3) return { t: t('pvt_v_moderada'), c:'var(--sem-ambar-txt)', over:false };   /* R13 + R14: color a mano y texto sin traducir */
-  return { t: t('pvt_p_fatiga'), c:'var(--sem-rojo)', over:true };
+  if (rt < 300 && lap <= 1) return { t: t('pvt_v_buena'), c:'var(--sem-verde-txt)', over:false };
+  if (rt < 400 && lap <= 3) return { t: t('pvt_v_moderada'), c:'var(--sem-ambar-txt)', over:false };
+  return { t: t('pvt_p_fatiga'), c:'var(--sem-rojo-txt)', over:true };
 }
 function renderPVT(){
   const info = dashHelp(t('hlp_pvt', { ms: PVT_LAPSE_MS }));

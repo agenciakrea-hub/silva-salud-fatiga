@@ -186,3 +186,48 @@ PRUEBAS.caso('⚠️ P199 · `bitPull` salió de la lista de funciones muertas d
     PRUEBAS.cierto(true, 'el servidor de pruebas no expone el .py: se verifica a mano con `python3 pruebas/alcanzabilidad.py`');
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   PULIDO PREVIO A LA DEMOSTRACIÓN (2026-09-25) · el veredicto del PVT se pintaba con el RELLENO
+
+   Medido entrando a la demostración real con su clave, en el panel del servicio médico a 375 px:
+   el número del ranking de reacción quedaba a 3,12:1 en tema claro. `pvtVerdict` devolvía
+   `var(--green)` y `var(--sem-rojo)` —los colores del PUNTO del semáforo— y los dos consumidores
+   los usan como `color:` de un texto. El CSS de `.rank-val.ok` ya lo sabía desde I6 y usaba
+   `--sem-verde-txt`, pero el `style` inline de la tarjeta lo pisaba.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 PVT · los cuatro veredictos se pintan con TINTA legible, en los dos temas', () => {
+  const tok = e => { const d = document.createElement('div'); document.body.appendChild(d);
+    try { d.style.color = e; return getComputedStyle(d).color; } finally { d.remove(); } };
+  const casos = [
+    { q: 'buena',    v: pvtVerdict(250, 0) },
+    { q: 'moderada', v: pvtVerdict(350, 2) },
+    { q: 'fatiga',   v: pvtVerdict(500, 6) },
+    { q: 'sin dato', v: pvtVerdict(null, 0) },
+  ];
+  PRUEBAS.igual(casos.filter(c => !c.v || !c.v.c).length, 0, 'guarda: los cuatro veredictos traen color');
+  ['claro', 'oscuro'].forEach(tema => {
+    PRUEBAS.enTema(tema, () => {
+      const card = tok('var(--card)'), chip = tok('var(--chip-bg)');
+      casos.forEach(c => {
+        PRUEBAS.alMenos(CTX.contraste(tok(c.v.c), card), 4.5,
+          '🔴 «' + c.q + '» legible sobre la tarjeta del ranking en tema ' + tema);
+        PRUEBAS.alMenos(CTX.contraste(tok(c.v.c), chip), 4.5,
+          'y sobre el chip del historial en tema ' + tema);
+      });
+      /* DISCRIMINADOR · los dos colores de RELLENO que devolvía antes: si ninguno fallara, el
+         aserto de arriba estaría pasando por casualidad y no por el arreglo. */
+      if (tema === 'claro'){
+        PRUEBAS.comoMucho(CTX.contraste(tok('var(--green)'), card), 4.49,
+          'DISCRIMINADOR · `--green` como tinta sobre la tarjeta sigue siendo ilegible (era lo que se usaba)');
+      }
+    });
+  });
+  return fetch('/index.html?v=' + Date.now()).then(r => r.text()).then(src => {
+    const i = src.indexOf('function pvtVerdict');
+    const cuerpo = src.slice(i, src.indexOf('\n}', i));
+    PRUEBAS.igual((cuerpo.match(/var\(--green\)|var\(--sem-rojo\)(?!-)/g) || []).length, 0,
+      '⚠️ y la función ya no devuelve ningún color de relleno · con dos campos (`c` y `ct`) volvería el mismo defecto el día que alguien use el que no corresponde');
+  });
+});
