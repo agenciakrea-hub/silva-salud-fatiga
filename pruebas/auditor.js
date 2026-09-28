@@ -158,7 +158,14 @@
   const NO_ES_TEXTO = { SCRIPT:1, STYLE:1, TEMPLATE:1, NOSCRIPT:1, TITLE:1 };
 
   AUDITOR.contraste = function () {
+    /* ⚠️ `medidos` NO ES UNA ESTADÍSTICA: es la guarda de medibilidad del propio auditor. Un
+       recuento de defectos en cero puede significar dos cosas opuestas —«está limpio» o «no miré
+       nada»— y hasta acá el informe no las distinguía. Pasó de verdad: una sección con un ancestro
+       en `display:none` daba «0 defectos» en las 108 combinaciones, y se leyó como una auditoría
+       limpia. Con esto, cero defectos sobre cero elementos medidos es un ERROR del instrumento, no
+       un resultado del producto. */
     const malos = [], sinMedir = [];
+    let medidos = 0;
     document.querySelectorAll('body *').forEach(el => {
       if (NO_ES_TEXTO[el.tagName]) return;
       const propio = [...el.childNodes].filter(n => n.nodeType === 3)
@@ -170,6 +177,7 @@
       if (fondo == null) { sinMedir.push(nombre(el)); return; }   // gradiente direccional: ver arriba
       const r = contraste(cs.color, fondo);
       if (r == null) { sinMedir.push(nombre(el)); return; }
+      medidos++;
       /* El mínimo de WCAG AA baja a 3:1 para texto grande (>=24px, o >=18.66px en negrita). */
       const px = parseFloat(cs.fontSize), peso = parseInt(cs.fontWeight, 10) || 400;
       const grande = px >= 24 || (px >= 18.66 && peso >= 700);
@@ -187,7 +195,7 @@
                    ' ⟨' + propio.slice(0, 26).replace(/\s+/g, ' ') + '⟩');
       }
     });
-    return { malos: [...new Set(malos)], sinMedir: [...new Set(sinMedir)].length };
+    return { malos: [...new Set(malos)], sinMedir: [...new Set(sinMedir)].length, medidos };
   };
 
   /* ── 2 · Superficies claras en tema oscuro ──────────────────────────────────────────────── */
@@ -618,6 +626,9 @@
       desplegados,
       contraste: c.malos,
       sinPoderMedir: c.sinMedir,
+      /* Cuántos textos se pudieron medir DE VERDAD en esta corrida. Cero acá invalida el cero de
+         `contraste`: ver la nota en `AUDITOR.contraste`. */
+      medidos: c.medidos,
       superficiesClarasEnOscuro: AUDITOR.superficiesClaras(),
       clarasRevisadasYAceptadas: AUDITOR.ultimasRevisadas || [],
       cortes: AUDITOR.cortes(),

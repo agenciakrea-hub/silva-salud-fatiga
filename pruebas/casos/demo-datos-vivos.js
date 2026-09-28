@@ -83,16 +83,27 @@ PRUEBAS.caso('🔴 Demo · un cuaderno de gestiones SIN `lang` cuenta como de ot
 });
 
 PRUEBAS.caso('🔴 Demo · después de una hora de panel abierto los tres siguen teniendo su check-in', () => {
-  const prev = DASH, real = Date.now;
+  const prev = DASH, real = Date.now, realToday = window.todayStr;
   try {
     CTX.resetear(); localStorage.clear();
     const p = vivosPayload();
     const conCheckin = () => DEMO_ACTIVOS.filter(n => { const t = cicloTurnoDe(n); return !!(t && t.checkin); }).length;
-    /* Los minutos del reloj del ciclo: repinta cada 60 s mientras el panel está abierto. */
+    /* ⚠️ EL RELOJ SIMULADO TIENE QUE SER UNO SOLO. `cicloTurnoDe` mezcla dos fuentes de tiempo:
+       el corte de la ventana sale de `Date.now()` —que acá se adelanta— y el «hoy»/«ayer» de
+       `todayStr()`, que leía el reloj REAL. Con las dos separadas, el escenario dependía de la hora
+       a la que alguien corriera la suite: a las 20:06 el check-in simulado cae en el mismo día,
+       `cicloTurnoDe` lo toma por la rama de HOY sin mirar la ventana, y el discriminador no
+       encontraba el descarte que sí ocurre de mañana. Una prueba que pasa o falla según la hora no
+       está midiendo el producto: está midiendo el reloj.
+       Se fija la base a las 10:00 y `todayStr` sigue al tiempo simulado. */
+    const base = new Date(); base.setHours(10, 0, 0, 0);
+    const p2 = n2 => String(n2).padStart(2, '0');
+    window.todayStr = () => { const d = new Date(Date.now());
+      return d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()); };
     [45, 60, 90, 300].forEach(min => {
+      Date.now = () => base.getTime();
       onDashData(p, 'Empresa Demo', { usuario:'demo' }, 'supervisor');
-      const t0 = real();
-      Date.now = () => t0 + min * 60000;
+      Date.now = () => base.getTime() + min * 60000;
       /* DISCRIMINADOR · sin regenerar —que es lo que hacía antes— la ventana de 14 h ya los
          descartó. Si esto diera 3, la comprobación de abajo no estaría midiendo nada. */
       const viejo = conCheckin();
@@ -103,9 +114,9 @@ PRUEBAS.caso('🔴 Demo · después de una hora de panel abierto los tres siguen
         PRUEBAS.cierto(viejo < DEMO_ACTIVOS.length,
           '⚠️ DISCRIMINADOR · a +' + min + ' min, sin regenerar, la ventana SÍ los descarta (' + viejo + ')');
       }
-      Date.now = real;
     });
-  } finally { Date.now = real; try { DASH = prev; localStorage.clear(); } catch(e){} }
+  } finally { Date.now = real; window.todayStr = realToday;
+              try { DASH = prev; localStorage.clear(); } catch(e){} }
 });
 
 PRUEBAS.caso('⚠️ Demo · Ciclo, Jornada y el chip del turno cuentan la MISMA hora para la jornada abierta', () => {

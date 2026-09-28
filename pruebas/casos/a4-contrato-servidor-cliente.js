@@ -33,6 +33,51 @@ const A4_FUERA_DE_DASH = {
   combinada: 'se guarda como DASH.combinada (P075: lo leen cicloPuedeEditarPlan y la bandeja del médico)'
 };
 
+/* ⚠️ UN SOLO ESCÁNER PARA TODO, y por qué. Antes había tres pasadas que contaban llaves con
+   criterios distintos: la que busca dónde cierra el objeto, una regex que borraba comentarios, y la
+   que extrae las claves. Cada una se podía romper por su lado, y se rompieron las tres:
+   · un `}` dentro de un string cerraba el objeto antes de tiempo y el lector seguía leyendo la
+     función siguiente — así `ultimoEvento`, que vive en `bitacoraServidor`, apareció como campo de
+     la respuesta del panel (hallazgo #8 de A8);
+   · la regex de comentarios se come el resto de la línea al ver el `//` de una URL (`"https://x"`),
+     y lo que sigue desaparece en silencio;
+   · una expresión regular con una comilla adentro (`/"/g`) abría un string que no cerraba nunca.
+   Este recorrido entiende las cuatro cosas —string, plantilla, comentario y literal de expresión
+   regular— y devuelve el texto ya limpio, para que las dos pasadas de arriba y de abajo trabajen
+   sobre lo mismo. Cada uno de esos tres huecos tiene su caso al final del archivo: hoy el `.gs` no
+   los dispara, así que se prueban con fragmentos inventados. Esperar a que el `.gs` los vuelva a
+   disparar es esperar a que el instrumento mienta sin que nadie lo note. */
+function a4Escanear(txt, desde, alCerrarNivel0){
+  let nivel = 0, k = desde, limpio = '';
+  const ultimoSignificativo = () => { for (let i = limpio.length - 1; i >= 0; i--){
+    const c = limpio[i]; if (c !== ' ' && c !== '\n' && c !== '\t') return c; } return ''; };
+  while (k < txt.length){
+    const c = txt[k], sig = txt[k+1];
+    if (c === '/' && sig === '*'){ const f = txt.indexOf('*/', k + 2); k = f < 0 ? txt.length : f + 2; limpio += ' '; continue; }
+    if (c === '/' && sig === '/'){ const f = txt.indexOf('\n', k); k = f < 0 ? txt.length : f + 1; limpio += ' '; continue; }
+    if (c === '"' || c === "'" || c === '`'){
+      const q = c; k++;
+      while (k < txt.length && txt[k] !== q){ if (txt[k] === '\\') k++; k++; }
+      k++; limpio += ' '; continue;      // el literal cuenta como separador, nunca como nombre
+    }
+    /* Una `/` empieza una expresión regular cuando lo anterior no puede terminar un valor. Es la
+       heurística estándar y alcanza para este archivo; una división siempre viene después de un
+       nombre, un número o un paréntesis que cierra. */
+    if (c === '/' && '([,=:!&|?{};+-*%<>~^'.indexOf(ultimoSignificativo()) >= 0){
+      k++;
+      while (k < txt.length && txt[k] !== '/'){ if (txt[k] === '\\') k++; if (txt[k] === '[') { while (k < txt.length && txt[k] !== ']'){ if (txt[k] === '\\') k++; k++; } } k++; }
+      k++;
+      while (k < txt.length && /[a-z]/.test(txt[k])) k++;   // las banderas: g, i, m…
+      limpio += ' '; continue;
+    }
+    if (c === '{') nivel++;
+    else if (c === '}'){ nivel--; if (nivel === 0 && alCerrarNivel0) return { fin: k, limpio }; }
+    limpio += c;
+    k++;
+  }
+  return { fin: -1, limpio };
+}
+
 function a4ClavesDelGs(fuente){
   /* El bloque de la rama REAL de `accionSupervisor` — la que usa una empresa con contraseña. Se
      ancla en un texto que aparece UNA sola vez: la rama de demo dice `sesionToken, demo:true,`. */
@@ -40,25 +85,15 @@ function a4ClavesDelGs(fuente){
   if (i < 0) return null;
   const ini = fuente.lastIndexOf('json({', i);
   if (ini < 0) return null;
-  // recorre balanceando llaves, sin regex: el objeto tiene funciones anónimas adentro
-  let nivel = 0, fin = -1;
-  for (let k = ini + 5; k < fuente.length; k++){
-    const c = fuente[k];
-    if (c === '{') nivel++;
-    else if (c === '}'){ nivel--; if (nivel === 0){ fin = k; break; } }
-  }
-  if (fin < 0) return null;
-  /* ⚠️ SIN LOS COMENTARIOS. El bloque tiene comentarios largos entre campo y campo, y varios traen
-     dos puntos ("Y1: el período que se sirvió DE VERDAD"). Sin sacarlos, el lector devolvía `Y1`,
-     `L1` y `seguro` como si fueran campos del servidor. Los strings de este bloque no contienen
-     `/*` ni `//`, así que quitarlos a secas es seguro acá. */
-  const cuerpo = fuente.slice(ini + 6, fin)
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/\/\/[^\n]*/g, ' ');
+  const r = a4Escanear(fuente, ini + 5, true);
+  if (r.fin < 0) return null;
+  /* `limpio` arranca en `ini + 5`, o sea incluye el `{` de apertura: se saltea. */
+  const cuerpo = r.limpio.slice(1);
+
   // claves de PRIMER nivel: las que quedan a profundidad 0 de llaves, corchetes y paréntesis
   const claves = []; let d = 0, tomar = true, tok = '';
-  for (let k = 0; k < cuerpo.length; k++){
-    const c = cuerpo[k];
+  for (let kc = 0; kc < cuerpo.length; kc++){
+    const c = cuerpo[kc];
     if ('{[('.indexOf(c) >= 0) d++;
     else if ('}])'.indexOf(c) >= 0) d--;
     if (d === 0){
@@ -68,6 +103,13 @@ function a4ClavesDelGs(fuente){
     }
   }
   return claves;
+}
+
+/* El mismo lector, expuesto para que un caso lo pueda correr sobre un fragmento inventado. Sin
+   esto sólo se puede probar contra el `.gs` de hoy — que es justo el que NO tiene el problema. */
+function a4ClavesDeFragmento(fragmento){
+  return a4ClavesDelGs('function x(){ return json({ ok:true, sesionToken, referencia:REFERENCIA, ' +
+                       fragmento + ' }); }');
 }
 
 PRUEBAS.caso('⚠️ el lector de contrato ENCUENTRA el bloque (si no, todo lo de abajo da verde en falso)', () => {
@@ -153,4 +195,88 @@ PRUEBAS.caso('⚠️ con el payload del servidor, Jornada PINTA y la ausencia DE
       '⚠️ y la ausencia que vino del servidor tiene que reconocerse');
     PRUEBAS.falso(ausenteHoy({ nombre:'Otra Persona' }), 'y sólo esa (discriminador)');
   } finally { DASH = prev; }
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P202 · EL LECTOR DE CONTRATO TIENE QUE SOBREVIVIR A UN STRING TRAICIONERO
+
+   Hallazgo #8 de A8: el lector marcaba `ultimoEvento` —que vive dentro de `bitacoraServidor`, en
+   otra función— como campo de la respuesta del panel. La causa es que contaba llaves, corchetes y
+   paréntesis SIN mirar si estaban dentro de comillas. Un paréntesis desbalanceado adentro de un
+   string descuadra la profundidad, y a partir de ahí el lector o se come claves (descuadre
+   positivo: las que vienen después no se verifican NUNCA) o se lleva claves de la función de al
+   lado (descuadre negativo).
+
+   Hoy el `.gs` tiene exactamente uno de esos strings —`" || norm(empAus) === norm("`— pero cae
+   dentro de una función anidada y no altera el resultado. O sea: **el defecto está latente**. Estos
+   casos lo prueban con fragmentos inventados, que es la única forma de vigilar algo que hoy no se
+   manifiesta: esperar a que el `.gs` vuelva a poner un string así a nivel cero es esperar a que el
+   instrumento vuelva a mentir sin que nadie lo note.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 P202 · un paréntesis dentro de un string no se come las claves que vienen después', () => {
+  /* El string trae DOS `(` y UN `)`: con el conteo ingenuo la profundidad queda en +1 y todo lo de
+     abajo desaparece. Es la forma exacta que tiene hoy el `.gs`. */
+  const claves = a4ClavesDeFragmento(
+    'antes:1, raro: (x === " || norm(empAus) === norm(" ? 1 : 2), despues:2, ultima:3');
+  PRUEBAS.cierto(!!claves, 'guarda: el lector encontró el bloque del fragmento');
+  ['antes', 'raro', 'despues', 'ultima'].forEach(k =>
+    PRUEBAS.cierto((claves || []).indexOf(k) >= 0,
+      '🔴 `' + k + '` tiene que estar · leyó: ' + (claves || []).join(', ')));
+});
+
+PRUEBAS.caso('🔴 P202 · una llave dentro de un string no se lleva claves de la función de al lado', () => {
+  /* El caso inverso, que es cómo apareció `ultimoEvento`: el string cierra una llave de más, el
+     lector cree que el objeto terminó antes y sigue leyendo lo que hay después. */
+  const claves = a4ClavesDeFragmento('uno:1, texto:"}", dos:2') || [];
+  PRUEBAS.cierto(claves.indexOf('dos') >= 0,
+    '🔴 `dos` viene después de un string con `}` y tiene que leerse · leyó: ' + claves.join(', '));
+  PRUEBAS.igual(claves.filter(k => k === 'texto').length, 1, 'y `texto` se lee una sola vez');
+});
+
+PRUEBAS.caso('⚠️ P202 · DISCRIMINADOR · el lector NO inventa claves de adentro de objetos anidados', () => {
+  /* Si el lector dejara de distinguir la profundidad, este caso se pondría en rojo: `adentro` y
+     `hondo` son claves de segundo y tercer nivel, y el contrato es sólo el primero. Sin esta
+     comprobación, «saltar los strings» podría arreglarse de una forma que rompa lo otro. */
+  const claves = a4ClavesDeFragmento('nivel1: { adentro: 1, mas: { hondo: 2 } }, otra: 3') || [];
+  PRUEBAS.cierto(claves.indexOf('nivel1') >= 0 && claves.indexOf('otra') >= 0,
+    '⚠️ las de primer nivel sí · leyó: ' + claves.join(', '));
+  PRUEBAS.igual(claves.filter(k => k === 'adentro' || k === 'hondo'), [],
+    '⚠️ y ninguna de adentro · si aparecieran, el contrato exigiría destinos para campos que no existen');
+});
+
+PRUEBAS.caso('🔴 P202 · una expresión regular con comilla adentro no deja al lector en `null`', () => {
+  /* Regresión que introdujo el primer arreglo y cazó el verificador: al saltar strings sin entender
+     literales de expresión regular, la `"` de adentro de `/"/g` abría un string que no cerraba
+     nunca y la profundidad no volvía a cero. Fallaba ruidosa —el caso guarda se ponía en rojo— pero
+     con el mensaje equivocado: «no se encontró la respuesta del panel», que manda a buscar un
+     bloque renombrado. */
+  const claves = a4ClavesDeFragmento('antes:1, raro: String(v).replace(/"/g, ""), despues:2');
+  PRUEBAS.cierto(!!claves, '🔴 el lector no devuelve `null` · una regex no es un string sin cerrar');
+  ['antes', 'raro', 'despues'].forEach(k =>
+    PRUEBAS.cierto((claves || []).indexOf(k) >= 0,
+      '🔴 `' + k + '` tiene que estar · leyó: ' + (claves || []).join(', ')));
+});
+
+PRUEBAS.caso('🔴 P202 · una URL dentro de un string no se come el resto de la línea', () => {
+  /* Hueco PRE-EXISTENTE, no regresión: el despojo de comentarios era una regex que corría antes del
+     recorrido, así que el `//` de `"https://x"` se llevaba lo que venía después. Es silencioso —las
+     claves perdidas simplemente no se verifican— y es exactamente la familia de defecto que P202
+     dice cerrar. Hoy las últimas dos claves del contrato son `operacionalPeriodo` y `zonaOp`: eran
+     las que estaban en la zona de riesgo. */
+  const claves = a4ClavesDeFragmento('antes:1, url:"https://x.com/a", despues:2') || [];
+  PRUEBAS.cierto(claves.indexOf('despues') >= 0,
+    '🔴 `despues` viene después de una URL con `//` y tiene que leerse · leyó: ' + claves.join(', '));
+});
+
+PRUEBAS.caso('⚠️ P202 · GUARDA · el lector sigue devolviendo el contrato completo del .gs real', () => {
+  /* Todos los casos de arriba corren sobre fragmentos inventados. Éste es el que ata el arreglo al
+     archivo de verdad: si endurecer el escáner hubiera hecho perder una clave real, acá se ve. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea: no está levantado servir-gs.py'); return; }
+  const claves = a4ClavesDelGs(CTX.gs) || [];
+  PRUEBAS.alMenos(claves.length, 28,
+    '⚠️ el contrato tiene al menos las 28 claves que tenía antes del cambio · leyó ' + claves.length);
+  ['registros','pvt','duty','ausencias','turnos','operacionalPeriodo','zonaOp'].forEach(k =>
+    PRUEBAS.cierto(claves.indexOf(k) >= 0,
+      '⚠️ `' + k + '` sigue estando · las dos últimas son las que el hueco de la URL se comía'));
 });

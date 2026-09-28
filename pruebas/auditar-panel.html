@@ -30,6 +30,10 @@
 
 <h1>Auditar el panel</h1>
 <p>Recorre las pantallas del panel a 6 anchos × 2 temas. Resultado también en <code>window.RESULTADO</code>.</p>
+<!-- ⚠️ La demostración pide clave desde Z1. Sin ella el auditor no abre el panel y no mide NADA:
+     se escribe una vez acá y queda en este navegador (`localStorage` de 127.0.0.1). -->
+<label for="clave">Clave de la demostración</label>
+<input id="clave" type="password" autocomplete="off" placeholder="la que usa «Ver demostración»">
 <button id="ir">Auditar</button>
 <pre id="out">—</pre>
 
@@ -68,18 +72,81 @@ const ev = (win, src) => win.eval(src);
 /* Abre la demostración y espera a que el panel tenga datos. No se puede esperar con un plazo fijo
    "por las dudas": con la pestaña oculta los temporizadores están estrangulados (ver LEEME).
    Se sondea el estado real en vez de confiar en un plazo. */
+/* ⚠️ DESDE Z1 LA DEMOSTRACIÓN PIDE CLAVE, Y ESTA HERRAMIENTA NO SE ENTERÓ. El botón dispara el
+   pedido, el servidor responde `motivo:'demo_pass'`, la app muestra el campo de contraseña… y el
+   sondeo se quedaba mirando `DASH.registros` hasta agotar los intentos y decía «la demostración no
+   cargó», que no dice nada. Es la otra mitad del hallazgo #39: el auditor no medía mal, no llegaba
+   a medir — y el mensaje no permitía darse cuenta.
+   Ahora: la clave se escribe UNA vez en el campo de arriba (queda en este navegador, no viaja a
+   ningún lado más que al mismo endpoint al que la app se la manda), y si falta o no entra, se dice
+   exactamente qué pasó. */
 async function abrirDemo(win){
+  const doc = win.document;
+  const clave = (document.getElementById('clave').value || '').trim();
   win.splashVerDemo();
-  const btn = [...win.document.querySelectorAll('button')]
+
+  /* ⚠️ EL CAMINO REAL CAMBIÓ EN P171 Y ESTA HERRAMIENTA SEGUÍA EN EL VIEJO. `splashVerDemo()` sin
+     `DEMO_PAYLOAD` NO abre el portal: abre la hoja de la clave (`#demoClaveOv`, con `#dcPass` y
+     `demoClaveEnviar`). La versión anterior escribía en `#pDemoPass` y tocaba `#portalDemoBtn`, que
+     viven DENTRO de `#portalOverlay` y estaban ocultos; `portalVerDemo` corría igual y `onDashData`
+     llenaba `DASH`, así que el sondeo de `DASH.registros` daba OK… con el portal en `display:none`.
+     Medido por el verificador: 108 corridas midiendo el splash y la hoja de la clave, informe
+     «limpio», y el sello «autodiagnóstico OK» adelante. Era el #39 vuelto a abrir y peor, porque
+     ahora venía firmado. Sólo `splashAbrirPortal()` le pone `.show` al portal, y a eso se llega
+     por `demoClaveEnviar` → `demoAbrirGate`. */
+  const hoja = doc.getElementById('demoClaveOv');
+  if (hoja && hoja.classList.contains('show')){
+    if (!clave) throw new Error(
+      'la demostración pide clave: escribila en el campo de arriba y volvé a correr. ' +
+      'Sin eso el auditor NO mide nada, y un informe vacío no significa que la app esté bien.');
+    doc.getElementById('dcPass').value = clave;
+    win.demoClaveEnviar(doc.querySelector('#demoClaveOv .save-btn') || doc.createElement('button'));
+    for (let i = 0; i < 150; i++){
+      if (doc.getElementById('portalOverlay').classList.contains('show')) break;
+      const err = doc.getElementById('dcErr');
+      if (err && err.textContent.trim())
+        throw new Error('la clave de la demostración no entró: «' + err.textContent.trim() + '»');
+      await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  if (!doc.getElementById('portalOverlay').classList.contains('show'))
+    throw new Error('el portal no se abrió · sin él el panel queda dentro de un `display:none` y ' +
+                    'todo lo que se mida después es el splash, no el panel');
+
+  /* Ya con el portal abierto y el payload en memoria, el botón del gate no viaja. */
+  const btn = [...doc.querySelectorAll('button')]
     .find(b => /Ver demostración con datos simulados/.test(b.textContent));
-  if (!btn) throw new Error('no se encontró el botón de la demostración');
+  if (!btn) throw new Error('no se encontró el botón de la demostración en el gate');
   btn.click();
   for (let i = 0; i < 100; i++){
-    if (ev(win, 'DASH && DASH.registros ? 1 : 0')) return;
+    if (ev(win, 'DASH && DASH.registros ? 1 : 0') && panelEnPantalla(win)) return;
+    const err = doc.getElementById('portalDemoErr');
+    if (err && err.textContent.trim())
+      throw new Error('el servidor rechazó la demostración: «' + err.textContent.trim() + '»');
     await new Promise(r => setTimeout(r, 100));
   }
-  throw new Error('la demostración no cargó');
+  /* ⚠️ Que `DASH` tenga datos NO alcanza: el defecto que esto cierra es exactamente «hay datos y el
+     panel no está en pantalla». */
+  throw new Error(ev(win, 'DASH && DASH.registros ? 1 : 0')
+    ? 'el panel tiene datos pero NO está en pantalla (' + panelRect(win) + ') · no se audita nada'
+    : 'la demostración no cargó y el servidor no dijo por qué');
 }
+
+/* El rectángulo del panel, que es lo que de verdad se audita. Si mide 0, lo que haya medido el
+   auditor es OTRA pantalla. */
+function panelRect(win){
+  const el = win.document.getElementById('dashScroll') || win.document.getElementById('portalDash');
+  if (!el) return 'sin #dashScroll';
+  const r = el.getBoundingClientRect();
+  return Math.round(r.width) + '×' + Math.round(r.height);
+}
+function panelEnPantalla(win){
+  const el = win.document.getElementById('dashScroll') || win.document.getElementById('portalDash');
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 50 && r.height > 50;
+}
+
 
 /* Todas las pantallas del panel: cada vista con sus pestañas reales, preguntándoselas a la app
    (`dashTabsFor`) en vez de escribir la lista a mano — si mañana aparece una pestaña nueva, entra
@@ -109,6 +176,67 @@ function pintar(win, vista, tab){
     'dashWireAnResMarquee(); dashWireMarquees();');
 }
 
+/* Planta un defecto de cada familia que el auditor busca y comprueba que los ve. Devuelve la lista
+   de los que NO detectó — vacía significa que el instrumento está midiendo.
+   ⚠️ Se planta en el `body` del iframe y con `position:fixed`, para que no dependa de que una
+   pantalla concreta esté pintada: lo que se prueba es el AUDITOR, no la app. */
+async function autodiagnostico(win){
+  const doc = win.document;
+  /* ⚠️ LA SUPERFICIE CLARA VA POR HOJA DE ESTILO, NO POR `style=` INLINE. `superficiesClaras` corta
+     con `if (el.style && el.style.background) return;` (auditor.js:254), a propósito: un fondo
+     escrito inline es otra deuda, no «una caja blanca sin tematizar». La primera versión plantaba
+     los tres blancos inline, así que esa familia NO se estaba probando — y como además se
+     comprobaba con `.length`, pasaba igual: la app ya devuelve una sola (`#dcPassinput`) en oscuro.
+     Dos defectos sumados daban un chequeo que no podía fallar. Lo midió el verificador. */
+  const css = doc.createElement('style');
+  css.id = '__autodiagcss__';
+  css.textContent = '#__autodiag__ .ad-sup { background:#ffffff; width:30px; height:12px }';
+  doc.head.appendChild(css);
+  const caja = doc.createElement('div');
+  caja.id = '__autodiag__';
+  caja.setAttribute('style', 'position:fixed;top:0;left:0;z-index:2147483647;padding:8px');
+  /* ⚠️ CADA DEFECTO ES DE UNA FAMILIA QUE EL AUDITOR PROMETE BUSCAR, y eso hubo que calibrarlo
+     midiendo. La primera versión plantaba un elemento 9999 px fuera del viewport esperando que
+     `cortes` lo viera, y `cortes` mide TEXTO recortado por su caja, no desbordes: el
+     autodiagnóstico se quejaba de algo que el instrumento nunca prometió encontrar y habría
+     abortado toda auditoría para siempre. Un discriminador mal calibrado es otro instrumento que
+     miente. */
+  caja.innerHTML =
+    '<p style="color:#cfcfcf;background:#ffffff;font-size:16px;margin:0">gris casi blanco sobre blanco</p>' +
+    '<button style="width:18px;height:18px;padding:0">x</button>' +
+    '<div class="ad-sup"></div>' +
+    '<div style="white-space:nowrap;overflow:hidden;width:40px;font-size:14px;background:#fff;color:#000">' +
+      'un texto bastante mas largo que su caja</div>';
+  doc.body.appendChild(caja);
+  const temaAntes = doc.documentElement.getAttribute('data-tema');
+  doc.documentElement.setAttribute('data-tema', 'oscuro');
+  void doc.body.offsetWidth;
+  let r;
+  try { r = win.AUDITOR.todo(); }
+  finally {
+    caja.remove(); css.remove();
+    if (temaAntes) doc.documentElement.setAttribute('data-tema', temaAntes);
+    else doc.documentElement.removeAttribute('data-tema');
+  }
+  /* ⚠️ CADA COMPROBACIÓN BUSCA LA PLANTA POR SU FORMA, NUNCA POR `.length`. Con `.length` el
+     chequeo pasa si la pantalla auditada ya tenía un defecto de esa familia — o sea, pasa aunque
+     el auditor esté roto. Lo midió el verificador sobre dos de las cuatro. */
+  const faltan = [];
+  const hay = (lista, re) => (lista || []).some(x => re.test(String(x)));
+  if (!r.medidos) faltan.push('no midió NI UN texto (`medidos` = 0): el auditor no está viendo el documento');
+  if (!hay(r.contraste, /207, 207, 207|cfcfcf/))
+    faltan.push('contraste 1,56:1 — no lo vio');
+  if (!hay(r.superficiesClarasEnOscuro, /ad-sup/))
+    faltan.push('superficie blanca en tema oscuro (`.ad-sup`) — no la vio');
+  /* `18×18` con el signo de multiplicar y los espacios que usa el auditor, no `18x18`: la primera
+     versión buscaba la `x` de teclado y decía que no lo veía cuando sí. */
+  if (!hay(r.areasDeToque, /18\s*×\s*18/))
+    faltan.push('botón de 18×18 px — no lo vio');
+  if (!hay(r.cortes, /se pasa \d+px/))
+    faltan.push('texto recortado por su caja — no lo vio');
+  return faltan;
+}
+
 async function auditar(){
   log('cargando la app…');
   const f = await cargarApp();
@@ -117,9 +245,26 @@ async function auditar(){
   log('abriendo la demostración…');
   await abrirDemo(win);
 
+  /* ⚠️ EL AUDITOR TIENE QUE DEMOSTRAR QUE MIDE, ANTES DE INFORMAR NADA. Un recuento en cero
+     significa dos cosas opuestas —«está limpio» o «no miré nada»— y esta herramienta ya informó
+     «0 hallazgos» sin medir: la sección tenía un ancestro en `display:none` y las 108 corridas
+     dieron listas vacías. Se leyó como una auditoría limpia y quedó abierto como el hallazgo #39.
+     Acá se plantan cuatro defectos de las cuatro familias que el auditor busca y se exige que los
+     encuentre. Si no los encuentra, el informe entero no vale y se dice: es preferible no tener
+     auditoría a tener una que dice que todo está bien. */
+  const fallos = await autodiagnostico(win);
+  if (fallos.length){
+    log('❌ EL AUDITOR NO MIDE — no se corre nada más.\n\n' +
+        'No detectó los defectos que se le plantaron a propósito:\n  · ' + fallos.join('\n  · ') +
+        '\n\nUn informe de este auditor en este estado NO significa que la app esté bien.');
+    return;
+  }
+  log('autodiagnóstico OK: el auditor detecta las cuatro familias de defecto.');
+
   const lista = pantallas(win);
   const hallazgos = [];
   const sinMedir = [];
+  const noMedidas = [];
   let corridas = 0;
 
   for (const p of lista){
@@ -146,6 +291,12 @@ async function auditar(){
            O sea: un número de tres cifras acá es NORMAL. Lo que valdría la pena mirar es que suba
            mucho en UNA pantalla respecto de las demás. */
         if (r.sinPoderMedir) sinMedir.push({ donde, n: r.sinPoderMedir });
+        /* ⚠️ LA COBERTURA SE MIRA SOBRE EL PANEL, NO SOBRE EL DOCUMENTO. `r.medidos` cuenta todo
+           lo visible, y con el portal cerrado eso son el splash y la hoja de la clave: 42 textos
+           medidos, la guarda no dispara, y el informe sale «limpio» de una pantalla que no es la
+           auditada. Es el escenario exacto que midió el verificador. Que el panel tenga rectángulo
+           es lo único que distingue «está limpio» de «no lo miré». */
+        if (!r.medidos || !panelEnPantalla(win)) noMedidas.push(donde + ' · panel ' + panelRect(win));
         log('auditando… ' + corridas + '/' + (lista.length * ANCHOS.length * 2) +
             ' · hallazgos: ' + hallazgos.length);
       }
@@ -175,13 +326,28 @@ async function auditar(){
     .sort((a, b) => b.veces - a.veces);
   const picoSinMedir = sinMedir.sort((a, b) => b.n - a.n)[0] || null;
 
-  window.RESULTADO = { corridas, pantallas: lista.length, hallazgos, sinMedir, resumen };
-  log('LISTO · ' + corridas + ' corridas sobre ' + lista.length + ' pantallas\n' +
+  window.RESULTADO = { corridas, pantallas: lista.length, hallazgos, sinMedir, resumen, noMedidas };
+  log((noMedidas.length
+        ? '⚠️ ' + noMedidas.length + ' de ' + corridas + ' corridas NO MIDIERON NADA — su cero no cuenta:\n  · ' +
+          noMedidas.slice(0, 8).join('\n  · ') + (noMedidas.length > 8 ? '\n  · …' : '') + '\n\n'
+        : '') +
+      'LISTO · ' + corridas + ' corridas sobre ' + lista.length + ' pantallas\n' +
       'hallazgos únicos: ' + resumen.length + '  (brutos: ' + hallazgos.length + ')\n' +
       'pico de textos que no se pudieron medir: ' +
         (picoSinMedir ? picoSinMedir.n + ' en ' + picoSinMedir.donde : '0') + '\n\n' +
       JSON.stringify(resumen.slice(0, 40), null, 1));
 }
 
-document.getElementById('ir').onclick = () => auditar().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+/* La clave se recuerda para no tener que pegarla en cada corrida. Es `127.0.0.1`: no sale de esta
+   máquina, y es la misma que la app le manda al endpoint.
+   ⚠️ EN `sessionStorage`, NO EN `localStorage`. La suite comparte origen con esta herramienta y
+   tiene 178 `localStorage.clear()` repartidos en sus casos (R18): guardarla ahí significaba que
+   correr la suite entre dos auditorías te borraba la clave, sin decir por qué. Ninguno de los casos
+   toca `sessionStorage`. */
+const K_CLAVE_AUD = 'silva_auditor_demo_pass';
+try { document.getElementById('clave').value = sessionStorage.getItem(K_CLAVE_AUD) || ''; } catch(e){}
+document.getElementById('ir').onclick = () => {
+  try { sessionStorage.setItem(K_CLAVE_AUD, document.getElementById('clave').value || ''); } catch(e){}
+  auditar().catch(e => log('ERROR: ' + e.message + '\n' + e.stack));
+};
 </script>
