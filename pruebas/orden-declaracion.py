@@ -59,6 +59,28 @@ corrida (2026-08-29) aparecieron dos, y los dos estaban bien:
   * NOMLIST -> lo alcanza `aplicarIdioma()`, pero solo con el panel de nomina
                abierto (imposible al arrancar), y ademas dentro de un try/catch.
 
+En P209 (2026-09-29) aparecieron CUATRO mas, y los cuatro son el mismo caso:
+
+  * _anotCache, _restCache, _notaCache, _telemCache
+               -> los alcanza `gestPush()` (via `gestSaveStore` -> los `*CacheClear`),
+                  y `gestPush` entra al grafo por el `setInterval(..., 60000)` que P209
+                  le agrego para que la cola de gestiones se reintente sola. El callback
+                  corre 60 SEGUNDOS despues, o sea con el script terminado hace rato:
+                  no hay zona muerta posible. El barrido los marca porque sigue el nombre
+                  dentro del callback sin mirar el retardo, que es la sobre-aproximacion
+                  que los LIMITES CONOCIDOS de abajo declaran.
+                  Si algun dia alguien llama a `gestPush()` de forma SINCRONICA desde el
+                  arranque, estos cuatro pasan a ser un bug de verdad.
+
+  * DASH, K_DISPOSITIVO_ID, K_TURNOS, TURNO_TIPOS
+               -> misma historia, por el otro reloj: `setInterval(function(){ empFlush(); },
+                  60000)`. P209 ENVOLVIO ese callback a proposito —Firefox le pasa el "lateness"
+                  como argumento, o sea que `empFlush` pelado recibia `alSalir` TRUTHY, y desde
+                  P209 eso ya no significa solo `keepalive`: tambien reintenta los TRABADOS, que
+                  es justo lo que ese prompt vino a cerrar—. Al envolverlo, el barrido pasa a
+                  entrar en el callback y sigue la cadena `empFlush -> turnoGuardar -> ...`.
+                  Los cuatro corren 60 SEGUNDOS despues del arranque: sin zona muerta.
+
 O sea: ante un hallazgo hay que ir a mirar. Lo que este barrido garantiza es que
 no aparezca uno NUEVO sin que nadie lo note.
 
@@ -166,7 +188,7 @@ def main():
               % (nom, tipo, dl, fn + "()", linea))
     print()
     print("Un hallazgo NO es automaticamente un bug: puede estar protegido con try/catch.")
-    print("Ver la cabecera de este archivo para los dos casos ya revisados y por que estan bien.")
+    print("Ver la cabecera de este archivo: hay 10 casos ya revisados y por que estan bien.")
     return 0
 
 

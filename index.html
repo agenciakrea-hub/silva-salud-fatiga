@@ -7529,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.91';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.92';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8051,6 +8051,15 @@ const I18N = {
       salir_confirmar_cred:'También se retira el permiso de este dispositivo para entrar directo al panel.',
       salir_confirmar_q:'¿Cerrar sesión?',
       salir_pendientes:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema.\n\nSi cierras sesión ahora, se pierden.\n\nToca Aceptar para intentar enviarlos primero.',
+      pg_olvidar_pendientes:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema.\n\nToca Aceptar para intentar enviarlos antes de retirar el acceso de este dispositivo.',
+      pg_olvidar_pendientes_panel:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema, y {m} de ellos la aplicación no los puede enviar desde aquí.\n\nSi retiras el acceso ahora, esos {m} quedan guardados en este dispositivo sin poder enviarse.\n\nToca Aceptar para intentar enviar el resto.',
+      off_mixto_1:'1 registro no se ha podido enviar. Enviando los otros {a}…',
+      off_mixto_n:'{b} registros no se han podido enviar. Enviando los otros {a}…',
+      off_retenido_1:'1 registro no se ha podido enviar todavía. Queda guardado en este dispositivo.',
+      off_retenido_n:'{n} registros no se han podido enviar todavía. Quedan guardados en este dispositivo.',
+      salir_pendientes_nada:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema, y la aplicación no los puede enviar desde aquí.\n\nSi cierras sesión ahora, se pierden. Avisa a tu supervisor o al servicio médico antes de continuar.\n\n¿Quieres continuar de todos modos?',
+      pg_olvidar_pendientes_nada:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema, y la aplicación no los puede enviar desde aquí.\n\nSi retiras el acceso ahora, quedan guardados en este dispositivo sin poder enviarse.\n\nToca Aceptar para intentarlo de todos modos.',
+      salir_pendientes_panel:'Atención: hay {n} registro(s) que todavía no se enviaron al sistema, y {m} de ellos la aplicación no los puede enviar desde aquí.\n\nSi cierras sesión ahora, esos {m} se pierden. Avisa a tu supervisor o al servicio médico antes de continuar.\n\nToca Aceptar para intentar enviar el resto.',
       salir_pendientes_2:'Si aun así cierras sesión, esos {n} registro(s) se pierden y no se pueden recuperar.\n\n¿Cerrar sesión igual?',
       ah_sinc:'Sincronizar desde iPhone', ah_check:'Apple Health · Checklist',
       ah_pasos:'Sigue estos pasos desde tu iPhone para vincular tu Apple Watch:',
@@ -10137,6 +10146,15 @@ const I18N = {
       salir_confirmar_cred:'This device will also lose its permission to open the panel directly.',
       salir_confirmar_q:'Sign out?',
       salir_pendientes:'Heads up: {n} record(s) have not been sent to the system yet.\n\nIf you sign out now, they will be lost.\n\nTap OK to try sending them first.',
+      pg_olvidar_pendientes:'Heads up: {n} record(s) have not been sent to the system yet.\n\nTap OK to try sending them before removing this device\'s access.',
+      pg_olvidar_pendientes_panel:'Heads up: {n} record(s) have not been sent to the system yet, and {m} of them cannot be sent from here.\n\nIf you remove access now, those {m} stay on this device with no way to send them.\n\nTap OK to try sending the rest.',
+      off_mixto_1:'1 record could not be sent. Sending the other {a}…',
+      off_mixto_n:'{b} records could not be sent. Sending the other {a}…',
+      off_retenido_1:'1 record could not be sent yet. It stays saved on this device.',
+      off_retenido_n:'{n} records could not be sent yet. They stay saved on this device.',
+      salir_pendientes_nada:'Heads up: {n} record(s) have not been sent to the system yet, and the app cannot send them from here.\n\nIf you sign out now, they are lost. Tell your supervisor or the medical service before continuing.\n\nContinue anyway?',
+      pg_olvidar_pendientes_nada:'Heads up: {n} record(s) have not been sent to the system yet, and the app cannot send them from here.\n\nIf you remove access now, they stay on this device with no way to send them.\n\nTap OK to try anyway.',
+      salir_pendientes_panel:'Heads up: {n} record(s) have not been sent to the system yet, and {m} of them cannot be sent from here.\n\nIf you sign out now, those {m} are lost. Tell your supervisor or the medical service before continuing.\n\nTap OK to try sending the rest.',
       salir_pendientes_2:'If you sign out anyway, those {n} record(s) are lost and cannot be recovered.\n\nSign out anyway?',
       ah_sinc:'Sync from iPhone', ah_check:'Apple Health · Checklist',
       ah_pasos:'Follow these steps on your iPhone to link your Apple Watch:',
@@ -12960,17 +12978,30 @@ function colaReintentar(){
      — y nadie volvería a mirarla. */
   try {
     const c = empColaAll();
-    Object.keys(c).forEach(k => { if (c[k]){ c[k].trabado = false; c[k].intentos = 0; } });
+    /* `creada` se resetea por simetría con el `x.ts = Date.now()` de dos líneas más arriba: las dos
+       marcan «este ítem vuelve a empezar». Hoy esta cola NO poda por edad (ver `empFlush`), así que
+       la línea es una defensa por si alguna vez vuelve a haber una poda — que es como se coló el
+       defecto la primera vez: P209 agregó la poda y no esta línea, y tocar «intentar otra vez»
+       borraba el turno de 8 días antes del primer POST. */
+    Object.keys(c).forEach(k => { if (c[k]){ c[k].trabado = false; c[k].intentos = 0; c[k].creada = Date.now(); } });
     empColaSave(c);
   } catch(e){}
   /* A8 #11 · la bitácora también: el cartel es UNO y ahora cuenta sus trabados, así que tocarlo
      tiene que poder rescatarlos. Y `casosOdooPush`, que tampoco estaba. */
   try { bitDestrabar(); } catch(e){}
-  try { offPintar(); } catch(e){}
+  try { gestDestrabar(); } catch(e){}   // P209 · ídem gestiones: el cartel es UNO y ahora también las cuenta
+  try { casosDestrabar(); } catch(e){}  // P209 · y los casos Odoo, que ganaron tope al ganar reloj
   flushPending();
   try { empFlush(); } catch(e){}
   try { bitPush(); } catch(e){}
+  try { gestPush(); } catch(e){}
   try { casosOdooPush(); } catch(e){}
+  /* ⚠️ P209 · EL REPINTADO VA DESPUÉS DE LOS PUSH, y antes iba antes. Con los trabados ya borrados
+     y ningún envío hecho todavía, el cartel pasaba a «Enviando N registros…» con `onclick = null`:
+     si el push no podía salir —gestiones y bitácora exigen el panel abierto— quedaba clavado en ese
+     estado, sin poder tocarse otra vez y sin que nada lo reintentara. Pintando después, el estado
+     que se muestra es el que dejaron los envíos. */
+  try { offPintar(); } catch(e){}
 }
 /* ⚠️ `alSalir` es el modo "la página se va a recargar en un instante" — lo usa `cerrarSesion`.
    Los envíos van con `keepalive`, o el navegador los aborta al recargar: la app ofrece "toca
@@ -13062,10 +13093,31 @@ function empFlush(alSalir){
   if (demoBloqueaEscritura()) return;
   if (!SHEETS_DASHBOARD_URL) return;
   const c = empColaAll();
+  /* ⚠️ ESTA COLA NO PODA POR EDAD, Y ES A PROPÓSITO. La primera versión de P209 copió la poda a 7
+     días de `flushPending` y el verificador demostró que ahí borra lo que la persona escribió sin
+     haberlo intentado nunca: `flushPending` mide desde el PRIMER FALLO (`ts`) y acá el único reloj
+     es `creada`, el momento en que la persona escribió. Dos caminos reales quedaban abiertos —
+     alguien que cierra la app con 3 de 10 intentos y vuelve a los diez días, y el propio
+     `empFlush(true)` de «cerrar sesión», que borraba justo cuando el cartel acababa de prometer un
+     último intento. R7 dice que nada de lo que la persona escriba se pierde, y acotar la cola vale
+     menos que eso: lo que el hallazgo original pedía —que un rechazo determinista deje de mandarse
+     1.440 veces por día— lo cierra el tope de intentos de abajo, no una poda. Decisión de Franco. */
   const ids = Object.keys(c);
   if (!ids.length) return;
   ids.forEach(id => {
     if (_empEnVuelo[id]) return;      // ya se está mandando: no duplicar el POST
+    /* ⚠️ P209 · Y EL QUE SE RINDIÓ NO SE REINTENTA SOLO. `empFallo` marcaba `trabado` a los
+       `COLA_MAX_INTENTOS` y este `forEach` no lo miraba nunca, a diferencia de `flushPending`, que
+       filtra `!(x.trabado && !alSalir)`. O sea que el tope no servía para nada: el `setInterval` de
+       60 s mandaba ese ítem 1.440 veces por día, para siempre.
+       Y el daño no es sólo ruido. El freno de escritura del servidor es por dispositivo y su
+       ventana es de 40 envíos cada 600 s: con cuatro ítems trabados el teléfono queda pegado al
+       techo, y entonces el turno y el reporte que la persona registra DESPUÉS también se rechazan,
+       entran a la cola y realimentan el bucle. El comentario de `COLA_MAX_INTENTOS` ya decía que el
+       tope existe justamente para evitar las 1.440 reintentos por día.
+       `alSalir` es la excepción deliberada: al cerrar sesión se manda todo, trabados incluidos,
+       porque es el último intento que van a tener antes de que se borre la cola. */
+    if (!alSalir && c[id] && c[id].trabado) return;
     _empEnVuelo[id] = 1;
     const item = c[id];
       /* ⚠️ L6 · `dispositivoId` VIAJA PARA QUE EL SERVIDOR PUEDA FRENAR UNA INUNDACIÓN. Ocho
@@ -13134,7 +13186,9 @@ window.addEventListener('online', empFlushOnline);
    «cada 1 min, mismo timer que flushPending» y era FALSO: ese `setInterval` llama a
    `flushPending()`, que no toca esta cola. Con conexión estable y una respuesta sin `ok`, nada
    volvía a intentarlo hasta recargar la app. */
-setInterval(empFlush, 60000);
+/* Envuelto como las otras cuatro: si algún motor le pasara un argumento al callback, `alSalir`
+   llegaría truthy — y desde P209 eso además reintenta los trabados. Mismo motivo que `empFlushOnline`. */
+setInterval(function(){ empFlush(); }, 60000);
 
 /* ══════════ ESTADO OFFLINE VISIBLE (P10) ══════════
    La app tiene CINCO colas de envío distintas, cada una con su forma:
@@ -13153,9 +13207,15 @@ function offPendientes(){
   let n = 0;
   try { n += getPending().length; } catch(e){}
   try { n += empPendientes(); } catch(e){}
+  /* ⚠️ P209 · TODAS LAS PARTICIONES, no la de la empresa que está abierta ahora. Gestiones y
+     bitácora se guardan por empresa (`gestKey()`), y esa clave depende de `DASH`: con el panel
+     cerrado apuntaba a una partición vacía y estas dos colas contaban CERO. El comentario de
+     `cerrarSesionPedir` afirma que acá se cuentan «las cinco colas», y con el panel cerrado se
+     contaban tres — con el detalle de que las dos que faltaban son las que llevan las restricciones
+     y el registro inalterable (R3), y que «cerrar sesión» borra las dos. */
   try { n += bitacoraPendientes(); } catch(e){}
-  try { n += casosOdooPendientes(); } catch(e){}
-  try { const s = gestStore(); n += Object.keys(s.up||{}).length + Object.keys(s.del||{}).length; } catch(e){}
+  try { n += casosOdooPendientesTodas(); } catch(e){}
+  try { n += gestPendientesTodas(); } catch(e){}
   return n;
 }
 function offHayConexion(){ return navigator.onLine !== false; }
@@ -13188,7 +13248,9 @@ function offPintar(){
      la misma mentira que el `no-cors`, sólo que en la pantalla. Se avisa y se ofrece la salida. */
   /* A8 #11 · y los de la bitácora. `offPendientes()` ya los contaba como pendientes, así que el
      cartel decía «Enviando N» de algo que nadie estaba enviando y sin ofrecer «intentar otra vez». */
-  const trabados = colaTrabados().length + empTrabados().length + bitTrabados().length;
+  /* P209 · y los de gestiones, que era la única cola sin noción de trabado: el cartel decía
+     «Enviando…» de una restricción que nadie estaba reintentando, y no se dejaba tocar. */
+  const trabados = colaTrabados().length + empTrabados().length + bitTrabados().length + gestTrabados().length + casosTrabados().length;
   el.className = 'off-bar' + (trabados ? ' off-bar-trabada' : (online ? ' off-bar-sync' : ''));
   el.onclick = trabados ? colaReintentar : null;
   el.style.cursor = trabados ? 'pointer' : '';
@@ -13198,11 +13260,53 @@ function offPintar(){
     el.textContent = t(trabados === 1 ? 'off_trabado_1' : 'off_trabado_n', { n: trabados });
     return;
   }
+  /* ⚠️ DEUDA CONOCIDA (P209, verificador 8º pase): el bloque de `trabados` de arriba corre ANTES que
+     éste y no les resta los retenidos. Un trabado que está en una partición que nadie puede empujar
+     —el supervisor con el panel cerrado, por ejemplo— pinta el cartel ROJO y tocable, y tocarlo sólo
+     le borra los `fallos`: `colaReintentar` llama `gestPush()` SIN `alSalir` y ese push sale en su
+     primera línea. El botón promete un reintento que no puede ocurrir. Es un cambio de lógica (hay
+     que separar «trabados que alguien puede reintentar» de los que no), no de redacción, así que va
+     con su propio prompt en vez de colarse acá. No pierde datos: el registro sigue en el teléfono y
+     el cartel pasa a ámbar diciendo la verdad.
+     ⚠️ P209 · EL TERCER ESTADO: RETENIDO. Ni «enviando» ni «falló». Las tres colas del panel se
+     guardan por empresa y sólo se empuja la partición abierta, así que hay pendientes que ningún
+     reintento alcanza hasta que alguien entre al panel de ESA empresa. Decirles «Enviando…» es la
+     misma mentira que este archivo ya corrigió dos veces, y encima el cartel no sería tocable.
+     No se ofrece «toca para reintentar» a propósito: tocarlo no podría hacer nada. Se dice qué
+     falta hacer. Decisión de Franco (2026-09-29). */
+  /* ⚠️ Y NO TAPA LAS OTRAS CUATRO COLAS. `n` cuenta las CINCO y `colasRetenidas()` sólo las tres del
+     panel: cortando acá con el número de los retenidos, lo que la persona acaba de escribir —su
+     test, su turno— dejaba de nombrarse justo cuando se está enviando. El cartel existe para dar UNA
+     respuesta a «¿se guardó lo que hice?», no una sobre un subconjunto. Con mezcla se dicen las dos
+     cosas; con todo retenido, sólo eso. */
+  const retenidos = (function(){ try { return colasRetenidas(); } catch(e){ return 0; } })();
+  const enviando = Math.max(0, n - retenidos);
+  /* ⚠️ SÓLO CUANDO *TODO* ESTÁ RETENIDO se sale por acá. Con mezcla hay un envío vivo, y este estado
+     es ámbar y estático: pintarlo así reintroducía el cartel que P045 documentó como «indistinguible
+     de uno colgado — el movimiento es la única parte del mensaje que no se puede fingir». El caso
+     mixto cae al bloque de abajo, que es azul y anima los puntos; lo único que cambia es el texto. */
+  if (retenidos > 0 && enviando === 0 && online){
+    /* Sin clase modificadora: el `.off-bar` base ya es ÁMBAR, que es el color de «pendiente». El
+       rojo de `off-bar-trabada` significa «el servidor lo rechazó» y esto no es eso — acá el envío
+       ni siquiera se intentó. (Y reutilizarlo rompía el caso de P087, que mide ese color.) */
+    el.className = 'off-bar';
+    el.textContent = t(retenidos === 1 ? 'off_retenido_1' : 'off_retenido_n', { n: retenidos });
+    return;
+  }
   if (online){
     /* Los puntos reemplazan al «…» del propio texto: la cadena traducida ya lo trae, así que se le
        saca para no tener dos. Se arma con nodos y no con `innerHTML` porque acá entra `n`, y este
        cartel es de los pocos sitios que escribe sin pasar por `esc()`. */
-    const txt = t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n }).replace(/[.…]+\s*$/, '');
+    /* P209 · con algo retenido el texto dice LAS DOS COSAS, pero el cartel sigue siendo el de
+       «enviando»: azul y con los puntos, porque hay un envío de verdad en curso. */
+    /* ⚠️ LO RETENIDO VA PRIMERO Y «Enviando» AL FINAL, y no es una preferencia de redacción: los
+       puntos se pegan al final del texto, así que con el orden inverso latían detrás de la frase que
+       dice que esos registros NO salen — justo al revés de lo que el movimiento significa (P045:
+       «es la única parte del mensaje que no se puede fingir»). Y con par singular/plural, como las
+       otras cuatro cadenas de este cartel: «Otros 1» no se le escribe a nadie. */
+    const txt = (retenidos > 0
+      ? t(retenidos === 1 ? 'off_mixto_1' : 'off_mixto_n', { a: enviando, b: retenidos })
+      : t(n === 1 ? 'off_enviando_1' : 'off_enviando_n', { n: n })).replace(/[.…]+\s*$/, '');
     el.textContent = txt;
     const cont = document.createElement('span');
     cont.className = 'off-dots';
@@ -15490,8 +15594,38 @@ function misSincronizar(dias){
       const porFecha = {};
       local.registros.forEach(r => { porFecha[r.fecha] = r; });
       srv.forEach(r => { porFecha[r.fecha] = r; });
+      /* ⚠️ P209 · EL PVT SE FUNDE IGUAL QUE LOS REGISTROS, y hasta acá se PISABA. `pvt: d.pvt`
+         reemplazaba el arreglo entero, así que el PVT que la persona hizo sin señal —guardado local
+         por `misGuardarPvt` y todavía en la cola de envío— desaparecía del teléfono en la primera
+         sincronización con señal. No es sólo un número en «Mis estadísticas»: `renderInicio` arma
+         «Tu estado hoy» con esa lista, así que su indicador de reacción del día volvía a «sin dato»
+         mientras el cartel seguía diciendo que lo estaba enviando. Y si el envío no prosperaba
+         nunca, o tocaba «Cerrar sesión», ese resultado no quedaba en ningún lado.
+         El razonamiento es el MISMO que ya estaba escrito dos líneas más arriba para `registros`
+         («puede ser un test de hace un minuto que aún está en la cola»): el servidor manda para una
+         misma fecha, y lo local que el servidor todavía no vio se conserva.
+         ⚠️ PERO NO SE INDEXA POR FECHA, y la primera versión de este arreglo lo hacía: el servidor manda
+         UNA FILA POR PRUEBA (`accionPvt` appendea, dedup por `IdPVT`) y agrupar por fecha colapsaba
+         dos PVT del mismo día en uno. Eso no es un número de menos: `aptAutoDeRegs` mira `pv[0]` y
+         `pv[1]` —«los dos últimos»— para decidir si un 'alto' aislado se baja a 'medio', así que con
+         el segundo PVT del día desaparecido el semáforo del inicio cambiaba de alto a ámbar. Una
+         regla clínica movida de refilón. Lo cazó el verificador.
+         Lo que corresponde: la lista del servidor entra INTACTA, y de lo local se suma sólo lo que
+         él todavía no vio. Mismo criterio que `registros`, sin perder filas de ninguno de los dos. */
+      const pvtSrv = Array.isArray(d.pvt) ? d.pvt : [];
+      /* ⚠️ Y LO LOCAL NO SE DESCARTA POR TENER LA FECHA REPETIDA, que es lo que hacía la segunda
+         versión de este arreglo. `misGuardarPvt` guarda UNO POR DÍA —el último— mientras el servidor
+         guarda uno por prueba: alguien que hace el PVT a las 06:00 (sale) y otro a las 14:00 (sin
+         señal) tenía el de las 14:00 descartado por la fila de las 06:00 que el servidor sí tenía.
+         El teléfono volvía a mostrar el resultado viejo y el semáforo se calculaba con él.
+         Se compara por el RESULTADO, no por la fecha: si el servidor ya trae una fila con ese mismo
+         `rt_prom` del mismo día, la local es la misma y no se duplica; si no, es una que él todavía
+         no vio y se conserva. `misGuardarPvt` no genera id, así que ésta es la identidad que hay. */
+      const vistoSrv = {};
+      pvtSrv.forEach(r => { if (r && r.fecha) vistoSrv[r.fecha + '|' + r.rt_prom] = 1; });
+      const pvtFundido = pvtSrv.concat((local.pvt || []).filter(r => r && r.fecha && !vistoSrv[r.fecha + '|' + r.rt_prom]));
       const merged = { registros: misPodar(Object.keys(porFecha).map(k => porFecha[k])),
-                       pvt: misPodar((Array.isArray(d.pvt) && d.pvt.length) ? d.pvt : local.pvt),
+                       pvt: misPodar(pvtFundido.length ? pvtFundido : (local.pvt || [])),
                        ref: d.referencia || local.ref,
                        metrics: (Array.isArray(d.metricas) && d.metricas.length) ? d.metricas : local.metrics,
                        actualizado: Date.now() };
@@ -19091,6 +19225,25 @@ function portalPintarOlvidar(){
    ⚠️ NO toca el perfil de empleado ni los registros pendientes. Quien además es empleado sigue
    siendo empleado: lo único que se retira es el acceso al panel de la empresa. */
 function portalOlvidarDispositivo(btn){
+  /* ⚠️ P209 · ESTA ES LA SALIDA DE QUIEN SÓLO USA EL PANEL, y no avisaba de nada. Al retirar las
+     credenciales, las colas de gestiones y bitácora quedan sin forma de salir hasta que alguien
+     vuelva a entrar: si hay pendientes hay que decirlo ANTES, igual que hace «cerrar sesión», y
+     ofrecer el último intento mientras la credencial todavía está. Decisión de Franco. */
+  /* ⚠️ SÓLO LAS TRES COLAS DEL PANEL. Esta función no toca `K_PENDING` ni `K_EMP_COLA` —lo dice su
+     propia cabecera— así que alarmar por un turno que no corre ningún riesgo es ruido. Las que sí
+     quedan sin salida al retirar la credencial son gestiones, bitácora y casos Odoo.
+     Y cancelar este primer aviso NO aborta la acción: sólo dice «no los mandes», que es una
+     respuesta razonable. Abortar sin señal hacía que el botón pareciera roto. */
+  const pend = (function(){ try { return gestPendientesTodas() + bitacoraPendientes() + casosOdooPendientesTodas(); } catch(e){ return 0; } })();
+  /* Los contadores recorren TODAS las particiones y los push empujan UNA: sin esto, el aviso
+     prometía por las otras — el mismo defecto que su hermano `cerrarSesionPedir` ya tenía cerrado. */
+  const sinSalida = (function(){ try { return colasRetenidas(true); } catch(e){ return 0; } })();
+  const msgOlv = sinSalida <= 0 ? t('pg_olvidar_pendientes', { n: pend })
+               : sinSalida >= pend ? t('pg_olvidar_pendientes_nada', { n: pend })
+               : t('pg_olvidar_pendientes_panel', { n: pend, m: sinSalida });
+  if (pend > 0 && confirm(msgOlv)){
+    try { gestPush(true); bitPush(true); casosOdooPush(true); } catch(e){}
+  }
   if (!confirm(t('pg_olvidar_confirmar'))) return;
   if (btn) btnSpin(btn, true, t('guardando'));
   /* Se avisa al servidor, pero el borrado local NO espera la respuesta ni depende de ella: si no
@@ -19102,6 +19255,11 @@ function portalOlvidarDispositivo(btn){
   try { localStorage.removeItem(K_DASH_CREDS_MED); } catch(e){}
   try { localStorage.removeItem(K_DASH_CREDS_HSEQ); } catch(e){}   // P177 · también la de Dirección
   try { localStorage.removeItem(K_DASH_CREDS_ADM); } catch(e){}    // y la del administrador
+  /* ⚠️ EL ANCLA NO SE BORRA ACÁ, y la primera versión de P209 sí lo hacía. Esta función declara que
+     «NO toca el perfil de empleado ni los registros pendientes», y `K_GESTIONES`/`K_BITACORA` se
+     quedan: borrar sólo el PUNTERO no protege nada —los datos siguen en el teléfono— y en cambio
+     deja esas colas sin dirección, o sea enterradas. Es el estado exacto que P209 vino a matar,
+     creado por un arreglo de P209. `cerrarSesion`, que sí borra las colas, sí borra el ancla. */
   DASH = null;
   if (btn) btnSpin(btn, false);
   portalPintarOlvidar();
@@ -19941,6 +20099,7 @@ function sesionClavesBorrar(){
        viva la credencial del panel de Dirección para la persona siguiente. Es la misma clase de
        olvido que P175 tuvo que corregir con `K_CICLO_PLAN_PROPIO` y `K_ROL_OFRECIDO`. */
     K_DASH_CREDS, K_DASH_CREDS_MED, K_DASH_CREDS_HSEQ, K_DASH_CREDS_ADM, K_MEDICO_NOMBRE, K_SUPERVISOR_NOMBRE,
+    K_GEST_EMPRESA,   // P209 · la empresa del último panel: ata el teléfono a un cliente, se va con la sesión
     K_PUSH_ACTIVO, K_PUSH_FIRMA, K_PUSH_ENDPOINT, K_NOTIF_OFRECIDO,   // P194 · los avisos del sistema son de la persona
     /* ⚠️ EL CICLO OPERATIVO FALTABA, y es dato de salud (2026-09-03, auditoría). `K_CICLO_MIO`
        guarda cada evento con su `test` y su `resultado`; `K_CICLO_SRV`, el histórico que manda el
@@ -19983,7 +20142,19 @@ function cerrarSesionPedir(){
   if (pend > 0){
     // Todavía hay registros sin llegar al CH. Se ofrece sincronizar primero; salir igual exige
     // una segunda confirmación que dice el número exacto.
-    if (!confirm(t('salir_pendientes', { n: pend }))) return;
+    /* ⚠️ P209 · NO SE PROMETE LO QUE NO SE PUEDE CUMPLIR. `gestPush`/`bitPush`/`casosOdooPush` sólo
+       salen con el panel abierto o con una credencial guardada de ESTA misma empresa; el botón de
+       cerrar sesión vive fuera del panel. Hasta acá el contador decía «N sin enviar» y el texto
+       ofrecía «toca Aceptar para intentar enviarlos», y esos tres se iban en su primera línea sin
+       hacer un POST — y `cerrarSesion()` borra sus tres claves un instante después. Ahora, cuando
+       hay pendientes que de verdad no pueden salir, se dice cuáles son y cómo enviarlos. */
+    const sinSalida = (function(){ try { return colasRetenidas(true); } catch(e){ return 0; } })();   // el camino de salida SÍ puede usar la credencial guardada
+    /* Tres textos, no dos: cuando TODO lo pendiente es de los que no pueden salir —que es el caso
+       normal para quien sólo usa el panel— ofrecer «intentar enviar el resto» es ofrecer nada. */
+    const msgPend = sinSalida <= 0 ? t('salir_pendientes', { n: pend })
+                  : sinSalida >= pend ? t('salir_pendientes_nada', { n: pend })
+                  : t('salir_pendientes_panel', { n: pend, m: sinSalida });
+    if (!confirm(msgPend)) return;
     /* ⚠️ A8 #11 · LAS CINCO COLAS, NO TRES. `offPendientes()` cuenta las cinco para armar el
        número que este cartel le muestra a la persona («hay N registros que todavía no se
        enviaron… toca Aceptar para intentar enviarlos primero»), y el flush mandaba tres —
@@ -29104,8 +29275,91 @@ function gestPrioInfo(k){ return _gstRes(GEST_PRIOS.find(p=>p.k===k) || GEST_PRI
 function gestPinSvg(on){ return '<svg viewBox="0 0 24 24" width="17" height="17" fill="'+(on?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2.2" fill="'+(on?'#fff':'none')+'"/></svg>'; }
 
 // Alcance (empresa) actual. El registro es por empresa: cada una tiene su propio cuaderno.
-function gestEmpresaActual(){ return (DASH && (DASH.f.emp || DASH.scope)) || 'General'; }
+/* ⚠️ P209 · LA CLAVE DE LOS DOS ALMACENES NO PUEDE EVAPORARSE CON EL PANEL, y era exactamente lo
+   que pasaba. `gestKey()` es la ÚNICA partición de gestiones y bitácora, y salía de `DASH`: el
+   supervisor sin señal restringía una tarea (cae en `helitec`), tocaba la ✕, `closePortal()` hacía
+   `DASH = null`, y desde ese instante `gestKey()` devolvía `general` — una partición que no existe.
+   `gestStore()` y `bitStore()` contestaban `{items:[],up:{}}`, el cartel contaba cero, y «Cerrar
+   sesión» entraba con `pend = 0`: ni el aviso de «hay N sin enviar», ni el último intento de envío.
+   `sesionClavesBorrar()` borra `K_GESTIONES` y `K_BITACORA`, así que la restricción y su línea de
+   bitácora (R3) se iban sin haber salido nunca del teléfono.
+   Se recuerda la última empresa con panel abierto. No alcanza sola —si alguien trabajó dos empresas
+   sólo recupera la última—, y por eso el contador de pendientes y el destrabe recorren TODAS las
+   particiones (ver `gestPendientesTodas`): esto es para que el almacén siga siendo el mismo, y
+   aquello para que no se pierda nada de ninguna. */
+const K_GEST_EMPRESA = 'silva_fatiga_gest_empresa_v1';
+/* ⚠️ SE GUARDA LA EMPRESA *Y* EL USUARIO DEL LOGIN, porque NO son lo mismo y el `.gs` lo tiene
+   documentado: el `usuario` es la columna A de `Accesos` y el canónico —de donde sale `gestKey()`—
+   es la columna D. P139 lo midió contra producción: «esta lista decía “Helitec” y el alta guardaba
+   “Consorcio HELITEC”», y nombra cuatro cuentas con esa discrepancia. `gestCredDeSalida` comparaba
+   el `usuario` guardado contra la clave canónica, así que en esos clientes no matcheaba NUNCA y el
+   último intento era código muerto. Lo cazó el verificador.
+   Se guarda como JSON; una cadena suelta es el formato viejo y se sigue leyendo. */
+function gestEmpresaRecordar(e, usuario){
+  try {
+    if (!e) return;
+    localStorage.setItem(K_GEST_EMPRESA, JSON.stringify({ empresa: String(e), usuario: String(usuario || '') }));
+  } catch(err){}
+}
+/* El usuario con el que se entró al panel de la partición anclada, si se guardó.
+   ⚠️ Sin comparar contra una llave literal: `orden-declaracion.py` y `alcanzabilidad.py` cuentan
+   llaves para delimitar cuerpos de función, y un `'{'` dentro de una cadena los desincroniza —
+   medido: el barrido pasó a atribuirle a esta función medio archivo. */
+function gestUsuarioRecordado(){
+  try {
+    const v = localStorage.getItem(K_GEST_EMPRESA);
+    if (!v) return '';
+    let o = null; try { o = JSON.parse(v); } catch(e){}
+    return (o && typeof o === 'object') ? (o.usuario || '') : '';   // cadena suelta = formato viejo, sin usuario
+  } catch(e){ return ''; }
+}
+/* ⚠️ EL ANCLA SE PONE DONDE ALGUIEN ESCRIBE ALGO QUE HAY QUE PODER RECUPERAR, y la primera versión
+   la ponía en `gestSaveStore`/`bitSaveStore` — o sea en CADA guardado del almacén, incluido el que
+   `gestPush` hace al final aunque no tenga nada que mandar. Con eso, tres caminos normales la
+   pisaban y dejaban huérfana la partición que sí tenía pendientes:
+   · la demostración (siembra anotaciones de ejemplo y después `closePortal` borra esa partición),
+   · el panel «Mis estadísticas» del empleado, cuyo `scope` es su propio NOMBRE,
+   · el visor del admin en «Todas las empresas».
+   Lo cazó el verificador. Ahora sólo la ponen los dos escritores de verdad, y nunca desde una vista
+   que no representa a una empresa cliente. */
+function gestAnclarEmpresa(){
+  if (!DASH || DASH.demoMode || DASH.vista === 'empleado') return;
+  const e = DASH.f && (DASH.f.emp || DASH.scope);
+  /* ⚠️ Y NO EL VISOR EN «TODAS LAS EMPRESAS», que es un rótulo y no una empresa: anclarlo pisaba la
+     empresa real que el admin acababa de mirar y dejaba huérfana su partición. El comentario de
+     arriba ya lo decía y la guarda no lo contemplaba. Lo cazó el verificador. */
+  if (!e || dashNorm(e) === dashNorm(dashScopeTodas()) || dashNorm(e) === dashNorm(t('visor_todas'))) return;
+  gestEmpresaRecordar(e, (DASH.params && DASH.params.usuario) || '');
+}
+function gestEmpresaRecordada(){
+  try {
+    const v = localStorage.getItem(K_GEST_EMPRESA);
+    if (!v) return '';
+    let o = null; try { o = JSON.parse(v); } catch(e){}
+    return (o && typeof o === 'object') ? (o.empresa || '') : v;    // cadena suelta = formato viejo
+  } catch(e){ return ''; }
+}
+function gestEmpresaActual(){ return (DASH && (DASH.f.emp || DASH.scope)) || gestEmpresaRecordada() || 'General'; }
 function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
+/* ⚠️ LOS TRES CONTADORES RECORREN TODAS LAS PARTICIONES, no la de la empresa que está abierta. Es
+   lo que hace que el cartel y el aviso de «cerrar sesión» digan la verdad con el panel cerrado, y
+   también cuando alguien trabajó dos empresas en la misma sesión — el respaldo de `gestKey()` sólo
+   recupera la última. */
+/* ⚠️ SIN LO QUE SEMBRÓ LA DEMOSTRACIÓN. `gestSembrarDemo*` encola de verdad (ids `gdemo*`/`ademo_*`)
+   y la limpieza vive SÓLO dentro de `closePortal()`: si alguien mata la pestaña con la demo abierta,
+   esa partición queda con sus pendientes de ejemplo. Antes eran huérfanos invisibles; al pasar a
+   contar todas las particiones se volvieron una alarma permanente sobre datos que no existen — y
+   el aviso de cerrar sesión llegaba a decir «avisa a tu supervisor» por ellos. Los push ya los
+   saltean con este mismo `demoEsIdSembrado`; los contadores tienen que mirar lo mismo. */
+function noEsDemo(id){ return !demoEsIdSembrado(id); }
+function gestPendientesTodas(){
+  try {
+    const all = gestStoreAll(); let n = 0;
+    Object.keys(all).forEach(k => { const s = all[k] || {};
+      n += Object.keys(s.up || {}).filter(noEsDemo).length + Object.keys(s.del || {}).filter(noEsDemo).length; });
+    return n;
+  } catch(e){ return 0; }
+}
 // ── Almacén local (cache + cola de pendientes) ──
 // Estructura por empresa: { items:[...], up:{id:1}, del:{id:1} }. El SHEET es la fuente de verdad;
 // localStorage es cache para ver al instante y para no perder cambios sin conexión (se sincronizan
@@ -29113,17 +29367,18 @@ function gestKey(){ return dashNorm(gestEmpresaActual()) || 'general'; }
 function gestStoreAll(){ try { return JSON.parse(localStorage.getItem(K_GESTIONES)) || {}; } catch(e){ return {}; } }
 function gestSaveStoreAll(o){ try { localStorage.setItem(K_GESTIONES, JSON.stringify(o)); } catch(e){} }
 function gestStore(){ const all=gestStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; if(!s.del) s.del={}; return s; }
-function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all); gestAnotCacheClear(); restCacheClear(); notaCacheClear(); telemCacheClear(); }
+function gestSaveStore(s){ const all=gestStoreAll(); all[gestKey()]=s; gestSaveStoreAll(all);
+  gestAnotCacheClear(); restCacheClear(); notaCacheClear(); telemCacheClear(); }
 function gestList(){ return gestStore().items.slice(); }
 function gestFind(id){ return gestStore().items.find(g=>g.id===id) || null; }
 function gestUpsert(g){ if (simulBloqueaGestion(t('guard_guardar'))) return;   // en demo se aplica local (ver simulBloqueaGestion)
   const s=gestStore(); g.actualizada=Date.now(); const i=s.items.findIndex(x=>x.id===g.id);
-  if(i>=0) s.items[i]=g; else s.items.unshift(g); s.up[g.id]=1; delete s.del[g.id]; gestSaveStore(s); gestScheduleSync(); }
+  if(i>=0) s.items[i]=g; else s.items.unshift(g); s.up[g.id]=1; delete s.del[g.id]; gestSaveStore(s); gestAnclarEmpresa(); gestScheduleSync(); }
 // Usado por la limpieza de gestiones en blanco al cerrar: reconcilia con la cola de borrados.
 function gestSaveList(list){ if (simulBloqueaGestion(t('guard_borrar'))) return;   // en demo se aplica local
   const s=gestStore();
   s.items.forEach(g=>{ if(!list.some(x=>x.id===g.id)){ delete s.up[g.id]; s.del[g.id]=1; } });
-  s.items=list; gestSaveStore(s); gestScheduleSync(); }
+  s.items=list; gestSaveStore(s); gestAnclarEmpresa(); gestScheduleSync(); }
 function gestNewId(){ return 'g' + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
 
 /* ── Sincronización con el sheet (vía endpoint) ──
@@ -29138,13 +29393,105 @@ let _gestSyncT = null;
 // escribirse en el sheet real — datos de ejemplo mezclándose con Gestiones real, exactamente lo que
 // el comentario de arriba decía que NO debía pasar.
 function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!SHEETS_DASHBOARD_URL && !(DASH && DASH.demoMode); }
-function gestAuth(extra){
-  const base = { usuario: (DASH.params.usuario || DASH.params.empresa || ''), empresa: gestEmpresaActual(), pass: (DASH.params.pass || ''), dispositivoId: dispositivoId() };
-  if (DASH.params.verEmpresa) base.verEmpresa = DASH.params.verEmpresa;   // P185 · ver `dashAuth`
-  if (DASH.params.verVista)   base.verVista   = DASH.params.verVista;
+/* ⚠️ P209 · LA CREDENCIAL GUARDADA SIRVE PARA EL ÚLTIMO INTENTO, y sin esto el aviso de «cerrar
+   sesión» prometía algo que la app no podía cumplir. El botón de salir vive en `#app`, o sea con el
+   panel cerrado y `DASH = null`: `gestPush(true)` y `bitPush(true)` salían en su primera línea sin
+   hacer un POST, y `cerrarSesion()` borraba `K_GESTIONES` y `K_BITACORA` un instante después. Antes
+   de P209 el contador daba 0 y no había promesa; contar bien y no poder mandar es peor.
+   ⚠️ SÓLO SI LA CREDENCIAL ES DE ESTA MISMA EMPRESA. Para el supervisor el `usuario` ES el nombre de
+   la empresa (el login manda `empresa: usuario`), así que se compara contra la partición anclada.
+   Si no coinciden NO se manda: escribir las gestiones de una empresa con la contraseña de otra las
+   archivaría bajo el `gestScope` equivocado, que sería mucho peor que perderlas.
+   Se usa ÚNICAMENTE en el camino `alSalir`. `gestCanSync()` no se toca: si pasara a valer true sin
+   panel, se dispararían cargas y pedidos en pantallas que hoy no los hacen. */
+/* `rol` = qué vista exige el servidor para esa cola. `gestion_guardar` y `gestion_borrar` piden
+   `acc.vista === "medico"` sin excepción; `bitacora_guardar` acepta todo MENOS Dirección. Pedir la
+   credencial equivocada no pierde nada (el servidor contesta `{ok:false}` y el ítem se queda), pero
+   hace que `colasRetenidas()` diga 0 y el aviso vuelva a prometer algo que no va a pasar.
+   ⚠️ `c.token || c.pass`, que es el patrón de la casa (`portalAutoLoginSupervisor`): desde S4 lo que
+   se guarda es el TOKEN de sesión, nunca la contraseña — `dashSaveCreds` lo dice con todas las
+   letras. La primera versión pedía `c.pass` y por eso era código MUERTO en todo teléfono con «Sí,
+   recordar» puesto, que es el caso normal. Lo cazó el verificador; el caso que lo probaba escribía
+   a mano el shape legado (R17). */
+function gestCredDeSalida(rol){
+  try {
+    const k = gestKey();
+    const u = dashNorm(gestUsuarioRecordado());   // el nombre con el que se entró, que puede no ser el canónico
+    const cands = (rol === 'medico') ? [dashGetCredsMed] : [dashGetCreds, dashGetCredsMed];
+    for (let i = 0; i < cands.length; i++){
+      let c = null; try { c = cands[i](); } catch(e){}
+      if (!c || !(c.token || c.pass) || !c.usuario) continue;
+      const cu = dashNorm(c.usuario);
+      if (cu === k || (u && cu === u)) return c;
+    }
+  } catch(e){}
+  return null;
+}
+/* ⚠️ P209 · CUÁNTOS PENDIENTES NO PUEDE MANDAR NADIE AHORA. Es el número que distingue «se está
+   enviando» de «está retenido», y hace falta porque las tres colas del panel se guardan POR EMPRESA
+   (`gestKey()`) mientras `gestPush`/`bitPush`/`casosOdooPush` empujan UNA SOLA partición: la actual.
+   Sin esto, contar todas las particiones —que es el arreglo de más arriba, y es correcto— dejaba el
+   cartel diciendo «Enviando N registros…» de algo que nadie estaba mandando, y encima no tocable.
+   Peor: con dos particiones, tocar «intentar otra vez» borraba los `fallos` de las dos, mandaba una
+   y dejaba el cartel en ese estado para siempre. Lo cazó el verificador.
+   Son retenidos: (a) todo lo que está en OTRA partición, que ningún push alcanza nunca, y (b) lo de
+   la partición actual cuando no hay ni panel abierto ni credencial guardada que sirva. */
+function colasRetenidas(alSalir){
+  /* ⚠️ UN `puede` POR COLA, y la primera versión usaba uno solo para las tres. Las puertas NO son la
+     misma: gestiones y casos Odoo exigen la credencial MÉDICA (el servidor les pide
+     `acc.vista === "medico"`), y la bitácora acepta también la de supervisor. Con un `puede` único,
+     un supervisor sin contraseña médica guardada daba «retenidos: 0» → el aviso de cerrar sesión
+     prometía «toca Aceptar para intentar enviarlos» → `gestPush(true)` salía en su primera línea sin
+     un solo POST → `cerrarSesion()` borraba la cola. La restricción se perdía con la promesa escrita
+     en pantalla un segundo antes: exactamente lo que este arreglo vino a cerrar. Lo cazó el
+     verificador, y es la misma raíz de siempre — el lado que INFORMA y el que ACTÚA preguntando
+     cosas distintas. Cada `puede` de acá abajo replica la guarda de SU push, línea por línea. */
+  /* ⚠️ Y EL `alSalir &&` TAMBIÉN, que la versión anterior se comió. La credencial guardada NO
+     habilita el envío siempre: sólo en el camino de cerrar sesión (`if(!gestCanSync() && !(alSalir
+     && gestCredDeSalida(...)))`). Sin ese `alSalir`, esta función contestaba la pregunta de
+     `cerrarSesionPedir` mientras `offPintar` le hacía otra — y con una credencial recordada, que el
+     propio código llama «el caso normal», el cartel volvía a decir «Enviando N registros…» de algo
+     que nadie estaba mandando, sin poder tocarse. Peor: tocar el cartel rojo era justo lo que lo
+     llevaba a ese estado. Dos consumidores, dos respuestas. Lo cazó el verificador — cuarta vez que
+     aparece el mismo patrón en este prompt, y esta vez en la línea escrita para cerrarlo. */
+  /* ⚠️ Y TAMBIÉN QUÉ VISTA ACEPTA EL SERVIDOR, que es la mitad que faltaba. `gestCanSync()` sólo
+     mira que haya panel con contraseña: no distingue rol. Pero `accionGestionGuardar`,
+     `accionGestionBorrar` y `accionCasoOdooGuardar` exigen `acc.vista === "medico"` sin excepción,
+     y `accionBitacoraGuardar` rechaza a Dirección. Con el panel de un SUPERVISOR abierto, esas
+     gestiones no las acepta nadie — y sin esta guarda el cartel decía «Enviando…» y el aviso de
+     cerrar sesión le explicaba cómo salvarlas abriendo el panel, cosa que no sirve: diez minutos
+     después el segundo confirm se las borraba igual. Lo cazó el verificador. */
+  /* ⚠️ Y EL VISOR TAMPOCO ESCRIBE. Las cuatro acciones del `.gs` chequean `acc.soloLectura` ANTES
+     que la vista (`if (acc.soloLectura) return visorNoEscribe_(acc);`), y estas guardas sólo
+     copiaban la segunda línea: un visor con `vista:'medico'` daba `puede = true` mientras el
+     servidor rechazaba el 100 % de esos POST con `motivo:"solo_lectura"`. Otra vez el lado que
+     informa y el que actúa preguntando cosas distintas. `visorSoloLectura()` ya existe y es lo que
+     usa el resto del cliente. */
+  const vistaEscribeGest = !!(DASH && (DASH.vista === 'medico' || DASH.combinada === true)) && !visorSoloLectura();
+  const vistaEscribeBit  = !!(DASH && DASH.vista !== 'hseq') && !visorSoloLectura();
+  const puedeMed = (gestCanSync() && vistaEscribeGest) || !!(alSalir && gestCredDeSalida('medico'));   // gestPush y casosOdooPush
+  const puedeBit = (gestCanSync() && vistaEscribeBit)  || !!(alSalir && gestCredDeSalida());           // bitPush
+  let n = 0;
+  try { const s = gestStore(); const act = Object.keys(s.up || {}).length + Object.keys(s.del || {}).length;
+        n += Math.max(0, gestPendientesTodas() - (puedeMed ? act : 0)); } catch(e){}
+  try { const act = Object.keys(bitStore().up || {}).length;
+        n += Math.max(0, bitacoraPendientes() - (puedeBit ? act : 0)); } catch(e){}
+  try { const act = casosOdooPendientes();
+        n += Math.max(0, casosOdooPendientesTodas() - (puedeMed ? act : 0)); } catch(e){}
+  return n;
+}
+function gestAuth(extra, alSalir){
+  const cred = (!(DASH && DASH.params && DASH.params.pass) && alSalir) ? gestCredDeSalida(alSalir === 'medico' ? 'medico' : '') : null;
+  const pr = cred ? { usuario: cred.usuario, pass: (cred.token || cred.pass) } : ((DASH && DASH.params) || {});
+  const base = { usuario: (pr.usuario || pr.empresa || ''), empresa: gestEmpresaActual(), pass: (pr.pass || ''), dispositivoId: dispositivoId() };
+  if (pr.verEmpresa) base.verEmpresa = pr.verEmpresa;   // P185 · ver `dashAuth`
+  if (pr.verVista)   base.verVista   = pr.verVista;
   return Object.assign(base, extra||{});
 }
-function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(gestPush, 700); }
+/* ⚠️ ENVUELTO, como `empFlushOnline`. `setTimeout` pasa en Gecko el retraso real como primer
+   argumento, así que `gestPush` pelado recibía `alSalir` TRUTHY — y desde P209 eso ya no significa
+   sólo `keepalive`: también reintenta los trabados y habilita la credencial guardada. */
+function gestScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_gestSyncT); _gestSyncT=setTimeout(function(){ gestPush(); }, 700); }
 /* `alSalir` = la página se va a recargar en un instante (`cerrarSesion`): sin `keepalive` el
    navegador aborta el POST y la app acaba de prometer que iba a intentar enviarlo. Mismo modo que
    `flushPending(true)`. */
@@ -29170,27 +29517,88 @@ function demoEsIdSembrado(id){
 }
 
 /* `alSalir`: ídem. `cerrarSesion()` borra `K_GESTIONES` justo después. */
+/* ⚠️ P209 · LOS FALLOS SE CUENTAN, igual que en la bitácora y en las otras tres colas. Sin esto,
+   `gestPush` se tragaba el error con un `.catch(()=>{})` y `s.up[id]` quedaba puesto para siempre:
+   `offPendientes()` lo contaba, `offPintar` decía «Enviando 1 registro…» indefinidamente, y como
+   `trabados` se calculaba sin mirar gestiones el cartel NO era tocable — o sea que la única cola
+   que no se podía rescatar era la que lleva las restricciones y las determinaciones médicas.
+   `tipo` = 'u' (subir) o 'd' (borrar): son dos colas distintas con el mismo id. */
+function gestFallo(id, tipo){
+  try {
+    const s = gestStore();
+    const k = (tipo || 'u') + id;
+    if (tipo === 'd' ? !s.del[id] : !s.up[id]) return;   // ya salió: no hay nada que anotar
+    if (!s.fallos) s.fallos = {};
+    const f = s.fallos[k] || { intentos: 0 };
+    f.intentos = (f.intentos || 0) + 1;
+    if (f.intentos >= COLA_MAX_INTENTOS) f.trabado = true;
+    s.fallos[k] = f;
+    gestSaveStore(s);
+    offPintar();
+  } catch(e){}
+}
+/* Los de ESTA cola que ya no se reintentan solos, para que el cartel los cuente y se pueda tocar.
+   Recorre TODAS las particiones por lo mismo que `gestPendientesTodas`. */
+function gestTrabados(){
+  try {
+    const all = gestStoreAll(); const out = [];
+    Object.keys(all).forEach(k => { const f = (all[k] || {}).fallos || {};
+      Object.keys(f).forEach(x => { if (f[x] && f[x].trabado) out.push(k + '|' + x); }); });
+    return out;
+  } catch(e){ return []; }
+}
+function gestDestrabar(){
+  try { const all = gestStoreAll(); Object.keys(all).forEach(k => { if (all[k]) all[k].fallos = {}; }); gestSaveStoreAll(all); } catch(e){}
+}
 function gestPush(alSalir){
   if(simulando()) return Promise.resolve();   // guard de simulación: nada sale al servidor
-  if(!gestCanSync()) return Promise.resolve();
+  if(!gestCanSync() && !(alSalir && gestCredDeSalida('medico'))) return Promise.resolve();   // P209 · el último intento vale con la credencial guardada (médica: es la que el servidor exige para gestiones)
   const s=gestStore(); const jobs=[];
+  const fallos = s.fallos || {};
+  let _limpio = false;   // ¿se borró algo del almacén en esta pasada?
+  /* P209 · un `fallos` cuya gestión ya no está en `up` NI en `del` no tiene dueño y el cartel lo
+     contaría para siempre. `gestSaveList` mueve ids de `up` a `del`, así que el barrido mira las dos. */
+  Object.keys(fallos).forEach(k=>{
+    const tipo = k.charAt(0), id = k.slice(1);
+    if (!(tipo === 'd' ? s.del[id] : s.up[id])){ delete s.fallos[k]; _limpio = true; }
+  });
   Object.keys(s.up).forEach(id=>{ const g=s.items.find(x=>x.id===id);
-    if(!g){ delete s.up[id]; return; }
-    if(demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
+    if(!g){ delete s.up[id]; if(s.fallos) delete s.fallos['u'+id]; _limpio = true; return; }   // P209 · su fallo se va con ella
+    if(demoEsIdSembrado(id)){ delete s.up[id]; _limpio = true; return; }   // sembrado por la demo: nunca sube (y su borrado SÍ se guarda, o vuelve cada 60 s)
+    /* Un trabado no se reintenta solo —si no, el cartel diría «Enviando» para siempre— pero SÍ se
+       manda al salir: es el último intento antes de que `cerrarSesion` borre la cola. */
+    if(fallos['u'+id] && fallos['u'+id].trabado && !alSalir) return;
     if(_gestEnVuelo['u'+id]) return;
     _gestEnVuelo['u'+id] = 1;
-    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; gestSaveStore(s2); } }).catch(()=>{})
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }, alSalir && 'medico'))
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; if(s2.fallos) delete s2.fallos['u'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
+                 else gestFallo(id, 'u'); })           // el servidor contestó que no: cuenta como intento
+      .catch(()=>{ gestFallo(id, 'u'); })              // ni siquiera respondió
       .then(()=>{ delete _gestEnVuelo['u'+id]; })); });
   Object.keys(s.del).forEach(id=>{
+    if(fallos['d'+id] && fallos['d'+id].trabado && !alSalir) return;
     if(_gestEnVuelo['d'+id]) return;
     _gestEnVuelo['d'+id] = 1;
-    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; gestSaveStore(s2); } }).catch(()=>{})
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }, alSalir && 'medico'))
+      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; if(s2.fallos) delete s2.fallos['d'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
+                 else gestFallo(id, 'd'); })
+      .catch(()=>{ gestFallo(id, 'd'); })
       .then(()=>{ delete _gestEnVuelo['d'+id]; })); });
-  gestSaveStore(s);
+  /* ⚠️ SÓLO SE GUARDA SI CAMBIÓ ALGO. `gestSaveStore` vacía las cuatro memos del panel
+     (`_anotCache`, `_restCache`, `_notaCache`, `_telemCache`), que existen porque «con 18 empleados
+     eran ~36 parseos por render»: con el `setInterval` nuevo, guardar siempre las tiraba cada 60 s
+     aunque no hubiera nada que mandar. Y metía esas cuatro en el camino de arranque, que es lo que
+     `orden-declaracion.py` empezó a marcar. */
+  if (jobs.length || _limpio) gestSaveStore(s);
   return Promise.all(jobs);
 }
+/* ⚠️ P209 · LAS DOS PUERTAS QUE ESTA COLA NO TENÍA, y era la única de las cinco sin ninguna. Sus
+   únicos llamadores eran `gestScheduleSync` (700 ms después de escribir), abrir la ventana de
+   Gestiones, y cerrar sesión. O sea: el médico firma una determinación sin señal, vuelve la señal,
+   y las otras cuatro colas salen solas mientras ésta espera a que alguien abra una pantalla que la
+   pestaña Aptitud ni siquiera tiene. La línea de bitácora del MISMO acto sí salía; la gestión, no. */
+window.addEventListener('online', function(){ gestScheduleSync(); });
+setInterval(function(){ gestPush(); }, 60000);
 function gestPull(){
   if(!gestCanSync()) return Promise.resolve(false);
   const mio = DASH;
@@ -29227,6 +29635,7 @@ function bitStoreAll(){ try { return JSON.parse(localStorage.getItem(K_BITACORA)
 function bitSaveStoreAll(o){ try { localStorage.setItem(K_BITACORA, JSON.stringify(o)); } catch(e){} }
 function bitStore(){ const all=bitStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; return s; }
 function bitSaveStore(s){ const all=bitStoreAll(); all[gestKey()]=s; bitSaveStoreAll(all); }
+
 function bitNewId(){ return 'b' + Date.now().toString(36) + Math.floor(Math.random()*1e4).toString(36); }
 
 /* Contexto laboral de una persona (departamento / empresa / cargo), sacado de su registro más
@@ -29305,6 +29714,7 @@ function bitacoraRegistrar(accion, sujeto, detalle, origen){
   const s = bitStore();
   s.items.unshift(ev); s.up[ev.id] = 1;
   bitSaveStore(s);
+  gestAnclarEmpresa();   // P209 · la bitácora comparte `gestKey()`: si no se ancla, se pierde igual
   bitScheduleSync();
   return ev;
 }
@@ -29312,7 +29722,10 @@ let _bitSyncT = null;
 // Mismo candado que en las otras dos colas. Acá importa incluso más: la bitácora es el registro
 // que se usa como prueba, y un evento duplicado haría dudar de la cuenta entera.
 const _bitEnVuelo = {};
-function bitScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_bitSyncT); _bitSyncT = setTimeout(bitPush, 900); }
+/* Envuelto, por lo mismo que `gestScheduleSync`: Gecko le pasa el retraso real al callback y
+   `bitPush` lo leería como `alSalir` — que desde P209 reintenta TRABADOS y habilita la credencial
+   guardada fuera del camino de cerrar sesión. */
+function bitScheduleSync(){ if(!gestCanSync()) return; clearTimeout(_bitSyncT); _bitSyncT = setTimeout(function(){ bitPush(); }, 900); }
 /* ⚠️ A8 #11 · ESTA ERA LA ÚNICA DE LAS CINCO COLAS SIN REINTENTO AUTOMÁTICO NI NOCIÓN DE TRABADO.
    El único llamador de `bitPush` era `bitScheduleSync`, o sea el momento de escribir el evento. Si
    ese envío fallaba —sin señal, endpoint caído— nada volvía a intentarlo nunca: ni al reconectar,
@@ -29338,20 +29751,24 @@ function bitFallo(id){
 }
 /* Los de ESTA cola que ya no se reintentan solos. Sin esto el cartel decía «Enviando» para siempre. */
 function bitTrabados(){
-  try { const f = bitStore().fallos || {}; return Object.keys(f).filter(k => f[k] && f[k].trabado); }
-  catch(e){ return []; }
+  try {
+    const all = bitStoreAll(); const out = [];
+    Object.keys(all).forEach(k => { const f = (all[k] || {}).fallos || {};
+      Object.keys(f).forEach(x => { if (f[x] && f[x].trabado) out.push(k + '|' + x); }); });
+    return out;
+  } catch(e){ return []; }
 }
 function bitDestrabar(){
-  try { const s = bitStore(); s.fallos = {}; bitSaveStore(s); } catch(e){}
+  try { const all = bitStoreAll(); Object.keys(all).forEach(k => { if (all[k]) all[k].fallos = {}; }); bitSaveStoreAll(all); } catch(e){}
 }
 function bitPush(alSalir){
   if(simulando()) return Promise.resolve();   // guard de simulación
-  if(!gestCanSync()) return Promise.resolve();
+  if(!gestCanSync() && !(alSalir && gestCredDeSalida())) return Promise.resolve();   // P209 · ídem, con cualquiera de las dos: `bitacora_guardar` sólo le cierra la puerta a Dirección
   const s = bitStore(); const jobs = [];
   const fallos = s.fallos || {};
   Object.keys(s.up).forEach(id => {
     const ev = s.items.find(x => x.id === id);
-    if (!ev){ delete s.up[id]; return; }
+    if (!ev){ delete s.up[id]; if (s.fallos) delete s.fallos[id]; return; }   // P209 · ídem
     if (demoEsIdSembrado(id)){ delete s.up[id]; return; }   // sembrado por la demo: nunca sube
     /* Un trabado no se reintenta solo —si no, el cartel diría «Enviando» para siempre— pero SÍ se
        manda al salir: es el último intento que va a tener antes de que `cerrarSesion` borre la
@@ -29359,7 +29776,7 @@ function bitPush(alSalir){
     if (fallos[id] && fallos[id].trabado && !alSalir) return;
     if (_bitEnVuelo[id]) return;
     _bitEnVuelo[id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }), alSalir)
+    jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }, alSalir), alSalir)
       .then(d => {
         if (d && d.ok){
           const s2 = bitStore(); delete s2.up[id];
@@ -29397,7 +29814,15 @@ function bitacoraDe(sujeto, accion){
   return bitStore().items.filter(e =>
     (!sujeto || e.sujeto === sujeto) && (!accion || e.accion === accion));
 }
-function bitacoraPendientes(){ return Object.keys(bitStore().up || {}).length; }
+/* P209 · TODAS las particiones: `gestKey()` depende de `DASH` y con el panel cerrado esto contaba 0
+   sobre una cola que «cerrar sesión» borra igual. Ver el comentario de `gestEmpresaActual`. */
+function bitacoraPendientes(){
+  try {
+    const all = bitStoreAll(); let n = 0;
+    Object.keys(all).forEach(k => { n += Object.keys((all[k] || {}).up || {}).filter(noEsDemo).length; });   // ver `noEsDemo`
+    return n;
+  } catch(e){ return 0; }
+}
 
 /* ══════════ PUENTE A ODOO — pestaña de traspaso "Casos Odoo" (P13 / Fase C) ══════════
 
@@ -29469,8 +29894,46 @@ const K_CASOS_ODOO = 'silva_fatiga_casos_odoo_v1';
 function casosStoreAll(){ try { return JSON.parse(localStorage.getItem(K_CASOS_ODOO)) || {}; } catch(e){ return {}; } }
 function casosSaveStoreAll(o){ try { localStorage.setItem(K_CASOS_ODOO, JSON.stringify(o)); } catch(e){} }
 function casosStore(){ const all=casosStoreAll(); const s=all[gestKey()]||{}; if(!Array.isArray(s.items)) s.items=[]; if(!s.up) s.up={}; return s; }
+/* ⚠️ P209 · EL TOPE DE INTENTOS, que esta cola no tenía y que el reloj nuevo volvió obligatorio.
+   Hasta acá `casosOdooPush` sólo corría al generar un caso y al volver la señal, así que un rechazo
+   determinista quedaba dormido. Con el `setInterval` de 60 s pasa a mandarse 1.440 veces por día —
+   y los rechazos deterministas existen: `accionCasoOdooGuardar` exige `acc.vista === "medico"`, o
+   sea que le dice «No autorizado» a todo panel de supervisor. Es exactamente el bucle que el tope
+   de `empFlush` cierra, en la única de las cinco colas que no lo tenía. */
+function casosFallo(id){
+  try {
+    const s = casosStore();
+    if (!s.up[id]) return;                       // ya salió: no hay nada que anotar
+    if (!s.fallos) s.fallos = {};
+    const f = s.fallos[id] || { intentos: 0 };
+    f.intentos = (f.intentos || 0) + 1;
+    if (f.intentos >= COLA_MAX_INTENTOS) f.trabado = true;
+    s.fallos[id] = f;
+    casosSaveStore(s);
+    offPintar();
+  } catch(e){}
+}
+function casosTrabados(){
+  try {
+    const all = casosStoreAll(); const out = [];
+    Object.keys(all).forEach(k => { const f = (all[k] || {}).fallos || {};
+      Object.keys(f).forEach(x => { if (f[x] && f[x].trabado) out.push(k + '|' + x); }); });
+    return out;
+  } catch(e){ return []; }
+}
+function casosDestrabar(){
+  try { const all = casosStoreAll(); Object.keys(all).forEach(k => { if (all[k]) all[k].fallos = {}; }); casosSaveStoreAll(all); } catch(e){}
+}
 function casosSaveStore(s){ const all=casosStoreAll(); all[gestKey()]=s; casosSaveStoreAll(all); }
 function casosOdooPendientes(){ return Object.keys(casosStore().up || {}).length; }
+/* P209 · todas las particiones, por lo mismo que `gestPendientesTodas`: comparten `gestKey()`. */
+function casosOdooPendientesTodas(){
+  try {
+    const all = casosStoreAll(); let n = 0;
+    Object.keys(all).forEach(k => { n += Object.keys((all[k] || {}).up || {}).filter(noEsDemo).length; });   // ver `noEsDemo`
+    return n;
+  } catch(e){ return 0; }
+}
 
 /* Severidad con el vocabulario que YA usa el módulo Odoo ('rojo' / 'amarillo' / 'verde').
    No inventar sinónimos: del otro lado, sólo 'rojo' genera oportunidad de CRM. */
@@ -29667,21 +30130,31 @@ let _casosT = null;
 // Mismo candado de "envíos en vuelo" que las otras tres colas (P10). Sin esto, dos flush casi
 // simultáneos mandan la misma fila dos veces: medido de verdad en P10, no es teórico.
 const _casosEnVuelo = {};
-function casosOdooSchedulePush(){ if(!gestCanSync()) return; clearTimeout(_casosT); _casosT = setTimeout(casosOdooPush, 900); }
+function casosOdooSchedulePush(){ if(!gestCanSync()) return; clearTimeout(_casosT); _casosT = setTimeout(function(){ casosOdooPush(); }, 900); }   // envuelto: ver `gestScheduleSync`
 /* `alSalir`: ver `gestPost`. El flush de `cerrarSesionPedir` pasa por acá y `cerrarSesion()` borra
    `K_CASOS_ODOO` y recarga un instante después — sin `keepalive` el POST se aborta y la cola ya no
    existe, o sea que la línea que promete «intentar enviarlos primero» no intentaba nada. */
 function casosOdooPush(alSalir){
   if(simulando()) return Promise.resolve();
-  if(!gestCanSync()) return Promise.resolve();
+  /* P209 · `'medico'` en los dos lados: `accionCasoOdooGuardar` exige `acc.vista === "medico"`, y la
+     puerta y el cuerpo tienen que pedir la MISMA credencial — abrir con una y firmar con otra es
+     mandar un POST con usuario y clave vacíos, que el servidor rechaza y esta cola ni siquiera
+     cuenta como fallo. Lo cazó el verificador. */
+  if(!gestCanSync() && !(alSalir && gestCredDeSalida('medico'))) return Promise.resolve();
   const s = casosStore(); const jobs = [];
+  const fallosCasos = s.fallos || {};
   Object.keys(s.up).forEach(id => {
     const c = s.items.find(x => x.IdCaso === id);
-    if (!c){ delete s.up[id]; return; }
+    if (!c){ delete s.up[id]; if (s.fallos) delete s.fallos[id]; return; }
+    /* Un trabado no se reintenta solo —si no, el reloj de 60 s lo manda 1.440 veces por día— pero
+       SÍ se manda al salir: es el último intento antes de que `cerrarSesion` borre la cola. */
+    if (fallosCasos[id] && fallosCasos[id].trabado && !alSalir) return;
     if (_casosEnVuelo[id]) return;
     _casosEnVuelo[id] = 1;
-    jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }), alSalir)
-      .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; casosSaveStore(s2); } }).catch(()=>{})
+    jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }, alSalir && 'medico'), alSalir)
+      .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; if (s2.fallos) delete s2.fallos[id]; casosSaveStore(s2); try { offPintar(); } catch(e){} }
+                   else casosFallo(id); })
+      .catch(()=>{ casosFallo(id); })
       // El candado se libera SIEMPRE, falle o no: si no, un error de red dejaría ese caso
       // trabado para siempre sin reintentarse.
       .then(() => { delete _casosEnVuelo[id]; }));
@@ -29690,6 +30163,10 @@ function casosOdooPush(alSalir){
   return Promise.all(jobs);
 }
 window.addEventListener('online', function(){ casosOdooSchedulePush(); });
+/* P209 · y su reloj, que era la única de las cinco colas sin uno. Sin él, el aviso de cerrar sesión
+   («deja el panel abierto un minuto») no era cierto para esta cola: sólo salía al generarse un caso
+   nuevo o al volver la señal. */
+setInterval(function(){ casosOdooPush(); }, 60000);
 
 /* ── Lo que el SUPERVISOR ve del puente (decisión del cliente, 2026-08-07) ──────────────────
    El supervisor tiene que enterarse de que se abrió un caso de telemedicina y de por qué test,
