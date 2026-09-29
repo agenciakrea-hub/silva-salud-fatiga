@@ -174,7 +174,15 @@ async function p049Abrir(vista, rol, op){
     altoScroll: altoScroll,
     bloques: bloques,
     hayNivel: !!document.getElementById('dashNivel'),
-    hayGest:  cuerpo.indexOf(P049_MARCA_GEST) >= 0,
+    /* ⚠️ LA MARCA YA NO PUEDE SER EL TEXTO DE LA NOTA, y el caso de al lado ya había tenido que
+       resolver lo mismo para la vista del médico. Desde P207 el texto clínico se pinta ÚNICAMENTE
+       en la vista del servicio médico: el almacén de gestiones es por empresa y no por rol, y
+       `gestPull` superpone lo pendiente de subir por encima de lo que el servidor ya recortó, así
+       que en un equipo compartido la nota terminaba en la tarjeta del supervisor.
+       Lo que este caso vigila es que el DATO de gestiones haya llegado y se haya pintado, no que se
+       vea el texto. `.apt-med-hasta` sale sólo para quien tiene una anotación vigente, igual de
+       específica y sin depender de un dato clínico. */
+    hayGest:  document.querySelectorAll('#dashBody .apt-med-hasta, #dashBody .an-res-hasta').length > 0,
     hayCasos: cuerpo.indexOf(P049_MARCA_CASOS) >= 0,
     /* La vista del médico no pinta la NOTA de la anotación en la cola de trabajo (esa sólo sale
        en la ficha, con una persona elegida): pinta un renglón con la determinación y su vigencia.

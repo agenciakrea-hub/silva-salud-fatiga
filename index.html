@@ -7529,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.89';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.90';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -23133,7 +23133,21 @@ function aptTarjeta(p, opts){
        --act en los contadores. Sin esto el encabezado de la nota daba 3.07. */
     '<div class="apt-med-nota" style="--anc:' + est.c + ';--anct:' + (est.ct || est.c) + ';--anbg:' + est.bg + '">' +
       '<div class="apt-med-top">' + esc(t('apt_lo_determino')) + (p.anot.medico ? ' · ' + esc(p.anot.medico) : '') + '</div>' +
-      (p.anot.nota ? '<div class="apt-med-txt">' + esc(p.anot.nota) + '</div>' : '') +
+      /* ⚠️ EL TEXTO SÓLO DONDE QUIEN LLAMA LO PIDE. El comentario de `accionGestiones` en el
+         servidor describe el defecto palabra por palabra: «`aptTarjeta()` del lado del cliente
+         confía en que el servidor ya hizo este recorte (no vuelve a filtrar por vista), así que si
+         no se saca acá, se termina mostrando en la tarjeta del supervisor tal cual». El recorte del
+         servidor (`delete g.nota` para quien no es médico) era la única defensa y se saltea por el
+         costado: el almacén de gestiones es por EMPRESA y no por rol, y `gestPull` superpone lo que
+         todavía está pendiente de subir POR ENCIMA de lo que mandó el servidor.
+         ⚠️ VA POR `opts` Y NO POR `DASH.vista`, y la primera versión lo hizo por la vista: esta
+         misma función es el ESPEJO que el médico abre para ver «así lo ve el supervisor», y con el
+         filtro por vista el espejo le mostraba la nota dentro de un bloque cuyo propio texto le
+         jura que el supervisor ve exactamente eso, «sin valores de los tests ni detalle clínico».
+         Un espejo que miente es peor que no tenerlo. Ahora la ficha del médico la pide y el espejo
+         no. La determinación y su vigencia se ven igual en las dos: lo que no sale es el texto. */
+      (p.anot.nota && opts && opts.conNota
+        ? '<div class="apt-med-txt">' + esc(p.anot.nota) + '</div>' : '') +
       '<div class="apt-med-hasta">' + esc(t('an_vigente_hasta', { f: gestFechaTs(p.anot.vigenciaHasta) })) + '</div>' +
     '</div>' : '';
   const avisoDesact = p.desactualizada
@@ -23749,11 +23763,30 @@ const HSEQ_ACCIONES_OCULTAS = { caso_odoo:1 };
    supervisor sin nombres y a los pseudónimos escalando en cada vuelta (ver demoAnonimizarHseq). */
 function hseqEventos(){
   const ev = bitacoraDe().filter(e => !HSEQ_ACCIONES_OCULTAS[e.accion]);
-  if (!(typeof DASH !== 'undefined' && DASH && DASH.demoMode && DASH.vista === 'hseq')) return ev;
+  /* ⚠️ TAMBIÉN FUERA DE LA DEMOSTRACIÓN, y antes decía `DASH.demoMode &&`. Lo que llega del servidor
+     ya viene anonimizado (`bitacoraParaHseq_`), pero `bitPull` MEZCLA: primero mete los eventos del
+     servidor y después conserva los LOCALES que todavía no subieron. Un evento que falló al subir
+     —sin señal, o `bitFallo` lo marcó `trabado` y dejó de reintentar— se queda en el almacén con el
+     nombre real, el actor y el umbral. Y el almacén es por EMPRESA, no por rol (`gestKey()`), así
+     que en un equipo donde conviven las dos credenciales —P179 las guarda juntas a propósito— quien
+     entra después como Dirección lo ve tal cual, en la pantalla y en el CSV que exporta.
+     Sólo `cerrarSesion()` limpia ese almacén, y eso pasa cuando alguien toca «Salir». */
+  if (!(typeof DASH !== 'undefined' && DASH && DASH.vista === 'hseq')) return ev;
   const mapa = {}; let n = 0;
-  const pid = nom => { const k = dashNorm(nom || ''); if (!k) return '';
+  /* ⚠️ UN SUJETO QUE YA ES SEUDÓNIMO NO SE VUELVE A MAPEAR. `bitPull` MEZCLA dos orígenes: los
+     eventos del servidor, que ya vienen como «P1, P2…» de `bitacoraParaHseq_`, y los locales que
+     todavía no subieron, que traen el nombre real. Con un solo mapa para los dos, la MISMA persona
+     salía como «P2» en sus filas del servidor y como «P5» en la local: Trazabilidad contaba más
+     personas de las que hay. No es una fuga, es un número que miente. */
+  const pid = nom => { const s = String(nom || '').trim();
+    if (/^P\d+$/.test(s)) return s;
+    const k = dashNorm(s); if (!k) return '';
     if (!mapa[k]) mapa[k] = 'P' + (++n); return mapa[k]; };
-  return ev.map(e => e ? Object.assign({}, e, { sujeto: pid(e.sujeto), actor: '' }) : e);
+  /* ⚠️ Y EL UMBRAL SE VA CON EL NOMBRE. Un evento local sin subir lo trae entero —`{nivel, amarillo,
+     rojo}`— y es el campo exacto que `bitacoraParaHseq_` se negó a mandar porque reidentifica
+     cruzándolo con la tabla de niveles. Recortar el nombre y dejar el umbral es cerrar una puerta
+     y dejar abierta la de al lado, que es lo que ya pasó tres veces en este proyecto. */
+  return ev.map(e => e ? Object.assign({}, e, { sujeto: pid(e.sujeto), actor: '', umbral: null }) : e);
 }
 function renderHseqAuditoria(){
   const ev = hseqEventos();
@@ -26900,7 +26933,7 @@ function renderAptitud(rows){
   if (DASH.f.per){
     return ayuda + '<div class="dash-block"><div class="db-title">' + esc(DASH.f.per) + '</div>' +
       '<div class="db-sub">' + t('apt_ficha_ind') + '</div>' +
-      aptTarjeta(gente[0], { acciones: restPuede() }) +
+      aptTarjeta(gente[0], { acciones: restPuede(), conNota: DASH.vista === 'medico' }) +
       '<div class="apt-nota">' + t('apt_nota_pendiente') + '</div></div>';
   }
 
@@ -30036,6 +30069,7 @@ function aptEspejoSupervisor(rows){
   if (!regs.length) return '';
   const pvt = dashFilteredPVT().filter(r => r.persona === DASH.f.per);
   return '<div class="an-espejo"><div class="an-espejo-t">' + esc(t('an_espejo_t')) + '</div>' +
+    /* ⚠️ SIN `conNota`: es el espejo, y el texto de al lado promete «sin detalle clínico». */
     aptTarjeta(aptPersona(DASH.f.per, regs, pvt)) +
     '<div class="an-espejo-n">' + esc(t('an_espejo_n')) + '</div></div>';
 }
@@ -30273,8 +30307,19 @@ function anotGuardar(){
     creada: ahora, vigenciaHasta: ahora + ms });
   // El alta se registra con su propio verbo: es el cierre del circuito (la "reincorporación" que
   // pide el cliente) y se cuenta distinto de un "no apto" en el panel de dirección.
+  /* ⚠️ EL TEXTO DE LA NOTA NO VIAJA A LA BITÁCORA, Y ESTA LÍNEA LO MANDABA. La bitácora es
+     append-only por R3 —no se edita ni se borra NUNCA— y el supervisor de la empresa puede leerla
+     entera con su contraseña: `accionBitacora` sólo recorta para `vista === 'hseq'`. O sea que cada
+     determinación firmada archivaba el texto clínico para siempre y se lo devolvía al supervisor,
+     contra lo que `doc_2_p2` le promete al cliente con todas las letras: «una nota clínica no llega
+     al supervisor ni a Dirección por ningún camino».
+     La función hermana `notaClinicaGuardar()` ya lo hacía bien —manda `chars`, no el texto— con el
+     comentario explicándolo justo al lado. Ésta se escribió después y no lo copió.
+     Va `chars` por el mismo motivo que allá: que se escribió una nota ES el hecho auditable; qué
+     decía, no. El contenido vive en `Gestiones`, donde el servidor lo recorta por rol. */
   bitacoraRegistrar(ANOT.nivel === 'ok' ? 'alta_reincorporacion' : 'determinacion_medica', DASH.f.per,
-    { id:idAnot, nivel:ANOT.nivel, horas: Math.round(ms/3600000), medico:medico, nota:nota });
+    { id:idAnot, nivel:ANOT.nivel, horas: Math.round(ms/3600000), medico:medico,
+      chars: String(nota || '').length });
   haptic(16);
   ANOT.open = false;
   renderDash();
