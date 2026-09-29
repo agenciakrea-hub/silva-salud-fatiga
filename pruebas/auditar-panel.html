@@ -176,67 +176,6 @@ function pintar(win, vista, tab){
     'dashWireAnResMarquee(); dashWireMarquees();');
 }
 
-/* Planta un defecto de cada familia que el auditor busca y comprueba que los ve. Devuelve la lista
-   de los que NO detectó — vacía significa que el instrumento está midiendo.
-   ⚠️ Se planta en el `body` del iframe y con `position:fixed`, para que no dependa de que una
-   pantalla concreta esté pintada: lo que se prueba es el AUDITOR, no la app. */
-async function autodiagnostico(win){
-  const doc = win.document;
-  /* ⚠️ LA SUPERFICIE CLARA VA POR HOJA DE ESTILO, NO POR `style=` INLINE. `superficiesClaras` corta
-     con `if (el.style && el.style.background) return;` (auditor.js:254), a propósito: un fondo
-     escrito inline es otra deuda, no «una caja blanca sin tematizar». La primera versión plantaba
-     los tres blancos inline, así que esa familia NO se estaba probando — y como además se
-     comprobaba con `.length`, pasaba igual: la app ya devuelve una sola (`#dcPassinput`) en oscuro.
-     Dos defectos sumados daban un chequeo que no podía fallar. Lo midió el verificador. */
-  const css = doc.createElement('style');
-  css.id = '__autodiagcss__';
-  css.textContent = '#__autodiag__ .ad-sup { background:#ffffff; width:30px; height:12px }';
-  doc.head.appendChild(css);
-  const caja = doc.createElement('div');
-  caja.id = '__autodiag__';
-  caja.setAttribute('style', 'position:fixed;top:0;left:0;z-index:2147483647;padding:8px');
-  /* ⚠️ CADA DEFECTO ES DE UNA FAMILIA QUE EL AUDITOR PROMETE BUSCAR, y eso hubo que calibrarlo
-     midiendo. La primera versión plantaba un elemento 9999 px fuera del viewport esperando que
-     `cortes` lo viera, y `cortes` mide TEXTO recortado por su caja, no desbordes: el
-     autodiagnóstico se quejaba de algo que el instrumento nunca prometió encontrar y habría
-     abortado toda auditoría para siempre. Un discriminador mal calibrado es otro instrumento que
-     miente. */
-  caja.innerHTML =
-    '<p style="color:#cfcfcf;background:#ffffff;font-size:16px;margin:0">gris casi blanco sobre blanco</p>' +
-    '<button style="width:18px;height:18px;padding:0">x</button>' +
-    '<div class="ad-sup"></div>' +
-    '<div style="white-space:nowrap;overflow:hidden;width:40px;font-size:14px;background:#fff;color:#000">' +
-      'un texto bastante mas largo que su caja</div>';
-  doc.body.appendChild(caja);
-  const temaAntes = doc.documentElement.getAttribute('data-tema');
-  doc.documentElement.setAttribute('data-tema', 'oscuro');
-  void doc.body.offsetWidth;
-  let r;
-  try { r = win.AUDITOR.todo(); }
-  finally {
-    caja.remove(); css.remove();
-    if (temaAntes) doc.documentElement.setAttribute('data-tema', temaAntes);
-    else doc.documentElement.removeAttribute('data-tema');
-  }
-  /* ⚠️ CADA COMPROBACIÓN BUSCA LA PLANTA POR SU FORMA, NUNCA POR `.length`. Con `.length` el
-     chequeo pasa si la pantalla auditada ya tenía un defecto de esa familia — o sea, pasa aunque
-     el auditor esté roto. Lo midió el verificador sobre dos de las cuatro. */
-  const faltan = [];
-  const hay = (lista, re) => (lista || []).some(x => re.test(String(x)));
-  if (!r.medidos) faltan.push('no midió NI UN texto (`medidos` = 0): el auditor no está viendo el documento');
-  if (!hay(r.contraste, /207, 207, 207|cfcfcf/))
-    faltan.push('contraste 1,56:1 — no lo vio');
-  if (!hay(r.superficiesClarasEnOscuro, /ad-sup/))
-    faltan.push('superficie blanca en tema oscuro (`.ad-sup`) — no la vio');
-  /* `18×18` con el signo de multiplicar y los espacios que usa el auditor, no `18x18`: la primera
-     versión buscaba la `x` de teclado y decía que no lo veía cuando sí. */
-  if (!hay(r.areasDeToque, /18\s*×\s*18/))
-    faltan.push('botón de 18×18 px — no lo vio');
-  if (!hay(r.cortes, /se pasa \d+px/))
-    faltan.push('texto recortado por su caja — no lo vio');
-  return faltan;
-}
-
 async function auditar(){
   log('cargando la app…');
   const f = await cargarApp();
@@ -252,7 +191,7 @@ async function auditar(){
      Acá se plantan cuatro defectos de las cuatro familias que el auditor busca y se exige que los
      encuentre. Si no los encuentra, el informe entero no vale y se dice: es preferible no tener
      auditoría a tener una que dice que todo está bien. */
-  const fallos = await autodiagnostico(win);
+  const fallos = win.AUDITOR.autodiagnostico(win.document);
   if (fallos.length){
     log('❌ EL AUDITOR NO MIDE — no se corre nada más.\n\n' +
         'No detectó los defectos que se le plantaron a propósito:\n  · ' + fallos.join('\n  · ') +

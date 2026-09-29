@@ -103,6 +103,20 @@ async function auditar(){
   const src = await (await fetch('auditor.js?v=' + Date.now())).text();
   win.eval(src);
 
+  /* ⚠️ EL AUTODIAGNÓSTICO VA ANTES DE TODO. Esta herramienta ya tenía guarda de cobertura (el
+     `visible` de abajo), que es más de lo que tenía la del panel — pero saber que la pantalla está
+     delante no dice nada sobre si el auditor la sabe medir. Son dos preguntas distintas y hacen
+     falta las dos: la del panel las tenía separadas y aun así entregó un informe de la pantalla
+     equivocada, firmado. */
+  const fallos = win.AUDITOR.autodiagnostico(doc);
+  if (fallos.length){
+    log('❌ EL AUDITOR NO MIDE — no se corre nada más.\n\n' +
+        'No detectó los defectos que se le plantaron a propósito:\n  · ' + fallos.join('\n  · ') +
+        '\n\nUn informe de este auditor en este estado NO significa que la app esté bien.');
+    return;
+  }
+  log('autodiagnóstico OK: el auditor detecta las cuatro familias de defecto.');
+
   const hallazgos = [], sinMedir = [], vacias = [];
   let corridas = 0;
 

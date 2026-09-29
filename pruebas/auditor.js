@@ -617,6 +617,71 @@
     } finally { s.remove(); }
   };
 
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     EL AUDITOR TIENE QUE DEMOSTRAR QUE MIDE, ANTES DE QUE SU INFORME VALGA NADA.
+
+     Un recuento en cero significa dos cosas opuestas —«está limpio» o «no miré nada»— y las tres
+     herramientas de este directorio llegaron a informar «0 hallazgos» sin medir. Esto planta un
+     defecto de cada familia que el auditor promete buscar y exige encontrarlos.
+
+     ⚠️ VIVE ACÁ Y NO EN CADA HERRAMIENTA a propósito: tres copias del mismo discriminador se
+     desincronizan, y la que quede vieja es la que va a mentir. El día que se agregue una familia
+     nueva a `AUDITOR.todo`, se le suma su planta en UN lugar.
+
+     ⚠️ Y CADA PLANTA ESTÁ CALIBRADA CONTRA EL CRITERIO REAL DE SU FAMILIA, que hubo que medir:
+     · la superficie clara va por hoja de estilo, no por `style=` inline — `superficiesClaras` corta
+       con `if (el.style && el.style.background) return;` a propósito, así que la planta inline era
+       invisible para el chequeo que decía probarla;
+     · el corte es TEXTO recortado por su caja, no un elemento fuera del viewport — la primera
+       versión pedía algo que el auditor nunca prometió buscar y habría abortado toda auditoría;
+     · cada comprobación busca su planta POR SU FORMA, nunca por `.length`: con `.length` el chequeo
+       pasa si la pantalla auditada ya traía un defecto de esa familia, o sea aunque el auditor esté
+       roto. Medido: la app devuelve una superficie clara en oscuro sin plantar nada.
+     Devuelve [] si el instrumento mide; si no, la lista de lo que no vio. ═════════════════════ */
+  AUDITOR.autodiagnostico = function (docDado) {
+    /* El documento va por parámetro, como su vecina `sondaDeTema(doc)`: `auditor.js` también se
+       carga en páginas que NO son la app (`p111-contraste-panel.js` lo inyecta en la suite), y
+       fijar `document` vuelve natural el error de plantar el diagnóstico en el documento ajeno. */
+    const doc = docDado || document;
+    const css = doc.createElement('style');
+    css.id = '__autodiagcss__';
+    css.textContent = '#__autodiag__ .ad-sup { background:#ffffff; width:30px; height:12px }';
+    doc.head.appendChild(css);
+    const caja = doc.createElement('div');
+    caja.id = '__autodiag__';
+    caja.setAttribute('style', 'position:fixed;top:0;left:0;z-index:2147483647;padding:8px');
+    caja.innerHTML =
+      '<p style="color:#cfcfcf;background:#ffffff;font-size:16px;margin:0">gris casi blanco sobre blanco</p>' +
+      '<button style="width:18px;height:18px;padding:0">x</button>' +
+      '<div class="ad-sup"></div>' +
+      '<div id="__ad_corte__" style="white-space:nowrap;overflow:hidden;width:40px;font-size:14px;background:#fff;color:#000">' +
+        'un texto bastante mas largo que su caja</div>';
+    doc.body.appendChild(caja);
+    const temaAntes = doc.documentElement.getAttribute('data-tema');
+    doc.documentElement.setAttribute('data-tema', 'oscuro');
+    void doc.body.offsetWidth;
+    let r;
+    try { r = AUDITOR.todo(); }
+    finally {
+      caja.remove(); css.remove();
+      if (temaAntes) doc.documentElement.setAttribute('data-tema', temaAntes);
+      else doc.documentElement.removeAttribute('data-tema');
+    }
+    const faltan = [];
+    const hay = (lista, re) => (lista || []).some(x => re.test(String(x)));
+    if (!r.medidos) faltan.push('no midió NI UN texto (`medidos` = 0): el auditor no está viendo el documento');
+    if (!hay(r.contraste, /207, 207, 207|cfcfcf/)) faltan.push('contraste 1,56:1 — no lo vio');
+    if (!hay(r.superficiesClarasEnOscuro, /ad-sup/)) faltan.push('superficie blanca en tema oscuro (`.ad-sup`) — no la vio');
+    /* `18×18` con el signo de multiplicar y los espacios que usa el auditor, no `18x18`. */
+    if (!hay(r.areasDeToque, /18\s*×\s*18/)) faltan.push('botón de 18×18 px — no lo vio');
+    /* ⚠️ POR EL ID DE LA PLANTA, no por la forma del mensaje: `AUDITOR.cortes()` sólo emite «se
+       pasa Npx de alto/ancho», así que ese regex matcheaba CUALQUIER corte de la pantalla auditada
+       y la familia quedaba sin proteger — un `.length` disfrazado. El `<div>` no tenía id, así que
+       `nombre(el)` devolvía «div» y no había con qué distinguirla. Lo encontró el verificador. */
+    if (!hay(r.cortes, /__ad_corte__/)) faltan.push('texto recortado por su caja — no lo vio');
+    return faltan;
+  };
+
   AUDITOR.todo = function () {
     const desplegados = AUDITOR.abrirTodo();
     const c = AUDITOR.contraste();

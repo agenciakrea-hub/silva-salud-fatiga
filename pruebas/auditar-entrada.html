@@ -42,9 +42,14 @@ const ANCHOS = [[320,800],[375,812],[390,844],[768,1024],[1366,768],[1920,1080]]
 
 /* Las pantallas se abren llamando a las funciones de la app. `null` = el splash tal como carga. */
 const PANTALLAS = [
-  { nombre: 'splash',        abrir: null },
-  { nombre: 'portal-gate',   abrir: 'splashPortal()' },
-  { nombre: 'portal-demo',   abrir: 'splashVerDemo()' },
+  { nombre: 'splash',        abrir: null,               overlay: 'splashOv' },
+  { nombre: 'portal-gate',   abrir: 'splashPortal()',   overlay: 'portalOverlay' },
+  /* ⚠️ SE LLAMABA `portal-demo` Y MEDÍA OTRA COSA. Desde P171, `splashVerDemo()` sin
+     `DEMO_PAYLOAD` no abre el gate de la demostración: abre la HOJA DE LA CLAVE (`#demoClaveOv`).
+     El nombre del informe decía «portal-demo» y lo que se auditaba era la hoja de la contraseña —
+     una pantalla real, pero no la que el informe nombraba, y el gate quedaba sin auditar nunca.
+     Se la llama por lo que es. El gate necesita clave y lo cubre `auditar-panel.html`. */
+  { nombre: 'demo-clave',    abrir: 'splashVerDemo()', overlay: 'demoClaveOv' },
 ];
 
 const log = s => { document.getElementById('out').textContent = s; };
@@ -83,13 +88,38 @@ function balance(doc, selContenedor, selPrimero, selUltimo){
 }
 
 async function auditar(){
-  log('cargando la app…');
+  /* ⚠️ SIN ESTO LAS 12 CORRIDAS DEL SPLASH MIDEN OTRA PANTALLA. El splash sólo se muestra a quien
+     NUNCA completó su perfil (`index.html`: `if (_complete) continuarAlta(); else if
+     (portalTieneSesionDeEmpresa()) portalAbrirDirecto(); else splashMostrar();`), y las dos cosas
+     salen de `localStorage` — del MISMO origen que comparte con la suite y con `auditar-login.html`,
+     que deja un perfil completo puesto (R18). Corriendo login y después entrada, el arranque toma
+     la rama `_complete`, `#splashOv` queda en `display:none`, y el informe decía «36 corridas, 0
+     hallazgos» sobre la pantalla de inicio de la app. Lo encontró el verificador, y es exactamente
+     el defecto que P202 vino a cerrar, vivo otra vez.
+     ⚠️ Se limpia ANTES de cargar la app: hacerlo después no sirve —el arranque ya decidió— y
+     recargar el iframe para reintentarlo se lleva puesto el auditor recién inyectado. */
+  log('limpiando el almacén y cargando la app…');
+  try { const prev = document.getElementById('app').contentWindow;
+        if (prev && prev.localStorage) prev.localStorage.clear(); } catch(e){}
   const f = await cargarApp();
   const win = f.contentWindow, doc = win.document;
   const src = await (await fetch('auditor.js?v=' + Date.now())).text();
   win.eval(src);
 
-  const hallazgos = [], desbalances = [];
+  /* ⚠️ ESTA HERRAMIENTA NO TENÍA NINGUNA DE LAS DOS GUARDAS. La del login ya comprobaba que la
+     pantalla estuviera delante; ésta medía directo, así que una pantalla que no se abre baja el
+     recuento de hallazgos y parece una mejora. Y ninguna de las tres comprobaba que el auditor
+     supiera medir: son dos preguntas distintas y hacen falta las dos. */
+  const fallos = win.AUDITOR.autodiagnostico(doc);
+  if (fallos.length){
+    log('❌ EL AUDITOR NO MIDE — no se corre nada más.\n\n' +
+        'No detectó los defectos que se le plantaron a propósito:\n  · ' + fallos.join('\n  · ') +
+        '\n\nUn informe de este auditor en este estado NO significa que la app esté bien.');
+    return;
+  }
+  log('autodiagnóstico OK: el auditor detecta las cuatro familias de defecto.');
+
+  const hallazgos = [], desbalances = [], vacias = [];
   let corridas = 0;
 
   for (const p of PANTALLAS){
@@ -108,7 +138,15 @@ async function auditar(){
            `html.sin-animaciones`). Es la forma de ver el estado FINAL en este entorno.
            Se vuelve a poner por si alguna pantalla la sacó. */
         doc.documentElement.classList.add('sin-animaciones');
+        /* ⚠️ SE CIERRA TODO ANTES DE ABRIR LA SIGUIENTE. `auditar-login.html` ya tenía esta línea
+           —«dos overlays abiertos se miden juntos y el informe diría que el defecto está en la
+           pantalla equivocada»— y acá faltaba: `splashPortal()` deja `#portalOverlay` con `.show` y
+           nadie se lo saca, así que las corridas de `demo-clave` medían el gate del portal Y la
+           hoja de la clave juntos. Con cero hallazgos no se nota, que es el punto: un cero no
+           distingue «limpio» de «medí dos veces lo mismo». */
+        doc.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
         if (p.abrir) { try { ev(win, p.abrir); } catch(e){} }
+        else { try { win.splashMostrar(); } catch(e){} }
         /* ⚠️ EL CARRUSEL SE ADELANTA UNA LÁMINA A PROPÓSITO. En la lámina 0 no hay vecina a la
            izquierda, así que el defecto que motivó todo esto —la lámina de al lado asomando por la
            franja del relleno— NO SE VE. Medir siempre en la 0 es medir el único estado donde el bug
@@ -116,6 +154,17 @@ async function auditar(){
            temporizadores), así que si no se la mueve a mano se mide siempre ese estado. */
         avanzarCarrusel(doc);
         void doc.body.offsetWidth;
+
+        /* ⚠️ GUARDA DE COBERTURA, SOBRE EL OVERLAY QUE SE DICE AUDITAR. La primera versión miraba
+           `doc.body` con `alto > 100`, y eso no puede dar falso NUNCA: `body` tiene
+           `min-height:100vh` y el ancho más chico que se prueba es 768 de alto. Una guarda que
+           siempre pasa es peor que no tenerla, porque se lee como verificación.
+           Cada pantalla declara SU overlay: así una que no se abre se nota, y una que se abre
+           encima de otra no se confunde con ella. */
+        const ov = doc.getElementById(p.overlay);
+        const abierto = !!ov && win.getComputedStyle(ov).display !== 'none'
+                         && ov.getBoundingClientRect().height > 40;
+        if (!abierto){ vacias.push(p.nombre + ' · ' + w + 'px · ' + tema); continue; }
 
         const r = win.AUDITOR.todo();
         corridas++;
@@ -147,9 +196,18 @@ async function auditar(){
     .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
     .sort((a,b) => b.veces - a.veces);
 
-  window.RESULTADO = { corridas, hallazgos, resumen, desbalances };
+  window.RESULTADO = { corridas, hallazgos, resumen, desbalances, vacias };
   const porTipo = {}; resumen.forEach(x => porTipo[x.tipo] = (porTipo[x.tipo]||0)+1);
-  log('LISTO · ' + corridas + ' corridas\n' +
+  /* ⚠️ UNA GUARDA CUYO RESULTADO NO APARECE EN EL INFORME NO ES UNA GUARDA. `vacias` se llenaba y
+     se quedaba en `window.RESULTADO`, que nadie mira: si una pantalla no se abre, el informe decía
+     «24 corridas, 0 hallazgos» —menos hallazgos que antes, o sea que se lee como una mejora— sin
+     denominador y sin advertencia. */
+  log((vacias.length
+        ? '⚠️ ' + vacias.length + ' de ' + (PANTALLAS.length * ANCHOS.length * 2) +
+          ' corridas NO SE PUDIERON MEDIR (la pantalla no se abrió):\n  · ' +
+          vacias.slice(0, 8).join('\n  · ') + (vacias.length > 8 ? '\n  · …' : '') + '\n\n'
+        : '') +
+      'LISTO · ' + corridas + ' de ' + (PANTALLAS.length * ANCHOS.length * 2) + ' corridas\n' +
       'hallazgos únicos: ' + resumen.length + '  ' + JSON.stringify(porTipo) + '\n' +
       'desbalances verticales: ' + desbalances.length + '\n\n' +
       JSON.stringify(resumen.slice(0,25), null, 1) + '\n\n' +
