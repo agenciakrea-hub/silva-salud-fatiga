@@ -40,11 +40,17 @@ PRUEBAS.caso('⚠️ el payload NO lleva NADA que identifique a la persona', () 
   const visto = x2Perfil(() => x2Capturar('Los turnos de 14 horas no se sostienen.'));
   PRUEBAS.cierto(!!visto, 'guarda de medibilidad: tiene que haberse encolado algo');
   if (!visto) return;
-  PRUEBAS.igual(Object.keys(visto.payload).sort(), ['empresa','mes','texto'],
-    '⚠️ SÓLO empresa, mes y texto. Cualquier otra clave hay que poder defenderla contra ' +
+  /* P208 · `id` se suma a la lista blanca, y la pregunta de abajo se le hizo: es un aleatorio puro
+     (`opinionNuevoId`), no deriva del dispositivo ni de la hora, y no se repite entre envíos — así
+     que no agrupa nada ni ordena nada. Sin él el servidor contesta «Faltan datos» y el buzón entero
+     queda muerto, que es como estuvo hasta este prompt. La comprobación de abajo lo verifica. */
+  PRUEBAS.igual(Object.keys(visto.payload).sort(), ['empresa','id','mes','texto'],
+    '⚠️ SÓLO id, empresa, mes y texto. Cualquier otra clave hay que poder defenderla contra ' +
     '"¿esto, cruzado con lo que el supervisor ya sabe, señala a una persona?"');
+  PRUEBAS.falso(String(visto.payload.id || '').indexOf(dispositivoId()) >= 0,
+    '⚠️ y el id NO lleva el identificador del dispositivo adentro: agruparía las opiniones de una persona');
   const crudo = JSON.stringify(visto);
-  ['Ana Suárez','V-9001','Operaciones','Piloto','ana@helitec.com','+58 412 5551234','P-1']
+  ['Ana Suárez','V-9001','Operaciones','Piloto','ana@helitec.com','+58 412 5551234','P-1', dispositivoId()]
     .forEach(dato => PRUEBAS.falso(crudo.indexOf(dato) >= 0,
       '⚠️ se filtró "' + dato + '" en el envío'));
 });
@@ -160,11 +166,34 @@ PRUEBAS.caso('⚠️ va por la cola offline: sin señal no se pierde', () => {
     opinionEnviar(null);
     PRUEBAS.igual(encolado.length, 1, '⚠️ «Enviar» ENCOLA la opinión (R7): sin señal no se pierde');
     PRUEBAS.igual(encolado[0] && encolado[0].accion, 'opinion_guardar', 'con la acción de la opinión');
-    PRUEBAS.igual(Object.keys((encolado[0] || {}).payload || {}).sort(), ['empresa', 'mes', 'texto'], 'y el payload lleva SÓLO empresa, mes y texto: ni nombre, ni cédula, ni dispositivo');
+    /* ⚠️ P208 · ESTA LÍNEA FIJABA UN CONTRATO ROTO. Pedía exactamente `empresa, mes, texto` — o sea
+       SIN `id` — y el servidor abre con `if (!id || !texto) return "Faltan datos"`: el caso estaba
+       verde mientras el buzón entero se rechazaba en producción. La intención se conserva (nada que
+       identifique a la persona); lo que cambia es que ahora exige el id que el servidor necesita. */
+    PRUEBAS.igual(Object.keys((encolado[0] || {}).payload || {}).sort(), ['empresa', 'id', 'mes', 'texto'], 'y el payload lleva SÓLO id, empresa, mes y texto: ni nombre, ni cédula, ni dispositivo');
+    PRUEBAS.igual((encolado[0] || {}).id, ((encolado[0] || {}).payload || {}).id, 'y el id del cuerpo es EL MISMO de la cola: un reintento no escribe una segunda fila');
+    const _opid = String(((encolado[0] || {}).payload || {}).id || '');
+    PRUEBAS.cierto(/^op_[a-z0-9]{10,}$/.test(_opid), 'el id tiene la forma aleatoria de `opinionNuevoId` (' + _opid + ')');
+    PRUEBAS.falso(_opid.indexOf(dispositivoId()) >= 0, '⚠️ y NO lleva el identificador del dispositivo adentro: agruparía las opiniones de una persona');
+    /* ⚠️ ESTE DISCRIMINADOR ESTABA MAL PLANTEADO y lo cazó el verificador: buscaba el FORMATO de una
+     fecha, y la forma en que este mismo repo genera ids es `Date.now().toString(36)` (`bitNewId`),
+     que no matchea ninguna de las dos expresiones. Si alguien «unificara» `opinionNuevoId` con el
+     estilo de la casa, el reloj entraría en la columna IdOpinion del CH y el caso seguiría verde.
+     Lo que hay que exigir no es un formato: es que dos ids seguidos NO ORDENEN. Un id monótono es
+     una marca de tiempo aunque no se parezca a una. */
+  /* ⚠️ CON TRES IDS ESTO FALLABA 1 DE CADA 3 VECES: tres valores al azar quedan ordenados con
+     probabilidad 2/3! = 1/3. Un caso intermitente es peor que el que vino a reemplazar. Con 12 la
+     probabilidad de orden total por azar es 2/12! ≈ 2·10⁻⁹, y un id derivado del reloj los ordena
+     SIEMPRE — que es exactamente lo que hay que cazar. */
+  const _ids = []; for (let _i = 0; _i < 12; _i++) _ids.push(opinionNuevoId());
+  const _sube = _ids.every((v, i) => i === 0 || _ids[i - 1] < v);
+  const _baja = _ids.every((v, i) => i === 0 || _ids[i - 1] > v);
+  PRUEBAS.falso(_sube || _baja,
+    '⚠️ doce ids seguidos no quedan ordenados: un id monótono ES el reloj que el barajado del servidor existe para tapar · ' + _ids.slice(0, 3).join(' ') + '…');
     /* ahora la cola de verdad, con dos ítems: la opinión y un reporte cualquiera */
     window.empEncolar = oEncolar;
     localStorage.setItem(K_EMP_COLA, JSON.stringify({
-      'op_x2': { accion: 'opinion_guardar', payload: { empresa: 'Consorcio HELITEC', mes: '2026-09', texto: 'hola' }, creada: Date.now() },
+      'op_x2': { accion: 'opinion_guardar', payload: { id: 'op_x2', empresa: 'Consorcio HELITEC', mes: '2026-09', texto: 'hola' }, creada: Date.now() },
       'rep_x2': { accion: 'reporte_guardar', payload: { id: 'rep_x2', opcion: 'cansado', empresa: 'Consorcio HELITEC' }, creada: Date.now() }
     }));
     window.fetchConReloj = (url, opts) => { try { posts.push(JSON.parse(opts.body)); } catch(e){ posts.push({ _crudo: String(opts && opts.body) }); } return new Promise(() => {}); };   // la red no contesta: nada se borra de la cola
@@ -174,7 +203,7 @@ PRUEBAS.caso('⚠️ va por la cola offline: sin señal no se pierde', () => {
     PRUEBAS.cierto(!!op && !!rep, 'guarda: la cola mandó las dos (' + posts.map(b => b.action).join(', ') + ')');
     PRUEBAS.falso(op && ('dispositivoId' in op), '⚠️ la opinión sale SIN `dispositivoId`');
     PRUEBAS.cierto(rep && !!rep.dispositivoId, 'DISCRIMINADOR · el reporte sí lo lleva (es lo que frena una inundación)');
-    PRUEBAS.igual(Object.keys(op || {}).sort(), ['action', 'empresa', 'mes', 'texto'], 'y la opinión no lleva ninguna otra cosa');
+    PRUEBAS.igual(Object.keys(op || {}).sort(), ['action', 'empresa', 'id', 'mes', 'texto'], 'y la opinión no lleva ninguna otra cosa (P208: `id` sí, es lo que el servidor exige)');
   } finally {
     window.empEncolar = oEncolar; window.fetchConReloj = oFetch; history.pushState = oNav;
     delete _empEnVuelo.op_x2; delete _empEnVuelo.rep_x2;

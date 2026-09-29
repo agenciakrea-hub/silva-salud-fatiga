@@ -72,9 +72,10 @@ function p049Payload(vista, rol, niveles){
     ],
     comentarios: [], pvt: [], aptitud: [], operacional: [], turnos: [],
     marca: null, duty: null, ausencias: {}, demo: false,
-    /* Sin `niveles` el arranque toma la rama `dashCargarNiveles()`; con `niveles` toma la de
-       `gestPull()`. Son EXCLUYENTES (un `else if`), y por eso el médico da 3 en los dos casos
-       pero con una segunda cascada distinta. Las dos se prueban acá abajo. */
+    /* ⚠️ P208 · YA NO SON EXCLUYENTES, y ése era justamente el defecto: eran dos `else if` y el
+       primero ganaba SIEMPRE, así que `gestPull()` no corría nunca. Ahora las dos salen en la misma
+       rama y `niveles` en el payload sólo decide si se pide `niveles_riesgo` o no — `gestiones` se
+       pide igual. Por eso los dos casos de abajo dan el mismo número de repintados menos uno. */
     niveles: niveles,
     config: { persistencia: 3, anonN: 5 }
   };
@@ -224,21 +225,24 @@ function p049Medible(r, minRenders){
 
 PRUEBAS.caso('⚠️ servicio médico: llegan 4 respuestas y el panel entra UNA sola vez', async () => {
   /* P075 · eran 3; la cuarta es la bandeja de reportes, que desde P075 también se le pide al
-     médico y repinta al llegar (antes sólo repintaba si `DASH.tab === 'reportes'`, que nunca es). */
+     médico y repinta al llegar (antes sólo repintaba si `DASH.tab === 'reportes'`, que nunca es).
+     P208 · y la quinta es `gestiones`: hasta P208 ese pedido NO SALÍA —el `else if` de arriba ganaba
+     siempre— y el médico entraba a su cola leyendo un almacén vacío. La respuesta de más es el
+     arreglo, no una regresión: lo que P049 cuida es que UNO solo rearme la animación, y eso sigue. */
   const r = await p049Abrir('medico', 'empresa', {});
   if (!p049Medible(r, 2)) return;
-  PRUEBAS.igual(r.renders, 4,
-    'siguen siendo 4 pedidos con 4 repintados: este prompt NO cambia cuántas veces se piden los ' +
-    'datos, sólo cuántas veces el panel se vuelve a presentar · animados = ' + JSON.stringify(r.animados));
+  PRUEBAS.igual(r.renders, 5,
+    'son 5 pedidos con 5 repintados (eran 4; P208 sumó `gestiones`, que no salía nunca): este prompt ' +
+    'NO cambia cuántas veces se piden los datos, sólo cuántas veces el panel se vuelve a presentar · animados = ' + JSON.stringify(r.animados));
   PRUEBAS.igual(r.rearman, 1,
     '⚠️ y UNO solo rearma la animación de entrada. Antes eran los 3: el panel se veía entrar tres ' +
     'veces en el primer segundo, con 16 bloques desapareciendo y reapareciendo cada vez');
 });
 
 PRUEBAS.caso('⚠️ servicio médico con los niveles ya en el payload (la otra rama): también una sola vez', async () => {
-  /* La cascada de niveles y la de gestiones son EXCLUYENTES en onDashData (un `else if`). Sin
-     este caso, la mitad del defecto quedaría sin cubrir: el número total es el mismo (3) pero el
-     segundo repintado lo dispara otra función. */
+  /* P208 · ya no son dos ramas excluyentes: con `niveles` en el payload se saltea `niveles_riesgo`
+     y `gestiones` se pide igual, así que acá hay UNA cascada menos que arriba. Lo que este caso
+     sigue midiendo es lo de siempre: que el panel entre UNA sola vez. */
   const r = await p049Abrir('medico', 'empresa', { niveles: [{ departamento:'Operaciones', nivel:5 }] });
   if (!p049Medible(r, 2)) return;
   PRUEBAS.igual(r.rearman, 1,
@@ -252,7 +256,7 @@ PRUEBAS.caso('⚠️ supervisor: son 6 respuestas (una la dispara renderAptitud;
      `DASH.tab === 'reportes'`, que nunca se cumple, y la bandeja quedaba vacía si llegaba última). */
   const r = await p049Abrir('supervisor', 'supervisor', {});
   if (!p049Medible(r, 3)) return;
-  PRUEBAS.igual(r.renders, 6, 'las 6 respuestas siguen llegando y repintando (P187: opiniones repinta siempre, como reportes desde P075) · animados = ' + JSON.stringify(r.animados));
+  PRUEBAS.igual(r.renders, 6, 'las 6 respuestas siguen llegando y repintando (P187: opiniones repinta siempre, como reportes desde P075; P208 sumó `gestiones`, que antes no se pedía — UNA sola vez: `onDashData` marca `_aptPulled` para que `renderAptitud` no lo repita) · animados = ' + JSON.stringify(r.animados));
   PRUEBAS.igual(r.rearman, 1,
     '⚠️ pero una sola animación de entrada. La cuarta es la de renderAptitud(): si alguien la ' +
     'deja repintando a secas, este caso se pone rojo');
@@ -263,9 +267,16 @@ PRUEBAS.caso('Dirección/HSEQ (tres respuestas desde P081) y personal (dos): una
   if (p049Medible(h, 2)){
     PRUEBAS.igual(h.rearman, 1, 'HSEQ tiene 9 bloques: verlos entrar dos veces es igual de molesto · ' + JSON.stringify(h.animados));
   }
+  /* ⚠️ P208 · AL EMPLEADO YA NO SE LE PIDEN LOS NIVELES, así que se quedó SIN cascada asíncrona: su
+     `renders` sólo puede valer 1, y con eso esta comprobación pasó a no poder fallar. Se deja igual
+     porque documenta la conducta esperada, pero no la cuentes como cobertura — el caso que mide de
+     verdad que al empleado no se le piden es el de `p208-el-fallo-no-es-un-vacio.js`. `accionNivelesRiesgo` entra por `accesoPanel_`, que rechaza al
+     empleado —su `pass` es el token de persona, no una credencial de panel—, o sea que ese pedido
+     nunca podía traer nada: era un POST rechazado por entrada y un `_nivelesError` prendido para
+     siempre. Lo que este caso mide sigue siendo lo mismo: que entre UNA vez. */
   const e = await p049Abrir('empleado', 'empleado', {});
-  if (p049Medible(e, 2)){
-    PRUEBAS.igual(e.rearman, 1, 'la vista de la persona también pasa por la cascada de niveles');
+  if (p049Medible(e, 1)){
+    PRUEBAS.igual(e.rearman, 1, 'la vista de la persona entra una sola vez');
   }
 });
 
@@ -284,12 +295,12 @@ PRUEBAS.caso('⚠️ DISCRIMINADOR: sin dashRepintar(), las cuatro vistas vuelve
   } finally { dashRepintar = orig; }
 
   PRUEBAS.cierto(seUso, 'confirma que el mono-parche se usó de verdad — si no, el discriminador no discrimina nada');
-  PRUEBAS.igual(med.rearman, 4,
-    '⚠️ así se veía el servicio médico antes de P049: los 4 repintados rearmaban la entrada (P075 sumó el de reportes) · ' + JSON.stringify(med.animados));
+  PRUEBAS.igual(med.rearman, 5,
+    '⚠️ así se veía el servicio médico antes de P049: los repintados rearmaban la entrada (P075 sumó el de reportes; P208, el de gestiones) · ' + JSON.stringify(med.animados));
   PRUEBAS.igual(sup.rearman, 6,
-    '⚠️ y el supervisor, 6 (P187) · ' + JSON.stringify(sup.animados));
+    '⚠️ y el supervisor, 6 (P187; P208 sumó gestiones, una sola vez) · ' + JSON.stringify(sup.animados));
   PRUEBAS.igual(hseq.rearman, 5,
-    '⚠️ y Dirección/HSEQ, 5 (P081 le sumó la bandeja de reportes anónimos; P187, las opiniones; P199, la bitácora del servidor) · ' + JSON.stringify(hseq.animados));
+    '⚠️ y Dirección/HSEQ, 5 (P081 le sumó la bandeja de reportes anónimos; P187, las opiniones; P199, la bitácora del servidor. P208 NO le suma gestiones: el servidor se las niega) · ' + JSON.stringify(hseq.animados));
 });
 
 PRUEBAS.caso('el flag no queda pegado: el próximo render SÍ vuelve a animar', async () => {

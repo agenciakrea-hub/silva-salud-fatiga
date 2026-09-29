@@ -7529,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.90';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.91';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8619,6 +8619,9 @@ const I18N = {
       dw_pocos_registros:'Hay pocos registros para este filtro ({n}). Los promedios y tendencias pueden no ser representativos todavía.',
       dw_reportes_reintentar:'Todavía no se pudo conectar con la bandeja de reportes. Se va a reintentar solo.',
       dw_reportes_error:'No se pudieron traer los reportes. Toca ↻ arriba para volver a intentar.', rep_cargando:'Trayendo los reportes…',
+      dw_niveles_error:'No se pudo leer la tabla de niveles de riesgo. Mientras tanto se juzga a todos con el nivel {n}, que puede no ser el que corresponde, y lo que registres queda marcado como «sin confirmar». Toca ↻ arriba para volver a intentar.',
+      fm_chip_nivel_no:'Nivel sin confirmar',
+      niv_cargando:'Leyendo la tabla de niveles de riesgo…',
       tz_cargando:'Leyendo las acciones registradas…', dw_bitacora_error:'No se pudieron leer las acciones registradas en el servidor. Toca ↻ para volver a intentarlo.', tz_parcial:'Puede que falten acciones: no se pudo consultar el servidor.',
       dw_opiniones_error:'No se pudieron traer las opiniones. Toca ↻ arriba para volver a intentar.', op_cargando:'Trayendo las opiniones…',
       tar_ficha_cargando:'Trayendo lo que le pediste…', tar_ficha_error:'No se pudieron traer las tareas de esta persona. Toca ↻ arriba para volver a intentar.',
@@ -8641,6 +8644,7 @@ const I18N = {
       apt_conf_previo_n:'{n} tests previos quedaron fuera del cálculo por baja confiabilidad.',
       hs_ninguna_area:'Ningún área alcanza las {n} personas para poder desglosarla.',
       dw_faltan:'Faltan estadísticas',
+      av_no_pudimos:'No pudimos consultar el servidor',
       lt_faltan_dias:'Para ver la evolución hacen falta registros de <b>al menos 2 días distintos</b>.',
       lt_todos_del_dia:'Por ahora todos los registros son del {f}',
       lt_n_ese_dia:'{n} registros ese día', lt_sin_fecha:'Todavía no hay registros con fecha.',
@@ -8980,6 +8984,8 @@ const I18N = {
       sf_t_revisar:'Hay indicadores para revisar',
       sf_x_revisar:'Algunos de tus indicadores sugieren fatiga. Todavía no lo revisó el servicio médico — no es una determinación, es sólo una alerta del control automático.',
       mis_recuperando:'Estamos trayendo tu historial. Tus registros anteriores están guardados y van a aparecer en unos segundos.',
+      mis_recuperar_error:'No pudimos traer tu historial ahora. Tus registros siguen guardados en el servidor y no se perdió nada.',
+      mis_recuperar_reint:'Volver a intentar',
       ini_sincronizando:'Actualizando…',   // P190
       sf_t_sindato:'Todavía sin registros', sf_x_sindato:'Cuando completes tu primer test verás tu estado aquí.',
       sf_t_ok:'Estás en condiciones', sf_x_ok:'Tus indicadores más recientes están dentro de lo esperado.',
@@ -9016,6 +9022,9 @@ const I18N = {
       tz_titulo:'Trazabilidad ({n})', tz_exportar:'Exportar como CSV',
       tz_sobre:'Sobre {q}', tz_del_sistema:'Del sistema', tz_por:'por {q}', tz_automatico:'automático',
       tz_umbral:'Umbral vigente: nivel {n} · amarillo {a} · rojo {r}',
+      tz_umbral_no:'Umbral vigente: no se pudo determinar (la tabla de niveles de riesgo no había llegado cuando se registró esta acción).',
+      tz_umbral_sin_confirmar:'sin confirmar: la tabla de niveles no había llegado',
+      csv_si:'sí', csv_no:'no',
       // ── F1 · Consola de Dirección / HSEQ ──
       cic_hoy:'hoy', cic_ayer:'ayer', cic_de_hoy:'de hoy', cic_de_ayer:'de ayer', cic_del_dia:'del {d}',
       n_persona:'persona', n_personas:'personas', n_area:'área', n_areas:'áreas',
@@ -9199,6 +9208,7 @@ const I18N = {
       inf_tarda:'Suele tardar alrededor de un minuto; puedes seguir mirando el resto del panel.',   // P190
       inf_error:'No se pudo generar el informe.', inf_error_red:'Sin conexión o el servidor tardó demasiado. Inténtalo de nuevo.',
       inf_hist_vacio:'Todavía no hay informes generados para esta empresa. Toca “Generar informe” para crear el primero.',
+      inf_hist_error:'No se pudo traer el historial de informes. Puede haber informes anteriores que no se están mostrando. Toca ↻ arriba para volver a intentar.',
       casos_odoo_titulo:'Casos para atención interna',
       casos_odoo_off_1:'El traspaso automático al circuito de atención interna está <b>desactivado</b> para esta empresa. <b>No es una falla:</b> viene apagado de fábrica y se enciende sólo cuando la empresa lo aprueba, empresa por empresa.',
       casos_odoo_off_2:'Mientras tanto <b>no se pierde nada</b>: los casos que corresponderían se siguen viendo aquí arriba, en <b>Pendientes de revisión</b>, y se gestionan a mano como siempre. Lo único que no ocurre es el traspaso solo.',
@@ -9275,6 +9285,7 @@ const I18N = {
       tar_titulo:'Tus tareas',
       tar_lead:'Lo que tu supervisor o el servicio médico te pidieron, y los avisos de la aplicación.',
       tar_vacio:'No tienes tareas pendientes.',
+      tar_error:'No pudimos consultar tus tareas. Puede que tengas alguna pendiente sin mostrar. Toca “Actualizar” para volver a intentar.',
       tar_sin_perfil:'Completa tus datos para ver tus tareas.',
       tar_actualizar:'Actualizar', tar_actualizando:'Actualizando…',
       tar_de_medico:'Servicio médico', tar_de_supervisor:'Supervisor', tar_de_sistema:'Sistema',
@@ -10681,6 +10692,9 @@ const I18N = {
       dw_pocos_registros:'There are few records for this filter ({n}). Averages and trends may not be representative yet.',
       dw_reportes_reintentar:'Could not connect to the reports inbox yet. It will retry automatically.',
       dw_reportes_error:'The reports could not be loaded. Tap ↻ above to try again.', rep_cargando:'Loading the reports…',
+      dw_niveles_error:'The risk-level table could not be read. In the meantime everyone is judged at level {n}, which may not be the right one, and whatever you record is flagged as unconfirmed. Tap ↻ above to try again.',
+      fm_chip_nivel_no:'Level not confirmed',
+      niv_cargando:'Reading the risk-level table…',
       tz_cargando:'Reading the recorded actions…', dw_bitacora_error:'The actions recorded on the server could not be read. Tap ↻ to try again.', tz_parcial:'Some actions may be missing: the server could not be reached.',
       dw_opiniones_error:'The opinions could not be loaded. Tap ↻ above to try again.', op_cargando:'Loading the opinions…',
       tar_ficha_cargando:'Loading what you asked them…', tar_ficha_error:'The tasks for this person could not be loaded. Tap ↻ above to try again.',
@@ -10703,6 +10717,7 @@ const I18N = {
       apt_conf_previo_n:'{n} earlier tests were left out of the calculation for low reliability.',
       hs_ninguna_area:'No area reaches {n} people, so none can be broken down.',
       dw_faltan:'Not enough data',
+      av_no_pudimos:'We could not reach the server',
       lt_faltan_dias:'To see the trend, records from <b>at least 2 different days</b> are needed.',
       lt_todos_del_dia:'So far every record is from {f}',
       lt_n_ese_dia:'{n} records that day', lt_sin_fecha:'There are no dated records yet.',
@@ -11099,6 +11114,8 @@ const I18N = {
       sf_t_revisar:'There are indicators to review',
       sf_x_revisar:'Some of your indicators suggest fatigue. Medical staff have not reviewed it yet — it is not a determination, only an alert from the automatic check.',
       mis_recuperando:'We are fetching your history. Your previous records are saved and will appear in a few seconds.',
+      mis_recuperar_error:'We could not fetch your history right now. Your records are still stored on the server and nothing was lost.',
+      mis_recuperar_reint:'Try again',
       ini_sincronizando:'Updating…',
       sf_t_sindato:'No records yet', sf_x_sindato:'Once you complete your first test you will see your status here.',
       sf_t_ok:'You are fit to work', sf_x_ok:'Your most recent indicators are within the expected range.',
@@ -11135,6 +11152,9 @@ const I18N = {
       tz_titulo:'Traceability ({n})', tz_exportar:'Export as CSV',
       tz_sobre:'About {q}', tz_del_sistema:'From the system', tz_por:'by {q}', tz_automatico:'automatic',
       tz_umbral:'Threshold in force: level {n} · amber {a} · red {r}',
+      tz_umbral_no:'Threshold in force: could not be determined (the risk-level table had not arrived when this action was recorded).',
+      tz_umbral_sin_confirmar:'unconfirmed: the risk-level table had not arrived',
+      csv_si:'yes', csv_no:'no',
       // ── F1 · Management / HSEQ console ──
       cic_hoy:'today', cic_ayer:'yesterday', cic_de_hoy:'from today', cic_de_ayer:'from yesterday', cic_del_dia:'of {d}',
       n_persona:'person', n_personas:'people', n_area:'area', n_areas:'areas',
@@ -11312,6 +11332,7 @@ const I18N = {
       inf_tarda:'It usually takes about a minute; you can keep looking at the rest of the panel.',
       inf_error:'The report could not be generated.', inf_error_red:'No connection or the server took too long. Try again.',
       inf_hist_vacio:'No reports have been generated for this company yet. Tap “Generate report” to create the first one.',
+      inf_hist_error:'The report history could not be loaded. There may be earlier reports that are not being shown. Tap ↻ above to try again.',
       casos_odoo_titulo:'Cases for internal follow-up',
       casos_odoo_off_1:'Automatic hand-off to the internal follow-up workflow is <b>disabled</b> for this company. <b>This is not a malfunction:</b> it ships off by default and is turned on only when the company approves it, company by company.',
       casos_odoo_off_2:'In the meantime <b>nothing is lost</b>: the cases that would qualify are still shown above, in <b>Pending review</b>, and are handled by hand as always. The only thing that does not happen is the automatic hand-off.',
@@ -11388,6 +11409,7 @@ const I18N = {
       tar_titulo:'Your tasks',
       tar_lead:'What your supervisor or the medical service asked of you, and the app\'s notices.',
       tar_vacio:'You have no pending tasks.',
+      tar_error:'We could not check your tasks. You may have pending ones that are not shown. Tap “Refresh” to try again.',
       tar_sin_perfil:'Complete your details to see your tasks.',
       tar_actualizar:'Refresh', tar_actualizando:'Refreshing…',
       tar_de_medico:'Medical staff', tar_de_supervisor:'Supervisor', tar_de_sistema:'System',
@@ -14002,9 +14024,15 @@ function renderInicio(){
      una pantalla vacia que se lee como "perdiste todo" — y justo despues de tocar un boton que
      dice "Cerrar sesion". El aviso sale solo cuando de verdad hay una recuperacion en curso Y
      todavia no llego nada, asi que en el uso normal no aparece nunca. */
-  const recuperando = (typeof _misRecuperando !== 'undefined' && _misRecuperando &&
-                       !misDatos().registros.length)
-    ? '<div class="ini-recuperando">' + esc(t('mis_recuperando')) + '</div>' : '';
+  const sinRegistros = !misDatos().registros.length;
+  const recuperando = (typeof _misRecuperando !== 'undefined' && _misRecuperando && sinRegistros)
+    ? '<div class="ini-recuperando">' + esc(t('mis_recuperando')) + '</div>'
+    /* P208 · y si la recuperación FALLÓ, la pantalla vacía deja de ser muda: se dice qué pasó, se
+       aclara que el dato no se perdió, y se ofrece volver a intentar sin tener que cerrar la app. */
+    : ((typeof _misRecuperarError !== 'undefined' && _misRecuperarError && sinRegistros)
+      ? avisoCarga(t('mis_recuperar_error'),
+          '<button type="button" class="fm-nota-btn" onclick="misRecuperarReintentar()">' + esc(t('mis_recuperar_reint')) + '</button>')
+      : '');
   /* P172 · «Tu empresa te dio de baja en la nómina». Lo dice el servidor (`tareas_mias` con
      `motivo:"baja"`), y hasta acá el cliente lo ignoraba: la persona seguía usando la app como si
      nada. Se muestra arriba de todo, y se apaga solo cuando el servidor vuelve a responder bien. */
@@ -15299,16 +15327,38 @@ function misPodar(arr){
    `_misRecuperando` deja constancia de que hay una recuperacion en curso, para que la pantalla
    pueda decirlo en vez de mostrar un vacio que se lee como "no tenes nada". */
 var _misRecuperando = false;
+/* ⚠️ P208 · Y CÓMO TERMINÓ. `r.then(fin, fin)` no miraba el valor: cuando la recuperación fallaba,
+   el aviso «Estamos trayendo tu historial» simplemente desaparecía y quedaba una pantalla vacía sin
+   una palabra — justo después de que la persona tocara «Cerrar sesión», que es cuando más se lee
+   como «perdiste todo». `misSincronizar` devuelve `false` por tres motivos distintos (no había nada
+   que hacer, el servidor rechazó, se cayó la red), así que el booleano no alcanza para saberlo:
+   `_misUltimoSync` lo anota adentro, donde la diferencia se conoce.
+   Se declaran SIN asignar (R16): el arranque las lee y una asignación tardía pisaría lo que ya hay. */
+var _misRecuperarError;
+var _misUltimoSync;
 function misRecuperarHistorial(){
   const p = getProfile();
   if (!p || !p.nombre || !p.empresa) return;
   if (!SHEETS_DASHBOARD_URL || (typeof simulando === 'function' && simulando())) return;
-  _misRecuperando = true;
+  /* Con una sincronización ya en vuelo esto NO manda otra: `misSincronizar` devuelve la que está
+     viajando (ver su comentario), así que el aviso queda puesto y se entera de cómo termina
+     aquélla. Antes el `false` inmediato apagaba las dos banderas y dejaba la pantalla muda. */
+  _misRecuperando = true; _misRecuperarError = false; _misUltimoSync = '';
   try { renderInicio(); } catch(e){}
-  const fin = () => { _misRecuperando = false; try { renderInicio(); } catch(e){} };
-  let r; try { r = misSincronizar(); } catch(e){ fin(); return; }
-  if (r && typeof r.then === 'function') r.then(fin, fin); else fin();
+  /* `falloDuro` = la promesa rechazó o `misSincronizar` tiró. Si no, se cree lo que anotó ella: un
+     `false` porque ya había una sincronización en vuelo NO es un fallo y no se anuncia como tal. */
+  const fin = (falloDuro) => {
+    _misRecuperando = false;
+    _misRecuperarError = !!falloDuro || _misUltimoSync === 'fallo';
+    try { renderInicio(); } catch(e){}
+  };
+  let r; try { r = misSincronizar(); } catch(e){ fin(true); return; }
+  /* ⚠️ `() => fin(false)` y no `fin` a secas: `.then(fin)` le pasaría a `fin` el valor resuelto, y
+     un `true` (sincronización correcta) se leería como `falloDuro`. */
+  if (r && typeof r.then === 'function') r.then(() => fin(false), () => fin(true)); else fin(false);
 }
+/* El botón del aviso. Vuelve a entrar por el mismo camino, que es idempotente. */
+function misRecuperarReintentar(){ misRecuperarHistorial(); }
 
 /* Le pide la cédula a quien tiene un perfil viejo que no la trae. Se guarda en el perfil, así que
    se pregunta UNA vez y todos los caminos (estadísticas, notificaciones, tareas) vuelven a andar.
@@ -15358,12 +15408,37 @@ function misPedirCedula(motivo){
 }
 
 let _misSincronizando = false;
+/* ⚠️ P208 · CON UN PEDIDO EN VUELO SE DEVUELVE ESE PEDIDO, no un `false` inmediato. Es el mismo
+   arreglo que P174 le hizo a `tareasCargar`, por la misma razón: quien toca «Volver a intentar»
+   mientras otra sincronización viaja recibía un `false` al instante, el aviso se apagaba y la
+   pantalla quedaba vacía y muda — el estado exacto que este prompt viene a eliminar, alcanzable
+   con el botón que este prompt agrega. Ahora el segundo toque espera al primero y se entera de
+   cómo terminó. El candado contra el doble envío sigue siendo `_misSincronizando`: esto no manda
+   un pedido más, comparte el que ya está. */
+var _misSincEnVuelo;
+var _misSincDias;
 function misSincronizar(dias){
-  if (_misSincronizando || !SHEETS_DASHBOARD_URL) return Promise.resolve(false);
+  if (_misSincronizando){
+    /* ⚠️ SE COMPARTE SÓLO SI EL PEDIDO EN VUELO TRAE AL MENOS LO QUE ÉSTE PIDE, y sin esta condición
+       la primera versión rompió «Ver todo el historial» de la peor manera: silenciosa. Tocarlo en
+       los primeros segundos —mientras viaja el pedido del arranque, que trae 30 días— devolvía la
+       promesa de ESE pedido, que resuelve `true`; `cicloMiHistorialTodo` lo leía como «llegaron los
+       400 días», dejaba `_cicloHistDias = 400`, y con eso el botón «Ver todo el historial» DEJA DE
+       PINTARSE. La persona ve los mismos 30 días de siempre, sin un mensaje, y no tiene forma de
+       volver a pedir el año sin recargar la app.
+       El `false` de este caso NO es un fallo y tiene dueño: es lo que dispara el bucle de reintento
+       de P187 (25 intentos cada 1,2 s), que es el que hace que ese pedido no se pierda. Devolver la
+       promesa ajena lo dejaba muerto. Lo cazó el verificador; los tres casos que tocan este camino
+       estubean `misSincronizar`, así que ninguno lo podía ver (R17). */
+    if (_misSincEnVuelo && (Number(dias) || 0) <= (Number(_misSincDias) || 0)) return _misSincEnVuelo;
+    return Promise.resolve(false);
+  }
+  if (!SHEETS_DASHBOARD_URL) return Promise.resolve(false);
   if (simulando()) return Promise.resolve(false);          // en simulación no se toca nada real
   const p = getProfile();
   if (!p || !p.nombre || !p.empresa) return Promise.resolve(false);
   _misSincronizando = true;
+  _misSincDias = Number(dias) || 0;
   try { iniSyncPintar(true); } catch(e){}   // P190
   /* Z0b: la cédula VIAJA. Hasta acá esto mandaba sólo empresa + nombre, y el servidor entregaba
      los datos clínicos de esa persona con eso: bastaba saber un nombre. Ahora el servidor la exige,
@@ -15373,7 +15448,11 @@ function misSincronizar(dias){
                                    dispositivoId:dispositivoId(), _:Date.now() });
   /* P167 · el historial completo se pide con `dias`; el arranque sigue trayendo 30. */
   if (dias) qs.set('dias', String(dias));
-  return fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
+  /* ⚠️ El `.finally` de abajo compara contra `mia`: `misPedirCedula` puede arrancar OTRA
+     sincronización desde adentro del `.then` de ésta (el `prompt()` bloquea y suelta después de que
+     `_misSincronizando` ya volvió a false), y un `_misSincEnVuelo = null` a secas borraba el pedido
+     nuevo dejando `_misSincronizando` en true: a partir de ahí nadie más podía compartirlo. */
+  const mia = (_misSincEnVuelo = fetchConReloj(SHEETS_DASHBOARD_URL + '?' + qs, { cache:'no-store' })
     .then(r => r.json())
     .then(d => {
       _misSincronizando = false;
@@ -15402,7 +15481,7 @@ function misSincronizar(dias){
       if (d && !d.ok && d.motivo === 'clave_reiniciada'){
         try { if (!document.getElementById('claveOv').classList.contains('show')) clvReiniciadaAtender(); } catch(e){}
       }
-      if (!d || !d.ok) return false;
+      if (!d || !d.ok){ _misUltimoSync = 'fallo'; return false; }   // P208 · el motivo, para quien recupera el historial
       const local = misDatos();
       const srv = Array.isArray(d.registros) ? d.registros : [];
       // El servidor manda sobre lo local para una misma fecha (trae `confiable`, que el cliente
@@ -15433,10 +15512,17 @@ function misSincronizar(dias){
           dias: Number(d.operacionalPeriodo.dias) || 0, desde: d.operacionalPeriodo.desde || null,
           hasta: d.operacionalPeriodo.hasta || null, ts: Date.now() })); } catch(e){}
       }
+      /* P208 · una sincronización que sale bien apaga el aviso de la recuperación fallida. Sin esto
+         quedaba pegado: alguien recién dado de alta —cero registros, que es su caso normal— seguía
+         leyendo «no pudimos traer tu historial» después de que el servidor contestara que no hay
+         ninguno. Una afirmación falsa, y permanente hasta recargar la app. */
+      _misUltimoSync = 'ok'; _misRecuperarError = false;
       try { renderInicio(); } catch(e){}
       return true;
     })
-    .catch(() => { _misSincronizando = false; try { iniSyncPintar(false); } catch(e){} return false; });
+    .catch(() => { _misSincronizando = false; _misUltimoSync = 'fallo'; try { iniSyncPintar(false); } catch(e){} return false; })
+    .finally(() => { if (_misSincEnVuelo === mia) _misSincEnVuelo = null; }));
+  return mia;
 }
 
 const K_ACTIVIDAD = 'silva_fatiga_actividad_v1';
@@ -15884,7 +15970,23 @@ function opinionEnviar(btn){
   if (btn) btn.disabled = true;
 
   const perfil = getProfile() || {};
-  empEncolar(opinionNuevoId(), 'opinion_guardar', {
+  /* ⚠️ P208 · EL `id` VA DENTRO DEL PAYLOAD, y sin esto el buzón anónimo estaba MUERTO ENTERO.
+     `empEncolar(id, accion, payload)` usa el id como CLAVE del mapa de la cola: no entra al cuerpo
+     del POST, que se arma con `Object.assign({action}, …, item.payload)`. Del otro lado,
+     `accionOpinionGuardar` abre con `if (!id || !texto) return {ok:false, error:"Faltan datos"}`.
+     O sea: TODA opinión anónima se rechazaba, siempre, desde que existe el canal. Y no se notaba
+     por dos razones que se tapan entre sí: la pantalla muestra «Gracias» apenas encola (nunca mira
+     la respuesta), y el item rechazado no se borra de la cola, así que se sigue reintentando hasta
+     que `empFallo` lo marca `trabado` a los `COLA_MAX_INTENTOS` — y ahí queda, contado en el cartel
+     de pendientes, sin que nadie sepa que el problema no era la señal. Las otras cinco acciones de
+     esta cola ya mandaban `id:id` adentro; ésta se había quedado afuera.
+     El id de la cola y el del cuerpo son EL MISMO a propósito: así un reintento manda siempre el
+     mismo y `upsertPorId` deduplica en vez de escribir dos filas.
+     ⚠️ Sigue siendo aleatorio y no derivado (ver `opinionNuevoId`): dos opiniones del mismo
+     teléfono no comparten nada, que es lo que sostiene la promesa de X2. */
+  const opId = opinionNuevoId();
+  empEncolar(opId, 'opinion_guardar', {
+    id: opId,
     empresa: perfil.empresa || '',
     mes: opinionMes(),
     texto: texto
@@ -19258,7 +19360,7 @@ function closePortal(todo){
   const _volverAlSelector = _eraDemo && !todo && !!DEMO_PAYLOAD && _panelAbierto;
   DASH = null;
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
-  stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null); cicloTickStop();
+  stopDashAutoRefresh(); dashNivelesFrenar(); dismissRemember(); dashApplyMarca(null); cicloTickStop();   // P208 · el panel se cerró: el reintento de niveles no sigue pidiendo
   const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
   const pvtOv = document.getElementById('pvtOverlay'); if (pvtOv) pvtOv.classList.remove('show');
   if (!_volverAlSelector) document.getElementById('portalOverlay').classList.remove('show');
@@ -19355,7 +19457,7 @@ function portalBackToGate(){
   if (dashAtras()) return;              // primero se deshacen los filtros, no se cierra la sesión
   const p = getProfile() || {};
   if (p.esSupervisor || p.esServicioMedico){
-    stopDashAutoRefresh(); dismissRemember(); dashApplyMarca(null);
+    stopDashAutoRefresh(); dashNivelesFrenar(); dismissRemember(); dashApplyMarca(null);   // P208 · ídem: acá `DASH` NO se anula, así que el candado `mio` no alcanza
     document.getElementById('portalDash').style.display = 'none';
     openPortalGate();
   } else {
@@ -21181,6 +21283,12 @@ function dashLocalReaplicar(dash){
 }
 function onDashData(d, scopeLabel, params, vista){
   if (!d || !d.ok){ showToast(tError(d)); return; }
+  /* ⚠️ P208 · el reintento de niveles del panel ANTERIOR muere acá, que es donde de verdad hay un
+     panel nuevo. Estaba en `startDashAutoRefresh()` y era el lugar equivocado: `dashGenerarInforme`
+     la llama para rearmar el auto-refresco sobre el MISMO `DASH`, así que tocar «Generar informe»
+     cancelaba el reintento pendiente y nada lo volvía a armar — el médico se quedaba el turno
+     entero juzgando con el nivel por omisión. Lo cazó el verificador. */
+  dashNivelesFrenar();
   /* ⚠️ R14 · SE MIDE ANTES DE PISAR `DASH`. `sectorActual()` mira `DASH._cfg.sector` PRIMERO, así
      que en cuanto este objeto se reemplaza el sector puede cambiar de golpe — y lo que ya estaba
      pintado afuera del panel (el inicio, sus botones operacionales) se queda con la terminología
@@ -21326,13 +21434,39 @@ function onDashData(d, scopeLabel, params, vista){
     if (vista === 'hseq') demoAnonimizarHseq();
     casosOdooListo('niveles'); casosOdooListo('gestiones');       // (la demo nunca genera casos igual)
   }
-  else if (!DASH._niveles && gestCanSync()){ dashCargarNiveles(); casosOdooListo('gestiones'); }
   // Trae gestiones/anotaciones del servidor YA AL ENTRAR (antes sólo se traían al abrir el panel
   // completo de Gestiones, así que una anotación cargada desde otro dispositivo no aparecía en
   // Resumen/Aptitud hasta tocar "Abrir panel de gestiones"). Cubre médico y supervisor por igual.
+  /* ⚠️ P208 · ACÁ HABÍA DOS `else if` Y EL PRIMERO GANABA SIEMPRE, así que esta carga —la que trae
+     determinaciones, restricciones y anotaciones— NO CORRÍA NUNCA al entrar. El primero era
+     `!DASH._niveles && gestCanSync()`, y `DASH._niveles` vale `null` en TODA entrada al panel:
+     `accionSupervisor` no devuelve `niveles` en su payload (verificado en el `.gs`: la lista de
+     claves de su `return json` no lo incluye), los niveles los trae la acción `niveles_riesgo`,
+     que es otra. O sea que la condición era constante y la rama de abajo, inalcanzable.
+     Efecto, y no es cosmético: el médico entra a su cola de trabajo leyendo un almacén vacío, así
+     que alguien con un «no apto» firmado le aparece con el semáforo automático. El `gestPull()` de
+     `renderAptitud` tampoco lo tapaba — la vista del médico no tiene esa pestaña.
+     (Los `casosOdooListo` de acá abajo son NO-OPS desde que la generación de casos se mudó al
+     endpoint — ver su declaración. Se conservan porque marcan dónde iría cada aviso si el puente
+     vuelve al cliente, no porque alguien los esté esperando.)
+     Son DOS cargas independientes (una hoja distinta, otra acción del endpoint) y ahora se piden
+     las dos — pero CADA UNA GATEADA POR VISTA, que es lo que la primera versión de este arreglo se
+     olvidó y el verificador cazó. El servidor no le contesta lo mismo a todos:
+     · `accionGestiones` responde `sin_permiso` a `hseq` — «esta vista no opera sobre personas».
+     · `accionNivelesRiesgo` entra por `accesoPanel_`, que rechaza a un empleado: su `pass` es el
+       token de persona, no una credencial de panel. Sin este gateo, la vista del empleado quedaba
+       con `_nivelesError` prendido PARA SIEMPRE y cada ↻ volvía a pedir lo mismo — exactamente el
+       POST inútil que P187 sacó de acá.
+     Y `_aptPulled` se marca ACÁ: `renderAptitud()` dispara su propio `gestPull()` con esa guarda, y
+     sale DESDE ADENTRO del primer render. Sin marcarla, el supervisor mandaba dos `gestiones`
+     idénticos con milisegundos de diferencia, y repintaba dos veces. */
   else if (gestCanSync()){
-    casosOdooListo('niveles');            // los niveles ya vinieron en el payload
-    gestPull().then(ok => { if (ok && DASH) dashRepintar(); }).then(() => casosOdooListo('gestiones'));
+    if (vista !== 'empleado' && !DASH._niveles) dashCargarNiveles(); else casosOdooListo('niveles');
+    if (vista === 'supervisor' || vista === 'medico'){
+      DASH._aptPulled = true;   // el `gestPull` de `renderAptitud` es ESTE pedido, no uno nuevo
+      gestPull().then(ok => { if (ok && DASH) dashRepintar(); }).then(() => casosOdooListo('gestiones'));
+    }
+    else casosOdooListo('gestiones');
   }
   else { casosOdooListo('niveles'); casosOdooListo('gestiones'); }   // sin credenciales no se sincroniza nada
   // La bandeja de reportes se pide aparte (no depende de niveles/gestiones). P075 · también para el
@@ -21381,21 +21515,49 @@ function onDashData(d, scopeLabel, params, vista){
    Falla en silencio a propósito: mientras el endpoint no tenga la acción `niveles_riesgo`,
    la respuesta va a ser un error o un ok sin `niveles`, y en los dos casos hay que seguir
    funcionando con el default (nivel 3 = comportamiento histórico), no romper el panel. */
+/* ⚠️ P208 · TRES ESTADOS TAMBIÉN ACÁ, y es el que más caro sale de los cuatro. Antes el fallo se
+   tragaba entero (`.catch(()=>{})` y un `return` mudo): `DASH._niveles` quedaba en `null`,
+   `nivelRiesgoDe()` contestaba `NIVEL_DEFAULT` (3) para TODO el mundo, y nadie se enteraba —
+   ni la pantalla lo decía, ni había reintento, porque `_nivelesPedidos` quedaba en `true` para
+   siempre y `dashRefresh` no recrea `DASH`.
+   Dos consecuencias distintas, las dos graves:
+   · a un puesto de nivel 5 se lo juzga con la tolerancia de un nivel 3 sin que nadie lo sepa;
+   · `bitUmbralDe()` escribía ese 3 en la bitácora, que es append-only (R3) y no se corrige nunca.
+     El `.gs` tiene el mismo defecto anotado al lado de `nivelesParaAcceso_`, con estas palabras.
+   Ahora: se marca el error, la ficha lo dice, el ↻ vuelve a pedir, y el umbral no se afirma
+   (ver `bitUmbralDe`). Ojo con la distinción que hace todo esto necesario: «la empresa no declara
+   niveles» es una RESOLUCIÓN válida —llega `[]` y el 3 es correcto—; «no pude preguntar» no lo es. */
 function dashCargarNiveles(){
   if (!DASH || DASH._nivelesPedidos) return;
-  DASH._nivelesPedidos = true;
+  DASH._nivelesPedidos = true; DASH._nivelesError = false;
   const mio = DASH;
   gestPost(gestAuth({ action:'niveles_riesgo' })).then(d => {
-    if (!d || !d.ok || !Array.isArray(d.niveles) || !DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
-    DASH._niveles = d.niveles;
+    if (!DASH || DASH !== mio) return;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
+    /* el render va en su propio `try` por lo mismo que la rama de éxito: si tira, el `.catch` de
+       abajo volvería a llamar a `dashNivelesReintentoTarde` y el panel se quedaría con UN reintento
+       en vez de dos, por un error que no tiene nada que ver con la lectura. */
+    if (!d || !d.ok || !Array.isArray(d.niveles)){
+      DASH._nivelesError = true; dashNivelesReintentoTarde(mio);
+      try { dashRepintar(); } catch(e){}
+      return;
+    }
+    DASH._niveles = d.niveles; DASH._nivelesError = false;
     if (d.config && typeof d.config === 'object') DASH._cfg = d.config;
     nivelCacheClear();
-    buildDashFilters();     // el selector de nivel sólo aparece si hay niveles cargados
-    dashRepintar();         // P049 · repinta con los niveles, SIN volver a animar todo el panel
-  }).catch(()=>{})
-    // Se avisa igual si falló: el puente a Odoo (P13) espera a que los niveles ESTÉN RESUELTOS,
-    // y "no hay hoja de niveles" es una resolución válida (se juzga con el default, nivel 3).
-    // Sin este aviso en el camino de error, el puente no evaluaría nunca.
+    /* ⚠️ EL RENDER VA EN SU PROPIO `try`. Sin esto, una excepción de `buildDashFilters()` o de
+       `dashRepintar()` —que no tienen nada que ver con la lectura— caía en el `.catch` de abajo y
+       prendía `_nivelesError` con los niveles YA PUESTOS: la ficha decía «no se pudo leer la tabla»
+       al lado de un chip con el nivel real, y el ↻ volvía a pedir algo que ya estaba. */
+    try {
+      buildDashFilters();   // el selector de nivel sólo aparece si hay niveles cargados
+      dashRepintar();       // P049 · repinta con los niveles, SIN volver a animar todo el panel
+    } catch(e){}
+  }).catch(() => { if (DASH && DASH === mio){ DASH._nivelesError = true; dashNivelesReintentoTarde(mio); try { dashRepintar(); } catch(e){} } })
+    // Se avisa igual si falló: el puente a Odoo (P13) esperaba a que los niveles ESTUVIERAN
+    // RESUELTOS, y "no hay hoja de niveles" es una resolución válida (se juzga con el default).
+    // ⚠️ P208 · HOY `casosOdooListo` ES UN NO-OP (la generación de casos se mudó al endpoint, ver
+    // su declaración): estas llamadas no le avisan a nadie. Se conservan porque marcan dónde iría
+    // el aviso si el puente vuelve al cliente, pero no las cuentes como un contrato vivo.
     .then(() => casosOdooListo('niveles'));
 }
 
@@ -21451,6 +21613,44 @@ function dashCargarBitacora(){
   }).catch(() => { if (DASH && DASH === mio){ DASH._bitError = true; dashRepintar(); } });
 }
 /* P187 · lo que el ↻ vuelve a pedir: lo que nunca llegó o falló (reportes, opiniones, tareas de la ficha) */
+/* ⚠️ P208 · LOS NIVELES SE REINTENTAN SOLOS, y con su propio reloj. Son el único dato de este panel
+   que decide una restricción Y que se archiva en la bitácora (R3, no se corrige nunca), y hasta este
+   prompt su fallo era mudo: nadie tenía por qué tocar nada, así que la ventana en que todo el mundo
+   se juzga con el nivel por omisión no era «unos segundos» — era la sesión entera.
+   ⚠️ NO ALCANZA CON COLGARLO DEL REFRESCO, y la primera versión de este arreglo lo hizo: el
+   auto-refresco del panel es DIARIO a propósito (cuota del endpoint), y el único que corre cada
+   minuto es el de `cicloTick`, que exige la sección Ciclo en pantalla — o sea SÓLO el supervisor.
+   El médico no tiene esa pestaña y `cicloTickStart` ni siquiera arranca para Dirección: las dos
+   vistas que FIRMAN determinaciones se quedaban sin reintento. Por eso va con temporizador propio.
+   Dos reintentos espaciados y se para: un endpoint caído no merece un POST por minuto durante todo
+   un turno, y el ↻ manual sigue estando para quien quiera insistir (ése no tiene tope).
+   El empleado queda afuera: `accionNivelesRiesgo` entra por `accesoPanel_`, que rechaza su token de
+   persona, así que reintentarlo sería un POST condenado. */
+var _nivelesReintentoT;
+const NIVELES_REINTENTOS_MAX = 2;
+const NIVELES_REINTENTO_MS = [30000, 90000];
+function dashNivelesFrenar(){ if (_nivelesReintentoT){ clearTimeout(_nivelesReintentoT); _nivelesReintentoT = null; } }
+/* `forzado` = lo pidió una persona con el ↻: se resetea el contador y se pide sin esperar. */
+function dashReintentarNiveles(forzado){
+  if (!DASH || DASH.demoMode || !gestCanSync()) return;
+  if (!DASH._nivelesError || DASH.vista === 'empleado') return;
+  if (forzado) DASH._nivelesIntentos = 0;
+  DASH._nivelesPedidos = false; DASH._nivelesError = false;
+  dashCargarNiveles();
+}
+/* Lo arma `dashCargarNiveles` cuando falla. `mio` es el mismo candado de P185: si el visor cambió de
+   panel, el temporizador que quedó colgado no tiene que pedir nada de la empresa nueva. */
+function dashNivelesReintentoTarde(mio){
+  if (!DASH || DASH !== mio) return;
+  if (DASH.vista === 'empleado') return;   // medido: se armaba un temporizador que al disparar no hace nada
+  const n = DASH._nivelesIntentos = (DASH._nivelesIntentos || 0) + 1;
+  if (n > NIVELES_REINTENTOS_MAX) return;
+  dashNivelesFrenar();
+  _nivelesReintentoT = setTimeout(() => {
+    _nivelesReintentoT = null;
+    if (DASH && DASH === mio && DASH._nivelesError) dashReintentarNiveles();
+  }, NIVELES_REINTENTO_MS[n - 1] || 90000);
+}
 function dashRecargarPendientes(){
   if (!DASH || DASH.demoMode || !gestCanSync()) return;
   /* el MISMO gateo por vista que `onDashData`: un empleado o un médico no tienen bandeja de opiniones, y
@@ -21460,6 +21660,9 @@ function dashRecargarPendientes(){
   if (DASH._opiniones === null && (v === 'supervisor' || v === 'hseq')){ DASH._opinionesPedidas = false; dashCargarOpiniones(); }
   if (!DASH._bitBajada && v === 'hseq'){ DASH._bitPedida = false; dashCargarBitacora(); }   // P199
   if (TAREAS_FICHA.error){ TAREAS_FICHA.error = false; TAREAS_FICHA.persona = null; }
+  /* P208 · el historial de informes sólo se repide si falló de verdad (`_informesError`): si llegó
+     vacío, vacío está, y volver a pedirlo es gastar cuota. */
+  if (DASH._informesError){ DASH._informesError = false; DASH._informesLoaded = false; DASH._informesLoading = false; dashLoadInformes(); }
 }
 /* El estado de una carga de tres valores, para los renders: 'viajando' | 'error' | 'ok' */
 function cargaEstado(pedido, valor, error){
@@ -21582,7 +21785,7 @@ function dashRefresh(manual){
     if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return false; }
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
-    if (manual) dashRecargarPendientes();   // P187 · el ↻ vuelve a pedir reportes/opiniones/tareas de la ficha que nunca llegaron o fallaron
+    if (manual){ dashReintentarNiveles(true); dashRecargarPendientes(); }   // P187 · el ↻ vuelve a pedir lo que nunca llegó o falló. P208 · los niveles sin tope de intentos: lo pidió una persona
     /* Y1: el periodo que el servidor sirvio DE VERDAD, que no siempre es el pedido (a un supervisor
        se le ignora y a cualquiera se le recorta a 365). Se guarda para poder decir en pantalla
        cuanto se esta viendo, en vez de suponer que dieron lo que se pidio.
@@ -22757,6 +22960,22 @@ function nivelCoincide(valorFila, valorReal){
 let _nivelCache = null;
 function nivelCacheClear(){ _nivelCache = null; }
 function nivelFilas(){ return (DASH && Array.isArray(DASH._niveles)) ? DASH._niveles : []; }
+/* ⚠️ P208 · EL ESTADO DE LA TABLA DE NIVELES, EN UN SOLO LUGAR. La primera versión de este arreglo
+   usaba DOS condiciones para el mismo hecho —el chip miraba `Array.isArray(_niveles)` y el aviso
+   `_nivelesError`— y entre la entrada al panel y la respuesta los dos daban falso: la ficha decía
+   «Nivel sin confirmar» sin una palabra de por qué y sin ↻ a mano. Tres estados o ninguno.
+   La demo trae su propia tabla y el empleado no la pide nunca: para los dos el estado es 'ok'. */
+function nivelesEstado(){
+  if (!DASH || DASH.demoMode || DASH.vista === 'empleado') return 'ok';
+  return cargaEstado(DASH._nivelesPedidos, DASH._niveles, DASH._nivelesError);
+}
+/* El aviso que corresponda, para las pantallas donde se DECIDE sobre una persona. Vacío si está ok. */
+function nivelesAvisoHtml(){
+  const e = nivelesEstado();
+  if (e === 'error')    return avisoCarga(t('dw_niveles_error', { n: NIVEL_DEFAULT }));
+  if (e === 'viajando') return cargandoHtml(t('niv_cargando'));
+  return '';
+}
 function nivelRiesgoDe(persona, dep, empresa, cargo){
   const key = (persona||'') + '|' + (dep||'') + '|' + (empresa||'') + '|' + (cargo||'');
   if (!_nivelCache) _nivelCache = {};
@@ -23213,8 +23432,12 @@ function aptTarjeta(p, opts){
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
         '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) +
-          (p.nivel ? '<span class="apt-nivel apt-nivel-' + p.nivel + '" title="' +
-            esc(t('apt_nivel_title', { n: nivelLabel(p.nivel), d: nivelDesc(p.nivel) })) + '">' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) + '</span>' : '') +
+          /* P208 · sin la tabla leída, `p.nivel` es el valor por omisión y no el de esta persona.
+             El chip lo dice en corto; el porqué está una vez arriba de la lista, no en cada tarjeta. */
+          (p.nivel ? (nivelesEstado() !== 'error'
+            ? '<span class="apt-nivel apt-nivel-' + p.nivel + '" title="' +
+              esc(t('apt_nivel_title', { n: nivelLabel(p.nivel), d: nivelDesc(p.nivel) })) + '">' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) + '</span>'
+            : '<span class="apt-nivel">' + esc(t('fm_chip_nivel_no')) + '</span>') : '') +
         '</div></div>' +
       '<span class="apt-badge" style="background:' + semSolido(est.c) + ';color:#fff">' + est.t + '</span>' +
     '</div>' + aptCicloLineaHtml(p.nombre) + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +   // P078 · las horas, acá
@@ -23808,7 +24031,18 @@ function renderHseqAuditoria(){
         (e.rol ? ' <small>(' + esc(bitRolLabel(e.rol)) + ')</small>' : '') +
         (e.origen === 'algoritmo' ? ' <small>· ' + esc(t('tz_automatico')) + '</small>' : '') +
       '</div>' +
-      (u ? '<div class="hs-ev-um">' + esc(t('tz_umbral', { n: u.nivel, a: u.amarillo, r: u.rojo })) + '</div>' : '') +
+      /* P208 · un umbral con `nivel` en null es «no se pudo determinar», no «nivel ␣»: la línea lo
+         dice con todas las letras en vez de imprimir un renglón con huecos.
+         ⚠️ HOY ESTA RAMA NO SE ALCANZA, y conviene saberlo antes de tocarla: esta pantalla es la
+         pestaña `auditoria`, que sólo existe para `hseq`, y `hseqEventos()` le pone `umbral: null`
+         a TODO evento en esa vista (P091 · el umbral reidentifica cruzándolo con la tabla de
+         niveles). O sea que `u` siempre es null acá y no se pinta ninguna de las dos líneas.
+         Se deja escrito porque el día que ese recorte cambie, esto ya está resuelto — y porque un
+         caso de prueba que arme el estado a mano para ejercitarlo estaría probando algo que no
+         existe (R17). Lo que SÍ se verifica es el consumidor real: la columna de la hoja. */
+      (u ? '<div class="hs-ev-um">' + esc(u.nivel == null
+              ? t('tz_umbral_no')
+              : t('tz_umbral', { n: u.nivel, a: u.amarillo, r: u.rojo }) + (u.sinNiveles ? ' · ' + t('tz_umbral_sin_confirmar') : '')) + '</div>' : '') +
       /* P074 · el «de → a» del cambio de horas y quién lo tocó (nombre del perfil del dispositivo) */
       (cambio ? '<div class="hs-ev-um">' + esc(t('tz_cambio', { q: cambio })) +
         (e.detalle && e.detalle.quien ? ' · ' + esc(t('tz_quien', { q: e.detalle.quien })) : '') + '</div>' : '') +
@@ -23842,10 +24076,18 @@ function hseqExportar(){
   const ev = hseqEventos();   // mismo recorte que la pantalla: pseudónimos incluidos
   if (!ev.length){ showToast(t('ts_nada_exportar')); return; }
   const esc2 = s => '"' + String(s == null ? '' : s).replace(/"/g,'""') + '"';
-  const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','Version','Cambio'];
+  const head = ['Fecha','Accion','Sujeto','Actor','Rol','Origen','NivelRiesgo','UmbralAmarillo','UmbralRojo','UmbralConfirmado','Version','Cambio'];
   const cuerpo = ev.map(e => [ gestFechaTs(e.ts), accionLabelCanon(e.accion), e.sujeto || '',
-    e.actor || '', e.rol || '', e.origen || '', e.umbral ? e.umbral.nivel : '',
-    e.umbral ? e.umbral.amarillo : '', e.umbral ? e.umbral.rojo : '', e.app || '',
+    /* P208 · `e.umbral.nivel` puede venir en null (eventos viejos, o el recorte de P091): la celda va
+       VACÍA, no con la palabra «null», que en una planilla se lee como un valor. Y `sinNiveles` sale
+       en su propia columna: si no, el dato que distingue «se juzgó con el 3 porque la empresa lo
+       eligió» de «se juzgó con el 3 porque no se pudo leer la tabla» vive sólo adentro del JSON. */
+    e.actor || '', e.rol || '', e.origen || '', (e.umbral && e.umbral.nivel != null) ? e.umbral.nivel : '',
+    (e.umbral && e.umbral.amarillo != null) ? e.umbral.amarillo : '',
+    (e.umbral && e.umbral.rojo != null) ? e.umbral.rojo : '',
+    /* tres estados: `no` (se juzgó sin la tabla), `sí` (con la tabla leída) y VACÍO para las filas de
+       apps anteriores a 6.91, que no llevan el dato — poner «sí» ahí sería afirmar por ellas. */
+    (e.umbral && typeof e.umbral.sinNiveles === 'boolean') ? (e.umbral.sinNiveles ? t('csv_no') : t('csv_si')) : '', e.app || '',
     (function(){ const c = bitCambioDe(e, true); return c && e.detalle && e.detalle.quien ? c + ' · ' + e.detalle.quien : c; })() ].map(esc2).join(','));   // P074
   const csv = '﻿' + [head.map(esc2).join(',')].concat(cuerpo).join('\r\n');   // BOM: Excel abre los acentos bien
   try {
@@ -26902,7 +27144,12 @@ function renderAptitud(rows){
        "entrara" cuatro veces seguidas en el primer segundo. */
     gestPull().then(ok => { if (ok && DASH && DASH.tab === 'aptitud') dashRepintar(); });
   }
-  const ayuda = dashHelp(t('hlp_aptitud') + (nivelFilas().length ? t('hlp_aptitud_nivel') : ''));
+  /* ⚠️ P208 · EL AVISO TAMBIÉN ACÁ, y ésta es la pantalla que más importa de las dos. La ficha del
+     médico lo tenía y el supervisor no — y el supervisor es QUIEN RESTRINGE TAREAS: sin la tabla de
+     niveles, las duraciones que se le ofrecen salen de `nivelInfo(3).maxRestrH`, o sea la tolerancia
+     de un puesto de nivel 3 aplicada a uno de nivel 5, y la fila de bitácora se archiva sin umbral
+     (R3: no se corrige nunca). El aviso iba a parar a la única pantalla donde el dato ya se veía. */
+  const ayuda = dashHelp(t('hlp_aptitud') + (nivelFilas().length ? t('hlp_aptitud_nivel') : '')) + nivelesAvisoHtml();
 
   const gente = aptGente(rows);
   if (!gente.length){
@@ -27492,6 +27739,14 @@ function dashVerMas(items, n){
 }
 // Aviso "faltan estadísticas": cuando no hay datos suficientes para un gráfico, no lo mostramos y explicamos por qué.
 function dashWarn(detail){ return '<div class="dash-warn"><div class="dw-t">⚠ ' + esc(t('dw_faltan')) + '</div><div class="dw-d">' + detail + '</div></div>'; }
+/* P208 · el mismo cartel, con el título que corresponde cuando lo que falló fue la CONSULTA y no
+   los datos («Faltan estadísticas» es otra cosa). Reusa `.dash-warn`, cuyo par de colores ya está
+   medido en los dos temas, así que no agrega ni un color ni una clase (R13).
+   ⚠️ Función DECLARADA a propósito (R16): la llama `renderInicio`, que corre en el arranque. */
+function avisoCarga(texto, extraHtml){
+  return '<div class="dash-warn"><div class="dw-t">⚠ ' + esc(t('av_no_pudimos')) + '</div>' +
+    '<div class="dw-d">' + esc(texto) + (extraHtml || '') + '</div></div>';
+}
 // Cuántos meses distintos con datos hay en estas filas (para saber si se puede graficar evolución)
 function dashMonthsCount(rows){ const s={}; rows.forEach(r=>{ if(r.fecha) s[String(r.fecha).slice(0,7)]=1; }); return Object.keys(s).length; }
 
@@ -28052,9 +28307,12 @@ function renderInforme(rows){
   const objBlock = DASH.demoMode ? '' : obj;    // en la demo el objetivo no aplica (no se genera nada)
   const out = '<div id="informeOut">' + (DASH._informeEnVuelo ? cargandoHtml(t('inf_analizando') + ' ' + t('inf_tarda')) : '') + '</div>';   // acá aparece el que se está generando ahora (P190: también tras un repintado en vuelo)
   let hist;
+  /* P208 · si falló, se dice — y si además hay informes de un intento anterior, se muestran las dos
+     cosas: la lista puede estar incompleta y eso es justamente lo que hay que avisar. */
+  const errInf = DASH._informesError ? avisoCarga(t('inf_hist_error')) : '';
   if (!DASH._informesLoaded) hist = cargandoHtml(t('inf_cargando'));   // P187
-  else if (!DASH._informes.length) hist = '<div class="informe-empty">' + esc(t('inf_hist_vacio')) + '</div>';
-  else hist = '<div class="db-sub2">' + esc(t('inf_historial', { n: DASH._informes.length })) + '</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
+  else if (!DASH._informes.length) hist = errInf || ('<div class="informe-empty">' + esc(t('inf_hist_vacio')) + '</div>');
+  else hist = errInf + '<div class="db-sub2">' + esc(t('inf_historial', { n: DASH._informes.length })) + '</div><div class="inf-hist">' + DASH._informes.map(dashInformeCard).join('') + '</div>';
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_informe_ia')) + '</div>' + sub + objBlock + btn + out + hist + '</div>';
 }
 function dashLoadInformes(){
@@ -28068,15 +28326,23 @@ function dashLoadInformes(){
   if (DASH_DEMO){ DASH._informesLoaded = true; return; }                     // sin endpoint no hay historial
   DASH._informesLoading = true;
   const payload = dashAuth({ action:'informes', empresa: DASH.scope || '' });   // P185 · por dashAuth (A15): así el visor viaja
+  const mio = DASH;   // P185 · era el ÚNICO cargador sin este candado, y P208 le sumó un pedido por sesión
   fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify(payload) }).then(r => r.json()).then(d => {
+    if (!DASH || DASH !== mio) return;   // el panel se cerró, o el visor cambió de empresa: la respuesta es de OTRA
     DASH._informesLoading = false; DASH._informesLoaded = true;
-    if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; }
+    /* ⚠️ P208 · TERCER ESTADO. Sin esto, un rechazo del servidor quedaba indistinguible de «esta
+       empresa todavía no generó ninguno»: `_informesLoaded` pasaba a true igual y la pantalla
+       afirmaba «Todavía no hay informes generados». Es el patrón que este mismo archivo ya aplica
+       en reportes, opiniones y bitácora (`_reportesError`, `_opinionesError`, `_bitError`) y que
+       `cargaEstado()` formaliza; el historial de informes se había quedado afuera. */
+    if (d && d.ok){ DASH._informes = d.informes || []; DASH._informesProximo = d.proximo || null; DASH._informesError = false; }
+    else DASH._informesError = true;
     /* P190 · repinta SIEMPRE, pero SÓLO la sección del informe (verificador): `DASH.tab` nunca vale 'informe' —el
        scrollspy usa `_dashActiveTab`—, así que «Cargando informes previos…» quedaba latiendo con la respuesta ya llegada
        hasta que otra cosa repintara. Local y no `dashRepintar()`: rehacer el panel entero desde una respuesta tardía
        le sacaría el `inert` a otra sección que esté cargando (el período de Jornada, por ejemplo). */
     dashRepintarInforme();
-  }).catch(() => { DASH._informesLoading = false; DASH._informesLoaded = true; dashRepintarInforme(); });
+  }).catch(() => { if (!DASH || DASH !== mio) return; DASH._informesLoading = false; DASH._informesLoaded = true; DASH._informesError = true; dashRepintarInforme(); });
 }
 /* P190 · sólo la sección del informe, en su lugar; si no está en pantalla, nada que repintar */
 function dashRepintarInforme(){
@@ -28981,10 +29247,36 @@ function bitContextoDe(persona){
   return cicloContextoDe(persona);
 }
 // Snapshot de la tolerancia operativa con la que se juzgó a esta persona EN ESTE MOMENTO.
+/* ⚠️ P208 · LA FILA DICE CON QUÉ SE JUZGÓ *Y* SI ESO ESTABA CONFIRMADO. Son dos hechos distintos y
+   hasta este prompt se escribía uno solo: `nivelRiesgoDe()` contesta `NIVEL_DEFAULT` (3) en dos
+   situaciones que no son la misma —«pregunté y esta empresa no declara niveles», que es una
+   resolución válida, y «no pude preguntar», que no resuelve nada— y la fila salía idéntica.
+   ⚠️ LA PRIMERA VERSIÓN DE ESTE ARREGLO VACIABA LOS TRES NÚMEROS, y el verificador demostró que eso
+   es PEOR que el defecto: `restDuracionesPara()` sigue usando `nivelInfo(3).maxRestrH`, así que al
+   supervisor se le ofrecen 72 h y él elige 48 — la decisión SE TOMÓ con la tolerancia del nivel 3.
+   Una fila que no lo diga le saca a la bitácora justo el dato que R3 existe para conservar: con qué
+   criterio se decidió. Que no se haya podido confirmar es otra cosa, y va como `sinNiveles`.
+   O sea: los tres números son lo que SE APLICÓ (hecho), `sinNiveles` es que nadie lo confirmó
+   (hecho), y sobreviven los dos. El discriminador sigue siendo `Array.isArray(DASH._niveles)`: una
+   lista vacía es una respuesta, y ahí el 3 es el criterio elegido, no un relleno. */
 function bitUmbralDe(persona, ctx){
   const c = ctx || bitContextoDe(persona);
   const n = nivelRiesgoDe(persona, c.dep, c.empresa || (DASH && DASH.f.emp), c.cargo), i = nivelInfo(n);
-  return { nivel:n, amarillo:i.amarillo, rojo:i.rojo };
+  const u = { nivel:n, amarillo:i.amarillo, rojo:i.rojo };
+  /* ⚠️ `nivelesEstado()` Y NO `Array.isArray(DASH._niveles)`: son la misma pregunta y tienen que
+     tener UNA sola respuesta. Con la condición suelta, la vista del empleado —a la que P208 le sacó
+     el pedido a propósito— marcaba `sinNiveles` en todas sus filas sin que nada hubiera fallado: la
+     persona acepta su propia telemedicina y esa línea queda archivada, R3, diciendo que no se pudo
+     confirmar algo que nadie necesitaba confirmar. Viaja en el JSON de la fila: la hoja no tiene
+     columna para esto y agregarle una es tocar el CH. */
+  /* ⚠️ SE ESCRIBE SIEMPRE, también cuando es `false`, y no es un capricho: si sólo apareciera al
+     fallar, una fila SIN la clave sería indistinguible de una confirmada — y las filas de antes de
+     la app 6.91 no la tienen ninguna. Escribiéndola siempre, su AUSENCIA pasa a significar «esta
+     app todavía no sabía marcarlo», que es un tercer estado y es la verdad. Es la misma lección que
+     P180: la ausencia de valor ES un valor, y afirmar «confirmado» sobre una fila que nadie pudo
+     confirmar es el defecto que este prompt vino a matar, con el signo invertido. */
+  u.sinNiveles = (nivelesEstado() !== 'ok');
+  return u;
 }
 /* accion  = verbo corto y estable ('restriccion', 'determinacion', 'alta_reincorporacion', …).
    sujeto  = sobre quién recae (nombre de persona) o '' si es un evento del sistema.
@@ -29918,7 +30210,14 @@ function dashFichaMedica(rows){
        los siete estados. `ct` es la variante legible y existe para esto desde que se creó
        `APT_ESTADOS`; `aptEstadoInfo` ya la devuelve. Ningún color del semáforo cambia. */
     '<span class="fm-chip" style="color:' + (est.ct || est.c) + ';background:' + est.bg + '">' + esc(est.t) + '</span>',
-    '<span class="fm-chip fm-chip-n' + p.nivel + '">' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) + '</span>',
+    /* P208 · sin la tabla de niveles, `p.nivel` es el valor por omisión y no el de esta persona:
+       el chip lo dice en vez de afirmarlo (el aviso con el «toca ↻» va debajo de los chips). */
+    /* `!== 'error'` y no `=== 'ok'`: mientras el pedido VIAJA el chip se deja como está —son 2-4 s
+       en toda entrada normal, y cambiarlo ahí hacía parpadear «Nivel sin confirmar» en la pantalla
+       de todos, en el caso feliz. Lo que explica la espera es el cargador de arriba. */
+    (nivelesEstado() !== 'error'
+      ? '<span class="fm-chip fm-chip-n' + p.nivel + '">' + esc(t('riesgo_n', { n: nivelLabel(p.nivel) })) + '</span>'
+      : '<span class="fm-chip fm-chip-gris">' + esc(t('fm_chip_nivel_no')) + '</span>'),
     '<span class="fm-chip fm-chip-gris">' + esc(aptTextoFecha(p)) + '</span>',
     '<span class="fm-chip fm-chip-gris">' + esc(t(p.n === 1 ? 'fm_n_test_1' : 'fm_n_test_n', { n: p.n })) + '</span>'
   ];
@@ -29963,7 +30262,11 @@ function dashFichaMedica(rows){
   return '<div class="dash-block fm-block">' +
     '<div class="db-title">' + esc(t('fm_titulo', { q: DASH.f.per })) + '</div>' +
     '<div class="db-sub">' + esc(t('fm_sub')) + '</div>' +
-    '<div class="fm-chips">' + chips.join('') + '</div>' + persistTxt +
+    '<div class="fm-chips">' + chips.join('') + '</div>' +
+    /* P208 · y se dice POR QUÉ, acá, que es donde alguien decide sobre esta persona. */
+    /* `avisoCarga` y no `dashWarn`: el título de `dashWarn` es «Faltan estadísticas», y acá no falta
+       ninguna estadística — falló la CONSULTA de los niveles. Medido en la ficha antes de cerrar. */
+    nivelesAvisoHtml() + persistTxt +
     '<div class="fm-sec-t">' + esc(t('fm_linea_base')) + '</div>' +
     '<div class="fm-lb">' + (lineas || dashVacio('indicadores', 'grafico')) + '</div>' +
     dashFmCalendario() +
@@ -33848,7 +34151,7 @@ function depEnviar(accion, nombre, extra, tipo, btn){
    del servicio médico son privadas de esta persona, y con sólo el nombre —que es público dentro
    de la empresa— cualquiera podría leerlas. La cédula ya la tiene el perfil, así que no se le
    pide nada a la persona. */
-const TAREAS = { lista: [], pendientes: 0, cargando: false, pedidoEn: 0 };   // P188 · `pedidoEn`: cuándo salió el último pedido al servidor
+const TAREAS = { lista: [], pendientes: 0, cargando: false, pedidoEn: 0, error: false };   // P188 · `pedidoEn`: cuándo salió el último pedido al servidor · P208 · `error`: el pedido falló (≠ «no hay tareas»)
 const TAREAS_RELECTURA_MS = 3600000;   // P188 · al volver a la vista, se vuelve a pedir si pasó más de esto
 
 function tareasPuedeConsultar(){
@@ -33990,6 +34293,7 @@ function tareasCargar(){
     try { tareasPintarBadge(); } catch(e){}
   }
   TAREAS.cargando = true;
+  TAREAS.error = false;           // P208 · el intento nuevo limpia el fallo del anterior
   TAREAS.pedidoEn = Date.now();   // P188 · se anota al DISPARAR (no al llegar): un pedido que falla también cuenta para la hora
   /* ⚠️ L10 · LA VERSIÓN VIAJA ACÁ, y es lo que permite apretar una defensa sin dejar a nadie
      afuera. Esta llamada corre en CADA apertura de la app, así que es el único lugar donde se
@@ -34015,7 +34319,17 @@ function tareasCargar(){
         return;
       }
       if (d && d.ok && bajaGuardada()){ bajaMarcar(false); try { renderSections(); } catch(e){} }
-      if (!d || !d.ok) return;
+      /* ⚠️ P208 · UN RECHAZO NO ES UNA LISTA VACÍA, y hasta acá se pintaban igual. Este `return`
+         mudo dejaba `TAREAS.lista` en `[]` y la hoja escribía «No tienes tareas pendientes» —
+         afirmando que no hay nada cuando lo que pasó es que no se pudo preguntar. `accionTareasMias`
+         contesta `{ok:false, error:"La cédula no coincide con la persona."}` SIN `motivo`, así que
+         ni siquiera cae en las ramas de arriba. Acá una tarea puede ser una cita con el servicio
+         médico. La baja (`motivo:"baja"`) ya salió por su rama: eso sí es una respuesta, no un fallo. */
+      if (!d || !d.ok){
+        TAREAS.error = true;
+        try { if (document.getElementById('tareasOv').classList.contains('show')) tareasPintar(); } catch(e){}
+        return;
+      }
       TAREAS.lista = Array.isArray(d.tareas) ? d.tareas : [];
       TAREAS.pendientes = Number(d.pendientes) || 0;
       // J3: el plan del ciclo de la empresa. Se cachea para que el inicio dibuje el ciclo con los
@@ -34134,7 +34448,9 @@ function tareasCargar(){
       try { if (document.getElementById('tareasOv').classList.contains('show')) tareasPintar(); } catch(e){}
       try { renderInicio(); } catch(e){}
     })
-    .catch(() => { TAREAS.cargando = false; TAREAS._enVuelo = null; });   // sin red: el contador queda como estaba
+    /* sin red: el contador queda como estaba, pero la hoja lo dice (P208) en vez de afirmar que no hay nada */
+    .catch(() => { TAREAS.cargando = false; TAREAS._enVuelo = null; TAREAS.error = true;
+      try { if (document.getElementById('tareasOv').classList.contains('show')) tareasPintar(); } catch(e){} });
   return TAREAS._enVuelo;
 }
 function tareasAbrir(){
@@ -34184,11 +34500,14 @@ function tareasPintar(){
      cita del servicio médico. Dentro de cada grupo se conserva el orden de origen. */
   const todo = locales.concat(TAREAS.lista);
   const lista = todo.filter(x => x.estado !== 'hecha').concat(todo.filter(x => x.estado === 'hecha'));
+  /* P208 · si el pedido falló, se dice. Con avisos locales en pantalla va ARRIBA de ellos y no en
+     lugar de la lista: lo local es real y se sigue viendo; lo que falta es lo del servidor. */
+  const err = TAREAS.error ? avisoCarga(t('tar_error')) : '';
   if (!lista.length){
-    cont.innerHTML = '<div class="nom-vacio">' + esc(t('tar_vacio')) + '</div>';
+    cont.innerHTML = err || ('<div class="nom-vacio">' + esc(t('tar_vacio')) + '</div>');
     return;
   }
-  cont.innerHTML = lista.map(x => {
+  cont.innerHTML = err + lista.map(x => {
     const hecha = x.estado === 'hecha';
     const venc  = x.estado === 'vencida';
     return '<div class="tar-item' + (hecha ? ' tar-hecha' : '') + '">' +
