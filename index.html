@@ -1244,6 +1244,13 @@
     text-transform: none; letter-spacing: 0; color: var(--text); background: var(--sup-campo);
     border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); }
   .visor-sel select:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-bg); }
+  /* ⚠️ P213 · el bloque de «Trabajar sobre» es OTRA cosa que el visor, y tiene que verse así: una
+     sola columna (el visor tiene dos), separado por una línea, y su nota debajo. R13 · todo por
+     tokens; `--linea` y `--text-muted` ya existen en los dos temas. */
+  .visor-trabajo { grid-template-columns: 1fr; margin-bottom: .55rem; }
+  .visor-trabajo-nota { font-size: .76rem; line-height: 1.45; color: var(--text-muted);
+    padding-bottom: .6rem; margin-bottom: .6rem; border-bottom: 1px solid var(--linea); }
+  .visor-trabajo-nota b { color: var(--text); }
   .visor-viendo { font-size: .8rem; font-weight: 700; color: var(--orange-legible); line-height: 1.4; }
   .visor-viendo b { color: var(--text); }
   @media (max-width: 420px) { .visor-sels { grid-template-columns: 1fr; } .visor-t { display: none; } }
@@ -7201,6 +7208,16 @@
           <button type="button" class="visor-volver" id="visorVolver" onclick="visorVolverTodas()" hidden></button>
         </div>
         <div class="visor-cuerpo" id="visorCuerpo" hidden>
+          <!-- ⚠️ P213 · TRABAJAR SOBRE UNA EMPRESA ≠ VERLA COMO OTRO ROL. Este selector manda sólo
+               `empresa`: el acceso sigue siendo el del administrador y por eso ESCRIBE. El de abajo
+               manda `verEmpresa`+`verVista`, fabrica el acceso de esa cuenta y es de sólo lectura
+               (ADR 007 regla 2). Van juntos porque la pregunta es la misma —qué empresa— pero
+               separados y rotulados, porque la respuesta hace cosas distintas (ADR 014). -->
+          <div class="visor-sels visor-trabajo">
+            <label class="visor-sel"><span id="dashLblEmpAdmin"></span>
+              <select id="dashEmpAdmin" onchange="dashEmpresaAdminCambiar()"></select></label>
+          </div>
+          <div class="visor-trabajo-nota" id="dashEmpAdminNota"></div>
           <div class="visor-sels">
             <label class="visor-sel"><span id="visorLblEmpresa"></span>
               <select id="visorEmpresa" onchange="visorCambiar()"></select></label>
@@ -7529,7 +7546,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.94';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.95';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8226,6 +8243,9 @@ const I18N = {
       // ── Administración (herramienta interna) ──
       /* P185 · el visor del administrador */
       visor_t:'Visor del administrador',
+      dash_emp_admin:'Trabajar sobre', dash_emp_admin_ninguna:'— Elige una empresa —',
+      dash_emp_admin_no:'Elige una empresa para poder registrar aptitudes, restricciones y notas. Sin empresa elegida solo puedes mirar.',
+      dash_emp_admin_si:'Estás trabajando sobre <b>{e}</b>: lo que registres queda en esa empresa.',
       visor_empresa:'Empresa', visor_todas:'Todas las empresas',
       visor_volver:'← Todas las empresas', visor_volver_aria:'Volver al panel de todas las empresas como servicio médico',
       visor_vista:'Ver como', visor_sup:'Supervisor', visor_med:'Servicio médico', visor_hseq:'Dirección / HSEQ',
@@ -10293,6 +10313,9 @@ const I18N = {
       // ── Administration (internal tool) ──
       /* P185 · the administrator viewer */
       visor_t:'Administrator viewer',
+      dash_emp_admin:'Working on', dash_emp_admin_ninguna:'— Choose a company —',
+      dash_emp_admin_no:'Choose a company to record fitness notes, restrictions and notes. With no company selected you can only look.',
+      dash_emp_admin_si:'You are working on <b>{e}</b>: whatever you record stays in that company.',
       visor_empresa:'Company', visor_todas:'All companies',
       visor_volver:'← All companies', visor_volver_aria:'Back to the panel for all companies as medical service',
       visor_vista:'View as', visor_sup:'Supervisor', visor_med:'Medical service', visor_hseq:'Management / HSEQ',
@@ -21076,6 +21099,21 @@ function visorPintar(){
   const cuentas = Array.isArray(DASH.cuentas) ? DASH.cuentas : [];
   const empAct = (DASH.visor && DASH.visor.empresa) || '';
   const visAct = (DASH.visor && DASH.visor.vista) || DASH.vista || 'medico';
+  /* ⚠️ P213 · la MISMA lista que el visor (`DASH.cuentas`, del servidor). El selector viejo la
+     sacaba de los registros de tests, así que una empresa sin tests en el rango no aparecía. */
+  const empTrab = (DASH.f && DASH.f.emp) || '';
+  if ($('dashEmpAdmin')) {
+    $('dashEmpAdmin').innerHTML = '<option value="">' + esc(t('dash_emp_admin_ninguna')) + '</option>' +
+      cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empTrab ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
+    /* ⚠️ `textContent`/`innerHTML`, NO `dashSetMq`. Esa función envuelve el texto en un `.mq-in` para
+       hacerlo marquesina cuando no entra en UNA línea — y la nota es un párrafo que va en varias, así
+       que el `mq-in` se salía de los 375 px. Lo cazó el caso de R12 de `admin-visor-y-sesion.js`,
+       que mide qué se sale con el visor desplegado. */
+    const lbl = document.getElementById('dashLblEmpAdmin');
+    if (lbl) lbl.textContent = t('dash_emp_admin');
+    const nota = document.getElementById('dashEmpAdminNota');
+    if (nota) nota.innerHTML = empTrab ? t('dash_emp_admin_si', { e: empTrab }) : t('dash_emp_admin_no');
+  }
   $('visorEmpresa').innerHTML = '<option value="">' + esc(t('visor_todas')) + '</option>' +
     cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
   $('visorVista').innerHTML = ['supervisor', 'medico', 'hseq'].map(k =>
@@ -21146,6 +21184,41 @@ function visorCambiar(){
       const label = (d.visor && d.visor.empresa) ? d.visor.empresa : dashScopeTodas();   // P191 · el canónico: es dato (ver dashScopeTodas)
       visorPlegar(false);   // la acción terminó: el visor vuelve a ocupar una línea
       onDashData(d, label, params, d.vista || vis);
+    })
+    .catch(() => { if (!cargaVigente(carga)) return; showToast(t('sin_conexion') + '.'); volverAlDeAntes(); }));
+}
+
+/* ⚠️ P213 · EL ADMINISTRADOR ELIGE UNA EMPRESA PARA TRABAJAR, Y NO ES EL VISOR.
+   `visorCambiar` manda `verEmpresa`+`verVista`, y con eso el servidor fabrica el acceso de ESA
+   cuenta y lo marca `soloLectura` (P185, ADR 007 regla 2: «visor, no actuar en nombre de»). Esto
+   manda sólo `empresa`: el `acc` sigue siendo el del administrador —su rol, su contraseña— y desde
+   GS 2026-09-30.9 `accionSupervisor` le filtra el panel por esa empresa. Escribe, porque no hay
+   visor de por medio. Es lo que fija el ADR 014.
+   ⚠️ Y EL FILTRO ES DEL SERVIDOR, no local. El selector viejo filtraba en el cliente y las pestañas
+   con dataset propio —Jornada, Ciclo, Reportes, Opiniones— lo ignoraban: ése es el defecto que P185
+   documentó al sacarlo, y por eso acá se vuelve a pedir el panel en vez de re-renderizar. */
+function dashEmpresaAdminCambiar(){
+  if (!DASH || !DASH.params || !esAdminSesion()) return;
+  const emp = (document.getElementById('dashEmpAdmin') || {}).value || '';
+  const params = Object.assign({}, DASH.params);
+  /* el período no se arrastra, igual que en `visorCambiar`; y NUNCA los del visor */
+  ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida'].forEach(k => { delete params[k]; });
+  params.empresa = emp || dashScopeTodas();
+  const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
+  const scopeAntes = (DASH && DASH.scope) || '';
+  const volverAlDeAntes = () => { try { renderDash(); dashSetMq('dashScope', dashScopeVisible(scopeAntes)); } catch(e){} };
+  dashSetMq('dashScope', t('cargando'));
+  dashMostrarEsqueleto();
+  conBloqueo('#portalDash', dashRequest(params)
+    .then(d => {
+      if (!cargaVigente(carga)) return;
+      if (!d || !d.ok){ showToast(tError(d)); volverAlDeAntes(); return; }
+      const label = emp || dashScopeTodas();
+      onDashData(d, label, params, d.vista || 'medico');
+      /* ⚠️ `DASH.f.emp` TAMBIÉN, porque es de donde `gestEmpresaActual()` saca la empresa que viaja
+         en cada escritura. `onDashData` arma `DASH` desde el payload y no lo conoce. */
+      DASH.f.emp = emp; DASH.f.dep = ''; DASH.f.per = '';
+      buildDashFilters(); renderDash();
     })
     .catch(() => { if (!cargaVigente(carga)) return; showToast(t('sin_conexion') + '.'); volverAlDeAntes(); }));
 }
