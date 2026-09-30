@@ -76,7 +76,9 @@ PRUEBAS.caso('🔴 al elegir empresa, el SELECTOR queda marcado y la nota dice q
     /* el camino real: elegir en el `<select>` y que el pedido salga bien */
     p213bSel().value = 'Consorcio HELITEC';
     window.dashRequest = () => Promise.resolve(p213bPayload());
-    return Promise.resolve(dashEmpresaAdminCambiar()).then(() => new Promise(r => setTimeout(r, 30))).then(() => {
+    /* ⚠️ se ESPERA la promesa que devuelve, no un `setTimeout` corto: `conBloqueo` tiene el piso de
+       tiempo de P044 y la pestaña oculta estrangula los timers a 1 s (ver `pruebas/LEEME.md`). */
+    return Promise.resolve(dashEmpresaAdminCambiar()).then(() => {
       PRUEBAS.igual(DASH.f.emp, 'Consorcio HELITEC', 'guarda: la empresa quedó en `DASH.f.emp`');
       PRUEBAS.igual(p213bMarcada(), 'Consorcio HELITEC',
         '🔴 el `<option>` de esa empresa quedó MARCADO: antes no lo marcaba ninguno y el navegador mostraba «— Elige una empresa —»');
@@ -98,12 +100,14 @@ PRUEBAS.caso('🔴 si el pedido FALLA, el selector vuelve a la empresa que de ve
     if (!p213bSel()) { PRUEBAS.cierto(false, 'no existe `#dashEmpAdmin`'); return; }
     p213bSel().value = 'Aeropostal';
     window.dashRequest = () => Promise.resolve(p213bPayload());
-    return Promise.resolve(dashEmpresaAdminCambiar()).then(() => new Promise(r => setTimeout(r, 30))).then(() => {
+    /* ⚠️ se ESPERA la promesa que devuelve, no un `setTimeout` corto: `conBloqueo` tiene el piso de
+       tiempo de P044 y la pestaña oculta estrangula los timers a 1 s (ver `pruebas/LEEME.md`). */
+    return Promise.resolve(dashEmpresaAdminCambiar()).then(() => {
       PRUEBAS.igual(DASH.f.emp, 'Aeropostal', 'guarda: quedó en Aeropostal');
       /* ahora elige otra y el pedido FALLA */
       p213bSel().value = 'Consorcio HELITEC';
       window.dashRequest = () => Promise.reject(new Error('sin red'));
-      return Promise.resolve(dashEmpresaAdminCambiar()).then(() => new Promise(r => setTimeout(r, 30)));
+      return Promise.resolve(dashEmpresaAdminCambiar());
     }).then(() => {
       PRUEBAS.igual(DASH.f.emp, 'Aeropostal', '⚠️ la empresa de trabajo NO cambió: el pedido falló');
       PRUEBAS.igual(p213bMarcada(), 'Aeropostal',
@@ -124,12 +128,12 @@ PRUEBAS.caso('🔴 un SOLO escritor de `DASH.f.emp`: `dashDrill` y `dashClear` p
     let pedidos = 0;
     window.dashRequest = (p) => { pedidos++; return Promise.resolve(Object.assign(p213bPayload(), { _emp: p && p.empresa })); };
     /* el camino del mapa de calor */
-    return Promise.resolve(dashDrill('emp', 'Aeropostal')).then(() => new Promise(r => setTimeout(r, 30))).then(() => {
+    return Promise.resolve(dashDrill('emp', 'Aeropostal')).then(() => {
       PRUEBAS.alMenos(pedidos, 1, '🔴 `dashDrill(\'emp\')` PIDIÓ el panel al servidor: antes filtraba local');
       PRUEBAS.igual(DASH.f.emp, 'Aeropostal', 'y la empresa quedó puesta');
       PRUEBAS.igual(p213bMarcada(), 'Aeropostal', '⚠️ y el selector lo refleja');
       const antes = pedidos;
-      return Promise.resolve(dashClear('emp')).then(() => new Promise(r => setTimeout(r, 30))).then(() => {
+      return Promise.resolve(dashClear('emp')).then(() => {
         PRUEBAS.alMenos(pedidos, antes + 1, '🔴 y quitar el filtro también PIDE: antes dejaba `params.empresa` pegado');
         PRUEBAS.igual(DASH.f.emp, '', 'sin empresa de trabajo');
         PRUEBAS.igual(gestEmpresaParaEscribir(), '', '⚠️ y entonces no se puede escribir, que es coherente con lo que se ve');

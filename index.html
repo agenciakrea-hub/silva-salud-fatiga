@@ -21238,7 +21238,10 @@ function dashEmpresaAdminCambiar(){
   const volverAlDeAntes = () => { try { renderDash(); dashSetMq('dashScope', dashScopeVisible(scopeAntes)); } catch(e){} visorPintar(); };
   dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
-  conBloqueo('#portalDash', dashRequest(params)
+  /* ⚠️ DEVUELVE la promesa. Sin esto no hay forma de esperar a que termine —ni desde un caso ni
+     desde otro llamador— y `conBloqueo` tiene el piso de tiempo de P044, así que «un ratito» no
+     alcanza: hay que esperar la promesa de verdad. */
+  return conBloqueo('#portalDash', dashRequest(params)
     .then(d => {
       if (!cargaVigente(carga)) return;
       if (!d || !d.ok){ showToast(tError(d)); volverAlDeAntes(); return; }
