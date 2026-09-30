@@ -7546,7 +7546,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.95';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.96';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12511,8 +12511,26 @@ function visorBloquea(queIntentaba){
   return true;
 }
 
+/* ⚠️ P213 · Y SIN EMPRESA ELEGIDA NO SE CREA NADA. La guarda de empresa se había puesto sólo en
+   `gestTiposMandables` —el lado que INFORMA— y no en el que ACTÚA: el administrador sin empresa
+   firmaba igual, el ítem entraba a la cola, el servidor contestaba `sin_empresa` diez veces, la cola
+   quedaba trabada y `cerrarSesion()` la borraba. Neto: antes de P213 la determinación quedaba MAL
+   archivada pero existía en el CH; con la guarda a medias no llegaba a ninguna hoja — ni la gestión
+   ni su línea de bitácora, que es append-only (R3): el acto no dejaba rastro en ningún lado. Peor
+   que el defecto original. Lo cazó el verificador.
+   Va acá porque es el mismo punto donde ya se frenan el visor y la demostración: un solo lugar
+   donde se decide si esta app aplica una gestión o no. */
+function faltaEmpresaParaEscribir(queIntentaba){
+  try {
+    if (!DASH || DASH.rol !== 'admin') return false;        // sólo el administrador puede quedar sin empresa
+    if (gestEmpresaParaEscribir()) return false;
+    showToast(t('dash_emp_admin_no'));
+    return true;
+  } catch(e){ return false; }
+}
 function simulBloqueaGestion(queIntentaba){
   if (visorBloquea(queIntentaba)) return true;   // P185 · antes que la demo: el visor no aplica ni en memoria
+  if (faltaEmpresaParaEscribir(queIntentaba)) return true;   // P213 · sin empresa elegida, nada se crea
   if (DEMO_SEMBRANDO) return false;
   if (typeof DASH !== 'undefined' && DASH && DASH.demoMode && !simulando()) return false;
   return simulBloquea(queIntentaba);
@@ -21112,7 +21130,10 @@ function visorPintar(){
     const lbl = document.getElementById('dashLblEmpAdmin');
     if (lbl) lbl.textContent = t('dash_emp_admin');
     const nota = document.getElementById('dashEmpAdminNota');
-    if (nota) nota.innerHTML = empTrab ? t('dash_emp_admin_si', { e: empTrab }) : t('dash_emp_admin_no');
+    /* ⚠️ `esc(empTrab)`: `t()` no escapa (hace `split('{e}').join(String(v))`) y esto va a
+       `innerHTML`. El nombre sale de la columna EMPRESAS del CH, que no es sólo nuestro. La línea
+       de al lado (`visorViendo`) ya pasaba `esc()`; ésta no. */
+    if (nota) nota.innerHTML = empTrab ? t('dash_emp_admin_si', { e: esc(empTrab) }) : t('dash_emp_admin_no');
   }
   $('visorEmpresa').innerHTML = '<option value="">' + esc(t('visor_todas')) + '</option>' +
     cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
@@ -21163,7 +21184,11 @@ function visorCambiar(){
   const vis = (document.getElementById('visorVista') || {}).value || 'medico';
   const params = Object.assign({}, DASH.params);
   /* el período (7/30/90) y el refresco no se arrastran: un panel nuevo arranca como al entrar */
-  ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida'].forEach(k => { delete params[k]; });   // `pedida` también: la vista la elige el visor
+  /* ⚠️ `empresa` TAMBIÉN, desde P213. Antes ese parámetro era inocuo para el visor; desde
+     GS 2026-09-30.9 el servidor filtra por él, así que quedaba pegado: entrar al visor como
+     «Todas las empresas · Dirección» después de haber elegido una empresa para trabajar devolvía
+     SÓLO esa empresa bajo el rótulo «todas». Y «Volver a todas las empresas» no volvía a todas. */
+  ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida', 'empresa'].forEach(k => { delete params[k]; });   // `pedida` también: la vista la elige el visor
   Object.assign(params, visorParams(emp, vis));
   const dash = document.getElementById('portalDash');
   const carga = cargaIniciar({ gate: dash });
@@ -21206,7 +21231,11 @@ function dashEmpresaAdminCambiar(){
   params.empresa = emp || dashScopeTodas();
   const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   const scopeAntes = (DASH && DASH.scope) || '';
-  const volverAlDeAntes = () => { try { renderDash(); dashSetMq('dashScope', dashScopeVisible(scopeAntes)); } catch(e){} };
+  /* ⚠️ Y AL FALLAR TAMBIÉN, que es lo que `visorCambiar` ya hacía y esta copia se olvidó: sin el
+     repintado, el `<select>` se queda mostrando la empresa que la persona eligió mientras
+     `DASH.f.emp` —de donde sale la empresa de CADA escritura— sigue en la anterior. Una
+     determinación firmada ahí se archiva en una empresa y la pantalla muestra otra. */
+  const volverAlDeAntes = () => { try { renderDash(); dashSetMq('dashScope', dashScopeVisible(scopeAntes)); } catch(e){} visorPintar(); };
   dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
   conBloqueo('#portalDash', dashRequest(params)
@@ -21218,7 +21247,13 @@ function dashEmpresaAdminCambiar(){
       /* ⚠️ `DASH.f.emp` TAMBIÉN, porque es de donde `gestEmpresaActual()` saca la empresa que viaja
          en cada escritura. `onDashData` arma `DASH` desde el payload y no lo conoce. */
       DASH.f.emp = emp; DASH.f.dep = ''; DASH.f.per = '';
-      buildDashFilters(); renderDash();
+      /* ⚠️ `visorPintar()` OTRA VEZ, y acá está el punto. `onDashData` ya la llamó —es su último
+         paso— pero con `DASH.f.emp` recién reseteado a `''` por su propio literal, y `visorPintar`
+         es lo ÚNICO que pinta `#dashEmpAdmin` y su nota. Sin esta línea el selector quedaba sin
+         opción marcada (el navegador muestra la primera, «— Elige una empresa —») y la nota decía
+         «solo puedes mirar» mientras el admin SÍ estaba escribiendo sobre esa empresa. El defecto
+         que P213 vino a cerrar, invertido. Lo cazó el verificador. */
+      buildDashFilters(); renderDash(); visorPintar();
     })
     .catch(() => { if (!cargaVigente(carga)) return; showToast(t('sin_conexion') + '.'); volverAlDeAntes(); }));
 }
@@ -23080,6 +23115,13 @@ function dashContextRango(){
 }
 function dashClear(level){
   ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
+  /* ⚠️ P213 · ídem `dashDrill`: quitar el filtro de empresa siendo admin tiene que volver a pedir el
+     panel, o quedaba `DASH.f.emp=''` (la pantalla dice «todas») con `params.empresa` todavía en la
+     anterior (el servidor sigue filtrando por ella) y las escrituras yéndose ahí. Un solo escritor. */
+  if (level==='emp' && DASH.rol === 'admin' && typeof dashEmpresaAdminCambiar === 'function'){
+    const sel = document.getElementById('dashEmpAdmin');
+    if (sel){ sel.value = ''; dashEmpresaAdminCambiar(); return; }
+  }
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
@@ -23105,6 +23147,15 @@ function dashClearOne(){
 }
 function dashDrill(level, value){
   ANOT.open = false; ANOT.infoOpen = false; aptResetFiltros();
+  /* ⚠️ P213 · PARA EL ADMIN, LA EMPRESA LA CAMBIA UNA SOLA FUNCIÓN. `DASH.f.emp` dejó de ser un
+     filtro local: es de donde sale la empresa de CADA escritura. Había cuatro escritores —éste,
+     `dashClear`, `dashClearOne` y `dashEmpresaAdminCambiar`— y sólo el último le avisaba al
+     servidor, así que tocar el mapa de calor dejaba el panel filtrado en el cliente (el defecto que
+     P185 documentó) y las escrituras yéndose a otra empresa que la que se ve. */
+  if (level==='emp' && DASH.rol === 'admin' && typeof dashEmpresaAdminCambiar === 'function'){
+    const sel = document.getElementById('dashEmpAdmin');
+    if (sel){ sel.value = value || ''; dashEmpresaAdminCambiar(); return; }
+  }
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
@@ -29546,6 +29597,10 @@ function gestCredDeSalida(rol){
    ⚠️ UNA VEZ POR MOTIVO, no una por intento: las colas reintentan cada 60 s y un toast por ciclo
    sería peor que el silencio. Se recuerda el último y se vuelve a avisar sólo si cambia. */
 var _ultimoMotivoCola;
+/* Se limpia cuando algo SÍ entra: si la persona vuelve a chocar contra la misma pared más tarde,
+   tiene que volver a enterarse. Sin esto, 20 pedidos rechazados y un reintento manual en el medio
+   daban UN solo aviso, y el segundo choque era silencio. */
+function colaMotivoOk(){ _ultimoMotivoCola = undefined; }
 function colaAvisarMotivo(d){
   try {
     const m = String((d && d.motivo) || '');
@@ -29773,7 +29828,7 @@ function gestPush(alSalir){
     if(_gestEnVuelo['u'+id]) return;
     _gestEnVuelo['u'+id] = 1;
     jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }, alSalir && 'gestiones'))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; if(s2.fallos) delete s2.fallos['u'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
+      .then(d=>{ if(d&&d.ok){ colaMotivoOk(); const s2=gestStore(); delete s2.up[id]; if(s2.fallos) delete s2.fallos['u'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
                  else { colaAvisarMotivo(d); gestFallo(id, 'u'); } })   // el servidor contestó que no: cuenta como intento, y se dice POR QUÉ
       .catch(()=>{ gestFallo(id, 'u'); })              // ni siquiera respondió
       .then(()=>{ delete _gestEnVuelo['u'+id]; })); });
@@ -29782,7 +29837,7 @@ function gestPush(alSalir){
     if(_gestEnVuelo['d'+id]) return;
     _gestEnVuelo['d'+id] = 1;
     jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }, alSalir && 'gestiones'))
-      .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; if(s2.fallos) delete s2.fallos['d'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
+      .then(d=>{ if(d&&d.ok){ colaMotivoOk(); const s2=gestStore(); delete s2.del[id]; if(s2.fallos) delete s2.fallos['d'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
                  else { colaAvisarMotivo(d); gestFallo(id, 'd'); } })
       .catch(()=>{ gestFallo(id, 'd'); })
       .then(()=>{ delete _gestEnVuelo['d'+id]; })); });
@@ -29981,6 +30036,7 @@ function bitPush(alSalir){
     jobs.push(gestPost(gestAuth({ action:'bitacora_guardar', evento: JSON.stringify(ev) }, alSalir), alSalir)
       .then(d => {
         if (d && d.ok){
+          colaMotivoOk();                       // ⚠️ P213 · algo entró: si vuelve a fallar, hay que volver a avisar
           const s2 = bitStore(); delete s2.up[id];
           if (s2.fallos) delete s2.fallos[id];
           bitSaveStore(s2);
@@ -30354,7 +30410,7 @@ function casosOdooPush(alSalir){
     if (_casosEnVuelo[id]) return;
     _casosEnVuelo[id] = 1;
     jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }, alSalir && 'medico'), alSalir)
-      .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; if (s2.fallos) delete s2.fallos[id]; casosSaveStore(s2); try { offPintar(); } catch(e){} }
+      .then(d => { if (d && d.ok){ colaMotivoOk(); const s2 = casosStore(); delete s2.up[id]; if (s2.fallos) delete s2.fallos[id]; casosSaveStore(s2); try { offPintar(); } catch(e){} }
                    else { colaAvisarMotivo(d); casosFallo(id); } })
       .catch(()=>{ casosFallo(id); })
       // El candado se libera SIEMPRE, falle o no: si no, un error de red dejaría ese caso
