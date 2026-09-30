@@ -66,7 +66,7 @@ PRUEBAS.caso('🔴 cerrar el panel no deja huérfana la gestión que todavía no
   return p209Limpio(() => {
     DASH = p209Panel();
     const claveConPanel = gestKey();
-    gestUpsert({ id: 'g_p209', tipo: 'restriccion', persona: 'ANA SUAREZ', creada: Date.now() });
+    gestUpsert({ id: 'g_p209', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA SUAREZ', creada: Date.now() });
     PRUEBAS.igual(Object.keys(gestStore().up).length, 1, 'guarda: la gestión quedó pendiente de subir');
     DASH = null;   // lo que hace `closePortal()`
     PRUEBAS.igual(gestKey(), claveConPanel, '🔴 la clave sigue siendo la misma con el panel cerrado');
@@ -85,7 +85,7 @@ PRUEBAS.caso('🔴 y el cartel cuenta las CINCO colas, aunque la clave del panel
      Es lo que hace que «Cerrar sesión» diga «hay N sin enviar» en vez de entrar con 0. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_a', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_a', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     bitacoraRegistrar('restriccion', 'ANA', { tarea: 'x' });
     const conPanel = offPendientes();
     PRUEBAS.alMenos(conPanel, 2, 'guarda: con el panel abierto se cuentan la gestión y su línea de bitácora');
@@ -108,7 +108,7 @@ PRUEBAS.caso('🔴 una gestión que el servidor rechaza se traba, y el cartel de
     let posts = 0;
     window.gestPostSalir = () => { posts++; return Promise.resolve({ ok: false, error: 'servidor caído' }); };
     DASH = p209Panel();
-    gestUpsert({ id: 'g_p209', tipo: 'restriccion', persona: 'ANA SUAREZ', creada: Date.now() });
+    gestUpsert({ id: 'g_p209', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA SUAREZ', creada: Date.now() });
     let cadena = Promise.resolve();
     for (let i = 0; i < COLA_MAX_INTENTOS; i++) cadena = cadena.then(() => gestPush());
     return cadena.then(() => {
@@ -290,7 +290,7 @@ PRUEBAS.caso('🔴 «cerrar sesión» sin el panel abierto no promete lo que no 
      ACTÚA: la app pasó de fallar en silencio a prometer y fallar. Lo cazó el verificador. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_salida', tipo: 'restriccion', persona: 'ANA SUAREZ', creada: Date.now() });
+    gestUpsert({ id: 'g_salida', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA SUAREZ', creada: Date.now() });
     DASH = null;   // lo que hace `closePortal()`
     PRUEBAS.alMenos(offPendientes(), 1, 'guarda: el contador lo ve (ése es el arreglo de más arriba)');
     /* sin credencial guardada NO hay forma de mandarlo, y el aviso tiene que decirlo */
@@ -315,13 +315,17 @@ PRUEBAS.caso('🔴 «cerrar sesión» sin el panel abierto no promete lo que no 
        archivaría bajo el `gestScope` equivocado, que es peor que perderlas. */
     try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario: 'Otra Empresa', token: 'tok-s4' })); } catch (e) {}
     PRUEBAS.falso(!!gestCredDeSalida('medico'), '⚠️ la credencial de OTRA empresa NO habilita el envío');
-    /* ⚠️ y la de SUPERVISOR tampoco sirve para gestiones: `accionGestionGuardar` exige
-       `acc.vista === "medico"`, así que mandar con la otra daría «No autorizado» y el aviso habría
-       dicho que sí se podía. El rol es parte del contrato, no sólo la empresa. */
+    /* ⚠️ ACTUALIZADO EN P211 (GS 2026-09-29.3). Cuando se escribió esto, `accionGestionGuardar`
+       exigía `acc.vista === "medico"` sin excepción y la credencial de supervisor no servía para
+       gestiones. Ya no: el servidor le acepta `restriccion_tarea` y `telemedicina`, así que el rol
+       nuevo `'gestiones'` prueba la médica primero y la de supervisor después. Lo que sigue firme
+       —y es lo que este caso mide— es que el rol `'medico'` estricto sigue pidiendo LA MÉDICA:
+       `casosOdooPush` la necesita, porque `accionCasoOdooGuardar` no cambió. */
     try { localStorage.removeItem(K_DASH_CREDS_MED); } catch (e) {}
     try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario: 'Consorcio HELITEC', token: 'tok-s4' })); } catch (e) {}
-    PRUEBAS.falso(!!gestCredDeSalida('medico'), '⚠️ la credencial de SUPERVISOR no habilita las gestiones: el servidor sólo se las acepta al médico');
-    PRUEBAS.cierto(!!gestCredDeSalida(), 'pero sí la bitácora, a la que `bitacora_guardar` sólo le cierra la puerta a Dirección');
+    PRUEBAS.falso(!!gestCredDeSalida('medico'), '⚠️ la de SUPERVISOR no pasa por el rol `medico`, que es el que `casosOdooPush` exige');
+    PRUEBAS.cierto(!!gestCredDeSalida('gestiones'), '🔴 P211 · pero SÍ por `gestiones`: el servidor le acepta restricciones y telemedicina');
+    PRUEBAS.cierto(!!gestCredDeSalida(), 'y la bitácora, a la que `bitacora_guardar` sólo le cierra la puerta a Dirección');
   });
 });
 
@@ -332,7 +336,7 @@ PRUEBAS.caso('🔴 la demostración y el panel del empleado no pisan la empresa 
      que sí tenía pendientes: exactamente el estado que P209 vino a matar, y ahora persistido. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_ancla', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_ancla', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     /* por el LECTOR real, no leyendo la clave en crudo: desde P209 el ancla guarda empresa Y
        usuario del login (la columna A y la D de `Accesos` no son la misma). R17. */
     const anclada = gestEmpresaRecordada();
@@ -350,7 +354,7 @@ PRUEBAS.caso('🔴 la demostración y el panel del empleado no pisan la empresa 
     /* DISCRIMINADOR · un panel de empresa de verdad SÍ la actualiza */
     DASH = { vista: 'supervisor', f: { emp: '', dep: '', per: '' }, scope: 'Otra Empresa',
              registros: [], params: { usuario: 'o', pass: 'x' }, demoMode: false };
-    gestUpsert({ id: 'g_otra', tipo: 'restriccion', persona: 'JUAN', creada: Date.now() });
+    gestUpsert({ id: 'g_otra', tipo: GEST_TIPO_RESTRICCION, persona: 'JUAN', creada: Date.now() });
     PRUEBAS.igual(gestEmpresaRecordada(), 'Otra Empresa', 'DISCRIMINADOR · un panel real de otra empresa sí la ancla');
   });
 });
@@ -365,7 +369,7 @@ PRUEBAS.caso('🔴 el cartel dice RETENIDO, no «Enviando…», cuando nadie pue
      Tercer estado, decidido por Franco: ni «enviando» ni «falló» — RETENIDO, con qué hacer. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_ret', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_ret', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     DASH = null;   // panel cerrado: nadie puede empujar esa partición
     /* ⚠️ CON LA CREDENCIAL RECORDADA PUESTA, que es «el caso normal» según el propio código. La
        versión anterior de este caso la borraba antes de medir y por eso no vio el defecto: la
@@ -404,22 +408,30 @@ PRUEBAS.caso('🔴 el aviso de cerrar sesión y el envío preguntan LO MISMO, co
      borraba la cola. La restricción se perdía con la promesa en pantalla un segundo antes. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_puerta', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    /* ⚠️ decía `tipo: GEST_TIPO_RESTRICCION`, que NO EXISTE en ninguno de los dos lados. Hoy da igual
+       —el contador no mira el tipo— pero el día que lo mire, un tipo inventado da un verde falso. */
+    gestUpsert({ id: 'g_puerta', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     DASH = null;
     /* sólo la credencial de SUPERVISOR, que es la que el servidor NO acepta para gestiones */
     try { localStorage.removeItem(K_DASH_CREDS_MED); } catch (e) {}
     try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario: 'Consorcio HELITEC', token: 'tok' })); } catch (e) {}
     PRUEBAS.cierto(!!gestCredDeSalida(), 'guarda: hay credencial de supervisor…');
-    PRUEBAS.falso(!!gestCredDeSalida('medico'), '…y no hay médica, que es la que las gestiones necesitan');
+    PRUEBAS.falso(!!gestCredDeSalida('medico'), '…y no hay médica');
     PRUEBAS.alMenos(colasRetenidas(), 1,
-      '🔴 esa gestión cuenta como RETENIDA: el aviso no puede prometer un envío que `gestPush` no va a hacer');
-    /* DISCRIMINADOR · con la médica puesta, deja de estar retenida PARA EL CAMINO DE SALIDA.
-       ⚠️ `colasRetenidas(true)`, no `colasRetenidas()`: la credencial guardada sólo habilita el
-       envío en `alSalir`. La versión anterior de esta línea usaba la forma sin argumento y con eso
-       CEMENTABA el defecto — el cartel decía «Enviando…» de algo que nadie mandaba. */
-    try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario: 'Consorcio HELITEC', token: 'tok' })); } catch (e) {}
-    PRUEBAS.igual(colasRetenidas(true), 0, 'DISCRIMINADOR · con la credencial que el servidor sí acepta, el camino de salida sí puede mandarla');
-    PRUEBAS.alMenos(colasRetenidas(), 1, '⚠️ pero para el cartel sigue retenida: fuera de `alSalir` esa credencial no se usa');
+      '🔴 esa gestión cuenta como RETENIDA fuera de `alSalir`: el cartel no puede decir «enviando» de algo que nadie manda');
+    /* 🔴 P211 · ACÁ ESTÁ EL CAMBIO DE REGLA, y es el arreglo. Antes esta misma situación —supervisor
+       con contraseña médica separada, o sea sin médica guardada— dejaba la restricción retenida
+       TAMBIÉN al cerrar sesión, y `cerrarSesion()` la borraba. Ahora el servidor le acepta las
+       restricciones, `gestPush` pide `'gestiones'` en vez de `'medico'`, y el camino de salida sí la
+       manda. La credencial guardada sigue valiendo SÓLO en `alSalir`: de ahí las dos formas. */
+    PRUEBAS.igual(colasRetenidas(true), 0, '🔴 P211 · al CERRAR SESIÓN ya no está retenida: la de supervisor alcanza para las gestiones');
+    /* DISCRIMINADOR · una credencial que el servidor NO acepta para gestiones vuelve a dejarla
+       retenida. HSEQ tiene su propia ranura (`K_DASH_CREDS_HSEQ`), así que `gestCredDeSalida` no la
+       encuentra por ninguno de los dos roles. */
+    try { localStorage.removeItem(K_DASH_CREDS); } catch (e) {}
+    try { localStorage.setItem(K_DASH_CREDS_HSEQ, JSON.stringify({ usuario: 'Consorcio HELITEC', token: 'tok' })); } catch (e) {}
+    PRUEBAS.falso(!!gestCredDeSalida('gestiones'), 'DISCRIMINADOR · la credencial de HSEQ no habilita gestiones…');
+    PRUEBAS.alMenos(colasRetenidas(true), 1, '…y entonces vuelve a contar como retenida incluso al cerrar sesión');
   });
 });
 
@@ -432,7 +444,7 @@ PRUEBAS.caso('🔴 la credencial sirve aunque el usuario del login NO sea el nom
   return p209Limpio(() => {
     DASH = { vista: 'supervisor', f: { emp: '', dep: '', per: '' }, scope: 'Consorcio HELITEC',
              registros: [], params: { usuario: 'Helitec', empresa: 'Helitec', pass: 'x' }, demoMode: false };
-    gestUpsert({ id: 'g_alias', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_alias', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     DASH = null;
     PRUEBAS.igual(gestKey(), 'consorcio helitec', 'guarda: la partición es la CANÓNICA');
     try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario: 'Helitec', token: 'tok' })); } catch (e) {}
@@ -454,7 +466,7 @@ PRUEBAS.caso('🔴 EL USO, no la pieza: `gestPush(true)` sin panel produce un PO
     const cuerpos = [];
     window.gestPostSalir = (alSalir, body) => { cuerpos.push(body); return Promise.resolve({ ok: true }); };
     DASH = p209Panel();
-    gestUpsert({ id: 'g_uso', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_uso', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     DASH = null;   // panel cerrado, como al tocar «Cerrar sesión»
     try { localStorage.setItem(K_DASH_CREDS_MED, JSON.stringify({ usuario: 'Consorcio HELITEC', token: 'tok-s4' })); } catch (e) {}
     return gestPush(true).then(() => {
@@ -474,28 +486,31 @@ PRUEBAS.caso('🔴 EL USO, no la pieza: `gestPush(true)` sin panel produce un PO
   });
 });
 
-PRUEBAS.caso('🔴 con el panel de un SUPERVISOR de empresa con clave médica aparte, la gestión cuenta como retenida', () => {
-  /* El servidor exige `acc.vista === "medico"` para `gestion_guardar`, y `restPuede()` deja crear
-     restricciones sólo al supervisor. En una empresa con contraseña médica separada esas dos cosas
-     no se cruzan nunca: el panel abierto NO alcanza para mandarlas. Sin esta guarda, el cartel
-     decía «Enviando…» y el aviso de cerrar sesión explicaba cómo salvarlas abriendo el panel —
-     receta que no funciona, y diez minutos después el segundo confirm las borraba. */
+PRUEBAS.caso('🔴 P211 · con el panel de un SUPERVISOR de empresa con clave médica aparte, la restricción YA NO queda retenida', () => {
+  /* ⚠️ ESTE CASO AFIRMABA LO CONTRARIO HASTA P211, y era correcto entonces: el servidor exigía
+     `acc.vista === "medico"` para `gestion_guardar` mientras `restPuede()` sólo deja restringir al
+     supervisor, y en una empresa con contraseña médica separada esas dos cosas no se cruzaban nunca.
+     Desde GS 2026-09-29.3 el servidor le acepta `restriccion_tarea` y `telemedicina`, así que el
+     cartel tenía que dejar de contarla como retenida: si no, diría «retenido» de algo que `gestPush`
+     está mandando bien — el mismo defecto de informar una cosa y hacer otra, del otro lado.
+     Lo que NO cambió: Dirección y HSEQ siguen sin escribir gestiones, y ése es el discriminador. */
   return p209Limpio(() => {
     /* `combinada: false` = la empresa SÍ tiene contraseña médica aparte */
     DASH = { vista: 'supervisor', combinada: false, f: { emp: '', dep: '', per: '' }, scope: 'Consorcio HELITEC',
              registros: [], params: { usuario: 'Consorcio HELITEC', empresa: 'Consorcio HELITEC', pass: 'x' }, demoMode: false };
-    gestUpsert({ id: 'g_sup', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
-    PRUEBAS.alMenos(colasRetenidas(), 1,
-      '🔴 retenida CON el panel abierto: el servidor no le acepta gestiones a la vista de supervisor');
-    /* DISCRIMINADOR · con `combinada` (la clave única abre las dos secciones) sí puede */
-    DASH.combinada = true;
-    PRUEBAS.igual(colasRetenidas(), 0, 'DISCRIMINADOR · con la clave combinada el servidor sí se las acepta');
-    /* y la bitácora del mismo supervisor sí puede: `bitacora_guardar` sólo le cierra la puerta a Dirección */
-    DASH.combinada = false;
-    bitacoraRegistrar('restriccion', 'ANA', { tarea: 'x' });
-    const conBit = colasRetenidas();
+    gestUpsert({ id: 'g_sup', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
+    PRUEBAS.igual(colasRetenidas(), 0,
+      '🔴 P211 · con el panel abierto NO está retenida: el servidor ya le acepta las restricciones al supervisor');
+    /* DISCRIMINADOR · las vistas que el servidor sigue rechazando la dejan retenida */
     DASH.vista = 'hseq';
-    PRUEBAS.alMenos(colasRetenidas(), conBit + 1, '⚠️ y para Dirección la bitácora TAMBIÉN queda retenida, que es lo que el servidor hace');
+    PRUEBAS.alMenos(colasRetenidas(), 1, 'DISCRIMINADOR · con vista HSEQ vuelve a quedar retenida…');
+    DASH.vista = 'direccion';
+    PRUEBAS.alMenos(colasRetenidas(), 1, '…y con Dirección también: `gestTiposQueEscribe` les da lista vacía');
+    /* y la bitácora sí la puede mandar el supervisor, que es otra puerta: `bitacora_guardar` sólo le
+       cierra la puerta a Dirección */
+    DASH.vista = 'supervisor';
+    bitacoraRegistrar('restriccion_tarea', 'ANA', { tarea: 'x' });
+    PRUEBAS.igual(colasRetenidas(), 0, '⚠️ y la línea de bitácora del mismo acto tampoco queda retenida');
   });
 });
 
@@ -506,7 +521,7 @@ PRUEBAS.caso('🔴 el cartel de retenidos NO tapa lo que la persona acaba de esc
      dejaba de nombrarse. El cartel existe para dar UNA respuesta a «¿se guardó lo que hice?». */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_tapa', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_tapa', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     DASH = null;   // esa gestión queda retenida
     try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_MED); } catch (e) {}
     /* ⚠️ DOS EN UNA COLA Y UNO EN LA OTRA, para que `a` y `b` sean DISTINTOS: con `a === b` el
@@ -544,7 +559,7 @@ PRUEBAS.caso('🔴 el VISOR no escribe, y el servidor lo chequea antes que la vi
      `vista:'medico'` daba «se puede enviar» mientras el servidor rechazaba el 100 % de esos POST. */
   return p209Limpio(() => {
     DASH = p209Panel();
-    gestUpsert({ id: 'g_visor', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+    gestUpsert({ id: 'g_visor', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
     /* el mismo panel, pero mirado por el visor del admin (P185) */
     DASH = Object.assign({}, p209Panel(), { vista: 'medico', combinada: false, visor: { empresa: 'Consorcio HELITEC', vista: 'medico' } });
     PRUEBAS.cierto(visorSoloLectura(), 'guarda: es un visor');
@@ -604,7 +619,7 @@ PRUEBAS.caso('🔴 EL USO · `cerrarSesionPedir` elige el mensaje según lo que 
     window.confirm = (m) => { vistos.push(String(m)); return false; };   // se corta en el primero
     try {
       DASH = p209Panel();
-      gestUpsert({ id: 'g_msg', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+      gestUpsert({ id: 'g_msg', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
       DASH = null;
       try { localStorage.removeItem(K_DASH_CREDS); localStorage.removeItem(K_DASH_CREDS_MED); } catch (e) {}
       /* (a) TODO retenido: no puede ofrecer «enviar el resto» */
@@ -641,7 +656,7 @@ PRUEBAS.caso('🔴 EL USO · «Olvidar este dispositivo» avisa y NO aborta al c
     window.confirm = (m) => { vistos.push(String(m)); return false; };   // se cancela TODO
     try {
       DASH = p209Panel();
-      gestUpsert({ id: 'g_olv', tipo: 'restriccion', persona: 'ANA', creada: Date.now() });
+      gestUpsert({ id: 'g_olv', tipo: GEST_TIPO_RESTRICCION, persona: 'ANA', creada: Date.now() });
       DASH = null;
       /* ⚠️ CON UNA CREDENCIAL DE OTRA EMPRESA, no con cero. Sin ninguna, `portalPintarOlvidar`
          esconde el botón y nadie puede llegar acá: el caso entraba por un estado que la app no

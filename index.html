@@ -7529,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.92';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.93';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -29413,11 +29413,36 @@ function gestCanSync(){ return !!(DASH && DASH.params && DASH.params.pass) && !!
    letras. La primera versión pedía `c.pass` y por eso era código MUERTO en todo teléfono con «Sí,
    recordar» puesto, que es el caso normal. Lo cazó el verificador; el caso que lo probaba escribía
    a mano el shape legado (R17). */
+/* ⚠️ P211 · ESPEJO EXACTO DE `gestTiposDeVista_` DEL SERVIDOR (`.gs`, arriba de todo). Si allá
+   cambia qué escribe cada vista, acá también, o el cartel vuelve a informar una cosa mientras el
+   push hace otra — que es el defecto que P209 y P211 pagaron cuatro veces entre los dos.
+   `null` = todos. Va como FUNCIÓN DECLARADA (R16): `offPintar` la alcanza en el arranque. */
+/* ⚠️ R16 · LITERALES A PROPÓSITO, no `GEST_TIPO_RESTRICCION`/`GEST_TIPO_TELEMEDICINA`. Esas dos son
+   `const` declaradas ~1000 líneas MÁS ABAJO, y esta función la alcanza `offPintar` en el arranque:
+   un `const` leído en zona muerta lanza y CORTA la ejecución del script de ahí para abajo. La
+   función se iza; el `const` que su cuerpo lee, no. `orden-declaracion.py` no lo ve porque sigue
+   las llamadas hasta tres niveles y esto está a cuatro.
+   Que los literales no se desincronicen de las constantes lo fija un caso de la suite
+   (`p211-restringir-es-del-supervisor.js`), que compara los dos lados y se pone en rojo. */
+function gestTiposQueEscribe(vista){
+  if (vista === 'medico') return null;
+  if (vista === 'supervisor') return ['restriccion_tarea', 'telemedicina'];
+  return [];
+}
+/* ⚠️ P211 · `'gestiones'` es el rol nuevo: `gestion_guardar`/`gestion_borrar` ya NO piden la
+   credencial médica sin excepción — la de supervisor sirve para `restriccion_tarea` y
+   `telemedicina`. Se prueba la MÉDICA primero porque acepta todos los tipos; la de supervisor
+   después. Las cuatro ranuras están separadas (`K_DASH_CREDS` es la de supervisor, `_MED` la
+   médica, `_HSEQ` y la de admin aparte), así que esto NO puede devolver la de Dirección ni la de
+   HSEQ, que el servidor rechazaría. `casosOdooPush` sigue pidiendo `'medico'`: su acción del `.gs`
+   no cambió. */
 function gestCredDeSalida(rol){
   try {
     const k = gestKey();
     const u = dashNorm(gestUsuarioRecordado());   // el nombre con el que se entró, que puede no ser el canónico
-    const cands = (rol === 'medico') ? [dashGetCredsMed] : [dashGetCreds, dashGetCredsMed];
+    const cands = (rol === 'medico')    ? [dashGetCredsMed]
+                : (rol === 'gestiones') ? [dashGetCredsMed, dashGetCreds]
+                :                         [dashGetCreds, dashGetCredsMed];
     for (let i = 0; i < cands.length; i++){
       let c = null; try { c = cands[i](); } catch(e){}
       if (!c || !(c.token || c.pass) || !c.usuario) continue;
@@ -29436,6 +29461,61 @@ function gestCredDeSalida(rol){
    y dejaba el cartel en ese estado para siempre. Lo cazó el verificador.
    Son retenidos: (a) todo lo que está en OTRA partición, que ningún push alcanza nunca, y (b) lo de
    la partición actual cuando no hay ni panel abierto ni credencial guardada que sirva. */
+/* ⚠️ F1 · QUÉ TIPOS PUEDE MANDAR EL ENVÍO DE AHORA. `null` = todos, `[]` = ninguno.
+   El servidor autoriza ítem por ítem, por TIPO; la primera versión de `colasRetenidas` autorizaba
+   por COLA —«esta vista escribe algún tipo» y restaba la cola entera— y con eso se podía perder una
+   determinación médica firmada: el médico deja una `anotacion_aptitud` en la cola sin señal, entra
+   el SUPERVISOR en el mismo teléfono (misma partición, misma empresa), el contador da 0, el aviso de
+   cerrar sesión dice «toca Aceptar para intentar enviarlos», `gestPush(true)` recibe «No autorizado»
+   y `cerrarSesion()` borra `K_GESTIONES`. Antes de P211 ese aviso era HONESTO; el arreglo lo
+   convirtió en una promesa falsa. Cuarta repetición del mismo patrón en este prompt, en la dirección
+   espejo. Lo cazó el verificador.
+   ⚠️ En el camino de salida la lista NO sale del panel —no hay panel— sino de QUÉ credencial se
+   encontró: la médica manda todo, la de supervisor sólo sus dos tipos. */
+function gestTiposMandables(alSalir){
+  /* ⚠️ `combinada` PRIMERO, porque el servidor ve otra vista que el cliente. En una cuenta sin
+     contraseña médica en `Accesos`, `validarAcceso` devuelve `vista:"medico"` y `accionSupervisor`
+     pisa SÓLO la del cliente: si la persona está en la pestaña Aptitud, `DASH.vista` es
+     'supervisor' pero el servidor le sigue aceptando todo. Sin esta línea el cartel pintaba ámbar
+     «1 registro retenido» de una anotación que estaba saliendo bien. La línea de al lado
+     (`vistaEscribeCasos`) ya miraba `combinada`; ésta no. Lo cazó el verificador. */
+  if (gestCanSync() && !visorSoloLectura()) {
+    if (!DASH) return [];
+    /* ⚠️ LA MISMA CONDICIÓN QUE EL `.gs`, LITERAL: `if (!acc.visor && acc.combinada && (p.pedida ===
+       "supervisor" || p.pedida === "medico")) acc.vista = p.pedida;`. La primera versión de esta
+       línea decía sólo `combinada === true`, y con eso una vista HSEQ combinada habría dado «todos
+       los tipos» mientras el servidor le rechaza cada uno. Ese estado no existe —la contraseña HSEQ
+       es otra columna de `Accesos` y su rama de `validarAcceso` no devuelve `combinada`—, pero esta
+       función acepta cualquier `DASH` que le den, y en este prompt lo «no alcanzable» ya se volvió
+       alcanzable una vez. Para una cuenta combinada `accionGestionGuardar` re-valida y SIEMPRE ve
+       `vista:"medico"`, sin importar la pestaña: por eso el resultado es 'medico' y no la pestaña. */
+    const comb = DASH.combinada === true && (DASH.vista === 'supervisor' || DASH.vista === 'medico');
+    return gestTiposQueEscribe(comb ? 'medico' : DASH.vista);
+  }
+  if (alSalir){
+    if (gestCredDeSalida('medico')) return null;                       // la médica escribe todos
+    if (gestCredDeSalida('gestiones')) return gestTiposQueEscribe('supervisor');
+  }
+  return [];
+}
+/* Cuántos pendientes de la partición ACTUAL entran en esa lista. Un `del` cuyo ítem ya no está en
+   `items` no se puede clasificar, así que cuenta como RETENIDO: preferimos decir «no lo pude
+   mandar» de algo que sí salió, antes que prometer un envío que el servidor va a rechazar. */
+function gestPendientesMandables(tipos){
+  try {
+    const s = gestStore();
+    const ids = Object.keys(s.up || {}).concat(Object.keys(s.del || {})).filter(noEsDemo);
+    if (tipos === null) return ids.length;
+    if (!tipos.length) return 0;
+    const items = s.items || [];
+    let k = 0;
+    for (let i = 0; i < ids.length; i++){
+      const g = items.find(x => x && String(x.id) === String(ids[i]));
+      if (g && tipos.indexOf(String(g.tipo || '')) >= 0) k++;
+    }
+    return k;
+  } catch(e){ return 0; }
+}
 function colasRetenidas(alSalir){
   /* ⚠️ UN `puede` POR COLA, y la primera versión usaba uno solo para las tres. Las puertas NO son la
      misma: gestiones y casos Odoo exigen la credencial MÉDICA (el servidor les pide
@@ -29467,21 +29547,30 @@ function colasRetenidas(alSalir){
      servidor rechazaba el 100 % de esos POST con `motivo:"solo_lectura"`. Otra vez el lado que
      informa y el que actúa preguntando cosas distintas. `visorSoloLectura()` ya existe y es lo que
      usa el resto del cliente. */
-  const vistaEscribeGest = !!(DASH && (DASH.vista === 'medico' || DASH.combinada === true)) && !visorSoloLectura();
+  /* ⚠️ P211 · las gestiones NO se cuentan acá: salen de `gestTiposMandables` + `gestPendientesMandables`
+     un poco más abajo, porque el servidor autoriza POR TIPO y no por cola. Hasta GS 2026-09-29.2 esta
+     función tenía un `vistaEscribeGest` que decía «esta vista escribe algo» y restaba la cola
+     entera — con eso se perdía la anotación del médico que quedó en la partición cuando entra el
+     supervisor en el mismo teléfono.
+     ⚠️ Casos Odoo va APARTE: `accionCasoOdooGuardar` sigue exigiendo vista médica. Compartían un
+     `puede` con las gestiones y por eso compartían el error. */
+  const vistaEscribeCasos = !!(DASH && (DASH.vista === 'medico' || DASH.combinada === true)) && !visorSoloLectura();
   const vistaEscribeBit  = !!(DASH && DASH.vista !== 'hseq') && !visorSoloLectura();
-  const puedeMed = (gestCanSync() && vistaEscribeGest) || !!(alSalir && gestCredDeSalida('medico'));   // gestPush y casosOdooPush
-  const puedeBit = (gestCanSync() && vistaEscribeBit)  || !!(alSalir && gestCredDeSalida());           // bitPush
+  const puedeCasos = (gestCanSync() && vistaEscribeCasos) || !!(alSalir && gestCredDeSalida('medico'));     // casosOdooPush
+  const puedeBit   = (gestCanSync() && vistaEscribeBit)   || !!(alSalir && gestCredDeSalida());             // bitPush
   let n = 0;
-  try { const s = gestStore(); const act = Object.keys(s.up || {}).length + Object.keys(s.del || {}).length;
-        n += Math.max(0, gestPendientesTodas() - (puedeMed ? act : 0)); } catch(e){}
+  try { n += Math.max(0, gestPendientesTodas() - gestPendientesMandables(gestTiposMandables(alSalir))); } catch(e){}
   try { const act = Object.keys(bitStore().up || {}).length;
         n += Math.max(0, bitacoraPendientes() - (puedeBit ? act : 0)); } catch(e){}
   try { const act = casosOdooPendientes();
-        n += Math.max(0, casosOdooPendientesTodas() - (puedeMed ? act : 0)); } catch(e){}
+        n += Math.max(0, casosOdooPendientesTodas() - (puedeCasos ? act : 0)); } catch(e){}
   return n;
 }
 function gestAuth(extra, alSalir){
-  const cred = (!(DASH && DASH.params && DASH.params.pass) && alSalir) ? gestCredDeSalida(alSalir === 'medico' ? 'medico' : '') : null;
+  /* ⚠️ P211 · el rol se pasa TAL CUAL. Antes traducía a `'medico'` o a `''`, así que el rol nuevo
+     `'gestiones'` caía en `''` y pedía la de supervisor ANTES que la médica — abrir la puerta con
+     una credencial y firmar el cuerpo con otra es mandar el POST con la clave equivocada. */
+  const cred = (!(DASH && DASH.params && DASH.params.pass) && alSalir) ? gestCredDeSalida(typeof alSalir === 'string' ? alSalir : '') : null;
   const pr = cred ? { usuario: cred.usuario, pass: (cred.token || cred.pass) } : ((DASH && DASH.params) || {});
   const base = { usuario: (pr.usuario || pr.empresa || ''), empresa: gestEmpresaActual(), pass: (pr.pass || ''), dispositivoId: dispositivoId() };
   if (pr.verEmpresa) base.verEmpresa = pr.verEmpresa;   // P185 · ver `dashAuth`
@@ -29552,7 +29641,11 @@ function gestDestrabar(){
 }
 function gestPush(alSalir){
   if(simulando()) return Promise.resolve();   // guard de simulación: nada sale al servidor
-  if(!gestCanSync() && !(alSalir && gestCredDeSalida('medico'))) return Promise.resolve();   // P209 · el último intento vale con la credencial guardada (médica: es la que el servidor exige para gestiones)
+  /* P209 · el último intento vale con la credencial guardada. ⚠️ P211 · y ya NO tiene que ser la
+     médica: el supervisor de una empresa con contraseña médica separada no la tiene guardada, así
+     que esta línea salía sin un POST y `cerrarSesion()` borraba la restricción un instante después
+     — con el aviso en pantalla prometiendo que la iba a intentar. `'gestiones'` acepta las dos. */
+  if(!gestCanSync() && !(alSalir && gestCredDeSalida('gestiones'))) return Promise.resolve();
   const s=gestStore(); const jobs=[];
   const fallos = s.fallos || {};
   let _limpio = false;   // ¿se borró algo del almacén en esta pasada?
@@ -29570,7 +29663,7 @@ function gestPush(alSalir){
     if(fallos['u'+id] && fallos['u'+id].trabado && !alSalir) return;
     if(_gestEnVuelo['u'+id]) return;
     _gestEnVuelo['u'+id] = 1;
-    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }, alSalir && 'medico'))
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }, alSalir && 'gestiones'))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; if(s2.fallos) delete s2.fallos['u'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
                  else gestFallo(id, 'u'); })           // el servidor contestó que no: cuenta como intento
       .catch(()=>{ gestFallo(id, 'u'); })              // ni siquiera respondió
@@ -29579,7 +29672,7 @@ function gestPush(alSalir){
     if(fallos['d'+id] && fallos['d'+id].trabado && !alSalir) return;
     if(_gestEnVuelo['d'+id]) return;
     _gestEnVuelo['d'+id] = 1;
-    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }, alSalir && 'medico'))
+    jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }, alSalir && 'gestiones'))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; if(s2.fallos) delete s2.fallos['d'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
                  else gestFallo(id, 'd'); })
       .catch(()=>{ gestFallo(id, 'd'); })
