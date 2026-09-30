@@ -7529,7 +7529,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.93';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.94';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -29461,6 +29461,33 @@ function gestCredDeSalida(rol){
    y dejaba el cartel en ese estado para siempre. Lo cazó el verificador.
    Son retenidos: (a) todo lo que está en OTRA partición, que ningún push alcanza nunca, y (b) lo de
    la partición actual cuando no hay ni panel abierto ni credencial guardada que sirva. */
+/* ⚠️ P213 · ¿HAY UNA EMPRESA CONCRETA SOBRE LA QUE ESCRIBIR? Espejo de `depEmpresaValida` del `.gs`,
+   que es quien rechaza con `motivo:"sin_empresa"`. Sólo da `false` para el ADMINISTRADOR sin empresa
+   elegida: un supervisor manda su empresa siempre, y `gestEmpresaActual()` cae a la recordada o a
+   «General» cuando no hay panel. El literal «Todas las empresas» lo pone `dashScopeTodas()`, y se
+   compara con `dashNorm` porque es lo que el resto del cliente usa para parear nombres de empresa. */
+/* ⚠️ P213 · EL MOTIVO DEL SERVIDOR TIENE QUE LLEGAR A LA PERSONA. Los tres push hacían
+   `else gestFallo(id)` y DESCARTABAN `d.motivo`: el texto ya traducido («Elige primero una empresa
+   en el filtro.») no salía nunca por esos canales, así que la cola se trababa y el cartel rojo
+   ofrecía un reintento sin decir qué arreglar. Lo cazó el verificador.
+   ⚠️ UNA VEZ POR MOTIVO, no una por intento: las colas reintentan cada 60 s y un toast por ciclo
+   sería peor que el silencio. Se recuerda el último y se vuelve a avisar sólo si cambia. */
+var _ultimoMotivoCola;
+function colaAvisarMotivo(d){
+  try {
+    const m = String((d && d.motivo) || '');
+    if (!m || m === _ultimoMotivoCola) return;
+    _ultimoMotivoCola = m;
+    const txt = tError(d);
+    if (txt) showToast(txt);
+  } catch(e){}
+}
+function gestEmpresaParaEscribir(){
+  const e = String(gestEmpresaActual() || '').trim();
+  if (!e || e === '*') return '';
+  return dashNorm(e) === dashNorm(dashScopeTodas()) ? '' : e;
+}
+
 /* ⚠️ F1 · QUÉ TIPOS PUEDE MANDAR EL ENVÍO DE AHORA. `null` = todos, `[]` = ninguno.
    El servidor autoriza ítem por ítem, por TIPO; la primera versión de `colasRetenidas` autorizaba
    por COLA —«esta vista escribe algún tipo» y restaba la cola entera— y con eso se podía perder una
@@ -29479,6 +29506,15 @@ function gestTiposMandables(alSalir){
      'supervisor' pero el servidor le sigue aceptando todo. Sin esta línea el cartel pintaba ámbar
      «1 registro retenido» de una anotación que estaba saliendo bien. La línea de al lado
      (`vistaEscribeCasos`) ya miraba `combinada`; ésta no. Lo cazó el verificador. */
+  /* ⚠️ P213 · Y LA EMPRESA, que es la guarda que el servidor agregó y ésta no replicaba. El cliente
+     del administrador manda «Todas las empresas» cuando no eligió empresa en el filtro, y desde
+     GS 2026-09-30.8 el servidor contesta `sin_empresa` a las cuatro acciones que escriben. Sin esta
+     línea, `colasRetenidas` daba 0, `offPintar` pintaba «Enviando 2 registros…» indefinidamente y a
+     los diez intentos ofrecía «toca aquí para intentarlo otra vez» — que resetea los intentos, vuelve
+     a fallar y se vuelve a trabar. Un bucle sin salida, y sin decir por qué. Es la quinta vez que
+     aparece el mismo patrón en esta función: el lado que INFORMA y el que ACTÚA preguntando cosas
+     distintas. Lo cazó el verificador. */
+  if (!gestEmpresaParaEscribir()) return [];
   if (gestCanSync() && !visorSoloLectura()) {
     if (!DASH) return [];
     /* ⚠️ LA MISMA CONDICIÓN QUE EL `.gs`, LITERAL: `if (!acc.visor && acc.combinada && (p.pedida ===
@@ -29665,7 +29701,7 @@ function gestPush(alSalir){
     _gestEnVuelo['u'+id] = 1;
     jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_guardar', gestion: JSON.stringify(g) }, alSalir && 'gestiones'))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.up[id]; if(s2.fallos) delete s2.fallos['u'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
-                 else gestFallo(id, 'u'); })           // el servidor contestó que no: cuenta como intento
+                 else { colaAvisarMotivo(d); gestFallo(id, 'u'); } })   // el servidor contestó que no: cuenta como intento, y se dice POR QUÉ
       .catch(()=>{ gestFallo(id, 'u'); })              // ni siquiera respondió
       .then(()=>{ delete _gestEnVuelo['u'+id]; })); });
   Object.keys(s.del).forEach(id=>{
@@ -29674,7 +29710,7 @@ function gestPush(alSalir){
     _gestEnVuelo['d'+id] = 1;
     jobs.push(gestPostSalir(alSalir, gestAuth({ action:'gestion_borrar', id:id }, alSalir && 'gestiones'))
       .then(d=>{ if(d&&d.ok){ const s2=gestStore(); delete s2.del[id]; if(s2.fallos) delete s2.fallos['d'+id]; gestSaveStore(s2); try { offPintar(); } catch(e){} }
-                 else gestFallo(id, 'd'); })
+                 else { colaAvisarMotivo(d); gestFallo(id, 'd'); } })
       .catch(()=>{ gestFallo(id, 'd'); })
       .then(()=>{ delete _gestEnVuelo['d'+id]; })); });
   /* ⚠️ SÓLO SE GUARDA SI CAMBIÓ ALGO. `gestSaveStore` vacía las cuatro memos del panel
@@ -29876,7 +29912,7 @@ function bitPush(alSalir){
           if (s2.fallos) delete s2.fallos[id];
           bitSaveStore(s2);
           try { offPintar(); } catch(e){}
-        } else bitFallo(id);                   // el servidor contestó que no: cuenta como intento
+        } else { colaAvisarMotivo(d); bitFallo(id); }   // el servidor contestó que no: cuenta como intento, y se dice POR QUÉ
       })
       .catch(() => { bitFallo(id); })          // ni siquiera respondió
       .then(() => { delete _bitEnVuelo[id]; }));
@@ -30246,7 +30282,7 @@ function casosOdooPush(alSalir){
     _casosEnVuelo[id] = 1;
     jobs.push(gestPost(gestAuth({ action:'caso_odoo_guardar', caso: JSON.stringify(casosOdooPayload(c)) }, alSalir && 'medico'), alSalir)
       .then(d => { if (d && d.ok){ const s2 = casosStore(); delete s2.up[id]; if (s2.fallos) delete s2.fallos[id]; casosSaveStore(s2); try { offPintar(); } catch(e){} }
-                   else casosFallo(id); })
+                   else { colaAvisarMotivo(d); casosFallo(id); } })
       .catch(()=>{ casosFallo(id); })
       // El candado se libera SIEMPRE, falle o no: si no, un error de red dejaría ese caso
       // trabado para siempre sin reintentarse.
