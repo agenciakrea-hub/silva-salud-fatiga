@@ -188,8 +188,12 @@ PRUEBAS.caso('⚠️ «Grupo» ya no saltea el candado de un admin con lista', (
   PRUEBAS.igual(api.gestScope(fila, ''), 'Aerocentro', 'y sin empresa pedida, igual');
   /* DISCRIMINADOR · el maestro sí lo usa como default, que es el comportamiento de siempre */
   const m = api.validarAcceso('*', 'clave-maestra', 'd');
-  PRUEBAS.igual(api.gestScope(m, 'Grupo'), 'Grupo', 'DISCRIMINADOR · para el maestro «Grupo» sigue siendo «Grupo»');
-  PRUEBAS.igual(api.gestScope(m, ''), 'Grupo', 'y es su default sin empresa');
+  PRUEBAS.igual(api.gestScope(m, 'Grupo'), 'Grupo', 'DISCRIMINADOR · el maestro que PIDE «Grupo» recibe «Grupo»: es un nombre como cualquier otro');
+  /* ⚠️ ACTUALIZADO EN P213: el default sin empresa YA NO es «Grupo». Era un valor inventado —esa
+     cadena no aparece en `index.html` ni en ningún otro punto del `.gs`— y hacía que el admin sin
+     filtro escribiera en un balde que ninguna lectura consulta, igual que «Todas las empresas».
+     Ahora el scope vacío es vacío, y `depEmpresaValida` lo rechaza. */
+  PRUEBAS.igual(api.gestScope(m, ''), '', '⚠️ P213 · y sin empresa pedida el scope queda VACÍO, no «Grupo»');
 });
 
 PRUEBAS.caso('🔴 el DIAGNÓSTICO deriva el rol igual que `validarAcceso` (si no, la premisa se mide mal)', () => {

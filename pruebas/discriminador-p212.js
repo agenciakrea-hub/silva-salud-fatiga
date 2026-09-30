@@ -50,9 +50,12 @@ if (falta.length) {
    el próximo refactor borra sin que nada se ponga en rojo — y el comentario del `.gs` afirmaba «lo
    cazó el discriminador» sobre una de ellas. */
 const REV2 = [
+  /* ⚠️ ACTUALIZADO EN P213: esa línea perdió el `|| "Grupo"` final, porque ese default era un balde
+     inventado. La guarda que sigue importando es el `|| ""` de adentro, que es lo que evita que
+     `String(undefined)` produzca la cadena literal "undefined". */
   { nombre: 'C · el `|| ""` de `gestScope` (sin él, `String(undefined)` = la cadena "undefined")',
-    busca: '    if (!acc.empresas || !acc.empresas.length) return String(acc.canonical || "").trim() || "Grupo";',
-    pone:  '    if (!acc.empresas || !acc.empresas.length) return String(acc.canonical).trim() || "Grupo";' },
+    busca: '    if (!acc.empresas || !acc.empresas.length) return String(acc.canonical || "").trim();',
+    pone:  '    if (!acc.empresas || !acc.empresas.length) return String(acc.canonical).trim();' },
   { nombre: 'D · la condición DOBLE del maestro (sin `empresas === null`, una lista vacía pasa por maestro)',
     busca: '    if (acc.empresas === null && acc.canonical == null) return e;   // el maestro `*`: administra todas',
     pone:  '    if (acc.canonical == null) return e;' },
