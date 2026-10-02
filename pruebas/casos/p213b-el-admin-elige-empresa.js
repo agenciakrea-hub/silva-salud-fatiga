@@ -251,3 +251,153 @@ PRUEBAS.caso('⚠️ el aviso del motivo se repite si la persona vuelve a chocar
     PRUEBAS.igual(avisos, 2, '⚠️ pero si vuelve a fallar después de un envío bueno, avisa otra vez');
   } finally { window.showToast = oToast; est.fin(); }
 });
+
+/* Deja que el panel COMPLETE el cambio de empresa: intercepta `dashRequest`, anota los params que
+   salen hacia el servidor y resuelve con el payload, para que `onDashData` corra y `DASH.params`
+   quede como queda de verdad. `p213bEntrar` stubbea `fetchConReloj` a una promesa muerta, así que
+   sin esto se mide el estado EN VUELO y no el final — me costó dos rojos creer que `DASH.params` no
+   se actualizaba, cuando lo que pasaba es que la respuesta nunca llegaba. */
+function p213bElegir(payload, valor) {
+  const sel = p213bSel(); if (sel) sel.value = valor;
+  const vistos = [];
+  const prev = window.dashRequest;
+  window.dashRequest = (pp) => { vistos.push(pp); return Promise.resolve(payload); };
+  const fin = () => { window.dashRequest = prev; };
+  let pr; try { pr = dashEmpresaAdminCambiar(); } catch (e) { fin(); throw e; }
+  return Promise.resolve(pr).then(() => vistos, () => vistos).finally(fin);   /* R18 · en el `.finally` de LA PROMESA */
+}
+
+PRUEBAS.caso('🔴 CONTRATO · todo valor que el cliente pueda mandar como `empresa` tiene destino en el servidor', () => {
+  /* ⚠️ ESTE ES EL CASO QUE FALTABA, y el que habría cazado el peor defecto de P213 sin esperar al
+     verificador. El cliente del administrador llegó a mandar el literal «Todas las empresas» donde
+     antes iba `"*"`, y `ausScope` del `.gs` sólo conocía `""` y `"*"`: la ausencia entraba con
+     `ok:true` bajo ese balde, más su línea de bitácora —append-only, R3— donde nadie la vuelve a
+     leer. Vivió debajo de 2074 casos en verde porque ninguno preguntaba **qué valores produce el
+     cliente y si todos tienen destino definido en el servidor.** Misma forma que
+     `a4-contrato-servidor-cliente.js`: se enumera de un lado y se exige del otro.
+
+     ⚠️ Y SE ENUMERA LO QUE SALE HACIA EL SERVIDOR, no `dashAuth()`. Los escritores no pasan por
+     `dashAuth`: `ausEnviar` arma su cuerpo con `mio.params.empresa || ''` (index.html:34578).
+     Medirlo por `dashAuth()` habría mirado el camino de las LECTURAS —que además nunca produce
+     ausencia de clave, porque cae a `cred.usuario`— y el defecto estaba en una escritura.
+
+     ⚠️ SU REVERSIÓN, medida el 2026-10-02 · en `ausScope` del `.gs`:
+         if (!depEmpresaValida(e)) return "";    ←  lo correcto
+         if (!e || e === "*") return "";         ←  la copia a mano de antes
+     Con la segunda, este caso se pone en rojo en cuatro comprobaciones: acepta
+     `"Todas las empresas"` y `"TODAS LAS EMPRESAS"`, y se VE la escritura —una fila en `Ausencias`
+     y una línea en `Bitácora`—. Ninguna otra prueba de las 2083 se mueve, así que lo que mide es
+     suyo. No está en `discriminador-p213.js` a propósito: ese script mide gestiones, bitácora y
+     casos, y una reversión sin su propia comprobación lo haría salir en falso negativo. */
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
+  /* ⚠️ Centinela explícito para «la clave NO viaja», que es un estado DISTINTO de `''` y el que
+     importa acá. No se puede guardar con `JSON.stringify`: devuelve el valor `undefined`, no una
+     cadena, y el `JSON.parse` de vuelta lanza `"undefined" is not valid JSON`. Colapsar los dos
+     estados en uno habría dejado sin medir justo el que P213 introdujo. */
+  const SIN_CLAVE = Symbol('sin-clave');
+  const producidos = new Set();
+  const anotar = () => { const pp = (DASH || {}).params || {};
+    producidos.add('empresa' in pp ? pp.empresa : SIN_CLAVE); };
+  /* los dos valores con que el LOGIN del admin entra, verificados en el código: el maestro manda
+     `empresa:'*'` (index.html:20285 y 21286) y el de fila `empresa: c.usuario` (19443). El label
+     `dashScopeTodas()` va a `DASH.scope`, que es otra cosa y no viaja como `empresa`. */
+  producidos.add('*');
+  return p213bElegir(pay, 'Consorcio HELITEC')
+    .then(() => { anotar(); return p213bElegir(pay, ''); })          // elegir una empresa
+    .then(() => { anotar(); })                                        // y quitarla
+    .then(() => {
+      PRUEBAS.alMenos(producidos.size, 3, 'guarda: el recorrido produjo tres valores distintos');
+      PRUEBAS.cierto(producidos.has('Consorcio HELITEC'), 'guarda: con empresa elegida, viaja esa empresa');
+      PRUEBAS.cierto(producidos.has(SIN_CLAVE), 'guarda: y al quitarla, la clave NO viaja');
+      PRUEBAS.falso(producidos.has(dashScopeTodas()),
+        '🔴 el cliente NUNCA produce el literal «Todas las empresas» como `empresa`');
+      /* 2 · Y CADA VALOR NO-CONCRETO TIENE QUE TENER DESTINO: un rechazo explícito, nunca una
+         escritura que nadie lee. */
+      if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`: la mitad del servidor no se midió'); return; }
+      /* ⚠️ `Ausencias` y `Bitácora` NO se declaran acá a propósito: el `.gs` las crea él mismo con
+         su propio encabezado (`obtenerHojaAusencias` → `AUS_HEAD`). Un fixture a mano les pondría
+         las columnas en otro orden —ya me pasó: `Anulada` va en el índice 7 con el valor
+         `"vigente"`—, y entonces un rechazo podría venir de la hoja mal formada y no de la guarda
+         que quiero medir. Un verde que no mide lo que dice medir es peor que un rojo. */
+      const env = GS.crearEntorno({
+        'Accesos': [['Usuario (puede ser el que quieras)', 'Contraseña (puede ser la que quieras)',
+          'Rol (supervisor ve solo su empresa, admin ve todas)',
+          'EMPRESAS (la lista de empresas que usuario ve, separadas por coma)',
+          'Contraseña Médica (si no se pone ninguna la de supervisor abre ambas secciones)', 'Contraseña HSQ'],
+          ['*', 'kmaestra', 'admin', '', '', '']]
+      });
+      const api = GS.cargarGs(CTX.gs, env, ['accionAusenciaGuardar']);
+      const filas = h => { const sh = env.__libro.getSheetByName(h); return sh ? sh.getDataRange().getValues().length : 0; };
+      const antesA = filas('Ausencias'), antesB = filas('Bitácora');
+      /* de lo ENUMERADO, los que no son una empresa concreta · más los literales que ya hicieron daño */
+      const noConcretos = Array.from(producidos)
+        .map(v => v === SIN_CLAVE ? undefined : v)
+        .filter(v => v === undefined || v === '' || v === '*' || /^todas las empresas$/i.test(String(v)))
+        .concat(['', 'Todas las empresas', 'TODAS LAS EMPRESAS']);
+      PRUEBAS.alMenos(noConcretos.length, 4, 'guarda: hay valores no-concretos que probar');
+      noConcretos.forEach(v => {
+        const pp = { usuario: '*', pass: 'kmaestra', persona: 'ANA SUAREZ', cedula: 'V-222',
+                     desde: '2026-10-02', hasta: '2026-10-02', motivo: 'franco', id: 'ctr-' + String(v) };
+        if (v !== undefined) pp.empresa = v;    // `undefined` = la clave NO viaja, que es un estado real
+        const r = JSON.parse(api.accionAusenciaGuardar(pp).getContent());
+        PRUEBAS.falso(r.ok, '🔴 `empresa=' + JSON.stringify(v) + '` se RECHAZA · ' + String(r.motivo || r.error || '').slice(0, 38));
+      });
+      PRUEBAS.igual(filas('Ausencias'), antesA, '🔴 y NO quedó ni una fila en `Ausencias`');
+      PRUEBAS.igual(filas('Bitácora'), antesB, '🔴 ni una línea en la BITÁCORA, que es append-only y R3 prohíbe corregir');
+      /* DISCRIMINADOR · con una empresa concreta SÍ entra: el rechazo es por el valor, no por el camino */
+      const ok = JSON.parse(api.accionAusenciaGuardar({ usuario: '*', pass: 'kmaestra', empresa: 'Consorcio HELITEC',
+        persona: 'ANA SUAREZ', cedula: 'V-222', desde: '2026-10-02', hasta: '2026-10-02', motivo: 'franco', id: 'ctr-ok' }).getContent());
+      PRUEBAS.cierto(ok.ok, 'DISCRIMINADOR · con empresa concreta SÍ se registra · ' + String(ok.motivo || ok.error || '').slice(0, 38));
+      PRUEBAS.alMenos(filas('Ausencias'), antesA + 1, 'y la fila quedó escrita');
+    })
+    .finally(() => est.fin());   /* R18 · en el `.finally` de la promesa, no en un `finally` sincrónico */
+});
+
+PRUEBAS.caso('🔴 Departamentos no se queda con las áreas del cliente anterior (el token de A15)', () => {
+  /* ⚠️ NADA EN LA SUITE CUBRÍA ESTO, y es lo que `delete params.empresa` de P213 rompió: `depCargar`
+     detecta que la empresa cambió comparando contra la última leída, y con la clave borrada su
+     término caía a `''`, el `&&` lo apagaba y la lista se quedaba con las áreas del cliente
+     ANTERIOR. Es el defecto que A15 ya pagó una vez. Los tres archivos que tocan `DEPS` lo arman a
+     mano, así que el token `|| dashScopeTodas()` estaba sostenido por una medición y por nada más.
+     ⚠️ SU REVERSIÓN, medida el 2026-10-02 · en `depCargar` de `index.html`:
+         … || (DASH && DASH.params && DASH.params.empresa) || dashScopeTodas();   ←  lo correcto
+         … || (DASH && DASH.params && DASH.params.empresa) || '';                 ←  lo que rompía
+     Con la segunda, este caso se pone en rojo en tres comprobaciones: la empresa no se limpia, las
+     áreas del cliente anterior quedan listadas, y la caja de alta queda editable sobre datos de
+     otro. Ninguna otra de las 2083 se mueve. */
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  if (typeof DEPS === 'undefined' || typeof depCargar !== 'function') {
+    PRUEBAS.cierto(false, '🔴 falta `DEPS`/`depCargar`: el caso no puede medir'); return;
+  }
+  const est = p213bEntrar(pay);
+  const prevDeps = JSON.parse(JSON.stringify(DEPS));   // `DEPS` es `const`: se MUTA, no se reasigna
+  /* la rama de demostración setea `DEPS.empresa` sola y no mediría nada */
+  PRUEBAS.falso(!!(DASH && DASH.demoMode), 'guarda: no estamos en modo demostración');
+  /* el camino real COMPLETO: elegir una empresa y esperar a que el panel termine */
+  return p213bElegir(pay, 'Consorcio HELITEC')
+    .then(() => {
+      DEPS.empresa = 'Consorcio HELITEC'; DEPS.lista = [{ nombre: 'Operaciones', clave: 'operaciones' }];
+      DEPS.puedeEditar = true;
+      return p213bElegir(pay, '');          // y el admin quita el filtro
+    })
+    .then(() => {
+      PRUEBAS.igual(String(((DASH || {}).params || {}).empresa), 'undefined',
+        'guarda: la clave `empresa` quedó borrada, que es el estado que lo rompía');
+      try { depCargar(); } catch (e) { PRUEBAS.cierto(false, '🔴 `depCargar` lanzó: ' + e.message); }
+      PRUEBAS.igual(DEPS.empresa, '', '🔴 la empresa de la lista se limpió: el término NO cae a vacío');
+      PRUEBAS.igual(JSON.stringify(DEPS.lista || []), '[]', '🔴 y las áreas del cliente anterior se fueron');
+      PRUEBAS.falso(DEPS.puedeEditar === true, '⚠️ y no quedó editable sobre los datos de otro');
+      /* DISCRIMINADOR · con la MISMA empresa puesta no se limpia: la guarda no borra de más */
+      DEPS.empresa = 'Consorcio HELITEC'; DEPS.lista = [{ nombre: 'Operaciones', clave: 'operaciones' }];
+      DASH.f.emp = 'Consorcio HELITEC';
+      try { depCargar(); } catch (e) {}
+      PRUEBAS.igual(DEPS.empresa, 'Consorcio HELITEC', 'DISCRIMINADOR · con la MISMA empresa no se limpia…');
+      PRUEBAS.alMenos((DEPS.lista || []).length, 1, '…y las áreas se conservan');
+    })
+    .finally(() => {
+      Object.keys(DEPS).forEach(k => { delete DEPS[k]; });
+      Object.keys(prevDeps).forEach(k => { DEPS[k] = prevDeps[k]; });
+      est.fin();
+    });
+});
