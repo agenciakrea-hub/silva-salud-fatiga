@@ -206,8 +206,13 @@ PRUEBAS.caso('⚠️ el cartel no cuenta como enviable lo que el servidor va a r
     gestUpsert({ id: 'g_ret', tipo: GEST_TIPO_ANOTACION, persona: 'ANA', nivel: 'alto', creada: Date.now() });
     PRUEBAS.igual(colasRetenidas(), 0, 'guarda: con empresa elegida no hay nada retenido');
     DASH.f.emp = '';
+    /* ⚠️ ESTA LÍNEA NO DISCRIMINA LA GUARDA DE P213, y la etiqueta lo decía mal. Medido por
+       mutación: con y sin el `if (!gestEmpresaParaEscribir()) return [];` da ≥1, porque al vaciar
+       `DASH.f.emp` cambia `gestKey()` y la regla de particiones de P209 ya cuenta como retenido todo
+       lo que está en otra partición. Lo que SÍ protege la línea de P213 es la comprobación de abajo
+       (`gestTiposMandables()` → `[]`). Esta queda como contexto, no como cobertura. */
     PRUEBAS.alMenos(colasRetenidas(), 1,
-      '⚠️ sin empresa, lo pendiente cuenta como RETENIDO: el cartel deja de prometer un envío imposible');
+      'y lo pendiente queda contado como retenido (por la regla de particiones de P209, no por la guarda de P213)');
     PRUEBAS.igual(JSON.stringify(gestTiposMandables()), '[]', 'y no hay ningún tipo mandable');
   } finally { est.fin(); }
 });

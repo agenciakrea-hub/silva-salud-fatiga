@@ -7546,7 +7546,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.97';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.98';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -34686,7 +34686,15 @@ function depCargar(){
      hoja está `inert`, así que el daño normal era sólo visual — pero si la relectura falla,
      `depPintar()` no corre, la caja de alta queda visible con lo de la empresa anterior y el
      `inert` ya se soltó. */
-  const empAhora = (DASH && DASH.f && DASH.f.emp) || (DASH && DASH.params && DASH.params.empresa) || '';
+  /* ⚠️ `|| dashScopeTodas()`, NO `|| ''`. Esta guarda detecta que la empresa CAMBIÓ comparando con la
+     última que se leyó, y el `&&` de abajo la apaga si `empAhora` queda vacío. P213 hizo que
+     `dashEmpresaAdminCambiar` BORRE la clave `empresa` en vez de mandar un literal —que era lo
+     correcto: el servidor no sabía leerlo y aceptaba la ausencia en un balde— y con eso este campo
+     pasó a caer en `''`, así que la lista se quedaba con las áreas del cliente ANTERIOR. Es el
+     defecto que A15 ya pagó una vez. Falla cerrado para escribir (`depEnviar` manda `"*"` y el
+     servidor lo rechaza), pero muestra la pantalla de otro cliente. Con un centinela que nunca es
+     vacío, la comparación vuelve a correr en los tres estados. Lo cazó el verificador. */
+  const empAhora = (DASH && DASH.f && DASH.f.emp) || (DASH && DASH.params && DASH.params.empresa) || dashScopeTodas();
   if (DEPS.empresa && empAhora && DEPS.empresa !== empAhora){
     DEPS.lista = []; DEPS.puedeEditar = false; DEPS.duplicadas = 0; DEPS.empresa = '';
   }
