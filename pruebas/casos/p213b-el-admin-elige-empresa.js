@@ -28,35 +28,58 @@
 
 PRUEBAS.grupo('P213b · el admin elige empresa, y la pantalla lo dice');
 
-/* el payload mínimo de un panel de administrador, como lo arma el servidor */
+/* ⚠️ EL PAYLOAD SALE DE `admvPayload()`, de `admin-visor-y-sesion.js`, NO de uno inventado.
+   La primera versión de este archivo armaba un payload «mínimo» a mano y los tres casos del selector
+   fallaban con `DASH.f.emp` vacío. Diagnostiqué que era el contador global `_cargaN` invalidando la
+   carga — **y era falso**: medido, `_cargaN` valía 1 antes y después, `cargaVigente` daba true. Lo
+   que pasaba es que **`onDashData` LANZABA** `Cannot read properties of undefined (reading
+   'filter')`, porque al payload le faltaban campos (`aptitud`, `referencia`, `metricas`, `marca`,
+   `duty`, `ausencias`…). La excepción la comía el `.catch` de `dashEmpresaAdminCambiar`, que mostraba
+   «No se pudo conectar» — y por eso el síntoma parecía de red.
+   La lección, otra vez la de siempre: un fixture inventado prueba lo que uno imaginó, no lo que el
+   servidor manda. `admvPayload` ya existe, ya funciona y lo mantiene quien toca el panel.
+   ⚠️ Eso crea una dependencia de orden: `casos.json` carga `admin-visor-y-sesion.js` (índice 186)
+   antes que este archivo (235). Si alguien reordena, esto tiene que ponerse en ROJO con la razón,
+   no fallar con «admvPayload is not defined». */
 function p213bPayload(emps) {
-  return { ok: true, rol: 'admin', vista: 'medico', scope: 'Todas las empresas',
-    registros: [], pvt: [], operacional: [], turnos: [], comentarios: [],
-    cuentas: (emps || ['Aeropostal', 'Consorcio HELITEC']).map(e => ({ empresa: e })),
-    niveles: [], config: {}, gestiones: [], bitacora: [] };
+  if (typeof admvPayload !== 'function') return null;
+  const base = admvPayload({ rol: 'admin', vista: 'medico', visor: null });
+  if (emps) base.cuentas = emps.map(e => ({ empresa: e, combinada: false, tieneHseq: false }));
+  return base;
 }
-/* Entra como administrador y deja el DOM del visor listo. Devuelve `fin()` que restaura todo. */
+/* Entra como administrador POR `onDashData`, que es por donde entra el panel de verdad, y deja el
+   DOM del visor listo. Devuelve `fin()` que restaura todo. */
 function p213bEntrar(payload) {
   const prevDash = DASH, prevLS = {};
   try { Object.keys(localStorage).forEach(k => { prevLS[k] = localStorage.getItem(k); }); } catch (e) {}
-  const prevReq = window.dashRequest;
-  DASH = { rol: 'admin', vista: 'medico', scope: 'Todas las empresas', f: { emp: '', dep: '', per: '', nivel: '' },
-    params: { usuario: '*', empresa: 'Todas las empresas', pass: 'x' }, demoMode: false,
-    registros: [], cuentas: (payload && payload.cuentas) || [] };
+  const prevReq = window.dashRequest, prevFetch = window.fetchConReloj;
+  window.fetchConReloj = () => new Promise(() => {});   // nada sale a la red de verdad
   const ov = document.getElementById('portalOverlay'); const prevOv = ov ? ov.style.display : null;
   if (ov) ov.style.display = 'block';
   const cuerpo = document.getElementById('visorCuerpo'); const prevHid = cuerpo ? cuerpo.hidden : null;
   if (cuerpo) cuerpo.hidden = false;
-  try { visorPintar(); } catch (e) {}
+  onDashData(payload, 'Todas las empresas',
+    { action: 'supervisor', usuario: '*', empresa: 'Todas las empresas', pass: 'x', dispositivoId: 'p213b' }, 'medico');
   return { fin: () => {
-    window.dashRequest = prevReq;
+    window.dashRequest = prevReq; window.fetchConReloj = prevFetch;
     if (ov && prevOv != null) ov.style.display = prevOv;
     if (cuerpo && prevHid != null) cuerpo.hidden = prevHid;
     DASH = prevDash;
     try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch (e) {}
     try { clearTimeout(_gestSyncT); } catch (e) {}
     try { Object.keys(_gestEnVuelo).forEach(k => delete _gestEnVuelo[k]); } catch (e) {}
+    try { visorPintar(); } catch (e) {}
   } };
+}
+/* ⚠️ Y LAS EMPRESAS TIENEN QUE SER LAS DE `admvPayload().cuentas` — «Aeroambulancias Silva» y
+   «Consorcio HELITEC» —, no otras: el `<select>` se puebla con esa lista, así que `sel.value = 'X'`
+   con una X que no está entre las opciones deja el valor en `''` y se manda vacío. Dos de los tres
+   casos del selector fallaban por eso después de arreglar el payload. */
+/* la guarda de la dependencia: un rojo que se explica, no un `is not defined` */
+function p213bListo(pay) {
+  if (pay) return true;
+  PRUEBAS.cierto(false, '🔴 falta `admvPayload`: este archivo necesita que `admin-visor-y-sesion.js` cargue ANTES en `casos.json`');
+  return false;
 }
 const p213bSel = () => document.getElementById('dashEmpAdmin');
 const p213bNota = () => document.getElementById('dashEmpAdminNota');
@@ -68,7 +91,8 @@ PRUEBAS.caso('🔴 al elegir empresa, el SELECTOR queda marcado y la nota dice q
   /* ⚠️ ÉSTE ES EL DEFECTO 1, y sólo se ve entrando por el camino real: depende del ORDEN en que
      corren `onDashData` (que llama a `visorPintar` con `DASH.f.emp` vacío) y la línea que setea
      `DASH.f.emp`. Un caso que arme `DASH` a mano y llame a `visorPintar` nunca lo habría visto. */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
     if (!p213bSel()) { PRUEBAS.cierto(false, '🔴 no existe `#dashEmpAdmin`: el selector no se pintó'); return; }
     PRUEBAS.igual(p213bMarcada(), '', 'guarda: al entrar no hay empresa elegida');
@@ -95,24 +119,25 @@ PRUEBAS.caso('🔴 si el pedido FALLA, el selector vuelve a la empresa que de ve
      línea escrita para lo mismo—, así que el `<select>` quedaba mostrando la empresa que la persona
      eligió mientras `DASH.f.emp` seguía en la anterior. Una determinación firmada ahí se archiva en
      una empresa con la pantalla mostrando otra. */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
     if (!p213bSel()) { PRUEBAS.cierto(false, 'no existe `#dashEmpAdmin`'); return; }
-    p213bSel().value = 'Aeropostal';
+    p213bSel().value = 'Aeroambulancias Silva';
     window.dashRequest = () => Promise.resolve(p213bPayload());
     /* ⚠️ se ESPERA la promesa que devuelve, no un `setTimeout` corto: `conBloqueo` tiene el piso de
        tiempo de P044 y la pestaña oculta estrangula los timers a 1 s (ver `pruebas/LEEME.md`). */
     return Promise.resolve(dashEmpresaAdminCambiar()).then(() => {
-      PRUEBAS.igual(DASH.f.emp, 'Aeropostal', 'guarda: quedó en Aeropostal');
+      PRUEBAS.igual(DASH.f.emp, 'Aeroambulancias Silva', 'guarda: quedó en Aeropostal');
       /* ahora elige otra y el pedido FALLA */
       p213bSel().value = 'Consorcio HELITEC';
       window.dashRequest = () => Promise.reject(new Error('sin red'));
       return Promise.resolve(dashEmpresaAdminCambiar());
     }).then(() => {
-      PRUEBAS.igual(DASH.f.emp, 'Aeropostal', '⚠️ la empresa de trabajo NO cambió: el pedido falló');
-      PRUEBAS.igual(p213bMarcada(), 'Aeropostal',
+      PRUEBAS.igual(DASH.f.emp, 'Aeroambulancias Silva', '⚠️ la empresa de trabajo NO cambió: el pedido falló');
+      PRUEBAS.igual(p213bMarcada(), 'Aeroambulancias Silva',
         '🔴 y el selector volvió a mostrarla: antes se quedaba en la que falló, y lo firmado se iba a la otra');
-      PRUEBAS.igual(gestEmpresaParaEscribir(), 'Aeropostal', '⚠️ pantalla y escritura coinciden');
+      PRUEBAS.igual(gestEmpresaParaEscribir(), 'Aeroambulancias Silva', '⚠️ pantalla y escritura coinciden');
     }).finally(() => est.fin());
   } catch (e) { est.fin(); throw e; }
 });
@@ -122,16 +147,17 @@ PRUEBAS.caso('🔴 un SOLO escritor de `DASH.f.emp`: `dashDrill` y `dashClear` p
      al servidor. Tocar el mapa de calor de «Comparar» o quitar el filtro dejaba el panel filtrado en
      el CLIENTE —el defecto que P185 documentó al sacar el selector viejo— y las escrituras yéndose a
      una empresa distinta de la que se ve. */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
     if (!p213bSel()) { PRUEBAS.cierto(false, 'no existe `#dashEmpAdmin`'); return; }
     let pedidos = 0;
     window.dashRequest = (p) => { pedidos++; return Promise.resolve(Object.assign(p213bPayload(), { _emp: p && p.empresa })); };
     /* el camino del mapa de calor */
-    return Promise.resolve(dashDrill('emp', 'Aeropostal')).then(() => {
+    return Promise.resolve(dashDrill('emp', 'Aeroambulancias Silva')).then(() => {
       PRUEBAS.alMenos(pedidos, 1, '🔴 `dashDrill(\'emp\')` PIDIÓ el panel al servidor: antes filtraba local');
-      PRUEBAS.igual(DASH.f.emp, 'Aeropostal', 'y la empresa quedó puesta');
-      PRUEBAS.igual(p213bMarcada(), 'Aeropostal', '⚠️ y el selector lo refleja');
+      PRUEBAS.igual(DASH.f.emp, 'Aeroambulancias Silva', 'y la empresa quedó puesta');
+      PRUEBAS.igual(p213bMarcada(), 'Aeroambulancias Silva', '⚠️ y el selector lo refleja');
       const antes = pedidos;
       return Promise.resolve(dashClear('emp')).then(() => {
         PRUEBAS.alMenos(pedidos, antes + 1, '🔴 y quitar el filtro también PIDE: antes dejaba `params.empresa` pegado');
@@ -148,7 +174,8 @@ PRUEBAS.caso('🔴 sin empresa elegida NO SE CREA la gestión: la guarda está e
      `sin_empresa` diez veces, quedaba trabado y `cerrarSesion()` lo borraba. Antes de P213 la
      determinación quedaba MAL archivada pero EXISTÍA en el CH; con la guarda a medias no llegaba a
      ninguna hoja — ni la gestión ni su línea de bitácora, que es append-only (R3). */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
     const antes = Object.keys(gestStore().up || {}).length;
     gestUpsert({ id: 'g_p213b', tipo: GEST_TIPO_ANOTACION, persona: 'PEDRO GOMEZ', nivel: 'alto', creada: Date.now() });
@@ -156,12 +183,12 @@ PRUEBAS.caso('🔴 sin empresa elegida NO SE CREA la gestión: la guarda está e
       '🔴 no entró NADA a la cola: sin empresa elegida la gestión ni se crea');
     PRUEBAS.falso((gestStore().items || []).some(x => x && x.id === 'g_p213b'), 'ni al almacén local');
     /* DISCRIMINADOR · con empresa elegida sí se crea */
-    DASH.f.emp = 'Aeropostal';
+    DASH.f.emp = 'Aeroambulancias Silva';
     gestUpsert({ id: 'g_p213b_ok', tipo: GEST_TIPO_ANOTACION, persona: 'PEDRO GOMEZ', nivel: 'alto', creada: Date.now() });
     PRUEBAS.cierto((gestStore().items || []).some(x => x && x.id === 'g_p213b_ok'),
       'DISCRIMINADOR · con empresa elegida SÍ se crea');
     /* y un SUPERVISOR nunca se ve afectado: su empresa sale de su propio alcance */
-    DASH.rol = 'supervisor'; DASH.vista = 'supervisor'; DASH.scope = 'Aeropostal'; DASH.f.emp = '';
+    DASH.rol = 'supervisor'; DASH.vista = 'supervisor'; DASH.scope = 'Aeroambulancias Silva'; DASH.f.emp = '';
     gestUpsert({ id: 'g_p213b_sup', tipo: GEST_TIPO_ANOTACION, persona: 'ANA', nivel: 'alto', creada: Date.now() });
     PRUEBAS.cierto((gestStore().items || []).some(x => x && x.id === 'g_p213b_sup'),
       '⚠️ y un SUPERVISOR crea siempre: la guarda sólo alcanza al administrador');
@@ -172,9 +199,10 @@ PRUEBAS.caso('⚠️ el cartel no cuenta como enviable lo que el servidor va a r
   /* `gestTiposMandables` devuelve `[]` sin empresa concreta, así que `colasRetenidas` cuenta esos
      pendientes como RETENIDOS. Sin esto el cartel pintaba «Enviando N registros…» indefinidamente y
      a los diez intentos ofrecía un botón que reintenta en bucle. */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
-    DASH.f.emp = 'Aeropostal';
+    DASH.f.emp = 'Aeroambulancias Silva';
     gestUpsert({ id: 'g_ret', tipo: GEST_TIPO_ANOTACION, persona: 'ANA', nivel: 'alto', creada: Date.now() });
     PRUEBAS.igual(colasRetenidas(), 0, 'guarda: con empresa elegida no hay nada retenido');
     DASH.f.emp = '';
@@ -188,7 +216,8 @@ PRUEBAS.caso('⚠️ el nombre de la empresa se ESCAPA antes de ir a `innerHTML`
   /* `t()` no escapa (hace `split('{e}').join(String(v))`) y la nota va a `innerHTML`. El nombre sale
      de la columna EMPRESAS del CH, que —dice la memoria del proyecto— no es sólo nuestro. La línea
      de al lado (`visorViendo`) ya pasaba `esc()`; ésta no. */
-  const est = p213bEntrar(p213bPayload(['Helitec <img src=x onerror=alert(1)>']));
+  const pay = p213bPayload(['Helitec <img src=x onerror=alert(1)>']); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   try {
     DASH.f.emp = 'Helitec <img src=x onerror=alert(1)>';
     visorPintar();
@@ -203,7 +232,8 @@ PRUEBAS.caso('⚠️ el nombre de la empresa se ESCAPA antes de ir a `innerHTML`
 PRUEBAS.caso('⚠️ el aviso del motivo se repite si la persona vuelve a chocar con la misma pared', () => {
   /* `_ultimoMotivoCola` no se reiniciaba nunca: 20 pedidos rechazados con un reintento manual en el
      medio daban UN solo aviso. `colaMotivoOk()` lo limpia cuando algo sí entra. */
-  const est = p213bEntrar(p213bPayload());
+  const pay = p213bPayload(); if (!p213bListo(pay)) return;
+  const est = p213bEntrar(pay);
   const oToast = window.showToast; let avisos = 0;
   window.showToast = () => { avisos++; };
   try {
