@@ -1,0 +1,175 @@
+/* ── DISCRIMINADOR de P214 · «un verde no vale sin haber visto el rojo» ────────────────────────
+   (2026-10-02)
+
+   P214 cerró NUEVE lugares con una sola regla (`esAdminMaestro_`). Eso hace que un discriminador
+   ingenuo sea engañoso en los dos sentidos: revertir sólo el helper tumba todo a la vez y no dice
+   qué lugar mide cada caso; revertir sólo un lugar deja los otros ocho tapando el defecto.
+   Por eso van CUATRO reversiones independientes:
+
+     A · `esAdminMaestro_` vuelve a ser `acc.rol === "admin"` — la raíz. Debe caer TODO.
+     B · `accionSupervisor` vuelve a filtrar sólo con empresa concreta — el panel entero.
+     C · `accesoPanel_` pierde la guarda de la lista — el visor sobre empresa ajena.
+     D · `ausScope` pierde la suya — ausencias, opiniones, credenciales (9 llamadores).
+
+   ⚠️ Y LAS DOS MITADES de cada una: lo que TIENE que cambiar (el admin de fila deja de ver lo
+   ajeno) y lo que NO PUEDE cambiar (el maestro ve todo, el supervisor ve lo suyo). Un
+   discriminador que sólo mira la primera no distingue «lo cerré» de «dejé a todos sin acceso».
+
+   Desde `silva-salud-fatiga/`:   node pruebas/discriminador-p214.js
+   Sale 0 si discrimina, 1 si no, 3 si no pudo medir. */
+
+const fs = require('fs'), path = require('path'), vm = require('vm');
+global.window = global;
+const RAIZ = path.resolve(__dirname, '..');
+vm.runInThisContext(fs.readFileSync(path.join(RAIZ, 'pruebas/emulador-gs.js'), 'utf8'), { filename: 'emulador-gs.js' });
+
+const GS_PATH = path.resolve(RAIZ, '..', 'ENDPOINT_STANDALONE_MODIFICADO.gs');
+if (!fs.existsSync(GS_PATH)) { console.log('🔴 no encuentro el `.gs` en ' + GS_PATH); process.exit(3); }
+const real = fs.readFileSync(GS_PATH, 'utf8');
+
+const REV = [
+  { nombre: 'A · `esAdminMaestro_` vuelve a ser `acc.rol === "admin"` (la raíz de las nueve)',
+    busca: '  return !!acc && acc.rol === "admin" && acc.empresas === null && acc.canonical == null;',
+    pone:  '  return !!acc && acc.rol === "admin";' },
+  { nombre: 'B · `accionSupervisor` vuelve a filtrar sólo con empresa concreta (el panel entero)',
+    busca: `    var permitidasS = empresasPermitidas_(acc);          // \`null\` sólo para el maestro`,
+    pone:  `    var permitidasS = null;   // REVERTIDO` },
+  { nombre: 'C · `accesoPanel_` pierde la guarda de la lista (el visor sobre empresa ajena)',
+    busca: '    var permitidasV = empresasPermitidas_(acc);\n    if (permitidasV && permitidasV.indexOf(norm(ve)) < 0) { acc.visorError = "empresa"; return acc; }',
+    pone:  '    var permitidasV = null;   // REVERTIDO' },
+  { nombre: 'D · `ausScope` pierde la suya (ausencias, opiniones, credenciales: 9 llamadores)',
+    busca: `    if (!esAdminMaestro_(acc)) {
+      var canonE = nominaEmpresaCanon(alias, e);
+      if (empresasPermitidas_(acc).indexOf(norm(canonE)) < 0) {
+        return nominaEmpresaCanon(alias, acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+      }
+      return canonE;
+    }
+    return nominaEmpresaCanon(alias, e);`,
+    pone:  `    return nominaEmpresaCanon(alias, e);   // REVERTIDO` }
+];
+
+const comoLista = r => Array.isArray(r.busca) ? r.busca : [r.busca];
+const aplicar = (txt, r) => comoLista(r).reduce((acc, b) => acc.split(b).join(r.pone), txt);
+const falta = REV.filter(r => comoLista(r).some(b => real.split(b).length - 1 !== 1));
+if (falta.length) {
+  console.log('🔴 no encontré estos puntos de reversión: no puedo medir.');
+  falta.forEach(r => console.log('   · ' + r.nombre));
+  process.exit(3);
+}
+
+const CAB = ['Usuario (puede ser el que quieras)', 'Contraseña (puede ser la que quieras)',
+  'Rol (supervisor ve solo su empresa, admin ve todas)',
+  'EMPRESAS (la lista de empresas que usuario ve, separadas por coma)',
+  'Contraseña Médica (si no se pone ninguna la de supervisor abre ambas secciones)', 'Contraseña HSQ'];
+const HOJAS = () => ({
+  'Accesos': [CAB,
+    ['*', 'km', 'admin', '', '', ''],                       // el maestro
+    ['Grupo Norte', 'kgn', 'admin', 'Aerocentro', '', ''],   // admin DE FILA
+    ['Aeropostal', 'kap', 'supervisor', 'Aeropostal', '', '']],
+  'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+    ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
+    ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico']],
+  /* ⚠️ `Operacional` CON FILAS DE LAS DOS EMPRESAS, y es lo que hacía falta para medir la fuga más
+     grande. La primera versión de este discriminador no tenía ninguna métrica sobre el panel de
+     `accionSupervisor`, así que la reversión B salía «NO DISCRIMINA» — no porque la defensa
+     estuviera de más, sino porque el medidor no miraba ahí. Un medidor que no mide lo que dice es
+     el defecto que este proyecto ya pagó varias veces.
+     Se mide por `operacional` y no por `registros` porque `Respuestas de formulario 1` tiene ~90
+     columnas con dos filas de encabezado, y el MISMO `enAlcance` filtra los cuatro conjuntos. */
+  'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
+    ['2026-10-02', '08:00', '2026-10-02T08:00:00', 'e1', 'ANA SUAREZ', 'Aerocentro', 'Operaciones', 'Piloto', 'inicio', '', '', ''],
+    ['2026-10-02', '09:00', '2026-10-02T09:00:00', 'e2', 'PEDRO GOMEZ', 'Aeropostal', 'Mantenimiento', 'Tecnico', 'inicio', '', '', '']],
+  'Config Empresa': [['Empresa', 'Clave', 'Valor']],
+  'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']],
+  'Bitácora': [['Fecha', 'Empresa', 'Accion', 'Sujeto', 'Actor', 'Rol', 'Origen', 'Detalle', 'Umbral', 'App', 'Id', 'Hash', 'Extra']]
+});
+
+/* Lo que se mide en cada corrida. Cada clave es un HECHO observable, no una opinión. */
+function medir(txt) {
+  const env = GS.crearEntorno(HOJAS());
+  const api = GS.cargarGs(txt, env, ['validarAcceso', 'accesoPanel_', 'ausScope', 'construirAlias',
+    'accionNominaListar', 'cuentasPanel_', 'empresasPermitidas_', 'accionSupervisor']);
+  const alias = api.construirAlias();
+  const deFila = api.validarAcceso('Grupo Norte', 'kgn', 'd');
+  const maestro = api.validarAcceso('*', 'km', 'd');
+  const sup = api.validarAcceso('Aeropostal', 'kap', 'd');
+  const nom = (u, p) => { try {
+    const d = JSON.parse(api.accionNominaListar({ usuario: u, pass: p, dispositivoId: 'd' }).getContent());
+    return (d.nomina || []).map(x => String(x.persona));
+  } catch (e) { return ['ERROR:' + e.message]; } };
+  const visor = (u, p, ve) => { try {
+    const a = api.accesoPanel_({ usuario: u, pass: p, dispositivoId: 'd', verEmpresa: ve, verVista: 'medico' });
+    return !!(a && a.visor) && !(a && a.visorError);
+  } catch (e) { return 'ERROR'; } };
+  const cuentasDe = (acc) => { try {
+    return api.cuentasPanel_(api.empresasPermitidas_(acc)).map(x => String(x.empresa));
+  } catch (e) { return ['ERROR']; } };
+  /* LA MÉTRICA DE LA FUGA MÁS GRANDE: qué personas trae el panel en `operacional`. Se entra por
+     `accionSupervisor`, que es la acción real, y SIN mandar `empresa` — que es justo el estado en
+     que la rama vieja no filtraba nada. */
+  const panelPersonas = (u, pw) => { try {
+    const d = JSON.parse(api.accionSupervisor({ usuario: u, pass: pw, dispositivoId: 'd' }).getContent());
+    return (d.operacional || []).map(x => String(x.persona || ''));
+  } catch (e) { return ['ERROR:' + e.message]; } };
+  return {
+    /* LO QUE TIENE QUE CAMBIAR */
+    filaVeNominaAjena:   nom('Grupo Norte', 'kgn').indexOf('PEDRO GOMEZ') >= 0,
+    filaAbreVisorAjeno:  visor('Grupo Norte', 'kgn', 'Aeropostal'),
+    filaAusenciaAjena:   String(api.ausScope(deFila, alias, 'Aeropostal')).toLowerCase().indexOf('aeropostal') === 0,
+    filaVeCuentasAjenas: cuentasDe(deFila).indexOf('Aeropostal') >= 0,
+    filaVePanelAjeno:    panelPersonas('Grupo Norte', 'kgn').indexOf('PEDRO GOMEZ') >= 0,
+    /* LO QUE **NO** PUEDE CAMBIAR */
+    maestroVeTodaLaNomina: (() => { const l = nom('*', 'km'); return l.indexOf('PEDRO GOMEZ') >= 0 && l.indexOf('ANA SUAREZ') >= 0; })(),
+    maestroAbreVisor:      visor('*', 'km', 'Aeropostal'),
+    maestroAusenciaLibre:  api.ausScope(maestro, alias, 'Aeropostal') === 'Aeropostal',
+    maestroVeTodasCuentas: cuentasDe(maestro).indexOf('Aeropostal') >= 0,
+    filaVeLaSuya:          nom('Grupo Norte', 'kgn').indexOf('ANA SUAREZ') >= 0,
+    filaAbreVisorPropio:   visor('Grupo Norte', 'kgn', 'Aerocentro'),
+    supVeLoSuyo:           nom('Aeropostal', 'kap').indexOf('PEDRO GOMEZ') >= 0,
+    supNoVeLoAjeno:        nom('Aeropostal', 'kap').indexOf('ANA SUAREZ') < 0,
+    supAnclado:            api.ausScope(sup, alias, 'Aerocentro') === 'Aeropostal',
+    /* y las dos guardas que hacen valer la métrica nueva: si el panel viniera vacío para todos,
+       `filaVePanelAjeno:false` no mediría nada */
+    maestroVePanelEntero:  (() => { const l = panelPersonas('*', 'km');
+                              return l.indexOf('PEDRO GOMEZ') >= 0 && l.indexOf('ANA SUAREZ') >= 0; })(),
+    filaVePanelPropio:     panelPersonas('Grupo Norte', 'kgn').indexOf('ANA SUAREZ') >= 0
+  };
+}
+
+const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAjena', 'filaVeCuentasAjenas',
+                      'filaVePanelAjeno'];
+const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
+                      'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
+                      'maestroVePanelEntero', 'filaVePanelPropio'];
+
+let base;
+try { base = medir(real); } catch (e) { console.log('🔴 no pude medir el `.gs` tal cual: ' + e.message); process.exit(3); }
+console.log('── TAL CUAL ESTÁ (lo que P214 dejó) ──');
+DEBE_CAMBIAR.forEach(k => console.log(`   ${base[k] ? '🔴' : '✅'} ${k} = ${base[k]}   (se espera false)`));
+NO_PUEDE.forEach(k    => console.log(`   ${base[k] ? '✅' : '🔴'} ${k} = ${base[k]}   (se espera true)`));
+
+let fallo = 0;
+if (DEBE_CAMBIAR.some(k => base[k])) { console.log('\n🔴 con el `.gs` TAL CUAL, un admin de fila sigue viendo algo ajeno.'); fallo = 1; }
+if (NO_PUEDE.some(k => !base[k]))    { console.log('\n🔴 con el `.gs` TAL CUAL, se rompió un acceso LEGÍTIMO.'); fallo = 1; }
+
+REV.forEach(r => {
+  console.log('\n── REVERTIDO · ' + r.nombre + ' ──');
+  let m;
+  try { m = medir(aplicar(real, r)); }
+  catch (e) { console.log('   🔴 el mutante no corre (' + e.message + '): no mide nada'); fallo = 1; return; }
+  const reabre = DEBE_CAMBIAR.filter(k => m[k]);
+  const rompe  = NO_PUEDE.filter(k => !m[k]);
+  DEBE_CAMBIAR.forEach(k => { if (m[k] !== base[k]) console.log(`   ⚡ ${k}: ${base[k]} → ${m[k]}`); });
+  if (!reabre.length) {
+    console.log('   🔴 NO DISCRIMINA: revertir esto no reabre ninguna fuga. Las defensas vecinas la tapan,');
+    console.log('      o la reversión no es la correcta. Un verde así no vale.');
+    fallo = 1;
+  } else {
+    console.log('   ✅ reabre: ' + reabre.join(', '));
+  }
+  if (rompe.length) console.log('   ⚠️ y además rompe accesos legítimos: ' + rompe.join(', '));
+});
+
+console.log(fallo ? '\n🔴 EL DISCRIMINADOR NO PASA.' : '\n✅ Las cuatro reversiones reabren fuga, y tal cual está no se rompe ningún acceso legítimo.');
+process.exit(fallo);

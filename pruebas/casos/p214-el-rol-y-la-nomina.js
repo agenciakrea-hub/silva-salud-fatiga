@@ -1,0 +1,315 @@
+/* ── P214 · el rol sale de una celda que se escribe a mano ────────────────────────────────────────
+   (2026-10-02)
+
+   `acc.rol === "admin"` NO alcanza para decidir nada que exponga datos de otra empresa. El rol se
+   lee de la **columna C de `Accesos`** (`"Rol (supervisor ve solo su empresa, admin ve todas)"`),
+   que la edita gente de la empresa: basta escribir «admin» en una fila cualquiera. El maestro
+   legítimo es el usuario `*`, y `validarAcceso` le arma un literal propio
+   —`{rol:"admin", empresas:null, canonical:null}`— ignorando a propósito su columna EMPRESAS.
+
+   P212 cerró esta errata SÓLO para `gestScope` y dejó la deuda escrita con nombre en su propio
+   comentario. P214 la cierra en las tres superficies que faltaban, y la peor no era la nómina:
+
+     1 · EL VISOR (`accesoPanel_`) · un admin de fila pedía `verEmpresa` de cualquier empresa y el
+         servidor le fabricaba su `acc`: panel completo, con registros, métricas de salud, PVT,
+         comentarios y turnos. La nómina da nombre y cédula; esto da datos clínicos.
+     2 · LA LISTA DE EMPRESAS CLIENTES (`cuentasPanel_`) · más `atajosAdmin`, que trae NOMBRE Y
+         CÉDULA de personas.
+     3 · LA NÓMINA (`accionNominaListar` y el diagnóstico de unificación).
+
+   ⚠️ MEDIDO CONTRA EL CH ANTES DE TOCAR: de las 16 cuentas en producción la ÚNICA con rol admin es
+   el maestro `*`. Las otras 15 son 8 `supervisor`, 5 con el rol VACÍO —que `validarAcceso` cae a
+   `supervisor`— y 2 con `-`, que no es admin por ninguna comparación. Ninguna cuenta viva cambia de
+   comportamiento.
+
+   ⚠️ R17 · ACÁ NO SE ARMA NINGÚN `acc` A MANO. Las cuentas se declaran como filas de `Accesos` y se
+   autentican con `validarAcceso`, que es quien deriva `rol`, `empresas` y `canonical`. Armar el
+   `acc` a mano probaría el candado y no que `validarAcceso` le pueda dar lo que pide — el defecto
+   que este proyecto ya pagó tres veces. */
+
+PRUEBAS.grupo('P214 · el rol y la nómina');
+
+const P214_CAB = ['Usuario (puede ser el que quieras)', 'Contraseña (puede ser la que quieras)',
+  'Rol (supervisor ve solo su empresa, admin ve todas)',
+  'EMPRESAS (la lista de empresas que usuario ve, separadas por coma)',
+  'Contraseña Médica (si no se pone ninguna la de supervisor abre ambas secciones)', 'Contraseña HSQ'];
+
+function p214Api(fns) {
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      /* el MAESTRO: usuario `*`, sin lista → ve todo */
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      /* un ADMIN DE FILA con DOS empresas: el caso que importa */
+      ['Grupo Norte', 'clave-gn', 'admin', 'Aerocentro, Consorcio HELITEC', '', ''],
+      /* una empresa AJENA al admin de fila */
+      ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', ''],
+      /* y otra, para que la lista de cuentas tenga más de una afuera */
+      ['Cardon', 'clave-cd', 'supervisor', 'Cardon', '', '']],
+    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']],
+    'Config Empresa': [['Empresa', 'Clave', 'Valor']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, fns);
+  api.__env = env;
+  return api;
+}
+
+PRUEBAS.caso('⚠️ la premisa · el rol sale de la columna C, y `esAdminMaestro_` distingue al maestro del admin de fila', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`: no se midió nada'); return; }
+  const api = p214Api(['validarAcceso', 'esAdminMaestro_', 'empresasPermitidas_']);
+  /* ⚠️ los dos `acc` salen de `validarAcceso`, no de un literal */
+  const maestro = api.validarAcceso('*', 'clave-maestra', 'd1');
+  const deFila  = api.validarAcceso('Grupo Norte', 'clave-gn', 'd2');
+  const sup     = api.validarAcceso('Aeropostal', 'clave-ap', 'd3');
+  PRUEBAS.igual(maestro && maestro.rol, 'admin', 'guarda: el maestro entra como admin…');
+  PRUEBAS.igual(maestro && maestro.empresas, null, '…y sin lista de empresas (`null` = todas)');
+  PRUEBAS.igual(deFila && deFila.rol, 'admin', '🔴 LA PREMISA · «admin» escrito en una fila DA rol admin…');
+  PRUEBAS.igual(JSON.stringify(deFila && deFila.empresas), JSON.stringify(['Aerocentro', 'Consorcio HELITEC']),
+    '…pero CON lista propia, que es lo que lo distingue');
+  PRUEBAS.cierto(!!(deFila && deFila.canonical), '…y con canónico cargado, que el maestro no tiene');
+  /* el candado */
+  PRUEBAS.cierto(api.esAdminMaestro_(maestro), '🔴 `esAdminMaestro_` reconoce al maestro');
+  PRUEBAS.falso(api.esAdminMaestro_(deFila), '🔴 y NO al admin de fila');
+  PRUEBAS.falso(api.esAdminMaestro_(sup), 'ni al supervisor');
+  PRUEBAS.falso(api.esAdminMaestro_(null), 'ni a un `acc` nulo: no lanza, devuelve false');
+  PRUEBAS.falso(api.esAdminMaestro_(undefined), 'ni a `undefined` — es lo que llega como `acc.base` sin visor');
+  /* y las empresas permitidas */
+  PRUEBAS.igual(api.empresasPermitidas_(maestro), null, '🔴 el maestro no se filtra (`null` = todas)');
+  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(deFila)), JSON.stringify(['aerocentro', 'consorcio helitec']),
+    '🔴 y el admin de fila queda con sus DOS empresas, no con una');
+});
+
+PRUEBAS.caso('🔴 EL VISOR · un admin de fila no puede mirar una empresa ajena', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214Api(['accesoPanel_', 'validarAcceso']);
+  /* ⚠️ se entra por `accesoPanel_`, que es por donde entra el panel de verdad */
+  const ajena = api.accesoPanel_({ usuario: 'Grupo Norte', pass: 'clave-gn', dispositivoId: 'd',
+    verEmpresa: 'Aeropostal', verVista: 'medico' });
+  PRUEBAS.igual(ajena && ajena.visorError, 'empresa', '🔴 pedir una empresa AJENA da `visorError`');
+  PRUEBAS.falso(!!(ajena && ajena.visor), '🔴 y NO se abre el visor');
+  PRUEBAS.falso(String(ajena && ajena.canonical || '').toLowerCase().indexOf('aeropostal') === 0,
+    '🔴 el `acc` NO quedó apuntando a la empresa ajena');
+  /* DISCRIMINADOR · una empresa de SU lista sí se abre: el rechazo es por el permiso, no por el camino */
+  const propia = api.accesoPanel_({ usuario: 'Grupo Norte', pass: 'clave-gn', dispositivoId: 'd',
+    verEmpresa: 'Consorcio HELITEC', verVista: 'medico' });
+  PRUEBAS.cierto(!!(propia && propia.visor), 'DISCRIMINADOR · una empresa de SU lista SÍ abre el visor…');
+  PRUEBAS.igual(propia && propia.visorError, undefined, '…sin error');
+  PRUEBAS.cierto(!!(propia && propia.soloLectura), '…y en sólo lectura (ADR 007: el visor no escribe)');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro sigue mirando cualquier empresa */
+  const delMaestro = api.accesoPanel_({ usuario: '*', pass: 'clave-maestra', dispositivoId: 'd',
+    verEmpresa: 'Aeropostal', verVista: 'medico' });
+  PRUEBAS.cierto(!!(delMaestro && delMaestro.visor), '🔴 NO PUEDE CAMBIAR · el maestro sigue mirando cualquier empresa');
+  PRUEBAS.igual(delMaestro && delMaestro.visorError, undefined, '…sin error');
+});
+
+PRUEBAS.caso('🔴 EL VISOR · mirar con otra vista no amplía el alcance', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214Api(['accesoPanel_', 'validarAcceso', 'esAdminMaestro_', 'gestScope']);
+  /* sólo `verVista`, sin empresa: la rama que fabricaba el literal del maestro */
+  const porVista = api.accesoPanel_({ usuario: 'Grupo Norte', pass: 'clave-gn', dispositivoId: 'd',
+    verVista: 'hseq' });
+  PRUEBAS.cierto(!!(porVista && porVista.visor), 'guarda: el visor por vista se abre (es legítimo)');
+  PRUEBAS.falso(api.esAdminMaestro_(porVista),
+    '🔴 y la sesión resultante NO pasa por maestro: antes fabricaba `{empresas:null, canonical:null}`');
+  PRUEBAS.cierto(!!(porVista && porVista.canonical), '🔴 conserva su canónico…');
+  PRUEBAS.igual(JSON.stringify(porVista && porVista.empresas), JSON.stringify(['Aerocentro', 'Consorcio HELITEC']),
+    '…y su lista de empresas');
+  /* la consecuencia medible: `gestScope` ya no le da una empresa ajena */
+  PRUEBAS.falso(api.gestScope(porVista, 'Aeropostal').toLowerCase() === 'aeropostal',
+    '🔴 y `gestScope` ya no le devuelve la empresa ajena que pide');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro por vista queda idéntico */
+  const maestroPorVista = api.accesoPanel_({ usuario: '*', pass: 'clave-maestra', dispositivoId: 'd',
+    verVista: 'hseq' });
+  PRUEBAS.cierto(api.esAdminMaestro_(maestroPorVista),
+    '🔴 NO PUEDE CAMBIAR · el maestro mirando por vista SIGUE siendo maestro');
+  PRUEBAS.igual(api.gestScope(maestroPorVista, 'Aeropostal'), 'Aeropostal',
+    '…y sigue pudiendo indicar cualquier empresa');
+});
+
+PRUEBAS.caso('🔴 LA LISTA DE EMPRESAS CLIENTES · un admin de fila sólo recibe las suyas', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214Api(['cuentasPanel_', 'empresasPermitidas_', 'validarAcceso']);
+  const deFila = api.validarAcceso('Grupo Norte', 'clave-gn', 'd');
+  const nombres = l => (l || []).map(x => String(x.empresa));
+  /* el maestro: sin recorte */
+  const todas = nombres(api.cuentasPanel_(null));
+  PRUEBAS.alMenos(todas.length, 3, 'guarda: hay al menos tres empresas en la hoja');
+  PRUEBAS.cierto(todas.indexOf('Aeropostal') >= 0, 'guarda: y «Aeropostal» es una de ellas');
+  /* el admin de fila: sólo las suyas */
+  const suyas = nombres(api.cuentasPanel_(api.empresasPermitidas_(deFila)));
+  PRUEBAS.igual(suyas.indexOf('Aeropostal'), -1, '🔴 NO recibe «Aeropostal», que no es suya');
+  PRUEBAS.igual(suyas.indexOf('Cardon'), -1, '🔴 ni «Cardon»');
+  PRUEBAS.cierto(suyas.indexOf('Aerocentro') >= 0, '🔴 y SÍ recibe «Aerocentro», que es suya…');
+  PRUEBAS.igual(suyas.length, 1, '…una sola fila, porque sus dos empresas son variantes de la MISMA fila');
+});
+
+PRUEBAS.caso('🔴 LA NÓMINA · un admin de fila sólo ve a su gente', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      ['Grupo Norte', 'clave-gn', 'admin', 'Aerocentro, Consorcio HELITEC', '', ''],
+      ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', '']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
+      ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico']],
+    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionNominaListar', 'validarAcceso']);
+  /* ⚠️ LA CLAVE ES `nomina`, verificado corriendo la acción — no `filas` ni `r`, que es lo que
+     supuse primero. Con la clave equivocada la lista venía SIEMPRE vacía, y entonces el aserto
+     «no ve a la persona ajena» pasaba por vacío: una afirmación negativa sobre una lista vacía
+     pasa con cualquier basura. Por eso abajo va la guarda de que la lista NO esté vacía. */
+  const nombres = r => { const d = JSON.parse(r.getContent());
+    return d.ok === false ? ('🔴 ' + (d.error || d.motivo)) : (d.nomina || []).map(x => String(x.persona)); };
+  const suyos = nombres(api.accionNominaListar({ usuario: 'Grupo Norte', pass: 'clave-gn', dispositivoId: 'd' }));
+  if (typeof suyos === 'string') { PRUEBAS.cierto(false, 'la acción no devolvió filas: ' + suyos); return; }
+  /* ⚠️ LA GUARDA QUE HACE VALER EL ASERTO DE ABAJO: si la lista viniera vacía, «no ve al ajeno»
+     pasaría sin medir nada. Me pasó con la clave equivocada del payload. */
+  PRUEBAS.alMenos(suyos.length, 1, 'guarda: la lista NO está vacía, así que el aserto de abajo mide algo');
+  PRUEBAS.igual(suyos.indexOf('PEDRO GOMEZ'), -1, '🔴 el admin de fila NO ve a la persona de la empresa ajena');
+  PRUEBAS.cierto(suyos.indexOf('ANA SUAREZ') >= 0, '🔴 y SÍ ve a la de su propia empresa');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro ve a los dos */
+  const delMaestro = nombres(api.accionNominaListar({ usuario: '*', pass: 'clave-maestra', dispositivoId: 'd' }));
+  PRUEBAS.cierto(Array.isArray(delMaestro) && delMaestro.indexOf('PEDRO GOMEZ') >= 0 && delMaestro.indexOf('ANA SUAREZ') >= 0,
+    '🔴 NO PUEDE CAMBIAR · el maestro sigue viendo a todos');
+  /* y el supervisor, igual que siempre */
+  const delSup = nombres(api.accionNominaListar({ usuario: 'Aeropostal', pass: 'clave-ap', dispositivoId: 'd' }));
+  PRUEBAS.cierto(Array.isArray(delSup) && delSup.indexOf('PEDRO GOMEZ') >= 0, 'el supervisor ve su gente…');
+  PRUEBAS.igual(Array.isArray(delSup) ? delSup.indexOf('ANA SUAREZ') : 0, -1, '…y sólo la suya');
+});
+
+/* ── Las cinco superficies que el BARRIDO encontró después, y que son peores ──────────────────────
+   Un subagente recorrió las ~30 derivaciones de «es admin» del `.gs` y EJECUTÓ el caso con «admin»
+   escrito en la columna C. Encontró cinco más, y una de ellas es mayor que todas las de arriba:
+   `accionSupervisor` devolvía el PANEL ENTERO. Y dejó anotado por qué cerrar sólo `accesoPanel_`
+   no alcanzaba: el visor con sólo `verVista` devuelve `rol:"admin"` legítimamente, y
+   `accionSupervisor` lo trataba como global sin mirar `acc.empresas`. */
+
+function p214ApiPanel(fns) {
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      ['Grupo Norte', 'clave-gn', 'admin', 'Aerocentro', '', ''],
+      ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', '']],
+    'Respuestas de formulario 1': [['Fecha', 'Hora', 'Empresa', 'Nombre', 'KSS', 'Estres']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
+      ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico']],
+    'Ausencias': [['ID', 'Empresa', 'Persona', 'Cedula', 'Desde', 'Hasta', 'Motivo', 'Quien', 'Anulada', 'TS'],
+      ['a1', 'Aeropostal', 'PEDRO GOMEZ', 'V-222', '2026-10-02', '2026-10-02', 'franco', 'x', 'vigente', '1']],
+    /* ⚠️ La hoja de configuración es «Config Empresa» (`HOJA_CONFIG`), verificado en el `.gs`. Mi
+       primer fixture declaró «Configuracion» y `atajosAdminLeer_` devolvía `[]`: el atajo no
+       existía y el caso se rechazaba por eso, no por el candado. */
+    'Config Empresa': [['Empresa', 'Clave', 'Valor']],
+    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']],
+    'Bitácora': [['Fecha', 'Empresa', 'Accion', 'Sujeto', 'Actor', 'Rol', 'Origen', 'Detalle', 'Umbral', 'App', 'Id', 'Hash', 'Extra']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, fns);
+  api.__env = env;
+  return api;
+}
+
+PRUEBAS.caso('🔴 AUSENCIAS · `ausScope` no le da una empresa ajena a un admin de fila (9 llamadores)', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214Api(['ausScope', 'validarAcceso', 'construirAlias', 'esAdminMaestro_']);
+  const deFila  = api.validarAcceso('Grupo Norte', 'clave-gn', 'd');
+  const maestro = api.validarAcceso('*', 'clave-maestra', 'd');
+  const alias = api.construirAlias();
+  /* pide una empresa que NO es suya */
+  const ajena = api.ausScope(deFila, alias, 'Aeropostal');
+  PRUEBAS.falso(String(ajena).toLowerCase().indexOf('aeropostal') === 0,
+    '🔴 pedir «Aeropostal» NO devuelve «Aeropostal»…');
+  PRUEBAS.cierto(String(ajena).toLowerCase().indexOf('aerocentro') === 0,
+    '…cae a la SUYA, que es lo que hace un supervisor');
+  /* DISCRIMINADOR · una empresa suya sí se la da */
+  PRUEBAS.cierto(String(api.ausScope(deFila, alias, 'Aerocentro')).toLowerCase().indexOf('aerocentro') === 0,
+    'DISCRIMINADOR · una empresa SUYA sí se la devuelve');
+  /* LO QUE NO PUEDE CAMBIAR */
+  PRUEBAS.igual(api.ausScope(maestro, alias, 'Aeropostal'), 'Aeropostal',
+    '🔴 NO PUEDE CAMBIAR · el maestro sigue pudiendo indicar cualquier empresa');
+  PRUEBAS.igual(api.ausScope(maestro, alias, ''), '',
+    '…y sin empresa sigue devolviendo vacío (P213: `depEmpresaValida`)');
+  const sup = api.validarAcceso('Aeropostal', 'clave-ap', 'd');
+  PRUEBAS.igual(api.ausScope(sup, alias, 'Aerocentro'), 'Aeropostal',
+    '🔴 NO PUEDE CAMBIAR · el supervisor sigue anclado a la suya, pida lo que pida');
+});
+
+PRUEBAS.caso('🔴 EL PANEL ENTERO · `accionSupervisor` recorta por la lista de un admin de fila', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214ApiPanel(['accionSupervisor', 'validarAcceso']);
+  const pedir = (usuario, pass, extra) => {
+    const d = JSON.parse(api.accionSupervisor(Object.assign(
+      { usuario: usuario, pass: pass, dispositivoId: 'd' }, extra || {})).getContent());
+    return d;
+  };
+  /* ⚠️ LA FUGA SE MIDE POR `cuentas`, que es lo que esta acción sí devuelve con este fixture
+     mínimo: `registros` sale de `Respuestas de formulario 1`, que acá está vacía a propósito para
+     no tener que fabricar un formulario entero. Lo que importa es que el admin de fila NO reciba
+     el inventario de empresas ajenas. */
+  const deFila = pedir('Grupo Norte', 'clave-gn');
+  PRUEBAS.cierto(deFila.ok, 'guarda: la acción responde ok para el admin de fila');
+  const empsDeFila = (deFila.cuentas || []).map(x => String(x.empresa));
+  PRUEBAS.igual(empsDeFila.indexOf('Aeropostal'), -1, '🔴 el admin de fila NO recibe la empresa ajena en `cuentas`');
+  PRUEBAS.igual(deFila.atajosAdmin, null, '🔴 ni los atajos, que traen NOMBRE Y CÉDULA de personas');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro recibe todo */
+  const maestro = pedir('*', 'clave-maestra');
+  PRUEBAS.cierto(maestro.ok, 'guarda: y para el maestro también');
+  const empsMaestro = (maestro.cuentas || []).map(x => String(x.empresa));
+  PRUEBAS.cierto(empsMaestro.indexOf('Aeropostal') >= 0,
+    '🔴 NO PUEDE CAMBIAR · el maestro sigue recibiendo todas las empresas');
+  PRUEBAS.alMenos(empsMaestro.length, 2, '…las dos');
+  /* y un supervisor nunca recibió nada de esto */
+  const sup = pedir('Aeropostal', 'clave-ap');
+  PRUEBAS.igual(sup.cuentas, null, 'el supervisor sigue sin recibir `cuentas`');
+});
+
+PRUEBAS.caso('🔴 ENTRAR COMO · un admin de fila no entra como una persona de otra empresa', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214ApiPanel(['accionAdminEntrarComo', 'validarAcceso']);
+  /* el atajo apunta a una persona de «Aeropostal», que NO es del admin de fila */
+  const cfg = api.__env.__libro.getSheetByName('Config Empresa');
+  cfg.appendRow(['', 'atajos_admin', JSON.stringify([{ empresa: 'Aeropostal', nombre: 'PEDRO GOMEZ', cedula: 'V-222' }])]);
+  /* ⚠️ `_post: true` NO ES DECORATIVO. `accionAdminEntrarComo` arranca con
+     `if (!p._post) return json({error:"Metodo no permitido."})`, así que sin esto el pedido se
+     rechazaba ANTES de llegar a cualquier candado de rol — y mis dos primeros asertos
+     (`falso(r.ok)`) pasaban por eso. Un verde que no ejercita lo que dice medir. */
+  const pedir = (usuario, pass) => JSON.parse(api.accionAdminEntrarComo({ usuario: usuario, pass: pass,
+    dispositivoId: 'd', cedula: 'V-222', _post: true }).getContent());
+  /* la guarda que lo hace valer: el atajo TIENE que estar cargado */
+  PRUEBAS.alMenos(api.__env.__libro.getSheetByName('Config Empresa').getDataRange().getValues().length, 2,
+    'guarda: el atajo quedó escrito en la hoja');
+  const r = pedir('Grupo Norte', 'clave-gn');
+  PRUEBAS.falso(r.ok, '🔴 se rechaza · ' + String(r.motivo || r.error || '').slice(0, 40));
+  PRUEBAS.falso(/metodo no permitido/i.test(String(r.error || '')),
+    '🔴 y NO por «Metodo no permitido»: el caso llega de verdad al candado');
+  PRUEBAS.igual(r.motivo, 'sin_atajo',
+    '🔴 y con el MISMO motivo que si el atajo no existiera: un motivo propio confirmaría que esa cédula está en la lista');
+  PRUEBAS.igual(JSON.stringify(r).indexOf('PEDRO'), -1, '🔴 y la respuesta no nombra a la persona');
+  /* DISCRIMINADOR · el maestro sí puede, así que el rechazo es por el permiso y no porque el atajo esté roto */
+  const delMaestro = pedir('*', 'clave-maestra');
+  PRUEBAS.falso(delMaestro.motivo === 'sin_atajo',
+    'DISCRIMINADOR · al maestro NO se le rechaza por el atajo (llega más adentro) · ' + String(delMaestro.motivo || 'ok'));
+});
+
+PRUEBAS.caso('🔴 EL PLAN DE HORAS · un admin de fila no escribe la config de otra empresa', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214ApiPanel(['accionCicloConfigGuardar', 'validarAcceso']);
+  const filasCfg = () => { const sh = api.__env.__libro.getSheetByName('Config Empresa');
+    return sh ? sh.getDataRange().getValues().length : 0; };
+  /* ⚠️ EL PAYLOAD ES `plan`, un JSON con las cuatro claves de `CICLO_PLAN_CLAVES` y cada tramo
+     entre 5 y 1440 minutos. Mi primera versión mandaba `horas:'8'` y la acción cortaba en
+     «Cada tramo va entre 5 y 1440 minutos» — otra vez un rechazo que no era el candado. */
+  const plan = JSON.stringify({ traslado: 60, jornada: 480, regreso: 60, descanso: 600 });
+  const guardar = (empresa) => JSON.parse(api.accionCicloConfigGuardar({ usuario: 'Grupo Norte',
+    pass: 'clave-gn', dispositivoId: 'd', empresa: empresa, plan: plan, quien: 'x' }).getContent());
+  const antes = filasCfg();
+  const r = guardar('Aeropostal');
+  PRUEBAS.falso(r.ok, '🔴 se rechaza escribir bajo la empresa ajena · ' + String(r.motivo || r.error || '').slice(0, 40));
+  PRUEBAS.igual(r.motivo, 'sin_empresa', '…con el motivo que el cliente ya sabe traducir');
+  PRUEBAS.igual(filasCfg(), antes, '🔴 y NO quedó ninguna fila escrita en `Config Empresa`');
+  /* DISCRIMINADOR · con la empresa SUYA el candado de P214 no corta. Sin esto, un rechazo por
+     cualquier otra razón (el plan mal armado, la vista, el POST) se leería como éxito del candado. */
+  const propia = guardar('Aerocentro');
+  PRUEBAS.falso(propia.motivo === 'sin_empresa',
+    'DISCRIMINADOR · con su PROPIA empresa el candado no corta · ' + String(propia.motivo || propia.error || 'ok').slice(0, 44));
+});
