@@ -32,6 +32,11 @@
    entre `accionSupervisor` y esta acción). Queda escrito acá en vez de borrado: un hueco declarado
    se puede cerrar, uno ignorado se descubre cuando alguien revierte la línea.
 
+   ⚠️ Los nombres de las reversiones NO llevan 🔴: ese emoji marca fallas en la salida, y ponerlo en
+   un nombre hace que cualquier `grep` de fallas —incluido el mío, durante media hora— cuente como
+   error una reversión que estaba discriminando perfectamente. Para ver el detalle de una reversión
+   concreta: `DEPURAR=1 node pruebas/discriminador-p214.js`.
+
    Desde `silva-salud-fatiga/`:   node pruebas/discriminador-p214.js
    Sale 0 si discrimina, 1 si no, 3 si no pudo medir. */
 
@@ -51,53 +56,61 @@ const REV = [
   { nombre: 'B · `accionSupervisor` vuelve a filtrar sólo con empresa concreta (el panel entero)',
     busca: `    var permitidasS = empresasPermitidas_(acc);          // \`null\` sólo para el maestro`,
     pone:  `    var permitidasS = null;   // REVERTIDO` },
-  { nombre: 'C · `accesoPanel_` pierde la guarda de la lista (el visor sobre empresa ajena)',
-    /* ⚠️ El ancla cambió cuando se invirtió el orden del candado (primero resolver la cuenta
-       destino, después validar SU canónico). Un ancla vieja hace que el script aborte con
-       «no encontré estos puntos de reversión», que es lo correcto: falla cerrado en vez de
-       informar un verde sobre una reversión que no se aplicó. */
-    busca: '    var permitidasV = empresasPermitidas_(acc, aliasV);',
-    pone:  '    var permitidasV = null;   // REVERTIDO' },
-  /* ⚠️ G a J NO ESTABAN, y el verificador midió por mutación que esas cuatro correcciones no las
-     vigilaba NADA: ni este script ni los diez casos. Tres de ellas son las de la segunda ronda. */
-  { nombre: 'G · `empresasPermitidas_` vuelve a UN solo canónico (le quita nómina a 3 supervisores REALES)',
-    busca: `  var lista = (acc.empresas && acc.empresas.length) ? acc.empresas : [acc.canonical];
-  var out = [];
-  var sumar = function (x) { var k = norm(x || ""); if (k && out.indexOf(k) < 0) out.push(k); };
-  for (var i = 0; i < lista.length; i++) {
-    sumar(lista[i]);
-    sumar(nominaEmpresaCanon(alias, lista[i] || ""));
+  { nombre: 'C · `accesoPanel_` pierde la guarda de la lista Y el recorte (el visor sobre empresa ajena)',
+    /* ⚠️ Se revierte junto con H a propósito: el recorte de `out.empresas` también rechaza cuando
+       ninguna variante es propia, así que sacar sólo este candado no cambia nada medible — las dos
+       defensas se cubren. Revertir el par demuestra que la redundancia es real y que el par
+       completo sí hace falta. */
+    pares: ['H ·'],
+    /* ⚠️ CUARTA versión de este ancla. Cada vez que el candado se reescribió, el ancla vieja hizo
+       abortar el script — que es lo correcto: falla cerrado en vez de informar un verde sobre una
+       reversión que nunca se aplicó. Es la única razón por la que esto no pasó inadvertido. */
+    busca: `    if (!filaEsPermitida_((cta.empresas && cta.empresas.length) ? cta.empresas : [cta.canonical || ve],
+                          permitidasV)) {`,
+    pone:  `    if (false) {   // REVERTIDO` },
+  { nombre: 'G · ENSANCHA · `empresasPermitidas_` canonicaliza contra el mapa GLOBAL (la fuga de la ronda 3)',
+    busca: `  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+  if (k) out.push(k);`,
+    pone:  `  var lista = (acc.empresas && acc.empresas.length) ? acc.empresas : [acc.canonical];
+  for (var iR = 0; iR < lista.length; iR++) {
+    var kR = norm(nominaEmpresaCanon(construirAlias(), lista[iR] || ""));
+    if (kR && out.indexOf(kR) < 0) out.push(kR);
   }
-  sumar(acc.canonical);
-  sumar(nominaEmpresaCanon(alias, acc.canonical || ""));
+  var k = norm(acc.canonical || "");
+  if (k && out.indexOf(k) < 0) out.push(k);` },
+  { nombre: 'K2 · ENSANCHA · `empresasPermitidas_` agrega las variantes CRUDAS (ensancha por el canónico ajeno)',
+    busca: `  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+  if (k) out.push(k);
   return out;`,
-    pone:  `  var baseR = acc.canonical || (acc.empresas && acc.empresas[0]) || "";
-  var nR = norm(nominaEmpresaCanon(alias, baseR));
-  return nR ? [nR] : [];` },
-  { nombre: 'H · el VISOR adopta la lista entera de la fila destino (el crítico de la ronda 2)',
-    busca: `      out.empresas = recortadas.length ? recortadas : [cta.canonical];`,
+    pone:  `  var lista2 = (acc.empresas && acc.empresas.length) ? acc.empresas : [];
+  for (var iC = 0; iC < lista2.length; iC++) {
+    var kC = norm(lista2[iC] || ""); if (kC && out.indexOf(kC) < 0) out.push(kC);
+  }
+  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+  if (k && out.indexOf(k) < 0) out.push(k);
+  return out;` },
+  { nombre: 'H · el VISOR adopta la lista entera de la fila destino',
+    busca: `      if (!recortadas.length) { acc.visorError = "empresa"; return acc; }
+      out.empresas = recortadas;`,
     pone:  `      out.empresas = out.empresas;   // REVERTIDO` },
-  { nombre: 'I · `accionIdentidadesInforme` vuelve a su derivación propia (cédula y nombre en limpio)',
-    /* ⚠️ HUECO DECLARADO (ver la cabecera). No falla el script, pero se informa en cada corrida:
-       su escenario —`acc.empresas` nulo con `acc.canonical` cargado— necesita emitir un token y
-       editar la fila de `Sesiones`, y el emulador no resuelve el hash de `sesEmitir`. */
-    huecoDeclarado: 'necesita una sesión con `Empresas` corrupta y `Canonical` cargado',
-    busca: `  var permitidasI = empresasPermitidas_(acc, R.alias);
-  var permitidas = null;
-  if (permitidasI) { permitidas = {}; permitidasI.forEach(function (x) { permitidas[x] = 1; }); }`,
-    pone:  `  var permitidas = null;
-  if (!esAdminMaestro_(acc)) {
-    permitidas = {};
-    (acc.empresas || []).forEach(function(x){ permitidas[norm(nominaEmpresaCanon(R.alias, x))] = 1; });
-  }` },
-  { nombre: 'J · `cuentasEnPermitidas_` vuelve a mirar sólo el canónico de `emps[0]`',
-    busca: `  var alias = construirAlias();
-  for (var i = 0; i < emps.length; i++) {
+  { nombre: 'I2 · el recorte del visor deja el alcance VACÍO (pérdida silenciosa)',
+    pares: ['H ·'],
+    busca: `      out.empresas = recortadas;`,
+    pone:  `      out.empresas = [];   // REVERTIDO` },
+  { nombre: 'J · `filaEsPermitida_` deja pasar cualquier fila (el selector y el visor sin candado)',
+    busca: `  if (!permitidas) return true;                                      // el maestro: sin recorte
+  for (var i = 0; i < (emps || []).length; i++) {
     if (permitidas.indexOf(norm(emps[i])) >= 0) return true;
-    if (permitidas.indexOf(norm(nominaEmpresaCanon(alias, emps[i]))) >= 0) return true;
   }
   return false;`,
-    pone:  `  return permitidas.indexOf(norm(nominaEmpresaCanon(construirAlias(), emps[0]))) >= 0;` },
+    pone:  `  return true;   // REVERTIDO` },
+  { nombre: 'K3 · `empresasPermitidas_` deja entrar la clave VACÍA (haría pasar filas sin empresa)',
+    /* se revierte con J, que es lo único que mira esa clave: `filaEsPermitida_` */
+    pares: ['J ·'],
+    busca: `  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+  if (k) out.push(k);`,
+    pone:  `  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
+  out.push(k);` },
   { nombre: 'E · el ÍNDICE DE AUSENCIAS pierde la guarda (el dato está en la CLAVE, A13)',
     busca: `        if (acc.rol === "admin" && !esAdminMaestro_(acc)
             && empresasPermitidas_(acc).indexOf(norm(empAus)) < 0) {
@@ -108,8 +121,8 @@ const REV = [
     /* ⚠️ Tercer ancla de esta reversión: cambió cuando la acción pasó a usar `empresasPermitidas_`.
        Un ancla vieja hace abortar el script, que es lo correcto — falla cerrado en vez de informar
        un verde sobre una reversión que nunca se aplicó. Ya me pasó dos veces en este prompt. */
-    busca: '  var permitidasI = empresasPermitidas_(acc, R.alias);',
-    pone:  '  var permitidasI = (acc.rol === "admin") ? null : empresasPermitidas_(acc, R.alias);' },
+    busca: '  var permitidasI = empresasPermitidas_(acc);',
+    pone:  '  var permitidasI = (acc.rol === "admin") ? null : empresasPermitidas_(acc);' },
   { nombre: 'D · `ausScope` pierde la suya (ausencias, opiniones, credenciales: 9 llamadores)',
     busca: `    if (!esAdminMaestro_(acc)) {
       var canonE = nominaEmpresaCanon(alias, e);
@@ -122,8 +135,15 @@ const REV = [
     pone:  `    return nominaEmpresaCanon(alias, e);   // REVERTIDO` }
 ];
 
+/* ⚠️ `pares`: una reversión puede declarar OTRAS que hay que revertir con ella. Hace falta porque
+   P214 dejó defensas redundantes a propósito —el candado del visor y el recorte de su lista se
+   cubren uno al otro— y revertir una sola no cambia nada medible: el script informaba «NO
+   DISCRIMINA» sobre defensas que SÍ sirven, sólo que no solas. Revertir el par entero es la forma
+   correcta de medir defensa en profundidad, y de paso prueba que la redundancia es real. */
 const comoLista = r => Array.isArray(r.busca) ? r.busca : [r.busca];
-const aplicar = (txt, r) => comoLista(r).reduce((acc, b) => acc.split(b).join(r.pone), txt);
+const paresDe = r => (r.pares || []).map(n => REV.find(x => x.nombre.indexOf(n) === 0)).filter(Boolean);
+const aplicarUna = (txt, r) => comoLista(r).reduce((acc, b) => acc.split(b).join(r.pone), txt);
+const aplicar = (txt, r) => paresDe(r).reduce((acc, p) => aplicarUna(acc, p), aplicarUna(txt, r));
 const falta = REV.filter(r => comoLista(r).some(b => real.split(b).length - 1 !== 1));
 if (falta.length) {
   console.log('🔴 no encontré estos puntos de reversión: no puedo medir.');
@@ -165,8 +185,14 @@ const HOJAS = () => ({
   'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
     ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
     ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico'],
-    /* etiquetada con la SEGUNDA variante de `Multi`: es la que se pierde si el alcance es un solo canónico */
-    ['Multi Sur C.A.', 'LUIS ROJAS', 'V-333', 'Operaciones', 'Piloto']],
+    /* etiquetada con la SEGUNDA variante de `Multi`, que `Sur` RECLAMA en una fila posterior: por
+       el mapa global de alias esta fila es de `Sur`, no de `Multi`. Es la que delata el
+       ensanchamiento si `empresasPermitidas_` vuelve a canonicalizar contra ese mapa. */
+    ['Multi Sur C.A.', 'ZOE SUR', 'V-333', 'Operaciones', 'Piloto'],
+    /* ⚠️ Y una persona de `Multisur` a secas, que es lo que le corresponde a `Multi` y a `AdmMulti`.
+       Sin esta fila su visor no traía a NADIE y la guarda `visorAbreYTrae` pedía algo imposible:
+       daba rojo en la línea base y tapaba el resultado de las dos reversiones del recorte. */
+    ['Multisur', 'ANA PRIMERA', 'V-444', 'Operaciones', 'Piloto']],
   /* ⚠️ `Operacional` CON FILAS DE LAS DOS EMPRESAS, y es lo que hacía falta para medir la fuga más
      grande. La primera versión de este discriminador no tenía ninguna métrica sobre el panel de
      `accionSupervisor`, así que la reversión B salía «NO DISCRIMINA» — no porque la defensa
@@ -176,7 +202,10 @@ const HOJAS = () => ({
      columnas con dos filas de encabezado, y el MISMO `enAlcance` filtra los cuatro conjuntos. */
   'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
     [HOY, '08:00', HOY + 'T08:00:00', 'e1', 'ANA SUAREZ', 'Aerocentro', 'Operaciones', 'Piloto', 'inicio', '', '', ''],
-    [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'PEDRO GOMEZ', 'Aeropostal', 'Mantenimiento', 'Tecnico', 'inicio', '', '', '']],
+    [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'PEDRO GOMEZ', 'Aeropostal', 'Mantenimiento', 'Tecnico', 'inicio', '', '', ''],
+    /* las dos variantes de `Multi`, para que el recorte de `out.empresas` tenga algo que recortar */
+    [HOY, '10:00', HOY + 'T10:00:00', 'e3', 'ANA PRIMERA', 'Multisur', 'Ops', 'Piloto', 'inicio', '', '', ''],
+    [HOY, '11:00', HOY + 'T11:00:00', 'e4', 'ZOE SUR', 'Multi Sur C.A.', 'Ops', 'Piloto', 'inicio', '', '', '']],
   /* `AUS_HEAD` real: 12 columnas, `Cedula` antes de `Persona`, la 8ª es `Estado` = «vigente». */
   'Ausencias': [['IdAusencia', 'Empresa', 'Cedula', 'Persona', 'Desde', 'Hasta', 'Motivo', 'Estado', 'Marcada', 'MarcadaPor', 'Anulada', 'AnuladaPor'],
     ['a1', 'Aeropostal', 'V-222', 'PEDRO GOMEZ', HOY, HOY, 'franco', 'vigente', '', '', '', ''],
@@ -257,7 +286,22 @@ function medir(txt) {
     filaVeAusenciaAjena: /222|pedro/i.test(ausIndice('Grupo Norte', 'kgn', 'Aeropostal')),
     filaVePadronAjeno:   padron('Grupo Norte', 'kgn').n > 1,
     /* el crítico: por el visor, la lista adoptada de la fila destino no puede ampliar el alcance */
-    visorAmpliaAlcance:  /LUIS ROJAS/.test(visorNomina('AdmMulti', 'kad', 'Multisur')),
+    /* ⚠️ Buscaba `LUIS ROJAS`, el nombre que esa fila tenía ANTES de renombrarse a `ZOE SUR` al
+       montar el escenario del ensanchamiento. Una métrica que busca un nombre inexistente da
+       `false` siempre y pasa por buena: es el mismo defecto que este archivo ya documentó dos
+       veces. */
+    /* ⚠️ SE MIDE POR EL PANEL, NO POR LA NÓMINA. Con el alcance derivado del CANÓNICO,
+       `out.empresas` ya no influye en `empresasPermitidas_` —y por lo tanto no en la nómina—, pero
+       la rama supervisor de `accionSupervisor` arma su `set` con `acc.empresas` CRUDO, así que ahí
+       sí. Medir la nómina dejaba las dos reversiones del recorte sin red: no porque el recorte esté
+       de más, sino porque el camino medido no lo usa. */
+    visorAmpliaAlcance:  /ZOE SUR/.test(visorPanel('AdmMulti', 'kad', 'Multisur')),
+    /* ⚠️ LA MÉTRICA DEL ENSANCHAMIENTO, que es la que faltaba y por la que pasó la fuga de la
+       ronda 3. `Sur` reclama la variante «Multi Sur C.A.», así que `alias` la mapea a SU canónico;
+       si `empresasPermitidas_` canonicaliza las variantes de `Multi` contra ese mapa global, el
+       canónico de `Sur` entra en el alcance de `Multi` y le llegan las personas de `Sur`.
+       El verificador midió que NINGÚN instrumento distinguía esto — ni los casos ni este script. */
+    multiVeGenteDeSur:   nom('Multi', 'kmu').indexOf('ZOE SUR') >= 0,
     /* LO QUE **NO** PUEDE CAMBIAR */
     maestroVeTodaLaNomina: (() => { const l = nom('*', 'km'); return l.indexOf('PEDRO GOMEZ') >= 0 && l.indexOf('ANA SUAREZ') >= 0; })(),
     maestroAbreVisor:      visor('*', 'km', 'Aeropostal'),
@@ -268,15 +312,24 @@ function medir(txt) {
     supVeLoSuyo:           nom('Aeropostal', 'kap').indexOf('PEDRO GOMEZ') >= 0,
     supNoVeLoAjeno:        nom('Aeropostal', 'kap').indexOf('ANA SUAREZ') < 0,
     supAnclado:            api.ausScope(sup, alias, 'Aerocentro') === 'Aeropostal',
-    /* ⚠️ LA MÉTRICA QUE FALTABA: un supervisor con celda multi-variante tiene que ver a la persona
-       etiquetada con su SEGUNDA variante. Es la forma real de 3 de las 16 cuentas de producción, y
-       lo que la versión «un solo canónico» les quitaba sin que ningún instrumento lo notara. */
-    multiVeSuSegundaVariante: nom('Multi', 'kmu').indexOf('LUIS ROJAS') >= 0,
+    /* ⚠️ ACÁ VIVÍA UNA MÉTRICA CONTRADICTORIA CON `multiVeGenteDeSur`, y las dos miraban LA MISMA
+       FILA: `multiVeSuSegundaVariante` afirmaba que `Multi` tiene derecho a la fila etiquetada
+       «Multi Sur C.A.» porque su celda declara esa variante, y `multiVeGenteDeSur` que no la tiene
+       porque `Sur` reclamó el alias. El script informaba las dos en rojo a la vez.
+       La contradicción ERA la pregunta de fondo sin responder, y la respuesta es: **la autoridad es
+       `nominaEmpresaCanon`**. Si otra fila se quedó con el canon de una variante, la fila de datos
+       es de ella. `multiVeSuSegundaVariante` venía de la premisa falsa de la ronda 2 («la versión
+       de un solo canónico les quita nómina»), que después se midió en 0 diferencias sobre 541
+       claves. Se borra en vez de corregirse: afirmaba un derecho que no existe.
+       Lo que SÍ queda medido es que un supervisor ve a su gente por cualquier variante que NADIE
+       le dispute — eso es `supVeLoSuyo` y el caso `MULTI-VARIANTE` de la suite. */
     multiNoVeLoAjeno:         nom('Multi', 'kmu').indexOf('PEDRO GOMEZ') < 0,
     /* la guarda del crítico: el visor TIENE que abrir y traer lo propio, o `visorAmpliaAlcance:false`
        pasaría por vacío */
-    visorAbreYTrae:           /P-|ANA|LUIS|PEDRO/.test(visorNomina('AdmMulti', 'kad', 'Multisur'))
-                                || visorNomina('AdmMulti', 'kad', 'Multisur') === '',
+    /* ⚠️ EL `|| … === ''` ESTABA MAL Y LO MARCÓ EL VERIFICADOR: aceptaba la respuesta VACÍA, así
+       que un recorte que dejara el alcance en `[]` —pérdida silenciosa de todo el visor— pasaba
+       inadvertido. Una guarda que admite el vacío no es una guarda. */
+    visorAbreYTrae:           /ANA PRIMERA/.test(visorPanel('AdmMulti', 'kad', 'Multisur')),
     /* el selector no puede esconderle su PROPIA empresa a quien la nombra por una variante que no
        es la primera de la fila: es lo que rompía el recorte por `emps[0]` */
     /* ⚠️ «¿hay ALGUNA opción?» no servía: la fila vecina `Sur` la aporta igual con las dos
@@ -298,12 +351,12 @@ function medir(txt) {
 
 const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAjena', 'filaVeCuentasAjenas',
                       'filaVePanelAjeno', 'filaVeAusenciaAjena', 'filaVePadronAjeno',
-                      'visorAmpliaAlcance'];
+                      'visorAmpliaAlcance', 'multiVeGenteDeSur'];
 const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
                       'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
                       'maestroVePanelEntero', 'filaVePanelPropio',
                       'maestroVeAusenciaAjena', 'maestroVePadronAjeno', 'filaVePadronPropio',
-                      'multiVeSuSegundaVariante', 'multiNoVeLoAjeno', 'visorAbreYTrae',
+                      'multiNoVeLoAjeno', 'visorAbreYTrae',
                       'segVeSuEmpresaEnSelector'];
 
 let base;
@@ -319,7 +372,10 @@ if (NO_PUEDE.some(k => !base[k]))    { console.log('\n🔴 con el `.gs` TAL CUAL
 REV.forEach(r => {
   console.log('\n── REVERTIDO · ' + r.nombre + ' ──');
   let m;
-  try { m = medir(aplicar(real, r)); }
+  try { m = medir(aplicar(real, r));
+    if (process.env.DEPURAR && /^G |^K2 /.test(r.nombre)) {
+      console.log('   [dep] aplicó?', aplicar(real, r) !== real, '· multiVeGenteDeSur=', m.multiVeGenteDeSur);
+    } }
   catch (e) { console.log('   🔴 el mutante no corre (' + e.message + '): no mide nada'); fallo = 1; return; }
   const reabre = DEBE_CAMBIAR.filter(k => m[k]);
   const rompe  = NO_PUEDE.filter(k => !m[k]);

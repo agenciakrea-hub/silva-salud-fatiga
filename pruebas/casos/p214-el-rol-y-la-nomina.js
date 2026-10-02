@@ -408,7 +408,7 @@ PRUEBAS.caso('🔴 EL PADRÓN · el informe de identidades no le da el CH entero
   PRUEBAS.falso(String(deFila.alcance || '') === 'todas', '🔴 y su alcance ya no dice «todas»');
 });
 
-PRUEBAS.caso('🔴 MULTI-VARIANTE · un supervisor con varias formas del nombre ve a toda su gente', () => {
+PRUEBAS.caso('🔴 MULTI-VARIANTE · el supervisor ve su gente por cualquier variante que nadie le dispute', () => {
   /* ⚠️ ESTA ES LA FORMA REAL DE PRODUCCIÓN, medida el 2026-10-02 con
      `tarea=gestiones_del_supervisor` (la única que devuelve `empresasCelda` CRUDA — `tarea=volcar`
      la ENMASCARA, porque su regex de columnas sensibles incluye «usuario» y el encabezado de
@@ -416,42 +416,55 @@ PRUEBAS.caso('🔴 MULTI-VARIANTE · un supervisor con varias formas del nombre 
        · IAIM                   → 2 variantes
        · Consorcio HELITEC      → 3
        · Aeroambulancias Silva  → 5 («Aeroambulancias Silva», «Aer. silva», «Silva», «… C.A.»)
-     La segunda versión de `empresasPermitidas_` devolvía UN solo canónico y le quitaba a estos tres
-     supervisores las personas etiquetadas con sus otras variantes. Sin ninguna fila «admin» de por
-     medio: pérdida de función para el cliente que usa la app con pilotos reales.
-     ⚠️ Y LA SEGUNDA FILA ES LA QUE HACE EXISTIR EL DEFECTO: `construirAliasLeer_` recorre todas las
-     filas y GANA LA ÚLTIMA, así que al venir después redefine el canon de esa variante y lo saca de
-     la celda del primero. Sin esa fila, el canon de cualquier variante es `emps[0]` y el defecto no
-     se reproduce. */
+
+     ⚠️ Y ESTE CASO AFIRMABA UN DERECHO QUE NO EXISTE. Decía que el supervisor ve la persona
+     etiquetada con su segunda variante **incluso cuando otra fila reclama esa variante**, y eso es
+     falso por diseño: la autoridad sobre a qué empresa pertenece una etiqueta es
+     `nominaEmpresaCanon`, y `construirAliasLeer_` se la da a la ÚLTIMA fila que la nombre. Si otra
+     fila se la quedó, la persona es de ella. La afirmación venía de una premisa que después se
+     midió falsa (que acotar por el canónico «le quitaba nómina a tres supervisores reales»: 0
+     diferencias sobre 541 claves con las celdas reales), y la misma afirmación vivía como métrica
+     en el discriminador, donde se contradecía con otra métrica sobre LA MISMA FILA.
+     Las dos mitades correctas están abajo. */
   if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
-  const env = GS.crearEntorno({
-    'Accesos': [P214_CAB,
-      ['*', 'clave-maestra', 'admin', '', '', ''],
-      ['Multi', 'clave-mu', 'supervisor', 'Multisur, Multi Sur C.A.', '', ''],
-      ['Sur', 'clave-su', 'supervisor', 'Multi Sur C.A.', '', '']],
-    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
-      ['Multisur', 'ANA PRIMERA', 'V-111', 'Operaciones', 'Piloto'],
-      ['Multi Sur C.A.', 'LUIS SEGUNDA', 'V-222', 'Operaciones', 'Piloto']],
-    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
-  });
-  const api = GS.cargarGs(CTX.gs, env, ['accionNominaListar', 'validarAcceso', 'construirAlias',
-    'nominaEmpresaCanon']);
-  const nom = (u, pw) => ((JSON.parse(api.accionNominaListar({ usuario: u, pass: pw,
-    dispositivoId: 'd' }).getContent()).nomina) || []).map(x => String(x.persona));
-  /* ⚠️ LA GUARDA DEL ESCENARIO: el canon de la segunda variante tiene que haberse ido del canónico
-     de la cuenta, o este caso no reproduce nada. Se pregunta por el VALOR que devuelve
-     `nominaEmpresaCanon` y no por una clave del mapa: la primera versión buscaba
-     `alias['multi sur c.a.']` y esa clave no existe, porque `norm()` convierte la puntuación en
-     espacios y la clave real es `'multi sur c a'`. El escenario estaba bien montado; la guarda
-     miraba una clave inventada. */
-  const canonSegunda = api.nominaEmpresaCanon(api.construirAlias(), 'Multi Sur C.A.');
-  PRUEBAS.falso(canonSegunda === 'Multisur',
-    'guarda: la fila posterior GANÓ el canon de la segunda variante (' + canonSegunda + ') — el escenario está montado');
-  const suyos = nom('Multi', 'clave-mu');
-  PRUEBAS.cierto(suyos.indexOf('ANA PRIMERA') >= 0, '🔴 ve a la persona de su PRIMERA variante…');
-  PRUEBAS.cierto(suyos.indexOf('LUIS SEGUNDA') >= 0, '🔴 …y también a la de la SEGUNDA');
-  PRUEBAS.igual(suyos.length, 2, '🔴 las dos, que es toda su gente');
-  /* LO QUE NO PUEDE CAMBIAR · el maestro ve a los dos, y el otro supervisor sólo lo suyo */
-  PRUEBAS.igual(nom('*', 'clave-maestra').length, 2, '🔴 NO PUEDE CAMBIAR · el maestro ve a los dos');
-  PRUEBAS.cierto(nom('Sur', 'clave-su').indexOf('LUIS SEGUNDA') >= 0, 'el otro supervisor ve lo suyo');
+  const armar = (filas) => {
+    const env = GS.crearEntorno({
+      'Accesos': [P214_CAB, ['*', 'clave-maestra', 'admin', '', '', '']].concat(filas),
+      'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+        ['Multisur', 'ANA PRIMERA', 'V-111', 'Operaciones', 'Piloto'],
+        ['Multi Sur C.A.', 'LUIS SEGUNDA', 'V-222', 'Operaciones', 'Piloto']],
+      'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
+    });
+    const api = GS.cargarGs(CTX.gs, env, ['accionNominaListar', 'validarAcceso', 'construirAlias',
+      'nominaEmpresaCanon']);
+    api.nom = (u, pw) => ((JSON.parse(api.accionNominaListar({ usuario: u, pass: pw,
+      dispositivoId: 'd' }).getContent()).nomina) || []).map(x => String(x.persona));
+    return api;
+  };
+
+  /* ── MITAD 1 · nadie le disputa las variantes: ve a TODA su gente ───────────────────────────── */
+  const solo = armar([['Multi', 'clave-mu', 'supervisor', 'Multisur, Multi Sur C.A.', '', '']]);
+  PRUEBAS.igual(solo.nominaEmpresaCanon(solo.construirAlias(), 'Multi Sur C.A.'), 'Multisur',
+    'guarda: sin disputa, el canon de la segunda variante ES su canónico');
+  const todos = solo.nom('Multi', 'clave-mu');
+  PRUEBAS.cierto(todos.indexOf('ANA PRIMERA') >= 0, '🔴 ve a la de su PRIMERA variante…');
+  PRUEBAS.cierto(todos.indexOf('LUIS SEGUNDA') >= 0, '🔴 …y a la de la SEGUNDA, que también es suya');
+  PRUEBAS.igual(todos.length, 2, '🔴 las dos: toda su gente');
+
+  /* ── MITAD 2 · otra fila RECLAMA la segunda variante: esa persona ya no es suya ──────────────── */
+  const conDisputa = armar([
+    ['Multi', 'clave-mu', 'supervisor', 'Multisur, Multi Sur C.A.', '', ''],
+    /* posterior, así que `construirAliasLeer_` le da el canon de esa variante */
+    ['Sur', 'clave-su', 'supervisor', 'Multi Sur C.A.', '', '']]);
+  PRUEBAS.igual(conDisputa.nominaEmpresaCanon(conDisputa.construirAlias(), 'Multi Sur C.A.'), 'Multi Sur C.A.',
+    'guarda: con disputa, el canon de esa variante pasó a la otra fila — el escenario está montado');
+  const conD = conDisputa.nom('Multi', 'clave-mu');
+  PRUEBAS.cierto(conD.indexOf('ANA PRIMERA') >= 0, '🔴 sigue viendo la suya indiscutida…');
+  PRUEBAS.igual(conD.indexOf('LUIS SEGUNDA'), -1,
+    '🔴 …y NO la disputada: el alias se la dio a la otra fila, así que es de ella');
+  PRUEBAS.cierto(conDisputa.nom('Sur', 'clave-su').indexOf('LUIS SEGUNDA') >= 0,
+    '🔴 y la otra fila SÍ la ve: la persona no se pierde, cambia de dueño');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro ve a las dos en los dos escenarios */
+  PRUEBAS.igual(solo.nom('*', 'clave-maestra').length, 2, '🔴 NO PUEDE CAMBIAR · el maestro ve a las dos');
+  PRUEBAS.igual(conDisputa.nom('*', 'clave-maestra').length, 2, '…con disputa también');
 });
