@@ -29,6 +29,12 @@
 
 PRUEBAS.grupo('P214 · el rol y la nómina');
 
+/* La fecha de HOY en ISO: `ausenciasDe` expande el rango a días sueltos y el panel pregunta por el
+   día de hoy, así que una fecha fija dejaría el índice vacío mañana. */
+const P214_HOY = (function () { const d = new Date();
+  const z = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); })();
+
 const P214_CAB = ['Usuario (puede ser el que quieras)', 'Contraseña (puede ser la que quieras)',
   'Rol (supervisor ve solo su empresa, admin ve todas)',
   'EMPRESAS (la lista de empresas que usuario ve, separadas por coma)',
@@ -45,7 +51,8 @@ function p214Api(fns) {
       ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', ''],
       /* y otra, para que la lista de cuentas tenga más de una afuera */
       ['Cardon', 'clave-cd', 'supervisor', 'Cardon', '', '']],
-    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']],
+    /* ⚠️ `SES_HEAD` REAL, 13 columnas con `HashToken` en la segunda (ver la nota de abajo). */
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']],
     'Config Empresa': [['Empresa', 'Clave', 'Valor']]
   });
   const api = GS.cargarGs(CTX.gs, env, fns);
@@ -72,10 +79,18 @@ PRUEBAS.caso('⚠️ la premisa · el rol sale de la columna C, y `esAdminMaestr
   PRUEBAS.falso(api.esAdminMaestro_(sup), 'ni al supervisor');
   PRUEBAS.falso(api.esAdminMaestro_(null), 'ni a un `acc` nulo: no lanza, devuelve false');
   PRUEBAS.falso(api.esAdminMaestro_(undefined), 'ni a `undefined` — es lo que llega como `acc.base` sin visor');
-  /* y las empresas permitidas */
+  /* y el alcance que se deriva de ese `acc`
+     ⚠️ ESTE ASERTO AFIRMABA EL MODELO VIEJO. Decía «el admin de fila queda con sus DOS empresas, no
+     con una», y era un caso **bendiciendo un diseño equivocado**: la columna EMPRESAS son VARIANTES
+     DE UNA MISMA EMPRESA, no una lista de empresas distintas (lo dicen `construirAliasLeer_`, el
+     comentario de `nominaEmpresaCanon` y el `r.empresa = acc.canonical` de `accionSupervisor`). Lo
+     midió el verificador: con la celda leída como lista, el admin perdía su propia empresa en
+     cuanto otra fila ganaba el alias. Ahora el alcance es UN canónico. */
   PRUEBAS.igual(api.empresasPermitidas_(maestro), null, '🔴 el maestro no se filtra (`null` = todas)');
-  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(deFila)), JSON.stringify(['aerocentro', 'consorcio helitec']),
-    '🔴 y el admin de fila queda con sus DOS empresas, no con una');
+  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(deFila)), JSON.stringify(['aerocentro']),
+    '🔴 y el admin de fila queda con UN canónico — las variantes de su celda son la misma empresa');
+  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(sup)), JSON.stringify(['aeropostal']),
+    'y un supervisor, con el suyo');
 });
 
 PRUEBAS.caso('🔴 EL VISOR · un admin de fila no puede mirar una empresa ajena', () => {
@@ -152,7 +167,11 @@ PRUEBAS.caso('🔴 LA NÓMINA · un admin de fila sólo ve a su gente', () => {
     'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
       ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
       ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico']],
-    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']]
+    /* ⚠️ `SES_HEAD` REAL, 13 columnas con `HashToken` en la segunda. Los fixtures que escribí
+       primero tenían 11 y todo corrido un lugar: `Estado` caía donde el código lee `UltimoUso`.
+       Hoy ningún caso de P214 pasa por el token, pero un fixture corrido hace que cualquier aserto
+       que alguien agregue después pase por vacío sin avisar. Lo midió el verificador. */
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
   });
   const api = GS.cargarGs(CTX.gs, env, ['accionNominaListar', 'validarAcceso']);
   /* ⚠️ LA CLAVE ES `nomina`, verificado corriendo la acción — no `filas` ni `r`, que es lo que
@@ -192,16 +211,36 @@ function p214ApiPanel(fns) {
       ['Grupo Norte', 'clave-gn', 'admin', 'Aerocentro', '', ''],
       ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', '']],
     'Respuestas de formulario 1': [['Fecha', 'Hora', 'Empresa', 'Nombre', 'KSS', 'Estres']],
+    /* ⚠️ `Operacional` CON FILAS DE LAS DOS EMPRESAS, y es lo que faltaba para medir la fuga más
+       grande. El caso de abajo medía `cuentas` y `atajosAdmin` —que es otra defensa— y los cinco
+       conjuntos del panel venían VACÍOS, así que la reversión de `accionSupervisor` no la cazaba
+       ningún caso de la suite: la única red era el discriminador, que es un script de una corrida.
+       Lo midió el verificador. Se mide por `operacional` y no por `registros` porque
+       `Respuestas de formulario 1` tiene ~90 columnas con dos filas de encabezado, y el MISMO
+       `enAlcance` filtra los cuatro conjuntos. */
+    'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
+      [P214_HOY, '08:00', P214_HOY + 'T08:00:00', 'e1', 'ANA SUAREZ', 'Aerocentro', 'Operaciones', 'Piloto', 'inicio', '', '', ''],
+      [P214_HOY, '09:00', P214_HOY + 'T09:00:00', 'e2', 'PEDRO GOMEZ', 'Aeropostal', 'Mantenimiento', 'Tecnico', 'inicio', '', '', '']],
     'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
       ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
       ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico']],
-    'Ausencias': [['ID', 'Empresa', 'Persona', 'Cedula', 'Desde', 'Hasta', 'Motivo', 'Quien', 'Anulada', 'TS'],
-      ['a1', 'Aeropostal', 'PEDRO GOMEZ', 'V-222', '2026-10-02', '2026-10-02', 'franco', 'x', 'vigente', '1']],
+    /* ⚠️ `AUS_HEAD` REAL, 12 columnas: `Cedula` va ANTES de `Persona` y la 8ª es `Estado`, que
+       `ausenciasDe` exige igual a «vigente». Mi primer fixture las tenía cruzadas y ponía `'x'` en
+       la columna que el código lee como estado, así que la fila se descartaba como anulada y el
+       índice salía vacío para todos — cualquier aserto ahí pasaba por vacío. Lo midió el
+       verificador. */
+    'Ausencias': [['IdAusencia', 'Empresa', 'Cedula', 'Persona', 'Desde', 'Hasta', 'Motivo', 'Estado', 'Marcada', 'MarcadaPor', 'Anulada', 'AnuladaPor'],
+      ['a1', 'Aeropostal', 'V-222', 'PEDRO GOMEZ', P214_HOY, P214_HOY, 'franco', 'vigente', '', '', '', ''],
+      ['a2', 'Aerocentro', 'V-111', 'ANA SUAREZ', P214_HOY, P214_HOY, 'franco', 'vigente', '', '', '', '']],
     /* ⚠️ La hoja de configuración es «Config Empresa» (`HOJA_CONFIG`), verificado en el `.gs`. Mi
        primer fixture declaró «Configuracion» y `atajosAdminLeer_` devolvía `[]`: el atajo no
        existía y el caso se rechazaba por eso, no por el candado. */
     'Config Empresa': [['Empresa', 'Clave', 'Valor']],
-    'Sesiones': [['Token', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado']],
+    /* ⚠️ `SES_HEAD` REAL, 13 columnas con `HashToken` en la segunda. Los fixtures que escribí
+       primero tenían 11 y todo corrido un lugar: `Estado` caía donde el código lee `UltimoUso`.
+       Hoy ningún caso de P214 pasa por el token, pero un fixture corrido hace que cualquier aserto
+       que alguien agregue después pase por vacío sin avisar. Lo midió el verificador. */
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']],
     'Bitácora': [['Fecha', 'Empresa', 'Accion', 'Sujeto', 'Actor', 'Rol', 'Origen', 'Detalle', 'Umbral', 'App', 'Id', 'Hash', 'Extra']]
   });
   const api = GS.cargarGs(CTX.gs, env, fns);
@@ -248,12 +287,33 @@ PRUEBAS.caso('🔴 EL PANEL ENTERO · `accionSupervisor` recorta por la lista de
      el inventario de empresas ajenas. */
   const deFila = pedir('Grupo Norte', 'clave-gn');
   PRUEBAS.cierto(deFila.ok, 'guarda: la acción responde ok para el admin de fila');
+  /* ── LA FUGA MÁS GRANDE, medida sobre el panel de verdad ───────────────────────────────────── */
+  const personas = d => (d.operacional || []).map(x => String(x.persona || ''));
+  const delMaestroPanel = personas(pedir('*', 'clave-maestra'));
+  /* ⚠️ LA GUARDA QUE HACE VALER EL ASERTO: si el panel viniera vacío para todos, «no ve al ajeno»
+     pasaría sin medir nada. Es exactamente lo que pasaba antes de agregar `Operacional`. */
+  PRUEBAS.alMenos(delMaestroPanel.length, 2, 'guarda: el panel del maestro trae a las DOS personas');
+  PRUEBAS.cierto(delMaestroPanel.indexOf('PEDRO GOMEZ') >= 0 && delMaestroPanel.indexOf('ANA SUAREZ') >= 0,
+    '🔴 NO PUEDE CAMBIAR · el maestro sigue viendo el panel entero');
+  const panelDeFila = personas(deFila);
+  PRUEBAS.igual(panelDeFila.indexOf('PEDRO GOMEZ'), -1,
+    '🔴 el admin de fila NO recibe en el panel a la persona de la empresa ajena');
+  PRUEBAS.cierto(panelDeFila.indexOf('ANA SUAREZ') >= 0, '🔴 y SÍ a la de su propia empresa');
+  /* ── y el índice de AUSENCIAS, que no tenía ningún instrumento ───────────────────────────────
+     ⚠️ HAY QUE PEDIR LA EMPRESA: sin `p.empresa` el índice vuelve `{}` para CUALQUIER admin
+     (`if (!empAus …) return {}`, preexistente y correcto), así que medirlo sin empresa daba vacío
+     para todos y no medía nada. */
+  const clavesAus = (u, pw) => Object.keys((pedir(u, pw, { empresa: 'Aeropostal' }) || {}).ausencias || {}).join(' | ');
+  PRUEBAS.cierto(/222|pedro/i.test(clavesAus('*', 'clave-maestra')),
+    'guarda: el maestro pidiendo esa empresa SÍ recibe la ausencia en el índice');
+  PRUEBAS.falso(/222|pedro/i.test(clavesAus('Grupo Norte', 'clave-gn')),
+    '🔴 el admin de fila NO, pida lo que pida · y acá el dato está en la CLAVE (`cedula|fecha`), que ninguna anonimización tapa (A13)');
   const empsDeFila = (deFila.cuentas || []).map(x => String(x.empresa));
   PRUEBAS.igual(empsDeFila.indexOf('Aeropostal'), -1, '🔴 el admin de fila NO recibe la empresa ajena en `cuentas`');
   PRUEBAS.igual(deFila.atajosAdmin, null, '🔴 ni los atajos, que traen NOMBRE Y CÉDULA de personas');
   /* LO QUE NO PUEDE CAMBIAR · el maestro recibe todo */
   const maestro = pedir('*', 'clave-maestra');
-  PRUEBAS.cierto(maestro.ok, 'guarda: y para el maestro también');
+  PRUEBAS.cierto(maestro.ok, 'guarda: y la acción responde ok para el maestro');
   const empsMaestro = (maestro.cuentas || []).map(x => String(x.empresa));
   PRUEBAS.cierto(empsMaestro.indexOf('Aeropostal') >= 0,
     '🔴 NO PUEDE CAMBIAR · el maestro sigue recibiendo todas las empresas');
@@ -312,4 +372,28 @@ PRUEBAS.caso('🔴 EL PLAN DE HORAS · un admin de fila no escribe la config de 
   const propia = guardar('Aerocentro');
   PRUEBAS.falso(propia.motivo === 'sin_empresa',
     'DISCRIMINADOR · con su PROPIA empresa el candado no corta · ' + String(propia.motivo || propia.error || 'ok').slice(0, 44));
+});
+
+PRUEBAS.caso('🔴 EL PADRÓN · el informe de identidades no le da el CH entero a un admin de fila', () => {
+  /* ⚠️ ESTE ARREGLO NO TENÍA NINGÚN INSTRUMENTO: no estaba en el discriminador (sus cuatro
+     reversiones son otras) ni en los nueve casos. Lo midió el verificador. `accionIdentidadesInforme`
+     devuelve `candidatos` con cédula y nombre en limpio, `sinResolver` con empresa y los nombres
+     ambiguos — el padrón de TODO el CH cuando `permitidas` quedaba en `null`. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const api = p214ApiPanel(['accionIdentidadesInforme', 'validarAcceso']);
+  const pedir = (u, pw) => JSON.parse(api.accionIdentidadesInforme({ usuario: u, pass: pw,
+    dispositivoId: 'd' }).getContent());
+  /* ⚠️ SE MIDE POR `enPadron`, no por buscar el nombre en el JSON: `candidatos` y `sinResolver`
+     vienen vacíos sin filas en `Respuestas de formulario 1` —90 columnas y dos filas de encabezado,
+     no vale fabricarlas para esto— así que buscar «PEDRO» en el texto daba `false` para todos y no
+     medía nada. `enPadron` cuenta las personas del padrón YA recortado. */
+  const delMaestro = pedir('*', 'clave-maestra');
+  PRUEBAS.cierto(delMaestro.ok, 'guarda: la acción responde ok para el maestro');
+  PRUEBAS.igual(Number(delMaestro.enPadron || 0), 2,
+    'guarda: el padrón del maestro trae a las DOS personas — sin esto, el aserto de abajo no mide nada');
+  const deFila = pedir('Grupo Norte', 'clave-gn');
+  PRUEBAS.cierto(deFila.ok, 'guarda: y también para el admin de fila');
+  PRUEBAS.igual(Number(deFila.enPadron || 0), 1,
+    '🔴 pero el del admin de fila trae UNA: la persona de la otra empresa no está');
+  PRUEBAS.falso(String(deFila.alcance || '') === 'todas', '🔴 y su alcance ya no dice «todas»');
 });
