@@ -86,11 +86,21 @@ PRUEBAS.caso('⚠️ la premisa · el rol sale de la columna C, y `esAdminMaestr
      comentario de `nominaEmpresaCanon` y el `r.empresa = acc.canonical` de `accionSupervisor`). Lo
      midió el verificador: con la celda leída como lista, el admin perdía su propia empresa en
      cuanto otra fila ganaba el alias. Ahora el alcance es UN canónico. */
+  /* ⚠️ ESTE ASERTO SE ESCRIBIÓ MAL TRES VECES, una por cada versión de `empresasPermitidas_`, y
+     siempre por la misma razón: afirmaba **la forma del resultado** («la lista cruda», «UN
+     canónico») en vez del INVARIANTE. Un caso así no verifica nada — bendice la implementación del
+     día, y cuando la implementación cambia hay que reescribirlo, que es justo lo que no debería
+     pasar. El invariante es: toda variante que la celda declare está dentro, y nada ajeno. */
   PRUEBAS.igual(api.empresasPermitidas_(maestro), null, '🔴 el maestro no se filtra (`null` = todas)');
-  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(deFila)), JSON.stringify(['aerocentro']),
-    '🔴 y el admin de fila queda con UN canónico — las variantes de su celda son la misma empresa');
-  PRUEBAS.igual(JSON.stringify(api.empresasPermitidas_(sup)), JSON.stringify(['aeropostal']),
-    'y un supervisor, con el suyo');
+  const permFila = api.empresasPermitidas_(deFila) || [];
+  PRUEBAS.cierto(permFila.indexOf('aerocentro') >= 0,
+    '🔴 el alcance del admin de fila CONTIENE la variante que declara su celda');
+  PRUEBAS.igual(permFila.indexOf('aeropostal'), -1, '🔴 y NO contiene una empresa ajena');
+  PRUEBAS.cierto((api.empresasPermitidas_(sup) || []).indexOf('aeropostal') >= 0,
+    'y un supervisor, el suyo');
+  /* y el invariante que las tres versiones tenían que cumplir y sólo cumple la tercera: TODAS las
+     variantes de una celda multi-variante — la forma real de 3 de las 16 cuentas de producción */
+  PRUEBAS.cierto(api.esAdminMaestro_(maestro), 'guarda: el maestro sigue siendo maestro');
 });
 
 PRUEBAS.caso('🔴 EL VISOR · un admin de fila no puede mirar una empresa ajena', () => {
@@ -396,4 +406,52 @@ PRUEBAS.caso('🔴 EL PADRÓN · el informe de identidades no le da el CH entero
   PRUEBAS.igual(Number(deFila.enPadron || 0), 1,
     '🔴 pero el del admin de fila trae UNA: la persona de la otra empresa no está');
   PRUEBAS.falso(String(deFila.alcance || '') === 'todas', '🔴 y su alcance ya no dice «todas»');
+});
+
+PRUEBAS.caso('🔴 MULTI-VARIANTE · un supervisor con varias formas del nombre ve a toda su gente', () => {
+  /* ⚠️ ESTA ES LA FORMA REAL DE PRODUCCIÓN, medida el 2026-10-02 con
+     `tarea=gestiones_del_supervisor` (la única que devuelve `empresasCelda` CRUDA — `tarea=volcar`
+     la ENMASCARA, porque su regex de columnas sensibles incluye «usuario» y el encabezado de
+     EMPRESAS dice «la lista de empresas que USUARIO ve»):
+       · IAIM                   → 2 variantes
+       · Consorcio HELITEC      → 3
+       · Aeroambulancias Silva  → 5 («Aeroambulancias Silva», «Aer. silva», «Silva», «… C.A.»)
+     La segunda versión de `empresasPermitidas_` devolvía UN solo canónico y le quitaba a estos tres
+     supervisores las personas etiquetadas con sus otras variantes. Sin ninguna fila «admin» de por
+     medio: pérdida de función para el cliente que usa la app con pilotos reales.
+     ⚠️ Y LA SEGUNDA FILA ES LA QUE HACE EXISTIR EL DEFECTO: `construirAliasLeer_` recorre todas las
+     filas y GANA LA ÚLTIMA, así que al venir después redefine el canon de esa variante y lo saca de
+     la celda del primero. Sin esa fila, el canon de cualquier variante es `emps[0]` y el defecto no
+     se reproduce. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      ['Multi', 'clave-mu', 'supervisor', 'Multisur, Multi Sur C.A.', '', ''],
+      ['Sur', 'clave-su', 'supervisor', 'Multi Sur C.A.', '', '']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Multisur', 'ANA PRIMERA', 'V-111', 'Operaciones', 'Piloto'],
+      ['Multi Sur C.A.', 'LUIS SEGUNDA', 'V-222', 'Operaciones', 'Piloto']],
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionNominaListar', 'validarAcceso', 'construirAlias',
+    'nominaEmpresaCanon']);
+  const nom = (u, pw) => ((JSON.parse(api.accionNominaListar({ usuario: u, pass: pw,
+    dispositivoId: 'd' }).getContent()).nomina) || []).map(x => String(x.persona));
+  /* ⚠️ LA GUARDA DEL ESCENARIO: el canon de la segunda variante tiene que haberse ido del canónico
+     de la cuenta, o este caso no reproduce nada. Se pregunta por el VALOR que devuelve
+     `nominaEmpresaCanon` y no por una clave del mapa: la primera versión buscaba
+     `alias['multi sur c.a.']` y esa clave no existe, porque `norm()` convierte la puntuación en
+     espacios y la clave real es `'multi sur c a'`. El escenario estaba bien montado; la guarda
+     miraba una clave inventada. */
+  const canonSegunda = api.nominaEmpresaCanon(api.construirAlias(), 'Multi Sur C.A.');
+  PRUEBAS.falso(canonSegunda === 'Multisur',
+    'guarda: la fila posterior GANÓ el canon de la segunda variante (' + canonSegunda + ') — el escenario está montado');
+  const suyos = nom('Multi', 'clave-mu');
+  PRUEBAS.cierto(suyos.indexOf('ANA PRIMERA') >= 0, '🔴 ve a la persona de su PRIMERA variante…');
+  PRUEBAS.cierto(suyos.indexOf('LUIS SEGUNDA') >= 0, '🔴 …y también a la de la SEGUNDA');
+  PRUEBAS.igual(suyos.length, 2, '🔴 las dos, que es toda su gente');
+  /* LO QUE NO PUEDE CAMBIAR · el maestro ve a los dos, y el otro supervisor sólo lo suyo */
+  PRUEBAS.igual(nom('*', 'clave-maestra').length, 2, '🔴 NO PUEDE CAMBIAR · el maestro ve a los dos');
+  PRUEBAS.cierto(nom('Sur', 'clave-su').indexOf('LUIS SEGUNDA') >= 0, 'el otro supervisor ve lo suyo');
 });
