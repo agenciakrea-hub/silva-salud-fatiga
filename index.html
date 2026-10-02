@@ -7546,7 +7546,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.96';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.97';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -12523,6 +12523,14 @@ function visorBloquea(queIntentaba){
 function faltaEmpresaParaEscribir(queIntentaba){
   try {
     if (!DASH || DASH.rol !== 'admin') return false;        // sólo el administrador puede quedar sin empresa
+    /* ⚠️ Y SÓLO EL MAESTRO. Una fila de `Accesos` con `Rol = admin` y empresa propia es una forma
+       soportada, y el servidor la acepta: `gestScope` le devuelve SU empresa aunque el pedido venga
+       con «Todas las empresas» (ver la rama de `acc.empresas` del `.gs`). Preguntar por
+       `rol === 'admin'` la frenaba con un mensaje que no aplica a su cuenta. El maestro se reconoce
+       por el `scope`: para él es el literal de todas las empresas, para un admin de fila es la suya.
+       Medido el 2026-10-02: hoy no existe ninguna fila así en producción —el único rol admin es `*`—
+       así que esto es defensa, no un arreglo de algo vivo. Lo cazó el verificador. */
+    if (DASH.scope && dashNorm(DASH.scope) !== dashNorm(dashScopeTodas())) return false;
     if (gestEmpresaParaEscribir()) return false;
     showToast(t('dash_emp_admin_no'));
     return true;
@@ -21228,7 +21236,15 @@ function dashEmpresaAdminCambiar(){
   const params = Object.assign({}, DASH.params);
   /* el período no se arrastra, igual que en `visorCambiar`; y NUNCA los del visor */
   ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida'].forEach(k => { delete params[k]; });
-  params.empresa = emp || dashScopeTodas();
+  /* ⚠️ SIN EMPRESA, SE BORRA LA CLAVE — no se manda el literal «Todas las empresas». La primera
+     versión hacía `emp || dashScopeTodas()`, y con eso el cliente FABRICABA un valor que parte del
+     servidor no sabe leer: `ausScope` sólo conocía `""` y `"*"`, así que `accionAusenciaGuardar`
+     ACEPTABA y escribía la ausencia —y su línea de bitácora, append-only— bajo «Todas las empresas»,
+     un balde que ni el supervisor de esa persona ni el propio admin con la empresa puesta vuelven a
+     leer. Con `ok:true` y la pantalla diciendo «ausente». El defecto que P213 vino a cerrar,
+     reabierto por la puerta que P213 abrió. `visorCambiar` ya borraba la clave; esta copia la
+     seteaba. Lo cazó el verificador. */
+  if (emp) params.empresa = emp; else delete params.empresa;
   const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   const scopeAntes = (DASH && DASH.scope) || '';
   /* ⚠️ Y AL FALLAR TAMBIÉN, que es lo que `visorCambiar` ya hacía y esta copia se olvidó: sin el
@@ -23123,7 +23139,7 @@ function dashClear(level){
      anterior (el servidor sigue filtrando por ella) y las escrituras yéndose ahí. Un solo escritor. */
   if (level==='emp' && DASH.rol === 'admin' && typeof dashEmpresaAdminCambiar === 'function'){
     const sel = document.getElementById('dashEmpAdmin');
-    if (sel){ sel.value = ''; dashEmpresaAdminCambiar(); return; }
+    if (sel){ sel.value = ''; return dashEmpresaAdminCambiar(); }   // ⚠️ ídem: devuelve la promesa
   }
   if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
@@ -23157,7 +23173,10 @@ function dashDrill(level, value){
      P185 documentó) y las escrituras yéndose a otra empresa que la que se ve. */
   if (level==='emp' && DASH.rol === 'admin' && typeof dashEmpresaAdminCambiar === 'function'){
     const sel = document.getElementById('dashEmpAdmin');
-    if (sel){ sel.value = value || ''; dashEmpresaAdminCambiar(); return; }
+    /* ⚠️ DEVUELVE la promesa: sin esto no hay forma de esperar el cambio de empresa, y un caso que
+       haga `Promise.resolve(dashDrill(...)).then(...)` resuelve `undefined` al instante y acierta
+       sólo por el orden de la cola de microtasks — con un `dashRequest` que tarde un tick, falla. */
+    if (sel){ sel.value = value || ''; return dashEmpresaAdminCambiar(); }
   }
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }

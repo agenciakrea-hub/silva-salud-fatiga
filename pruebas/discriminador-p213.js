@@ -72,7 +72,8 @@ const HOJAS = () => ({
   'Gestiones': [['Empresa', 'ID', 'Datos (JSON)', 'Última actualización']],
   'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical',
                 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']],
-  'Bitácora': [['ID', 'TS', 'Empresa', 'Actor', 'Rol', 'Accion', 'Sujeto', 'Detalle', 'Origen', 'Umbral', 'App']]
+  /* el encabezado REAL de la hoja, el que crea el `.gs`: Empresa es la columna 1 */
+  'Bitácora': [['Fecha', 'Empresa', 'Accion', 'Sujeto', 'Actor', 'Rol', 'Origen', 'Detalle', 'Umbral', 'App', 'Id', 'Hash', 'Extra']]
 });
 const J = r => JSON.parse(r.getContent());
 const anot = id => JSON.stringify({ id: id, tipo: 'anotacion_aptitud', persona: 'PEDRO', nivel: 'alto', creada: 1 });
@@ -92,7 +93,13 @@ function correr(fuente) {
      BITÁCORA —la append-only, la que no se corrige— no aparecía por ningún lado. */
   const baldeDe = (hoja, col) => filas(hoja).slice(1).map(f => String(f[col]))
     .filter(e => e && e !== 'Aeropostal' && e !== 'Aerocentro');
-  o.baldes = baldeDe('Gestiones', 0).concat(baldeDe('Bitácora', 2)).join('|');
+  /* ⚠️ COLUMNA 1 en `Bitácora`, no 2. El encabezado real lo crea el `.gs`:
+     `["Fecha","Empresa","Accion","Sujeto",…]` — la 2 es `Accion`. Leyendo la 2, una escritura
+     LEGÍTIMA del supervisor se contaba como balde huérfano con el valor de su acción, y el script
+     habría gritado «EL ARREGLO ROMPIÓ ALGO» sobre algo correcto. Hoy no se notaba sólo porque
+     `o.baldes` se calcula antes de que el caso del supervisor escriba su fila: un orden de líneas
+     sosteniendo al script que bendice la publicación. Lo cazó el verificador. */
+  o.baldes = baldeDe('Gestiones', 0).concat(baldeDe('Bitácora', 1)).join('|');
   /* LO QUE NO PUEDE CAMBIAR */
   o.maestroConEmpresa = J(api.accionGestionGuardar({ usuario: '*', pass: 'km', empresa: 'Aeropostal', gestion: anot('g3') })).ok === true;
   o.supervisorSiempre = ['', 'Todas las empresas', 'Aeropostal'].every((e, i) =>
