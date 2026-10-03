@@ -56,6 +56,24 @@ const REV = [
   { nombre: 'B · `accionSupervisor` vuelve a filtrar sólo con empresa concreta (el panel entero)',
     busca: `    var permitidasS = empresasPermitidas_(acc);          // \`null\` sólo para el maestro`,
     pone:  `    var permitidasS = null;   // REVERTIDO` },
+  { nombre: 'C2 · el candado del visor vuelve a aceptar CUALQUIER variante (la fuga de la ronda 4)',
+    /* ⚠️ Ésta es la reversión que no existía, y por eso el defecto pudo entrar: mutar el candado a
+       esta forma no movía ni un caso ni una métrica. La cuarta ronda lo midió explícitamente.
+       Va en PAR con C3 porque el recorte de `out.canonical` la ataja: son las dos mitades del mismo
+       defecto y cada una cubre a la otra. Revertir el par entero demuestra que la redundancia es
+       real — y es la redundancia lo que faltaba en la ronda 4, donde sólo existía una. */
+    pares: ['C3 ·'],
+    busca: `  return permitidas.indexOf(norm((emps || [])[0] || "")) >= 0;`,
+    pone:  `  for (var iV = 0; iV < (emps || []).length; iV++) {
+    if (permitidas.indexOf(norm(emps[iV])) >= 0) return true;
+  }
+  return false;` },
+  { nombre: 'C3 · el recorte deja de mirar `out.canonical` (la otra mitad del mismo defecto)',
+    busca: `      if (out.canonical && permitidasV.indexOf(norm(out.canonical)) < 0) {
+        acc.visorError = "empresa"; return acc;
+      }`,
+    pone:  `      // REVERTIDO`,
+    pares: ['C2 ·'] },
   { nombre: 'C · `accesoPanel_` pierde la guarda de la lista Y el recorte (el visor sobre empresa ajena)',
     /* ⚠️ Se revierte junto con H a propósito: el recorte de `out.empresas` también rechaza cuando
        ninguna variante es propia, así que sacar sólo este candado no cambia nada medible — las dos
@@ -66,8 +84,10 @@ const REV = [
        abortar el script — que es lo correcto: falla cerrado en vez de informar un verde sobre una
        reversión que nunca se aplicó. Es la única razón por la que esto no pasó inadvertido. */
     busca: `    if (!filaEsPermitida_((cta.empresas && cta.empresas.length) ? cta.empresas : [cta.canonical || ve],
-                          permitidasV)) {`,
-    pone:  `    if (false) {   // REVERTIDO` },
+                          permitidasV)) {
+      acc.visorError = "empresa"; return acc;
+    }`,
+    pone:  `    // REVERTIDO: sin candado` },
   { nombre: 'G · ENSANCHA · `empresasPermitidas_` canonicaliza contra el mapa GLOBAL (la fuga de la ronda 3)',
     busca: `  var k = norm(acc.canonical || (acc.empresas && acc.empresas[0]) || "");
   if (k) out.push(k);`,
@@ -90,20 +110,15 @@ const REV = [
   if (k && out.indexOf(k) < 0) out.push(k);
   return out;` },
   { nombre: 'H · el VISOR adopta la lista entera de la fila destino',
-    busca: `      if (!recortadas.length) { acc.visorError = "empresa"; return acc; }
-      out.empresas = recortadas;`,
-    pone:  `      out.empresas = out.empresas;   // REVERTIDO` },
+    busca: `        out.empresas = recortadas.length ? recortadas : [out.canonical];`,
+    pone:  `        out.empresas = out.empresas;   // REVERTIDO` },
   { nombre: 'I2 · el recorte del visor deja el alcance VACÍO (pérdida silenciosa)',
-    pares: ['H ·'],
-    busca: `      out.empresas = recortadas;`,
-    pone:  `      out.empresas = [];   // REVERTIDO` },
+    busca: `        out.empresas = recortadas.length ? recortadas : [out.canonical];`,
+    pone:  `        out.empresas = [];   // REVERTIDO` },
   { nombre: 'J · `filaEsPermitida_` deja pasar cualquier fila (el selector y el visor sin candado)',
-    busca: `  if (!permitidas) return true;                                      // el maestro: sin recorte
-  for (var i = 0; i < (emps || []).length; i++) {
-    if (permitidas.indexOf(norm(emps[i])) >= 0) return true;
-  }
-  return false;`,
-    pone:  `  return true;   // REVERTIDO` },
+    busca: `  if (!permitidas) return true;                                      // el maestro: sin recorte`,
+    pone:  `  return true;   // REVERTIDO
+  if (!permitidas) return true;` },
   { nombre: 'K3 · `empresasPermitidas_` deja entrar la clave VACÍA (haría pasar filas sin empresa)',
     /* se revierte con J, que es lo único que mira esa clave: `filaEsPermitida_` */
     pares: ['J ·'],
@@ -240,14 +255,36 @@ function medir(txt) {
   const visorPanel = (u, pw, ve) => { try {
     const d = JSON.parse(api.accionSupervisor({ usuario: u, pass: pw, dispositivoId: 'd',
       verEmpresa: ve, verVista: 'medico' }).getContent());
-    return (d.nomina || []).concat((d.operacional || [])).map(x => String(x.persona || '')).join(' | ')
-      + ' | ' + JSON.stringify(d.registros || []).slice(0, 200);
+    /* ⚠️ `accionSupervisor` NO tiene clave `nomina` —las que hay son `nominaTotal`,
+       `nominaSinDato` y `nominaError`— así que el `(d.nomina || [])` de la versión anterior era
+       resto muerto y la mitad de esta métrica no leía nada. `nominaSinDato` SÍ trae nombres, y es
+       por donde el defecto de la ronda 4 entregaba los de la otra empresa. */
+    return (d.operacional || []).map(x => String(x.persona || '')).join(' | ')
+      + ' | SINDATO:' + JSON.stringify(d.nominaSinDato || [])
+      + ' | REG:' + JSON.stringify((d.registros || []).map(x => String(x.persona || ''))).slice(0, 160);
   } catch (e) { return 'ERROR:' + e.message; } };
   const visorNomina = (u, pw, ve) => { try {
     const d = JSON.parse(api.accionNominaListar({ usuario: u, pass: pw, dispositivoId: 'd',
       verEmpresa: ve, verVista: 'medico' }).getContent());
     return (d.nomina || []).map(x => String(x.persona || '')).join(' | ');
   } catch (e) { return 'ERROR'; } };
+  /* ⚠️ LA MÉTRICA QUE FALTABA, y sin la cual las dos direcciones del candado del visor eran
+     indistinguibles: mutarlo no ponía en rojo ni uno de 1611 casos ni una de 26 métricas. El par
+     que la dispara ya estaba en el fixture y el script nunca lo probaba: `AdmSeg` —cuya celda
+     declara la SEGUNDA variante de la fila `Multi`— pidiendo el visor sobre `Multisur`, que es el
+     canónico de esa fila y NO el suyo. Se mide por los tres canales que el defecto usaba: la
+     nómina, las ausencias (con cédula y motivo) y `nominaSinDato`. */
+  const visorFuga = () => { try {
+    const a = api.accesoPanel_({ usuario: 'AdmSeg', pass: 'kas', dispositivoId: 'd',
+      verEmpresa: 'Multisur', verVista: 'medico' });
+    if (!a || !a.visor || a.visorError) return '';                   // no abre: no hay fuga
+    const n = JSON.parse(api.accionNominaListar({ usuario: 'AdmSeg', pass: 'kas', dispositivoId: 'd',
+      verEmpresa: 'Multisur', verVista: 'medico' }).getContent());
+    const p = JSON.parse(api.accionSupervisor({ usuario: 'AdmSeg', pass: 'kas', dispositivoId: 'd',
+      verEmpresa: 'Multisur', verVista: 'medico' }).getContent());
+    return (n.nomina || []).map(x => String(x.persona)).join('|')
+      + '|' + JSON.stringify(p.nominaSinDato || []);
+  } catch (e) { return 'ERROR:' + e.message; } };
   const cuentasDe = (acc) => { try {
     return api.cuentasPanel_(api.empresasPermitidas_(acc)).map(x => String(x.empresa));
   } catch (e) { return ['ERROR']; } };
@@ -296,6 +333,8 @@ function medir(txt) {
        sí. Medir la nómina dejaba las dos reversiones del recorte sin red: no porque el recorte esté
        de más, sino porque el camino medido no lo usa. */
     visorAmpliaAlcance:  /ZOE SUR/.test(visorPanel('AdmMulti', 'kad', 'Multisur')),
+    /* el canónico AJENO adoptado por el visor: `ANA PRIMERA` es de `Multisur`, no de `AdmSeg` */
+    visorAdoptaAjeno:    /ANA PRIMERA/.test(visorFuga()),
     /* ⚠️ LA MÉTRICA DEL ENSANCHAMIENTO, que es la que faltaba y por la que pasó la fuga de la
        ronda 3. `Sur` reclama la variante «Multi Sur C.A.», así que `alias` la mapea a SU canónico;
        si `empresasPermitidas_` canonicaliza las variantes de `Multi` contra ese mapa global, el
@@ -329,13 +368,22 @@ function medir(txt) {
     /* ⚠️ EL `|| … === ''` ESTABA MAL Y LO MARCÓ EL VERIFICADOR: aceptaba la respuesta VACÍA, así
        que un recorte que dejara el alcance en `[]` —pérdida silenciosa de todo el visor— pasaba
        inadvertido. Una guarda que admite el vacío no es una guarda. */
-    visorAbreYTrae:           /ANA PRIMERA/.test(visorPanel('AdmMulti', 'kad', 'Multisur')),
+    /* ⚠️ Mira `operacional` ESPECÍFICAMENTE, no la cadena entera de `visorPanel`: `nominaSinDato`
+       se calcula por otro camino y no pasa por el recorte de `out.empresas`, así que su presencia
+       hacía pasar la guarda aunque el panel viniera vacío — y entonces la reversión que deja el
+       alcance en `[]` (pérdida silenciosa de todo el panel del visor) no se notaba. */
+    visorAbreYTrae:           /^ANA PRIMERA/.test(visorPanel('AdmMulti', 'kad', 'Multisur')),
     /* el selector no puede esconderle su PROPIA empresa a quien la nombra por una variante que no
        es la primera de la fila: es lo que rompía el recorte por `emps[0]` */
     /* ⚠️ «¿hay ALGUNA opción?» no servía: la fila vecina `Sur` la aporta igual con las dos
        versiones. Lo que distingue es si el selector ofrece la fila `Multi`, que lista la variante
        de esta cuenta en SEGUNDO lugar — con el recorte por `emps[0]` esa fila desaparece. */
-    segVeSuEmpresaEnSelector:  cuentasDe(api.validarAcceso('AdmSeg', 'kas', 'd')).indexOf('Multisur') >= 0,
+    /* ⚠️ TERCERA MÉTRICA MÍA QUE AFIRMABA UN DERECHO INEXISTENTE. Decía que `AdmSeg` debe ver
+       «Multisur» en su selector porque la fila de esa empresa declara su variante. Falso por la
+       misma decisión que fija todo lo demás: el canónico de esa fila es «Multisur» y el de `AdmSeg`
+       no, así que son empresas distintas. Y era justamente la métrica que hacía parecer correcto
+       ensanchar el candado del visor. Lo que SÍ tiene que ver es su propia fila. */
+    segVeSuEmpresaEnSelector:  cuentasDe(api.validarAcceso('AdmSeg', 'kas', 'd')).indexOf('Multi Sur C.A.') >= 0,
     /* y las dos guardas que hacen valer la métrica nueva: si el panel viniera vacío para todos,
        `filaVePanelAjeno:false` no mediría nada */
     maestroVePanelEntero:  (() => { const l = panelPersonas('*', 'km');
@@ -351,7 +399,7 @@ function medir(txt) {
 
 const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAjena', 'filaVeCuentasAjenas',
                       'filaVePanelAjeno', 'filaVeAusenciaAjena', 'filaVePadronAjeno',
-                      'visorAmpliaAlcance', 'multiVeGenteDeSur'];
+                      'visorAmpliaAlcance', 'multiVeGenteDeSur', 'visorAdoptaAjeno'];
 const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
                       'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
                       'maestroVePanelEntero', 'filaVePanelPropio',
