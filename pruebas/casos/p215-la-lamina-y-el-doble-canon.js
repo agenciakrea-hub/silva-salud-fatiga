@@ -138,9 +138,23 @@ PRUEBAS.caso('🔴 3 · el padrón del informe no cruza a otra empresa por dos s
     dispositivoId: 'd' }).getContent()).enPadron || 0);
   const nomina = (u, pw) => (JSON.parse(api.accionNominaListar({ usuario: u, pass: pw,
     dispositivoId: 'd' }).getContent()).nomina || []).length;
-  /* la guarda del escenario: sin los dos saltos, este caso no reproduce nada */
-  PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Equis'), 'Otra', 'guarda: primer salto · Equis → Otra');
-  PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Otra'), 'Mia', 'guarda: segundo salto · Otra → Mia');
+  /* ⚠️ CUARTA RONDA DE P215 · ESTA GUARDA AFIRMABA EL DEFECTO COMO PRECONDICIÓN, y la raíz la
+     volvió IMPOSIBLE DE MONTAR. Decía que el canónico de una fila podía ser secuestrado por otra que
+     lo listara como variante — cierto mientras `construirAliasLeer_` era last-wins sobre toda la
+     hoja. Ahora el canónico de cada fila se mapea a sí mismo y pisa cualquier reclamo ajeno, así
+     que el escenario no existe más.
+     NO se cambió el valor esperado para que diera verde: se cambió lo que la guarda AFIRMA, porque
+     lo que afirmaba dejó de ser verdad del sistema. Y hay que decir la consecuencia: sin ese
+     escenario, este caso ya no distingue si lo que lo protege es el quirúrgico o la raíz — esa red
+     vive en `pruebas/discriminador-p215.js`, que mide cada quirúrgico con la raíz REVERTIDA. */
+  /* ⚠️ Y ACÁ EL SEGUNDO SALTO NO ES SÓLO «difícil de montar»: ES IMPOSIBLE POR CONSTRUCCIÓN.
+     `canon(x)` devuelve siempre un canónico, y desde la cuarta ronda todo canónico es punto fijo,
+     así que no puede haber una cadena de dos saltos. Eso es lo que el caso 6 de
+     `p215b-la-raiz-del-doble-canon.js` prueba directamente. */
+  PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Equis'), 'Otra',
+    'guarda: la variante indiscutida «Equis» sigue siendo de «Otra» — un salto, el correcto');
+  PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Otra'), 'Otra',
+    'guarda: y «Otra» es punto fijo: el segundo salto ya no existe');
   /* el invariante: el padrón y la nómina tienen que decir LO MISMO para cada cuenta */
   PRUEBAS.igual(padron('Mia', 'kmi'), nomina('Mia', 'kmi'),
     '🔴 `Mia`: el padrón y la nómina coinciden (antes 2 contra 1: veía a la persona de Otra)');

@@ -1,10 +1,21 @@
 /* ── DETECTOR DE DOBLE CANON · mide en EJECUCIÓN, no por lectura ──────────────────────────────────
    (2026-10-03, P215)
 
-   `nominaEmpresaCanon(alias, x)` **NO ES IDEMPOTENTE**: `construirAliasLeer_` recorre todas las filas
-   de `Accesos` y gana la última, así que si una fila lista el canónico de otra como variante
-   no-primera, `canon(canon(x)) !== canon(x)`. Canonizar dos veces el mismo dato manda ese nombre a
-   la empresa del secuestrador.
+   ⚠️ DESDE LA CUARTA RONDA DE P215, `nominaEmpresaCanon` **YA ES IDEMPOTENTE**: `construirAliasLeer_`
+   hace una segunda pasada donde el canónico de cada fila se mapea a sí mismo y pisa cualquier reclamo
+   ajeno. Eso significa que **un par informado acá ya no es un defecto por sí solo** — era antes,
+   cuando el mapa era last-wins sobre toda la hoja `Accesos` y una fila que listara el canónico de
+   otra como variante no-primera hacía que `canon(canon(x))` cayera en la empresa del secuestrador.
+
+   ESTE DETECTOR SIGUE SIRVIENDO, por dos razones concretas:
+   · Cada pase de más cuesta una lectura de mapa, y marca un sitio donde el autor no sabía en qué
+     estado le llegaba el dato — que es la ambigüedad que el patrón «el estado va en el NOMBRE»
+     (`leerConfigEmpresaCanon`, `cargoDeCanon`, `pushEnviarCanon`) viene a matar.
+   · Y porque la raíz es UNA línea en una función que ya se tocó varias veces: si alguien la saca, las
+     siete familias vuelven todas juntas. Este detector es lo que avisaría.
+   ⚠️ Ya cazó un par introducido POR EL ARREGLO: `zonaOperacionServer` seguía con doble pase mientras
+   `accionSupervisor` ya usaba la puerta nueva — la misma zona horaria por dos caminos, uno arreglado
+   y otro no, en la misma ronda en que se estaba cerrando ese patrón.
 
    Eso ya costó caro en P214: `enSet` canonizaba un dato que `RES.aplicar()` había canonizado una
    línea antes, y el panel del supervisor quedaba VACÍO mientras el mismo payload le imprimía los

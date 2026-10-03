@@ -549,13 +549,22 @@ PRUEBAS.caso('🔴 LA RAMA SUPERVISOR · su panel trae su gente, y sólo su gent
   const panel = (u, pw) => { const d = JSON.parse(api.accionSupervisor({ usuario: u, pass: pw,
     dispositivoId: 'd' }).getContent());
     return { gente: (d.operacional || []).map(x => String(x.persona)), sinDato: d.nominaSinDato || [] }; };
-  /* la guarda del escenario: el canónico de `Silva` tiene que estar secuestrado por `Grupo`, o este
-     caso no reproduce la dirección del doble canon */
+  /* ⚠️ CUARTA RONDA DE P215 · ESTA GUARDA AFIRMABA EL DEFECTO COMO PRECONDICIÓN, y la raíz la
+     volvió IMPOSIBLE DE MONTAR. Decía que el canónico de una fila podía ser secuestrado por otra que
+     lo listara como variante — cierto mientras `construirAliasLeer_` era last-wins sobre toda la
+     hoja. Ahora el canónico de cada fila se mapea a sí mismo y pisa cualquier reclamo ajeno, así
+     que el escenario no existe más.
+     NO se cambió el valor esperado para que diera verde: se cambió lo que la guarda AFIRMA, porque
+     lo que afirmaba dejó de ser verdad del sistema. Y hay que decir la consecuencia: sin ese
+     escenario, este caso ya no distingue si lo que lo protege es el quirúrgico o la raíz — esa red
+     vive en `pruebas/discriminador-p215.js`, que mide cada quirúrgico con la raíz REVERTIDA. */
   const alias = api.construirAlias();
-  PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Silva'), 'Grupo',
-    'guarda: `Grupo` reclamó el canónico de `Silva` — el escenario está montado');
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Silva'), 'Silva',
+    'guarda: el intento de secuestro de `Grupo` NO prospera — el canónico propio gana');
   PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Aer. silva'), 'Silva',
-    'guarda: y la otra variante de `Silva` sigue apuntando a `Silva`');
+    'guarda: y la variante indiscutida de `Silva` sigue apuntando a `Silva`');
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Grupo'), 'Grupo',
+    'guarda: y `Grupo` conserva el suyo: la regla no le quita nada a quien lo reclamó');
 
   const silva = panel('Silva', 'clave-si');
   /* ── la dirección que frenó la sexta ronda: NO puede quedarse sin su gente ─────────────────── */
