@@ -71,11 +71,26 @@ PRUEBAS.caso('🔴 un admin DE FILA no puede escribir bajo una empresa que no es
   const acc = api.validarAcceso('Grupo Norte', 'clave-gn', 'd');
   PRUEBAS.cierto(!!acc, 'guarda: entra');
   if (!acc) return;
-  /* las SUYAS sí, y con el nombre canónico de la lista */
-  PRUEBAS.igual(api.gestScope(acc, 'Aerocentro'), 'Aerocentro', 'su primera empresa, sí');
-  PRUEBAS.igual(api.gestScope(acc, 'Consorcio HELITEC'), 'Consorcio HELITEC', 'su segunda, también');
-  PRUEBAS.igual(api.gestScope(acc, 'consorcio helitec'), 'Consorcio HELITEC',
-    '⚠️ y se compara con `norm()`: «consorcio helitec» resuelve al nombre canónico de SU lista');
+  /* ⚠️ ESTE BLOQUE AFIRMABA EL MODELO VIEJO, y lo corrigió `P215`. Decía que un admin de fila
+     escribe bajo «su segunda empresa» con ESE nombre —`gestScope(acc,'Consorcio HELITEC')` daba
+     «Consorcio HELITEC»— y eso venía de leer la celda EMPRESAS como una lista de empresas
+     distintas. `P214` midió que es falso: son **variantes del nombre de UNA empresa**
+     (`construirAliasLeer_` mapea cada una a la primera, y `accionSupervisor` reescribe
+     `r.empresa = acc.canonical`). Una cuenta pertenece a una sola empresa.
+
+     La consecuencia que `P215` cerró: devolver la variante tipeada como CLAVE DE ESCRITURA partía
+     el mismo cuaderno en dos baldes según cómo lo escribiera quien pidió, y con una celda cuyo
+     segundo nombre fuera el de otro cliente se escribía en el cuaderno de ese cliente —gestiones y
+     bitácora, que es append-only—. Ahora la clave es siempre el canónico, que es lo que hace que
+     el lector y el escritor coincidan.
+
+     Lo que SÍ se mide ahora: pida la variante que pida, mientras esté en su alcance, la clave es su
+     canónico. El derecho lo concede `empresasPermitidas_`. */
+  PRUEBAS.igual(api.gestScope(acc, 'Aerocentro'), 'Aerocentro', 'su empresa, con su nombre canónico');
+  PRUEBAS.igual(api.gestScope(acc, 'Consorcio HELITEC'), 'Aerocentro',
+    '🔴 una variante de SU celda también escribe bajo el canónico, no bajo la variante tipeada');
+  PRUEBAS.igual(api.gestScope(acc, 'consorcio helitec'), 'Aerocentro',
+    '⚠️ y la comparación sigue siendo por `norm()`: la minúscula resuelve igual');
   /* 🔴 una AJENA cae a la suya, nunca a la ajena */
   PRUEBAS.igual(api.gestScope(acc, 'Aeroambulancias Silva'), 'Aerocentro',
     '🔴 una empresa AJENA cae a la suya: el dato queda donde tiene derecho');
