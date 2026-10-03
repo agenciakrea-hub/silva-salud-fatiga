@@ -468,3 +468,50 @@ PRUEBAS.caso('🔴 MULTI-VARIANTE · el supervisor ve su gente por cualquier var
   PRUEBAS.igual(solo.nom('*', 'clave-maestra').length, 2, '🔴 NO PUEDE CAMBIAR · el maestro ve a las dos');
   PRUEBAS.igual(conDisputa.nom('*', 'clave-maestra').length, 2, '…con disputa también');
 });
+
+PRUEBAS.caso('🔴 COHERENCIA · toda empresa que el selector ofrece, el visor la abre', () => {
+  /* ⚠️ ESTE ERA EL HUECO QUE QUEDABA, y el verificador lo midió deshaciendo la delegación: con
+     `cuentasEnPermitidas_` preguntando distinto que `filaEsPermitida_`, el selector le ofrecía a una
+     cuenta una empresa que el visor después rechazaba con «esa empresa no existe» — y el
+     discriminador seguía en verde, porque su métrica sólo mira si la cuenta ve SU empresa, y por
+     construcción no puede ver una oferta de MÁS.
+     La afirmación que P214 escribió —«angostar acá angosta los dos a la vez y no puede volver a
+     pasar que uno ofrezca lo que el otro rechaza»— no tenía instrumento. Éste es. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      /* un admin que nombra su empresa por la SEGUNDA variante de otra fila: el caso que rompía */
+      ['AdmSeg', 'clave-as', 'admin', 'Multi Sur C.A.', '', ''],
+      ['Multi', 'clave-mu', 'supervisor', 'Multisur, Multi Sur C.A.', '', ''],
+      ['Sur', 'clave-su', 'supervisor', 'Multi Sur C.A.', '', ''],
+      ['Aeropostal', 'clave-ap', 'supervisor', 'Aeropostal', '', '']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Multisur', 'ANA PRIMERA', 'V-111', 'Operaciones', 'Piloto'],
+      ['Multi Sur C.A.', 'LUIS SEGUNDA', 'V-222', 'Operaciones', 'Piloto']],
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['cuentasPanel_', 'empresasPermitidas_', 'validarAcceso',
+    'accesoPanel_']);
+  /* para cada cuenta de admin, el selector y el visor tienen que coincidir EMPRESA POR EMPRESA */
+  [['AdmSeg', 'clave-as'], ['*', 'clave-maestra']].forEach(([u, pw]) => {
+    const acc = api.validarAcceso(u, pw, 'd');
+    const ofrecidas = api.cuentasPanel_(api.empresasPermitidas_(acc)).map(x => String(x.empresa));
+    PRUEBAS.alMenos(ofrecidas.length, 1, 'guarda · ' + u + ': el selector ofrece al menos una empresa');
+    ofrecidas.forEach(emp => {
+      const a = api.accesoPanel_({ usuario: u, pass: pw, dispositivoId: 'd',
+        verEmpresa: emp, verVista: 'medico' });
+      PRUEBAS.cierto(!!(a && a.visor) && !a.visorError,
+        '🔴 ' + u + ' · el selector ofrece «' + emp + '» y el visor LA ABRE' +
+        (a && a.visorError ? ' (dio ' + a.visorError + ')' : ''));
+    });
+  });
+  /* DISCRIMINADOR · y el visor NO abre una que el selector no ofrece */
+  const accAS = api.validarAcceso('AdmSeg', 'clave-as', 'd');
+  const ofrecidasAS = api.cuentasPanel_(api.empresasPermitidas_(accAS)).map(x => String(x.empresa));
+  PRUEBAS.igual(ofrecidasAS.indexOf('Aeropostal'), -1, 'guarda: «Aeropostal» no está ofrecida');
+  const ajena = api.accesoPanel_({ usuario: 'AdmSeg', pass: 'clave-as', dispositivoId: 'd',
+    verEmpresa: 'Aeropostal', verVista: 'medico' });
+  PRUEBAS.igual(ajena && ajena.visorError, 'empresa',
+    'DISCRIMINADOR · y una que NO ofrece, el visor la rechaza');
+});

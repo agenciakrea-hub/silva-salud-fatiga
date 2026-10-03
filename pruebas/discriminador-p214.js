@@ -79,7 +79,9 @@ const REV = [
        ninguna variante es propia, así que sacar sólo este candado no cambia nada medible — las dos
        defensas se cubren. Revertir el par demuestra que la redundancia es real y que el par
        completo sí hace falta. */
-    pares: ['H ·'],
+    /* ⚠️ Va con H y con L: desde que el panel filtra por canon PROPIO, un canónico ajeno adoptado
+       por el visor ya no sirve de nada — las tres defensas se cubren, que es lo que se buscaba. */
+    pares: ['H ·', 'L ·'],
     /* ⚠️ CUARTA versión de este ancla. Cada vez que el candado se reescribió, el ancla vieja hizo
        abortar el script — que es lo correcto: falla cerrado en vez de informar un verde sobre una
        reversión que nunca se aplicó. Es la única razón por la que esto no pasó inadvertido. */
@@ -110,9 +112,11 @@ const REV = [
   if (k && out.indexOf(k) < 0) out.push(k);
   return out;` },
   { nombre: 'H · el VISOR adopta la lista entera de la fila destino',
+    pares: ['L ·'],
     busca: `        out.empresas = recortadas.length ? recortadas : [out.canonical];`,
     pone:  `        out.empresas = out.empresas;   // REVERTIDO` },
   { nombre: 'I2 · el recorte del visor deja el alcance VACÍO (pérdida silenciosa)',
+    pares: ['L ·'],
     busca: `        out.empresas = recortadas.length ? recortadas : [out.canonical];`,
     pone:  `        out.empresas = [];   // REVERTIDO` },
   { nombre: 'J · `filaEsPermitida_` deja pasar cualquier fila (el selector y el visor sin candado)',
@@ -140,14 +144,27 @@ const REV = [
     pone:  '  var permitidasI = (acc.rol === "admin") ? null : empresasPermitidas_(acc);' },
   { nombre: 'D · `ausScope` pierde la suya (ausencias, opiniones, credenciales: 9 llamadores)',
     busca: `    if (!esAdminMaestro_(acc)) {
-      var canonE = nominaEmpresaCanon(alias, e);
-      if (empresasPermitidas_(acc).indexOf(norm(canonE)) < 0) {
-        return nominaEmpresaCanon(alias, acc.canonical || (acc.empresas && acc.empresas[0]) || "");
-      }
-      return canonE;
-    }
-    return nominaEmpresaCanon(alias, e);`,
-    pone:  `    return nominaEmpresaCanon(alias, e);   // REVERTIDO` }
+      var canonE = nominaEmpresaCanon(alias, e);`,
+    pone:  `    if (false) {
+      var canonE = nominaEmpresaCanon(alias, e);` },
+  { nombre: 'L · el PANEL del supervisor vuelve a filtrar por variantes CRUDAS (la fuga del supervisor común)',
+    /* ⚠️ La fuga más fácil de alcanzar de todo P214 —una celda con dos nombres, sin rol admin, sin
+       visor, sin secuestro de alias— y no tenía reversión porque se cerró en la quinta ronda. */
+    busca: `    var permitidasP = empresasPermitidas_(acc) || [];
+    var set = {}; permitidasP.forEach(function (x) { set[x] = 1; });
+    var enSet = function (e) { return !!set[norm(nominaEmpresaCanon(RES.alias, e))]; };`,
+    pone:  `    var set = {}; (acc.empresas || []).forEach(function(x){ set[norm(x)] = 1; });
+    var enSet = function (e) { return !!set[norm(e)]; };` },
+  { nombre: 'M · `nominaSinDato` vuelve a «el canon de mi canónico» (el canal que seguía entregando ajenos)',
+    /* ⚠️ HUECO DECLARADO. Su escenario necesita que otra fila reclame **el canónico propio** —no una
+       variante—, y el fixture de este script está armado sobre el secuestro de una variante. El
+       verificador lo midió a mano en la quinta ronda: una cuenta recibía `nomina: []` sobre su
+       propia gente y a la vez `nominaSinDato` con el nombre de otra empresa. */
+    huecoDeclarado: 'necesita otra fila que reclame el canónico propio, no una variante',
+    busca: `          var permS = empresasPermitidas_(acc) || [];
+          if (permS.indexOf(norm(nominaEmpresaCanon(alias, r.empresa))) < 0) return;`,
+    pone:  `          if (norm(nominaEmpresaCanon(alias, r.empresa)) !== norm(nominaEmpresaCanon(alias, acc.canonical || ""))) return;` },
+
 ];
 
 /* ⚠️ `pares`: una reversión puede declarar OTRAS que hay que revertir con ella. Hace falta porque
@@ -272,8 +289,11 @@ function medir(txt) {
      indistinguibles: mutarlo no ponía en rojo ni uno de 1611 casos ni una de 26 métricas. El par
      que la dispara ya estaba en el fixture y el script nunca lo probaba: `AdmSeg` —cuya celda
      declara la SEGUNDA variante de la fila `Multi`— pidiendo el visor sobre `Multisur`, que es el
-     canónico de esa fila y NO el suyo. Se mide por los tres canales que el defecto usaba: la
-     nómina, las ausencias (con cédula y motivo) y `nominaSinDato`. */
+     canónico de esa fila y NO el suyo. Se mide por `accionNominaListar` y por `nominaSinDato`.
+     ⚠️ Decía «y las ausencias (con cédula y motivo)» y el cuerpo NO las lee: un comentario de
+     instrumento afirmando un canal que no mide, que es la clase de defecto que este prompt
+     documentó en cuatro rondas. El canal de ausencias bajo el visor queda SIN medir acá; el
+     verificador sí lo midió a mano en la quinta ronda. */
   const visorFuga = () => { try {
     const a = api.accesoPanel_({ usuario: 'AdmSeg', pass: 'kas', dispositivoId: 'd',
       verEmpresa: 'Multisur', verVista: 'medico' });
@@ -285,6 +305,10 @@ function medir(txt) {
     return (n.nomina || []).map(x => String(x.persona)).join('|')
       + '|' + JSON.stringify(p.nominaSinDato || []);
   } catch (e) { return 'ERROR:' + e.message; } };
+  const sinDatoDe = (u, pw) => { try {
+    const d = JSON.parse(api.accionSupervisor({ usuario: u, pass: pw, dispositivoId: 'd' }).getContent());
+    return JSON.stringify(d.nominaSinDato || []);
+  } catch (e) { return 'ERROR'; } };
   const cuentasDe = (acc) => { try {
     return api.cuentasPanel_(api.empresasPermitidas_(acc)).map(x => String(x.empresa));
   } catch (e) { return ['ERROR']; } };
@@ -341,6 +365,12 @@ function medir(txt) {
        canónico de `Sur` entra en el alcance de `Multi` y le llegan las personas de `Sur`.
        El verificador midió que NINGÚN instrumento distinguía esto — ni los casos ni este script. */
     multiVeGenteDeSur:   nom('Multi', 'kmu').indexOf('ZOE SUR') >= 0,
+    /* ⚠️ EL PANEL y `nominaSinDato` del supervisor multi-variante: los dos canales que P214 dejó
+       abiertos hasta la quinta ronda, y que ningún instrumento miraba. El panel es el ANCHO
+       —registros, PVT, operacional, turnos, comentarios libres— y `nominaSinDato` entrega nombres
+       por un camino que se calcula aparte del filtro. */
+    multiPanelAjeno:     /ZOE SUR/.test(panelPersonas('Multi', 'kmu').join('|')),
+    multiSinDatoAjeno:   /ZOE SUR/.test(sinDatoDe('Multi', 'kmu')),
     /* LO QUE **NO** PUEDE CAMBIAR */
     maestroVeTodaLaNomina: (() => { const l = nom('*', 'km'); return l.indexOf('PEDRO GOMEZ') >= 0 && l.indexOf('ANA SUAREZ') >= 0; })(),
     maestroAbreVisor:      visor('*', 'km', 'Aeropostal'),
@@ -399,7 +429,8 @@ function medir(txt) {
 
 const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAjena', 'filaVeCuentasAjenas',
                       'filaVePanelAjeno', 'filaVeAusenciaAjena', 'filaVePadronAjeno',
-                      'visorAmpliaAlcance', 'multiVeGenteDeSur', 'visorAdoptaAjeno'];
+                      'visorAmpliaAlcance', 'multiVeGenteDeSur', 'visorAdoptaAjeno',
+                      'multiPanelAjeno', 'multiSinDatoAjeno'];
 const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
                       'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
                       'maestroVePanelEntero', 'filaVePanelPropio',
