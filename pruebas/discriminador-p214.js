@@ -170,6 +170,14 @@ const REV = [
   return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();`,
     pone:  `     REVERTIDO */
   return nominaEmpresaCanon(alias, acc.canonical || (acc.empresas && acc.empresas[0]) || "");` },
+  { nombre: 'Q · `ausScope` vuelve a canonizar SÓLO el fallback de la rama admin',
+    /* ⚠️ `P` arranca su ancla en el comentario del `return` FINAL, así que dejaba intacto el
+       fallback de la rama admin — y el verificador midió que revertir ese solo no mueve ni una de
+       las 19 métricas: la ausencia y su línea de bitácora **append-only (R3, no corregible)** caían
+       bajo la empresa del secuestrador con `ok:true`, y los 19 verdes seguían verdes. Es exactamente
+       el modo de falla que costó seis rondas, escrito dentro del arreglo de la séptima. */
+    busca: `        return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();`,
+    pone:  `        return nominaEmpresaCanon(alias, acc.canonical || (acc.empresas && acc.empresas[0]) || "");` },
   { nombre: 'L · el PANEL del supervisor vuelve a filtrar por variantes CRUDAS (la fuga del supervisor común)',
     /* ⚠️ La fuga más fácil de alcanzar de todo P214 —una celda con dos nombres, sin rol admin, sin
        visor, sin secuestro de alias— y no tenía reversión porque se cerró en la quinta ronda. */
@@ -429,6 +437,10 @@ function medir(txt) {
     apAusScopeAjeno:     /holding/i.test(String(api.ausScope(api.validarAcceso('Secuestrada', 'ksq', 'd'), alias, 'Secuestrada'))),
     /* el doble canon en la rama ADMIN: el admin de fila con su canónico secuestrado */
     admSecPierdeSuPanel: panelPersonas('AdmSec', 'kad2').length === 0,
+    /* ⚠️ UN ADMIN DE FILA, porque sale por el fallback de la rama admin de `ausScope` y
+       `apAusScopeAjeno` mide un supervisor, que sale por el `return` final. Sin esta métrica, ese
+       fallback no tenía red: revertirlo dejaba las 19 reversiones en verde. */
+    admSecAusScopeAjeno: /holding/i.test(String(api.ausScope(api.validarAcceso('AdmSec', 'kad2', 'd'), alias, 'Aeropostal'))),
     /* y `nominaSinDato` del secuestrado: no puede traer a la gente del secuestrador */
     secSinDatoAjeno:     /HOL |HOLDING/i.test(sinDatoDe('Secuestrada', 'ksq')),
     multiSinDatoAjeno:   /ZOE SUR/.test(sinDatoDe('Multi', 'kmu')),
@@ -492,7 +504,7 @@ const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAj
                       'filaVePanelAjeno', 'filaVeAusenciaAjena', 'filaVePadronAjeno',
                       'visorAmpliaAlcance', 'multiVeGenteDeSur', 'visorAdoptaAjeno',
                       'multiPanelAjeno', 'multiSinDatoAjeno', 'apPierdeSuPanel', 'apAusScopeAjeno',
-                      'admSecPierdeSuPanel', 'secSinDatoAjeno'];
+                      'admSecPierdeSuPanel', 'secSinDatoAjeno', 'admSecAusScopeAjeno'];
 const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
                       'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
                       'maestroVePanelEntero', 'filaVePanelPropio',
