@@ -515,3 +515,67 @@ PRUEBAS.caso('🔴 COHERENCIA · toda empresa que el selector ofrece, el visor l
   PRUEBAS.igual(ajena && ajena.visorError, 'empresa',
     'DISCRIMINADOR · y una que NO ofrece, el visor la rechaza');
 });
+
+PRUEBAS.caso('🔴 LA RAMA SUPERVISOR · su panel trae su gente, y sólo su gente', () => {
+  /* ⚠️ LOS DOCE CASOS ANTERIORES NO TOCABAN ESTA RAMA. El verificador lo midió: revertir el filtro
+     del panel del supervisor —la fuga TITULAR de P214, la que alcanza un supervisor común con una
+     celda de dos nombres— dejaba los doce en verde, porque el caso «EL PANEL ENTERO» entra por la
+     rama ADMIN. Son dos ramas distintas de `accionSupervisor` con dos filtros distintos.
+
+     Y se mide también la otra dirección, que es la que frenó la publicación en la sexta ronda: el
+     filtro canonizaba un dato que `RES.aplicar()` ya había canonizado, y como `nominaEmpresaCanon`
+     NO es idempotente, con una fila que liste el canónico de otra como variante no-primera el panel
+     del supervisor quedaba **vacío** —registros, PVT, operacional, turnos y comentarios— mientras
+     `nominaSinDato`, que canoniza una sola vez, le imprimía los nombres de su propia gente como
+     «nunca medidos». El cero sin discriminador de P096, por otra puerta. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const HOY2 = P214_HOY;
+  const env = GS.crearEntorno({
+    'Accesos': [P214_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      ['Silva', 'clave-si', 'supervisor', 'Silva, Aer. silva', '', ''],
+      /* la fila que reclama el CANÓNICO de la de arriba como variante NO-primera */
+      ['Grupo', 'clave-gr', 'supervisor', 'Grupo, Silva', '', '']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Aer. silva', 'ANA SILVA', 'V-1', 'Operaciones', 'Piloto'],
+      ['Grupo', 'LUIS GRUPO', 'V-9', 'Operaciones', 'Piloto']],
+    'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
+      [HOY2, '08:00', HOY2 + 'T08:00:00', 'e1', 'ANA SILVA', 'Aer. silva', 'Ops', 'Piloto', 'inicio', '', '', ''],
+      [HOY2, '09:00', HOY2 + 'T09:00:00', 'e2', 'LUIS GRUPO', 'Grupo', 'Ops', 'Piloto', 'inicio', '', '', '']],
+    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical', 'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor', 'validarAcceso', 'construirAlias',
+    'nominaEmpresaCanon']);
+  const panel = (u, pw) => { const d = JSON.parse(api.accionSupervisor({ usuario: u, pass: pw,
+    dispositivoId: 'd' }).getContent());
+    return { gente: (d.operacional || []).map(x => String(x.persona)), sinDato: d.nominaSinDato || [] }; };
+  /* la guarda del escenario: el canónico de `Silva` tiene que estar secuestrado por `Grupo`, o este
+     caso no reproduce la dirección del doble canon */
+  const alias = api.construirAlias();
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Silva'), 'Grupo',
+    'guarda: `Grupo` reclamó el canónico de `Silva` — el escenario está montado');
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, 'Aer. silva'), 'Silva',
+    'guarda: y la otra variante de `Silva` sigue apuntando a `Silva`');
+
+  const silva = panel('Silva', 'clave-si');
+  /* ── la dirección que frenó la sexta ronda: NO puede quedarse sin su gente ─────────────────── */
+  PRUEBAS.alMenos(silva.gente.length, 1,
+    '🔴 el supervisor NO se queda con el panel vacío (el doble canon lo vaciaba)');
+  PRUEBAS.cierto(silva.gente.indexOf('ANA SILVA') >= 0, '🔴 y ve a su propia persona');
+  /* ⚠️ ESTE ASERTO DECÍA `sinDato === '[]'`, afirmando que un evento operacional cuenta como
+     «medido». NO lo verifiqué, y es falso: «medido» sale de `Respuestas de formulario 1`, que este
+     fixture no tiene. Quinta vez en este prompt que escribo un aserto afirmando algo cuyo origen en
+     el código no busqué — exactamente lo que R19 previene, y esta vez después de redactarla.
+     Lo que P214 cierra en este canal es que NO aparezca gente ajena; cuántos de los propios están
+     sin medir depende del fixture y no es lo que se está probando. */
+  PRUEBAS.igual(silva.sinDato.indexOf('LUIS GRUPO'), -1,
+    '🔴 y `nominaSinDato` tampoco nombra a la persona de la otra empresa');
+  /* ── la fuga titular: NO puede ver la del otro ─────────────────────────────────────────────── */
+  PRUEBAS.igual(silva.gente.indexOf('LUIS GRUPO'), -1, '🔴 y NO ve a la persona de la otra empresa');
+  /* ── LO QUE NO PUEDE CAMBIAR ───────────────────────────────────────────────────────────────── */
+  const grupo = panel('Grupo', 'clave-gr');
+  PRUEBAS.cierto(grupo.gente.indexOf('LUIS GRUPO') >= 0, '🔴 el otro supervisor ve la suya…');
+  PRUEBAS.igual(grupo.gente.indexOf('ANA SILVA'), -1, '…y no la de Silva');
+  const maestro = panel('*', 'clave-maestra');
+  PRUEBAS.igual(maestro.gente.length, 2, '🔴 NO PUEDE CAMBIAR · el maestro ve a las dos');
+});

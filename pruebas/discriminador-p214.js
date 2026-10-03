@@ -147,20 +147,42 @@ const REV = [
       var canonE = nominaEmpresaCanon(alias, e);`,
     pone:  `    if (false) {
       var canonE = nominaEmpresaCanon(alias, e);` },
+  { nombre: 'N · DOBLE CANON en la rama supervisor (vacía el panel de su propia gente)',
+    /* ⚠️ El defecto que la sexta ronda frenó, y que ningún instrumento distinguía: ni uno de 1111
+       casos ni una de 16 reversiones cambiaba entre la línea con el bug y la arreglada. */
+    busca: `    var enSet = function (e) { return !!set[norm(e)]; };`,
+    pone:  `    var enSet = function (e) { return !!set[norm(nominaEmpresaCanon(RES.alias, e))]; };` },
+  { nombre: 'O · DOBLE CANON en la rama admin (lo mismo, para un admin de fila)',
+    busca: `      var n = norm(e);
+      if (empAdm) return n === empAdm;`,
+    pone:  `      var n = norm(nominaEmpresaCanon(RES.alias, e));
+      if (empAdm) return n === empAdm;` },
+  { nombre: 'P · `ausScope` vuelve a canonizar sus dos salidas (el canónico del secuestrador)',
+    /* ⚠️ El cierre de `ausScope` tampoco tenía instrumento: revertirlo no ponía nada en rojo.
+       Y hay que revertir LAS DOS salidas: la primera versión de esta reversión tocaba sólo el
+       fallback de la rama admin, y la métrica mide un SUPERVISOR, que sale por el `return` final. */
+    // ⚠️ Un solo ancla, con el cierre del comentario de arriba como contexto: la cadena del `return`
+    // final es SUBCADENA de la del fallback de la rama admin (difieren sólo en la indentación), así
+    // que declarar las dos hacía que el script contara dos apariciones de una y abortara.
+    // (Este comentario va con `//` porque el de bloque se cerraba solo al nombrar la secuencia de
+    //  cierre — el mismo error que este archivo ya documentó en el `pone` de la reversión B.)
+    busca: `     correcto es seguir escribiendo bajo el MÍO, no bajo el de ella. */
+  return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();`,
+    pone:  `     REVERTIDO */
+  return nominaEmpresaCanon(alias, acc.canonical || (acc.empresas && acc.empresas[0]) || "");` },
   { nombre: 'L · el PANEL del supervisor vuelve a filtrar por variantes CRUDAS (la fuga del supervisor común)',
     /* ⚠️ La fuga más fácil de alcanzar de todo P214 —una celda con dos nombres, sin rol admin, sin
        visor, sin secuestro de alias— y no tenía reversión porque se cerró en la quinta ronda. */
+    /* el ancla cambió al arreglar el doble canon: `enSet` ya no canoniza */
     busca: `    var permitidasP = empresasPermitidas_(acc) || [];
-    var set = {}; permitidasP.forEach(function (x) { set[x] = 1; });
-    var enSet = function (e) { return !!set[norm(nominaEmpresaCanon(RES.alias, e))]; };`,
-    pone:  `    var set = {}; (acc.empresas || []).forEach(function(x){ set[norm(x)] = 1; });
-    var enSet = function (e) { return !!set[norm(e)]; };` },
+    var set = {}; permitidasP.forEach(function (x) { set[x] = 1; });`,
+    pone:  `    var set = {}; (acc.empresas || []).forEach(function(x){ set[norm(x)] = 1; });` },
   { nombre: 'M · `nominaSinDato` vuelve a «el canon de mi canónico» (el canal que seguía entregando ajenos)',
-    /* ⚠️ HUECO DECLARADO. Su escenario necesita que otra fila reclame **el canónico propio** —no una
-       variante—, y el fixture de este script está armado sobre el secuestro de una variante. El
-       verificador lo midió a mano en la quinta ronda: una cuenta recibía `nomina: []` sobre su
-       propia gente y a la vez `nominaSinDato` con el nombre de otra empresa. */
-    huecoDeclarado: 'necesita otra fila que reclame el canónico propio, no una variante',
+    /* ⚠️ ACÁ DECÍA «hueco declarado: no se puede montar el escenario». ERA FALSO en las dos mitades,
+       y el verificador lo probó: lo montó en el mismo emulador con cuatro filas, y además midió que
+       el cierre se nota **incluso sin ninguna fila secuestradora**. Declarar un hueco que no existe
+       es peor que no declararlo: deja la defensa sin red con una excusa escrita. El fixture ahora
+       trae la fila `Holding`, que reclama el canónico de `Aeropostal`. */
     busca: `          var permS = empresasPermitidas_(acc) || [];
           if (permS.indexOf(norm(nominaEmpresaCanon(alias, r.empresa))) < 0) return;`,
     pone:  `          if (norm(nominaEmpresaCanon(alias, r.empresa)) !== norm(nominaEmpresaCanon(alias, acc.canonical || ""))) return;` },
@@ -213,7 +235,33 @@ const HOJAS = () => ({
     /* ⚠️ Y un admin que nombra su empresa por la SEGUNDA variante de la fila `Multi`, que es lo que
        hace falta para que la reversión J tenga algo que romper: con el recorte mirando sólo
        `emps[0]`, el selector esconde su propia empresa. */
-    ['AdmSeg', 'kas', 'admin', 'Multi Sur C.A.', '', '']],
+    ['AdmSeg', 'kas', 'admin', 'Multi Sur C.A.', '', ''],
+    /* ⚠️ UNA FILA QUE RECLAMA EL CANÓNICO DE OTRA COMO VARIANTE NO-PRIMERA. Es un escenario
+       DISTINTO del secuestro de una variante, y el que hacía falta para dos cosas que no tenían
+       instrumento: el DOBLE CANON —`enSet`/`enAlcance` canonizando un dato que `RES.aplicar` ya
+       canonizó, que vaciaba el panel del supervisor— y el cierre de `nominaSinDato`, cuyo hueco
+       declaré imposible de montar y el verificador montó con cuatro filas. */
+    /* ⚠️ Reclama a `Secuestrada`, una cuenta DEDICADA a esto. La primera versión le hacía reclamar
+       `Aeropostal`, que cuatro métricas viejas usaban como «la empresa ajena indiscutida», y el
+       fixture nuevo las contaminó: `supVeLoSuyo`, `apPierdeSuPanel` y las dos del maestro se
+       pusieron en rojo con razón —por la decisión de diseño, `Holding` se había quedado con ese
+       nombre— pero midiendo otra cosa que la que decían. Un fixture que le cambia el significado a
+       una métrica existente es tan peligroso como una métrica mal escrita. */
+    /* ⚠️ CON DOS VARIANTES, y eso es lo que hace visible el doble canon. Con una sola, la cuenta
+       pierde su gente en las dos versiones —su canónico está secuestrado y el alias se la da a
+       `Holding`, que es el comportamiento diseñado— así que la métrica no discriminaba y además
+       afirmaba un derecho inexistente: la CUARTA vez en este prompt que escribo eso, y ésta la
+       escribí DESPUÉS de redactar R19 sobre exactamente esto.
+       Con la segunda variante sí: `Secuestrada C.A.` canoniza a `Secuestrada` —su propia celda la
+       declara primera— y eso SÍ está en su alcance. Con el doble canon, el segundo pase manda ese
+       nombre a `Holding` y la fila desaparece. */
+    ['Secuestrada', 'ksq', 'supervisor', 'Secuestrada, Secuestrada C.A.', '', ''],
+    ['Holding', 'kho', 'supervisor', 'Holding, Secuestrada', '', ''],
+    /* ⚠️ Un ADMIN de fila con la MISMA forma que `Secuestrada` (dos variantes y el canónico
+       secuestrado por `Holding2`): la rama admin del panel tiene su propio `enAlcance`, y sin una
+       cuenta así el doble canon de esa rama no tenía escenario. */
+    ['AdmSec', 'kad2', 'admin', 'AdmSec, AdmSec C.A.', '', ''],
+    ['Holding2', 'kho2', 'supervisor', 'Holding2, AdmSec', '', '']],
   'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
     ['Aerocentro', 'ANA SUAREZ', 'V-111', 'Operaciones', 'Piloto'],
     ['Aeropostal', 'PEDRO GOMEZ', 'V-222', 'Mantenimiento', 'Tecnico'],
@@ -224,7 +272,10 @@ const HOJAS = () => ({
     /* ⚠️ Y una persona de `Multisur` a secas, que es lo que le corresponde a `Multi` y a `AdmMulti`.
        Sin esta fila su visor no traía a NADIE y la guarda `visorAbreYTrae` pedía algo imposible:
        daba rojo en la línea base y tapaba el resultado de las dos reversiones del recorte. */
-    ['Multisur', 'ANA PRIMERA', 'V-444', 'Operaciones', 'Piloto']],
+    ['Multisur', 'ANA PRIMERA', 'V-444', 'Operaciones', 'Piloto'],
+    ['Secuestrada C.A.', 'SOL SECUESTRADA', 'V-555', 'Operaciones', 'Piloto'],
+    ['AdmSec C.A.', 'RAI ADMSEC', 'V-666', 'Operaciones', 'Piloto'],
+    ['Holding', 'HOL PERSONA', 'V-777', 'Operaciones', 'Piloto']],
   /* ⚠️ `Operacional` CON FILAS DE LAS DOS EMPRESAS, y es lo que hacía falta para medir la fuga más
      grande. La primera versión de este discriminador no tenía ninguna métrica sobre el panel de
      `accionSupervisor`, así que la reversión B salía «NO DISCRIMINA» — no porque la defensa
@@ -237,7 +288,9 @@ const HOJAS = () => ({
     [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'PEDRO GOMEZ', 'Aeropostal', 'Mantenimiento', 'Tecnico', 'inicio', '', '', ''],
     /* las dos variantes de `Multi`, para que el recorte de `out.empresas` tenga algo que recortar */
     [HOY, '10:00', HOY + 'T10:00:00', 'e3', 'ANA PRIMERA', 'Multisur', 'Ops', 'Piloto', 'inicio', '', '', ''],
-    [HOY, '11:00', HOY + 'T11:00:00', 'e4', 'ZOE SUR', 'Multi Sur C.A.', 'Ops', 'Piloto', 'inicio', '', '', '']],
+    [HOY, '11:00', HOY + 'T11:00:00', 'e4', 'ZOE SUR', 'Multi Sur C.A.', 'Ops', 'Piloto', 'inicio', '', '', ''],
+    [HOY, '12:00', HOY + 'T12:00:00', 'e5', 'SOL SECUESTRADA', 'Secuestrada C.A.', 'Ops', 'Piloto', 'inicio', '', '', ''],
+    [HOY, '13:00', HOY + 'T13:00:00', 'e6', 'RAI ADMSEC', 'AdmSec C.A.', 'Ops', 'Piloto', 'inicio', '', '', '']],
   /* `AUS_HEAD` real: 12 columnas, `Cedula` antes de `Persona`, la 8ª es `Estado` = «vigente». */
   'Ausencias': [['IdAusencia', 'Empresa', 'Cedula', 'Persona', 'Desde', 'Hasta', 'Motivo', 'Estado', 'Marcada', 'MarcadaPor', 'Anulada', 'AnuladaPor'],
     ['a1', 'Aeropostal', 'V-222', 'PEDRO GOMEZ', HOY, HOY, 'franco', 'vigente', '', '', '', ''],
@@ -370,6 +423,14 @@ function medir(txt) {
        —registros, PVT, operacional, turnos, comentarios libres— y `nominaSinDato` entrega nombres
        por un camino que se calcula aparte del filtro. */
     multiPanelAjeno:     /ZOE SUR/.test(panelPersonas('Multi', 'kmu').join('|')),
+    /* el secuestrado NO puede quedarse sin panel: es la pérdida que el doble canon producía */
+    apPierdeSuPanel:     panelPersonas('Secuestrada', 'ksq').length === 0,
+    /* ni su `ausScope` puede apuntar al secuestrador */
+    apAusScopeAjeno:     /holding/i.test(String(api.ausScope(api.validarAcceso('Secuestrada', 'ksq', 'd'), alias, 'Secuestrada'))),
+    /* el doble canon en la rama ADMIN: el admin de fila con su canónico secuestrado */
+    admSecPierdeSuPanel: panelPersonas('AdmSec', 'kad2').length === 0,
+    /* y `nominaSinDato` del secuestrado: no puede traer a la gente del secuestrador */
+    secSinDatoAjeno:     /HOL |HOLDING/i.test(sinDatoDe('Secuestrada', 'ksq')),
     multiSinDatoAjeno:   /ZOE SUR/.test(sinDatoDe('Multi', 'kmu')),
     /* LO QUE **NO** PUEDE CAMBIAR */
     maestroVeTodaLaNomina: (() => { const l = nom('*', 'km'); return l.indexOf('PEDRO GOMEZ') >= 0 && l.indexOf('ANA SUAREZ') >= 0; })(),
@@ -430,7 +491,8 @@ function medir(txt) {
 const DEBE_CAMBIAR = ['filaVeNominaAjena', 'filaAbreVisorAjeno', 'filaAusenciaAjena', 'filaVeCuentasAjenas',
                       'filaVePanelAjeno', 'filaVeAusenciaAjena', 'filaVePadronAjeno',
                       'visorAmpliaAlcance', 'multiVeGenteDeSur', 'visorAdoptaAjeno',
-                      'multiPanelAjeno', 'multiSinDatoAjeno'];
+                      'multiPanelAjeno', 'multiSinDatoAjeno', 'apPierdeSuPanel', 'apAusScopeAjeno',
+                      'admSecPierdeSuPanel', 'secSinDatoAjeno'];
 const NO_PUEDE     = ['maestroVeTodaLaNomina', 'maestroAbreVisor', 'maestroAusenciaLibre', 'maestroVeTodasCuentas',
                       'filaVeLaSuya', 'filaAbreVisorPropio', 'supVeLoSuyo', 'supNoVeLoAjeno', 'supAnclado',
                       'maestroVePanelEntero', 'filaVePanelPropio',
