@@ -66,12 +66,25 @@ function p215Lamina() {
       ['Sana', 'ks', 'supervisor', 'Sana', 'kmed2', 'khseq2']],
     'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
       ['Mia', 'ANA MIA', 'V-1', 'Ops', 'Piloto'], ['Sana', 'ZOE SANA', 'V-2', 'Ops', 'Piloto']],
-    'Niveles Riesgo': [['Empresa', 'Persona', 'Departamento', 'Cargo', 'Nivel'],
-      ['Mia', 'ANA MIA', 'Ops', 'Piloto', '4'], ['Sana', 'ZOE SANA', 'Ops', 'Piloto', '4']],
+    /* ⚠️ QUINTA RONDA · EL ENCABEZADO REAL es `Empresa, Departamento, Cargo, Persona, Nivel`
+       (`obtenerHojaNiveles`), y `leerNivelesRiesgo` lee por ÍNDICE FIJO. El que había acá tenía
+       `Persona` segunda, así que el nombre entraba como DEPARTAMENTO y el cargo como PERSONA. El
+       verificador midió la consecuencia: la métrica `nivelesPersona` discriminaba **sólo por eso**
+       —el `map` de HSEQ borra `persona` pero no `departamento`— así que con la hoja real el mutante
+       que le devuelve la fila nominal a Dirección **pasaba en verde**. Tercer fixture inventado de
+       este prompt, después de `Reportes` y `Credenciales`. R17. */
+    'Niveles Riesgo': [['Empresa', 'Departamento', 'Cargo', 'Persona', 'Nivel'],
+      ['Mia', 'Ops', 'Piloto', 'ANA MIA', '4'], ['Sana', 'Ops', 'Piloto', 'ZOE SANA', '4']],
     'Opiniones': [['ID', 'Empresa', 'Fecha', 'Texto', 'Anonimo'],
       ['o1', 'Mia', P215_HOY, 'texto anonimo de Mia', 'si']],
-    'Credenciales': [['Empresa', 'Persona', 'Cedula', 'Hash', 'Sal', 'Estado', 'TS'],
-      ['Mia', 'ANA MIA', 'V-1', 'h', 's', 'activa', '1']],
+    /* ⚠️ QUINTA RONDA · EL ENCABEZADO REAL (`CRED_HEAD`, 11 columnas, `Cedula` SEGUNDA y sin
+       columna `Persona`). El de 7 que había acá no rompía el aserto de este caso —mide
+       `motivo === 'sin_permiso'` y el candado por vista corre antes del lookup— pero habría hecho
+       que cualquier aserto POSITIVO midiera un `sin_credencial`. Lo arreglé en `p215b` y en el
+       discriminador y me lo dejé acá. R17. */
+    'Credenciales': [['Empresa', 'Cedula', 'Usuario', 'Hash', 'Sal', 'Iteraciones', 'Algoritmo', 'Rol',
+        'Estado', 'Creada', 'UltimoAcceso'],
+      ['Mia', 'V-1', 'ANA MIA', 'h', 's', '150', 'PBKDF2', '', 'activa', P215_HOY, P215_HOY]],
     'Bitácora': [['Fecha', 'Empresa', 'Accion', 'Sujeto', 'Actor', 'Rol', 'Origen', 'Detalle', 'Umbral', 'App', 'Id', 'Hash', 'Extra'],
       [P215_HOY, 'Mia', 'restriccion', 'ANA MIA', 'sup', 'supervisor', 'panel', 'x', '5', '6.9', 'b1', 'h',
        '{"accion":"restriccion","sujeto":"ANA MIA"}']],
@@ -147,10 +160,16 @@ PRUEBAS.caso('🔴 3 · el padrón del informe no cruza a otra empresa por dos s
      lo que afirmaba dejó de ser verdad del sistema. Y hay que decir la consecuencia: sin ese
      escenario, este caso ya no distingue si lo que lo protege es el quirúrgico o la raíz — esa red
      vive en `pruebas/discriminador-p215.js`, que mide cada quirúrgico con la raíz REVERTIDA. */
-  /* ⚠️ Y ACÁ EL SEGUNDO SALTO NO ES SÓLO «difícil de montar»: ES IMPOSIBLE POR CONSTRUCCIÓN.
-     `canon(x)` devuelve siempre un canónico, y desde la cuarta ronda todo canónico es punto fijo,
-     así que no puede haber una cadena de dos saltos. Eso es lo que el caso 6 de
-     `p215b-la-raiz-del-doble-canon.js` prueba directamente. */
+  /* ⚠️ ESTO DECÍA «ES IMPOSIBLE POR CONSTRUCCIÓN» Y ERA UN TEOREMA FALSO, por sexta vez R19 en
+     este prompt. La cuarta ronda cerró el caso en que una fila reclama el canónico de otra, pero
+     `canonicos` era last-wins igual que `alias`: si dos filas tenían canónicos que normalizan igual
+     y se escriben distinto —`"Sec C.A."` y `"SEC C.A."`— sólo el último quedaba punto fijo. Lo
+     midió el verificador: `canon("Sec") = "Sec C.A."` y `canon² = "SEC C.A."`.
+     La QUINTA ronda agregó la pasada que resuelve cada valor a su representante, y recién ahora la
+     idempotencia vale para la CADENA y no sólo para su forma normalizada. Lo que la hace cierta es
+     esa pasada, no una imposibilidad lógica — y la diferencia importa, porque un teorema invita a
+     no volver a medir. El caso 6 de `p215b-la-raiz-del-doble-canon.js` lo mide, y su universo ahora
+     SÍ incluye las dos clases que fallaban. */
   PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Equis'), 'Otra',
     'guarda: la variante indiscutida «Equis» sigue siendo de «Otra» — un salto, el correcto');
   PRUEBAS.igual(api.nominaEmpresaCanon(al, 'Otra'), 'Otra',

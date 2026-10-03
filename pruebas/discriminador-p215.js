@@ -180,6 +180,43 @@ const REV = [
     conRaiz: true,
     busca: `  var cfgEmpresa = leerConfigEmpresaCanon(gestScope(acc, p.empresa));`,
     pone:  `  var cfgEmpresa = leerConfigEmpresa(gestScope(acc, p.empresa));` },
+  /* ══ QUINTA RONDA · LO QUE LA CUARTA NO VEÍA ═══════════════════════════════════ */
+  { nombre: 'S · LA CELDA `"-"` · `construirAliasLeer_` vuelve a indexar la clave VACÍA',
+    /* ⚠️ LA REVERSIÓN DEL DEFECTO MÁS GRAVE DEL PROMPT, y lo introduje yo en la cuarta ronda.
+       `El Marino` y `El Cairo` tienen la celda EMPRESAS en `"-"` en producción, y `norm("-")` es
+       `""`: con esa entrada en el mapa, TODO lo que normalice a vacío se canoniza a `"-"`. El
+       cliente del administrador manda `empresa:"*"` por defecto y `norm("*")` es `""`, así que
+       `gestScope(maestro,"*")` pasaba de `"*"` a `"-"` y `depEmpresaValida("-")` es TRUE: las
+       CUATRO escrituras que rebotaban con `sin_empresa` se aceptában bajo el canónico de dos
+       empresas clientes reales, bitácora append-only incluida (R3).
+       Ninguna de las 34 métricas de la cuarta ronda lo veía, por dos razones a la vez: el fixture no
+       tenía ninguna fila cuya celda normalizara a vacío, y la única métrica del maestro miraba
+       `gestScope(mae, "Beta")` — una empresa CON NOMBRE. */
+    mide: ['maestroEscribeSinFiltro', 'maestroEscribeConAsterisco'],
+    busca: `      var kk = norm(emps[k]);
+      if (!kk) continue;
+      alias[kk] = emps[0];`,
+    pone:  `      alias[norm(emps[k])] = emps[0];   // REVERTIDO: la clave vacía vuelve al mapa` },
+  { nombre: 'T · los NIVELES vuelven a entregarle `persona` a Dirección (el filtro, no el candado)',
+    /* ⚠️ LA REVERSIÓN QUE FALTABA, y su ausencia estaba TAPADA por un fixture inventado: con
+       `Persona` en la segunda columna, el nombre entraba como DEPARTAMENTO —campo que el `map` de
+       HSEQ no borra— así que `nivelesPersona` discriminaba por el motivo equivocado. Con el
+       encabezado real, este mutante (`return true` en vez del filtro) pasaba en VERDE.
+       La reversión `C` mide el CANDADO por vista (`acc.rol` vs `esAdminMaestro_`); ésta mide el
+       FILTRO, que es la otra mitad de la misma promesa de la lámina. */
+    mide: ['filaGeneralFalsa'],
+    busca: `    return !(esDireccion && String(r.persona || "").trim());`,
+    pone:  `    return true;   // REVERTIDO: la fila nominal también para Dirección` },
+  { nombre: 'U · `accionAvisos` · la raíz es lo ÚNICO que lo sostiene (sin red hasta ahora)',
+    /* ⚠️ NO REVIERTE UN ARREGLO MÍO: revierte la RAÍZ y mide `accionAvisos`, que tiene TRES
+       derivaciones de la misma empresa en la misma función —canoniza `s.empresa`, que ya viene
+       canonizada; compara contra `Tareas` CRUDA; y canoniza `r.empresa` de Operacional— y que
+       quedó dependiendo de que `canon` sea idempotente. El verificador lo midió: con la raíz
+       revertida, la persona **pierde el badge de su propia tarea**.
+       Está acá para que esa dependencia tenga instrumento: si alguien vuelve a tocar el mapa, esto
+       se pone rojo en vez de romperse en silencio. Arreglar `accionAvisos` mismo es otro prompt. */
+    mide: ['avisoPropioLlega'],
+    busca: PAR_RAIZ.busca, pone: PAR_RAIZ.pone },
   { nombre: 'P · la rama del MAESTRO de `gestScope` vuelve al parámetro CRUDO',
     mide: ['maestroVeReporte'],
     /* ⚠️ NO lleva `conRaiz`: este defecto no es de canonización sino de CONTRATO — la función
@@ -235,7 +272,13 @@ const HOJAS = () => ({
     /* ⚠️ El escenario de la familia 4: `Hol` reclama el canónico de `Sec` como variante
        no-primera, y hay un HOMÓNIMO en las dos empresas con cargos distintos. */
     ['Sec', 'ksec', 'supervisor', 'Sec, Sec C.A.', '', ''],
-    ['Hol', 'khol', 'supervisor', 'Hol, Sec', '', '']],
+    ['Hol', 'khol', 'supervisor', 'Hol, Sec', '', ''],
+    /* ⚠️ QUINTA RONDA · LAS DOS FILAS DE PRODUCCIÓN QUE EL FIXTURE NO TENÍA. `El Marino` y
+       `El Cairo` tienen la celda EMPRESAS en `"-"`, y `norm("-")` es `""`. Sin ellas, la clave
+       vacía nunca entraba al mapa y el defecto más grave del prompt era invisible para las 34
+       métricas. Un fixture que no contiene la configuración real no mide el sistema real. */
+    ['Marino', 'kmar', 'supervisor', '-', '', ''],
+    ['Cairo', 'kcai', 'supervisor', '-', '', '']],
   'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
     ['Mia', 'ANA MIA', 'V-1', 'Ops', 'Piloto'],
     ['Sana', 'ZOE SANA', 'V-2', 'Ops', 'Piloto'],
@@ -272,8 +315,23 @@ const HOJAS = () => ({
     [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'CO PERSONA', 'Constructor', 'Ops', 'Piloto', 'inicio', '', '', ''],
     /* SIN cargo en la fila: es la única forma de que `marcarCargosCanon` actúe */
     [HOY, '10:00', HOY + 'T10:00:00', 'e3', 'JOSE RODRIGUEZ', 'Sec C.A.', 'Ops', '', 'inicio', '', '', '']],
-  'Niveles Riesgo': [['Empresa', 'Persona', 'Departamento', 'Cargo', 'Nivel'],
-    ['Mia', 'ANA MIA', 'Ops', 'Piloto', '4'], ['Sana', 'ZOE SANA', 'Ops', 'Piloto', '4']],
+  /* ⚠️ QUINTA RONDA · EL ENCABEZADO REAL es `Empresa, Departamento, Cargo, Persona, Nivel`
+     (`obtenerHojaNiveles`), y `leerNivelesRiesgo` lee por ÍNDICE FIJO. El que había acá tenía
+     `Persona` segunda, así que el nombre entraba como DEPARTAMENTO y el cargo como PERSONA. El
+     verificador midió la consecuencia: la métrica `nivelesPersona` discriminaba **sólo por eso**
+     —el `map` de HSEQ borra `persona` pero no `departamento`— así que con la hoja real el mutante
+     que le devuelve la fila nominal a Dirección **pasaba en verde**. Tercer fixture inventado de
+     este prompt, después de `Reportes` y `Credenciales`. R17. */
+  'Niveles Riesgo': [['Empresa', 'Departamento', 'Cargo', 'Persona', 'Nivel'],
+    /* una regla por CARGO (la que Dírección SÍ puede usar) y una NOMINAL (la que no) */
+    ['Mia', 'Ops', 'Piloto', '', '4'], ['Sana', 'Ops', 'Piloto', 'ZOE SANA', '4'],
+    /* ⚠️ QUINTA RONDA · UNA FILA DE OVERRIDE POR PERSONA: empresa + persona, SIN departamento ni
+       cargo. Es la que el filtro de `nivelesParaAcceso_` descarta entera para Dirección, y el
+       motivo no es privacidad sino CORRECCIÓN: quitarle `persona` la convierte en «la fila general
+       de la empresa» para `nivelRiesgoDe()`, que la reconoce justamente por tener los tres campos
+       vacíos — así que el nivel de UNA persona pasaría a ser el default de TODAS, y con el nivel va
+       la tolerancia operativa. Sin esta fila el fixture no podía medir ese filtro. */
+    ['Mia', '', '', 'ANA MIA', '2']],
   'Opiniones': [['ID', 'Empresa', 'Fecha', 'Texto', 'Anonimo'],
     ['o1', 'Mia', HOY, 'texto anonimo', 'si'], ['o2', 'Sana', HOY, 'texto anonimo', 'si']],
   /* ⚠️ EL ENCABEZADO REAL (`CRED_HEAD`): 11 columnas, `Cedula` SEGUNDA, sin `Persona`. El de 7
@@ -303,7 +361,12 @@ const HOJAS = () => ({
   'Suscripciones': [SUS,
     ['https://push.test/SEC', 'dSec', 'Sec', 'JOSE RODRIGUEZ', '', 'p', 'a', 'es', HOY, HOY, 0],
     ['https://push.test/HOL', 'dHol', 'Hol', 'JOSE RODRIGUEZ', '', 'p', 'a', 'es', HOY, HOY, 0]],
-  'Identidades': [IDENT]
+  'Identidades': [IDENT],
+  /* el encabezado real de `TAREAS_HEAD`, 12 columnas */
+  'Tareas': [['Empresa', 'ID', 'Cedula', 'Persona', 'Origen', 'Titulo', 'Detalle',
+      'Vence', 'Estado', 'Creada', 'Actualizada', 'CreadaPor'],
+    ['Sec', 't1', '', 'JOSE RODRIGUEZ', 'supervisor', 'Revisar descanso', '', '', 'pendiente',
+     HOY, HOY, 'Sec']]
 });
 
 function medir(txt) {
@@ -316,7 +379,8 @@ function medir(txt) {
     'accionBitacora', 'accionNivelesRiesgo', 'accionOpiniones', 'accionCredencialReiniciar',
     'accionIdentidadesInforme', 'accionNominaListar', 'accionSupervisor',
     'mapaCargos', 'cargoDeCanon', 'nominaEmpresaCanon',
-    'accionReportesLeer', 'verificarCodigoEmpresa', 'pushEnviarCanon', 'accionSesionCrear']);
+    'accionReportesLeer', 'verificarCodigoEmpresa', 'pushEnviarCanon', 'accionSesionCrear',
+    'accionTareaGuardar', 'accionAvisos', 'depEmpresaValida']);
   const J = r => { try { return JSON.parse(r.getContent()); } catch (e) { return {}; } };
   const alias = api.construirAlias();
   const adm = api.validarAcceso('AdmAB', 'kab', 'd');
@@ -333,6 +397,22 @@ function medir(txt) {
   const nomina = (u, pw) => (J(api.accionNominaListar({ usuario: u, pass: pw, dispositivoId: 'd' })).nomina || []).length;
   const panel = (u, pw) => (J(api.accionSupervisor({ usuario: u, pass: pw, dispositivoId: 'd' })).operacional || [])
     .map(x => String(x.persona)).join('|');
+  /* ¿acepta `accionTareaGuardar` una tarea con esa empresa? Entra por la acción REAL, con el
+     cuerpo que arma el cliente, no por `gestScope` suelto: lo que importa es si la fila se
+     ESCRIBE, y el candado que lo decide (`depEmpresaValida`) está dentro de la acción. */
+  /* ⚠️ LA PERSONA ES OTRA, A PROPÓSITO, y esto lo cazó el propio motor del discriminador. Las 36
+     métricas comparten UN libro, así que una que ESCRIBE contamina a las que leen después: con
+     `JOSE RODRIGUEZ` acá, el mutante de la raíz hacía que esta tarea cayera bajo `Hol`, y
+     `avisoPropioLlega` la encontraba justo ahí — la métrica quedaba en verde porque mi propia
+     escritura anterior le había puesto el dato. Es R18 adentro de un solo instrumento: el orden de
+     evaluación de un objeto literal es la precondición de lo que viene después.
+     Se arregla con un nombre que ninguna suscripción reclama, no reordenando las propiedades:
+     depender del orden es la misma trampa un paso más tarde. */
+  const tareaAceptada = (u, pw, emp) => { try {
+    const r = J(api.accionTareaGuardar({ usuario: u, pass: pw, dispositivoId: 'd', empresa: emp, _post: true,
+      tarea: JSON.stringify({ id: 'tX' + emp, persona: 'NADIE DE NINGUNA PARTE', titulo: 'Revisar descanso' }) }));
+    return r.ok === true;
+  } catch (e) { return false; } };
   /* Emite un token REAL y después deja `Canonical` vacío con `Empresas` cargado — el estado que
      `validarAcceso` por contraseña nunca produce y que `sesResolver` sí, leyendo por índice fijo. */
   const tokenConCanonicalVacio = (usuario, clave) => {
@@ -476,6 +556,46 @@ function medir(txt) {
       const n = J(api.accionNivelesRiesgo({ usuario: 'Sana', pass: t, dispositivoId: 'd', empresa: 'Sana' })).niveles || [];
       return n.length === 1 && /ZOE SANA/.test(JSON.stringify(n));   // la suya, y sólo la suya
     } catch (e) { return false; } })(),
+    /* ══ QUINTA RONDA · EL DEFECTO QUE INTRODUJO LA CUARTA ═════════════════════════
+       El maestro SIN empresa en el filtro no puede escribir, y eso no es un detalle: lo que escribe
+       cae en `Tareas`, `Bitácora` (append-only, R3), `Gestiones` y `Casos Odoo`. Se mide por
+       `accionTareaGuardar`, que es la única de las cuatro que viaja por `dashAuth` con el cliente
+       publicado hoy — o sea la que de verdad es alcanzable.
+       `"*"` es el valor que el cliente manda POR DEFECTO (`index.html:20285`, `:21286`), y `""` es
+       el que llegaría con el filtro limpio. Los dos normalizan a la clave vacía. */
+    maestroEscribeConAsterisco: tareaAceptada('*', 'km', '*'),
+    maestroEscribeSinFiltro:    tareaAceptada('*', 'km', ''),
+    /* ⚠️ Y LA MITAD POSITIVA: con una empresa elegida, el maestro SÍ escribe. Sin esto, «cerré la
+       escritura sin filtro» sería indistinguible de «rompió la escritura del maestro». */
+    /* ⚠️ LA MITAD POSITIVA DEL FILTRO: a Dirección las filas por CARGO o ÁREA sí le llegan — son
+       reglas que puede usar, y es lo que la pantalla de niveles existe para mostrarle. Sin este
+       aserto, «descarté la nominal» sería indistinguible de «dejé a Dirección sin tabla». */
+    direccionVeLasDeCargo: (function () { try {
+      const n = J(api.accionNivelesRiesgo({ usuario: 'Mia', pass: 'khseq', dispositivoId: 'd', empresa: 'Mia' })).niveles || [];
+      return n.some(r => String(r.cargo || '').trim() === 'Piloto' && Number(r.nivel) > 0);
+    } catch (e) { return false; } })(),
+    maestroEscribeConEmpresa: (function () { try {
+      return tareaAceptada('*', 'km', 'Sec') === true;
+    } catch (e) { return false; } })(),
+    /* ⚠️ `accionAvisos` depende de que `canon` sea idempotente y no tenía instrumento. Entra por
+       el camino del service worker: sólo el `dispositivoId`, sin identidad. */
+    /* ⚠️ LO QUE PROTEGE EL FILTRO, medido por su EFECTO y no por el nombre: una fila con
+       `persona`, `cargo` y `departamento` vacíos y un `nivel` es, para `nivelRiesgoDe()`, la regla
+       general de la empresa. Si el filtro no descarta la fila nominal, el `map` le saca el nombre y
+       la deja con esa forma exacta: el nivel 2 de ANA MIA se vuelve el default de toda la empresa.
+       ⚠️ Y por qué NO se mide con `nivelesPersona`: el `map` ya borra `persona`, así que revertir
+       sólo el filtro no expone ningún nombre. Las dos piezas protegen cosas DISTINTAS —una la
+       privacidad, la otra la escala— y medir las dos con la misma métrica dejaba al filtro sin red:
+       el verificador midió que su mutante pasaba en verde. */
+    filaGeneralFalsa: (function () { try {
+      const n = J(api.accionNivelesRiesgo({ usuario: 'Mia', pass: 'khseq', dispositivoId: 'd', empresa: 'Mia' })).niveles || [];
+      return n.some(r => !String(r.persona || '').trim() && !String(r.cargo || '').trim()
+                      && !String(r.departamento || '').trim() && Number(r.nivel) > 0);
+    } catch (e) { return false; } })(),
+    avisoPropioLlega: (function () { try {
+      const d = J(api.accionAvisos({ dispositivoId: 'dSec' }));
+      return (d.avisos || []).some(a => a.tipo === 'tareas' && Number(a.n) > 0);
+    } catch (e) { return false; } })(),
     maestroVeReporte: (function () { try {
       const d = J(api.accionReportesLeer({ usuario: '*', pass: 'km', dispositivoId: 'd', empresa: 'Sec C.A.' }));
       return (d.reportes || []).length > 0;
@@ -485,12 +605,13 @@ function medir(txt) {
 
 const DEBE = ['escribeAjena', 'bitacoraNombres', 'nivelesPersona', 'medicoLeeBuzon',
               'direccionResetea', 'padronCruzado', 'prototipoPasa', 'prototipoNomina', 'cargoDelHomonimo',
-              'umbralAjeno', 'codigoAjenoVale', 'pushAlaAjena', 'zonaAjena', 'nivelesDeTodas'];
+              'umbralAjeno', 'codigoAjenoVale', 'pushAlaAjena', 'zonaAjena', 'nivelesDeTodas',
+              'maestroEscribeConAsterisco', 'maestroEscribeSinFiltro', 'filaGeneralFalsa'];
 const NO_PUEDE = ['maestroEscribeLibre', 'supAnclado', 'admEscribeLaSuya', 'scopesCoinciden',
                   'sanaBitSeudo', 'sanaNivSinPersona', 'sanaMedicoSinBuzon', 'otraVeLaSuya',
                   'miaVeLaSuya', 'constructorVeLaSuya', 'sanaVeLaSuya', 'nivelesLlegan', 'supervisorVeBuzon', 'supervisorReinicia',
                   'umbralPropioTapa', 'codigoPropioVale', 'pushAlaPropia', 'zonaPropia', 'maestroVeReporte',
-                  'nivelesPropiosConToken'];
+                  'nivelesPropiosConToken', 'maestroEscribeConEmpresa', 'avisoPropioLlega', 'direccionVeLasDeCargo'];
 
 let base;
 try { base = medir(real); } catch (e) { console.log('🔴 no pude medir el `.gs` tal cual: ' + e.message); process.exit(3); }

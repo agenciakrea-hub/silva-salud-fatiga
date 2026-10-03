@@ -79,8 +79,13 @@ PRUEBAS.caso('🔴 6 · `nominaEmpresaCanon` es IDEMPOTENTE aunque otra fila rec
   PRUEBAS.igual(canon(canon('Sec C.A.')), canon('Sec C.A.'),
     '🔴 IDEMPOTENTE: dos pases dan lo mismo que uno — era el motor de las siete familias');
 
-  /* el invariante completo, sobre TODO el universo de nombres del fixture */
-  const universo = ['Sec', 'Sec C.A.', 'Hol', 'HOL', 'sec c a', 'Otra Que No Existe', ''];
+  /* ⚠️ EL UNIVERSO DE LA CUARTA RONDA ESTABA ELEGIDO —sin querer— PARA NO CONTENER LAS DOS CLASES
+     QUE FALLABAN, y el verificador lo nombró: el aserto era cierto y la conclusión del encabezado
+     («para todo `x`») no. Ahora lleva los centinelas (`"*"`, `""`, sólo espacios, `"-"`), los
+     miembros de `Object.prototype` alcanzables por `norm` y las dos clases de colisión por
+     capitalización y puntuación — montadas en los dos casos de abajo, que son filas aparte. */
+  const universo = ['Sec', 'Sec C.A.', 'Hol', 'HOL', 'sec c a', 'Otra Que No Existe', '',
+    '*', '   ', '-', 'Todas las empresas', 'constructor', 'Constructor', '__proto__', 'toString'];
   const rotos = universo.filter(x => canon(canon(x)) !== canon(x));
   PRUEBAS.igual(rotos.length, 0,
     '🔴 ningún nombre del universo rompe la idempotencia (rotos: ' + JSON.stringify(rotos) + ')');
@@ -181,9 +186,14 @@ PRUEBAS.caso('🔴 9 · el REINICIO DE CONTRASEÑA cierra la sesión de la perso
       'Estado', 'Creada', 'UltimoAcceso'],
       ['Sec', 'V-1', 'ANA DE SEC', 'h', 's', '150', 'PBKDF2', '', 'activa', P215B_HOY, P215B_HOY],
       ['Hol', 'V-1', 'ZOE DE HOL', 'h', 's', '150', 'PBKDF2', '', 'activa', P215B_HOY, P215B_HOY]],
+    /* ⚠️ LA CLAVE LA ESCRIBE `sesClavePersona`, y es `"persona:" + norm(empresa) + "|" + cedulaNorm(cedula)`
+       — o sea `"persona:sec|V1"`, en minúsculas y sin el guion de la cédula. El `'persona:Sec|V-1'`
+       que había acá pasaba porque el consumidor re-normaliza, pero NO es lo que la capa real
+       escribe: si `sesCerrarDePersona_` comparara exacto, el caso daría verde con la función rota.
+       R17 — el fixture tiene que ser lo que el productor produce, no lo que yo creo que produce. */
     'Sesiones': [P215B_SES,
-      ['s1', 'hash-ana', 'persona:Sec|V-1', 'd1', '', 'empleado', '', 'Sec', '', P215B_HOY, P215B_HOY, 'activa', ''],
-      ['s2', 'hash-zoe', 'persona:Hol|V-1', 'd2', '', 'empleado', '', 'Hol', '', P215B_HOY, P215B_HOY, 'activa', '']]
+      ['s1', 'hash-ana', 'persona:sec|V1', 'd1', '', 'empleado', '', 'Sec', '', P215B_HOY, P215B_HOY, 'activa', ''],
+      ['s2', 'hash-zoe', 'persona:hol|V1', 'd2', '', 'empleado', '', 'Hol', '', P215B_HOY, P215B_HOY, 'activa', '']]
   });
   const api = GS.cargarGs(CTX.gs, env, ['accionCredencialReiniciar']);
   let r = {};
@@ -199,10 +209,10 @@ PRUEBAS.caso('🔴 9 · el REINICIO DE CONTRASEÑA cierra la sesión de la perso
     if (String(ses[i][2]) === u) return String(ses[i][11] || '').toLowerCase(); return '(sin fila)'; };
 
   /* LO QUE TIENE QUE CAMBIAR · se cierra la PROPIA */
-  PRUEBAS.igual(estado('persona:Sec|V-1'), 'cerrada',
+  PRUEBAS.igual(estado('persona:sec|V1'), 'cerrada',
     '🔴 la sesión de la persona de Sec queda CERRADA: su contraseña se acaba de borrar');
   /* LO QUE NO PUEDE CAMBIAR · y la de la otra empresa sigue viva */
-  PRUEBAS.igual(estado('persona:Hol|V-1'), 'activa',
+  PRUEBAS.igual(estado('persona:hol|V1'), 'activa',
     '🔴 NO PUEDE CAMBIAR · la persona de Hol con la MISMA cédula conserva su sesión');
 });
 
@@ -237,4 +247,119 @@ PRUEBAS.caso('🔴 10 · `gestScope` devuelve un canónico TAMBIÉN para el maes
     '🔴 NO PUEDE CAMBIAR · el maestro sigue pudiendo indicar otra empresa');
   PRUEBAS.igual(api.gestScope(mae, 'Sec'), 'Sec',
     '🔴 NO PUEDE CAMBIAR · y pedir el canónico sigue dando el canónico (idempotencia)');
+});
+
+PRUEBAS.caso('🔴 11 · un valor CENTINELA no se canoniza, y la celda `"-"` no se vuelve el canónico de todo', () => {
+  /* EL DERECHO, o más bien el candado: que el administrador SIN empresa en el filtro no pueda
+     escribir lo concede `depEmpresaValida`, llamada desde `accionTareaGuardar`,
+     `accionGestionGuardar`, `accionBitacoraGuardar` y `accionCasoOdooGuardar`. Lo que escriben cae
+     en `Tareas`, `Gestiones`, `Casos Odoo` y `Bitácora` — y la bitácora es append-only: R3 prohíbe
+     corregirla, y el mensaje que rebota lo dice textualmente.
+
+     ⚠️ ESTE CASO EXISTE POR UN DEFECTO QUE INTRODUJE YO, en la cuarta ronda de este mismo prompt.
+     `El Marino` y `El Cairo` tienen la celda EMPRESAS en `"-"` en producción, y `norm("-")` es
+     `""`: con esa entrada en el mapa, TODO lo que normalizara a vacío se canonizaba a `"-"`. El
+     cliente del administrador manda `empresa:"*"` por defecto (`index.html:20285` y `:21286`, más
+     `dashAuth()`), y `norm("*")` también es `""`. Cuando hice que `gestScope` canonizara la rama
+     del maestro, `gestScope(maestro,"*")` pasó de `"*"` a `"-"` — el canónico de dos empresas
+     clientes reales — y `depEmpresaValida("-")` es TRUE: las cuatro escrituras se aceptaban, y la
+     cuenta `El Marino` las leía.
+
+     La lección: un valor CENTINELA no se canoniza. `"*"`, `""` y «Todas las empresas» no son
+     nombres de empresa, y `norm()` los colapsa todos a la clave vacía. Se cierra en
+     `construirAliasLeer_` —una celda que normaliza a vacío no entra al mapa— y no en `gestScope`,
+     porque así vale para los ~108 llamadores a la vez. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({
+    /* ⚠️ LAS DOS FILAS SON LAS DE PRODUCCIÓN, con su celda tal cual. Un fixture que no contiene la
+       configuración real no mide el sistema real: sin estas dos filas el defecto era invisible
+       para las 34 métricas que tenía el discriminador. */
+    'Accesos': [P215B_CAB,
+      ['*', 'clave-maestra', 'admin', '', '', ''],
+      ['Sec', 'clave-sec', 'supervisor', 'Sec', '', ''],
+      ['Marino', 'clave-mar', 'supervisor', '-', '', ''],
+      ['Cairo', 'clave-cai', 'supervisor', '-', '', '']],
+    'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+      ['Sec', 'ANA DE SEC', 'V-1', 'Ops', 'Piloto']],
+    'Tareas': [['Empresa', 'ID', 'Cedula', 'Persona', 'Origen', 'Titulo', 'Detalle',
+      'Vence', 'Estado', 'Creada', 'Actualizada', 'CreadaPor']],
+    'Sesiones': [P215B_SES]
+  });
+  const api = GS.cargarGs(CTX.gs, env, ['construirAlias', 'nominaEmpresaCanon', 'gestScope',
+    'validarAcceso', 'depEmpresaValida', 'accionTareaGuardar']);
+  const alias = api.construirAlias();
+  const mae = api.validarAcceso('*', 'clave-maestra', 'd');
+  PRUEBAS.igual(mae && mae.rol, 'admin', 'guarda: el maestro entra con rol admin');
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, '-'), '-',
+    'guarda: las dos filas con la celda `"-"` están puestas, y `-` sigue siendo `-`');
+
+  /* LO QUE TIENE QUE CAMBIAR · el centinela no se canoniza */
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, '*'), '*',
+    '🔴 `canon("*")` sigue siendo `"*"`: la celda `"-"` no se lo lleva');
+  PRUEBAS.igual(api.nominaEmpresaCanon(alias, ''), '',
+    '🔴 y `canon("")` es `""`, no `"-"`: es lo que esperan todas las guardas `if (!x)`');
+  PRUEBAS.igual(api.gestScope(mae, '*'), '*',
+    '🔴 el scope del maestro sin filtro es el centinela, no una empresa cliente');
+  PRUEBAS.falso(api.depEmpresaValida(api.gestScope(mae, '*')),
+    '🔴 y ese scope NO pasa `depEmpresaValida`');
+
+  /* y el efecto, por la acción REAL: la única de las cuatro que viaja por `dashAuth` hoy */
+  const guardar = emp => { try { return JSON.parse(api.accionTareaGuardar({ usuario: '*',
+    pass: 'clave-maestra', dispositivoId: 'd', empresa: emp, _post: true,
+    tarea: JSON.stringify({ id: 't' + emp, persona: 'ANA DE SEC', titulo: 'Revisar descanso' })
+  }).getContent()); } catch (e) { return { EX: String(e) }; } };
+  PRUEBAS.igual(guardar('*').motivo, 'sin_empresa',
+    '🔴 `tarea_guardar` con `empresa:"*"` REBOTA: el maestro tiene que elegir una empresa');
+  PRUEBAS.igual(guardar('').motivo, 'sin_empresa', '🔴 y con el filtro vacío también');
+  const enHoja = () => env.__libro.getSheetByName('Tareas').getDataRange().getValues().slice(1);
+  PRUEBAS.igual(enHoja().length, 0, '🔴 y no quedó NINGUNA fila escrita bajo `"-"`');
+
+  /* LO QUE NO PUEDE CAMBIAR · con una empresa elegida, el maestro sí escribe */
+  PRUEBAS.cierto(guardar('Sec').ok === true,
+    '🔴 NO PUEDE CAMBIAR · con la empresa elegida el maestro SÍ escribe');
+  PRUEBAS.igual(String((enHoja()[0] || [])[0]), 'Sec',
+    '🔴 NO PUEDE CAMBIAR · y la fila cae bajo `Sec`, no bajo el centinela');
+  PRUEBAS.igual(api.gestScope(api.validarAcceso('Marino', 'clave-mar', 'd'), 'Sec'), '-',
+    '🔴 NO PUEDE CAMBIAR · `El Marino` conserva su canónico `-`, con todo lo malo que eso tiene');
+});
+
+PRUEBAS.caso('🔴 12 · dos filas que escriben el MISMO canónico distinto no rompen la idempotencia', () => {
+  /* EL DERECHO: la identidad de una empresa la fija `construirAliasLeer_`, y la idempotencia de
+     `nominaEmpresaCanon` es lo que vuelve inocuo el doble canon en los ~108 llamadores.
+     ⚠️ LA CUARTA RONDA AFIRMÓ ESTA IDEMPOTENCIA COMO TEOREMA Y ERA FALSO: `canonicos` era last-wins
+     igual que `alias`, así que si dos filas tenían canónicos que `norm` colapsa pero se escriben
+     distinto, sólo el ÚLTIMO quedaba punto fijo y el otro se remapeaba. Medido por el verificador:
+     `canon("Sec") = "Sec C.A."` y `canon² = "SEC C.A."`.
+     Y es más probable que el secuestro contra el que está construido todo este prompt: la fila
+     `Aeroambulancias Silva` ya repite su propio canónico dos veces en la celda, y basta una segunda
+     cuenta de la misma empresa que lo tipee en mayúsculas. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const armar = filas => {
+    const env = GS.crearEntorno({ 'Accesos': [P215B_CAB].concat(filas), 'Sesiones': [P215B_SES] });
+    const api = GS.cargarGs(CTX.gs, env, ['construirAlias', 'nominaEmpresaCanon']);
+    const al = api.construirAlias();
+    return x => api.nominaEmpresaCanon(al, x);
+  };
+  /* capitalización: `norm` colapsa las dos a `"sec c a"` */
+  const c1 = armar([['A', 'ka', 'supervisor', 'Sec C.A., Sec', '', ''],
+                    ['B', 'kb', 'supervisor', 'SEC C.A.', '', '']]);
+  PRUEBAS.igual(c1('Sec C.A.'), c1('SEC C.A.'),
+    'guarda: las dos escrituras del mismo nombre resuelven al MISMO canónico');
+  PRUEBAS.igual(c1(c1('Sec')), c1('Sec'),
+    '🔴 IDEMPOTENTE con capitalización distinta: antes `canon("Sec")` daba una y `canon²` la otra');
+  /* puntuación: `norm` manda `-` a espacio */
+  const c2 = armar([['A', 'ka', 'supervisor', 'Aero-Silva, Silva', '', ''],
+                    ['B', 'kb', 'supervisor', 'Aero Silva', '', '']]);
+  PRUEBAS.igual(c2(c2('Silva')), c2('Silva'), '🔴 IDEMPOTENTE con puntuación distinta');
+  /* y el nombre que colisiona con `Object.prototype`: la raíz era el único diccionario sin convertir */
+  const c3 = armar([['A', 'ka', 'supervisor', 'Alfa', '', '']]);
+  PRUEBAS.igual(typeof c3('Constructor'), 'string',
+    '🔴 `canon("Constructor")` devuelve una CADENA: con el objeto literal devolvía la función `Object`');
+  PRUEBAS.igual(c3('Constructor'), 'Constructor',
+    '🔴 y la devuelve tal cual: una empresa sin fila en `Accesos` se canoniza a sí misma');
+  /* LO QUE NO PUEDE CAMBIAR · el caso normal sigue resolviendo a la primera variante */
+  const c4 = armar([['A', 'ka', 'supervisor', 'Primera, Segunda', '', '']]);
+  PRUEBAS.igual(c4('Segunda'), 'Primera',
+    '🔴 NO PUEDE CAMBIAR · una variante sigue resolviendo al canónico de SU fila');
+  PRUEBAS.igual(c4('Primera'), 'Primera', '🔴 NO PUEDE CAMBIAR · y el canónico a sí mismo');
 });
