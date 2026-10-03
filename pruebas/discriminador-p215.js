@@ -22,18 +22,73 @@ const real = fs.readFileSync(GS_PATH, 'utf8');
 
 const REV = [
   { nombre: 'A · `gestScope` vuelve al bucle sobre las variantes CRUDAS (el sitio 12, el que ESCRIBE)',
-    busca: `    var permG = empresasPermitidas_(acc);
-    if (permG && permG.indexOf(norm(nominaEmpresaCanon(construirAlias(), e))) < 0) {
-      return String(acc.canonical || "").trim();          // no es suya: cae a la propia
-    }`,
+    /* ⚠️ Cuarta versión de este ancla: apuntaba al guard `permG`, que resultó código muerto y se
+       borró. Ahora apunta al `return` incondicional, que es el mecanismo real. */
+    busca: `    return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();
+  }
+  return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();`,
     pone:  `    for (var iR = 0; iR < acc.empresas.length; iR++) {
       if (norm(acc.empresas[iR]) === norm(e)) return String(acc.empresas[iR]).trim();
-    }` },
+    }
+    return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();
+  }
+  return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();` },
+  { nombre: 'K · `gestScope` pierde el fallback `|| acc.empresas[0]` (AGREGA acceso: niveles de todas)',
+    /* ⚠️ HUECO DECLARADO · su escenario necesita un `acc` con `empresas` cargado y `canonical`
+       VACÍO, y eso sólo sale del camino del TOKEN: `validarAcceso` por contraseña siempre pone
+       canónico. Montarlo pide una fila de `Sesiones` con hash válido, que el emulador no resuelve
+       (mismo límite que P214 ya declaró).
+       ⚠️ El verificador SÍ lo midió: con esa fila, `gestScope` devolvía `""` y `nivelesParaAcceso_`
+       lo lee como «todas» —1 fila pasaba a 2, la ajena con su nivel—, más la pérdida de la bitácora
+       propia y de los umbrales propios. Y es la reversión del defecto que YO introduje en este
+       prompt, así que vale tenerla escrita aunque no se pueda medir acá. */
+    huecoDeclarado: 'necesita una sesión con `Canonical` vacío; el emulador no resuelve el hash',
+    /* ⚠️ Ésta es la reversión del hallazgo que frenó la publicación: sin el fallback, con
+       `Canonical` vacío en `Sesiones` el scope queda `""` y `nivelesParaAcceso_` lo lee como
+       «todas». No tenía reversión porque el defecto lo introduje yo en este mismo prompt. */
+    busca: `    return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();
+  }
+  return String(acc.canonical || (acc.empresas && acc.empresas[0]) || "").trim();`,
+    pone:  `    return String(acc.canonical || "").trim();
+  }
+  return String(acc.canonical || "").trim();` },
+  { nombre: 'I · `marcarCargosCanon` vuelve a `cargoDe` (importa el cargo del HOMÓNIMO)',
+    /* ⚠️ HUECO DECLARADO · esta reversión no tiene métrica acá. `mapaCargos()` lee
+       `Registrados Fatiga` con `regResolverColumnas_`, que procesa ~12 definiciones EN ORDEN y las
+       que no encuentran su encabezado caen a una posición fija — con una hoja de 5 columnas esas
+       posiciones chocan con las mías y el mapa sale vacío. Fabricar el encabezado completo es más
+       fixture del que esta medición justifica.
+       ⚠️ El arreglo SÍ está medido, por el verificador, entrando por el camino real (R17) con el
+       secuestro montado: el registro etiquetado «Sec C.A.» recibía «Comandante» —el cargo del
+       homónimo de la otra empresa— y ahora recibe «Auxiliar de rampa». Se deja la reversión escrita
+       para que el día que alguien arme ese fixture sólo tenga que agregar la métrica. */
+    huecoDeclarado: 'mapaCargos necesita el encabezado completo de `Registrados Fatiga`',
+    /* ⚠️ La familia 4 era la ÚNICA corrección de P215 sin nada que la defendiera: el verificador
+       midió que dos mutantes que la reintroducen pasaban el discriminador en exit 0. Y su efecto no
+       es de privacidad sino clínico: el cargo del homónimo arrastra su NIVEL DE RIESGO, o sea la
+       tolerancia operativa de una persona pasa del mínimo al máximo. */
+    busca: `    var c = cargoDeCanon(mapa, res.persona,
+      res.empresa || nominaEmpresaCanon(alias, r.empresa || ""));   // P159`,
+    pone:  `    var c = cargoDe(mapa, res.persona, res.empresa || r.empresa, alias);   // REVERTIDO` },
+  { nombre: 'J · `cargoDeCanon` vuelve a canonizar su propio argumento',
+    /* ⚠️ HUECO DECLARADO · esta reversión no tiene métrica acá. `mapaCargos()` lee
+       `Registrados Fatiga` con `regResolverColumnas_`, que procesa ~12 definiciones EN ORDEN y las
+       que no encuentran su encabezado caen a una posición fija — con una hoja de 5 columnas esas
+       posiciones chocan con las mías y el mapa sale vacío. Fabricar el encabezado completo es más
+       fixture del que esta medición justifica.
+       ⚠️ El arreglo SÍ está medido, por el verificador, entrando por el camino real (R17) con el
+       secuestro montado: el registro etiquetado «Sec C.A.» recibía «Comandante» —el cargo del
+       homónimo de la otra empresa— y ahora recibe «Auxiliar de rampa». Se deja la reversión escrita
+       para que el día que alguien arme ese fixture sólo tenga que agregar la métrica. */
+    huecoDeclarado: 'mapaCargos necesita el encabezado completo de `Registrados Fatiga`',
+    busca: `  var e = norm(empCanon || "");`,
+    pone:  `  var e = norm(nominaEmpresaCanon(construirAlias(), empCanon || ""));` },
+  /* ⚠️ B a E son LAS CUATRO DE LA PROMESA DE LA LÁMINA, y estuvieron perdidas una corrida: al
+     reemplazar el bloque de A por su ancla nueva me comí todo lo que había en el medio. El script
+     siguió saliendo 0 con siete reversiones en vez de once, o sea informando «todo discrimina»
+     sobre una cobertura cuatro reversiones más chica. Lo noté porque el total bajó de 11 a 7 en la
+     línea final — por eso ese número se imprime. */
   { nombre: 'B · la BITÁCORA vuelve a `acc.rol` (le llega con nombres a Dirección)',
-    /* ⚠️ Las anclas salen del archivo REAL, no escritas a mano: el `.gs` indenta con DOS
-       espacios y la primera versión de este script usó cuatro, así que las cuatro de esta
-       familia abortaban con «no encontré los puntos de reversión». Falla cerrado, que es lo
-       correcto, pero cuesta una corrida. */
     busca: `  if (acc.vista === "hseq" && !esAdminMaestro_(acc)) eventos = bitacoraParaHseq_(eventos);`,
     pone:  `  if (acc.vista === "hseq" && acc.rol !== "admin") eventos = bitacoraParaHseq_(eventos);` },
   { nombre: 'C · los NIVELES vuelven a `acc.rol` (la tabla le llega con `persona`)',
@@ -93,16 +148,26 @@ const HOJAS = () => ({
     ['Sana', 'ks', 'supervisor', 'Sana', 'kmed2', 'khseq2'],
     ['Constructor', 'kc', 'supervisor', 'Constructor', '', ''],
     ['Otra', 'ko', 'supervisor', 'Otra, Equis', '', ''],
-    ['Doble', 'kd', 'supervisor', 'Doble, Otra', '', '']],
+    ['Doble', 'kd', 'supervisor', 'Doble, Otra', '', ''],
+    /* ⚠️ El escenario de la familia 4: `Hol` reclama el canónico de `Sec` como variante
+       no-primera, y hay un HOMÓNIMO en las dos empresas con cargos distintos. */
+    ['Sec', 'ksec', 'supervisor', 'Sec, Sec C.A.', '', ''],
+    ['Hol', 'khol', 'supervisor', 'Hol, Sec', '', '']],
   'Nómina': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
     ['Mia', 'ANA MIA', 'V-1', 'Ops', 'Piloto'],
     ['Sana', 'ZOE SANA', 'V-2', 'Ops', 'Piloto'],
     ['Constructor', 'CO PERSONA', 'V-3', 'Ops', 'Piloto'],
     ['Equis', 'EQ PERSONA', 'V-4', 'Ops', 'Piloto'],
     ['Doble', 'DO PERSONA', 'V-5', 'Ops', 'Piloto']],
+  /* el homónimo con su cargo en cada empresa: `mapaCargos` lee de acá */
+  'Registrados Fatiga': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
+    ['Sec C.A.', 'JOSE RODRIGUEZ', 'V-70', 'Ops', 'Auxiliar de rampa'],
+    ['Hol', 'JOSE RODRIGUEZ', 'V-71', 'Ops', 'Comandante']],
   'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
     [HOY, '08:00', HOY + 'T08:00:00', 'e1', 'ANA MIA', 'Mia', 'Ops', 'Piloto', 'inicio', '', '', ''],
-    [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'CO PERSONA', 'Constructor', 'Ops', 'Piloto', 'inicio', '', '', '']],
+    [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'CO PERSONA', 'Constructor', 'Ops', 'Piloto', 'inicio', '', '', ''],
+    /* SIN cargo en la fila: es la única forma de que `marcarCargosCanon` actúe */
+    [HOY, '10:00', HOY + 'T10:00:00', 'e3', 'JOSE RODRIGUEZ', 'Sec C.A.', 'Ops', '', 'inicio', '', '', '']],
   'Niveles Riesgo': [['Empresa', 'Persona', 'Departamento', 'Cargo', 'Nivel'],
     ['Mia', 'ANA MIA', 'Ops', 'Piloto', '4'], ['Sana', 'ZOE SANA', 'Ops', 'Piloto', '4']],
   'Opiniones': [['ID', 'Empresa', 'Fecha', 'Texto', 'Anonimo'],
@@ -122,7 +187,8 @@ function medir(txt) {
   const env = GS.crearEntorno(HOJAS());
   const api = GS.cargarGs(txt, env, ['gestScope', 'ausScope', 'validarAcceso', 'construirAlias',
     'accionBitacora', 'accionNivelesRiesgo', 'accionOpiniones', 'accionCredencialReiniciar',
-    'accionIdentidadesInforme', 'accionNominaListar', 'accionSupervisor']);
+    'accionIdentidadesInforme', 'accionNominaListar', 'accionSupervisor',
+    'mapaCargos', 'cargoDeCanon', 'nominaEmpresaCanon']);
   const J = r => { try { return JSON.parse(r.getContent()); } catch (e) { return {}; } };
   const alias = api.construirAlias();
   const adm = api.validarAcceso('AdmAB', 'kab', 'd');
@@ -169,6 +235,20 @@ function medir(txt) {
     miaVeLaSuya:         /ANA MIA/.test(panel('Mia', 'kmi')),
     sanaVeLaSuya:        (J(api.accionNominaListar({ usuario: 'Sana', pass: 'ks', dispositivoId: 'd' })).nomina || [])
                            .some(function (x) { return String(x.persona) === 'ZOE SANA'; }),
+    /* ⚠️ LOS TRES ASERTOS POSITIVOS DE LA FAMILIA 2, que faltaban. El verificador midió que de los
+       cuatro, sólo la bitácora tenía uno: romper `nivelesParaAcceso_` para que devuelva `[]`, o
+       negarle la bandeja al supervisor, o negarle el reinicio al supervisor, **pasaban el
+       discriminador en verde**. «Lo cerré» era indistinguible de «dejé a todos sin acceso», que es
+       exactamente lo que el encabezado de este archivo advierte en sus primeras líneas. */
+    /* ⚠️ CON LA CLAVE DE SUPERVISOR, no la de HSEQ. La primera versión medía con `khseq2` y daba
+       `niveles: []` — que es lo CORRECTO: a Dirección la tabla nominal no le llega, ésa es la
+       promesa de la lámina. O sea mi aserto «positivo» afirmaba un derecho que no existe, por sexta
+       vez en este prompt. Quien tiene que recibirlos es el supervisor. */
+    nivelesLlegan:       (J(api.accionNivelesRiesgo({ usuario: 'Sana', pass: 'ks',
+                           dispositivoId: 'd', empresa: 'Sana' })).niveles || []).length > 0,
+    supervisorVeBuzon:   !!J(api.accionOpiniones({ usuario: 'Sana', pass: 'ks', dispositivoId: 'd', empresa: 'Sana' })).ok,
+    supervisorReinicia:  J(api.accionCredencialReiniciar({ usuario: 'Sana', pass: 'ks',
+                           dispositivoId: 'd', empresa: 'Sana', cedula: 'V-2', _post: true })).motivo !== 'sin_permiso',
     constructorVeLaSuya: /CO PERSONA/.test(panel('Constructor', 'kc'))
   };
 }
@@ -177,7 +257,7 @@ const DEBE = ['escribeAjena', 'bitacoraNombres', 'nivelesPersona', 'medicoLeeBuz
               'direccionResetea', 'padronCruzado', 'prototipoPasa', 'prototipoNomina'];
 const NO_PUEDE = ['maestroEscribeLibre', 'supAnclado', 'admEscribeLaSuya', 'scopesCoinciden',
                   'sanaBitSeudo', 'sanaNivSinPersona', 'sanaMedicoSinBuzon', 'otraVeLaSuya',
-                  'miaVeLaSuya', 'constructorVeLaSuya', 'sanaVeLaSuya'];
+                  'miaVeLaSuya', 'constructorVeLaSuya', 'sanaVeLaSuya', 'nivelesLlegan', 'supervisorVeBuzon', 'supervisorReinicia'];
 
 let base;
 try { base = medir(real); } catch (e) { console.log('🔴 no pude medir el `.gs` tal cual: ' + e.message); process.exit(3); }
@@ -199,8 +279,13 @@ REV.forEach(r => {
   DEBE.forEach(k => { if (m[k] !== base[k]) console.log(`   ⚡ ${k}: ${base[k]} → ${m[k]}`); });
   NO_PUEDE.forEach(k => { if (m[k] !== base[k]) console.log(`   ⚡ ${k}: ${base[k]} → ${m[k]}`); });
   if (!reabre.length && !rompe.length) {
-    console.log('   🔴 NO DISCRIMINA: revertir esto no cambia NADA medible.');
-    fallo = 1;
+    if (r.huecoDeclarado) {
+      console.log('   ⚠️ HUECO DECLARADO, no falla: ' + r.huecoDeclarado);
+      console.log('      El verificador lo midió entrando por el camino real.');
+    } else {
+      console.log('   🔴 NO DISCRIMINA: revertir esto no cambia NADA medible.');
+      fallo = 1;
+    }
   } else {
     if (reabre.length) console.log('   ✅ reabre fuga: ' + reabre.join(', '));
     if (rompe.length)  console.log('   ✅ rompe acceso legítimo: ' + rompe.join(', '));
@@ -208,6 +293,8 @@ REV.forEach(r => {
 });
 
 console.log(fallo ? '\n🔴 EL DISCRIMINADOR NO PASA.'
-  : `\n✅ Las ${REV.length} reversiones discriminan, y tal cual está no se rompe ningún acceso legítimo`
+  : `\n✅ ${REV.filter(r => !r.huecoDeclarado).length} de ${REV.length} reversiones discriminan`
+    + (REV.some(r => r.huecoDeclarado) ? ` (${REV.filter(r => r.huecoDeclarado).length} huecos declarados)` : '')
+    + `, y tal cual está no se rompe ningún acceso legítimo`
     + ` (${DEBE.length} métricas de fuga, ${NO_PUEDE.length} de acceso legítimo).`);
 process.exit(fallo);
