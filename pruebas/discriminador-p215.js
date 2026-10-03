@@ -53,34 +53,21 @@ const REV = [
   }
   return String(acc.canonical || "").trim();` },
   { nombre: 'I · `marcarCargosCanon` vuelve a `cargoDe` (importa el cargo del HOMÓNIMO)',
-    /* ⚠️ HUECO DECLARADO · esta reversión no tiene métrica acá. `mapaCargos()` lee
-       `Registrados Fatiga` con `regResolverColumnas_`, que procesa ~12 definiciones EN ORDEN y las
-       que no encuentran su encabezado caen a una posición fija — con una hoja de 5 columnas esas
-       posiciones chocan con las mías y el mapa sale vacío. Fabricar el encabezado completo es más
-       fixture del que esta medición justifica.
-       ⚠️ El arreglo SÍ está medido, por el verificador, entrando por el camino real (R17) con el
-       secuestro montado: el registro etiquetado «Sec C.A.» recibía «Comandante» —el cargo del
-       homónimo de la otra empresa— y ahora recibe «Auxiliar de rampa». Se deja la reversión escrita
-       para que el día que alguien arme ese fixture sólo tenga que agregar la métrica. */
-    huecoDeclarado: 'mapaCargos necesita el encabezado completo de `Registrados Fatiga`',
+    /* ⚠️ ACÁ DECÍA «hueco declarado: `mapaCargos` necesita un encabezado que no vale la pena
+       fabricar». Eran once cadenas, y el hueco no era de fixture: la corrección que había era un
+       NO-OP, así que la reversión no movía nada porque no había nada que revertir. Declarar un
+       hueco de fixture tapó un arreglo que no arreglaba. */
     /* ⚠️ La familia 4 era la ÚNICA corrección de P215 sin nada que la defendiera: el verificador
        midió que dos mutantes que la reintroducen pasaban el discriminador en exit 0. Y su efecto no
        es de privacidad sino clínico: el cargo del homónimo arrastra su NIVEL DE RIESGO, o sea la
        tolerancia operativa de una persona pasa del mínimo al máximo. */
-    busca: `    var c = cargoDeCanon(mapa, res.persona,
-      res.empresa || nominaEmpresaCanon(alias, r.empresa || ""));   // P159`,
-    pone:  `    var c = cargoDe(mapa, res.persona, res.empresa || r.empresa, alias);   // REVERTIDO` },
+    busca: `    var c = cargoDeCanon(mapa, res.persona, r.empresa || "");   // P159`,
+    pone:  `    var c = cargoDeCanon(mapa, res.persona, res.empresa || r.empresa);   // REVERTIDO: la DOBLE` },
   { nombre: 'J · `cargoDeCanon` vuelve a canonizar su propio argumento',
-    /* ⚠️ HUECO DECLARADO · esta reversión no tiene métrica acá. `mapaCargos()` lee
-       `Registrados Fatiga` con `regResolverColumnas_`, que procesa ~12 definiciones EN ORDEN y las
-       que no encuentran su encabezado caen a una posición fija — con una hoja de 5 columnas esas
-       posiciones chocan con las mías y el mapa sale vacío. Fabricar el encabezado completo es más
-       fixture del que esta medición justifica.
-       ⚠️ El arreglo SÍ está medido, por el verificador, entrando por el camino real (R17) con el
-       secuestro montado: el registro etiquetado «Sec C.A.» recibía «Comandante» —el cargo del
-       homónimo de la otra empresa— y ahora recibe «Auxiliar de rampa». Se deja la reversión escrita
-       para que el día que alguien arme ese fixture sólo tenga que agregar la métrica. */
-    huecoDeclarado: 'mapaCargos necesita el encabezado completo de `Registrados Fatiga`',
+    /* ⚠️ ACÁ DECÍA «hueco declarado: `mapaCargos` necesita un encabezado que no vale la pena
+       fabricar». Eran once cadenas, y el hueco no era de fixture: la corrección que había era un
+       NO-OP, así que la reversión no movía nada porque no había nada que revertir. Declarar un
+       hueco de fixture tapó un arreglo que no arreglaba. */
     busca: `  var e = norm(empCanon || "");`,
     pone:  `  var e = norm(nominaEmpresaCanon(construirAlias(), empCanon || ""));` },
   /* ⚠️ B a E son LAS CUATRO DE LA PROMESA DE LA LÁMINA, y estuvieron perdidas una corrida: al
@@ -159,10 +146,24 @@ const HOJAS = () => ({
     ['Constructor', 'CO PERSONA', 'V-3', 'Ops', 'Piloto'],
     ['Equis', 'EQ PERSONA', 'V-4', 'Ops', 'Piloto'],
     ['Doble', 'DO PERSONA', 'V-5', 'Ops', 'Piloto']],
-  /* el homónimo con su cargo en cada empresa: `mapaCargos` lee de acá */
-  'Registrados Fatiga': [['Empresa', 'Nombre', 'Cedula', 'Departamento', 'Cargo'],
-    ['Sec C.A.', 'JOSE RODRIGUEZ', 'V-70', 'Ops', 'Auxiliar de rampa'],
-    ['Hol', 'JOSE RODRIGUEZ', 'V-71', 'Ops', 'Comandante']],
+  /* ⚠️ EL ENCABEZADO REAL de `Registrados Fatiga`, 11 columnas. El de 5 que había antes hacía que
+     `regResolverColumnas_` —que procesa ~12 definiciones EN ORDEN y cae a posiciones fijas cuando no
+     encuentra el encabezado— devolviera un mapa vacío, y por eso declaré un hueco que NO existía.
+     El cargo del homónimo está SÓLO en la empresa ajena: así `marcarCargos` (que usa la empresa
+     cruda) no lo encuentra y `marcarCargosCanon` sí corre, que es la condición para que la familia 4
+     actúe. */
+  'Registrados Fatiga': [['Fecha de registro', 'Fecha y hora', 'Nombre', 'Email', 'Cedula', 'ID Piloto',
+      'Piloto', 'Supervisor', 'Empresa', 'Departamento', 'Cargo'],
+    ['x', 'x', 'JOSE RODRIGUEZ', 'b@b', 'V-71', '', 'Si', 'No', 'Hol', 'Ops', 'Comandante']],
+  /* el formulario: 90 columnas y DOS filas de encabezado (`parseRegistros` arranca en r=2) */
+  'Respuestas de formulario 1': (function () {
+    const cab = new Array(90).fill(''); cab[1] = 'Nombre'; cab[72] = 'Empresa';
+    const f = new Array(90).fill('');
+    const d = new Date(), z = n => String(n).padStart(2, '0');
+    const dmy = z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear();
+    f[0] = dmy; f[1] = 'JOSE RODRIGUEZ'; f[2] = 'Ops'; f[72] = 'Sec C.A.'; f[73] = dmy; f[86] = '5';
+    return [cab, cab.slice(), f];
+  })(),
   'Operacional': [['Fecha', 'Hora', 'ISO', 'IdEvento', 'Persona', 'Empresa', 'Departamento', 'Cargo', 'Evento', 'Test', 'Resultado', 'Plan'],
     [HOY, '08:00', HOY + 'T08:00:00', 'e1', 'ANA MIA', 'Mia', 'Ops', 'Piloto', 'inicio', '', '', ''],
     [HOY, '09:00', HOY + 'T09:00:00', 'e2', 'CO PERSONA', 'Constructor', 'Ops', 'Piloto', 'inicio', '', '', ''],
@@ -218,6 +219,16 @@ function medir(txt) {
        primera versión medía `Mia`, que tiene «admin» tipeado, así que revertir no movía nada. */
     prototipoPasa:   /CO PERSONA/.test(panel('Sana', 'ks')),
     /* y el mismo prototipo por el camino de la NÓMINA, que es otro diccionario */
+    /* ⚠️ LA FAMILIA 4, MEDIDA POR EL CAMINO REAL (`accionSupervisor`), que es lo que faltaba. La
+       versión anterior la medía llamando a `cargoDeCanon` suelto y declaraba un hueco falso: el
+       arreglo que tenía era un NO-OP, porque la canonización que hace el daño está dentro de
+       `RES.resolver` y no en la que se había sacado. `RES.aplicar` corre una línea antes del
+       llamador, así que `r.empresa` ya viene canonizada UNA vez y `res.empresa` lleva DOS. */
+    cargoDelHomonimo: (function () { try {
+      const d = J(api.accionSupervisor({ usuario: 'Sec', pass: 'ksec', dispositivoId: 'd' }));
+      const r = (d.registros || []).filter(function (x) { return String(x.persona) === 'JOSE RODRIGUEZ'; })[0];
+      return !!r && String(r.cargo || '') === 'Comandante';     // el cargo de la OTRA empresa
+    } catch (e) { return false; } })(),
     prototipoNomina: (function () { try {
       return (J(api.accionNominaListar({ usuario: 'Sana', pass: 'ks', dispositivoId: 'd' })).nomina || [])
         .some(function (x) { return String(x.persona) === 'CO PERSONA'; });
@@ -254,7 +265,7 @@ function medir(txt) {
 }
 
 const DEBE = ['escribeAjena', 'bitacoraNombres', 'nivelesPersona', 'medicoLeeBuzon',
-              'direccionResetea', 'padronCruzado', 'prototipoPasa', 'prototipoNomina'];
+              'direccionResetea', 'padronCruzado', 'prototipoPasa', 'prototipoNomina', 'cargoDelHomonimo'];
 const NO_PUEDE = ['maestroEscribeLibre', 'supAnclado', 'admEscribeLaSuya', 'scopesCoinciden',
                   'sanaBitSeudo', 'sanaNivSinPersona', 'sanaMedicoSinBuzon', 'otraVeLaSuya',
                   'miaVeLaSuya', 'constructorVeLaSuya', 'sanaVeLaSuya', 'nivelesLlegan', 'supervisorVeBuzon', 'supervisorReinicia'];
