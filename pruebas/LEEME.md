@@ -408,3 +408,38 @@ explicaba.
 Y las `const` de un archivo de casos NO se ven desde otro archivo (`(0, eval)` las deja en el
 ámbito léxico de su propio eval); las `function` sí. Si un caso nuevo quiere reusar datos de otro
 (`P089_EMP`, `P089_RED`), los lee por una función de ese archivo o se arma los suyos.
+
+## Antes de tocar una función de permisos o de identidad
+
+```bash
+node pruebas/diferencial-produccion.js <copia del .gs ANTES del cambio>
+```
+
+Trae el `Accesos` **real** de producción (sólo lectura, `tarea=gestiones_del_supervisor`) y compara
+las dos versiones del endpoint sobre las cuentas que existen de verdad × un universo de nombres que
+incluye **los centinelas** (`"*"`, `""`, sólo espacios, `"-"`, «Todas las empresas») y los miembros
+de `Object.prototype` que `norm()` deja pasar. Son ~500 sondas sobre `nominaEmpresaCanon`,
+`cfgEmpresaCanon`, `depEmpresaValida`, `gestScope`, `ausScope`, `empresasPermitidas_` y
+`esAdminMaestro_`.
+
+**La pregunta que contesta no es cuántas respuestas difieren: es cuántas ABREN algo.** Un cambio que
+sólo cierra es seguro de publicar; uno que amplía alcance, no. Sale 1 si alguna abre, 0 si ninguna,
+3 si no pudo medir (y entonces dice por qué).
+
+**Por qué existe** (decisión de Franco, 2026-10-03, al cerrar P215): en P214 y P215, cuatro rondas
+consecutivas terminaron igual — el arreglo de cada ronda introdujo el defecto más grave de la
+siguiente, y las cuatro veces por medir contra un fixture que no contenía la configuración real. El
+más caro: dos cuentas de producción tenían la celda EMPRESAS en `"-"`, cuyo `norm()` es `""` igual
+que el de `"*"` que el cliente del administrador manda por defecto. Mi fixture no tenía ninguna
+celda que normalizara a vacío, así que las 34 métricas del discriminador daban el cambio por bueno
+mientras abría las cuatro escrituras del panel, bitácora append-only incluida.
+
+**Tiene su propio discriminador**, y hay que usarlo: el segundo argumento reemplaza el lado AHORA,
+así que se puede pasar un mutante y comprobar que el script lo pone en rojo.
+
+```bash
+node pruebas/diferencial-produccion.js <antes.gs> <mutante.gs>   # debe salir 1
+```
+
+⚠️ **Lo que NO cubre:** las escrituras (qué fila cae en qué hoja) y las acciones completas. Para eso
+está `pruebas/discriminador-p215.js`, que entra por las acciones reales.
