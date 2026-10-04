@@ -1881,6 +1881,45 @@
   .dash-aviso { font-size: .76rem; color: var(--text-muted); background: var(--chip-bg);
     border-radius: var(--radius-xs); padding: .45rem .6rem; margin: .4rem 0; line-height: 1.35; }
 
+  /* ── P224 · El semáforo de la tarjeta ──
+     Un punto de color + una frase. El color NO lleva información sola: la frase dice el estado,
+     porque para un lector de pantalla el punto no existe (va con `aria-hidden`). Los cuatro
+     niveles reusan los tokens `--sem-*` que `APT_NIVELES` ya usa y que están medidos en los dos
+     temas: no se agrega ni un color. */
+  .apt-sem { display: flex; align-items: baseline; gap: .5rem; margin: .1rem 0 .55rem;
+             font-size: .86rem; font-weight: 700; color: var(--text); line-height: 1.4; }
+  .apt-sem-punto { flex: 0 0 auto; width: .62rem; height: .62rem; border-radius: 50%;
+                   align-self: center; }
+  .apt-sem-alto  .apt-sem-punto { background: var(--sem-rojo-alt); }
+  .apt-sem-medio .apt-sem-punto { background: var(--sem-ambar); }
+  .apt-sem-ok    .apt-sem-punto { background: var(--sem-verde); }
+  .apt-sem-sin   .apt-sem-punto { background: var(--sem-gris); }
+  /* El texto de «todo en rango» pesa menos: es la ausencia de novedad, y R6 dice que el panel
+     muestra lo que necesita acción. Lo que está por encima se lee primero. */
+  .apt-sem-ok .apt-sem-txt, .apt-sem-sin .apt-sem-txt { font-weight: 600; color: var(--text-soft); }
+  /* El detalle de los ocho, plegado. Mismo trato visual que los otros `summary` del panel. */
+  .apt-det { margin: .1rem 0 .5rem; }
+  /* El `summary` CONTIENE la línea del semáforo, así que ocupa su lugar y no una línea extra.
+     44 px de alto: es un control táctil de verdad, no un enlace de 12 px. */
+  .apt-det > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
+                       gap: .5rem; min-height: 44px; user-select: none;
+                       -webkit-tap-highlight-color: transparent; }
+  .apt-det > summary::-webkit-details-marker { display: none; }
+  .apt-det > summary::after { content: '▾'; margin-left: auto; flex: 0 0 auto;
+                              font-size: .7rem; color: var(--text-muted); }
+  .apt-det[open] > summary::after { content: '▴'; }
+  /* Dentro del summary la línea ya no lleva su propio margen: lo pone el summary. */
+  .apt-det > summary .apt-sem { margin: 0; flex: 1 1 auto; min-width: 0; }
+  .apt-det .apt-boxes { margin-top: .15rem; }
+  /* ⚠️ HAY QUE OCULTARLOS EXPLÍCITAMENTE. Un `<details>` cerrado oculta su contenido por la hoja
+     del navegador, pero `.apt-boxes` trae `display: flex` propio y en Chrome gana: medido, los
+     **126 chips seguían visibles** (`offsetParent !== null`) con el `details` cerrado, o sea que
+     el plegado no plegaba nada y la pantalla quedaba igual de cargada que antes.
+     Sin esta línea el cambio entero es cosmético. */
+  .apt-det:not([open]) .apt-boxes { display: none; }
+  /* El cargo, que hoy es lo único que dice de qué operación es la persona (`Op. Cardon`). */
+  .apt-op { font-weight: 800; color: var(--text-soft); }
+
   /* ── P223 · Actividad reciente ───────────────────────────────────────────────────────────
      R13 · NI UN COLOR A MANO: todo sale de tokens que ya existen y están medidos en los dos
      temas (`--card`, `--linea`, `--linea-2`, `--chip-bg`, `--text`, `--text-soft`,
@@ -7630,7 +7669,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.99';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.00';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9289,6 +9328,15 @@ const I18N = {
          R1 · español NEUTRO: "toca", "tú", nunca voseo. R14 · nada de términos de sector:
          "prueba", no "chequeo pre-vuelo" — el panel lo ven una empresa aérea y una planta. */
       mov_titulo:'Actividad reciente',
+      /* ── P224 · el semáforo de la tarjeta (pedido de Rafael: «debería ser un tráfico») ── */
+      apt_sem_alto_1:'{q}: por encima del límite',
+      apt_sem_alto_n:'{n} indicadores por encima del límite: {q}',
+      apt_sem_medio_1:'{q}: cerca del límite',
+      apt_sem_medio_n:'{n} indicadores cerca del límite: {q}',
+      apt_sem_ok:'Los {n} indicadores, en rango',
+      apt_sem_sin:'Todavía sin indicadores medidos',
+      apt_sem_y_mas:'{q} y {n} más',
+      apt_sem_ver:'Ver los indicadores uno por uno',
       /* La cobertura de la nómina, que hasta ahora SÓLO se veía en la vista de Dirección. */
       mov_cob_t:'Tu gente',
       mov_cob_nomina:'en la nómina',
@@ -11465,6 +11513,14 @@ const I18N = {
       dash_todas_empresas:'All companies', dash_ejemplo:'example',
       /* ── P223 · Recent activity ─────────────────────────────────────────────────────── */
       mov_titulo:'Recent activity',
+      apt_sem_alto_1:'{q}: above the limit',
+      apt_sem_alto_n:'{n} indicators above the limit: {q}',
+      apt_sem_medio_1:'{q}: near the limit',
+      apt_sem_medio_n:'{n} indicators near the limit: {q}',
+      apt_sem_ok:'All {n} indicators within range',
+      apt_sem_sin:'No indicators measured yet',
+      apt_sem_y_mas:'{q} and {n} more',
+      apt_sem_ver:'See each indicator',
       mov_cob_t:'Your people',
       mov_cob_nomina:'on the roster',
       mov_cob_medidos:'with tests',
@@ -24103,7 +24159,11 @@ function aptResolverFinal(nombre, A){
   const telem = telemVigenteDe(nombre);
   const telemRealizada = telemRealizadaDe(nombre);
 
-  return { nombre:nombre, dep:A.dep, n:A.n,
+  /* ⚠️ P224 · `cargo` TAMBIÉN. Esta lista es EXPLÍCITA, igual que la de `onDashData`, así que un
+     campo que el servidor manda y nadie nombra acá **se descarta en silencio** — el defecto que
+     R17 describe con `duty` y `ausencias`, y que ya me mordió hoy con `demo`. Medido: el payload
+     traía `cargo` en 17 de 18 personas y al cliente le llegaban 0. */
+  return { nombre:nombre, dep:A.dep, cargo:A.cargo || '', n:A.n,
            metricas:A.metricas, pvt:A.pvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
            revisado:(historial.length > 0), empeoro:A.empeoro,
@@ -24166,6 +24226,41 @@ function aptAccionesHtml(nombre, restriccion, puedeTelem){
       ? '<button type="button" class="apt-act apt-act-telem" onclick="telemSugerirDesde(' + nomAttr + ')">' + esc(t('apt_act_telem')) + '</button>'
       : '') +
   '</div>';
+}
+/* ── P224 · EL SEMÁFORO EN VEZ DE OCHO CHIPS ─────────────────────────────────────────────────
+   Pedido de Rafael (2026-10-04), señalando con un círculo los ocho chips de una tarjeta:
+   **«debería ser un tráfico, es más fácil de gestionar»**, y antes: «esta vista hay que mejorarla,
+   está confusa».
+   Tenía razón y el número lo dice: con 18 personas en pantalla, los ocho chips son **144 chips**
+   que hay que leer para encontrar el que importa. Eso es lo contrario de R6 (exception-based: el
+   panel muestra lo que necesita acción, no todo lo que hay).
+   Ahora la tarjeta dice **una frase**: qué indicador está por encima, o que están todos en rango.
+   Los ocho siguen estando, a un toque, porque el médico los usa — lo que cambia es que ya no hay
+   que leerlos para saber si hay algo.
+   ⚠️ NO SE INVENTA NINGÚN DATO: `p.metricas` y `p.pvt` son los mismos de siempre, sólo se resumen. */
+function aptSemaforoLinea(p){
+  const items = (p.metricas || []).map(x => ({ m: METRIC_LABELS[x.m] || x.m, nivel: x.nivel }));
+  if (p.pvt) items.push({ m: t('apt_reaccion'), nivel: p.pvt });
+  const altos  = items.filter(x => x.nivel === 'alto').map(x => x.m);
+  const medios = items.filter(x => x.nivel === 'medio').map(x => x.m);
+  const conDato = items.filter(x => x.nivel && x.nivel !== 'sin').length;
+  /* El peor manda el color del punto, igual que el `auto` del servidor. */
+  const nivel = altos.length ? 'alto' : (medios.length ? 'medio' : (conDato ? 'ok' : 'sin'));
+  /* Se nombran hasta DOS y después se cuenta: «Reacción, Gastro y 2 más» se lee; cinco nombres
+     en una línea, no. */
+  const nombrar = (lista) => lista.length <= 2
+    ? lista.join(' · ')
+    : t('apt_sem_y_mas', { q: lista.slice(0, 2).join(' · '), n: lista.length - 2 });
+  let frase;
+  if (altos.length)       frase = t(altos.length === 1 ? 'apt_sem_alto_1' : 'apt_sem_alto_n', { q: nombrar(altos), n: altos.length });
+  else if (medios.length) frase = t(medios.length === 1 ? 'apt_sem_medio_1' : 'apt_sem_medio_n', { q: nombrar(medios), n: medios.length });
+  else if (conDato)       frase = t('apt_sem_ok', { n: conDato });
+  else                    frase = t('apt_sem_sin');
+  /* El punto lleva `aria-hidden` y la frase ya dice el estado: para un lector de pantalla el color
+     no existe, así que la información no puede estar sólo ahí. */
+  return '<div class="apt-sem apt-sem-' + nivel + '">' +
+    '<span class="apt-sem-punto" aria-hidden="true"></span>' +
+    '<span class="apt-sem-txt">' + esc(frase) + '</span></div>';
 }
 function aptTarjeta(p, opts){
   const est = aptEstadoInfo(p.estado);
@@ -24259,7 +24354,15 @@ function aptTarjeta(p, opts){
   return '<div class="apt-card' + (p.viejo ? ' apt-viejo' : '') + (p.restriccion ? ' apt-con-restr' : '') + '">' +
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
-        '<div class="apt-dep">' + esc(p.dep || '—') + ' · ' + aptTextoFecha(p) +
+        '<div class="apt-dep">' + esc(p.dep || '—') +
+          /* ⚠️ P224 · EL CARGO, porque hoy es lo único que dice de qué OPERACIÓN es la persona.
+             Pedido de Rafael: «no sé qué tarea u operación estoy viendo… Adelis es de Cardón».
+             Esa dimensión no existe en el modelo, pero la nómina real tiene **7 personas con el
+             cargo `Op. Cardon`** — la están metiendo ahí porque no hay otro lugar. Con esto, esas
+             7 se distinguen de un vistazo de los 13 que comparten el departamento «Operaciones».
+             Es un PUENTE hasta el campo propio (bloque Q del plan), no la solución. */
+          (p.cargo && p.cargo !== p.dep ? ' · <b class="apt-op">' + esc(p.cargo) + '</b>' : '') +
+          ' · ' + aptTextoFecha(p) +
           /* P208 · sin la tabla leída, `p.nivel` es el valor por omisión y no el de esta persona.
              El chip lo dice en corto; el porqué está una vez arriba de la lista, no en cada tarjeta. */
           (p.nivel ? (nivelesEstado() !== 'error'
@@ -24269,7 +24372,19 @@ function aptTarjeta(p, opts){
         '</div></div>' +
       '<span class="apt-badge" style="background:' + semSolido(est.c) + ';color:#fff">' + est.t + '</span>' +
     '</div>' + aptCicloLineaHtml(p.nombre) + medBanner + avisoDesact + restrBanner + avisoVencida + telemBanner + casoBanner +   // P078 · las horas, acá
-    '<div class="apt-boxes">' + cuadros + '</div>' + avisoViejo + avisoConf + acciones +
+    /* ⚠️ LA LÍNEA DEL SEMÁFORO **ES** EL CONTROL: el `<summary>` la contiene, no va aparte.
+       Mi primera versión ponía el semáforo y DEBAJO un «Ver los indicadores uno por uno»: medido a
+       390 px con las 18 personas reales, el panel bajaba de 4.284 a 4.112 px — **4 %**, porque las
+       dos líneas nuevas ocupaban casi lo que los chips quitaban. Un cambio que saca 126 chips y
+       gana 20 px por tarjeta es cosmético.
+       Con el semáforo adentro del `summary` se ahorra la línea entera y además se gana algo mejor:
+       **toda la línea es tocable**, en vez de un enlace chiquito debajo. */
+    /* El `aria-label` dice QUÉ HACE el control; la línea de adentro dice el estado. Sin esto, un
+       lector de pantalla anuncia sólo «Cansancio: por encima del límite» y no que es desplegable. */
+    '<details class="apt-det"><summary class="apt-det-sum" aria-label="' + esc(t('apt_sem_ver')) + '">' +
+      aptSemaforoLinea(p) + '</summary>' +
+      '<div class="apt-boxes">' + cuadros + '</div></details>' +
+    avisoViejo + avisoConf + acciones +
   '</div>';
 }
 /* Grupos de los contadores del resumen. PARTICIONAN exactamente a la población: cada persona cae
