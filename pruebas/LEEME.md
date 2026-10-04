@@ -443,3 +443,49 @@ node pruebas/diferencial-produccion.js <antes.gs> <mutante.gs>   # debe salir 1
 
 ⚠️ **Lo que NO cubre:** las escrituras (qué fila cae en qué hoja) y las acciones completas. Para eso
 está `pruebas/discriminador-p215.js`, que entra por las acciones reales.
+
+## ⚠️ Dos límites del instrumental que ya costaron un diagnóstico falso (2026-10-03)
+
+### `tarea=volcar` borra el TIPO de la celda
+
+`volcar` hace `String(celda)`, así que **un objeto `Date` y un texto con el mismo contenido salen
+idénticos**: los dos como `"Sat Oct 03 2026 10:16:12 GMT-0300 (hora estándar de Argentin…"` (y
+además truncado a 60 caracteres). Alimentar el emulador con ese volcado es alimentarlo con texto,
+aunque la hoja tenga objetos.
+
+Eso me hizo diagnosticar, medir con tres scripts y **publicar** un defecto que no existía: afirmé que
+el 91 % de los registros llegaba con la fecha sin normalizar y que 32 de 39 personas tenían el
+«último test» equivocado. En producción esa celda es un `Date` y `normFecha` ya la resolvía en su
+primera línea. Los tres scripts compartían el mismo volcado: **tres scripts con un solo fixture no
+son tres mediciones, son una.**
+
+**Cómo comprobar el tipo, barato:**
+- La hoja `Totales` tiene dos columnas pegadas que son dos vistas del mismo valor; una da el serial
+  numérico. Un serial no sale de una celda de texto.
+- Mejor todavía: **buscar lo que el código ESCRIBIÓ a partir de ese valor.** Los `IdCaso` de
+  `Casos Odoo` dicen `caso_carlos mendez_2026-07-16`, y ese id se arma con la salida de `normFecha`.
+  Si la celda fuera texto diría `caso_..._Wed Jun 17 2026 13:18:00 GMT-0300 (…)`. La planilla guarda
+  la prueba de lo que el código leyó, sin intervención mía.
+- Y si hace falta reconstruirlo en un fixture: `new Date(cadena)` devuelve el mismo instante que la
+  celda guarda, así que se puede volver a poner el tipo antes de medir.
+
+`volcar` tiene además otras dos cegueras: **trunca a 60 caracteres** y **enmascara** toda columna
+cuyo título matchee `cedula|telefono|email|correo|contrase|clave|pass|hash|sal|token|comentario|usuario`
+— por eso tapa la columna EMPRESAS de `Accesos` (su título dice «usuario») y la columna Clave de
+`Config Empresa`. Cualquier medición sobre esas columnas hecha con `volcar` no vale.
+
+### El emulador NO distingue la zona del SCRIPT de la del LIBRO
+
+`GS.crearEntorno(hojas, { zona })` fija **las dos a la vez**: `Session.getScriptTimeZone()` y
+`libro.getSpreadsheetTimeZone()` devuelven lo mismo. En producción son distintas — el libro del CH
+está en `America/Caracas` y el script en `America/Argentina/Buenos_Aires` (`appsscript.json`) — y esa
+diferencia **fecha un día después** todo instante tomado entre 23:00 y 23:59 de Caracas: medido con
+aritmética pura sobre las marcas reales, **6 de 463 registros**, 3 de Aeroambulancias Silva.
+
+Así que **no se puede medir con el emulador el efecto de cambiar `normFecha` a la zona del libro**:
+da «0 diferencias» porque las dos zonas son la misma ahí. Si una medición de zonas da cero, correr
+primero el discriminador: formatear un instante de borde con las dos y confirmar que dan días
+distintos. Si no difieren, el instrumento no modela lo que se quiere medir.
+
+Para poder medirlo hay que darle al emulador zonas separadas (`{ zonaScript, zonaLibro }`). Está
+anotado como pendiente.
