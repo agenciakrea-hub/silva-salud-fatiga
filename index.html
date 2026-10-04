@@ -7669,7 +7669,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.00';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.01';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9455,7 +9455,11 @@ const I18N = {
       est_encond:'En condiciones', est_sindato:'Sin registros',
       grp_medico:'Indicación médica',
       apt_estado_persona:'Estado por persona',
-      apt_n_con_registros:'{n} personas con registros en el período seleccionado',
+      /* ⚠️ P232 · SIN «en el período seleccionado». El panel del supervisor muestra el estado
+         ACTUAL de cada persona —`aptAutoServer` lo calcula sobre todos sus registros— y los
+         registros que recibe no traen fecha, así que ningún período se aplicó nunca. Decirlo era
+         afirmar lo que no se midió (R2), en la pantalla principal del supervisor. */
+      apt_n_con_registros:'{n} personas de tu equipo con al menos una prueba',
       ctx_sin_registros:'No hay registros en el período seleccionado',
       niv_t_1:'Mínimo', niv_t_2:'Bajo', niv_t_3:'Medio', niv_t_4:'Alto', niv_t_5:'Máximo',
       riesgo_n:'Riesgo {n}',
@@ -11633,7 +11637,7 @@ const I18N = {
       est_encond:'Fit to work', est_sindato:'No records',
       grp_medico:'Medical instruction',
       apt_estado_persona:'Status by person',
-      apt_n_con_registros:'{n} people with records in the selected period',
+      apt_n_con_registros:'{n} people on your team with at least one test',
       ctx_sin_registros:'No records in the selected period',
       niv_t_1:'Minimal', niv_t_2:'Low', niv_t_3:'Medium', niv_t_4:'High', niv_t_5:'Maximum',
       riesgo_n:'{n} risk',
@@ -22562,9 +22566,24 @@ function dashSetTab(t){ dashScrollTo(t); }   // compat con llamadas viejas
 
 function buildDashFilters(){
   const showGroup = DASH.rol !== 'empleado';
-  let html = '<div class="period-chips">' + dashPeriods().map(p =>
-    '<button class="pchip ' + (DASH.f.period===p[0]?'active':'') + '" onclick="dashSetPeriod(\''+p[0]+'\')">' + p[1] + '</button>'
-  ).join('') + '</div>';
+  /* ⚠️ P232 · EL SELECTOR DE PERÍODO NO SE PINTA EN LA VISTA DEL SUPERVISOR, porque ahí NO HACE
+     NADA. Es el defecto que hizo desconfiar a Rafael: cambió el filtro a «Día», siguió viendo las
+     mismas 18 personas, y dijo «no me parece que están todos los del evento de ayer».
+     La causa, medida: el servidor le manda al supervisor `registrosSeguro`, que es **una fila por
+     persona SIN FECHA** (`{persona, empresa, departamento, cargo}`) — su estado lo calcula
+     `aptAutoServer` sobre TODOS los registros de cada quien, no sobre una ventana. Sin fecha, el
+     filtro de período no puede filtrar: las ocho opciones daban 18 personas, siempre.
+     Y lo verifiqué sección por sección antes de ocultarlo, que es lo que haría falta para que esto
+     fuera un error: con `all`, `dia` y `mes`, las CUATRO secciones de la vista supervisor
+     —aptitud, reportes, ciclo y opiniones— devuelven exactamente el mismo HTML. El control no
+     sirve en ninguna.
+     ⚠️ SÓLO en esa vista: el médico sí recibe registros con fecha y ahí el período manda. */
+  const periodoSirve = (DASH.vista !== 'supervisor');
+  let html = periodoSirve
+    ? '<div class="period-chips">' + dashPeriods().map(p =>
+        '<button class="pchip ' + (DASH.f.period===p[0]?'active':'') + '" onclick="dashSetPeriod(\''+p[0]+'\')">' + p[1] + '</button>'
+      ).join('') + '</div>'
+    : '';
   if (DASH.f.period === 'custom'){
     html += '<div class="df-row">' +
       '<div class="df"><label>' + esc(t('flt_desde')) + '</label><input type="date" id="dashDesde" value="'+esc(DASH.f.desde)+'" onchange="dashFilterChange()"></div>' +
