@@ -7669,7 +7669,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.01';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.02';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -22603,7 +22603,7 @@ function buildDashFilters(){
     // de esa empresa, no la mezcla de todas. Para el admin sin empresa elegida no se muestran
     // (mezclaría "Operaciones" de una empresa con la de otra). El supervisor ya está acotado a la suya.
     if (!esAdmin || DASH.f.emp){
-      const deps = uniqSorted(rows, 'departamento');
+      const deps = depsDelCombo(rows);   // P231 · una por departamento real, no por variante
       const pers = dashPersonasSelector(DASH.f.dep);   // P076b · nómina + tests + ciclo, y lo elegido
       html += '<div class="df-row">' +
         '<div class="df"><label>' + esc(t('flt_departamento')) + '</label><select id="dashDep" onchange="dashFilterChange(\'dep\')"><option value="">' + esc(t('flt_todos')) + '</option>' +
@@ -22644,6 +22644,34 @@ function dashPersonasSelector(dep){
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));   // «Ángel» antes de «Zoe», no después
 }
 function uniqSorted(rows, key){ return Array.from(new Set(rows.map(r=>r[key]).filter(Boolean))).sort(); }
+/* ── P231 · UNA OPCIÓN POR DEPARTAMENTO REAL, no por variante de tipeo ───────────────────────
+   Medido sobre los 108 registros reales de Aeroambulancias Silva, el combo listaba NUEVE opciones
+   y **tres eran el mismo departamento**: «Operaciones» (70 registros), «Operaciónes» (2, con tilde)
+   y «operaciones» (1, en minúscula). El supervisor veía tres veces lo mismo y **elegir una le
+   mostraba una parte de su gente**.
+   Se agrupa por `depClaveCliente()` —la misma derivación que el `.gs` usa como `depClave()` y que
+   ya existía en el cliente sin que el combo la usara— y se muestra **la variante más frecuente**,
+   que es la correcta de facto: con 70 contra 2 y 1, gana «Operaciones».
+   ⚠️ NO se corrige el dato: `Registrados Fatiga` es el perfil que declara la PERSONA (ADR 013) y
+   `accionRegistro` hace upsert, así que arreglar la celda se deshace la próxima vez que esa
+   persona abra la app. Se arregla la LECTURA, que es lo que dura. */
+function depsDelCombo(rows){
+  const porClave = Object.create(null);
+  rows.forEach(r => {
+    const crudo = r && r.departamento;
+    if (!crudo) return;
+    const k = depClaveCliente(crudo);
+    if (!k) return;
+    if (!porClave[k]) porClave[k] = {};
+    porClave[k][crudo] = (porClave[k][crudo] || 0) + 1;
+  });
+  /* De cada grupo, la escritura más usada; si empatan, la primera alfabéticamente — así el combo
+     no cambia de etiqueta entre dos cargas con los mismos datos. */
+  return Object.keys(porClave).map(k => {
+    const vars = porClave[k];
+    return Object.keys(vars).sort((a, b) => (vars[b] - vars[a]) || (a < b ? -1 : 1))[0];
+  }).sort();
+}
 function dashSetPeriod(p){ DASH.f.period = p; buildDashFilters(); renderDash(); }
 function dashFilterChange(changed){
   DASH.f.desde = fval('dashDesde'); DASH.f.hasta = fval('dashHasta');
@@ -22712,9 +22740,16 @@ function dashEffectiveRange(){
    mismo alcance sobre otra ventana de tiempo, y tener esos cinco filtros escritos en dos lugares
    es garantizar que algún día se despeguen — y una comparación con alcances distintos a cada lado
    no está mal por poco, está mal del todo. */
+/* ⚠️ P231 · ESTA FUNCIÓN DICE SER LA ÚNICA DERIVACIÓN DEL ALCANCE Y LA USA **UN SOLO LLAMADOR**.
+   Su comentario de abajo explica que se separó «porque tener esos cinco filtros escritos en dos
+   lugares es garantizar que algún día se despeguen» — y ya se despegaron: `cicloPersonas`,
+   `reportesFiltrados` y `dashFilteredPVT` copiaron la línea del departamento en vez de llamarla.
+   Son CUATRO lugares, y por eso este arreglo tuvo que tocar los cuatro.
+   **Unificarlos es trabajo propio y está anotado como lo que encarece `P227`**: agregar la
+   operación como quinto filtro va a tocar los cuatro otra vez si nadie los junta antes. */
 function dashEnAlcance(r){
   if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
-  if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
+  if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
   if (DASH.f.per && r.persona !== DASH.f.per) return false;
   // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
   // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
@@ -27027,7 +27062,7 @@ function cicloPersonas(ciclos){
   (DASH.registros || []).forEach(r => {
     if (!r.persona) return;
     if (DASH.f.emp && r.empresa !== DASH.f.emp) return;
-    if (DASH.f.dep && r.departamento !== DASH.f.dep) return;
+    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return;
     if (DASH.f.per && r.persona !== DASH.f.per) return;
     const k = dashNorm(r.persona);
     if (vistos[k]) return;
@@ -27996,7 +28031,7 @@ function reportesFiltrados(){
   return (DASH._reportes || []).filter(r => {
     if (rng.desde && r.creada && dashIsoDeEpoch(r.creada) < rng.desde) return false;
     if (rng.hasta && r.creada && dashIsoDeEpoch(r.creada) > rng.hasta) return false;
-    if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
+    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     if (DASH.f.per && r.persona !== DASH.f.per) return false;   // anónimo: sin persona → no matchea
     return true;
   });
@@ -29111,7 +29146,7 @@ function dashFilteredPVT(){
     if (rng.desde && r.fecha < rng.desde) return false;
     if (rng.hasta && r.fecha > rng.hasta) return false;
     if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && r.departamento !== DASH.f.dep) return false;
+    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     if (DASH.f.per && r.persona !== DASH.f.per) return false;
     // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
     // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
