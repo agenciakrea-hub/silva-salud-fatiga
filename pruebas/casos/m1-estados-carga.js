@@ -484,6 +484,14 @@ PRUEBAS.caso('⚠️ ninguna acción de red que dispara la persona quedó sin bl
        pantalla se está yendo igual (`cerrarSesion` recarga), y no espera respuesta a propósito
        para que cerrar sesión funcione también sin señal. */
     'dashMigrarCredsAToken',
+    /* ⚠️ P223 · `movCargar` PINTA LO QUE PASÓ, no hace nada. Carga el panel de «Actividad
+       reciente» cuando se abre el panel o cuando cambia el filtro de empresa, y su propia sección
+       muestra «Cargando la actividad…» mientras viaja — así que ni bloquea la pantalla ni deja a la
+       persona sin señal de que algo está en curso. Bloquear el panel entero por una lista
+       informativa de diez filas sería justo el defecto que este caso persigue al revés: congelar
+       una pantalla recién abierta por una consulta que nadie pidió. Si falla, la sección muestra
+       su error con un botón «Reintentar» y el resto del panel sigue funcionando. */
+    'movCargar',
     /* ⚠️ ZD · `demoSondearClave` PREGUNTA, no hace. Al abrir la demostración averigua si el
        servidor pide clave, para poner el campo antes de que la persona elija vista en vez de
        después de un falso arranque. Bloquear el gate mientras eso viaja sería justo el defecto

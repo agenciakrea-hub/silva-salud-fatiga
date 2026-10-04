@@ -103,7 +103,14 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
       const mal = Object.keys(esperado).filter(k => despues[k] !== JSON.stringify(esperado[k]));
       PRUEBAS.igual(mal, [],
         '🔴 los campos de contexto valen LO QUE MANDÓ EL SERVIDOR, no el valor del primer pedido ni undefined');
-      const congelados = Object.keys(antes).filter(k => antes[k] === despues[k] && k !== 'atajosAdmin');
+      /* ⚠️ `demo` ES UN MODO, NO CONTEXTO QUE CAMBIE. Los otros campos describen a la empresa que
+         se está mirando y tienen que moverse cuando el payload cambia; `demo` dice si esta sesión
+         es la demostración comercial, y eso NO cambia de un refresco al siguiente — una sesión de
+         demostración no deja de serlo. Exigirle que cambie obligaría a que el fixture alterne el
+         modo entre dos pedidos, que es un escenario que no existe. Misma razón que `atajosAdmin`.
+         Lo que sí está medido es que el campo LLEGUE: está en el aserto de arriba, contra
+         `dashCamposDelServidor(v2)`, y `p197-demo-en.js` lo usa de verdad. */
+      const congelados = Object.keys(antes).filter(k => antes[k] === despues[k] && k !== 'atajosAdmin' && k !== 'demo');
       PRUEBAS.igual(congelados, [],
         'y ninguno quedó con el valor del primer pedido · antes quedaban trece, todo el turno');
       PRUEBAS.igual(DASH.nominaError, 'No se pudo leer la nómina',

@@ -59,7 +59,15 @@ PRUEBAS.caso('🔴 el camino REAL: la celda es un `Date` y la resuelve la PRIMER
      ⚠️ Se entra por `parseRegistros` con un `Date` en la celda, que es lo que la hoja produce. La
      primera versión de este caso pasaba una CADENA y por eso bendecía un defecto inexistente. */
   if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
-  const fecha = new Date(2026, 9, 3, 10, 16, 12);   // 3 de octubre de 2026
+  /* ⚠️ LA FECHA ES **HOY**, NO UNA FIJA, y esto es el arreglo de un defecto de este mismo caso:
+     la primera versión usaba `new Date(2026, 9, 3, ...)` y afirmaba `aptDiasDesdeServer === 0`
+     «porque es de hoy en el fixture». Era de hoy **el día que lo escribí**. A la mañana siguiente
+     el caso se puso en rojo solo (`esperaba 0, obtuvo 1`), sin que nadie tocara una línea.
+     Un caso que depende del reloj no mide el código: mide qué día es. */
+  const ahora = new Date();
+  const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 10, 16, 12);
+  const isoHoy = fecha.getFullYear() + '-' +
+    String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
   const env = GS.crearEntorno({ 'Respuestas de formulario 1': p215eHoja(fecha, 5), 'Sesiones': [P215E_SES] });
   const api = GS.cargarGs(CTX.gs, env, ['parseRegistros', 'normFecha', 'aptDiasDesdeServer']);
 
@@ -70,10 +78,10 @@ PRUEBAS.caso('🔴 el camino REAL: la celda es un `Date` y la resuelve la PRIMER
   const regs = api.parseRegistros(env.__libro.getSheetByName('Respuestas de formulario 1').getDataRange().getValues());
   PRUEBAS.igual(regs.length, 1, 'guarda: `parseRegistros` acepta la fila');
   /* LO QUE TIENE QUE CAMBIAR si alguien borra la primera línea */
-  PRUEBAS.igual(regs[0].fecha, '2026-10-03',
+  PRUEBAS.igual(regs[0].fecha, isoHoy,
     '🔴 la fecha llega normalizada a `yyyy-MM-dd` por el camino real');
   PRUEBAS.igual(api.aptDiasDesdeServer(regs[0].fecha), 0,
-    '🔴 y se le pueden contar los días: 0, porque es de hoy en el fixture… (ver abajo)');
+    '🔴 y se le pueden contar los días: 0, porque la celda ES de hoy — calculado, no escrito a mano');
 });
 
 PRUEBAS.caso('🔴 la rama de TEXTO es defensa: si alguien pega la fecha como cadena, también se normaliza', () => {

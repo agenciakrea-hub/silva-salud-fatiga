@@ -1881,6 +1881,90 @@
   .dash-aviso { font-size: .76rem; color: var(--text-muted); background: var(--chip-bg);
     border-radius: var(--radius-xs); padding: .45rem .6rem; margin: .4rem 0; line-height: 1.35; }
 
+  /* ── P223 · Actividad reciente ───────────────────────────────────────────────────────────
+     R13 · NI UN COLOR A MANO: todo sale de tokens que ya existen y están medidos en los dos
+     temas (`--card`, `--linea`, `--linea-2`, `--chip-bg`, `--text`, `--text-soft`,
+     `--text-muted`, `--green`, `--radius`). No agrega ningún token nuevo.
+     R12 · Una sola columna hasta 620 px y cuatro de 620 en adelante, así en el teléfono cada
+     movimiento ocupa dos líneas legibles en vez de cuatro columnas apretadas. */
+  .mov { background: var(--card); border: 1px solid var(--linea); border-radius: var(--radius);
+         padding: .85rem 1rem .6rem; margin: 0 0 .9rem; }
+  .mov-h { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .mov-t { margin: 0; font-size: .95rem; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+  /* El alcance: qué se está mirando. `margin-right:auto` lo deja pegado al título y empuja el ⓘ
+     al extremo, que es donde está en el resto del panel. */
+  .mov-scope { margin-right: auto; font-size: .72rem; font-weight: 700; color: var(--text-muted);
+               background: var(--chip-bg); border-radius: 999px; padding: .17rem .55rem;
+               max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mov .dash-help { margin: 0; }
+  /* ── La cobertura de la nómina ── */
+  .mov-cob { margin: .55rem 0 .35rem; padding: .55rem .7rem .5rem; background: var(--sup-suave);
+             border: 1px solid var(--linea); border-radius: var(--radius-sm); }
+  .mov-cob-t { font-size: .72rem; font-weight: 800; color: var(--text-muted);
+               text-transform: uppercase; letter-spacing: .04em; margin: 0 0 .4rem; }
+  .mov-cifras { display: flex; gap: 1.3rem; flex-wrap: wrap; align-items: baseline; }
+  .mov-cif { display: flex; flex-direction: column; line-height: 1.1; }
+  .mov-cif b { font-size: 1.35rem; font-weight: 800; color: var(--text);
+               font-variant-numeric: tabular-nums; }
+  .mov-cif small { font-size: .68rem; font-weight: 700; color: var(--text-muted);
+                   text-transform: uppercase; letter-spacing: .03em; margin-top: .1rem; }
+  /* La cifra que pide acción se distingue por COLOR DE TEXTO, no por un fondo: es un número, no
+     una alarma, y el naranja de marca ya está medido en los dos temas. */
+  .mov-cif-ojo b { color: var(--orange-legible); }
+  .mov-falta { margin: .45rem 0 0; font-size: .78rem; color: var(--text-soft); line-height: 1.45;
+               overflow-wrap: anywhere; }
+  .mov-falta b { color: var(--orange-legible); font-weight: 800; }
+  .mov-falta-ok { color: var(--text-muted); }
+  .mov-res { margin: .35rem 0 .2rem; font-size: .78rem; color: var(--text-soft);
+             font-variant-numeric: tabular-nums; }
+  .mov-nota { margin: .5rem 0 .35rem; font-size: .82rem; color: var(--text-soft); }
+  .mov-nota-sub { margin-top: -.15rem; font-size: .75rem; color: var(--text-muted); }
+  .mov-nota-err { color: var(--orange-legible); }
+  .mov-retry { margin-left: .3rem; min-height: 32px; border: 1.5px solid var(--orange);
+               background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs);
+               padding: .15rem .55rem; font-family: inherit; font-weight: 800; font-size: .74rem; cursor: pointer; }
+  .mov-list { list-style: none; margin: .35rem 0 0; padding: 0; }
+  /* Teléfono: DOS líneas por movimiento, no tres. Medido a 375 px: con `cuando | que` en la
+     primera fila del grid y `quien | emp` en la segunda, cada ítem ocupaba 66 px y diez de ellos
+     daban 777 px. Así «cuándo» y «qué» comparten la primera línea y «quién · empresa» la segunda:
+     ~44 px por ítem. */
+  .mov-it { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr);
+            gap: 0 .7rem; padding: .42rem 0; border-top: 1px solid var(--linea-2); }
+  /* ⚠️ `quien` y `emp` van JUNTOS en la segunda línea, dentro de `.mov-who`. Mi primera versión
+     les puso `grid-column: 1/-1` a cada uno por separado y cada uno se llevó su propia fila del
+     grid: tres líneas por ítem en vez de dos, 63 px medidos a 375 px. Con el envoltorio son dos. */
+  .mov-who { grid-column: 1 / -1; display: flex; gap: .45rem; align-items: baseline;
+             min-width: 0; flex-wrap: wrap; }
+  .mov-it:first-child { border-top: 0; }
+  /* `tabular-nums` para que las horas queden en columna: sin esto los dígitos bailan y la lista
+     se lee como texto en vez de como registro. */
+  .mov-cuando { font-size: .76rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
+                white-space: nowrap; }
+  .mov-cuando b { color: var(--text-soft); font-weight: 800; }
+  .mov-hora { opacity: .85; }
+  .mov-que { font-size: .82rem; font-weight: 700; color: var(--text); min-width: 0;
+             overflow-wrap: anywhere; }
+  /* Una prueba contestada es lo que el panel viene a mostrar; una acción del sistema es contexto.
+     El punto verde lo distingue sin agregar una columna ni un color nuevo. */
+  .mov-q-test::before { content: ''; display: inline-block; width: .4rem; height: .4rem;
+                        border-radius: 50%; background: var(--green); margin-right: .4rem;
+                        vertical-align: .1rem; }
+  .mov-quien { font-size: .8rem; color: var(--text-soft); min-width: 0; overflow-wrap: anywhere; }
+  .mov-quien i { color: var(--text-muted); font-style: italic; }
+  .mov-emp { font-size: .72rem; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
+  /* `dashVerMas` inserta un `<details>` como hermano de los `<li>`: se le da el mismo respiro que
+     una fila para que no quede pegado al último movimiento. */
+  .mov-list .ver-mas { border-top: 1px solid var(--linea-2); padding-top: .3rem; margin-top: .1rem; }
+  @media (min-width: 620px) {
+    .mov-it { grid-template-columns: 7.4rem minmax(9rem, auto) minmax(0, 1fr) auto;
+              align-items: baseline; gap: .7rem; }
+    /* ⚠️ `display: contents` DISUELVE el envoltorio: sus dos hijos pasan a ser ítems del grid de
+       `.mov-it` y las cuatro columnas vuelven a una sola línea. Sin esto, el ancho grande quedaría
+       peor que el chico — el envoltorio ocuparía una columna y los nombres se apilarían dentro. */
+    .mov-who { display: contents; }
+    .mov-emp { text-align: right; white-space: nowrap; }
+  }
+
   /* Barra de contexto (breadcrumb) */
   .dash-context { display: flex; align-items: center; gap: .5rem; margin-bottom: .9rem; flex-wrap: wrap; }
   /* 44 de alto · es un chip suelto en su fila, con `flex-wrap` en el contenedor: no reacomoda nada. */
@@ -7546,7 +7630,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '6.98';                 // ← Subí este número en cada actualización
+const APP_VERSION = '6.99';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9201,6 +9285,48 @@ const I18N = {
       flt_desde:'Desde', flt_hasta:'Hasta', flt_empresa:'Empresa', flt_departamento:'Departamento',
       flt_empleado:'Empleado', flt_nivel_riesgo:'Nivel de riesgo', flt_todas:'Todas', flt_todos:'Todos',
       dash_todas_empresas:'Todas las empresas', dash_ejemplo:'ejemplo',
+      /* ── P223 · Actividad reciente ──────────────────────────────────────────────────────
+         R1 · español NEUTRO: "toca", "tú", nunca voseo. R14 · nada de términos de sector:
+         "prueba", no "chequeo pre-vuelo" — el panel lo ven una empresa aérea y una planta. */
+      mov_titulo:'Actividad reciente',
+      /* La cobertura de la nómina, que hasta ahora SÓLO se veía en la vista de Dirección. */
+      mov_cob_t:'Tu gente',
+      mov_cob_nomina:'en la nómina',
+      mov_cob_medidos:'con pruebas',
+      mov_cob_faltan:'sin medir',
+      mov_cob_lista:'Todavía sin ninguna prueba:',
+      mov_cob_todos:'Todas las personas de la nómina tienen al menos una prueba.',
+      /* Cuando el conteo dice que faltan pero los nombres se recortaron (Dirección). */
+      mov_cob_n_sin_nombres:'{n} personas de la nómina todavía no tienen ninguna prueba. Los nombres no se muestran en esta vista.',
+      mov_cob_sin_nomina:'Esta empresa todavía no tiene una nómina cargada, así que no se puede saber a quién falta medir.',
+      mov_cob_error:'No se pudo leer la nómina, así que el conteo de abajo no es sobre el total de tu gente.',
+      mov_resumen_ultimo:'Último movimiento: {cuando}',
+      mov_resumen_total:'{n} en total',
+      mov_resumen_tests:'{n} pruebas contestadas',
+      mov_vacio:'Todavía no hay actividad registrada.',
+      mov_vacio_pista:'Cuando alguien contesta una prueba o se actualiza la nómina, aparece aquí.',
+      mov_vacio_emp:'{emp} todavía no registra actividad.',
+      mov_cargando:'Cargando la actividad…',
+      mov_error:'No se pudo leer la actividad.',
+      mov_reintentar:'Reintentar',
+      mov_hoy:'hoy',
+      mov_ayer:'ayer',
+      mov_sin_nombre:'una persona',
+      mov_ayuda:'Los últimos movimientos registrados, del más reciente al más antiguo, con su fecha y hora. Sirve para confirmar de un vistazo que la aplicación está recibiendo información. Si filtras por una empresa, la lista muestra solo esa empresa.',
+      mov_ayuda_fuente:'Se arma con dos cosas: las pruebas que contesta cada persona y las acciones que registra el sistema (nómina, claves, ciclos). La hora se muestra en la zona horaria de operación de la empresa.',
+      /* Las acciones, traducidas. La clave es `mov_a_` + el nombre técnico que guarda la
+         bitácora. Si aparece una acción que no está acá, `movQueTexto()` muestra el nombre
+         crudo legible en vez de la clave: la bitácora la escribe el endpoint y puede sumar
+         acciones nuevas sin que este listado se actualice. */
+      mov_a_test:'Prueba contestada',
+      mov_a_nomina_sync:'Nómina actualizada',
+      mov_a_credencial_creada:'Clave creada',
+      mov_a_credencial_creada_aviso:'Aviso de clave enviado',
+      mov_a_credencial_reiniciada:'Clave reiniciada',
+      mov_a_credencial_cambiada:'Clave cambiada',
+      mov_a_ciclo_detenido:'Ciclo detenido',
+      mov_a_caso_odoo:'Caso abierto',
+      mov_a_accesos_admin_set:'Permisos de acceso cambiados',
       dash_actualizado:'Actualizado {h}', dash_toca_actualizar:'toca ↻ para actualizar',
       rng_del_al:'del {a} al {b}', rng_desde:'desde {a}', rng_hasta:'hasta {a}',
       rng_elige:'elige un rango de fechas', rng_sin_reg:'sin registros en este período',
@@ -11337,6 +11463,40 @@ const I18N = {
       flt_desde:'From', flt_hasta:'To', flt_empresa:'Company', flt_departamento:'Department',
       flt_empleado:'Employee', flt_nivel_riesgo:'Risk level', flt_todas:'All', flt_todos:'All',
       dash_todas_empresas:'All companies', dash_ejemplo:'example',
+      /* ── P223 · Recent activity ─────────────────────────────────────────────────────── */
+      mov_titulo:'Recent activity',
+      mov_cob_t:'Your people',
+      mov_cob_nomina:'on the roster',
+      mov_cob_medidos:'with tests',
+      mov_cob_faltan:'not measured',
+      mov_cob_lista:'Still without any test:',
+      mov_cob_todos:'Everyone on the roster has at least one test.',
+      mov_cob_n_sin_nombres:'{n} people on the roster still have no tests. Names are not shown in this view.',
+      mov_cob_sin_nomina:'This company has no roster loaded yet, so there is no way to know who is missing.',
+      mov_cob_error:'The roster could not be read, so the count below is not against your full headcount.',
+      mov_resumen_ultimo:'Last activity: {cuando}',
+      mov_resumen_total:'{n} total',
+      mov_resumen_tests:'{n} tests completed',
+      mov_vacio:'No activity recorded yet.',
+      mov_vacio_pista:'When someone completes a test or the roster is updated, it shows up here.',
+      mov_vacio_emp:'{emp} has no recorded activity yet.',
+      mov_cargando:'Loading activity…',
+      mov_error:'Could not load activity.',
+      mov_reintentar:'Retry',
+      mov_hoy:'today',
+      mov_ayer:'yesterday',
+      mov_sin_nombre:'a person',
+      mov_ayuda:'The latest recorded events, newest first, with date and time. Use it to confirm at a glance that the app is receiving data. If you filter by company, the list shows only that company.',
+      mov_ayuda_fuente:'It combines two sources: the tests people complete and the actions the system records (roster, credentials, cycles). Times are shown in the company\'s operating time zone.',
+      mov_a_test:'Test completed',
+      mov_a_nomina_sync:'Roster updated',
+      mov_a_credencial_creada:'Credential created',
+      mov_a_credencial_creada_aviso:'Credential notice sent',
+      mov_a_credencial_reiniciada:'Credential reset',
+      mov_a_credencial_cambiada:'Credential changed',
+      mov_a_ciclo_detenido:'Cycle stopped',
+      mov_a_caso_odoo:'Case opened',
+      mov_a_accesos_admin_set:'Access permissions changed',
       dash_actualizado:'Updated {h}', dash_toca_actualizar:'tap ↻ to refresh',
       rng_del_al:'from {a} to {b}', rng_desde:'from {a}', rng_hasta:'up to {a}',
       rng_elige:'choose a date range', rng_sin_reg:'no records in this period',
@@ -21532,8 +21692,25 @@ function dashCamposDelServidor(d){
     visorError: d.visorError || null,
     cuentas: Array.isArray(d.cuentas) ? d.cuentas : null,
     zonaOp: d.zonaOp || null,
+    /* ⚠️ P223 · `demo` TIENE QUE VIAJAR A `DASH`, y que faltara es el defecto que R17 describe
+       con `duty` y `ausencias`: esta lista es EXPLÍCITA, así que un campo que el servidor manda y
+       nadie nombra acá se descarta en silencio. `demoNominaTotal(d)` lee `d.demo` del payload —el
+       dato existe— pero `DASH.demo` quedaba `undefined`, y con eso el panel de movimientos pedía
+       al servidor también en la demostración, donde no hay endpoint que responda esa acción: se
+       quedaba en «Cargando la actividad…» para siempre. Lo cazó `p197-demo-en.js`, que cuenta los
+       pedidos al cambiar de idioma y encontró el mío de más. */
+    demo: !!d.demo,
     nominaTotal: demoNominaTotal(d),
     nominaSinDato: demoNominaSinDato(d),
+    /* ⚠️ EL CONTEO, aparte de la lista. El servidor vacía `nominaSinDato` para Dirección por
+       privacidad, y una lista vacía NO significa «no falta nadie»: significa «no te la puedo dar».
+       Derivar la cobertura de su `.length` le afirmó a Dirección que toda la nómina estaba medida
+       (20/20/0 contra el 20/17/3 real, medido contra el CH). Quien cuente usa ESTE número.
+       El `??` no se usa a propósito: con un endpoint viejo que no manda el campo hay que caer a la
+       longitud de la lista, que es lo que había antes, no a 0 — que afirmaría «están todos». */
+    nominaSinDatoN: (typeof d.nominaSinDatoN === 'number')
+      ? d.nominaSinDatoN
+      : (Array.isArray(demoNominaSinDato(d)) ? demoNominaSinDato(d).length : 0),
     nominaError: d.nominaError || null
   };
 }
@@ -22815,7 +22992,17 @@ function renderDash(){
   // afuera de `seccionesOrdenadas` — no es una sección más: no tiene chip en la barra, no entra
   // al scrollspy y no compite con lo que el director sí necesita mirar hoy. Plegado por defecto.
   const queViene = (DASH.vista === 'hseq') ? renderHseqQueViene() : '';
-  body.innerHTML = demoDescBloque() + dashContext() + anotBloque + aviso + seccionesOrdenadas + queViene;
+  /* ⚠️ P223 · ARRIBA DE LAS ESTADÍSTICAS, que es donde Franco lo pidió, y DENTRO DE UN HUECO
+     PROPIO. El hueco no es cosmético: `actCargar()` responde asincrónico y repinta sólo
+     `#actHueco`. Sin él habría que llamar a `renderDash()` de nuevo al llegar la respuesta, y eso
+     rehace `dashBody` entero — se pierde el scroll y se cierran las secciones que la persona
+     tenía desplegadas mientras leía. */
+  body.innerHTML = demoDescBloque() + dashContext() +
+    '<div id="movHueco">' + movBloque() + '</div>' +
+    anotBloque + aviso + seccionesOrdenadas + queViene;
+  /* Después de pintar: si el alcance cambió (o nunca se cargó), se pide. `renderDash()` corre en
+     cada toque de filtro, así que esto NO puede disparar un fetch cada vez. */
+  movCargarSiHaceFalta();
   const rangoEl = document.getElementById('dashRango');
   if (rangoEl) rangoEl.innerHTML = dashContextRango();
   // El glosario explica los tests médicos: no va en la vista operativa del supervisor. Es un
@@ -23105,6 +23292,330 @@ function dashWireScrollspy(){
 // arriba del contenido (útil mientras se scrollea, para saber a quién se está mirando). El
 // período y el "viendo tal a tal fecha · N registros" son metadata de filtro pura: eso vive
 // DENTRO del desplegable "Menú y filtros" (ver dashContextRango), no acá.
+/* ── P223 · ACTIVIDAD RECIENTE ───────────────────────────────────────────────────────────────
+   Pedido de Franco (2026-10-04): un panel arriba de las estadísticas que diga qué pasó en la app,
+   con fecha y hora, **para saber si hubo actividad o no**. Su frase: «para solucionar y probar si
+   lo arreglamos». Es una herramienta de diagnóstico, y nació del incidente en que Rafael cargó
+   personas y el panel no mostraba nada.
+
+   ⚠️ R16 · `renderDash()` lo llama, y `renderDash()` está en el camino de arranque: todo acá es
+   **función declarada** (se iza entera) y el estado es un `var` SIN asignar, inicializado perezoso.
+   Un `var MOV = {...}` declarado después del arranque valdría `undefined` al arrancar, o peor,
+   pisaría lo que el arranque ya guardó. Eso mordió tres veces en este archivo.
+
+   ⚠️ LA HORA SALE EN LA ZONA DE OPERACIÓN, no en la del dispositivo ni en la del servidor. El
+   endpoint manda el `ts` en epoch justamente para que acá lo resuelvan `fechaOpDe`/`horaOpDe`, que
+   leen `zonaOperacion()` (hoy `America/Caracas` para todas). Si se formateara en el servidor, un
+   test de las 23:30 de Caracas se mostraría con la fecha del día siguiente — el desfase medido en
+   `INFORME_ZONA_2026-10-03.md`. */
+var MOV;
+function movEstado(){
+  if (!MOV) MOV = { estado:'', items:[], total:0, tests:0, ultima:0, alcance:null, err:'',
+                    pedido:'', alcanceVisto:'', intentos:0 };
+  return MOV;
+}
+/* El nombre legible de una acción. ⚠️ CON FALLBACK A PROPÓSITO: la bitácora la escribe el endpoint
+   y puede sumar acciones nuevas sin que las traducciones se actualicen — y según el CLAUDE.md otra
+   IA también escribe en el CH. Sin esto, el panel mostraría la CLAVE (`mov_a_lo_que_sea`), que es
+   peor que el nombre técnico. `t()` devuelve la clave cuando no la encuentra, así que eso es lo que
+   se detecta. */
+function movQueTexto(que){
+  const q = String(que || '').trim();
+  if (!q) return '—';
+  const clave = 'mov_a_' + q;
+  const txt = t(clave);
+  if (txt !== clave) return txt;
+  return q.replace(/[_-]+/g, ' ').replace(/^./, c => c.toUpperCase());
+}
+/* «hoy 15:58» · «ayer 17:39» · «1 oct 08:18». Lo relativo primero porque la pregunta que el panel
+   contesta es «¿hubo actividad?», y para eso «hoy» se lee más rápido que una fecha. */
+function movCuando(ts){
+  if (!ts) return { dia:'—', hora:'' };
+  const d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return { dia:'—', hora:'' };
+  const iso = fechaOpDe(d), hoy = todayStr();
+  let dia;
+  if (iso === hoy) dia = t('mov_hoy');
+  else if (iso === fechaMasDias(hoy, -1)) dia = t('mov_ayer');
+  else dia = dashFechaLinda(iso);
+  return { dia: dia, hora: horaOpDe(d) };
+}
+/* El rótulo del alcance: qué se está mirando. Sin esto, diez filas de una sola empresa parecen
+   «toda la actividad» cuando en realidad hay un filtro puesto. */
+/* El rótulo de alcance: qué se está mirando. Sin esto, diez filas de una sola empresa parecen
+   «toda la actividad» cuando en realidad hay un filtro puesto.
+   ⚠️ **TIENE QUE INCLUIR EL VISOR**, y la primera versión sólo miraba `DASH.f.emp`. El visor del
+   administrador no usa ese campo —vive en `DASH.visor.empresa` / `DASH.scope`— y `onDashData`
+   resetea `f.emp` a `''` en cada carga, así que el rótulo decía «Todas las empresas» antes y
+   después de entrar al visor. Y es peor que un rótulo equivocado: `movCargarSiHaceFalta` compara
+   ese mismo texto para decidir si vuelve a pedir, así que **no se pedía nada** y quedaban en
+   pantalla los 604 movimientos de todas las empresas, con nombre y apellido, debajo del
+   encabezado «HELITEC · Dirección». Medido por el verificador entrando y saliendo del visor: 0
+   pedidos nuevos. Justo la pantalla que se usa para comprobar la promesa de la lámina, mostrando
+   lo contrario de lo que el visor existe para mostrar.
+   Se reusa la derivación que el panel ya tiene en otros dos lugares (`DASH.f.emp ||
+   dashScopeVisible(DASH.scope)`) en vez de escribir una tercera: `DASH.scope` guarda SIEMPRE el
+   canónico y cambia al entrar al visor. */
+function movAlcanceTexto(){
+  const emp = (DASH && DASH.f && DASH.f.emp) || '';
+  if (emp) return emp;
+  try {
+    const sc = dashScopeVisible(DASH && DASH.scope);
+    if (sc) return sc;
+  } catch (e) {}
+  return t('dash_todas_empresas');
+}
+/* ── LA COBERTURA DE LA NÓMINA, ahora también para el administrador ──────────────────────────
+   ⚠️ ESTE BLOQUE EXISTE POR EL REPORTE DE RAFAEL, y es la segunda mitad de esa causa. La primera
+   fue el `|| []` que yo introduje en P214 y que dejaba `nominaTotal` en 0 y `nominaSinDato` vacío.
+   Arreglar eso hizo que el payload llegara bien — y **no alcanzó**, porque esos dos campos se
+   consumían ÚNICAMENTE en `renderHseqIdc`, que es de la vista `hseq`. El administrador entra con
+   vista `medico` (`onDashData(d, …, 'medico')  // admin = acceso total`) y `dashTabsFor` no le da
+   la pestaña `idc`: el dato viajaba en la respuesta y se tiraba. Rafael cargó personas en la
+   nómina, fue a buscarlas y no había dónde verlas, ni antes ni después del arreglo.
+   Es el modo de fallar que R17 nombra con `duty` y `ausencias`: el servidor manda y nadie consume.
+
+   ⚠️ MIDE OTRA COSA QUE LA DE DIRECCIÓN, y por eso el nombre lo dice. `renderHseqIdc` calcula la
+   cobertura del PERÍODO filtrado (su denominador sale de `aptGente(rows)`); esto cuenta «de mi
+   nómina, a quién no se midió NUNCA», que no depende de filtros de fecha. Son dos medidas y
+   presentarlas como una sería afirmar algo que no se midió (R2). */
+function movSinMedirNunca(){
+  const nom = Array.isArray(DASH && DASH.nominaSinDato) ? DASH.nominaSinDato : [];
+  /* Se descuentan los que hoy tienen una ausencia cargada: a esos tampoco les tocaba. Misma
+     regla que usa Dirección, con la misma función, para no tener dos criterios. */
+  try { return nom.filter(n => !ausenteHoy({ nombre: n })); } catch (e) { return nom.slice(0); }
+}
+function movCoberturaBloque(){
+  const total = Number(DASH && DASH.nominaTotal) || 0;
+  const err = (DASH && DASH.nominaError) ? String(DASH.nominaError) : '';
+  /* Sin nómina no hay nada que contar, y se dice: un bloque de ceros parecería que no hay gente. */
+  if (!total) {
+    return '<div class="mov-cob"><p class="mov-nota mov-nota-sub">' +
+      esc(err ? t('mov_cob_error') : t('mov_cob_sin_nomina')) + '</p></div>';
+  }
+  const faltan = movSinMedirNunca();
+  /* ⚠️ EL NÚMERO SALE DE `nominaSinDatoN`, NO DE LA LISTA, y esto es la corrección de un defecto
+     CRÍTICO que introduje yo. El servidor vacía `nominaSinDato` para Dirección por privacidad; con
+     `faltan.length` sobre esa lista recortada, el bloque le afirmaba «Todas las personas de la
+     nómina tienen al menos una prueba» cuando tres no se habían medido nunca. Medido contra el CH
+     real: 20/20/0 contra 20/17/3. Es R2 — la pantalla afirmando lo que no midió — y en la única
+     pantalla que contesta «¿a quién me falta medir?».
+     `renderHseqIdc`, el consumidor viejo del mismo dato, ya se cuidaba de esto: deriva la cobertura
+     de `registros` y usa la lista SÓLO para los nombres. Acá se hace lo mismo con el conteo que el
+     servidor ahora manda siempre. */
+  const nFaltan = Math.max(0, Number(DASH && DASH.nominaSinDatoN) || 0);
+  const medidos = Math.max(0, total - nFaltan);
+  /* Si el conteo dice que faltan y la lista está vacía, es que los nombres se recortaron: hay que
+     decir el número sin inventar la lista ni afirmar que están todos. */
+  const nombresRecortados = (nFaltan > 0 && faltan.length === 0);
+  /* ⚠️ EL ESPACIO NO ES COSMÉTICO. Sin él el `textContent` del grupo es «5en la nómina», que es
+     exactamente lo que un lector de pantalla pronuncia — y lo que hizo fallar mi propio caso, que
+     buscaba el número con `\b5\b` y no lo encontraba porque «5e» no tiene límite de palabra.
+     El `aria-label` da la frase completa y bien ordenada; el `aria-hidden` evita que además se
+     lean las dos partes por separado. */
+  const cif = (n, et, ojo) => '<span class="mov-cif' + (ojo ? ' mov-cif-ojo' : '') + '"' +
+    ' role="group" aria-label="' + esc(String(n) + ' ' + et) + '">' +
+    '<b aria-hidden="true">' + esc(String(n)) + '</b> ' +
+    '<small aria-hidden="true">' + esc(et) + '</small></span>';
+  /* Hasta seis nombres y después se resume: la lista completa está en la nómina, y un bloque de
+     veinte nombres deja de leerse. Mismo criterio que la línea equivalente de Dirección. */
+  const lista = faltan.length
+    ? '<p class="mov-falta"><b>' + esc(t('mov_cob_lista')) + '</b> ' +
+      esc(faltan.slice(0, 6).join(' · ') + (faltan.length > 6 ? ' …' : '')) + '</p>'
+    /* ⚠️ TRES CASOS, NO DOS. «Faltan 3 y no te digo quiénes» es distinto de «no falta nadie», y
+       confundirlos es el defecto crítico que este bloque tuvo el 2026-10-04. */
+    : (nombresRecortados
+      ? '<p class="mov-falta">' + esc(t('mov_cob_n_sin_nombres', { n: nFaltan })) + '</p>'
+      /* EL CASO BUENO TAMBIÉN SE DICE. Si no, «3 sin medir» y «0 sin medir» se ven igual: una
+         línea que falta no se distingue de un dato que no llegó. */
+      : '<p class="mov-falta mov-falta-ok">' + esc(t('mov_cob_todos')) + '</p>');
+  const aviso = err ? '<p class="mov-nota mov-nota-err">' + esc(t('mov_cob_error')) + '</p>' : '';
+  /* El título del bloque. La clave `mov_cob_t` estaba definida y sin usar — el verificador lo
+     marcó: una clave que existe porque el título estaba previsto y nunca se puso. */
+  return '<div class="mov-cob">' + aviso +
+    '<div class="mov-cob-t">' + esc(t('mov_cob_t')) + '</div>' +
+    '<div class="mov-cifras">' + cif(total, t('mov_cob_nomina')) +
+    cif(medidos, t('mov_cob_medidos')) + cif(faltan.length, t('mov_cob_faltan'), faltan.length > 0) +
+    '</div>' + lista + '</div>';
+}
+function movBloque(){
+  /* Sólo donde tiene sentido: el panel es de quien administra o supervisa. El empleado ve su
+     propia pantalla, no un registro de movimientos de otras personas. */
+  if (!DASH || DASH.rol === 'empleado') return '';
+  const A = movEstado();
+  const alc = esc(movAlcanceTexto());
+  /* ⚠️ `dashHelp()`, la función que YA existe para esto (R5: guía cerrada por defecto, con
+     `<details>` nativo y sin estado en JS). Mi primera versión llamó a un `guiaBloque(id, titulo,
+     html)` que **no existe en este archivo**: lo inventé. Un `grep` de la firma lo cazó antes de
+     correr nada, pero es el error que el CLAUDE.md nombra primero — nunca suponer una API. */
+  const ayuda = dashHelp('<p>' + esc(t('mov_ayuda')) + '</p><p>' + esc(t('mov_ayuda_fuente')) + '</p>');
+
+  let cuerpo;
+  if (A.estado === 'cargando' || A.estado === ''){
+    cuerpo = '<p class="mov-nota">' + esc(t('mov_cargando')) + '</p>';
+  } else if (A.estado === 'error'){
+    cuerpo = '<p class="mov-nota mov-nota-err">' + esc(t('mov_error')) +
+      ' <button type="button" class="mov-retry" onclick="movReintentar()">' + esc(t('mov_reintentar')) + '</button></p>';
+  } else if (!A.items.length){
+    /* ⚠️ EL VACÍO SE DICE, no se deja en blanco. Es la mitad del pedido: «que se sepa si hubo
+       actividad o no». Un panel vacío es indistinguible de un panel roto. */
+    const emp = (DASH && DASH.f && DASH.f.emp) || '';
+    cuerpo = '<p class="mov-nota">' + esc(emp ? t('mov_vacio_emp', { emp: emp }) : t('mov_vacio')) +
+             '</p><p class="mov-nota mov-nota-sub">' + esc(t('mov_vacio_pista')) + '</p>';
+  } else {
+    const sinFiltro = !((DASH && DASH.f && DASH.f.emp));
+    const filasArr = A.items.map(function(i){
+      const c = movCuando(i.ts);
+      const quien = i.persona ? esc(i.persona) : '<i>' + esc(t('mov_sin_nombre')) + '</i>';
+      /* La empresa sólo cuando se están mirando varias: con el filtro puesto repetirla 10 veces
+         es ruido, y el rótulo de arriba ya la dice. */
+      const emp = (sinFiltro && i.empresa) ? '<span class="mov-emp">' + esc(i.empresa) + '</span>' : '';
+      return '<li class="mov-it">' +
+        '<span class="mov-cuando"><b>' + esc(c.dia) + '</b> <span class="mov-hora">' + esc(c.hora) + '</span></span>' +
+        /* ⚠️ `mov-q-`, NO `act-q-`. La clase se ARMA por concatenación, así que no tiene punto
+           delante y el renombre masivo no la alcanzó: el CSS quedó en `.mov-q-test` y el HTML
+           seguía emitiendo `act-q-test`, o sea que el punto verde que distingue una prueba
+           contestada de una acción del sistema **no se aplicaba**. Y mi auditoría visual no lo
+           cazó porque la corrí ANTES del renombre, cuando todavía funcionaba. */
+        '<span class="mov-que mov-q-' + esc(i.tipo === 'test' ? 'test' : 'sys') + '">' + esc(movQueTexto(i.que)) + '</span>' +
+        '<span class="mov-who">' + '<span class="mov-quien">' + quien + '</span>' + emp + '</span></li>';
+    });
+    /* ⚠️ CINCO VISIBLES Y EL RESTO DETRÁS DE «Ver más», medido y no estimado: con los diez
+       abiertos la sección medía **777 px a 375 px de ancho** — casi la pantalla completa de un
+       teléfono (812 px) — y se convertía en una pared antes de las estadísticas, justo lo que
+       Franco pidió evitar («sin ocupar mucho»). Con cinco baja a ~400 px y los otros cinco quedan
+       a un toque. Se usa `dashVerMas()`, que ya es el patrón del repo para esto: así no hace falta
+       una media query en JS, que no reacciona al rotar el teléfono. */
+    cuerpo = '<ol class="mov-list">' + dashVerMas(filasArr, 5) + '</ol>';
+  }
+
+  /* El resumen va SIEMPRE que haya datos: es lo que se lee de un vistazo. */
+  let resumen = '';
+  if (A.estado === 'listo' && A.items.length){
+    const c = movCuando(A.ultima);
+    const partes = [ t('mov_resumen_ultimo', { cuando: c.dia + ' ' + c.hora }),
+                     t('mov_resumen_tests', { n: A.tests }),
+                     t('mov_resumen_total', { n: A.total }) ];
+    resumen = '<p class="mov-res">' + esc(partes.join(' · ')) + '</p>';
+  }
+  const avisoErr = (A.estado === 'listo' && A.err)
+    ? '<p class="mov-nota mov-nota-err">' + esc(A.err) + '</p>' : '';
+
+  /* La cobertura va PRIMERO: «¿a quién me falta medir?» es más urgente que «qué pasó», y es lo
+     que Rafael fue a buscar. */
+  return '<section class="mov" aria-labelledby="movTit">' +
+    '<div class="mov-h"><h3 id="movTit" class="mov-t">' + esc(t('mov_titulo')) + '</h3>' +
+    '<span class="mov-scope" title="' + alc + '">' + alc + '</span>' + ayuda + '</div>' +
+    movCoberturaBloque() + resumen + avisoErr + cuerpo + '</section>';
+}
+/* Pide la actividad y repinta. ⚠️ El `pedido` evita que dos cargas en vuelo se pisen: con el
+   filtro de empresa se dispara una por cada cambio, y la respuesta lenta de la anterior llegaba
+   DESPUÉS y sobrescribía la nueva — la lista mostraba la empresa que ya no estaba seleccionada. */
+/* Los movimientos de la DEMOSTRACIÓN, armados de los registros que la demo ya trajo. Mismo patrón
+   que `demoNominaTotal`/`demoNominaSinDato`: si mañana la demo trae datos de alguien más, esto se
+   corrige solo.
+   ⚠️ POR QUÉ EXISTE, y lo encontró la suite: `movCargar()` llamaba a `dashRequest` también en la
+   demostración, donde no hay endpoint que responda esa acción — el panel habría quedado en
+   «Cargando la actividad…» para siempre. Y de paso rompía `p197-demo-en.js`, que cuenta los
+   pedidos al cambiar de idioma y encontraba el mío de más. Un pedido que no puede resolverse es
+   peor que no pedir.
+   ⚠️ El `ts` sale de la FECHA del registro, que en la demo no trae hora: queda al mediodía, igual
+   que `aptFechaMsServer`. En la demostración eso alcanza — lo que se muestra es la forma del
+   panel, no una hora real. */
+function movDemoItems(){
+  try {
+    const regs = (DASH && Array.isArray(DASH.registros)) ? DASH.registros : [];
+    return regs.filter(r => r && r.persona && r.fecha)
+      .map(r => ({ ts: aptFechaMs(r.fecha), tipo: 'test', que: 'test',
+                   persona: r.persona, empresa: r.empresa || '', dep: r.departamento || '' }))
+      .filter(x => x.ts > 0)
+      .sort((a, b) => b.ts - a.ts);
+  } catch (e) { return []; }
+}
+function movCargar(){
+  if (!DASH || DASH.rol === 'empleado') return;
+  const A = movEstado();
+  /* La demostración se resuelve LOCAL y no toca la red. */
+  if (DASH.demo) {
+    const demo = movDemoItems();
+    A.items = demo.slice(0, 10); A.total = demo.length; A.tests = demo.length;
+    A.ultima = demo.length ? demo[0].ts : 0; A.alcance = null; A.err = '';
+    A.estado = 'listo'; movRepintar(); return;
+  }
+  const mio = String(Date.now()) + ':' + movAlcanceTexto();
+  A.pedido = mio;
+  A.estado = 'cargando';
+  movRepintar();
+  dashRequest(dashAuth({ action:'actividad', n:'10' })).then(function(d){
+    if (A.pedido !== mio) return;                       // llegó tarde: la manda la carga nueva
+    if (!d || d.ok !== true){ A.estado = 'error'; A.items = []; movRepintar(); return; }
+    A.items = Array.isArray(d.items) ? d.items : [];
+    A.total = Number(d.total) || 0;
+    A.tests = Number(d.tests) || 0;
+    A.ultima = Number(d.ultima) || 0;
+    A.alcance = (d.alcance === null) ? null : d.alcance;
+    A.err = d.error ? String(d.error) : '';
+    A.estado = 'listo';
+    movRepintar();
+  }).catch(function(){
+    if (A.pedido !== mio) return;
+    A.estado = 'error'; A.items = []; movRepintar();
+  });
+}
+/* Repinta SOLO esta sección, no el panel entero: `renderDash()` rehace `dashBody` desde cero y
+   perdería el scroll y las secciones desplegadas de quien está leyendo. */
+/* Pide la actividad SÓLO si hace falta: la primera vez, o cuando el alcance cambió. `renderDash()`
+   corre en cada toque de filtro —período, departamento, persona— y ninguno de esos cambia lo que
+   este panel muestra: el único que importa es la EMPRESA, que es lo que define el alcance del
+   lado del servidor. Sin esta guarda, mover el selector de período dispararía un pedido al
+   endpoint por cada clic. */
+function movCargarSiHaceFalta(){
+  if (!DASH || DASH.rol === 'empleado') return;
+  const A = movEstado();
+  /* ⚠️ LA CLAVE INCLUYE LA VISTA, no sólo la empresa: el servidor recorta los NOMBRES por vista
+     (`sinNombres` para Dirección), así que entrar al visor de Dirección sobre la misma empresa
+     cambia lo que hay que mostrar aunque el alcance sea idéntico. */
+  const alc = movAlcanceTexto() + '|' + ((DASH && DASH.vista) || '');
+  if ((A.estado === 'listo' || A.estado === 'cargando') && A.alcanceVisto === alc) return;
+  /* ⚠️ Y EL ERROR TIENE FRENO. Las dos guardas de arriba cubrían `listo` y `cargando` y ninguna
+     cubría `error`: con el endpoint fallando, **cada** `renderDash()` lanzaba otro POST — medido,
+     6 renders = 6 pedidos. Y no es un pedido barato: lee las 466×130 celdas del formulario más la
+     bitácora entera. Pasa de verdad si se publica la app antes del `.gs`, que es el orden
+     equivocado pero posible. Dos intentos automáticos por alcance y después sólo el botón
+     «Reintentar», que es lo que las otras cinco colas de la app ya hacen con `COLA_MAX_INTENTOS`. */
+  if (A.estado === 'error' && A.alcanceVisto === alc) {
+    if ((A.intentos || 0) >= 2) return;
+    A.intentos = (A.intentos || 0) + 1;
+  } else {
+    A.intentos = 0;
+  }
+  A.alcanceVisto = alc;
+  movCargar();
+}
+/* La puerta del botón «Reintentar»: reinicia el freno porque la persona lo pidió.
+   ⚠️ ESTE RESETEO ESTABA DENTRO DE `movCargar()` Y ANULABA EL FRENO. `movCargarSiHaceFalta`
+   incrementaba `intentos` y acto seguido llamaba a `movCargar`, que lo volvía a 0: el contador
+   nunca pasaba de 1 y seguían saliendo pedidos en cada render. Medido con el arnés del verificador:
+   6 renders → 6 pedidos, igual que antes del arreglo. El arreglo del hallazgo también falla. */
+function movReintentar(){
+  const A = movEstado();
+  A.intentos = 0;
+  A.alcanceVisto = '';   // que la guarda no lo corte por «mismo alcance»
+  movCargar();
+}
+function movRepintar(){
+  const el = document.getElementById('movHueco');
+  if (!el) return;
+  /* ⚠️ CONSERVAR EL SCROLL, y esto lo cazó `p049-render-unico.js`. Este bloque se puebla
+     ASINCRÓNICAMENTE —primero «Cargando la actividad…» (84 px) y después la lista (369 px)— y está
+     ARRIBA de todo el panel: al crecer empuja el contenido y le mueve el renglón a quien estaba
+     leyendo. Medido por el caso: el scroll pasaba de 380 a 410.
+     Mismo patrón que el repo ya usa en `dashRepintar` y en los dos repintados de ciclo: leer
+     `scrollTop`, repintar, devolverlo. */
+  const sc = document.getElementById('dashScroll'), y = sc ? sc.scrollTop : 0;
+  el.innerHTML = movBloque();
+  if (sc && y) sc.scrollTop = y;
+}
 function dashContext(){
   let chips = '';
   if (DASH.rol !== 'empleado' && DASH.f.emp) chips += '<span class="ctx-chip">' + esc(DASH.f.emp) + ' <b onclick="dashClear(\'emp\')">×</b></span>';
