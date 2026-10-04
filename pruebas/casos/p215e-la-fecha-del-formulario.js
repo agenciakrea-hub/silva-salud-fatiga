@@ -1,134 +1,137 @@
-/* ── La fecha del formulario · `normFecha` y el orden de los tests ──────────────────────────────
-   (2026-10-03)
+/* ── `normFecha` y el TIPO de la celda de fecha ─────────────────────────────────────────────────
+   (2026-10-03 · reescrito el mismo día, porque la primera versión medía el tipo equivocado)
 
-   NACE DEL INCIDENTE «cargaron información de hoy y no se ve». Encontrado a la tercera revisión,
-   después de dos diagnósticos parciales.
+   ⚠️ ESTE ARCHIVO EXISTE POR UN DIAGNÓSTICO FALSO MÍO, y lo cuenta entero porque la trampa se
+   repite.
 
-   El formulario escribe la fecha en el formato largo de JavaScript —`"Sat Oct 03 2026 10:16:12
-   GMT-0300 (hora estándar de Argentina)"`— y `normFecha` no lo reconocía: sus ramas cubren objetos
-   `Date`, números de serie de Sheets y cadenas con `/ - .`. Devolvía **la cadena cruda**. De ahí
-   salían dos daños:
+   LO QUE CREÍ: que el formulario escribía la fecha como TEXTO —`"Sat Oct 03 2026 10:16:12 GMT-0300
+   (…)"`—, que `normFecha` la devolvía cruda, y que de ahí el orden por cadena de `aptAutoServer`
+   dejaba el «último test» equivocado en 32 de 39 personas. Escribí que afectaba al 91 % de los
+   registros y publiqué el arreglo con esos números.
 
-   1 · `aptAutoServer` ordena los tests con `(a.fecha < b.fecha) ? 1 : -1` — comparación de
-       CADENAS. Sobre `"yyyy-MM-dd"` es correcta; sobre esta forma ordena **alfabéticamente por el
-       día de la semana**: `Wed` > `Tue` > `Thu` > `Sun` > `Sat` > `Mon` > `Fri`. Medido contra el
-       CH real: **32 de 39 personas (82%)** tenían el «último test» equivocado, y con él su
-       aptitud. Rafael Silva mostraba el del 12 de agosto cuando el último era del 25 de septiembre.
-   2 · `aptDiasDesdeServer` devolvía `null`, así que `viejo = (dias != null && dias > 7)` era
-       **siempre false**: nadie se marcaba como «medición vencida». Había personas con 37 y con 106
-       días sin medir que el panel no señalaba.
+   LO QUE ES: **en producción esa celda es un objeto `Date` de Sheets**, así que la PRIMERA línea de
+   `normFecha` (`if (v instanceof Date)`) ya la resolvía. El defecto no existía: medido por el
+   verificador en las 8 empresas y 73 personas, **0 diferencias**.
 
-   ⚠️ ALCANCE: **411 de 452 registros (91%)** llegaban sin normalizar — 103 de 103 en Aeroambulancias
-   Silva, 253 de 253 en Empresa Demo, 6 de 12 en Consorcio HELITEC.
+   DE DÓNDE SALIÓ EL ERROR: alimenté el emulador con la salida de `tarea=volcar`, que hace
+   `String(celda)`. Un `Date` sale como esa misma cadena larga y **se ve idéntico a un texto**. El
+   instrumento borró el tipo y después medí el efecto de su propio borrado.
 
-   ⚠️ Y EL ESCRITOR NO ES NUESTRO ENDPOINT. La app no manda fecha en los tests; la escribe el
-   proyecto Apps Script que recibe cada uno (`SHEETS_ESTRES_URL`, `SHEETS_DEPRESION_URL`), que son
-   proyectos distintos. Por eso el arreglo va en la LECTURA: es reversible y cubre lo ya escrito.
+   CÓMO SE COMPRUEBA EL TIPO, y es barato: los `IdCaso` que `cronCasosOdoo` grabó en `Casos Odoo`
+   con el código ANTERIOR dicen `caso_carlos mendez_2026-07-16`. Ese id se arma con `r0.fecha`, o sea
+   con la salida de `normFecha`: si la celda hubiera sido texto diría
+   `caso_carlos mendez_Wed Jun 17 2026 13:18:00 GMT-0300 (…)`. Nueve de nueve coinciden con `Date`.
+   **La planilla guarda la prueba de lo que el código leyó.**
 
-   ⚠️ R19 · cada derecho que se afirma acá nombra la función que lo concede. */
+   QUÉ SE PRUEBA ACÁ, entonces:
+   1 · que el camino REAL (celda `Date`) funciona, y que la línea que lo hace funcionar es la
+       primera — con su propio mutante, porque la primera versión de este archivo no la tocaba y
+       habría quedado verde con esa línea borrada.
+   2 · que la rama de texto es defensa útil: dos de las cinco hojas con fecha llegan como texto, la
+       hoja la editan personas y según el CLAUDE.md también escribe otra IA.
+   3 · las dos guardas de esa rama, que la primera versión no tenía.
 
-PRUEBAS.grupo('la fecha del formulario · normFecha y el orden de los tests');
+   ⚠️ R17 · el caso entra por `parseRegistros` con el tipo que produce la hoja, no con el que a mí
+   me resulta cómodo. R19 · cada derecho nombra la función que lo concede. */
 
-/* ⚠️ LOS FORMATOS REALES, copiados del CH. El primero es el que el formulario escribe hoy; el
-   segundo es el de las filas de 2022, que `normFecha` siempre entendió. R17. */
-const P215E_JS  = 'Sat Oct 03 2026 10:16:12 GMT-0300 (hora estándar de Argentina)';
-const P215E_JS2 = 'Thu Sep 24 2026 17:20:12 GMT-0300 (hora estándar de Argentina)';
-const P215E_JS3 = 'Wed Sep 30 2026 12:24:28 GMT-0300 (hora estándar de Argentina)';
+PRUEBAS.grupo('normFecha · el tipo de la celda de fecha');
 
-PRUEBAS.caso('🔴 `normFecha` entiende el formato largo de JavaScript', () => {
+/* la forma que `volcar` produce al convertir un `Date` con `String()` — y que yo confundí con el
+   contenido real de la celda */
+const P215E_TXT = 'Sat Oct 03 2026 10:16:12 GMT-0300 (hora estándar de Argentina)';
+
+/* ⚠️ 130 columnas y DOS filas de encabezado, como la hoja real; `parseRegistros` arranca en r=2 y
+   lee por índices fijos (1 nombre, 2 departamento, 72 empresa, 73 fecha, 86 KSS). */
+function p215eHoja(valorFecha, kss) {
+  const cab = new Array(130).fill(''); cab[1] = 'Nombre'; cab[72] = 'Empresa'; cab[73] = 'Fecha';
+  const f = new Array(130).fill('');
+  f[1] = 'ANA PRUEBA'; f[2] = 'Operaciones'; f[72] = 'Alfa'; f[73] = valorFecha; f[86] = String(kss);
+  return [cab, cab.slice(), f];
+}
+const P215E_SES = ['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical',
+  'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada'];
+
+PRUEBAS.caso('🔴 el camino REAL: la celda es un `Date` y la resuelve la PRIMERA línea de `normFecha`', () => {
   /* EL DERECHO: la forma canónica de una fecha la fija `normFecha`, y todo el servidor la consume
      como `"yyyy-MM-dd"` — `aptFechaMsServer` la parsea así y `aptAutoServer` la ordena como cadena
-     contando con eso. Una fecha que no pase por `normFecha` rompe las dos cosas a la vez. */
+     contando con eso. Lo que garantiza que la fecha del formulario llegue en esa forma es
+     `if (v instanceof Date)`, la primera línea: Sheets entrega esa celda como objeto.
+     ⚠️ Se entra por `parseRegistros` con un `Date` en la celda, que es lo que la hoja produce. La
+     primera versión de este caso pasaba una CADENA y por eso bendecía un defecto inexistente. */
   if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
-  const env = GS.crearEntorno({
-    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical',
-      'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
-  });
-  const api = GS.cargarGs(CTX.gs, env, ['normFecha', 'aptDiasDesdeServer']);
+  const fecha = new Date(2026, 9, 3, 10, 16, 12);   // 3 de octubre de 2026
+  const env = GS.crearEntorno({ 'Respuestas de formulario 1': p215eHoja(fecha, 5), 'Sesiones': [P215E_SES] });
+  const api = GS.cargarGs(CTX.gs, env, ['parseRegistros', 'normFecha', 'aptDiasDesdeServer']);
 
-  /* LO QUE TIENE QUE CAMBIAR */
-  PRUEBAS.igual(api.normFecha(P215E_JS), '2026-10-03',
-    '🔴 la cadena larga de JS se normaliza a `yyyy-MM-dd`: antes volvía CRUDA');
-  PRUEBAS.cierto(api.aptDiasDesdeServer(api.normFecha(P215E_JS)) !== null,
-    '🔴 y ahora se le pueden contar los días: antes daba `null` y nadie se marcaba como vencido');
+  PRUEBAS.cierto(env.__libro.getSheetByName('Respuestas de formulario 1')
+    .getDataRange().getValues()[2][73] instanceof Date,
+    'guarda: la celda del fixture ES un objeto Date, como en producción');
 
-  /* LO QUE NO PUEDE CAMBIAR · los formatos que ya funcionaban */
-  PRUEBAS.igual(api.normFecha('03/10/2026'), '2026-10-03', '🔴 NO PUEDE CAMBIAR · `dd/mm/yyyy`');
+  const regs = api.parseRegistros(env.__libro.getSheetByName('Respuestas de formulario 1').getDataRange().getValues());
+  PRUEBAS.igual(regs.length, 1, 'guarda: `parseRegistros` acepta la fila');
+  /* LO QUE TIENE QUE CAMBIAR si alguien borra la primera línea */
+  PRUEBAS.igual(regs[0].fecha, '2026-10-03',
+    '🔴 la fecha llega normalizada a `yyyy-MM-dd` por el camino real');
+  PRUEBAS.igual(api.aptDiasDesdeServer(regs[0].fecha), 0,
+    '🔴 y se le pueden contar los días: 0, porque es de hoy en el fixture… (ver abajo)');
+});
+
+PRUEBAS.caso('🔴 la rama de TEXTO es defensa: si alguien pega la fecha como cadena, también se normaliza', () => {
+  /* EL DERECHO: lo concede la rama `/^\w{3} (\w{3}) (\d{1,2}) (\d{4})/` de `normFecha`.
+     ⚠️ NO CIERRA NINGÚN DEFECTO VIVO: en producción esa celda es un `Date` y esta rama es código
+     muerto para la hoja del formulario. Se prueba porque dos de las cinco hojas con fecha llegan
+     como texto, la hoja la editan personas, y el día que alguien pegue un valor —o que uno de los
+     proyectos escritores (`SHEETS_ESTRES_URL`, `SHEETS_DEPRESION_URL`) cambie— esto es lo que evita
+     que la fecha vuelva cruda y el orden por cadena se rompa. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({ 'Respuestas de formulario 1': p215eHoja(P215E_TXT, 5), 'Sesiones': [P215E_SES] });
+  const api = GS.cargarGs(CTX.gs, env, ['parseRegistros', 'normFecha']);
+  const v = env.__libro.getSheetByName('Respuestas de formulario 1').getDataRange().getValues();
+  PRUEBAS.igual(typeof v[2][73], 'string', 'guarda: acá la celda ES texto, no un Date');
+
+  PRUEBAS.igual(api.parseRegistros(v)[0].fecha, '2026-10-03',
+    '🔴 la cadena larga también se normaliza: antes volvía cruda y rompía el orden por cadena');
+  /* LO QUE NO PUEDE CAMBIAR · los formatos que ya funcionaban, por sus propias ramas */
+  PRUEBAS.igual(api.normFecha('03/10/2026'), '2026-10-03', '🔴 NO PUEDE CAMBIAR · `dd/mm/yyyy` (las filas de 2022)');
   PRUEBAS.igual(api.normFecha('2026-10-03'), '2026-10-03', '🔴 NO PUEDE CAMBIAR · ISO');
+  PRUEBAS.igual(api.normFecha('46298'), '2026-10-03', '🔴 NO PUEDE CAMBIAR · el serial de Sheets');
   PRUEBAS.igual(api.normFecha(''), '', '🔴 NO PUEDE CAMBIAR · la vacía sigue vacía');
-  PRUEBAS.igual(api.normFecha('no es una fecha'), 'no es una fecha',
-    '🔴 NO PUEDE CAMBIAR · lo que no es fecha se devuelve tal cual, sin inventar un día');
-  /* ⚠️ EL BORDE QUE PROTEGE EL `isNaN`, y mi primera versión no lo medía: una cadena que SÍ matchea
-     el regex (`\w{3} \w{3} \d{1,2} \d{4}`) pero que `new Date()` no puede parsear. Sin el `isNaN`,
-     `Utilities.formatDate` recibiría un `Invalid Date` — y una fecha inventada es peor que una
-     fecha cruda, porque la cruda al menos se nota. El mutante que le saca el `isNaN` pasaba en
-     verde hasta que agregué esto. */
+});
+
+PRUEBAS.caso('🔴 las dos guardas: ni rollover ni abreviaturas en español inventan una fecha', () => {
+  /* EL DERECHO, o más bien el freno: lo impone la validación del día contra el largo del mes y la
+     tabla `MESES_JS_` dentro de `normFecha`. Las dos las encontró el verificador sobre la primera
+     versión de esta rama, que no las tenía.
+     · `new Date()` HACE ROLLOVER: `"Mie Feb 30 2026"` salía `2026-03-02`. Una fecha inventada es
+       peor que una cruda, porque la cruda se nota en pantalla.
+     · V8 LEE LAS ABREVIATURAS EN INGLÉS: `"Mar Ene 05 2026"` salía `2026-03-05` — toma `Mar` como
+       marzo e ignora `Ene`. Y los usuarios son de Venezuela (R14), así que una fecha abreviada en
+       español es realista, no un caso de laboratorio.
+     ⚠️ Y MI PRIMER INTENTO DE GUARDA NO FUNCIONABA: comparé la salida contra
+     `Date.parse(elPedido)`, y `Date.parse("2026-02-30")` **también rueda** a marzo, así que la
+     diferencia daba cero y el rollover pasaba igual. Medir el rollover con la misma función que
+     rueda no distingue nada. Ahora el día se valida con aritmética, antes de tocar `Date`. */
+  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
+  const env = GS.crearEntorno({ 'Sesiones': [P215E_SES] });
+  const api = GS.cargarGs(CTX.gs, env, ['normFecha']);
+
+  /* LO QUE TIENE QUE CAMBIAR · las tres vuelven crudas, no inventadas */
+  PRUEBAS.igual(api.normFecha('Mie Feb 30 2026'), 'Mie Feb 30 2026',
+    '🔴 ROLLOVER · «Feb 30» no existe: vuelve cruda, no sale `2026-03-02`');
+  PRUEBAS.igual(api.normFecha('Sat Feb 30 2026 10:00:00 GMT-0300'), 'Sat Feb 30 2026 10:00:00 GMT-0300',
+    '🔴 ROLLOVER · con hora, lo mismo');
+  PRUEBAS.igual(api.normFecha('Mar Ene 05 2026'), 'Mar Ene 05 2026',
+    '🔴 ESPAÑOL · «Ene» no se lee como marzo: vuelve cruda');
+  /* y el 29 de febrero, que SÍ existe en año bisiesto: la guarda no puede ser más estricta que el calendario */
+  PRUEBAS.igual(api.normFecha('Sat Feb 29 2024 10:00:00 GMT-0300'), '2024-02-29',
+    '🔴 NO PUEDE CAMBIAR · el 29 de febrero de un año bisiesto SÍ se acepta');
+  PRUEBAS.igual(api.normFecha('Thu Feb 29 2026 10:00:00 GMT-0300'), 'Thu Feb 29 2026 10:00:00 GMT-0300',
+    '🔴 y el 29 de febrero de un año NO bisiesto vuelve crudo');
+  /* LO QUE NO PUEDE CAMBIAR · lo que ya volvía crudo sigue volviendo crudo */
+  PRUEBAS.igual(api.normFecha('Sat Zzz 03 2026 10:00:00 GMT-0300'), 'Sat Zzz 03 2026 10:00:00 GMT-0300',
+    '🔴 NO PUEDE CAMBIAR · un mes impronunciable');
   PRUEBAS.igual(api.normFecha('Xyz Qrs 99 2026'), 'Xyz Qrs 99 2026',
-    '🔴 NO PUEDE CAMBIAR · una cadena con la FORMA de fecha pero inválida vuelve cruda, no inventada');
-});
-
-PRUEBAS.caso('🔴 el ORDEN de los tests es por fecha real, no alfabético por día de la semana', () => {
-  /* EL DERECHO: cuál es «el último test» de una persona lo decide `aptAutoServer`, que ordena
-     `regs` y toma `rs[0]`. De ahí salen `ultimaFecha`, `dias`, las métricas que el panel muestra y
-     el estado automático. Su orden es una comparación de CADENAS, y eso es correcto **sólo si**
-     todas las fechas pasaron por `normFecha` — que es justo lo que no pasaba.
-     ⚠️ Se mide por `aptAutoServer`, no comparando cadenas a mano: el defecto era que la función
-     real recibía fechas que no venían de `normFecha`. */
-  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
-  const env = GS.crearEntorno({
-    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical',
-      'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
-  });
-  const api = GS.cargarGs(CTX.gs, env, ['normFecha', 'aptAutoServer']);
-
-  /* los tres tests de una persona, con las fechas pasadas por `normFecha` como hace `parseRegistros` */
-  const reg = (f, kss) => ({ persona: 'ANA', fecha: api.normFecha(f), kss: kss,
-    estres: null, ansiedad: null, gastro: null, depresion: null, cansancio: null, fatiga: null });
-  /* ⚠️ EL ORDEN DE ENTRADA ES EL DE LA HOJA (viejo → nuevo), que es como llegan de
-     `parseRegistros`. Si el caso los pasara ya ordenados, no mediría el orden. */
-  const regs = [reg(P215E_JS2, 3), reg(P215E_JS3, 5), reg(P215E_JS, 9)];
-
-  PRUEBAS.igual(regs[0].fecha, '2026-09-24', 'guarda: el primero de la hoja es el del 24 de septiembre');
-  PRUEBAS.igual(regs[2].fecha, '2026-10-03', 'guarda: y el último, el de hoy');
-  /* ⚠️ Y la guarda que importa: sin normalizar, el orden por cadena los pone al revés. Es el
-     escenario exacto del defecto, y si algún día `normFecha` deja de convertir, esto lo delata. */
-  const crudas = [P215E_JS2, P215E_JS3, P215E_JS].slice().sort((a, b) => (a < b) ? 1 : -1);
-  PRUEBAS.igual(crudas[0].slice(0, 15), 'Wed Sep 30 2026',
-    'guarda: SIN normalizar, el orden alfabético pone primero al del 30 de septiembre');
-
-  const a = api.aptAutoServer('ANA', regs, [], 3, null, null);
-  /* LO QUE TIENE QUE CAMBIAR */
-  PRUEBAS.igual(a.ultimaFecha, '2026-10-03',
-    '🔴 `aptAutoServer` toma el test de HOY como el último, no el del 30 de septiembre');
-  PRUEBAS.igual(a.dias, 0, '🔴 y cuenta 0 días: antes `dias` venía en `null`');
-  PRUEBAS.falso(a.viejo, '🔴 y no lo marca como viejo, porque es de hoy');
-});
-
-PRUEBAS.caso('🔴 una medición VIEJA sí se marca como vieja', () => {
-  /* EL DERECHO: `viejo` lo decide `aptAutoServer` con `dias > APT_DIAS_FRESCO_GS` (7).
-     ⚠️ Esta es la otra mitad, y es la que estaba rota en silencio: con `dias` en `null`, la
-     expresión `(dias != null && dias > 7)` era SIEMPRE false, así que el panel no marcaba a nadie.
-     Medido contra el CH real: había una persona con 106 días sin medir y otra con 37, y ninguna
-     aparecía señalada. Un indicador que nunca se enciende se ve igual que «todos al día». */
-  if (!CTX.hayGs) { PRUEBAS.cierto(false, '🔴 no está levantado `servir-gs.py`'); return; }
-  const env = GS.crearEntorno({
-    'Sesiones': [['Id', 'HashToken', 'Usuario', 'Dispositivo', 'Rol', 'Vista', 'Empresas', 'Canonical',
-      'Combinada', 'Creada', 'UltimoUso', 'Estado', 'Cerrada']]
-  });
-  const api = GS.cargarGs(CTX.gs, env, ['normFecha', 'aptAutoServer']);
-  /* una fecha de hace 40 días, construida desde hoy para que el caso no caduque */
-  const d = new Date(Date.now() - 40 * 86400000);
-  const DIAS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const z = n => String(n).padStart(2, '0');
-  const larga = DIAS[d.getDay()] + ' ' + MES[d.getMonth()] + ' ' + z(d.getDate()) + ' ' + d.getFullYear()
-    + ' 10:00:00 GMT-0300 (hora estándar de Argentina)';
-
-  PRUEBAS.cierto(/^\d{4}-\d{2}-\d{2}$/.test(api.normFecha(larga)),
-    'guarda: la fecha de hace 40 días, en formato largo, se normaliza');
-  const a = api.aptAutoServer('ANA', [{ persona: 'ANA', fecha: api.normFecha(larga), kss: 3,
-    estres: null, ansiedad: null, gastro: null, depresion: null, cansancio: null, fatiga: null }], [], 3, null, null);
-  /* LO QUE TIENE QUE CAMBIAR */
-  PRUEBAS.alMenos(a.dias, 39, '🔴 cuenta ~40 días: antes `dias` era `null`');
-  PRUEBAS.cierto(a.viejo === true,
-    '🔴 y la marca como VIEJA: con `dias` en null, `viejo` era siempre false y nadie se señalaba');
+    '🔴 NO PUEDE CAMBIAR · basura con la forma de fecha');
+  PRUEBAS.igual(api.normFecha('no es una fecha'), 'no es una fecha',
+    '🔴 NO PUEDE CAMBIAR · texto libre');
 });
