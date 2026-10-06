@@ -3194,13 +3194,28 @@ PRUEBAS.caso('🔴 R13-1 · ningún motivo puede caer en el texto de respaldo, q
   const cuerpoTexto  = gs.slice(gs.indexOf('function opErrorNoVigente_'));
   const sinComentarios = t => t.replace(/\/\*[\s\S]*?\*\//g, '')
                                .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
-  /* ⚠️ el extractor lee el TERNARIO: un `return a ? "x" : "y";` esquivó este mismo chequeo antes y
-     dejó `operacion_terminada` fuera de la lista sin que nada lo dijera. */
-  const emite = new Set();
+  /* ⚠️ EL EXTRACTOR VEÍA UNA DE SEIS FORMAS, y la que no veía es la que la casa usa. La regex pedía
+     un guión bajo (`[a-z]+(?:_[a-z]+)+`), así que `return "congelada";` pasaba invisible — y en
+     `ERR_MOTIVO` conviven `baja`, `vista`, `ocupado`, `frenado`, `credenciales` y `r2`, todos de una
+     palabra. Peor: al lado de `r2` está escrito desde P200c «el único motivo del .gs con un dígito:
+     **el lector del caso no lo veía**». La misma ceguera, documentada, reintroducida por el caso que
+     vino a cerrarla.
+     ⚠️ Y la guarda `emite.size >= 4` sólo caza la ceguera TOTAL, no la parcial: con los cuatro
+     motivos intactos y un quinto invisible, el caso queda verde y el usuario recibe «esa operación ya
+     terminó» para una operación VIVA, en los dos idiomas.
+     Un literal armado por concatenación o guardado en una variable sigue siendo ilegible para
+     cualquier regex; por eso el segundo aserto NOMBRA los `return` que no devuelven un literal, en
+     vez de callarlos. */
+  const emite = new Set(), retSinLiteral = [];
   sinComentarios(cuerpoMotivo).split('\n').forEach(l => {
-    if (l.indexOf('return') < 0) return;
-    (l.match(/"[a-z]+(?:_[a-z]+)+"/g) || []).forEach(m => emite.add(m.slice(1, -1)));
+    if (!/\breturn\b/.test(l)) return;
+    const hall = l.match(/"[a-z][a-z0-9_]*"/g) || [];
+    if (!hall.length) retSinLiteral.push(l.trim().slice(0, 60));
+    hall.forEach(m => emite.add(m.slice(1, -1)));
   });
+  PRUEBAS.igual(retSinLiteral, [],
+    '⚠️ estos `return` no devuelven un literal, así que ninguna regex los puede leer: ' +
+    'el motivo que devuelvan no lo cubre este contrato');
   const conTexto = new Set((sinComentarios(cuerpoTexto.slice(0, cuerpoTexto.indexOf('\n}')))
     .match(/motivo === "([a-z_]+)"/g) || []).map(m => m.split('"')[1]));
   const mapa = new Set(Object.keys(typeof ERR_MOTIVO === 'object' ? ERR_MOTIVO : {}));
@@ -3223,7 +3238,18 @@ PRUEBAS.caso('🔴 R13-1 · ningún motivo puede caer en el texto de respaldo, q
 
 PRUEBAS.caso('🔴 R13-2 · un `Estado` con espacios y mayúsculas da la MISMA lectura en las dos funciones', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  /* ⚠️ ESTE CASO NO MIDE EL BLINDAJE: MIDE QUE EL CAMINO REAL AGUANTE LA CELDA SUCIA, y la
+  /* ⚠️ ESTE CASO NO PUEDE PONERSE EN ROJO ROMPIENDO UNA SOLA DERIVACIÓN, y su comentario afirmaba
+     que «se exige que el escritor y el lector sigan derivando igual». Medido: hay **siete**
+     comparaciones contra `OP_BAJA` en el `.gs` y quitarle la normalización a **cualquiera de las
+     siete, de a una**, deja este caso VERDE —y la suite entera, salvo `H5`, que caza sólo la del
+     escritor—. Hace falta romper dos a la vez. O sea la exigencia que el comentario declaraba no
+     podía fallar, que es exactamente el reproche que esta misma ronda le hizo al blindaje.
+     Lo que sí se puede medir, y es el invariante de verdad, está en `R14-1`: que **ninguna**
+     comparación contra `OP_BAJA` lea la celda sin normalizar. Ese contrato sí distingue las siete.
+     Lo de acá abajo queda como prueba de punta a punta —el camino real con la celda sucia—, con la
+     redundancia declarada: vale como red, no como discriminador.
+
+     ⚠️ ESTE CASO NO MIDE EL BLINDAJE: MIDE QUE EL CAMINO REAL AGUANTE LA CELDA SUCIA, y la
      diferencia importa. `opMotivoNoVigente_` ganó un `.trim().toLowerCase()` que `opAsignacionVigente_`
      ya tenía, justificado con un síntoma que no existe. Al escribir esto medí que **revertir esa
      línea deja la suite entera en verde**, porque los dos llamadores reciben el `opObj` ya
@@ -3251,4 +3277,42 @@ PRUEBAS.caso('🔴 R13-2 · un `Estado` con espacios y mayúsculas da la MISMA l
   const gente = (p226Op(p226Leer(api).operaciones, 'Cardón IV').gente || []).map(g => g.persona);
   PRUEBAS.igual(gente.indexOf('Ana Suárez') >= 0, false,
     '⚠️ y el lector deriva igual: nadie cuenta en una operación cerrada con la celda sucia');
+});
+
+PRUEBAS.caso('🔴 R14-1 · ninguna comparación contra `OP_BAJA` lee la celda sin normalizar', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
+  /* ⚠️ EL INVARIANTE QUE `R13-2` NO PODÍA MEDIR. Hay siete comparaciones contra `OP_BAJA` repartidas
+     entre el lector del panel, el escritor, las dos guardas de baja y `opAsignacionVigente_`, y todas
+     leen la MISMA celda del CH. Medido: quitarle la normalización a cualquiera de las siete, de a
+     una, deja la suite entera en verde salvo un caso — la redundancia entre ellas tapa el defecto
+     hasta que se rompen dos. Y «escritor y lector que derivan distinto» es, con nombre y apellido,
+     el defecto más repetido de este repo.
+     Acá no se mide comportamiento: se mide la FORMA, que es lo único capaz de distinguir las siete.
+     ⚠️ Con su guarda contra sí mismo: si el barrido deja de encontrar comparaciones, lo dice en vez
+     de pasar en verde — un cero sin discriminador no es un resultado. */
+  const sinComentarios = CTX.gs.replace(/\/\*[\s\S]*?\*\//g, '')
+                               .split('\n').filter(l => !l.trim().startsWith('//'));
+  const crudas = [], total = [];
+  sinComentarios.forEach((l, i) => {
+    if (l.indexOf('OP_BAJA') < 0) return;
+    /* sólo las COMPARACIONES; las asignaciones (`Estado = OP_BAJA`) escriben, no leen */
+    if (!/===\s*OP_BAJA|OP_BAJA\s*===/.test(l)) return;
+    /* ⚠️ y sólo las que leen DE LA HOJA. `estadoNuevo === OP_BAJA` compara una variable que este
+       mismo código acaba de asignar: ahí normalizar no tiene sentido y exigirlo era un falso
+       positivo —el primero que dio este caso al escribirlo—. La marca de «vino de una celda» es el
+       `String(celda || "")` con el que se la lee. */
+    /* ⚠️ y el `String(` tiene que estar EN EL OPERANDO, no en cualquier parte de la línea: en
+       `(estadoNuevo === OP_BAJA) ? String(prev[9]…) : ""` está del otro lado del ternario, y ésa
+       fue la segunda forma del falso positivo. Se mira sólo lo que hay antes del `===`. */
+    const izq = l.slice(0, l.indexOf('OP_BAJA'));
+    if (izq.indexOf('String(') < 0) return;
+    total.push(i + 1);
+    if (!/\.trim\(\)\s*\.toLowerCase\(\)/.test(izq)) crudas.push((i + 1) + ': ' + l.trim().slice(0, 56));
+  });
+  PRUEBAS.cierto(total.length >= 5,
+    '⚠️ el barrido encontró ' + total.length + ' comparaciones contra `OP_BAJA`: ' +
+    'con menos de 5 no está leyendo el bloque de P226 y este caso NO mide nada');
+  PRUEBAS.igual(crudas, [],
+    '⚠️ estas comparan la celda CRUDA contra `OP_BAJA`: un `" Baja "` escrito a mano —forma real de ' +
+    'este CH, H5 la documenta— las haría derivar distinto del resto');
 });

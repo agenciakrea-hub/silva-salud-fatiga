@@ -512,3 +512,22 @@ porque `GS.crearEntorno({zona})` fija las dos iguales.
 default— vería la suite en rojo. Mientras esto no se arregle, **la suite se corre en la zona de la
 máquina de Franco**. El arreglo de fondo es que el emulador acepte dos zonas distintas (la del host
 y la del libro) y que `H11` declare cuál usa; está anotado para `P227`.
+
+## Segundo caso intermitente (2026-10-06)
+
+`🟡 P192 · departamentos: con un pedido en vuelo para el mismo nombre, un segundo «Agregar» no manda
+otro POST` dio **rojo en una corrida y verde en la siguiente**, sin un solo cambio de código entre
+las dos: el único diff de `index.html` entre ambas era el número de `APP_VERSION`.
+
+Es el **segundo**. El primero fue `⚠️ discriminador: un history.back() liso…` de P048, documentado
+en `ESTADO.md`. Los dos comparten forma: esperan trabajo asíncrono contando ticks de microtarea
+(`for (let i = 0; i < 12; i++) await null;`) en vez de esperar a que la promesa se resuelva. Si la
+cadena real encadena más `.then` que ticks se espera —y cuántos encadena depende de la carga de la
+pestaña, que está oculta y con los timers estrangulados (R11)—, el aserto lee un estado en vuelo.
+
+**Qué hacer cuando aparezca un rojo así:** correr la suite de nuevo **en una pestaña nueva** antes de
+diagnosticar. Si pasa, es esto. No empezar a leer el código del caso: dos diagnósticos equivocados ya
+salieron de ahí.
+
+**El arreglo de fondo** es que esos casos esperen la promesa de verdad (resolverla y encadenar) en
+vez de contar ticks. Está anotado para `P227`, junto con el problema de husos.
