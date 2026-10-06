@@ -7669,7 +7669,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.02';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.17';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7739,6 +7739,29 @@ const I18N = {
       push_tarea_luego:'Tienes una tarea nueva. La encontrarás en «Tus tareas», en el inicio.',
       err_m_r2:'Una tarea no puede declarar aptitud. Para eso está la ficha médica, que la firma el servicio médico.',
       err_m_baja:'Tu empresa te dio de baja en la nómina. Consulta con tu supervisor.',
+      /* P226 · ADR 015 · los motivos de rechazo de la entidad Operación. R1: español NEUTRO. */
+      err_m_no_existe:'Esa operación ya no existe. Actualiza la lista y vuelve a intentarlo.',
+      err_m_fuera_de_ventana:'Esa fecha está fuera del período de la operación.',
+      err_m_desde_tras_hasta:'Esa fecha de inicio es posterior a la de salida que ya estaba registrada.',
+      err_m_reincorporar_con_fechas:'Se guardó, pero esa persona no queda asignada: esa operación ya terminó, así que para registrar su participación hay que indicar desde y hasta cuándo estuvo asignada.',
+      /* P226 · ADR 015 · los otros tres motivos de «se guardó pero no queda asignada». */
+      err_m_operacion_cerrada:'Se guardó, pero esa persona no queda asignada: esa operación está cerrada.',
+      err_m_tramo_vencido:'Se guardó, pero esa persona no queda asignada: su período en la operación ya terminó.',
+      err_m_operacion_terminada:'Se guardó, pero esa persona no queda asignada hoy: esa operación ya terminó. El registro quedó guardado como parte del histórico.',
+      /* ⚠️ Motivo PROPIO, no se reusa `no_en_nomina`: ése le habla a la PERSONA sobre su cédula
+         («pídele a tu supervisor que te agregue»), y acá el actor ES el supervisor y lo que
+         falta es una persona. Reusar la clave le decía al supervisor que le pidiera a su
+         supervisor que cargara su cédula. */
+      err_m_persona_sin_nomina:'Esa persona no está en la nómina de esta empresa. Cárgala primero en la nómina.',
+      err_m_de_baja:'Esa operación está cerrada: no se le puede asignar personal.',
+      err_m_tipo_invalido:'Indica si la operación es una instalación permanente o un evento con fechas.',
+      err_m_fecha_invalida:'Revisa la fecha: tiene que ser una fecha válida.',
+      err_m_falta_inicio:'Un evento necesita fecha de inicio para poder medirlo.',
+      err_m_fin_antes:'La fecha de fin no puede ser anterior a la de inicio.',
+      err_m_persona_invalida:'Falta el nombre de la persona.',
+      acc_op_creada:'Operación creada', acc_op_editada:'Operación modificada',
+      acc_op_reactivada:'Operación reabierta', acc_op_baja:'Operación cerrada',
+      acc_op_asignada:'Asignada a una operación', acc_op_desasignada:'Retirada de una operación',
       err_m_muchos_intentos:'Demasiados intentos. Espera unos minutos y vuelve a probar.',
       err_m_frenado:'Demasiados intentos seguidos. Espera unos minutos.',
       err_m_muchos_envios:'Se enviaron demasiados registros seguidos desde este dispositivo. Espera unos minutos.',
@@ -9374,6 +9397,12 @@ const I18N = {
       mov_a_credencial_cambiada:'Clave cambiada',
       mov_a_ciclo_detenido:'Ciclo detenido',
       mov_a_caso_odoo:'Caso abierto',
+      /* P226 · las acciones de la entidad Operación. Sin estas claves `movQueTexto` cae al
+         fallback y muestra «Operacion asignada» sin tilde (R1). */
+      mov_a_operacion_creada:'Operación creada', mov_a_operacion_editada:'Operación modificada',
+      mov_a_operacion_reactivada:'Operación reabierta', mov_a_operacion_baja:'Operación cerrada',
+      mov_a_operacion_asignada:'Asignada a una operación',
+      mov_a_operacion_desasignada:'Retirada de una operación',
       mov_a_accesos_admin_set:'Permisos de acceso cambiados',
       dash_actualizado:'Actualizado {h}', dash_toca_actualizar:'toca ↻ para actualizar',
       rng_del_al:'del {a} al {b}', rng_desde:'desde {a}', rng_hasta:'hasta {a}',
@@ -9903,6 +9932,23 @@ const I18N = {
       push_tarea_luego:'You have a new task. You will find it under “Your tasks”, on the home screen.',
       err_m_r2:'A task cannot declare fitness for duty. That is what the medical record is for, signed by the medical service.',
       err_m_baja:'Your company removed you from the roster. Check with your supervisor.',
+      err_m_no_existe:'That operation no longer exists. Refresh the list and try again.',
+      err_m_fuera_de_ventana:'That date falls outside the operation period.',
+      err_m_desde_tras_hasta:'That start date is later than the end date already on record.',
+      err_m_reincorporar_con_fechas:'Saved, but that person is not assigned: that operation has ended, so to record their participation you need to enter the dates they were assigned.',
+      err_m_operacion_cerrada:'Saved, but that person is not assigned: that operation is closed.',
+      err_m_tramo_vencido:'Saved, but that person is not assigned: their period in the operation has ended.',
+      err_m_operacion_terminada:'Saved, but that person is not assigned today: that operation has ended. The record was kept as part of the history.',
+      err_m_persona_sin_nomina:'That person is not on this company\'s roster. Add them to the roster first.',
+      err_m_de_baja:'That operation is closed: staff cannot be assigned to it.',
+      err_m_tipo_invalido:'Choose whether the operation is a permanent site or an event with dates.',
+      err_m_fecha_invalida:'Check the date: it must be a valid date.',
+      err_m_falta_inicio:'An event needs a start date so it can be measured.',
+      err_m_fin_antes:'The end date cannot be earlier than the start date.',
+      err_m_persona_invalida:'The person\'s name is missing.',
+      acc_op_creada:'Operation created', acc_op_editada:'Operation updated',
+      acc_op_reactivada:'Operation reopened', acc_op_baja:'Operation closed',
+      acc_op_asignada:'Assigned to an operation', acc_op_desasignada:'Removed from an operation',
       err_m_muchos_intentos:'Too many attempts. Wait a few minutes and try again.',
       err_m_frenado:'Too many attempts in a row. Wait a few minutes.',
       err_m_muchos_envios:'Too many records sent in a row from this device. Wait a few minutes.',
@@ -11556,6 +11602,10 @@ const I18N = {
       mov_a_credencial_cambiada:'Credential changed',
       mov_a_ciclo_detenido:'Cycle stopped',
       mov_a_caso_odoo:'Case opened',
+      mov_a_operacion_creada:'Operation created', mov_a_operacion_editada:'Operation updated',
+      mov_a_operacion_reactivada:'Operation reopened', mov_a_operacion_baja:'Operation closed',
+      mov_a_operacion_asignada:'Assigned to an operation',
+      mov_a_operacion_desasignada:'Removed from an operation',
       mov_a_accesos_admin_set:'Access permissions changed',
       dash_actualizado:'Updated {h}', dash_toca_actualizar:'tap ↻ to refresh',
       rng_del_al:'from {a} to {b}', rng_desde:'from {a}', rng_hasta:'up to {a}',
@@ -12124,6 +12174,13 @@ const ERR_SERVIDOR = [
 const ERR_MOTIVO = {
   credenciales:'err_credenciales',   // ya existía como clave del login
   r2:'err_m_r2',                     // el único motivo del .gs con un dígito: el lector del caso no lo veía
+  no_existe:'err_m_no_existe', de_baja:'err_m_de_baja', tipo_invalido:'err_m_tipo_invalido',
+  fuera_de_ventana:'err_m_fuera_de_ventana', persona_sin_nomina:'err_m_persona_sin_nomina',
+  desde_tras_hasta:'err_m_desde_tras_hasta', reincorporar_con_fechas:'err_m_reincorporar_con_fechas',
+  operacion_cerrada:'err_m_operacion_cerrada', tramo_vencido:'err_m_tramo_vencido',
+  operacion_terminada:'err_m_operacion_terminada',
+  fecha_invalida:'err_m_fecha_invalida', falta_inicio:'err_m_falta_inicio',
+  fin_antes:'err_m_fin_antes', persona_invalida:'err_m_persona_invalida',   // P226 · ADR 015
   baja:'err_m_baja', muchos_intentos:'err_m_muchos_intentos', frenado:'err_m_frenado',
   muchos_envios:'err_m_muchos_envios', codigo_invalido:'err_m_codigo_invalido', codigo_frenado:'err_m_codigo_frenado',
   codigo_ambiguo:'err_m_codigo_ambiguo', alta_cerrada:'err_m_alta_cerrada', camino_cerrado:'err_m_camino_cerrado',
@@ -22633,7 +22690,17 @@ function optSel(v, sel){ return '<option ' + (v===sel?'selected':'') + '>' + esc
    departamento) + lo elegido, siempre. Nada nuevo al endpoint. */
 function dashPersonasSelector(dep){
   const set = new Set();
-  const conDep = (nombre, d) => { if (nombre && (!dep || d === dep)) set.add(nombre); };
+  /* ⚠️ EL NOVENO SITIO, y lo encontró la 7ª ronda. Comparaba el departamento CRUDO, y por eso
+     el combo de empleado dejaba AFUERA a quien lo tiene con un tilde: medido contra el volcado
+     real, la clave «operaciones» tiene «Operaciones» ×28 y «Operaciónes» ×1 —Oliver Pereira—. Los
+     otros ocho filtros, ya normalizados, lo CUENTAN; este combo no lo ofrecía, así que el
+     supervisor no podía entrar a su ficha. Es el bug que P231 cerró, en el sitio que no tocó.
+     ⚠️ Y `verificar-adr015.py` lo declaraba inexistente porque su patrón busca `!== DASH.f.dep`,
+     y esto es un `===` sobre una variable local — un hueco declarado falso. */
+  const depK = dep ? depClaveCliente(dep) : '';
+  const conDep = (nombre, d) => {
+    if (nombre && (!depK || depClaveCliente(d) === depK)) set.add(nombre);
+  };
   (DASH.registros || []).forEach(r => conDep(r.persona, r.departamento));
   (Array.isArray(DASH.aptitud) ? DASH.aptitud : []).forEach(a => conDep(a && a.nombre, a && a.dep));
   (DASH.operacional || []).forEach(o => conDep(o.persona, o.departamento));
@@ -24217,7 +24284,12 @@ function aptResolverFinal(nombre, A){
      campo que el servidor manda y nadie nombra acá **se descarta en silencio** — el defecto que
      R17 describe con `duty` y `ausencias`, y que ya me mordió hoy con `demo`. Medido: el payload
      traía `cargo` en 17 de 18 personas y al cliente le llegaban 0. */
-  return { nombre:nombre, dep:A.dep, cargo:A.cargo || '', n:A.n,
+  /* ⚠️ H9 · `operacion` TAMBIÉN, y el verificador midió que la rama nueva de `aptOperacionDe`
+     estaba MUERTA: arranca con `if (p.operacion)`, el `p` viene siempre de acá, y `operacion` no
+     estaba en esta lista. El día que P227 lo mandara, el panel habría seguido mostrando el cargo
+     y nadie habría visto un error — que es palabra por palabra lo que dice el comentario de acá
+     arriba sobre `cargo`. Tres líneas más abajo del aviso, el mismo defecto. */
+  return { nombre:nombre, dep:A.dep, cargo:A.cargo || '', operacion:A.operacion || '', n:A.n,
            metricas:A.metricas, pvt:A.pvt, estado:estado,
            anot:(desactualizada ? null : anot), desactualizada:desactualizada,
            revisado:(historial.length > 0), empeoro:A.empeoro,
@@ -24281,6 +24353,35 @@ function aptAccionesHtml(nombre, restriccion, puedeTelem){
       : '') +
   '</div>';
 }
+/* ── P226 · UN SOLO LECTOR DE «DE QUÉ OPERACIÓN ES ESTA PERSONA» ─────────────────────────────
+   El plan lo pide con estas palabras: «mientras tanto conviven, así que el prompt tiene que dejar
+   UN SOLO LECTOR, no dos».
+   Hoy devuelve el CARGO, porque es donde la están metiendo: 7 personas de Aeroambulancias Silva
+   con el cargo «Op. Cardon» (medido sobre las 50 filas reales de `Registrados Fatiga`, volcado
+   completo —`filasTotales: 51`—, no una muestra). Cuando el servidor mande la asignación en
+   `p.operacion`, esta función la prefiere y el puente de P224 se retira SOLO: cambia UN lugar, no
+   una línea escondida en una plantilla de treinta.
+   ⚠️ EL PUENTE NO SE SACA HOY, a propósito: la hoja `Operaciones Listadas` está VACÍA en
+   producción —ése es el nombre, no `Operaciones`: el CH ya tenía `Operacional` y confundir las
+   dos era justo la trampa que el renombre evitó— porque
+   el modelo se acaba de crear. Retirarlo antes de migrar le quitaría a Rafael lo único que hoy le
+   dice de qué operación es cada persona, sin darle nada en su lugar — sería un retroceso con forma
+   de avance.
+   ⚠️ Y EL CARGO NO SE CORRIGE NUNCA: `Registrados Fatiga` es el perfil que declara la PERSONA
+   (ADR 013) y `accionRegistro` hace upsert, así que la próxima vez que esa persona abra la app su
+   perfil vuelve a escribir «Op. Cardon». Es textual la lección que P231 pagó con los
+   departamentos: se arregla la LECTURA, no la celda. */
+function aptOperacionDe(p) {
+  if (!p) return '';
+  if (p.operacion) return String(p.operacion);              // el campo propio, cuando exista
+  const c = String(p.cargo || '').trim();                   // el puente, mientras no exista
+  return (c && c !== String(p.dep || '').trim()) ? c : '';
+}
+function aptOperacionHtml(p) {
+  const op = aptOperacionDe(p);
+  return op ? ' · <b class="apt-op">' + esc(op) + '</b>' : '';
+}
+
 /* ── P224 · EL SEMÁFORO EN VEZ DE OCHO CHIPS ─────────────────────────────────────────────────
    Pedido de Rafael (2026-10-04), señalando con un círculo los ocho chips de una tarjeta:
    **«debería ser un tráfico, es más fácil de gestionar»**, y antes: «esta vista hay que mejorarla,
@@ -24409,13 +24510,9 @@ function aptTarjeta(p, opts){
     '<div class="apt-head">' +
       '<div class="apt-id"><div class="apt-name">' + esc(p.nombre) + '</div>' +
         '<div class="apt-dep">' + esc(p.dep || '—') +
-          /* ⚠️ P224 · EL CARGO, porque hoy es lo único que dice de qué OPERACIÓN es la persona.
-             Pedido de Rafael: «no sé qué tarea u operación estoy viendo… Adelis es de Cardón».
-             Esa dimensión no existe en el modelo, pero la nómina real tiene **7 personas con el
-             cargo `Op. Cardon`** — la están metiendo ahí porque no hay otro lugar. Con esto, esas
-             7 se distinguen de un vistazo de los 13 que comparten el departamento «Operaciones».
-             Es un PUENTE hasta el campo propio (bloque Q del plan), no la solución. */
-          (p.cargo && p.cargo !== p.dep ? ' · <b class="apt-op">' + esc(p.cargo) + '</b>' : '') +
+          /* P224/P226 · de qué OPERACIÓN es la persona. La decisión está en `aptOperacionDe`,
+             que es el ÚNICO lector: acá no se vuelve a preguntar por el cargo. */
+          aptOperacionHtml(p) +
           ' · ' + aptTextoFecha(p) +
           /* P208 · sin la tabla leída, `p.nivel` es el valor por omisión y no el de esta persona.
              El chip lo dice en corto; el porqué está una vez arriba de la lista, no en cada tarjeta. */
@@ -24937,6 +25034,11 @@ const HSEQ_ACCION_LABEL = {
   telemedicina_sugerida:'acc_telem_sug', telemedicina_aceptada:'acc_telem_acep',
   telemedicina_rechazada:'acc_telem_rech', telemedicina_realizada:'acc_telem_real',
   caso_odoo:'acc_caso_odoo',
+  /* P226 · ADR 015 · las de la entidad Operación. Las escribe el SERVIDOR, así que sin etiqueta
+     acá saldrían con la clave cruda («operacion_asignada») en Trazabilidad y en el CSV. */
+  operacion_creada:'acc_op_creada', operacion_editada:'acc_op_editada',
+  operacion_reactivada:'acc_op_reactivada', operacion_baja:'acc_op_baja',
+  operacion_asignada:'acc_op_asignada', operacion_desasignada:'acc_op_desasignada',
   /* P074 · las que escribe el SERVIDOR (`bitacoraServidor`) salían con la clave cruda en
      Trazabilidad y en el CSV. Un caso recorre el `.gs` real y exige que cada acción esté acá. */
   ciclo_plan_guardado:'acc_ciclo_plan', ciclo_persona_guardado:'acc_ciclo_persona',
@@ -25569,7 +25671,10 @@ function cicloArmar(){
      función todavía depende del plan de la empresa. */
   const rows = (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
+    /* ⚠️ `depClaveCliente` EN LAS DOS PUNTAS. P231 arregló cuatro lugares y declaró que eran
+       todos; midiéndolo en P226 aparecieron CUATRO MÁS comparando crudo, con el mismo efecto
+       que P231 cerró: «Operaciónes» con tilde partía el grupo y el supervisor veía 70 de 73. */
+    if (DASH.f.dep && depClaveCliente(o.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     if (DASH.f.per && o.persona !== DASH.f.per) return false;
     /* E2 (2026-08-26): faltaba el filtro por NIVEL DE RIESGO. `dashFiltered` y `dashFilteredPVT`
        ya lo aplicaban —y su comentario explica por qué tiene que ser en las dos: si sólo una lo
@@ -25765,7 +25870,10 @@ function cicloAgruparNucleo(eventos, ventana){
 function cicloHistoricoFilas(desdeF, hastaF, personaNorm){
   return (DASH.operacional || []).filter(o => {
     if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && o.departamento !== DASH.f.dep) return false;
+    /* ⚠️ `depClaveCliente` EN LAS DOS PUNTAS. P231 arregló cuatro lugares y declaró que eran
+       todos; midiéndolo en P226 aparecieron CUATRO MÁS comparando crudo, con el mismo efecto
+       que P231 cerró: «Operaciónes» con tilde partía el grupo y el supervisor veía 70 de 73. */
+    if (DASH.f.dep && depClaveCliente(o.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     /* P090 · con `personaNorm` se compara NORMALIZADO. El filtro de siempre usa igualdad exacta contra
        `DASH.f.per`, y los nombres de `Operacional` no pasan por `dashMergeNombres` como los registros:
        una tilde o un espacio de más dejaría el calendario de esa persona vacío sin decir por qué. */
@@ -29112,7 +29220,8 @@ function renderComentarios(rows){
   const rng = dashEffectiveRange();
   const list = DASH.comentarios.filter(c => {
     if (DASH.f.emp && c.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && c.departamento !== DASH.f.dep) return false;
+    /* ⚠️ Idem: era otro de los lugares que comparaba el departamento crudo (ver P231). */
+    if (DASH.f.dep && depClaveCliente(c.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     if (DASH.f.per && c.persona !== DASH.f.per) return false;
     if (rng.desde && c.fecha < rng.desde) return false;
     if (rng.hasta && c.fecha > rng.hasta) return false;
@@ -29498,7 +29607,13 @@ function dashBuildSummary(rows, opts){
   alertas.sort((a,b) => (b.valor/b.referencia) - (a.valor/a.referencia));
   const comentarios = (DASH.comentarios||[]).filter(c => {
     if (DASH.f.emp && c.empresa!==DASH.f.emp) return false;
-    if (DASH.f.dep && c.departamento!==DASH.f.dep) return false;
+    /* ⚠️ EL OCTAVO SITIO, y lo encontró la 3ª ronda: `verificar-adr015.py` exigía espacios
+       alrededor de `!==` y esta línea no los tiene, así que el barrido lo declaraba
+       inexistente. El daño era concreto: `dashBuildSummary` y `renderComentarios` filtran la
+       MISMA lista con el MISMO `DASH.f.dep` y, tras arreglar uno solo, derivaban distinto —
+       73 comentarios en el panel contra 70 en el informe, y el JSON que va a Gemini decía 73
+       registros con 70 comentarios adjuntos. */
+    if (DASH.f.dep && depClaveCliente(c.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     if (DASH.f.per && c.persona!==DASH.f.per) return false;
     if (rng.desde && c.fecha<rng.desde) return false;
     if (rng.hasta && c.fecha>rng.hasta) return false;

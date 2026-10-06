@@ -489,3 +489,26 @@ distintos. Si no difieren, el instrumento no modela lo que se quiere medir.
 
 Para poder medirlo hay que darle al emulador zonas separadas (`{ zonaScript, zonaLibro }`). Está
 anotado como pendiente.
+
+## La suite depende del huso del HOST, y eso no está modelado (medido el 2026-10-06)
+
+`H11` pasa en `America/Caracas` y en `Pacific/Midway`, y **falla en UTC, `Asia/Tokyo` y
+`Pacific/Kiritimati`**. Medido corriendo el mismo runner con `TZ=` distinto:
+
+| huso | fallas propias |
+|---|---|
+| `America/Caracas` | — |
+| `Pacific/Midway` | — |
+| `UTC` · `Asia/Tokyo` · `Pacific/Kiritimati` | `H11` |
+
+La causa no es el código del endpoint: el caso construye `new Date(2026, 2, 1)`, que es medianoche
+**en la zona del host**, y después espera leerlo como `2026-03-01` **en la zona de la empresa**. Al
+este de Caracas esa medianoche cae el día anterior. En producción las dos zonas son la misma —Apps
+Script y el spreadsheet comparten la del proyecto—, así que el rojo es del instrumento, no del
+sistema; pero el instrumento **no puede distinguir** un defecto real de zonas de este artefacto,
+porque `GS.crearEntorno({zona})` fija las dos iguales.
+
+**Qué significa en la práctica:** una máquina de integración continua configurada en UTC —el
+default— vería la suite en rojo. Mientras esto no se arregle, **la suite se corre en la zona de la
+máquina de Franco**. El arreglo de fondo es que el emulador acepte dos zonas distintas (la del host
+y la del libro) y que `H11` declare cuál usa; está anotado para `P227`.

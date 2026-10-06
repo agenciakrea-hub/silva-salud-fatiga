@@ -40,10 +40,20 @@ function a2cPintadoAlFinal(W, H, dasharray){
       let ok = 0, tot = 0;
       [W-3, W-10, W-25, W-50, W-90].forEach(px => {
         if (px < 1) return;
-        let hit = null;
+        /* ⚠️ EL PÍXEL MÁS OPACO DE LA COLUMNA, NO EL PRIMERO CON ALFA. El primero es el BORDE
+           antialiaseado del trazo, donde el color viene mezclado con el fondo: medido, su canal azul
+           daba 91–112 contra un umbral de 90, así que el caso se ponía rojo según cómo rasterizara el
+           navegador — tres rojos de splash en tres rondas, todos con naranjas de cobertura parcial
+           (alfa 52–211). El centro del trazo tiene el color real.
+           ⚠️ Esto NO afloja ningún umbral: el discriminador sigue dando 0/5 con una línea gris, porque
+           el gris de fondo es (223,227,234) y ninguno de sus píxeles pasa `d[0] > 200 && d[1] < 170`. */
+        let hit = null, mejor = -1;
         for (let py = 0; py < H; py++){
           const d = cx.getImageData(px, py, 1, 1).data;
-          if (d[3] > 40 && !(d[0] > 245 && d[1] > 245 && d[2] > 245)){ hit = d; break; }
+          if (d[3] > 40 && !(d[0] > 245 && d[1] > 245 && d[2] > 245) && d[3] > mejor){
+            mejor = d[3]; hit = d;
+            if (d[3] === 255) break;      // opaco: no hay nada mejor abajo
+          }
         }
         tot++;
         if (hit && hit[0] > 200 && hit[1] < 170 && hit[2] < 90) ok++;
@@ -56,8 +66,13 @@ function a2cPintadoAlFinal(W, H, dasharray){
   });
 }
 
-/* El mismo cálculo que hace `splMedirTrazo` en la app. Se replica acá a propósito: si alguien cambia
-   el de la app y se olvida de este, los números dejan de coincidir y el caso lo dice. */
+/* El mismo cálculo que hace `splMedirTrazo` en la app, replicado acá.
+   ⚠️ ESTE COMENTARIO DECÍA «si alguien cambia el de la app y se olvida de este, los números dejan
+   de coincidir y el caso lo dice», y era FALSO: los casos de abajo rasterizan con ESTE número y
+   nunca comparan contra el que la app escribe en `--spl-traza`. Medido: con la app escribiendo 420
+   —el defecto de la captura— los cuatro casos daban verde. Quien compara los dos números es el caso
+   «el número que ESCRIBE la app es el que la fórmula espera»; sin él, esta réplica sólo comprueba
+   que la fórmula es consistente consigo misma. */
 function a2cLargoEsperado(W, H){
   const l = document.querySelector('.spl-l-viva');
   const pts = (l.getAttribute('points')||'').trim().split(/\s+/).map(p => p.split(',').map(Number));
@@ -87,6 +102,48 @@ PRUEBAS.caso('⚠️ la línea llega naranja hasta el final, a cualquier tamaño
   PRUEBAS.igual(malos, [],
     'cerca del final del trazo TODO tiene que ser naranja; lo gris es la línea de fondo asomando');
 });
+
+PRUEBAS.caso('🔴 el número que ESCRIBE la app es el que la fórmula espera', async () => {
+  /* ⚠️ ESTE CASO FALTABA, Y ES EL QUE DA SENTIDO A TODOS LOS DEMÁS. Los de arriba rasterizan con
+     `a2cLargoEsperado`, que **replica** la fórmula de `splMedirTrazo` — nunca comparan contra
+     `--spl-traza`, que es lo que la app de verdad escribe. Medido por el verificador: puso
+     `splMedirTrazo` a escribir `420px` —el número exacto de la captura que Franco mandó, el defecto
+     que este archivo existe para prevenir— y los cuatro casos corrieron **en verde**. */
+  const linea = document.querySelector('.spl-l-viva');
+  if (!linea) { PRUEBAS.cierto(false, '⚠️ no está `.spl-l-viva`: este contrato queda SIN MEDIR'); return; }
+  const svg = linea.ownerSVGElement;
+  /* ⚠️ `splMedirTrazo` corta si el rect da 0, y en esta pestaña oculta puede pasar (R11). Se le da
+     un tamaño explícito al contenedor, y si aun así no mide, el caso lo DICE en vez de pasar. */
+  const cont = svg && svg.parentElement;
+  const prev = cont ? cont.getAttribute('style') : null;
+  try {
+    if (cont) cont.setAttribute('style',
+      (prev ? prev + ';' : '') + 'position:fixed;left:0;top:0;width:600px;height:160px;z-index:-1');
+    linea.style.removeProperty('--spl-traza');
+    splMedirTrazo();
+    const escrito = parseFloat(linea.style.getPropertyValue('--spl-traza') || '');
+    const r = svg.getBoundingClientRect();
+    PRUEBAS.cierto(r.width > 0 && r.height > 0,
+      '⚠️ el SVG no tiene tamaño: `splMedirTrazo` corta y este caso NO mide · ' + r.width + 'x' + r.height);
+    PRUEBAS.cierto(isFinite(escrito) && escrito > 0,
+      '⚠️ la app no escribió `--spl-traza`: el contrato queda SIN MEDIR · ' +
+      JSON.stringify(linea.style.getPropertyValue('--spl-traza')));
+    if (isFinite(escrito) && escrito > 0 && r.width > 0) {
+      const esperado = a2cLargoEsperado(r.width, r.height);
+      PRUEBAS.cierto(Math.abs(escrito - esperado) <= 1,
+        '⚠️ el número que ESCRIBE la app tiene que ser el que la fórmula espera · app=' + escrito +
+        ' fórmula=' + esperado);
+      /* ⚠️ Discriminador: el 420 de la captura NO puede pasar por bueno a este tamaño. */
+      PRUEBAS.cierto(Math.abs(420 - esperado) > 1,
+        '⚠️ discriminador: a ' + Math.round(r.width) + 'px el número viejo (420) difiere de la ' +
+        'fórmula (' + esperado + '), así que esta comparación lo cazaría');
+    }
+  } finally {
+    if (cont) { if (prev === null) cont.removeAttribute('style'); else cont.setAttribute('style', prev); }
+    try { splMedirTrazo(); } catch (e) {}
+  }
+});
+
 
 PRUEBAS.caso('⚠️ y el caso discrimina: con el número viejo tiene que fallar', async () => {
   /* Sin esto, el caso de arriba no vale nada: comprobado en A2b que una prueba de layout puede pasar
