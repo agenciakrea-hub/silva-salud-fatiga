@@ -531,3 +531,58 @@ salieron de ahí.
 
 **El arreglo de fondo** es que esos casos esperen la promesa de verdad (resolverla y encadenar) en
 vez de contar ticks. Está anotado para `P227`, junto con el problema de husos.
+
+## El panel puede terminar la suite y NO mostrar el reporte (2026-10-07)
+
+Pasó dos veces seguidas con 2.254 casos: el panel quedaba en «corriendo…» más de tres minutos, y la
+suite **ya había terminado**. Lo que se traba es el renderizado del reporte, no la ejecución.
+
+**Cómo leer el resultado sin esperar el render.** El panel carga la app en un `iframe`, y `PRUEBAS`
+vive ahí dentro, no en el `window` del panel:
+
+```js
+const P = document.querySelector('iframe').contentWindow.PRUEBAS;
+const cs = (P._casos || []).map(c => c.resultado).filter(Boolean);
+let ok = 0, mal = 0; const malos = [];
+cs.forEach(c => {
+  const m = (c.comprobaciones || []).filter(x => !x.ok);
+  ok += (c.comprobaciones || []).length - m.length; mal += m.length;
+  if (!c.ok) malos.push({ n: c.nombre, err: c.error, malas: m.map(x => x.porque) });
+});
+({ casos: cs.length, comprobaciones: ok + mal, fallas: mal, malos });
+```
+
+Y para saber si **está corriendo o ya terminó**, sin adivinar por el tiempo:
+`P._casos.filter(c => c.resultado).length` contra `P._casos.length`. Si son iguales, terminó.
+
+⚠️ **No leer el TEXTO del panel para saber qué falló.** Ahí el `✘` va en la línea siguiente al
+título, y al cortar el texto en rebanadas se mezclan dos casos: así leí «R14-1 en rojo» y «P074 en
+rojo» cuando el primero estaba verde. Medido directo después, R14-1 daba 7 comparaciones y 0 crudas.
+El reporte del iframe trae los casos como objetos y no se puede desalinear.
+
+## Una corrida lenta se contamina en CASCADA, y 74 rojos pueden ser cero defectos (2026-10-07)
+
+Una corrida dio **74 casos en rojo** con el mismo código que minutos antes había dado 0. Mirando los
+mensajes, ninguno era un defecto:
+
+| mensaje | cuántos | qué era |
+|---|---|---|
+| `el caso no terminó en 10 s y se dio por colgado` | ~25 | la máquina estaba lenta (el indexador de Ubuntu al 50 %) |
+| `r.text is not a function` | ~35 | **cascada**: un caso muerto por timeout dejó su stub de `fetch` puesto |
+
+El segundo grupo es R18 llevado al extremo: el caso que muere por timeout **nunca llega a su
+`finally`**, así que el `fetch` falso que instaló queda vivo, y todos los casos que siguen lo
+heredan. Treinta y cinco mensajes idénticos no son treinta y cinco defectos: son uno.
+
+**Cómo distinguir una corrida contaminada de una con defectos reales:**
+
+1. **Agrupar por mensaje.** Si N casos dicen exactamente lo mismo y ese mensaje es un `TypeError`
+   sobre un stub (`r.text is not a function`, `Cannot read properties of null`), es cascada.
+2. **Buscar `se dio por colgado`.** Si hay aunque sea uno, todo lo que viene después es sospechoso.
+3. **Correr `node pruebas/correr-node.js`**, que no tiene navegador ni timers: si da 0 fallas propias
+   en 2 segundos, el código está bien y lo que falló fue la corrida.
+4. **Mirar la carga de la máquina** (`uptime`, `ps aux --sort=-%cpu`) antes de creerle a un timeout.
+
+**Qué NO hacer:** diagnosticar los 74 de a uno. Se pierden horas sobre un instrumento, no sobre el
+sistema. Y lo contrario también vale: una corrida contaminada **no sirve como verde** — hay que
+repetirla con la máquina quieta antes de publicar.

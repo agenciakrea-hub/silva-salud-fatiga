@@ -204,9 +204,39 @@ function __digestHex(bytes) {
     return p;
   };
   HojaFalsa.prototype.getProtections = function () { return (this._protecciones || []).slice(); };
-  HojaFalsa.prototype.insertRowsAfter = function () { return this; };   // la grilla falsa no tiene tope
+  /* ⚠️ ERA EL ÚNICO NO-OP QUE EL ENDPOINT SÍ LLAMA —`hojaAsegurarFilas_` lo usa para ensanchar la
+     grilla antes de un `getRange`, con el comentario «un rango más allá del final de la grilla
+     LANZA»— y quedó sin implementar mientras se implementaban tres que nadie llama. En el emulador la
+     rama no se alcanza nunca porque `getMaxRows()` devuelve `max(len + 100, 1000)`, así que el tope
+     de Sheets **no está modelado**: lo que el endpoint hace para no pasarse del borde, acá no se
+     puede medir. Implementado igual, para que el día que el tope se modele esto no mienta. */
+  HojaFalsa.prototype.insertRowsAfter = function (fila, cuantas) {
+    const f = Math.max(0, Number(fila) || 0), n = Math.max(1, Number(cuantas) || 1);
+    const ancho = Math.max(1, this.getLastColumn());
+    const nuevas = []; for (let k = 0; k < n; k++) nuevas.push(new Array(ancho).fill(''));
+    this._datos.splice(f, 0, ...nuevas);
+    return this;
+  };
   HojaFalsa.prototype.insertColumnsAfter = function () { return this; };
-  HojaFalsa.prototype.insertRowsBefore = function () { return this; };
+  /* ⚠️ ERAN NO-OP Y ESO ES UN INSTRUMENTO QUE NO PUEDE FALLAR. P233 arregla los constructores de hoja
+     para que INSERTEN el encabezado arriba en vez de sobrescribir el dato que haya en la fila 1 (el
+     estado real del CH al 2026-10-07: la asignación de una persona donde va el encabezado). Con el
+     no-op, el caso que defiende ese arreglo pasaba en verde **sin que la inserción ocurriera**:
+     bendecía en el emulador algo que sólo se podría verificar en producción.
+     ⚠️ `insertRowBefore` (singular) NO EXISTÍA: una llamada a algo inexistente lanza, y dentro del
+     `try/catch` de un constructor eso se ve igual que «no hacía falta». */
+  HojaFalsa.prototype.insertRowsBefore = function (fila, cuantas) {
+    const f = Math.max(1, Number(fila) || 1), n = Math.max(1, Number(cuantas) || 1);
+    const ancho = Math.max(1, this.getLastColumn());
+    for (let k = 0; k < n; k++) this._datos.splice(f - 1, 0, new Array(ancho).fill(''));
+    return this;
+  };
+  HojaFalsa.prototype.insertRowBefore = function (fila) { return this.insertRowsBefore(fila, 1); };
+  HojaFalsa.prototype.insertRowAfter = function (fila) { return this.insertRowsBefore((Number(fila) || 1) + 1, 1); };
+  HojaFalsa.prototype.deleteRows = function (fila, cuantas) {
+    this._datos.splice(Math.max(0, (Number(fila) || 1) - 1), Math.max(1, Number(cuantas) || 1));
+    return this;
+  };
   HojaFalsa.prototype.__protecciones = function () { return (this._protecciones || []).slice(); };
   HojaFalsa.prototype.getIndex = function () { return this._indice || 1; };
 
