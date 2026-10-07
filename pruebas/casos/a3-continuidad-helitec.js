@@ -207,7 +207,16 @@ PRUEBAS.caso('⚠️ una cédula inválida no se guarda, y no se pregunta dos ve
   try {
     window.prompt = function(){ tercera++; return 'tampoco-vale-@@'; };
     misPedirCedula('falta_cedula');
-  } catch(e){}
+  } catch(e){} finally {
+    /* ⚠️ ESTE `finally` FALTABA, y lo cazó el marco de P234 el 2026-10-07. El bloque de arriba sí
+       restauraba `prompt`, pero este SEGUNDO lo volvía a pisar y lo dejaba puesto: todo caso
+       posterior que llamara a `prompt()` recibía 'tampoco-vale-@@' en vez del diálogo real o de su
+       propio stub, sin que nada lo avisara. Es el mismo defecto de R18 pero por otra causa —no un
+       `finally` sincrónico ante trabajo asíncrono, sino un segundo bloque sin `finally` ninguno—,
+       así que el candado de la cédula se devuelve acá también. */
+    window.prompt = prevPrompt;
+    try { _misCedulaPedida = false; _misCedulaIntentos = 0; } catch(e){}
+  }
   PRUEBAS.igual(tercera, 0,
     '⚠️ pero no una tercera: un cartel que reaparece solo se lee como app colgada');
 });

@@ -405,6 +405,19 @@ Qué hacer: **una corrida por pestaña nueva** cuando se va a dar la suite por v
 nueva tardó 88 s; en la saturada, 109–117 s — probablemente ése era el «de 65 a 109 s» que nadie
 explicaba.
 
+⚠️ **MEDIDO EL 2026-10-07, y el número NO es monótono — ojo con leerlo mal.** En una pestaña recién
+abierta, `history.length` marcaba **50 con 929 de 2269 casos hechos** (a mitad de la primera pasada)
+y **43 al terminar** la corrida completa. O sea la longitud **baja**: los casos que cierran un
+overlay hacen `history.back()`, y desde una entrada anterior las de adelante se pisan. Un `50` leído
+en el medio no significa «saturado para siempre», y un `43` al final no significa «nunca llegó al
+tope».
+
+Consecuencia práctica, que es lo único que hay que recordar: **`history.length` instantáneo no mide
+saturación**, así que no sirve para decidir si una pestaña «todavía da». Lo que sí está medido es que
+las corridas completas en pestaña nueva terminan (2268 y 2269 casos ese día) y que una segunda
+corrida encima de la primera se lleva la pestaña — por eso sigue siendo **una corrida por pestaña
+nueva**, que es una regla de procedimiento y no un cálculo de margen.
+
 Y las `const` de un archivo de casos NO se ven desde otro archivo (`(0, eval)` las deja en el
 ámbito léxico de su propio eval); las `function` sí. Si un caso nuevo quiere reusar datos de otro
 (`P089_EMP`, `P089_RED`), los lee por una función de ese archivo o se arma los suyos.

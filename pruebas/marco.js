@@ -321,7 +321,52 @@
   /* Se expone para que el propio marco pueda probarse: ver el caso del tope en `humo-marco.js`. */
   PRUEBAS._conTope = conTope;
 
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     P234 · LOS STUBS SE RESTAURAN ENTRE CASO Y CASO, pase lo que pase
+     ══════════════════════════════════════════════════════════════════════════════════════════
+     ⚠️ UN CASO QUE MUERE POR EL TOPE NUNCA LLEGA A SU `finally`, así que el `fetch` falso que
+     instaló queda vivo y lo heredan TODOS los que vienen. Medido dos veces el 2026-10-07: una
+     corrida dio **74 casos en rojo** con el mismo código que minutos antes había dado 0, y de esos
+     74, **25 eran el timeout y 25 el mismo `r.text is not a function`** — un solo defecto contado
+     veinticinco veces. Treinta y cinco mensajes idénticos no son treinta y cinco defectos.
+     Va ACÁ y no en el `finally` de cada caso, por la misma razón que el `sincronizarInert` de abajo:
+     puesto en cada uno, el próximo caso que alguien escriba nace con el problema. R18 pide que cada
+     caso restaure en el `.finally()` de su promesa, y sigue pidiéndolo — esto es la red de abajo,
+     para que un caso mal escrito arruine UN resultado y no doscientos.
+     ⚠️ La lista sale de MEDIR qué stubean los casos, no de adivinar:
+         grep -ohE "window\.[a-zA-Z_]+ = " pruebas/casos/*.js | sed 's/window\.//; s/ = //' | sort | uniq -c | sort -rn
+     El 2026-10-07 daba: fetchConReloj 207 · fetch 195 · showToast 125 · dashRequest 65 · gestPost 59
+     · confirm 49 · offHayConexion 44 · haptic 28 · navConsumir 26 · y siete más con ~10.
+     Si aparece uno nuevo y no está acá, esto no lo protege: por eso el reporte DICE cuál quedó
+     sucio, en vez de restaurarlo en silencio. */
+  const STUBEABLES = ['fetch', 'fetchConReloj', 'showToast', 'dashRequest', 'gestPost', 'confirm',
+                      'offHayConexion', 'haptic', 'navConsumir', 'tareasCargar', 'sesPersonaToken',
+                      'misSincronizar', 'bitacoraRegistrar', 'empEncolar', 'listasCacheLimpiar',
+                      'alert', 'prompt'];
+  function stubsFoto(){
+    const f = Object.create(null);
+    STUBEABLES.forEach(k => { try { f[k] = window[k]; } catch(e){} });
+    return f;
+  }
+  function stubsRestaurar(foto){
+    const sucios = [];
+    STUBEABLES.forEach(k => {
+      try { if (window[k] !== foto[k]) { sucios.push(k); window[k] = foto[k]; } } catch(e){}
+    });
+    return sucios;
+  }
+  PRUEBAS._stubsFoto = stubsFoto;
+  PRUEBAS._stubsRestaurar = stubsRestaurar;
+  PRUEBAS._stubeables = STUBEABLES;
+
   PRUEBAS.correr = async function () {
+    /* ⚠️ La foto se toma UNA vez, antes del primer caso: es el estado limpio de la app. Tomarla
+       antes de cada caso congelaría el stub que dejó el anterior como si fuera lo normal. */
+    const limpio = stubsFoto();
+    /* P234 · se expone para que un caso pueda preguntar «¿arranqué limpio?». NO es tautológico:
+       la foto es de ANTES del primer caso, así que comparar contra ella responde «¿alguien lo
+       cambió desde el arranque?». Tautológico sería que el caso tomara su propia foto. */
+    PRUEBAS._stubsLimpio = limpio;
     for (const c of PRUEBAS._casos) {
       PRUEBAS._actual = { grupo: c.grupo, nombre: c.nombre, ok: true, comprobaciones: [], error: null };
       try {
@@ -339,6 +384,24 @@
          el próximo caso que alguien escriba nace con el problema. */
       try { if (typeof app !== 'undefined' && app.sincronizarInert) app.sincronizarInert(); } catch(e){}
       try { if (window.sincronizarInert) window.sincronizarInert(); } catch(e){}
+
+      /* P234 · y los stubs vuelven a lo que eran. Si el caso PASÓ y dejó algo puesto, es un defecto
+         del caso (R18) y se dice; si ya falló, se restaura callado — el error que importa es el otro. */
+      const sucios = stubsRestaurar(limpio);
+      if (sucios.length) {
+        PRUEBAS._actual.stubsSucios = sucios;
+        if (PRUEBAS._actual.ok) {
+          PRUEBAS._actual.ok = false;
+          /* ⚠️ EL MENSAJE DICE EL HECHO, NO LA CAUSA. La primera versión afirmaba
+             «restaurar en el `.finally()` de la promesa» — y el primer caso que esto cazó de
+             verdad (`a3`, la cédula inválida) no tenía nada asíncrono: tenía un SEGUNDO bloque
+             que volvía a pisar `prompt` y no lo restauraba nunca. Un diagnóstico que elige una
+             de dos causas manda a buscar al lugar equivocado. */
+          PRUEBAS._actual.error = 'el caso terminó dejando puestos ' + sucios.join(', ') +
+            ' — o no los restaura (¿un segundo bloque sin `finally`?), o los restaura en el ' +
+            '`finally` SINCRÓNICO de un caso que dispara trabajo asíncrono (R18)';
+        }
+      }
 
       /* Un caso sin ninguna comprobación es un caso que no prueba nada. Pasa si alguien escribe
          el caso y se olvida de comprobar: se marca como falla para que no dé verde en falso. */
@@ -367,11 +430,41 @@
         });
       });
     });
+    /* ══════════════════════════════════════════════════════════════════════════════════════
+       P234 · EL MISMO MENSAJE N VECES ES UN DEFECTO, NO N
+       ══════════════════════════════════════════════════════════════════════════════════════
+       ⚠️ Medido el 2026-10-07: una corrida dio 74 casos en rojo y leerla de a uno costó media hora
+       para descubrir que eran DOS causas —25 timeouts y 25 veces el mismo `r.text is not a
+       function`, que era la cascada de los primeros—. El reporte listaba 74 líneas y ninguna decía
+       que 50 de ellas eran lo mismo.
+       `porCausa` agrupa por el texto del error (o de la primera comprobación fallada), ordenado por
+       cuántos casos comparte. Dos reglas para leerlo, que están en `pruebas/LEEME.md`:
+         · una causa con muchos casos y un `TypeError` sobre un stub es CASCADA, no N defectos;
+         · si aparece `se dio por colgado`, todo lo que vino después es sospechoso. */
+    const porCausa = {};
+    fallados.forEach(c => {
+      const prim = (c.comprobaciones || []).filter(x => !x.ok)[0];
+      const clave = String(c.error || (prim && prim.porque) || '(sin mensaje)').slice(0, 90);
+      (porCausa[clave] = porCausa[clave] || { casos: 0, ejemplos: [] }).casos++;
+      if (porCausa[clave].ejemplos.length < 3) porCausa[clave].ejemplos.push(c.nombre);
+    });
+    const causas = Object.keys(porCausa).map(k => ({ causa: k, casos: porCausa[k].casos,
+                                                     ejemplos: porCausa[k].ejemplos }))
+                         .sort((a, b) => b.casos - a.casos);
+    const colgados = fallados.filter(c => String(c.error || '').indexOf('se dio por colgado') >= 0).length;
+    const conStubsSucios = fallados.filter(c => c.stubsSucios).map(c => c.nombre);
     return {
       ok: fallados.length === 0,
       total: casos.length,
       pasaron: casos.length - fallados.length,
       fallaron: fallados.length,
+      /* P234 · cuántas CAUSAS distintas hay detrás de los casos fallados */
+      causas: causas,
+      causasDistintas: causas.length,
+      /* P234 · si esto es > 0, la corrida está sospechada de cascada: un caso que muere por el tope
+         no llega a su `finally` y deja sus stubs puestos. La corrida no sirve como verde. */
+      colgados: colgados,
+      stubsSucios: conStubsSucios,
       /* Cuántas comprobaciones corrieron en total. Sirve para detectar el caso silencioso de
          "todo verde porque en realidad no se ejecutó casi nada" — que ya nos pasó con una suite
          que daba verde sin probar nada (ver la memoria de tests en base limpia). */

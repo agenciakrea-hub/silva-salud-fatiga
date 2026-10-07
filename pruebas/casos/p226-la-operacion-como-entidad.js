@@ -847,7 +847,12 @@ PRUEBAS.caso('H11 · una fecha que Sheets convirtió a Date no ensucia el payloa
   const api = p226Api();
   p226Alta(api, P226_SUP, 'Evento X', { tipo: 'evento', inicio: '2026-03-01' });
   const sh = api.__env.__libro.getSheetByName(p226Hoja('OPERACIONES'));
-  sh.getRange(2, 4).setValue(new Date(2026, 2, 1));        // Inicio como Date
+  /* ⚠️ `new Date(2026, 2, 1)` es medianoche **en la zona del host**, no en la del libro, y eso hacía
+     que este caso pasara en Caracas y fallara en UTC, Tokio y Kiritimati — o sea en cualquier máquina
+     de integración continua, que por defecto corre en UTC. `GS.fechaDeCelda` construye el instante
+     que Sheets guardaría: medianoche de ese día en la zona del libro, con el desfase calculado para
+     ESE instante. Verificado: el mismo epoch en los cuatro husos (P234). */
+  sh.getRange(2, 4).setValue(GS.fechaDeCelda('2026-03-01'));   // Inicio como Date, igual que Sheets
   const op = p226Op(p226Leer(api).operaciones, 'Evento X');
   PRUEBAS.igual(op.inicio, '2026-03-01', '⚠️ llega como AAAA-MM-DD, no como un Date formateado');
   const nB = p226Bitacora(api).length;

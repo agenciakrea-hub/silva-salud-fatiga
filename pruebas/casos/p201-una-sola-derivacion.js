@@ -36,6 +36,9 @@ function p201Payload(extra){
     ok: true, rol: 'supervisor', vista: 'supervisor', referencia: {}, metricas: ['kss'],
     registros: [p201Reg('Ana Uno', 3)], comentarios: [], pvt: [], aptitud: [], turnos: [],
     ausencias: {}, duty: null, operacional: [], operacionalPeriodo: null,
+    /* P227a · el panel por operación. Van en el fixture base porque el servidor los manda siempre;
+       si falta acá, el aserto de «ninguno congelado» falla sin decir que el hueco es del fixture. */
+    operaciones: [], operacionesError: null,
     config: { sector: 'aviacion' }, marca: null, combinada: false, zonaOp: null,
     nominaTotal: 2, nominaSinDato: [], nominaError: null,
     cicloPlanPersona: { ana: { jornada: 600 } }, cicloPlanPersonaError: null,
@@ -69,7 +72,14 @@ function p201Entorno(fn){
 }
 
 /* Lee del `DASH` vivo todas las claves que `dashCamposDelServidor` produce — no una lista escrita a
-   mano. Si mañana se agrega un campo a esa función, este caso lo cubre solo. */
+   mano.
+   ⚠️ ACÁ DECÍA «si mañana se agrega un campo a esa función, este caso lo cubre solo», y es FALSO:
+   lo cubre a medias. La LECTURA se adapta sola, pero el payload de prueba está escrito a mano, así
+   que un campo nuevo vale lo mismo en los dos pedidos y el aserto de «ninguno congelado» lo marca.
+   Pasó el 2026-10-07 con `operaciones` y `operacionesError` de P227a: el refresco los movía bien
+   —`dashRefresh` hace `Object.assign(DASH, dashCamposDelServidor(d))`— y el caso igual se puso en
+   rojo. Perdí una ronda creyendo que era una regresión del código. Para que no vuelva a pasar, el
+   caso de abajo lleva una guarda que nombra el campo que falta cambiar en el fixture. */
 function p201Contexto(){
   const molde = dashCamposDelServidor(p201Payload());
   const out = {};
@@ -91,8 +101,21 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
       zonaOp: 'America/Bogota', nominaTotal: 6, nominaSinDato: ['Beto', 'Caro'],
       nominaError: 'No se pudo leer la nómina',
       cicloPlanPersona: { ana: { jornada: 720 } }, cicloPlanPersonaError: 'plan ilegible',
-      cuentas: ['x'], visor: { empresa: 'Otra' }, visorError: 'no existe'
+      cuentas: ['x'], visor: { empresa: 'Otra' }, visorError: 'no existe',
+      operaciones: [{ nombre: 'Cardón IV', tipo: 'instalacion', gente: [{ persona: 'Ana Uno' }] }],
+      operacionesError: 'no se pudo leer el libro'
     });
+    /* ⚠️ LA GUARDA QUE FALTABA, y el modo de falla que arregla. El aserto de «ninguno congelado»
+       recorre TODOS los campos del molde, pero `v2` los enumera a mano: un campo nuevo que `v2` no
+       cambie vale lo mismo en los dos pedidos y sale como congelado, igual que si el refresco
+       estuviera roto. Los dos síntomas son idénticos y mandan a buscar a lugares opuestos.
+       Esto falla ANTES y dice el nombre: lo que hay que tocar es el fixture, no el código. */
+    const base = dashCamposDelServidor(p201Payload()), nuevo = dashCamposDelServidor(v2);
+    const sinCambiar = Object.keys(nuevo).filter(k =>
+      k !== 'atajosAdmin' && k !== 'demo' && JSON.stringify(base[k]) === JSON.stringify(nuevo[k]));
+    PRUEBAS.igual(sinCambiar, [],
+      'guarda: `v2` tiene que cambiar TODOS los campos del molde · si acá aparece un campo, falta ' +
+      'agregarlo al payload de este caso (no es un defecto del refresco)');
     return p201Refrescar(v2).then(() => {
       const despues = p201Contexto();
       /* ⚠️ Se compara contra lo que la función DEBERÍA producir con ese payload, no contra «distinto

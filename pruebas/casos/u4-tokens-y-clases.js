@@ -26,17 +26,68 @@ const U4_INLINE = ['--anc','--gpp','--hc','--tc','--spl-traza','--marquee-dist',
                    /* nota médica y evento del formulario: `style="--anc:...;--anct:...;--anbg:..."` */
                    '--anbg','--ansol','--anct'];
 
+/* ⚠️ EL TEXTO SIN COMENTARIOS, Y POR QUÉ ESTO ES UN HELPER Y NO CUATRO COPIAS. Los dos casos de
+   abajo barrían `x.textContent` del `<style>` con la misma regex escrita dos veces cada una
+   (usadas y declaradas). Medido el 2026-10-07: de los 463 KB del `<style>`, **192 KB son
+   comentarios** — el 42%. O sea el barrido leía como código casi la mitad de un texto donde se
+   escriben justamente frases como «acá decía `var(--muted2)`, que NO EXISTE».
+   Las dos direcciones del error son reales:
+   · un `var(--x)` citado en un comentario entra como USADO → falso positivo, el caso grita por un
+     token que nadie usa (y se aprende a ignorar el caso, que es lo peor que le puede pasar).
+   · un `--x:` citado en un comentario entra como DECLARADO → falso NEGATIVO, el caso bendice un
+     token que no existe. Este es el peligroso y es el que nadie habría notado.
+   Hoy hay un caso vivo de la primera forma: `--bg` aparece SÓLO en comentarios, y no explota de
+   casualidad porque está en `U4_INLINE`.
+   Va en un solo lugar porque cuatro derivaciones del mismo set es exactamente cómo divergen. */
+function u4CssTexto(){
+  return [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+}
+function u4Nombres(css, re){
+  const s = new Set();
+  (css.match(re) || []).forEach(m => { const n = m.match(/--[a-zA-Z0-9-]+/); if (n) s.add(n[0]); });
+  return s;
+}
+const U4_RE_USO = /var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g;
+/* El `^\s*` importa: sin él las declaraciones indentadas —o sea todas— no se detectan. */
+const U4_RE_DEC = /(^\s*|[;{]\s*)(--[a-zA-Z0-9-]+)\s*:/gm;
+const u4Usadas     = (css) => u4Nombres(css, U4_RE_USO);
+const u4Declaradas = (css) => u4Nombres(css, U4_RE_DEC);
+
+PRUEBAS.caso('⚠️ el barrido de tokens NO lee los comentarios del CSS', () => {
+  /* EL DISCRIMINADOR DEL HELPER DE ARRIBA. Si `u4CssTexto()` dejara de quitar comentarios, los dos
+     casos que siguen volverían a gritar por tokens citados en prosa, y el día que un comentario
+     escriba `--x:` pasarían a dar por DEFINIDO uno que no existe. Sin esta comprobación el arreglo
+     podría ser un no-op y nadie se enteraría.
+     ⚠️ Se mide con un `<style>` PROPIO, puesto y sacado acá. Medir sobre el CSS de la app no
+     discriminaría: lo que hay ahí cambia con cada prompt, así que un verde no distinguiría «el
+     helper funciona» de «hoy no había ningún token citado en un comentario». */
+  const st = document.createElement('style');
+  st.textContent = '/* citado en prosa: var(--u4-uso-en-comentario), y --u4-dec-en-comentario: red; */\n' +
+                   '.u4-sonda { color: var(--u4-uso-en-codigo); --u4-dec-en-codigo: blue; }';
+  document.head.appendChild(st);
+  try {
+    const css = u4CssTexto();
+    const usadas = u4Usadas(css), declaradas = u4Declaradas(css);
+    PRUEBAS.cierto(usadas.has('--u4-uso-en-codigo'),
+      'un var() en CÓDIGO tiene que entrar como usado, o el helper no mide nada');
+    PRUEBAS.falso(usadas.has('--u4-uso-en-comentario'),
+      '⚠️ un var() citado en un COMENTARIO no es un uso · falso positivo: el caso grita por un token que nadie usa');
+    PRUEBAS.cierto(declaradas.has('--u4-dec-en-codigo'),
+      'una declaración en CÓDIGO tiene que entrar como declarada');
+    PRUEBAS.falso(declaradas.has('--u4-dec-en-comentario'),
+      '⚠️ y una citada en un comentario NO · falso negativo: daría por definido un token que no existe');
+  } finally { st.remove(); }
+});
+
 PRUEBAS.caso('⚠️ toda variable CSS usada tiene que estar definida', () => {
   /* ⚠️ SE LE PREGUNTA AL NAVEGADOR, NO SE PARSEA EL CSS — y esta es la segunda versión del caso: la
      primera usaba una regex sobre el texto del `<style>` y daba una docena de falsos positivos
      (`--radius-xs`, `--linea`, `--sem-rojo-txt`… todos existen). Una prueba que grita por tokens
      que están es tan inútil como una que no ve los que faltan: en las dos, se aprende a ignorarla.
      `getPropertyValue` resuelve como resuelve el navegador de verdad, incluido el tema activo. */
-  const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
-  const usadas = new Set();
-  (css.match(/var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g) || []).forEach(m => {
-    const n = m.match(/--[a-zA-Z0-9-]+/); if (n) usadas.add(n[0]);
-  });
+  const css = u4CssTexto();
+  const usadas = u4Usadas(css);
   PRUEBAS.alMenos(usadas.size, 80, 'tiene que encontrar los tokens usados (halló ' + usadas.size + ')');
 
   /* ⚠️ Una variable puede estar declarada DENTRO de una regla (`.spl-x { --spl-tit: ... }`) y usarse
@@ -44,10 +95,7 @@ PRUEBAS.caso('⚠️ toda variable CSS usada tiene que estar definida', () => {
      definida si aparece declarada en cualquier bloque del CSS.
      ⚠️ El `^\s*` del patrón importa: sin él, las declaraciones indentadas —o sea todas— no se
      detectan, y el caso escupe una docena de tokens que sí existen. Me pasó en la primera versión. */
-  const declaradas = new Set();
-  (css.match(/(^\s*|[;{]\s*)(--[a-zA-Z0-9-]+)\s*:/gm) || []).forEach(m => {
-    const n = m.match(/--[a-zA-Z0-9-]+/); if (n) declaradas.add(n[0]);
-  });
+  const declaradas = u4Declaradas(css);
   PRUEBAS.alMenos(declaradas.size, 100, 'tiene que encontrar las declaraciones (halló ' + declaradas.size + ')');
 
   const raiz = getComputedStyle(document.documentElement);
@@ -65,17 +113,13 @@ PRUEBAS.caso('⚠️ toda variable CSS usada tiene que estar definida', () => {
 PRUEBAS.caso('⚠️ todo token de color existe en LOS DOS temas', () => {
   /* R13: un token definido en un solo tema se cae en el otro, sin error. Se comprueba resolviéndolo
      con cada tema puesto, que es lo único exacto. */
-  const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
-  const usadas = new Set();
-  (css.match(/var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g) || []).forEach(m => {
-    const n = m.match(/--[a-zA-Z0-9-]+/); if (n) usadas.add(n[0]);
-  });
+  const css = u4CssTexto();
+  const usadas = u4Usadas(css);
   /* Las locales (declaradas dentro de una regla) no viven en `:root` y no aplica preguntarles por
      tema: se comprueban las globales, que son las que R13 obliga a tener en los dos. */
   const locales = new Set();
-  (css.match(/(^\s*|[;{]\s*)(--[a-zA-Z0-9-]+)\s*:/gm) || []).forEach(m => {
-    const n = m.match(/--[a-zA-Z0-9-]+/);
-    if (n && !String(getComputedStyle(document.documentElement).getPropertyValue(n[0])).trim()) locales.add(n[0]);
+  u4Declaradas(css).forEach(n => {
+    if (!String(getComputedStyle(document.documentElement).getPropertyValue(n)).trim()) locales.add(n);
   });
   const rotos = [];
   /* P184 · `PRUEBAS.enTema` comprueba que el tema llegó a la resolución de estilos y restaura solo. */

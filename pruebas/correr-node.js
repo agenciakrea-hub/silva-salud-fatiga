@@ -52,7 +52,14 @@ const DEL_CLIENTE = ['H9 ', 'H21 ', 'R7-8 '];   // los que no pueden medir sin a
     propias.push({ n: c.nombre, err: c.error || '',
                    malas: reales.map(m => ({ porque: m.porque, esperaba: m.esperaba, obtuvo: m.obtuvo })) });
   });
+  /* P234 · el agrupamiento por causa viene del marco: 35 mensajes idénticos son UN defecto, y sin
+     esto se leen como 35. `colgados` > 0 significa que la corrida está sospechada de cascada. */
+  const rep = (typeof PRUEBAS.reporte === 'function') ? PRUEBAS.reporte() : {};
   console.log(JSON.stringify({ casos: casos.length, comprobaciones: ok + mal, fallas: mal,
-                               fallasPropias: propias.length, propias }, null, 1));
+                               fallasPropias: propias.length,
+                               colgados: rep.colgados, causasDistintas: rep.causasDistintas,
+                               stubsSucios: rep.stubsSucios,
+                               causas: (rep.causas || []).slice(0, 6),
+                               propias }, null, 1));
   process.exit(propias.length ? 1 : 0);
 })();

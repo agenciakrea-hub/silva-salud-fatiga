@@ -406,6 +406,8 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      `Session.getScriptTimeZone`: son dos cosas distintas en Apps Script (la del libro y la del
      script) pero acá conviene que coincidan, y `opciones.zona` las mueve a las dos juntas. */
   LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || ZONA_DEL_SCRIPT; };
+
+
   LibroFalso.prototype.getSheets = function () { return Object.keys(this._hojas).map(n => this._hojas[n]); };
   LibroFalso.prototype.insertSheet = function (n) {
     this._hojas[n] = new HojaFalsa(n, []);
@@ -773,7 +775,43 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
     return api;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════════════════════
+     P234 · UNA CELDA «QUE SHEETS CONVIRTIÓ A DATE», SIN DEPENDER DEL HUSO DEL HOST
+     ══════════════════════════════════════════════════════════════════════════════════════════
+     ⚠️ `new Date(2026, 2, 1)` es medianoche **en la zona del sistema que corre la suite**, no en la
+     del libro. El comentario de arriba ya lo advierte, y el costo estaba medido: `H11` de P226 pasa
+     en `America/Caracas` y en `Pacific/Midway`, y **falla en UTC, `Asia/Tokyo` y
+     `Pacific/Kiritimati`** — o sea una máquina de integración continua, que por defecto corre en
+     UTC, vería la suite en rojo por una fecha que en producción está bien.
+     Lo que un caso quiere decir con «la celda quedó como Date» es «medianoche de ese día **en la
+     zona del libro**», que es lo que Sheets guarda. Eso se construye desde el ISO, no desde los
+     componentes locales: se calcula el desfase real de la zona para ESE instante —con
+     `Intl.DateTimeFormat`, que conoce los horarios de verano— y se corrige.
+     Verificado con `TZ=America/Caracas`, `TZ=UTC`, `TZ=Asia/Tokyo` y `TZ=Pacific/Kiritimati`: el
+     epoch que devuelve es el MISMO en los cuatro. */
+  function fechaDeCelda_(iso, zona) {
+    const z = zona || ZONA_DEL_SCRIPT;
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(String(iso || ''));
+    if (!m) throw new Error('GS.fechaDeCelda: se espera AAAA-MM-DD[THH:MM[:SS]], llegó ' + iso);
+    const [, Y, M, D, h, mi, se] = m;
+    /* primer tiro: ese instante interpretado como UTC */
+    let t = Date.UTC(+Y, +M - 1, +D, +(h || 0), +(mi || 0), +(se || 0));
+    /* y dos pasadas de corrección, porque el desfase depende del instante (horario de verano) */
+    for (let k = 0; k < 2; k++) {
+      const p = new Intl.DateTimeFormat('en-CA', { timeZone: z, hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(t));
+      const g = {}; p.forEach(x => { g[x.type] = x.value; });
+      const visto = Date.UTC(+g.year, +g.month - 1, +g.day,
+                             +(g.hour === '24' ? '00' : g.hour), +g.minute, +g.second);
+      t += Date.UTC(+Y, +M - 1, +D, +(h || 0), +(mi || 0), +(se || 0)) - visto;
+    }
+    return new Date(t);
+  };
+
   global.GS = {
+    /* P234 · «la celda quedó como Date», sin depender del huso del host (ver la función arriba) */
+    fechaDeCelda: fechaDeCelda_,
     crearEntorno: crearEntorno,
     cargarGs: cargarGs,
     formatearFecha: formatearFecha,
