@@ -7701,7 +7701,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.26';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.27';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -22065,6 +22065,9 @@ function onDashData(d, scopeLabel, params, vista){
      `Object.assign` y no dentro del literal para que el día que se agregue uno no haya que acordarse
      de tocar dos lugares: se agrega en `dashCamposDelServidor` y llega solo a los dos. */
   Object.assign(DASH, ctxServidor);
+  /* La foto de la firma, para que el primer `dashRefresh` tenga contra qué comparar sin reconstruir
+     el payload. Sin esto `ctxAntes` sería '' y habría un repintado de más en el primer refresco. */
+  DASH._ctxSig = JSON.stringify(ctxServidor);
   DASH._niveles = Array.isArray(d.niveles) ? d.niveles : null;
   // _cfg ya quedó puesto arriba (cfgPayload), antes de llamar a dashTabsFor: no se reasigna acá
   // para no tener dos lugares que puedan quedar diciendo cosas distintas.
@@ -22488,28 +22491,34 @@ function dashRefresh(manual){
        evento— el contexto entraba en `DASH` y la pantalla no se enteraba. El caso que motivó todo
        esto es justo ése: se rompe la lectura de `Nómina`, llega `nominaError`, y el panel seguía
        mostrando el porcentaje de cobertura de antes sin decir que el dato no estaba. */
-    const ctxAntes = JSON.stringify(dashCamposDelServidor({ config: DASH._cfg, marca: DASH.marca,
-      combinada: DASH.combinada, cicloPlanPersona: DASH.cicloPlanPersona,
-      cicloPlanPersonaError: DASH.cicloPlanPersonaError, rol: DASH.rol, visor: DASH.visor,
-      visorError: DASH.visorError, cuentas: DASH.cuentas, zonaOp: DASH.zonaOp,
-      atajosAdmin: DASH.atajosAdmin, nominaTotal: DASH.nominaTotal,
-      nominaSinDato: DASH.nominaSinDato, nominaError: DASH.nominaError,
-      /* ⚠️ ESTAS TRES FALTABAN, y el efecto era al revés de lo que se pensaría: con `operaciones`
-         sin alimentar, `ctxAntes` traía SIEMPRE `[]` mientras `ctxAhora` traía la lista real, así
-         que `ctxAhora !== ctxAntes` era verdadero en CADA refresco y `dashRepintar()` corría cada
-         60 segundos para cualquier empresa con operaciones. El camino rápido «sin cambios → no
-         re-renderizo (no salta el scroll)» quedó muerto desde P227a.
-         `operaciones` y `operacionesError` las agregó P227a; `demo` es anterior. Lo cazó comparar
-         `Object.keys(dashCamposDelServidor())` contra las claves que este literal alimenta — y eso
-         es lo que vigila `P227b-6`, porque un literal de 17 campos escrito a mano vuelve a quedarse
-         corto en cuanto alguien agregue el dieciocho. */
-      operaciones: DASH.operaciones, operacionesError: DASH.operacionesError,
-      demo: DASH.demo }));
+    /* ⚠️ LA FOTO SE GUARDA, NO SE RE-DERIVA, y las dos versiones anteriores de esto fallaron por lo
+       mismo. Acá había un literal que reconstruía a mano el payload del pedido ANTERIOR para volver
+       a pasarlo por `dashCamposDelServidor`, y eso es imposible de mantener correcto:
+         · la primera versión nombraba 14 de 17 claves. Con `operaciones` sin alimentar, `ctxAntes`
+           traía siempre `[]` contra la lista real, así que el panel se repintaba en CADA refresco y
+           el camino rápido «sin cambios → no re-renderizo» quedó muerto desde P227a.
+         · agregué las tres que faltaban y **el defecto siguió vivo justo para Dirección**:
+           `nominaSinDatoN` no se puede alimentar desde `DASH`, porque `dashCamposDelServidor` la
+           deriva de `d.nominaSinDatoN` y, si no es un número, la recalcula contando
+           `nominaSinDato` — y a Dirección el endpoint le manda `nominaSinDato: []` con
+           `nominaSinDatoN: 3`. `ctxAntes` daba 0, `ctxAhora` 3, y repintaba siempre.
+         · y alimentar `demo` empeoró la demostración: `demoNominaSinDato(d)` necesita `d.registros`,
+           que el literal tampoco tenía, así que recalculaba la nómina de ejemplo entera.
+       Un literal de 17 campos escrito a mano vuelve a quedarse corto en cuanto alguien agregue el
+       dieciocho, y mientras tanto da falsos «cambió». La pregunta real es «¿cambió lo que el SERVIDOR
+       manda?», y eso se contesta guardando la firma del payload cuando se deriva. */
+    const ctxAntes = (DASH && DASH._ctxSig) || '';
     /* R14 · el sector se mide ANTES de pisar `_cfg`, igual que en `onDashData`: `sectorActual()` lo
        lee de ahí, así que cambiarlo a mitad de camino deja la terminología mezclada entre el panel y
        lo que ya estaba pintado afuera. Antes de P201 era imposible, porque `_cfg` no se refrescaba. */
     const secAntes = sectorActual();
-    Object.assign(DASH, dashCamposDelServidor(d));
+    /* Se deriva UNA vez: el objeto va a `DASH` y su firma queda guardada para el próximo refresco.
+       Es la firma de lo que mandó el SERVIDOR, no de `DASH` ya modificado por `dashLocalReaplicar`:
+       la pregunta que esto contesta es si el servidor cambió algo. */
+    const ctxNuevo = dashCamposDelServidor(d);
+    const ctxAhora = JSON.stringify(ctxNuevo);
+    Object.assign(DASH, ctxNuevo);
+    DASH._ctxSig = ctxAhora;
     /* ⚠️ En el ↻ MANUAL no se reaplica lo local: ese botón existe para traer la verdad del servidor.
        Si otro supervisor cambió el plan desde otro dispositivo, reaplicar lo de acá se lo pisaría y
        el botón que se toca para estar seguro devolvería lo viejo. */
@@ -22531,7 +22540,6 @@ function dashRefresh(manual){
       /* Los datos no cambiaron, pero el CONTEXTO sí puede haber cambiado (la nómina, la config, el
          aviso de que no se pudo leer). En ese caso hay que repintar igual — con `dashRepintar`, que
          no vuelve a animar todo — porque si no el dato llega a `DASH` y muere ahí. */
-      const ctxAhora = JSON.stringify(dashCamposDelServidor(d));
       if (ctxAhora !== ctxAntes){ try { dashRepintar(); } catch(e){} }
       if (manual) showToast(t('ts_ya_al_dia'));
       return true;                                  // sin cambios de datos → no se re-renderiza entero (no salta el scroll)
@@ -22778,8 +22786,25 @@ function buildDashFilters(){
        Si ninguna operación trae gente, el filtro no puede funcionar y no se ofrece. Esto sólo
        RESTRINGE: quita un control que no andaba. */
     const _opsCrudas = Array.isArray(DASH.operaciones) ? DASH.operaciones : [];
-    const _puedeCruzar = _opsCrudas.some(o => o && (o.gente || []).length);
-    const _ops = _puedeCruzar ? _opsCrudas.map(o => o && o.nombre).filter(Boolean) : [];
+    /* ⚠️ LA GUARDA ES POR OPCIÓN, NO POR LISTA, y mi primera versión usaba `.some()`: preguntaba
+       «¿hay ALGUNA cruzable?» y después ofrecía TODAS, incluidas las que vienen con `gente: []`.
+       O sea el bloqueante se angostó y no se cerró. El escenario, medido por el verificador y que no
+       necesita tocar la hoja: un evento ya terminado («Simulacro Marzo», `Fin` pasado) llega con
+       `gente: []`, `genteN: 0` y `genteHistN: 5` —`opAsignacionVigente_` lo descarta por el `Fin`—;
+       el supervisor lo elegía del selector y el panel entero se iba a cero, aunque esa gente SÍ se
+       midió. `genteHistN` existe justo para distinguir «nadie ahora» de «nunca nadie»: la tarjeta lo
+       usa y el filtro lo ignoraba.
+       Una operación entra al selector sólo si trae gente con la que cruzar. */
+    const _ops = [];
+    _opsCrudas.forEach(o => { if (o && o.nombre && (o.gente || []).length) _ops.push(String(o.nombre)); });
+    /* ⚠️ Y LO QUE YA ESTÁ PUESTO NO DESAPARECE DE LA LISTA. Es el mismo arreglo que `P076b` le hizo a
+       `dashPersonasSelector` («if (DASH.f.per) set.add(DASH.f.per)»), por el mismo defecto: si la
+       última asignación vigente vence mientras el filtro está puesto, la opción se iba de la lista,
+       el `<select>` dejaba de pintarse y `DASH.f.op` quedaba vivo — el panel filtrado a cero en las
+       ocho pestañas, sin un control para destrabarlo. Y si el `<select>` seguía por otra operación,
+       mostraba «Todas» mientras el chip decía «Operación: Cardón IV»: la pantalla contradiciéndose,
+       y el siguiente toque en cualquier filtro soltaba el de operación en silencio. */
+    if (DASH.f.op && _ops.indexOf(String(DASH.f.op)) < 0) _ops.push(String(DASH.f.op));
     if (_ops.length){
       html += '<div class="df-row"><div class="df"><label>' + esc(t('flt_operacion')) + '</label>' +
         '<select id="dashOp" onchange="dashFilterChange(\'op\')"><option value="">' + esc(t('flt_todas')) + '</option>' +
@@ -22986,13 +23011,34 @@ function dashFiltroClave(){
 }
 /* Qué dimensiones están puestas. `emp` sólo cuenta para el admin: para los demás es su única
    empresa y no es un filtro que se pueda quitar. */
+/* ⚠️ EL RÓTULO DEL ALCANCE, EN UN SOLO LUGAR, y es el quinto enumerador que apareció. Dos pantallas
+   lo armaban cada una por su cuenta y las dos dejaban afuera `op` y `nivel`:
+     · el título del Resumen decía «todo el grupo» con los datos de una operación;
+     · el subtítulo del informe decía «Análisis de Aeroambulancias Silva» con los datos de una
+       operación — y ese informe lo lee el servicio médico, que es el argumento con el que se arregló
+       el `filtros` del JSON y que aplica palabra por palabra al rótulo que está arriba.
+   `nivel` tenía el hueco desde su propio prompt. Del más específico al más general, que es lo que
+   la persona espera leer. Devuelve '' cuando no hay nada puesto: cada llamador pone su respaldo. */
+function dashAlcanceLabel(){
+  if (!DASH || !DASH.f) return '';
+  if (DASH.f.per) return String(DASH.f.per);
+  /* la operación va antes del departamento: es más específica, cruza departamentos */
+  if (DASH.f.op) return t('flt_operacion') + ': ' + String(DASH.f.op);
+  if (DASH.f.dep) return String(DASH.f.dep);
+  if (DASH.f.nivel) return t('flt_nivel_riesgo') + ' ' + String(DASH.f.nivel);
+  if (DASH.rol === 'admin' && DASH.f.emp) return String(DASH.f.emp);
+  if (DASH.f.emp) return String(DASH.f.emp);
+  return '';
+}
 function dashFiltrosPuestos(){
   if (!DASH || !DASH.f) return [];
   return DASH_DIMS.filter(k => !!DASH.f[k] && (k !== 'emp' || DASH.rol === 'admin'));
 }
 const ALC_TODO      = { emp:1, dep:1, per:1, nivel:1, op:1 };
 const ALC_SIN_NIVEL = { emp:1, dep:1, per:1,          op:1 };
-const ALC_REPORTES  = {        dep:1, per:1,          op:1 };
+/* `anonOk` · SÓLO los reportes pueden traer una fila sin nombre legítimamente (el canal anónimo).
+   Ver la guarda de `D.op` en el predicado: la excepción está acotada acá y no vale para los otros 7. */
+const ALC_REPORTES  = {        dep:1, per:1,          op:1, anonOk:1 };
 const ALC_SIN_PER   = { emp:1, dep:1,        nivel:1, op:1 };   /* el sitio filtra la persona a su modo */
 function dashEnAlcanceDe(x, dims){
   const D = dims || ALC_TODO;
@@ -23014,7 +23060,15 @@ function dashEnAlcanceDe(x, dims){
        canal anónimo sin decírselo, y ese canal es justamente el que R4 promete que existe.
        No se puede saber a qué operación pertenece un anónimo. Mostrarlo de más es la falla segura. */
     const quien = String((x.persona != null ? x.persona : x.nombre) || '').trim();
-    if (quien && opNombresDe(x).indexOf(DASH.f.op) < 0) return false;
+    /* ⚠️ LA EXCEPCIÓN ESTÁ ACOTADA A LOS SITIOS QUE LA DECLARAN, y mi primera versión la puso en el
+       predicado de los OCHO. Eso abría un agujero más ancho que el problema: hay otras dos fuentes
+       con `persona: ""` que no son el canal anónimo —una fila de nómina con el nombre vacío y la
+       empresa cargada, que el `.gs` conserva a propósito, y los comentarios, que no tienen guarda de
+       nombre vacío—. Con la excepción global, esas filas se exceptuaban del filtro y entraban en el
+       conteo de la operación y en el JSON que va a Gemini: basura acotada, pero el informe declaraba
+       un alcance que contaba filas de otra parte. */
+    if (!quien) { if (!D.anonOk) return false; }
+    else if (opNombresDe(x).indexOf(DASH.f.op) < 0) return false;
   }
   return true;
 }
@@ -23051,7 +23105,13 @@ function dashFilasPrevias(){
      campos y le faltaba `op`, así que al cambiar de operación la caché devolvía las filas del
      período anterior SIN filtrar: la flecha «vs. período previo» de los 7 indicadores comparaba una
      operación contra toda la empresa. Medido por el verificador: 4 filas donde correspondían 1. */
-  const clave = rng.desde + '|' + rng.hasta + '|' + dashFiltroClave();
+  /* ⚠️ `rawSig` ENTRA EN LA CLAVE, y esto es PRE-EXISTENTE a P227b: la clave eran fechas + filtros,
+     sin ninguna firma de los datos, así que tras un `dashRefresh` con `changed === true` esta caché
+     devolvía el arreglo VIEJO — las filas del período previo de antes del refresco. Lo señaló el
+     verificador como «dentro del radio» del arreglo de la clave, y tiene razón: estaba tocando esta
+     línea y no me pregunté qué más le faltaba. `DASH.rawSig` es la firma de registros + pvt + ciclo +
+     aptitud + turnos + ausencias que `dashRefresh` ya calcula. */
+  const clave = rng.desde + '|' + rng.hasta + '|' + dashFiltroClave() + '|' + String(DASH.rawSig || '');
   if (_dashPrevCache && _dashPrevCache.clave === clave) return _dashPrevCache.filas;
   const filas = dashFiltradoEn(rng);
   _dashPrevCache = { clave: clave, filas: filas };
@@ -28796,7 +28856,9 @@ function renderResumen(rows){
   const single = DASH.rol === 'empleado' || !!DASH.f.per;
   const esOtraPersona = single && DASH.rol !== 'empleado';
   const who = DASH.f.per ? esc(DASH.f.per)
-            : (DASH.rol==='empleado' ? '' : (DASH.f.dep ? esc(DASH.f.dep) : (DASH.f.emp ? esc(DASH.f.emp) : esc(t('res_todo_grupo')))));
+            /* P227b · sale de `dashAlcanceLabel()`: enumeraba `dep` y `emp` y titulaba «todo el
+               grupo» con los datos recortados a una operación o a un nivel. */
+            : (DASH.rol==='empleado' ? '' : esc(dashAlcanceLabel() || t('res_todo_grupo')));
   const help = dashHelp(single
     ? (esOtraPersona
         ? t('hlp_res_otra', { q: '<b>' + esc(DASH.f.per) + '</b>' })
@@ -29806,7 +29868,11 @@ function renderInforme(rows){
          sección: se vuelve a pintar EN VUELO, con el botón apagado — si no, el botón nacía tocable y salía un segundo `informe` */
       ? '<button class="save-btn informe-btn btn-loading" id="informeBtn" disabled><span class="cargador cargador--btn" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' + esc(t('inf_generando')) + '</button>'
       : '<button class="save-btn informe-btn" id="informeBtn" onclick="dashGenerarInforme()">' + esc(t('inf_generar')) + '</button>');
-  const sub = '<div class="db-sub">' + t('inf_analisis_de', { q: '<b>' + esc(DASH.f.per || DASH.f.dep || DASH.f.emp || dashScopeVisible(DASH.scope)) + '</b>' }) + '</div>';
+  /* P227b · el subtítulo declara el alcance REAL. Enumeraba tres dimensiones de cinco, así que con
+     una operación o un nivel puestos decía «Análisis de <la empresa entera>» con los números
+     recortados — y este informe queda archivado en el CH y lo lee el servicio médico. Es el mismo
+     argumento con el que se arregló el `filtros` del JSON, en el rótulo que está justo arriba. */
+  const sub = '<div class="db-sub">' + t('inf_analisis_de', { q: '<b>' + esc(dashAlcanceLabel() || dashScopeVisible(DASH.scope)) + '</b>' }) + '</div>';
   // Objetivo opcional: si se pone una fecha de cambio, el informe compara antes/después (como correlación, no causa)
   const obj = '<div class="inf-obj">' +
     '<div class="inf-obj-t">' + esc(t('inf_obj_titulo')) + ' <span>· ' + esc(t('inf_obj_opcional')) + '</span></div>' +
@@ -30033,7 +30099,11 @@ function dashBuildSummary(rows, opts){
     filtros: (function(){
       const etq = { emp:'empresa', dep:'departamento', per:'empleado', nivel:'nivel_riesgo', op:'operacion' };
       const o = {};
-      DASH_DIMS.forEach(k => { if (etq[k]) o[etq[k]] = (DASH.f && DASH.f[k]) || '(todos)'; });
+      /* ⚠️ `etq[k] || k`, NO `if (etq[k])`. Con el `if`, una sexta dimensión agregada a `DASH_DIMS`
+         no aparecía en el informe Y NO FALLABA — exactamente la clase de descarte en silencio que
+         este prompt vino a eliminar, reintroducida en su propio arreglo. Sin etiqueta sale con su
+         nombre de clave, que es feo y se nota, en vez de no salir y no notarse. */
+      DASH_DIMS.forEach(k => { o[etq[k] || k] = (DASH.f && DASH.f[k]) || '(todos)'; });
       return o;
     })(),
     nRegistros: rows.length, referencias: DASH.ref,

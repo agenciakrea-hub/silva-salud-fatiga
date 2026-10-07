@@ -252,49 +252,81 @@ PRUEBAS.caso('🔒 P227b-6 · un reporte ANÓNIMO no se esconde al filtrar por o
   });
 });
 
-PRUEBAS.caso('🔴 P227b-7 · las CINCO dimensiones están en los cuatro lugares que las enumeran', () => {
+PRUEBAS.caso('🔴 P227b-7 · ninguna función enumera ALGUNAS dimensiones del alcance y no todas', () => {
   if (!p227bHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
-  /* ⚠️ EL CASO QUE CORTA LA SERIE, y existe porque unificar el predicado NO unificó a quien enumera.
-     El verificador encontró cuatro lugares que listaban las dimensiones a mano y a los que la quinta
-     no llegó: la clave de `dashFilasPrevias`, el `filtros` del JSON a Gemini, `dashHayFiltro` y
-     `dashContext`/`dashClearOne`. `nivel` ya tenía tres de los cuatro huecos desde antes.
-     Se mide sobre el FUENTE porque es lo único que ve las cuatro de una vez. */
+  /* ⚠️ SEGUNDA VERSIÓN, y la primera NO servía para lo que su propio comentario declaraba. Decía ser
+     «lo que corta la serie» y eran cuatro regex contra cuatro sitios NOMBRADOS A MANO: un quinto
+     enumerador le era invisible. El verificador lo demostró en el acto — había DOS vivos
+     (`renderResumen` titulando «todo el grupo» y `renderInforme` titulando «Análisis de <la empresa>»
+     con los datos de una operación) y el caso estaba en verde.
+     Un candado sobre los sitios conocidos no es el invariante; es la lista de los que ya se
+     arreglaron.
+
+     EL INVARIANTE DE VERDAD: una función que mira el alcance mira **todas** las dimensiones, o
+     declara acá por qué no. Así un enumerador nuevo —el que alguien escriba mañana sin `op`— cae
+     solo, sin que nadie lo nombre antes. */
   return fetch('/index.html?v=' + Date.now()).then(r => r.text()).then(src => {
-    PRUEBAS.igual(DASH_DIMS.length, 5, 'guarda: hay cinco dimensiones · ' + JSON.stringify(DASH_DIMS));
+    const DIMS = DASH_DIMS.slice();
+    PRUEBAS.igual(DIMS.length, 5, 'guarda: hay cinco dimensiones · ' + JSON.stringify(DIMS));
 
-    /* 1 · la clave de la caché de tendencias sale del helper, no de una concatenación */
-    PRUEBAS.cierto(/const clave = rng\.desde \+ '\|' \+ rng\.hasta \+ '\|' \+ dashFiltroClave\(\)/.test(src),
-      '🔴 la clave de `dashFilasPrevias` sale de `dashFiltroClave()`, no de campos escritos a mano');
-    /* 2 · el `filtros` del informe recorre DASH_DIMS */
-    const iInf = src.indexOf('filtros: (function(){');
-    PRUEBAS.alMenos(iInf, 0, '🔴 el `filtros` del informe se deriva de `DASH_DIMS`');
-    PRUEBAS.cierto(src.slice(iInf, iInf + 420).indexOf('DASH_DIMS.forEach') >= 0,
-      '🔴 y lo hace recorriéndolas, no nombrando dos de cinco');
-    /* 3 · dashHayFiltro usa el helper */
-    const iHay = src.indexOf('function dashHayFiltro(');
-    PRUEBAS.cierto(src.slice(iHay, src.indexOf('\n}', iHay)).indexOf('dashFiltrosPuestos()') >= 0,
-      '🔴 `dashHayFiltro` sale de `dashFiltrosPuestos()` · con `op` sola devolvía false y cerraba el panel');
-    /* 4 · cada dimensión que se puede quitar tiene su rama en dashClear */
+    /* Las parciales DECLARADAS, cada una con su razón. Agregar una acá es una decisión, no un
+       descuido: hay que poder escribir por qué esa función no necesita las cinco. */
+    const PARCIALES = {
+      dashEmpresaAdminCambiar: 'no necesita `op`/`nivel`: `onDashData` reemplaza `DASH.f` entero una línea después',
+      dashClearOne:            'no nombra `emp` porque termina delegando en `dashClear(\'emp\')`',
+      dashImprimirCabecera:    'MUERTA (alcanzabilidad.py, P144) · si alguien le da llamador, hay que arreglarla',
+      dashImprimirPie:         'MUERTA (alcanzabilidad.py, P144) · ídem'
+    };
+
+    const enumeradores = (texto) => {
+      const re = /^function ([A-Za-z_$][\w$]*)\s*\(/gm, pos = [];
+      let m; while ((m = re.exec(texto))) pos.push({ i: m.index, nom: m[1] });
+      const out = [];
+      pos.forEach((p, k) => {
+        const cuerpo = texto.slice(p.i, k + 1 < pos.length ? pos[k + 1].i : texto.length);
+        const hay = DIMS.filter(d => new RegExp('DASH\\.f\\.' + d + '\\b').test(cuerpo));
+        if (hay.length >= 3) out.push({ nom: p.nom, hay: hay, completa: hay.length === DIMS.length });
+      });
+      return out;
+    };
+
+    const todos = enumeradores(src);
+    PRUEBAS.alMenos(todos.length, 5,
+      'guarda: el barrido encuentra enumeradores (halló ' + todos.length + ') · si da 0 no está midiendo el fuente');
+
+    const parcialesNoDeclaradas = todos.filter(e => !e.completa && !PARCIALES[e.nom]);
+    PRUEBAS.igual(parcialesNoDeclaradas.map(e => e.nom + '[' + e.hay.join(',') + ']'), [],
+      '🔴 estas funciones miran ALGUNAS dimensiones del alcance y no todas, sin estar declaradas · ' +
+      'casi siempre es una dimensión nueva que no llegó · si es a propósito, va en `PARCIALES` con su razón');
+
+    /* ⚠️ EL DISCRIMINADOR, que la primera versión no tenía: se inyecta un enumerador nuevo —tal como
+       lo escribiría alguien que no sabe de `op`— y el caso TIENE que verlo y nombrarlo. */
+    const colado = 'function dashRotuloColado(){\n' +
+      '  return DASH.f.per || DASH.f.dep || DASH.f.emp || "";\n' + '}\n';
+    const roto = src.replace('function dashAlcanceLabel(', colado + 'function dashAlcanceLabel(');
+    PRUEBAS.falso(roto === src, 'guarda: el sabotaje tiene que modificar el fuente');
+    const colados = enumeradores(roto).filter(e => !e.completa && !PARCIALES[e.nom]).map(e => e.nom);
+    PRUEBAS.igual(colados, ['dashRotuloColado'],
+      'DISCRIMINADOR · un enumerador nuevo sin `op` tiene que caer solo, SIN que nadie lo nombre antes · ' +
+      JSON.stringify(colados));
+
+    /* Y las ramas de `dashClear`, acotadas A SU CUERPO: el patrón anterior barría todo el fuente, y
+       `level===\'dep\'`/`\'per\'` también están en `dashDrill`, así que borrar esas ramas de
+       `dashClear` pasaba en verde. */
+    const iCl = src.indexOf('function dashClear(');
+    PRUEBAS.alMenos(iCl, 0, 'guarda: `dashClear` está en el fuente');
+    const cuerpoClear = src.slice(iCl, src.indexOf('\nfunction ', iCl + 10));
     ['dep', 'per', 'nivel', 'op'].forEach(k => {
-      PRUEBAS.cierto(new RegExp("level==='" + k + "'").test(src),
-        '🔴 `dashClear` tiene rama para `' + k + '` · sin ella el chip con «×» no haría nada');
+      PRUEBAS.cierto(new RegExp("level==='" + k + "'").test(cuerpoClear),
+        '🔴 `dashClear` tiene rama para `' + k + '` EN SU CUERPO · sin ella el chip con «×» no haría nada');
     });
 
-    /* 5 · y el literal de `ctxAntes` alimenta TODAS las claves que el molde produce: con una sin
-           alimentar, `ctxAhora !== ctxAntes` es siempre cierto y el panel se repinta cada 60 s. */
-    const salida = Object.keys(dashCamposDelServidor({}));
-    const iCtx = src.indexOf('const ctxAntes = JSON.stringify(dashCamposDelServidor({');
-    PRUEBAS.alMenos(iCtx, 0, 'guarda: el literal de `ctxAntes` está donde se espera');
-    const lit = src.slice(iCtx, src.indexOf('}));', iCtx));
-    /* `_cfg` lo alimenta `config`; `nominaSinDatoN` se deriva de `nominaSinDato` */
-    const equiv = { _cfg: 'config', nominaSinDatoN: 'nominaSinDato' };
-    const faltan = salida.filter(k => {
-      const nom = equiv[k] || k;
-      return !new RegExp('\\b' + nom + '\\s*:').test(lit);
-    });
-    PRUEBAS.igual(faltan, [],
-      '🔴 `ctxAntes` alimenta todas las claves del molde · las que faltan hacen que el panel se ' +
-      'repinte en CADA refresco · faltan: ' + faltan.join(', '));
+    /* Y la firma de contexto del auto-refresco no se RE-DERIVA de un payload reconstruido: se guarda.
+       Las dos versiones anteriores de eso fallaron por alimentar mal un literal de 17 campos. */
+    PRUEBAS.cierto(/const ctxAntes = \(DASH && DASH\._ctxSig\) \|\| ''/.test(src),
+      '🔴 `ctxAntes` sale de la foto guardada, no de reconstruir el payload anterior a mano');
+    PRUEBAS.alMenos((src.match(/DASH\._ctxSig = /g) || []).length, 2,
+      '🔴 y la foto se guarda en los DOS caminos que derivan: la primera carga y el refresco');
   });
 });
 

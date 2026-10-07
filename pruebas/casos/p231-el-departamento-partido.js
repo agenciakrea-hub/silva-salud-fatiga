@@ -136,14 +136,20 @@ PRUEBAS.caso('🔴 el alcance se deriva en UN solo lugar y nadie compara el depa
     /* ⚠️ Y QUE TODOS PASEN POR AHÍ. Sin esto, el aserto de arriba también daría verde si alguien
        borrara el filtro de un sitio en vez de unificarlo — «cero comparaciones afuera» es cierto
        tanto si llaman al predicado como si no filtran nada. Son dos cosas distintas. */
-    /* ⚠️ `igual`, NO `alMenos`, y el verificador midió por qué: con 9 ocurrencias reales
-       (declaración + `dashEnAlcance` que delega + 7 sitios), un `alMenos(8)` TOLERA que un sitio
-       pierda su llamada. Saboteado, quedaban 8 y el aserto pasaba igual — o sea el aserto que
-       existe para que «cero comparaciones afuera» no dé verde cuando alguien BORRA el filtro,
-       toleraba exactamente eso. Un umbral puesto justo donde empieza el defecto no es un umbral. */
+    /* ⚠️ `alMenos(9)`, Y EL NÚMERO ES EL VALOR EXACTO DE HOY A PROPÓSITO. Las dos versiones
+       anteriores fallaban en direcciones opuestas:
+         · `alMenos(8)` con 9 ocurrencias reales TOLERABA que un sitio perdiera su llamada —
+           saboteado quedaban 8 y pasaba igual, o sea el aserto que existe para que «cero
+           comparaciones afuera» no dé verde cuando alguien BORRA el filtro toleraba exactamente eso;
+         · `igual(9)` se rompe cuando alguien AGREGA un consumidor legítimo —`P227c` va a hacerlo, el
+           ADR ya nombra 8 `render*` candidatas— y lo hace con el mensaje equivocado: apuntaría a una
+           llamada faltante cuando la causa es una de más. Es el mismo modo de falla que la versión
+           original de este caso, que exigía 4 copias y se rompió con el arreglo (R19).
+       Un piso en el valor exacto cubre las dos: perder una da 8 y falla; agregar una da 10 y pasa. */
     const llamadas = (src.match(/dashEnAlcanceDe\(/g) || []).length;
-    PRUEBAS.igual(llamadas, 9,
-      '🔴 las 9 ocurrencias exactas: la declaración, `dashEnAlcance` que delega, y los 7 sitios · hay ' + llamadas);
+    PRUEBAS.alMenos(llamadas, 9,
+      '🔴 los 9 sitios que llaman al predicado (declaración + `dashEnAlcance` + los 7) · hay ' + llamadas +
+      ' · si BAJÓ, alguien le quitó el filtro a un sitio en vez de unificarlo');
 
     /* DISCRIMINADOR · se reintroduce una copia de la línea en el texto y el caso TIENE que verla. */
     const roto = src.replace('function dashFiltradoEn(',
@@ -152,5 +158,12 @@ PRUEBAS.caso('🔴 el alcance se deriva en UN solo lugar y nadie compara el depa
     PRUEBAS.falso(roto === src, 'guarda: el sabotaje tiene que modificar el fuente');
     PRUEBAS.igual((roto.match(RE_DEP) || []).length, total + 1,
       'DISCRIMINADOR · una copia nueva de la línea TIENE que subir el conteo, o este caso no mide nada');
+
+    /* ⚠️ Y EL SEGUNDO DISCRIMINADOR, que faltaba: el aserto de `llamadas` también tiene que poder
+       ponerse en rojo. Se le quita una llamada al texto y se comprueba que el piso la ve. */
+    const menos = src.replace('dashEnAlcanceDe(r, ALC_TODO)', 'true /* sin filtro */');
+    PRUEBAS.falso(menos === src, 'guarda: el segundo sabotaje tiene que modificar el fuente');
+    PRUEBAS.igual((menos.match(/dashEnAlcanceDe\(/g) || []).length, llamadas - 1,
+      'DISCRIMINADOR · quitarle la llamada a un sitio TIENE que bajar el conteo por debajo del piso');
   });
 });
