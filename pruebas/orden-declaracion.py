@@ -161,19 +161,38 @@ def main():
 
     riesgos = {}
     for linea, txt in ejec:
-        vistos, pila = set(), [(n, 1) for n in llamadas(txt) if n in funcs]
-        while pila:
-            fn, prof = pila.pop()
-            if fn in vistos or prof > PROF_MAX:
+        # ⚠️ BFS, Y NO ES UN DETALLE DE ESTILO. Esto era un DFS (`pila.pop()`) que iteraba el
+        # `set` que devuelve `llamadas()` sin ordenarlo, y marcaba `vistos` AL VISITAR. Dos
+        # consecuencias que se combinaban:
+        #   · el orden de un `set` de cadenas depende de PYTHONHASHSEED, que Python aleatoriza
+        #     por proceso, así que dos corridas del MISMO archivo exploraban en otro orden;
+        #   · con `vistos` marcado al visitar y un tope de profundidad, un nodo alcanzado primero
+        #     por un camino LARGO se marca visto, y cuando el camino CORTO llega lo saltea: su
+        #     subárbol queda sin explorar. O sea el resultado dependía de por dónde se entró.
+        # Medido el 2026-10-07: tres corridas sobre el mismo `index.html` dieron 18, 18 y 19
+        # hallazgos, y el que aparecía y desaparecía era siempre `_gestEnVuelo`. Un barrido que
+        # da verde dos de cada tres veces es peor que no tenerlo, y éste es el que vigila R16 —
+        # la regla que ya mordió tres veces con tres síntomas distintos.
+        # El arreglo: cola FIFO y `vistos` marcado AL ENCOLAR, así cada función se visita con su
+        # profundidad MÍNIMA; y `sorted()` en los dos lugares que iteran el set.
+        vistos = set()
+        cola = [(nn, 1) for nn in sorted(llamadas(txt)) if nn in funcs]
+        for nn, _p in cola:
+            vistos.add(nn)
+        i = 0
+        while i < len(cola):
+            fn, prof = cola[i]
+            i += 1
+            if prof > PROF_MAX:
                 continue
-            vistos.add(fn)
             _, cuerpo = funcs[fn]
             for nom, (dl, tipo) in decl.items():
                 if dl > linea and re.search(r"\b" + re.escape(nom) + r"\b", cuerpo):
                     riesgos.setdefault(nom, (tipo, dl, fn, linea))
-            for sig in llamadas(cuerpo):
+            for sig in sorted(llamadas(cuerpo)):
                 if sig in funcs and sig not in vistos:
-                    pila.append((sig, prof + 1))
+                    vistos.add(sig)
+                    cola.append((sig, prof + 1))
 
     print("variables de nivel superior con valor: %d" % len(decl))
     print("funciones de nivel superior:           %d" % len(funcs))

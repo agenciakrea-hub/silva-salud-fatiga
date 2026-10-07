@@ -86,19 +86,71 @@ PRUEBAS.caso('🔴 elegir cualquiera de las tres variantes trae EXACTAMENTE la m
   });
 });
 
-PRUEBAS.caso('🔴 las CUATRO comparaciones usan la misma derivación, no sólo la de `dashEnAlcance`', () => {
-  /* ⚠️ ESTE CASO EXISTE PORQUE ARREGLAR UNA SOLA ERA LO FÁCIL Y LO EQUIVOCADO. `dashEnAlcance`
-     declara ser la única derivación del alcance y **la usa un solo llamador**: `cicloPersonas`,
-     `reportesFiltrados` y `dashFilteredPVT` tienen la línea copiada. Si alguien «simplifica» esto
-     dejando una sola normalizada, el panel vuelve a partir el grupo en tres de sus pestañas sin que
-     la de aptitud lo note. Se mide sobre el FUENTE porque es lo único que ve las cuatro. */
-  const fuente = (typeof dashEnAlcance === 'function') ? '' : null;
-  const txt = [dashEnAlcance, cicloPersonas, reportesFiltrados, dashFilteredPVT]
-    .map(f => String(f)).join('\n');
-  const crudas = (txt.match(/r\.departamento !== DASH\.f\.dep/g) || []).length;
-  const normalizadas = (txt.match(/depClaveCliente\(r\.departamento\)/g) || []).length;
-  PRUEBAS.igual(crudas, 0,
-    '🔴 ninguna de las cuatro compara el departamento CRUDO · quedan ' + crudas);
-  PRUEBAS.igual(normalizadas, 4,
-    '🔴 las CUATRO pasan por `depClaveCliente` · hay ' + normalizadas);
+PRUEBAS.caso('🔴 el alcance se deriva en UN solo lugar y nadie compara el departamento a mano', () => {
+  /* ⚠️ ESTE CASO EXISTE PORQUE ARREGLAR UNA SOLA ERA LO FÁCIL Y LO EQUIVOCADO: `dashEnAlcance`
+     declaraba ser la única derivación del alcance y tres funciones tenían la línea COPIADA, así que
+     el panel partía el grupo en tres de sus pestañas sin que la de aptitud lo notara.
+
+     ⚠️ SEGUNDA VERSIÓN (P227b, 2026-10-07), y la primera no podía sobrevivir al arreglo de verdad.
+     Exigía `depClaveCliente(r.departamento)` exactamente CUATRO veces, o sea daba por buena la
+     situación que vino a denunciar: cuatro copias que casualmente derivan igual. Cuando P227b las
+     unificó en `dashEnAlcanceDe`, el conteo pasó a 0 y el caso se puso en rojo **por el arreglo**.
+     Un caso que se rompe cuando el defecto se cierra está midiendo la forma, no el invariante.
+
+     El invariante de verdad es: **una sola derivación, y todos pasan por ella**. Y se mide sobre el
+     FUENTE COMPLETO, no sobre una lista de funciones escrita a mano: enumerarlas deja ciego al
+     noveno sitio que alguien escriba, que es exactamente cómo esto creció de cuatro a ocho. */
+  return fetch('/index.html?v=' + Date.now()).then(r => r.text()).then(src => {
+    /* ⚠️ EL PATRÓN MIDE EL FILTRO DE ALCANCE, NO EL USO DE `depClaveCliente`. Mi primera versión
+       buscaba `depClaveCliente(x.departamento)` a secas y cazaba un uso LEGÍTIMO: la lista de
+       nómina (`nominaListFiltrar`) normaliza contra `depK`, que sale de su propio desplegable
+       —`nomListDepto`— y no tiene nada que ver con `DASH.f.dep`. `verificar-adr015.py` ya tenía
+       documentado ese caso. Un barrido que marca lo correcto se aprende a ignorar igual que uno
+       que no ve lo incorrecto.
+       La forma del filtro de alcance es `DASH.f.dep && …depClaveCliente…`, y así se cuenta: la
+       guarda y la normalización en la misma sentencia, sin importar el orden de los operandos. */
+    const RE_DEP = /DASH\.f\.dep\s*&&[^;]*depClaveCliente/g;
+    const RE_CRUDO = /[a-z]+\.departamento\s*(?:!==|===|!=|==)\s*DASH\.f\.dep\b/g;
+
+    const total = (src.match(RE_DEP) || []).length;
+    PRUEBAS.alMenos(total, 1, 'guarda: el barrido encuentra la comparación, o no está midiendo el fuente');
+
+    /* El cuerpo del predicado: desde su `function` hasta el próximo `function` de nivel superior. */
+    const iPred = src.indexOf('function dashEnAlcanceDe(');
+    PRUEBAS.alMenos(iPred, 0, 'guarda: `dashEnAlcanceDe` existe en el fuente');
+    const finPred = src.indexOf('\nfunction ', iPred + 10);
+    const cuerpo = src.slice(iPred, finPred);
+    const dentro = (cuerpo.match(RE_DEP) || []).length;
+
+    PRUEBAS.igual(dentro, 1, '🔴 el predicado normaliza el departamento UNA vez · ' + dentro);
+    PRUEBAS.igual(total - dentro, 0,
+      '🔴 y NADIE más compara el departamento por su cuenta · quedan ' + (total - dentro) +
+      ' fuera del predicado · si alguien copió la línea otra vez, el panel vuelve a partir el grupo');
+    /* ⚠️ LAS DOS DIRECCIONES. `RE_CRUDO` miraba sólo `x.departamento !== DASH.f.dep`; una copia
+       escrita al revés —`DASH.f.dep !== r.departamento`, que es el MISMO defecto de P231 dado
+       vuelta— pasaba invisible por los dos patrones. Lo midió el verificador saboteándolo. */
+    const RE_CRUDO_INV = /DASH\.f\.dep\s*(?:!==|===|!=|==)\s*[a-z]+\.departamento\b/g;
+    PRUEBAS.igual((src.match(RE_CRUDO) || []).length + (src.match(RE_CRUDO_INV) || []).length, 0,
+      '🔴 y ninguna compara el departamento CRUDO, en NINGUNO de los dos órdenes de operandos');
+
+    /* ⚠️ Y QUE TODOS PASEN POR AHÍ. Sin esto, el aserto de arriba también daría verde si alguien
+       borrara el filtro de un sitio en vez de unificarlo — «cero comparaciones afuera» es cierto
+       tanto si llaman al predicado como si no filtran nada. Son dos cosas distintas. */
+    /* ⚠️ `igual`, NO `alMenos`, y el verificador midió por qué: con 9 ocurrencias reales
+       (declaración + `dashEnAlcance` que delega + 7 sitios), un `alMenos(8)` TOLERA que un sitio
+       pierda su llamada. Saboteado, quedaban 8 y el aserto pasaba igual — o sea el aserto que
+       existe para que «cero comparaciones afuera» no dé verde cuando alguien BORRA el filtro,
+       toleraba exactamente eso. Un umbral puesto justo donde empieza el defecto no es un umbral. */
+    const llamadas = (src.match(/dashEnAlcanceDe\(/g) || []).length;
+    PRUEBAS.igual(llamadas, 9,
+      '🔴 las 9 ocurrencias exactas: la declaración, `dashEnAlcance` que delega, y los 7 sitios · hay ' + llamadas);
+
+    /* DISCRIMINADOR · se reintroduce una copia de la línea en el texto y el caso TIENE que verla. */
+    const roto = src.replace('function dashFiltradoEn(',
+      'function dashColado(r){ if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false; return true; }\n' +
+      'function dashFiltradoEn(');
+    PRUEBAS.falso(roto === src, 'guarda: el sabotaje tiene que modificar el fuente');
+    PRUEBAS.igual((roto.match(RE_DEP) || []).length, total + 1,
+      'DISCRIMINADOR · una copia nueva de la línea TIENE que subir el conteo, o este caso no mide nada');
+  });
 });

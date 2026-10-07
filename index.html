@@ -7701,7 +7701,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.23';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.26';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9392,6 +9392,7 @@ const I18N = {
       met_gastro:'Gastro', met_depresion:'Depresión', met_cansancio:'Cansancio',
       flt_desde:'Desde', flt_hasta:'Hasta', flt_empresa:'Empresa', flt_departamento:'Departamento',
       flt_empleado:'Empleado', flt_nivel_riesgo:'Nivel de riesgo', flt_todas:'Todas', flt_todos:'Todos',
+      flt_operacion:'Operación',   /* P227b · la quinta dimensión del alcance */
       dash_todas_empresas:'Todas las empresas', dash_ejemplo:'ejemplo',
       /* ── P223 · Actividad reciente ──────────────────────────────────────────────────────
          R1 · español NEUTRO: "toca", "tú", nunca voseo. R14 · nada de términos de sector:
@@ -11617,6 +11618,7 @@ const I18N = {
       met_gastro:'Gastro', met_depresion:'Depression', met_cansancio:'Tiredness',
       flt_desde:'From', flt_hasta:'To', flt_empresa:'Company', flt_departamento:'Department',
       flt_empleado:'Employee', flt_nivel_riesgo:'Risk level', flt_todas:'All', flt_todos:'All',
+      flt_operacion:'Operation',
       dash_todas_empresas:'All companies', dash_ejemplo:'example',
       /* ── P223 · Recent activity ─────────────────────────────────────────────────────── */
       mov_titulo:'Recent activity',
@@ -19979,8 +19981,14 @@ function dashHayFiltro(){
   if (!DASH) return false;
   if (DASH._aptQ || DASH._aptFiltro || DASH._aptSoloAnot) return true;
   if (!DASH.f) return false;
-  return !!(DASH.f.per || DASH.f.dep || DASH.f.nivel || DASH.f.desde || DASH.f.hasta ||
-            (DASH.rol === 'admin' && DASH.f.emp));
+  /* ⚠️ SALE DE `dashFiltrosPuestos()`, que deriva de `DASH_DIMS`. Enumeraba cuatro dimensiones y le
+     faltaba `op`: con sólo la operación puesta devolvía `false`, y entonces `dashAtras()` dejaba
+     seguir a `portalBackToGate()` y CERRABA el panel — había que volver a entrar con la contraseña
+     para quitar un filtro. Es exactamente el defecto que este handler vino a cerrar. */
+  if (dashFiltrosPuestos().length) return true;
+  /* sólo quedan las fechas: `emp` ya la cubre `dashFiltrosPuestos` con la MISMA condición de rol, y
+     dejarla repetida acá es cómo las dos copias terminan divergiendo. */
+  return !!(DASH.f.desde || DASH.f.hasta);
 }
 
 /* "Atrás" dentro de Estadísticas (2026-08-26, pedido del usuario).
@@ -22485,7 +22493,18 @@ function dashRefresh(manual){
       cicloPlanPersonaError: DASH.cicloPlanPersonaError, rol: DASH.rol, visor: DASH.visor,
       visorError: DASH.visorError, cuentas: DASH.cuentas, zonaOp: DASH.zonaOp,
       atajosAdmin: DASH.atajosAdmin, nominaTotal: DASH.nominaTotal,
-      nominaSinDato: DASH.nominaSinDato, nominaError: DASH.nominaError }));
+      nominaSinDato: DASH.nominaSinDato, nominaError: DASH.nominaError,
+      /* ⚠️ ESTAS TRES FALTABAN, y el efecto era al revés de lo que se pensaría: con `operaciones`
+         sin alimentar, `ctxAntes` traía SIEMPRE `[]` mientras `ctxAhora` traía la lista real, así
+         que `ctxAhora !== ctxAntes` era verdadero en CADA refresco y `dashRepintar()` corría cada
+         60 segundos para cualquier empresa con operaciones. El camino rápido «sin cambios → no
+         re-renderizo (no salta el scroll)» quedó muerto desde P227a.
+         `operaciones` y `operacionesError` las agregó P227a; `demo` es anterior. Lo cazó comparar
+         `Object.keys(dashCamposDelServidor())` contra las claves que este literal alimenta — y eso
+         es lo que vigila `P227b-6`, porque un literal de 17 campos escrito a mano vuelve a quedarse
+         corto en cuanto alguien agregue el dieciocho. */
+      operaciones: DASH.operaciones, operacionesError: DASH.operacionesError,
+      demo: DASH.demo }));
     /* R14 · el sector se mide ANTES de pisar `_cfg`, igual que en `onDashData`: `sectorActual()` lo
        lee de ahí, así que cambiarlo a mitad de camino deja la terminología mezclada entre el panel y
        lo que ya estaba pintado afuera. Antes de P201 era imposible, porque `_cfg` no se refrescaba. */
@@ -22742,6 +22761,30 @@ function buildDashFilters(){
         '<div class="df"><label>' + esc(t('flt_empleado')) + '</label><select id="dashPer" onchange="dashFilterChange(\'per\')"><option value="">' + esc(t('flt_todos')) + '</option>' +
           pers.map(x=>optSel(x, DASH.f.per)).join('') + '</select></div></div>';
     }
+    /* P227b · OPERACIÓN. Sólo se ofrece si hay operaciones cargadas, igual criterio que el de nivel:
+       un selector con una sola opción «Todas» no aporta nada y ocupa una fila. Va en su propia
+       `df-row` y no junto a departamento/empleado porque a 375 px esa fila ya se apila de dos. */
+    /* ⚠️ SÓLO SI EL CRUCE ES POSIBLE, y esto era un BLOQUEANTE. El servidor le manda a Dirección
+       la lista de operaciones con su `genteN` pero con `gente: []` —la promesa de la lámina: el
+       agregado sí, los nombres no—, y además `recortarParaVista_` le reemplaza cada `persona` por un
+       pseudónimo («P1», «P2»…). Con eso el índice de asignaciones queda VACÍO, `opNombresDe` cae al
+       puente de P224 y devuelve el CARGO («Op. Cardon»), mientras el selector ofrece el nombre de la
+       entidad («Cardón IV»). Nunca coinciden: Dirección tocaba la única opción disponible y el panel
+       entero se iba a cero, con `hseqSenalesHtml` afirmando «Sin reportes anónimos en el período» —
+       una afirmación falsa, no un estado vacío.
+       La raíz: `aptOperacionIndice` se reusó como criterio de FILTRADO sin preguntar qué devuelve
+       cuando el servidor no manda la asignación. Para MOSTRAR, caer al puente es correcto y su
+       comentario lo dice; para filtrar es fatal.
+       Si ninguna operación trae gente, el filtro no puede funcionar y no se ofrece. Esto sólo
+       RESTRINGE: quita un control que no andaba. */
+    const _opsCrudas = Array.isArray(DASH.operaciones) ? DASH.operaciones : [];
+    const _puedeCruzar = _opsCrudas.some(o => o && (o.gente || []).length);
+    const _ops = _puedeCruzar ? _opsCrudas.map(o => o && o.nombre).filter(Boolean) : [];
+    if (_ops.length){
+      html += '<div class="df-row"><div class="df"><label>' + esc(t('flt_operacion')) + '</label>' +
+        '<select id="dashOp" onchange="dashFilterChange(\'op\')"><option value="">' + esc(t('flt_todas')) + '</option>' +
+        _ops.map(x => optSel(x, DASH.f.op)).join('') + '</select></div></div>';
+    }
     // Nivel de riesgo del puesto: sólo se ofrece si la empresa realmente tiene niveles cargados.
     // Sin la hoja "Niveles Riesgo" todos caen en el default y el filtro no aportaría nada.
     if (nivelFilas().length){
@@ -22819,8 +22862,12 @@ function dashFilterChange(changed){
   if (document.getElementById('dashEmp')) DASH.f.emp = fval('dashEmp');
   DASH.f.dep = fval('dashDep'); DASH.f.per = fval('dashPer');
   if (document.getElementById('dashNivel')) DASH.f.nivel = fval('dashNivel');
+  if (document.getElementById('dashOp')) DASH.f.op = fval('dashOp');
   if (changed === 'emp'){
-    DASH.f.dep = ''; DASH.f.per = '';        // cascada: al cambiar empresa, resetea depto/empleado
+    /* P227b · la operación también entra en la cascada: las operaciones son POR empresa, así que
+       una que quedara puesta de la empresa anterior no existe en la nueva y dejaría el panel vacío
+       sin decir por qué. */
+    DASH.f.dep = ''; DASH.f.per = ''; DASH.f.op = '';   // cascada: al cambiar empresa, resetea depto/empleado
     // Admin: al elegir una empresa "entra" en ella y ve exactamente lo que ve esa empresa.
     if (DASH.rol === 'admin'){
       if (document.getElementById('dashScope')) dashSetMq('dashScope', DASH.f.emp || t('dash_todas_empresas'));
@@ -22888,15 +22935,90 @@ function dashEffectiveRange(){
    Son CUATRO lugares, y por eso este arreglo tuvo que tocar los cuatro.
    **Unificarlos es trabajo propio y está anotado como lo que encarece `P227`**: agregar la
    operación como quinto filtro va a tocar los cuatro otra vez si nadie los junta antes. */
-function dashEnAlcance(r){
-  if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
-  if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-  if (DASH.f.per && r.persona !== DASH.f.per) return false;
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P227b · EL ALCANCE SE DECIDE ACÁ Y EN UN SOLO LUGAR
+
+   El comentario de arriba decía que eran CUATRO los lugares que copiaron la línea del
+   departamento. **Medido el 2026-10-07: son SIETE** — `cicloArmar`, `cicloHistoricoFilas`,
+   `cicloPersonas`, `reportesFiltrados`, `renderComentarios`, `dashFilteredPVT` y
+   `dashBuildSummary` — más esta función: OCHO bloques de alcance en ocho funciones. O sea el
+   comentario que avisaba del problema también se quedó corto, que es cómo sigue creciendo.
+   ⚠️ Mi primera cuenta dijo «15 bloques» y estaba mal: el barrido contaba los `DASH.f.per` de la
+   función VECINA de `renderComentarios`, que filtra por una persona exacta a propósito (es la vista
+   de una sola) y no es un filtro de alcance. Un número inflado en un comentario es el que después
+   se cita como medido.
+
+   ⚠️ EL OPT-IN POR DIMENSIÓN NO ES ADORNO: tres de los siete son asimétricos A PROPÓSITO y
+   unificarlos «completo» les cambiaría el comportamiento.
+     · `reportesFiltrados` NO filtra por empresa, y está bien: `accionReportesLeer` hace
+       `norm(v[i][5]) !== key` con `key = norm(gestScope(acc, p.empresa))`, así que el servidor ya
+       entrega reportes de UNA sola empresa. Y `DASH.f.emp` no puede diferir de ésa — P213 dejó un
+       solo escritor: para el admin, `dashDrill` y `dashClear` delegan en
+       `dashEmpresaAdminCambiar()`, que re-pide todo al servidor; y quien no es admin tiene una
+       empresa sola. Verificado leyendo las tres rutas, no supuesto.
+     · `cicloPersonas` y `dashBuildSummary` no filtran por nivel.
+   Si el predicado aplicara siempre las cuatro dimensiones, un admin que cambiara de empresa sin
+   que los reportes se recargaran vería la lista VACÍA en vez de los que hay.
+
+   Así que cada sitio declara qué dimensiones aplica y conserva sus filtros propios (fecha, vista,
+   identificado). Lo que se gana: la quinta dimensión —la operación de `P227b`— se agrega acá y los
+   siete la heredan, incluido el octavo que alguien escriba mañana.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+/* ⚠️ LAS CINCO DIMENSIONES, EN UNA SOLA LISTA, Y POR QUÉ HIZO FALTA.
+   P227b unificó el FILTRADO en `dashEnAlcanceDe` y creyó que con eso alcanzaba. El verificador
+   midió que no: hay lugares que **enumeran** las dimensiones a mano, y ninguno conocía la quinta.
+     · la clave de memoización de `dashFilasPrevias` → la tendencia de los 7 KPI comparaba UNA
+       operación contra toda la empresa del período anterior;
+     · el `filtros` del JSON que va a Gemini → el informe decía «(todos)» con los datos de una sola
+       operación, y ese informe queda archivado en el CH y lo lee el servicio médico;
+     · `dashHayFiltro` → con sólo la operación puesta devolvía `false`, así que tocar «atrás»
+       CERRABA el panel y había que volver a entrar con la contraseña. Es palabra por palabra el
+       defecto que ese handler se escribió para cerrar;
+     · `dashContext` y `dashClearOne` → ningún chip con «×», o sea no había forma de quitarlo.
+   O sea el mismo defecto que este prompt vino a cerrar, un nivel más arriba: unificar el predicado
+   no unifica a quien enumera. `nivel` ya tenía tres de los cuatro huecos desde antes.
+   `P227b-6` verifica que las cinco estén en los cuatro lugares, y es lo que corta la serie. */
+const DASH_DIMS = ['emp', 'dep', 'per', 'nivel', 'op'];
+/* La clave de caché y cualquier otra huella del alcance salen de ACÁ, no de una concatenación
+   escrita a mano: una dimensión nueva entra sola. */
+function dashFiltroClave(){
+  return DASH_DIMS.map(k => String((DASH && DASH.f && DASH.f[k]) || '')).join('|');
+}
+/* Qué dimensiones están puestas. `emp` sólo cuenta para el admin: para los demás es su única
+   empresa y no es un filtro que se pueda quitar. */
+function dashFiltrosPuestos(){
+  if (!DASH || !DASH.f) return [];
+  return DASH_DIMS.filter(k => !!DASH.f[k] && (k !== 'emp' || DASH.rol === 'admin'));
+}
+const ALC_TODO      = { emp:1, dep:1, per:1, nivel:1, op:1 };
+const ALC_SIN_NIVEL = { emp:1, dep:1, per:1,          op:1 };
+const ALC_REPORTES  = {        dep:1, per:1,          op:1 };
+const ALC_SIN_PER   = { emp:1, dep:1,        nivel:1, op:1 };   /* el sitio filtra la persona a su modo */
+function dashEnAlcanceDe(x, dims){
+  const D = dims || ALC_TODO;
+  if (D.emp && DASH.f.emp && x.empresa !== DASH.f.emp) return false;
+  if (D.dep && DASH.f.dep && depClaveCliente(x.departamento) !== depClaveCliente(DASH.f.dep)) return false;
+  if (D.per && DASH.f.per && x.persona !== DASH.f.per) return false;
   // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
   // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
-  if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
+  if (D.nivel && DASH.f.nivel && String(nivelRiesgoDe(x.persona, x.departamento, x.empresa, x.cargo)) !== String(DASH.f.nivel)) return false;
+  /* P227b · LA QUINTA DIMENSIÓN. Va última a propósito: `opNombresDe` consulta el índice de
+     asignaciones y es la más cara de las cinco, así que conviene que las otras cuatro ya hayan
+     descartado lo que puedan. Y una persona en DOS operaciones vigentes entra por las dos, que es
+     por lo que `opNombresDe` devuelve un arreglo y no un valor. */
+  if (D.op && DASH.f.op){
+    /* ⚠️ SIN NOMBRE NO SE DESCARTA, y esto defiende R4. Un reporte ANÓNIMO no trae `persona` ni
+       `cargo` en ningún punto del circuito —el servidor sólo agrega el nombre cuando `identificado`
+       es true—, así que `opNombresDe` devuelve `[]` y el filtro los escondía TODOS. Para Dirección
+       son los únicos reportes que recibe; para el supervisor, elegir una operación le ocultaba el
+       canal anónimo sin decírselo, y ese canal es justamente el que R4 promete que existe.
+       No se puede saber a qué operación pertenece un anónimo. Mostrarlo de más es la falla segura. */
+    const quien = String((x.persona != null ? x.persona : x.nombre) || '').trim();
+    if (quien && opNombresDe(x).indexOf(DASH.f.op) < 0) return false;
+  }
   return true;
 }
+function dashEnAlcance(r){ return dashEnAlcanceDe(r, ALC_TODO); }
 function dashFiltradoEn(rng){
   return DASH.registros.filter(r => {
     if (rng.desde && r.fecha < rng.desde) return false;
@@ -22925,7 +23047,11 @@ let _dashPrevCache = null;
 function dashFilasPrevias(){
   const rng = dashRangoPrevio();
   if (!rng) return null;
-  const clave = rng.desde + '|' + rng.hasta + '|' + DASH.f.emp + '|' + DASH.f.dep + '|' + DASH.f.per + '|' + DASH.f.nivel;
+  /* ⚠️ LA CLAVE SALE DE `dashFiltroClave()`, no de una concatenación a mano. Enumeraba cinco
+     campos y le faltaba `op`, así que al cambiar de operación la caché devolvía las filas del
+     período anterior SIN filtrar: la flecha «vs. período previo» de los 7 indicadores comparaba una
+     operación contra toda la empresa. Medido por el verificador: 4 filas donde correspondían 1. */
+  const clave = rng.desde + '|' + rng.hasta + '|' + dashFiltroClave();
   if (_dashPrevCache && _dashPrevCache.clave === clave) return _dashPrevCache.filas;
   const filas = dashFiltradoEn(rng);
   _dashPrevCache = { clave: clave, filas: filas };
@@ -23872,11 +23998,18 @@ function dashContext(){
   if (DASH.rol !== 'empleado' && DASH.f.emp) chips += '<span class="ctx-chip">' + esc(DASH.f.emp) + ' <b onclick="dashClear(\'emp\')">×</b></span>';
   if (DASH.f.dep) chips += '<span class="ctx-chip">' + esc(DASH.f.dep) + ' <b onclick="dashClear(\'dep\')">×</b></span>';
   if (DASH.f.per) chips += '<span class="ctx-chip ctx-person">' + esc(DASH.f.per) + ' <b onclick="dashClear(\'per\')">×</b></span>';
+  /* ⚠️ `nivel` Y `op` NO TENÍAN CHIP, así que no había forma de quitarlos salvo volver al selector.
+     `nivel` lo arrastra desde su propio prompt; `op` lo heredó. El chip lleva su etiqueta delante
+     porque un «5» o un «Cardón IV» solos no dicen por qué el panel muestra menos. */
+  if (DASH.f.nivel) chips += '<span class="ctx-chip">' + esc(t('flt_nivel_riesgo')) + ' ' + esc(String(DASH.f.nivel)) + ' <b onclick="dashClear(\'nivel\')">×</b></span>';
+  if (DASH.f.op) chips += '<span class="ctx-chip">' + esc(t('flt_operacion')) + ': ' + esc(DASH.f.op) + ' <b onclick="dashClear(\'op\')">×</b></span>';
   if (!chips) return '';
   // Admin filtrando por empresa (sin depto/persona todavía) también necesita el botón: si no,
   // la única forma de volver a "todas las empresas" era el botón atrás del teléfono, que cierra
   // el panel entero en vez de sólo destrabar el filtro.
-  const back = (DASH.f.per || (DASH.rol!=='empleado' && DASH.f.dep) || (DASH.rol==='admin' && DASH.f.emp))
+  /* ⚠️ Sale de `dashFiltrosPuestos()`: enumeraba tres dimensiones y dejaba afuera `nivel` y `op`,
+     así que con una de esas puesta el botón de deshacer no aparecía. */
+  const back = (dashFiltrosPuestos().length && (DASH.rol !== 'empleado' || DASH.f.per))
     ? '<button class="ctx-back" onclick="dashClearOne()">‹ ' + esc(t('quitar_filtro')) + '</button>' : '';
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
 }
@@ -23903,9 +24036,12 @@ function dashClear(level){
     const sel = document.getElementById('dashEmpAdmin');
     if (sel){ sel.value = ''; return dashEmpresaAdminCambiar(); }   // ⚠️ ídem: devuelve la promesa
   }
-  if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
+  if (level==='emp'){ DASH.f.emp=''; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; DASH.f.op=''; }
   else if (level==='dep'){ DASH.f.dep=''; DASH.f.per=''; }
   else if (level==='per'){ DASH.f.per=''; }
+  /* los dos que no tenían rama propia y ahora tienen chip con «×» */
+  else if (level==='nivel'){ DASH.f.nivel=''; }
+  else if (level==='op'){ DASH.f.op=''; }
   buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
 }
 /* "‹ Volver" sube UN nivel por toque, del más específico al más general — nunca desloguea mientras
@@ -23919,6 +24055,9 @@ function dashClearOne(){
     DASH._aptFiltro = null; DASH._aptSoloAnot = false; buildDashFilters(); renderDash(); return;
   }
   if (DASH.f.per) return dashClear('per');
+  /* `op` va antes que `dep`: es más específica —una operación vive dentro de una empresa y cruza
+     departamentos— y es lo último que la persona puso si llegó por el selector nuevo. */
+  if (DASH.f.op) return dashClear('op');
   if (DASH.f.dep) return dashClear('dep');
   if (DASH.f.nivel){ DASH.f.nivel = ''; buildDashFilters(); renderDash(); return; }
   if (DASH.f.desde || DASH.f.hasta){
@@ -23940,7 +24079,7 @@ function dashDrill(level, value){
        sólo por el orden de la cola de microtasks — con un `dashRequest` que tarde un tick, falla. */
     if (sel){ sel.value = value || ''; return dashEmpresaAdminCambiar(); }
   }
-  if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; }
+  if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; DASH.f.op=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
 }
@@ -24470,7 +24609,13 @@ function aptOperacionIndice() {
   ops.forEach(o => {
     if (!o || !o.nombre) return;
     (o.gente || []).forEach(g => {
-      const n = String((g && g.persona) || '').trim();
+      /* ⚠️ `dashNorm`, NO `trim()` pelado, y es la función que el repo YA usa para cruzar nombres de
+         persona (`cicloHistoricoFilas`, `cicloArmar`, el histórico). El servidor manda la grafía de
+         la NÓMINA, pero `registros[].persona` conserva la del formulario cuando la identidad no se
+         resolvió al padrón —está documentado en el `.gs`: «si no se resolvió, se DEJA EL QUE ESCRIBIÓ
+         LA PERSONA»—. Con igualdad exacta, «José Pérez» contra «Jose Perez» no cruza y los tests,
+         comentarios, PVT y ciclo de esa persona DESAPARECÍAN al filtrar por su operación. */
+      const n = dashNorm((g && g.persona) || '');
       if (!n) return;
       /* ⚠️ UNA LISTA, NO UN VALOR, y antes era `idx[n] = nombre`. Una persona en DOS operaciones
          vigentes es un estado legal —la clave del upsert de `accionOperacionAsignar` es
@@ -24491,11 +24636,18 @@ function aptOperacionIndice() {
    sobre nombres que pueden contenerlo. */
 function opNombresDe(p) {
   if (!p) return [];
-  const porAsignacion = aptOperacionIndice()[String(p.nombre || p.persona || '').trim()];
+  const porAsignacion = aptOperacionIndice()[dashNorm(p.nombre || p.persona || '')];
   if (porAsignacion && porAsignacion.length) return porAsignacion.slice();   // la entidad real
   if (p.operacion) return [String(p.operacion)];            // el campo propio, cuando exista
   const c = String(p.cargo || '').trim();                    // el puente de P224
-  return (c && c !== String(p.dep || '').trim()) ? [c] : [];
+  /* ⚠️ `dep` O `departamento`: son las DOS formas que circulan y hay que aceptar las dos. Las
+     personas que arma `aptGente` traen `dep`; los registros, comentarios y filas de `Operacional`
+     —que es lo que filtra `dashEnAlcanceDe`— traen `departamento`. Con sólo `p.dep`,
+     `String(undefined).trim()` da la cadena «undefined», que nunca iguala al cargo, así que el
+     puente se aplicaba SIEMPRE para esas entidades: una persona cuyo cargo es igual a su
+     departamento habría entrado en una «operación» que es el nombre de su departamento. */
+  const d = String((p.dep != null ? p.dep : p.departamento) || '').trim();
+  return (c && c !== d) ? [c] : [];
 }
 function aptOperacionDe(p) { return opNombresDe(p).join(' · '); }
 function aptOperacionHtml(p) {
@@ -25933,12 +26085,9 @@ function cicloArmar(){
      habría sido peor que un comentario viejo: la próxima persona que la viera pensaría que esta
      función todavía depende del plan de la empresa. */
   const rows = (DASH.operacional || []).filter(o => {
-    if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     /* ⚠️ `depClaveCliente` EN LAS DOS PUNTAS. P231 arregló cuatro lugares y declaró que eran
        todos; midiéndolo en P226 aparecieron CUATRO MÁS comparando crudo, con el mismo efecto
        que P231 cerró: «Operaciónes» con tilde partía el grupo y el supervisor veía 70 de 73. */
-    if (DASH.f.dep && depClaveCliente(o.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-    if (DASH.f.per && o.persona !== DASH.f.per) return false;
     /* E2 (2026-08-26): faltaba el filtro por NIVEL DE RIESGO. `dashFiltered` y `dashFilteredPVT`
        ya lo aplicaban —y su comentario explica por qué tiene que ser en las dos: si sólo una lo
        aplica, las dos quedan fuera de sincronía—. El ciclo se sumó después (2026-08-22) y no lo
@@ -25947,7 +26096,7 @@ function cicloArmar(){
        ⚠️ El filtro de FECHA no se aplica acá a propósito: el ciclo es "lo que está pasando hoy",
        no una serie histórica — filtrarlo por el período dejaría la pestaña vacía apenas alguien
        eligiera "último mes". */
-    if (DASH.f.nivel && String(nivelRiesgoDe(o.persona, o.departamento, o.empresa, o.cargo)) !== String(DASH.f.nivel)) return false;
+    if (!dashEnAlcanceDe(o, ALC_TODO)) return false;   /* P227b · emp, dep, per y nivel, en un solo lugar */
     return !!o.iso && !isNaN(new Date(o.iso).getTime());
   });
   const porPersona = {};
@@ -26132,17 +26281,15 @@ function cicloAgruparNucleo(eventos, ventana){
    divergieran, sería el defecto más repetido de este repo. */
 function cicloHistoricoFilas(desdeF, hastaF, personaNorm){
   return (DASH.operacional || []).filter(o => {
-    if (DASH.f.emp && o.empresa !== DASH.f.emp) return false;
     /* ⚠️ `depClaveCliente` EN LAS DOS PUNTAS. P231 arregló cuatro lugares y declaró que eran
        todos; midiéndolo en P226 aparecieron CUATRO MÁS comparando crudo, con el mismo efecto
        que P231 cerró: «Operaciónes» con tilde partía el grupo y el supervisor veía 70 de 73. */
-    if (DASH.f.dep && depClaveCliente(o.departamento) !== depClaveCliente(DASH.f.dep)) return false;
     /* P090 · con `personaNorm` se compara NORMALIZADO. El filtro de siempre usa igualdad exacta contra
        `DASH.f.per`, y los nombres de `Operacional` no pasan por `dashMergeNombres` como los registros:
        una tilde o un espacio de más dejaría el calendario de esa persona vacío sin decir por qué. */
     if (personaNorm){ if (dashNorm(o.persona) !== personaNorm) return false; }
     else if (DASH.f.per && o.persona !== DASH.f.per) return false;
-    if (DASH.f.nivel && String(nivelRiesgoDe(o.persona, o.departamento, o.empresa, o.cargo)) !== String(DASH.f.nivel)) return false;
+    if (!dashEnAlcanceDe(o, ALC_SIN_PER)) return false;   /* P227b · `per` NO: lo sustituye `personaNorm` arriba */
     if (!o.iso || isNaN(new Date(o.iso).getTime())) return false;
     /* Se compara la FECHA de la operación como texto, no el instante: es el mismo criterio que usa
        el endpoint para recortar el rango (ver leerOperacional) y la misma lección de L1. Si una
@@ -27432,9 +27579,7 @@ function cicloPersonas(ciclos){
     departamento:ciclos[k].departamento, ciclo:ciclos[k] }); });
   (DASH.registros || []).forEach(r => {
     if (!r.persona) return;
-    if (DASH.f.emp && r.empresa !== DASH.f.emp) return;
-    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return;
-    if (DASH.f.per && r.persona !== DASH.f.per) return;
+    if (!dashEnAlcanceDe(r, ALC_SIN_NIVEL)) return;   /* P227b · `return` sin false: esto es un forEach */
     const k = dashNorm(r.persona);
     if (vistos[k]) return;
     vistos[k] = 1;
@@ -28402,8 +28547,7 @@ function reportesFiltrados(){
   return (DASH._reportes || []).filter(r => {
     if (rng.desde && r.creada && dashIsoDeEpoch(r.creada) < rng.desde) return false;
     if (rng.hasta && r.creada && dashIsoDeEpoch(r.creada) > rng.hasta) return false;
-    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-    if (DASH.f.per && r.persona !== DASH.f.per) return false;   // anónimo: sin persona → no matchea
+    if (!dashEnAlcanceDe(r, ALC_REPORTES)) return false;   /* P227b · sin `emp`: el servidor ya entrega UNA empresa · anónimo sin persona → no matchea */
     return true;
   });
 }
@@ -29484,10 +29628,8 @@ function renderComentarios(rows){
   }
   const rng = dashEffectiveRange();
   const list = DASH.comentarios.filter(c => {
-    if (DASH.f.emp && c.empresa !== DASH.f.emp) return false;
     /* ⚠️ Idem: era otro de los lugares que comparaba el departamento crudo (ver P231). */
-    if (DASH.f.dep && depClaveCliente(c.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-    if (DASH.f.per && c.persona !== DASH.f.per) return false;
+    if (!dashEnAlcanceDe(c, ALC_SIN_NIVEL)) return false;   /* P227b · la MISMA lista que `dashBuildSummary`, ahora por la misma puerta */
     if (rng.desde && c.fecha < rng.desde) return false;
     if (rng.hasta && c.fecha > rng.hasta) return false;
     return esComentarioValido(c.texto);
@@ -29519,12 +29661,9 @@ function dashFilteredPVT(){
   return (DASH.pvt || []).filter(r => {
     if (rng.desde && r.fecha < rng.desde) return false;
     if (rng.hasta && r.fecha > rng.hasta) return false;
-    if (DASH.f.emp && r.empresa !== DASH.f.emp) return false;
-    if (DASH.f.dep && depClaveCliente(r.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-    if (DASH.f.per && r.persona !== DASH.f.per) return false;
     // El filtro por nivel se aplica igual acá que en los registros: si sólo se filtrara uno de los
     // dos, la Reacción quedaría fuera de sincronía con el resto de los indicadores de la persona.
-    if (DASH.f.nivel && String(nivelRiesgoDe(r.persona, r.departamento, r.empresa, r.cargo)) !== String(DASH.f.nivel)) return false;
+    if (!dashEnAlcanceDe(r, ALC_TODO)) return false;   /* P227b */
     return true;
   });
 }
@@ -29871,15 +30010,13 @@ function dashBuildSummary(rows, opts){
   });
   alertas.sort((a,b) => (b.valor/b.referencia) - (a.valor/a.referencia));
   const comentarios = (DASH.comentarios||[]).filter(c => {
-    if (DASH.f.emp && c.empresa!==DASH.f.emp) return false;
     /* ⚠️ EL OCTAVO SITIO, y lo encontró la 3ª ronda: `verificar-adr015.py` exigía espacios
        alrededor de `!==` y esta línea no los tiene, así que el barrido lo declaraba
        inexistente. El daño era concreto: `dashBuildSummary` y `renderComentarios` filtran la
        MISMA lista con el MISMO `DASH.f.dep` y, tras arreglar uno solo, derivaban distinto —
        73 comentarios en el panel contra 70 en el informe, y el JSON que va a Gemini decía 73
        registros con 70 comentarios adjuntos. */
-    if (DASH.f.dep && depClaveCliente(c.departamento) !== depClaveCliente(DASH.f.dep)) return false;
-    if (DASH.f.per && c.persona!==DASH.f.per) return false;
+    if (!dashEnAlcanceDe(c, ALC_SIN_NIVEL)) return false;   /* P227b · el de `emp` estaba escrito sin espacios y por eso un barrido lo declaró inexistente */
     if (rng.desde && c.fecha<rng.desde) return false;
     if (rng.hasta && c.fecha>rng.hasta) return false;
     return esComentarioValido(c.texto);
@@ -29887,7 +30024,18 @@ function dashBuildSummary(rows, opts){
   const out = {
     empresa: DASH.scope,
     periodo: { label:periodoLabel(DASH.f.period), desde:rng.desde||null, hasta:rng.hasta||null },
-    filtros: { departamento:DASH.f.dep||'(todos)', empleado:DASH.f.per||'(todos)' },
+    /* ⚠️ EL INFORME DECLARA EL ALCANCE QUE DE VERDAD TIENEN LOS DATOS. Enumeraba dos dimensiones
+       de cinco, así que con una operación o un nivel puestos decía «(todos)» mientras los números
+       venían recortados — y este JSON queda archivado en el CH y lo lee el servicio médico. Es el
+       mismo defecto que el comentario de este bloque ya documenta («decía 73 registros con 70
+       comentarios adjuntos»), por los campos nuevos. Sale de `DASH_DIMS` para que la próxima
+       dimensión entre sola. */
+    filtros: (function(){
+      const etq = { emp:'empresa', dep:'departamento', per:'empleado', nivel:'nivel_riesgo', op:'operacion' };
+      const o = {};
+      DASH_DIMS.forEach(k => { if (etq[k]) o[etq[k]] = (DASH.f && DASH.f[k]) || '(todos)'; });
+      return o;
+    })(),
     nRegistros: rows.length, referencias: DASH.ref,
     metricas: metricas, departamentos: departamentos, alertas: alertas.slice(0,25), comentarios: comentarios
   };
