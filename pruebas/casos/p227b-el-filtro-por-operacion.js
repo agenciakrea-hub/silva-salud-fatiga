@@ -275,7 +275,13 @@ PRUEBAS.caso('🔴 P227b-7 · ninguna función enumera ALGUNAS dimensiones del a
       dashEmpresaAdminCambiar: 'no necesita `op`/`nivel`: `onDashData` reemplaza `DASH.f` entero una línea después',
       dashClearOne:            'no nombra `emp` porque termina delegando en `dashClear(\'emp\')`',
       dashImprimirCabecera:    'MUERTA (alcanzabilidad.py, P144) · si alguien le da llamador, hay que arreglarla',
-      dashImprimirPie:         'MUERTA (alcanzabilidad.py, P144) · ídem'
+      dashImprimirPie:         'MUERTA (alcanzabilidad.py, P144) · ídem',
+      /* Las tres que aparecieron al bajar el umbral a DOS dimensiones (ver abajo por qué bajó) */
+      dashPersonasSelector:    'no rotula el alcance: ARMA el selector de personas, filtrado por departamento',
+      demoIdiomaCambio:        'no enumera: copia los filtros enteros con `Object.assign({}, DASH.f)`',
+      dashEffectiveRange:      'su cuerpo sólo usa `period`/`desde`/`hasta` · las menciones de `emp`/`per` ' +
+                               'que el barrido le atribuye están en el COMENTARIO de la función siguiente, ' +
+                               'porque el corte es por `^function` y no sabe dónde termina un cuerpo'
     };
 
     const enumeradores = (texto) => {
@@ -285,7 +291,12 @@ PRUEBAS.caso('🔴 P227b-7 · ninguna función enumera ALGUNAS dimensiones del a
       pos.forEach((p, k) => {
         const cuerpo = texto.slice(p.i, k + 1 < pos.length ? pos[k + 1].i : texto.length);
         const hay = DIMS.filter(d => new RegExp('DASH\\.f\\.' + d + '\\b').test(cuerpo));
-        if (hay.length >= 3) out.push({ nom: p.nom, hay: hay, completa: hay.length === DIMS.length });
+        /* ⚠️ EL UMBRAL ES DOS, Y BAJÓ POR UN HALLAZGO. Era `>= 3`, y el discriminador inyectaba un
+           enumerador de exactamente 3: o sea CERTIFICABA el umbral en vez de probarlo, y un rótulo
+           nuevo escrito con dos dimensiones —la forma más probable— le era invisible. Con dos, el
+           barrido encontró además un enumerador MUERTO en `dashRefresh` (un `const keep = {desde,
+           hasta, dep, per}` que nadie leía) que se borró. */
+        if (hay.length >= 2) out.push({ nom: p.nom, hay: hay, completa: hay.length === DIMS.length });
       });
       return out;
     };
@@ -301,8 +312,10 @@ PRUEBAS.caso('🔴 P227b-7 · ninguna función enumera ALGUNAS dimensiones del a
 
     /* ⚠️ EL DISCRIMINADOR, que la primera versión no tenía: se inyecta un enumerador nuevo —tal como
        lo escribiría alguien que no sabe de `op`— y el caso TIENE que verlo y nombrarlo. */
+    /* ⚠️ EL DISCRIMINADOR INYECTA DOS DIMENSIONES, no tres: es la forma más probable de un rótulo
+       nuevo, y con el umbral viejo en 3 era justo la que pasaba invisible. */
     const colado = 'function dashRotuloColado(){\n' +
-      '  return DASH.f.per || DASH.f.dep || DASH.f.emp || "";\n' + '}\n';
+      '  return DASH.f.per || DASH.f.dep || "";\n' + '}\n';
     const roto = src.replace('function dashAlcanceLabel(', colado + 'function dashAlcanceLabel(');
     PRUEBAS.falso(roto === src, 'guarda: el sabotaje tiene que modificar el fuente');
     const colados = enumeradores(roto).filter(e => !e.completa && !PARCIALES[e.nom]).map(e => e.nom);
@@ -380,5 +393,102 @@ PRUEBAS.caso('🔴 P227b-9 · `opNombresDe` acepta `dep` Y `departamento`', () =
       'y el puente sí aplica cuando son distintos');
     PRUEBAS.igual(opNombresDe({ persona:'A', cargo:'Op. Cardon', departamento:'Operaciones' }), ['Op. Cardon'],
       'con las dos formas');
+  });
+});
+
+
+PRUEBAS.caso('🔴 P227b-10 · una operación SIN gente no se ofrece, aunque otra sí la tenga', () => {
+  if (!p227bHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ EL CASO QUE FALTABA, y sin él `P227b-2` daba verde con el defecto puesto. La tercera vuelta del
+     verificador lo midió: `P227b-2` tiene UNA operación sin gente, y con la versión revertida
+     —`_puedeCruzar = _opsCrudas.some(…)`— esa lista también da `_ops` vacío, así que el selector
+     tampoco se pinta y el caso pasa. La guarda por lista y la guarda por opción **sólo difieren con
+     una lista MIXTA**: al menos una operación con gente y otra sin.
+     Ninguno de los siete casos anteriores construía ese estado, que es justo el del comentario del
+     arreglo: un evento ya terminado llega con `gente: []`, `genteN: 0` y `genteHistN: 5` —
+     `opAsignacionVigente_` lo descarta por el `Fin`— al lado de una instalación vigente. El
+     supervisor lo elegía del selector y el panel entero se iba a cero, aunque esa gente SÍ se midió.
+     El derecho lo concede el `forEach` de `buildDashFilters`, que exige `(o.gente||[]).length` por
+     CADA operación antes de ponerla en `_ops`. */
+  p227bEntorno(() => {
+    const hoy = todayStr();
+    onDashData(p227bPayload({
+      registros: [p227bReg('Ana Suárez', hoy, 3)],
+      operaciones: [
+        { nombre:'Cardón IV',      tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
+          gente:[{persona:'Ana Suárez'}] },
+        /* el evento terminado: su gente se midió (genteHistN) pero ninguna asignación cuenta HOY */
+        { nombre:'Simulacro Marzo', tipo:'evento', estado:'activo', genteN:0, genteHistN:5, gente:[] }]
+    }), 'Empresa Uno', {}, 'supervisor');
+
+    buildDashFilters();
+    const sel = document.getElementById('dashOp');
+    PRUEBAS.cierto(!!sel, 'guarda: con una operación cruzable el selector SÍ se pinta');
+    const ofrecidas = [].slice.call(sel.options).map(o => o.textContent).filter(x => x !== t('flt_todas'));
+    PRUEBAS.igual(ofrecidas, ['Cardón IV'],
+      '🔴 sólo se ofrece la que tiene gente · «Simulacro Marzo» vaciaría el panel y su gente SÍ se midió · ' +
+      JSON.stringify(ofrecidas));
+
+    /* ⚠️ Y EL DISCRIMINADOR ES EL DAÑO, no la lista: si se ofreciera, elegirla da cero. */
+    DASH.f.op = 'Simulacro Marzo';
+    PRUEBAS.igual(dashFiltered().length, 0,
+      'DISCRIMINADOR · elegirla daría cero filas · por eso no se ofrece, y por eso el `.some()` no alcanzaba');
+    DASH.f.op = 'Cardón IV';
+    PRUEBAS.igual(dashFiltered().length, 1, 'y la que sí se ofrece trae a su gente');
+  });
+});
+
+PRUEBAS.caso('🔴 P227b-11 · el rótulo del alcance declara TODAS las dimensiones puestas', () => {
+  if (!p227bHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  if (typeof dashAlcanceLabel !== 'function') { PRUEBAS.cierto(false, '⚠️ no está `dashAlcanceLabel`: SIN MEDIR'); return; }
+  /* ⚠️ ESTE CASO NO EXISTÍA, y el arreglo que defiende se hizo DOS veces mal sin que nada lo notara.
+     `dashAlcanceLabel` nació para que el título del Resumen y el subtítulo del informe declararan el
+     alcance real —antes decían «todo el grupo» y «Análisis de <la empresa>» con los datos de una
+     operación—, y su primera versión cortaba en el PRIMER match: con departamento y operación puestos
+     a la vez declaraba sólo la operación, mientras el JSON que se archiva en el CH enumeraba las dos.
+     Dos derivaciones del alcance discrepando, que es exactamente lo que vino a evitar.
+     Cambiar `op` no limpia `dep` —la cascada sólo corre para `emp` y `dep`— y los dos selectores se
+     pintan juntos, así que el estado es alcanzable con dos toques.
+     El derecho lo concede `dashAlcanceLabel`, que acumula en un arreglo y une con ' · '. */
+  p227bEntorno(() => {
+    onDashData(p227bPayload({
+      registros: [p227bReg('Ana Suárez', todayStr(), 3)],
+      operaciones: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, gente:[{persona:'Ana Suárez'}] }]
+    }), 'Empresa Uno', {}, 'supervisor');
+
+    PRUEBAS.igual(dashAlcanceLabel(), '', 'guarda: sin filtros no hay nada que declarar');
+
+    DASH.f.dep = 'Operaciones';
+    PRUEBAS.igual(dashAlcanceLabel(), 'Operaciones', 'con el departamento solo, lo declara');
+
+    DASH.f.op = 'Cardón IV';
+    const dos = dashAlcanceLabel();
+    PRUEBAS.cierto(dos.indexOf('Operaciones') >= 0 && dos.indexOf('Cardón IV') >= 0,
+      '🔴 con los DOS puestos declara los dos · antes cortaba en el primero y ocultaba el otro · ' + JSON.stringify(dos));
+    PRUEBAS.cierto(dos.indexOf(t('flt_operacion')) >= 0,
+      '⚠️ y la operación va etiquetada · «Cardón IV» solo no dice por qué el panel muestra menos');
+
+    /* el orden es del más específico al más general, que es como la persona los fue poniendo */
+    PRUEBAS.cierto(dos.indexOf('Cardón IV') < dos.indexOf('Operaciones'),
+      '⚠️ la operación antes del departamento: es más específica y cruza departamentos');
+
+    /* ⚠️ Y NO DISCREPA CON EL JSON QUE SE ARCHIVA EN EL CH. Es la mitad del hallazgo: el informe
+       enumeraba las cinco dimensiones y el rótulo de arriba declaraba una. */
+    if (typeof dashBuildSummary === 'function'){
+      const res = dashBuildSummary(dashFiltered(), DASH.metrics || ['kss']);
+      const f = (res && res.filtros) || {};
+      PRUEBAS.igual(f.departamento, 'Operaciones', '🔴 el JSON del informe declara el departamento');
+      PRUEBAS.igual(f.operacion, 'Cardón IV', '🔴 y la operación · el rótulo y el JSON dicen lo mismo');
+    }
+
+    /* DISCRIMINADOR · con el nivel también puesto, los TRES. Si el rótulo cortara en cualquier punto,
+       este aserto lo caza; con `igual` sobre la cadena entera no haría falta nombrar cuál falta. */
+    DASH.f.nivel = '3';
+    const tres = dashAlcanceLabel();
+    ['Cardón IV', 'Operaciones', '3'].forEach(x => {
+      PRUEBAS.cierto(tres.indexOf(x) >= 0,
+        'DISCRIMINADOR · con tres dimensiones puestas las tres se declaran · falta ' + JSON.stringify(x) +
+        ' en ' + JSON.stringify(tres));
+    });
   });
 });

@@ -7701,7 +7701,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.27';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.28';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -22452,7 +22452,9 @@ function dashRefresh(manual){
   if (manual && _dashRefreshEnVuelo) return _dashRefreshEnVuelo;
   const btn = document.getElementById('dashRefreshBtn');
   if (btn){ btn.classList.add('spin'); if (manual) btn.disabled = true; }
-  const keep = { desde:DASH.f.desde, hasta:DASH.f.hasta, dep:DASH.f.dep, per:DASH.f.per };
+  /* P227b · acá había un `const keep = { desde, hasta, dep, per }` que NADIE leía: un enumerador
+     del alcance muerto, que además se quedó sin `nivel` y sin `op`. Lo encontró el barrido de
+     `P227b-7` al bajar su umbral a dos dimensiones. Borrarlo es mejor que declararlo. */
   // Refresco manual (botón ↻) → fresh:'1': saltea la cache del endpoint y relee la hoja al instante.
   const params = manual ? Object.assign({}, DASH.params, { fresh:'1' }) : DASH.params;
   const mio = DASH;
@@ -22478,7 +22480,11 @@ function dashRefresh(manual){
     /* ⚠️ P201 · Y LOS CAMPOS DE CONTEXTO, TAMBIÉN ANTES DEL CORTE POR `changed`, con la MISMA
        derivación que usa `onDashData`. Antes esta función tenía su propia lista de qué copiar, se
        fue separando de la de allá, y quedaron **13 claves que no se refrescaban nunca**: el panel
-       las mostraba con el valor del primer pedido durante todo el turno, y esto corre cada 60 s.
+       las mostraba con el valor del primer pedido durante todo el turno, y esto corre cada 60 s
+       mientras la pestaña de ciclo esté abierta en el panel del supervisor (`cicloTick`, que exige
+       `dsec-ciclo` en el DOM y `!DASH.demoMode`). `DASH_TIMER` es el otro camino y ése sí es
+       DIARIO. La tercera vuelta del verificador midió sólo `DASH_TIMER` y declaró falso el «cada
+       60 s»; el número está bien, lo que faltaba escrito era la condición.
        El caso que más duele: el servidor manda `nominaError` cuando no pudo leer la nómina, y ese
        aviso se tiraba acá — la pantalla seguía mostrando una cobertura como si fuera contra la
        nómina completa, sin decir que el dato no estaba (R2).
@@ -22506,7 +22512,13 @@ function dashRefresh(manual){
            que el literal tampoco tenía, así que recalculaba la nómina de ejemplo entera.
        Un literal de 17 campos escrito a mano vuelve a quedarse corto en cuanto alguien agregue el
        dieciocho, y mientras tanto da falsos «cambió». La pregunta real es «¿cambió lo que el SERVIDOR
-       manda?», y eso se contesta guardando la firma del payload cuando se deriva. */
+       manda?», y eso se contesta guardando la firma del payload cuando se deriva.
+       ⚠️ POR LO TANTO `_ctxSig` DESCRIBE AL PAYLOAD, NO A `DASH`, y es deliberado: `DASH` lo modifican
+       después `dashLocalReaplicar`, `demoAnonimizarHseq`, `dashCargarNiveles` y los guardados locales
+       del ciclo, y ninguna de esas modificaciones es «algo que el servidor cambió». Cada una repinta
+       por su cuenta (`dashCargarNiveles` llama `dashRepintar`) o se re-aplica tras el `Object.assign`
+       (las dos de abajo). Quien agregue un cuarto escritor de los 17 campos tiene que hacer una de
+       esas dos cosas, NO actualizar esta foto. */
     const ctxAntes = (DASH && DASH._ctxSig) || '';
     /* R14 · el sector se mide ANTES de pisar `_cfg`, igual que en `onDashData`: `sectorActual()` lo
        lee de ahí, así que cambiarlo a mitad de camino deja la terminología mezclada entre el panel y
@@ -22519,6 +22531,21 @@ function dashRefresh(manual){
     const ctxAhora = JSON.stringify(ctxNuevo);
     Object.assign(DASH, ctxNuevo);
     DASH._ctxSig = ctxAhora;
+    /* ⚠️ Y LA DEMO RE-APLICA SU ANONIMIZACIÓN, igual que `dashLocalReaplicar` dos líneas abajo
+       re-aplica lo local. `Object.assign` acaba de devolver `nominaSinDato` con los nombres del
+       payload, y `demoAnonimizarHseq` sólo corría en `onDashData`: su comentario dice «el ojo
+       flotante vuelve a pasar por acá en cada cambio de vista, así que alcanza con anonimizar en
+       este punto», y eso es cierto para el cambio de vista pero NO para el refresco.
+       Efecto, medido por el verificador: la pantalla de Dirección de la DEMOSTRACIÓN terminaba
+       imprimiendo hasta cuatro nombres —`renderHseqIdc` hace `nuncaMedidos.slice(0,4).join(' · ')`—
+       justo en la pantalla que la demo existe para mostrar que NO los muestra. Son nombres
+       ficticios: no es una fuga de datos de personas, es la demostración contradiciendo su propio
+       argumento delante de un cliente.
+       Llega sólo por el ↻ manual: `cicloTick` excluye la demo con `!DASH.demoMode`.
+       ⚠️ La fuga es PRE-EXISTENTE; lo que hizo el arreglo de `_ctxSig` fue quitarle el síntoma. Antes
+       la comparación daba distinto y repintaba —mostrando los nombres—, ahora no repinta pero el dato
+       ya está pisado y lo muestra el próximo render. Un defecto silencioso es peor que uno visible. */
+    if (DASH.demoMode && DASH.vista === 'hseq') { try { demoAnonimizarHseq(); } catch(e){} }
     /* ⚠️ En el ↻ MANUAL no se reaplica lo local: ese botón existe para traer la verdad del servidor.
        Si otro supervisor cambió el plan desde otro dispositivo, reaplicar lo de acá se lo pisaría y
        el botón que se toca para estar seguro devolvería lo viejo. */
@@ -23021,14 +23048,28 @@ function dashFiltroClave(){
    la persona espera leer. Devuelve '' cuando no hay nada puesto: cada llamador pone su respaldo. */
 function dashAlcanceLabel(){
   if (!DASH || !DASH.f) return '';
-  if (DASH.f.per) return String(DASH.f.per);
-  /* la operación va antes del departamento: es más específica, cruza departamentos */
-  if (DASH.f.op) return t('flt_operacion') + ': ' + String(DASH.f.op);
-  if (DASH.f.dep) return String(DASH.f.dep);
-  if (DASH.f.nivel) return t('flt_nivel_riesgo') + ' ' + String(DASH.f.nivel);
-  if (DASH.rol === 'admin' && DASH.f.emp) return String(DASH.f.emp);
-  if (DASH.f.emp) return String(DASH.f.emp);
-  return '';
+  /* ⚠️ DEVUELVE TODAS LAS DIMENSIONES PUESTAS, NO LA PRIMERA, y mi versión anterior cortaba en el
+     primer match — o sea reintroducía el defecto que esta función vino a cerrar. El escenario, medido
+     por el verificador: el supervisor pone departamento «Operaciones» y después operación «Cardón
+     IV». Cambiar `op` NO limpia `dep` (la cascada sólo corre para `emp` y `dep`), los dos selectores
+     se pintan juntos, y el predicado los aplica con AND. Con el corte en el primer match el informe
+     subtitulaba «Análisis de Operación: Cardón IV» mientras sus datos eran la intersección de las
+     dos — y el JSON archivado en el CH, que enumera las cinco, decía las dos. Dos derivaciones del
+     alcance discrepando, que es exactamente lo que esta función vino a evitar.
+     Del más específico al más general, que es el orden en que la persona los fue poniendo. */
+  const partes = [];
+  if (DASH.f.per) partes.push(String(DASH.f.per));
+  /* la operación antes del departamento: es más específica y cruza departamentos */
+  if (DASH.f.op) partes.push(t('flt_operacion') + ': ' + String(DASH.f.op));
+  if (DASH.f.dep) partes.push(String(DASH.f.dep));
+  if (DASH.f.nivel) partes.push(t('flt_nivel_riesgo') + ' ' + String(DASH.f.nivel));
+  /* ⚠️ `emp` sólo si es admin, o si no hay nada más que decir. La versión anterior tenía esta
+     distinción escrita DOS veces con el mismo cuerpo —un no-op— y el verificador señaló que ahí se
+     había perdido la intención: `dashFiltrosPuestos` sí distingue `k !== 'emp' || rol === 'admin'`,
+     porque para quien no es admin la empresa es su única empresa y no un filtro que se pueda quitar.
+     Pero como rótulo sí sirve de respaldo cuando no hay ninguna otra dimensión. */
+  if (DASH.f.emp && (DASH.rol === 'admin' || !partes.length)) partes.push(String(DASH.f.emp));
+  return partes.join(' · ');
 }
 function dashFiltrosPuestos(){
   if (!DASH || !DASH.f) return [];
