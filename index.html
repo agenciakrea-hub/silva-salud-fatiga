@@ -5698,6 +5698,53 @@
   .dep-btn:active { transform:scale(.97); }
   .dep-aviso { font-size:.78rem; color:var(--text-muted); background:var(--chip-bg);
     border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; line-height:1.45; }
+
+  /* ── P227c · administración de operaciones. Prefijo `.ops-`, medido libre: `.op-` tiene 19 clases.
+        Cero colores a mano (R13): todo sale de los tokens que ya usa `.dep-*`, que existen en los
+        dos temas — verificado contra el archivo, no contra el DOM. ── */
+  .ops-alta { display:flex; flex-direction:column; gap:.45rem; align-items:stretch; margin:.1rem 0 1rem; }
+  .ops-alta-in { min-width:0; }
+  .ops-alta-row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .ops-alta-btn { align-self:flex-start; }
+  .ops-lbl { font-size:.76rem; font-weight:700; color:var(--text-soft); flex:0 0 auto; }
+  .ops-sel, .ops-fecha { flex:1 1 7rem; min-width:0; }
+  .ops-err { display:none; font-size:.78rem; color:var(--sem-rojo-txt); background:var(--sem-rojo-bg);
+             border-radius:10px; padding:.5rem .65rem; }
+  .ops-aviso { font-size:.78rem; color:var(--text-muted); background:var(--chip-bg);
+               border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; }
+  .ops-sec { margin-top:1.1rem; }
+  .ops-sec-t { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+               color:var(--text-soft); margin:0 0 .45rem; }
+  .ops-item { border:1.5px solid var(--sup-borde); border-radius:13px; padding:.65rem .8rem;
+              margin-bottom:.55rem; background:var(--card); }
+  .ops-item-baja { opacity:.62; }
+  .ops-cab { display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+  .ops-info { min-width:0; flex:1; }
+  .ops-nom { display:block; font-size:.9rem; font-weight:700; color:var(--text); overflow-wrap:anywhere; }
+  .ops-sub { display:block; font-size:.76rem; color:var(--text-muted); margin-top:.1rem; }
+  /* 44 px de alto mínimo: es el tope táctil que el resto del panel respeta (`.dep-btn`). */
+  .ops-btn { flex-shrink:0; min-height:44px; padding:.3rem .7rem; border:1px solid var(--linea-2);
+             border-radius:11px; background:transparent; color:var(--text); font-size:.8rem;
+             font-weight:700; cursor:pointer; }
+  .ops-btn-asg { flex:0 0 auto; }
+  .ops-gente { list-style:none; margin:.55rem 0 0; padding:0; display:flex; flex-wrap:wrap; gap:.35rem; }
+  .ops-gente li { display:flex; align-items:center; gap:.2rem; font-size:.82rem; color:var(--text);
+                  background:var(--chip-bg); border-radius:999px; padding:0 .15rem 0 .6rem; }
+  /* ⚠️ 44 px, NO 30, y lo destapó MEDIR el alto renderizado. Mi primera versión le puso 30 px porque
+     visualmente queda mejor dentro del chip, y 30 px está por debajo del mínimo táctil que el resto
+     del panel respeta —`.dep-btn` y `.ops-btn` usan 44—. Este botón QUITA a una persona de una
+     operación: un toque difícil de acertar en un teléfono, sobre una acción con consecuencia, es
+     exactamente lo que R8 viene a evitar. El glifo sigue chico; lo que crece es el área que se toca. */
+  .ops-x { min-width:44px; min-height:44px; border:0; border-radius:50%; background:transparent;
+           color:var(--text-muted); font-size:1rem; line-height:1; cursor:pointer;
+           display:flex; align-items:center; justify-content:center; }
+  .ops-nota { font-size:.78rem; color:var(--text-soft); margin-top:.45rem; }
+  .ops-asg { display:flex; gap:.4rem; align-items:center; margin-top:.55rem; flex-wrap:wrap; }
+  @media (max-width:420px) {
+    .ops-alta-row { align-items:flex-start; }
+    .ops-asg { flex-direction:column; align-items:stretch; }
+    .ops-btn-asg { align-self:stretch; }
+  }
   .gest-fab { position: absolute; right: 1.1rem; bottom: 1.1rem; z-index: 30; width: min(360px, calc(100% - 2.2rem)); }
   /* ⚠️ P166 · EL FLOTANTE CHICO DEL ADMINISTRADOR: «Ir al inicio». Vive en la esquina de abajo a la
      IZQUIERDA para no chocar con el de gestiones, que a 375 px ocupa todo el ancho — por eso,
@@ -7471,6 +7518,12 @@
       <button class="gest-back" onclick="nominaListCerrarUI()" data-i18n="nomlist_volver">‹ Estadísticas</button>
       <div class="gest-title" id="nomListTitle">Nómina</div>
       <button class="gest-new" id="depFabBtn" onclick="depAbrir()" style="display:none" data-i18n="dep_abrir">Departamentos</button>
+      <!-- P227c · OPERACIONES, al lado de Departamentos porque son dimensiones hermanas (ADR 015) y
+           porque esta puerta la ven supervisor, médico y admin: `dashUpdateNomFab` la esconde al
+           empleado y a Dirección, que es casi exactamente a quien `opPuedeEscribir` rechaza. La
+           tarjeta de P227a NO sirve de puerta: vive en la pestaña `aptitud`, que `dashTabsFor` sólo
+           le da a `vista === 'supervisor'`, así que el admin maestro no la ve. -->
+      <button class="gest-new" id="opsFabBtn" onclick="opsAbrir()" style="display:none" data-i18n="ops_abrir">Operaciones</button>
     </div>
     <div class="gest-scroll">
       <div class="nomlist-resumen" id="nomListResumen"></div>
@@ -7527,6 +7580,45 @@
         <button class="gest-quick-btn" onclick="depAgregar(this)" data-i18n-attr="aria-label:dep_agregar">+</button>
       </div>
       <div id="depBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- P227c · ADMINISTRACIÓN DE OPERACIONES · misma forma que `#depOv`, del que es hermana.
+     ⚠️ El overlay va ESTÁTICO en el HTML, no inyectado: el MutationObserver que sincroniza foco e
+     `inert` sólo engancha los `.overlay` presentes al cargar la página. Y queda registrado en
+     `silvaAtras`, cuya lista es EXPLÍCITA — un overlay que no se nombre ahí se come el toque de
+     «atrás» sin hacer nada. -->
+<div class="overlay gest-overlay" id="opsOv">
+  <div class="sheet gest-sheet">
+    <div class="gest-top">
+      <button class="gest-back" onclick="opsCerrarUI()" data-i18n="nomlist_volver">‹ Estadísticas</button>
+      <div class="gest-title" id="opsTitle">Operaciones</div>
+    </div>
+    <div class="gest-scroll">
+      <div id="opsAyuda"></div>
+      <div class="ops-alta" id="opsAltaCaja">
+        <input id="opsNombre" class="gest-search ops-alta-in" type="text" maxlength="60" autocomplete="off"
+               data-i18n-attr="placeholder:ops_nombre_ph;aria-label:ops_nombre_ph">
+        <div class="ops-alta-row">
+          <label class="ops-lbl" for="opsTipo" data-i18n="ops_tipo">Tipo</label>
+          <select id="opsTipo" class="gest-search ops-sel" onchange="opsTipoCambio()">
+            <option value="instalacion" data-i18n="ope_tipo_instalacion">Instalación</option>
+            <option value="evento" data-i18n="ope_tipo_evento">Evento</option>
+          </select>
+        </div>
+        <!-- Las fechas sólo tienen sentido en un evento: una instalación es permanente y el servidor
+             le fuerza el `Fin` vacío. `opsTipoCambio` las muestra y las esconde. -->
+        <div class="ops-alta-row" id="opsFechas" style="display:none">
+          <label class="ops-lbl" for="opsInicio" data-i18n="ops_desde">Desde</label>
+          <input id="opsInicio" class="gest-search ops-fecha" type="date">
+          <label class="ops-lbl" for="opsFin" data-i18n="ops_hasta">Hasta</label>
+          <input id="opsFin" class="gest-search ops-fecha" type="date">
+        </div>
+        <div class="ops-err" id="opsErr" role="alert" aria-live="polite"></div>
+        <button class="gest-quick-btn ops-alta-btn" onclick="opsGuardar(this)" data-i18n-attr="aria-label:ops_crear">+</button>
+      </div>
+      <div id="opsBody"></div>
     </div>
   </div>
 </div>
@@ -7701,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.28';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.30';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7779,6 +7871,30 @@ const I18N = {
       /* P226 · ADR 015 · los otros tres motivos de «se guardó pero no queda asignada». */
       err_m_operacion_cerrada:'Se guardó, pero esa persona no queda asignada: esa operación está cerrada.',
       err_m_tramo_vencido:'Se guardó, pero esa persona no queda asignada: su período en la operación ya terminó.',
+      /* ── P227c · administración de operaciones. Prefijo `ops_`, medido libre antes de escribir:
+            `op_` tiene 94 claves (módulo operacional) y `ope_` tiene 20 (la tarjeta de P227a). ── */
+      ops_abrir:'Operaciones', ops_titulo:'Operaciones',
+      ops_nombre_ph:'Nombre de la operación', ops_tipo:'Tipo',
+      ops_desde:'Desde', ops_hasta:'Hasta', ops_crear:'Crear operación',
+      ops_activas:'Activas', ops_de_baja:'Cerradas',
+      ops_cerrar:'Cerrar', ops_reabrir:'Reabrir', ops_quitar:'Quitar de la operación',
+      ops_elegir:'Elige a una persona', ops_asignar:'Asignar', ops_deshacer:'Deshacer',
+      ops_vacio:'Todavía no hay operaciones. Crea la primera con el campo de arriba.',
+      ops_solo_lectura:'Puedes consultar las operaciones, pero no modificarlas.',
+      ops_asg_error:'No se pudo leer quién está asignado. Los conteos de abajo no son confiables.',
+      ops_sin_candidatos:'Toda la nómina ya está asignada a esta operación.',
+      ops_sin_vigentes:'Nadie asignado hoy; antes hubo gente.',
+      ops_err_nombre:'Escribe un nombre para la operación.',
+      /* ⚠️ El texto del tercer estado: se escribió en el CH y NO cuenta todavía. Sólo se usa si el
+         servidor no manda su propio texto, que es más específico (ver `opsResultado`). */
+      ops_no_vigente:'Se guardó, pero todavía no cuenta.',
+      ops_error:'No se pudo completar. Intenta de nuevo.',
+      ops_creada:'Operación guardada', ops_cerrada:'Operación cerrada',
+      ops_reabierta:'Operación reabierta', ops_asignada:'Persona asignada',
+      ops_quitada:'Persona quitada',
+      ops_conf_cerrar:'¿Cerrar «{o}»? Deja de contar en el panel y su gente queda guardada. Puedes reabrirla después.',
+      ops_conf_reabrir:'¿Reabrir «{o}»? Vuelve a contar en el panel con la gente que tenía.',
+      hlp_ops:'Una <b>operación</b> es un lugar o un trabajo con gente asignada: una <b>instalación</b> es permanente (un campo, una base) y un <b>evento</b> tiene fecha de inicio y, si se sabe, de fin. Sirve para ver el estado de un grupo completo sin depender del departamento, que no distingue entre dos sitios distintos.<br><br>Asignar a alguien no cambia su departamento ni su cargo: son datos de la persona. <b>Cerrar</b> una operación no borra nada — deja de contar en el panel y la puedes reabrir con la gente que tenía.<br><br>Si al asignar aparece «se guardó, pero todavía no cuenta», la fila quedó escrita y no cuenta hoy: suele ser una operación cerrada o un evento cuya fecha ya pasó.',
       ope_titulo:'Operaciones',
       ope_tipo_instalacion:'Instalación',
       ope_tipo_evento:'Evento',
@@ -9986,6 +10102,26 @@ const I18N = {
       err_m_reincorporar_con_fechas:'Saved, but that person is not assigned: that operation has ended, so to record their participation you need to enter the dates they were assigned.',
       err_m_operacion_cerrada:'Saved, but that person is not assigned: that operation is closed.',
       err_m_tramo_vencido:'Saved, but that person is not assigned: their period in the operation has ended.',
+      ops_abrir:'Operations', ops_titulo:'Operations',
+      ops_nombre_ph:'Operation name', ops_tipo:'Type',
+      ops_desde:'From', ops_hasta:'To', ops_crear:'Create operation',
+      ops_activas:'Active', ops_de_baja:'Closed',
+      ops_cerrar:'Close', ops_reabrir:'Reopen', ops_quitar:'Remove from the operation',
+      ops_elegir:'Pick a person', ops_asignar:'Assign', ops_deshacer:'Undo',
+      ops_vacio:'No operations yet. Create the first one with the field above.',
+      ops_solo_lectura:'You can view operations, but not change them.',
+      ops_asg_error:'Could not read who is assigned. The counts below are not reliable.',
+      ops_sin_candidatos:'Everyone on the roster is already assigned to this operation.',
+      ops_sin_vigentes:'Nobody assigned today; there were people before.',
+      ops_err_nombre:'Type a name for the operation.',
+      ops_no_vigente:'Saved, but it does not count yet.',
+      ops_error:'Could not complete. Try again.',
+      ops_creada:'Operation saved', ops_cerrada:'Operation closed',
+      ops_reabierta:'Operation reopened', ops_asignada:'Person assigned',
+      ops_quitada:'Person removed',
+      ops_conf_cerrar:'Close "{o}"? It stops counting in the panel and its people are kept. You can reopen it later.',
+      ops_conf_reabrir:'Reopen "{o}"? It counts again in the panel with the people it had.',
+      hlp_ops:'An <b>operation</b> is a place or a job with people assigned to it: an <b>installation</b> is permanent (a field, a base) and an <b>event</b> has a start date and, if known, an end date. It lets you see the status of a whole group without relying on the department, which does not tell two different sites apart.<br><br>Assigning someone does not change their department or their role: those belong to the person. <b>Closing</b> an operation deletes nothing — it stops counting in the panel and you can reopen it with the people it had.<br><br>If assigning shows "saved, but it does not count yet", the row was written and does not count today: usually a closed operation or an event whose date has passed.',
       ope_titulo:'Operations',
       ope_tipo_instalacion:'Installation',
       ope_tipo_evento:'Event',
@@ -17724,6 +17860,7 @@ function silvaAtras(){
      cuatro pantallas del alta que R1 tuvo que corregir por lo mismo. Va después de gestiones y
      antes de la nómina porque se abre desde la pestaña del ciclo, por encima del panel. */
   if (visible('cicFullOv')){ cicloFullCerrar(); return true; }         // P055
+  if (visible('opsOv')){ opsCerrar(); return true; }                   // P227c · ídem `depOv`: se abre desde la nómina
   if (visible('depOv')){ depCerrar(); return true; }                   // P039: va ENCIMA de la nómina, que es de donde se abre
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
@@ -23494,6 +23631,7 @@ function renderDash(){
   dashUpdateAdmFab();   // P166
   dashUpdateNomFab();
   depActualizarBoton();                       // P039: el botón de departamentos vive dentro de la nómina
+  opsActualizarBoton();                       // P227c: el de operaciones, al lado
   // La flecha "atrás" ahora también depende de si hay un filtro puesto, así que hay que
   // recalcularla en cada repintado y no sólo al cargar el panel.
   dashUpdateBackBtn();
@@ -35945,6 +36083,18 @@ function ausEnviar(mio, a, anular){
    `DEPS.puedeEditar` sólo sirve para no mostrarle controles que le van a rebotar a la vista
    médica separada: esconderlos acá sería dejar la puerta a un F12 de distancia. */
 const DEPS = { lista: [], empresa: '', puedeEditar: false, duplicadas: 0, cargando: false };
+/* P227c · el estado de la hoja de operaciones. `puedeEditar` lo decide el SERVIDOR y viaja en la
+   respuesta de `action:'operaciones'` (ADR 015): el cliente no re-deriva permisos, que es cómo se le
+   terminan mostrando botones de escritura a quien no puede. */
+/* ⚠️ `OPSADM` Y NO `OPS`, y el nombre corto costó un falso positivo. `pruebas/orden-declaracion.py`
+   barre el fuente buscando `\bNOMBRE\b` y encuentra «OPS» DENTRO de la palabra «NO-OPS» de un
+   comentario que vive en `onDashData` — el guión cuenta como límite de palabra. El barrido reportaba
+   «OPS la usa onDashData()», que es falso: ese comentario no es código. Un nombre de tres letras que
+   aparece como fragmento en prosa va a disparar ese barrido para siempre.
+   ⚠️ Queda la deuda de fondo anotada: el barrido de R16 LEE LOS COMENTARIOS. Si alguno de sus 19
+   hallazgos preexistentes es de esta misma clase, alguien lo viene arrastrando sin saberlo. */
+const OPSADM = { lista: [], empresa: '', puedeEditar: false, soloAgregados: false,
+              asgError: null, cargando: false };
 
 /* ⚠️ ESPEJO EXACTO de `norm()` del .gs, que es lo que `depClave()` usa allá para decidir si dos
    textos son el MISMO departamento. Tiene que ser idéntica letra por letra, y hay un caso que la
@@ -35958,6 +36108,370 @@ function depClaveCliente(s){
     .replace(/[\u0300-\u036f]/g, '')   // saca acentos, igual que el .gs
     .replace(/[^a-z0-9 ]/g, ' ')       // puntuacion y simbolos -> espacio, igual que el .gs
     .replace(/\s+/g, ' ').trim();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P227c · ADMINISTRACIÓN DE OPERACIONES
+
+   Hermana de Departamentos y copiada de ella a propósito: hoja modal estática, POST directo sin
+   cola, `confirm()` + `haptic`, relectura del servidor tras cada acción, guía `dashHelp`.
+
+   ⚠️ CUATRO COSAS EN LAS QUE **NO** SE COPIA A DEPARTAMENTOS, y cada una fue medida:
+   1. **La bitácora NO se escribe acá.** `depEnviar` la escribe en el cliente porque el servidor de
+      departamentos no registra (ADR 015 §R3). El de operaciones SÍ —`bitacoraServidor` en las tres
+      acciones—, así que copiar eso escribiría cada hecho DOS veces en un log append-only, que es
+      exactamente lo que R3 prohíbe.
+   2. **La baja no negocia `con_gente`.** `departamento_baja` devuelve ese motivo y espera `forzar`;
+      `operacion_baja` no tiene nada de eso. El `confirm` sólo podría contar la gente con el
+      `genteN` del cliente, y contar en el cliente lo que el servidor ya sabe es la segunda
+      derivación que este repo pagó más veces.
+   3. **`ok:true` NO significa «quedó asignada».** Hay un TERCER estado: `ok:true` con
+      `vigente:false` y un `motivo`. Ver `opsResultado`.
+   4. **La entrada no cuelga de la tarjeta de P227a.** Esa vive en la pestaña `aptitud`, que
+      `dashTabsFor` sólo le da a `vista === 'supervisor'`; el admin maestro tiene `vista: 'medico'`
+      y no la ve. Y sin ninguna operación creada la tarjeta no se dibuja, así que no habría puerta
+      para crear la primera.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+function opsActualizarBoton(){
+  const btn = document.getElementById('opsFabBtn'); if (!btn) return;
+  /* Mismo criterio que Departamentos —todos menos el empleado— más Dirección fuera: el servidor le
+     rechaza las escrituras (`opPuedeEscribir` corta `vista === "hseq"`) y la puerta de la nómina ya
+     la esconde, así que esto es el segundo cerrojo del mismo candado. La vista médica entra a mirar
+     y el servidor le rechaza lo que escriba; `puedeEditar` apaga los controles. */
+  btn.style.display = (DASH && DASH.vista !== 'empleado' && DASH.vista !== 'hseq') ? '' : 'none';
+}
+function opsAbrir(){
+  const tit = document.getElementById('opsTitle');
+  if (tit) tit.textContent = t('ops_titulo') + ' · ' + dashScopeVisible(gestEmpresaActual());
+  document.getElementById('opsOv').classList.add('show');
+  document.body.classList.add('modal-open');
+  navPush();
+  opsLimpiarAlta();
+  opsPintarAyuda();
+  opsCargar();
+}
+function opsPintarAyuda(){
+  const a = document.getElementById('opsAyuda');
+  /* Se pinta al ABRIR y no dentro del repintado de datos, como `depPintarAyuda`: así la guía sale
+     aunque la carga falle — que es justo cuando alguien más la necesita (R5). */
+  if (a) a.innerHTML = dashHelp(t('hlp_ops'));
+}
+/* Dos funciones y no una, igual que `depCerrar`/`depCerrarUI`: el botón físico de «atrás» llega por
+   `silvaAtras`, donde el navegador YA consumió su entrada de historial, y el botón de volver de la
+   hoja tiene que descartarla además. Sin la separación se consumen DOS entradas por toque. */
+function opsCerrar(){
+  document.getElementById('opsOv').classList.remove('show');
+  syncScrollLock();
+}
+function opsCerrarUI(){ opsCerrar(); navConsumir(); }
+function opsLimpiarAlta(){
+  const n = document.getElementById('opsNombre'); if (n) n.value = '';
+  const i = document.getElementById('opsInicio'); if (i) i.value = '';
+  const f = document.getElementById('opsFin');    if (f) f.value = '';
+  const s = document.getElementById('opsTipo');   if (s) s.value = 'instalacion';
+  opsError('');
+  opsTipoCambio();
+}
+/* Las fechas sólo se piden para un evento: una instalación es permanente y el servidor le fuerza el
+   `Fin` vacío, así que ofrecerlas sería ofrecer un campo que se va a ignorar. */
+function opsTipoCambio(){
+  const s = document.getElementById('opsTipo'), caja = document.getElementById('opsFechas');
+  if (caja) caja.style.display = (s && s.value === 'evento') ? '' : 'none';
+}
+function opsError(msg){
+  const e = document.getElementById('opsErr'); if (!e) return;
+  e.textContent = msg || '';
+  e.style.display = msg ? '' : 'none';
+}
+
+function opsCargar(){
+  const body = document.getElementById('opsBody');
+  /* Si cambió la empresa desde la última apertura, la lista vieja no vale: se descarta ANTES de
+     pedir, o la hoja muestra las operaciones de la empresa anterior mientras carga (es el defecto
+     que `depCargar` documenta para su propio caso). */
+  const empAhora = gestEmpresaActual();
+  if (OPSADM.empresa && empAhora && OPSADM.empresa !== empAhora){
+    OPSADM.lista = []; OPSADM.puedeEditar = false; OPSADM.asgError = null; OPSADM.empresa = '';
+  }
+  if (!OPSADM.lista.length && body) body.innerHTML = skeletonHtml('persona', 3);
+  else franjaCargando(body, t('cargando'));
+  const cred = (DASH && DASH.params) || {};
+  if (DASH && DASH.demoMode){
+    /* La demostración no tiene credenciales contra las que pedir, y una hoja vacía haría concluir
+       que la función está rota en vez de que es un ejemplo. Misma lección que la nómina en demo. */
+    OPSADM.lista = (Array.isArray(DASH.operaciones) ? DASH.operaciones : []).slice();
+    OPSADM.empresa = empAhora; OPSADM.puedeEditar = false; OPSADM.asgError = null; OPSADM.cargando = false;
+    franjaQuitar(body); opsPintar(); return;
+  }
+  if (!cred.usuario || !cred.pass){
+    OPSADM.cargando = false; franjaQuitar(body);
+    if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
+    return;
+  }
+  OPSADM.cargando = true;
+  const hoja = document.querySelector('#opsOv .sheet') || document.getElementById('opsOv');
+  /* ⚠️ `action:'operaciones'` y no el payload del panel. Es la ÚNICA respuesta que trae
+     `puedeEditar`, y ese campo lo decide el servidor (ADR 015): sumarlo al payload del panel habría
+     obligado a nombrarlo en `dashCamposDelServidor`, que es la lista explícita que ya descartó un
+     campo en silencio siete veces. Pedirlo acá es el molde de `depCargar`. */
+  return conCarga(hoja, dashRequest(dashAuth({ action:'operaciones' }))
+    .then(d => {
+      OPSADM.cargando = false;
+      if (!d || !d.ok){
+        if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>';
+        return;
+      }
+      OPSADM.lista = d.operaciones || [];
+      OPSADM.empresa = d.empresa || '';
+      OPSADM.puedeEditar = !!d.puedeEditar;
+      OPSADM.soloAgregados = !!d.soloAgregados;
+      OPSADM.asgError = d.asignacionesError || null;
+      opsPintar();
+    })
+    .catch(() => { OPSADM.cargando = false;
+      if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
+    .finally(() => franjaQuitar(body)));
+}
+
+function opsPintar(){
+  const caja = document.getElementById('opsAltaCaja'), body = document.getElementById('opsBody');
+  if (!body) return;
+  opsPintarAyuda();
+  if (caja) caja.style.display = OPSADM.puedeEditar ? '' : 'none';
+
+  let h = '';
+  if (!OPSADM.puedeEditar) h += '<div class="ops-aviso">' + esc(t('ops_solo_lectura')) + '</div>';
+  /* ⚠️ El error de las asignaciones SE DICE. Sin esto, una hoja de `Asignaciones` ilegible se vería
+     como «ninguna operación tiene gente», y eso se lee como un dato en vez de como una falla — la
+     misma lección que `nominaError` y que la tarjeta de P227a. */
+  if (OPSADM.asgError) h += '<div class="ops-aviso">' + esc(t('ops_asg_error')) + '</div>';
+
+  const activas = OPSADM.lista.filter(o => o && String(o.estado || '').toLowerCase() !== 'baja');
+  const bajas   = OPSADM.lista.filter(o => o && String(o.estado || '').toLowerCase() === 'baja');
+  if (!activas.length && !bajas.length){
+    h += '<div class="nom-vacio">' + esc(t('ops_vacio')) + '</div>';
+  }
+  if (activas.length) h += opsSeccion(t('ops_activas'), activas, false);
+  if (bajas.length)   h += opsSeccion(t('ops_de_baja'), bajas, true);
+  body.innerHTML = h;
+}
+
+function opsSeccion(titulo, filas, esBaja){
+  return '<div class="ops-sec"><div class="ops-sec-t">' + esc(titulo) + ' · ' + filas.length + '</div>' +
+    filas.map(function (o) {
+      const nom = String(o.nombre || '');
+      const tipo = opTipoTexto(o.tipo);
+      const meta = (tipo ? esc(tipo) + ' · ' : '') +
+        esc(String(o.genteN || 0)) + ' ' + esc(t(Number(o.genteN) === 1 ? 'ope_persona' : 'ope_personas'));
+      const btn = OPSADM.puedeEditar
+        ? '<button type="button" class="ops-btn" data-op="' + esc(nom) + '" onclick="' +
+          (esBaja ? 'opsPedirAlta(this)' : 'opsPedirBaja(this)') + '">' +
+          esc(t(esBaja ? 'ops_reabrir' : 'ops_cerrar')) + '</button>'
+        : '';
+      return '<div class="ops-item' + (esBaja ? ' ops-item-baja' : '') + '">' +
+        '<div class="ops-cab"><span class="ops-info"><span class="ops-nom">' + esc(nom) + '</span>' +
+        '<span class="ops-sub">' + meta + '</span></span>' + btn + '</div>' +
+        opsGenteHtml(o, esBaja) + '</div>';
+    }).join('') + '</div>';
+}
+
+/* La gente de la operación, con su botón de quitar, y el selector para asignar a alguien nuevo.
+   ⚠️ Los candidatos salen de `NOMLIST.datos`, que es la nómina que esta misma pantalla ya cargó
+   —la hoja se abre DESDE la nómina— y que trae `nombre` y `cedula`, los dos campos que
+   `operacion_asignar` pide. El servidor valida igual contra la nómina (`persona_sin_nomina`): el
+   selector es una comodidad, no el candado. */
+function opsGenteHtml(o, esBaja){
+  const gente = Array.isArray(o.gente) ? o.gente : [];
+  const nom = String(o.nombre || '');
+  let h = '';
+  if (OPSADM.soloAgregados && Number(o.genteN) > 0){
+    /* Dirección recibe el conteo y no los nombres (la promesa de la lámina). No llega acá —el botón
+       está escondido para su vista— pero si llegara, esto dice por qué la lista está vacía en vez
+       de mostrarla vacía como si no hubiera nadie. */
+    h += '<div class="ops-nota">' + esc(t('ope_sin_detalle')) + '</div>';
+  } else if (gente.length){
+    h += '<ul class="ops-gente">' + gente.map(function (g) {
+      const per = String((g && g.persona) || '');
+      const quitar = (OPSADM.puedeEditar && !esBaja)
+        ? '<button type="button" class="ops-x" data-op="' + esc(nom) + '" data-per="' + esc(per) +
+          '" onclick="opsQuitar(this)" aria-label="' + esc(t('ops_quitar')) + '">×</button>' : '';
+      return '<li>' + esc(per) + quitar + '</li>';
+    }).join('') + '</ul>';
+  } else if (Number(o.genteHistN) > 0 && !esBaja){
+    /* `genteHistN` distingue «nadie HOY» de «nunca nadie», y es lo que P227b midió que faltaba en el
+       filtro: un evento terminado tiene gente histórica y cero vigente.
+       ⚠️ `!esBaja`: en una operación CERRADA la nota es redundante —se ve atenuada y su botón dice
+       «Reabrir», así que ya se entiende que no cuenta— y decirlo ahí hace ruido sobre lo único que
+       importa saber de una cerrada, que es que se puede reabrir con su gente. Lo destapó mirar la
+       pantalla renderizada, no leer el código. */
+    h += '<div class="ops-nota">' + esc(t('ops_sin_vigentes')) + '</div>';
+  }
+  if (OPSADM.puedeEditar && !esBaja){
+    const yaEstan = {};
+    gente.forEach(function (g) { if (g && g.persona) yaEstan[dashNorm(g.persona)] = 1; });
+    const cand = (NOMLIST.datos || []).filter(function (x) {
+      return x && x.nombre && !yaEstan[dashNorm(x.nombre)];
+    });
+    h += '<div class="ops-asg">' +
+      '<select class="gest-search ops-sel" data-op="' + esc(nom) + '">' +
+      '<option value="">' + esc(t('ops_elegir')) + '</option>' +
+      cand.map(function (x) {
+        return '<option value="' + esc(String(x.nombre)) + '" data-ced="' + esc(String(x.cedula || '')) + '">' +
+               esc(String(x.nombre)) + '</option>';
+      }).join('') + '</select>' +
+      '<button type="button" class="ops-btn ops-btn-asg" onclick="opsAsignar(this)">' +
+      esc(t('ops_asignar')) + '</button></div>';
+    if (!cand.length) h += '<div class="ops-nota">' + esc(t('ops_sin_candidatos')) + '</div>';
+  }
+  return h;
+}
+
+/* ⚠️ ═══ EL TERCER ESTADO, QUE ES TODO EL PUNTO DE ESTA FUNCIÓN ═══
+   `ok:true` NO significa «quedó asignada». El ADR 015 registra que ese defecto volvió CUATRO veces,
+   siempre igual: el supervisor tocaba asignar, el servidor contestaba algo que sonaba a éxito, y la
+   persona no quedaba asignada. La política que salió de ahí es «la respuesta dice qué QUEDÓ»:
+     · `ok:false` + `motivo`            → el pedido se rechazó;
+     · `ok:true` + `vigente:true`       → se escribió y CUENTA hoy;
+     · `ok:true` + `vigente:false` + `motivo` → se escribió y NO cuenta hoy (operación cerrada, o el
+       tramo ya venció). Ni éxito a secas ni error: si se muestra como éxito, el defecto vuelve
+       entero; si se muestra como error, la persona reintenta algo que ya está escrito.
+   ⚠️ El texto sale de `tError(d)` con la RESPUESTA ENTERA, no de traducir `d.motivo` por nuestra
+   cuenta: su comentario explica que en español gana el texto del servidor —«dice cuál de los diez
+   casos de `solo_lectura` es, y la clave no»— y en otro idioma gana la clave. Traducir por clave
+   acá empeoraría el mensaje en español, que es el idioma de los pilotos. */
+function opsResultado(d, exitoClave, deshacer){
+  if (!d || !d.ok){ showToast(tError(d)); return false; }
+  if (d.vigente === false){
+    /* ⚠️ `d.error ? … : …` Y NO `tError(d) || …`, y esto lo destapó medir los cuatro estados en el
+       navegador, no leer el código. `tError()` NUNCA devuelve vacío: sin texto cae en
+       `t('err_generico')` = «Algo salió mal. Intenta de nuevo en un momento.». Con el `||`, mi
+       `ops_no_vigente` era INALCANZABLE y este estado —el dato SÍ está escrito— se anunciaba como
+       una falla. La persona reintentaría algo que ya está en el CH, que es el mismo defecto que el
+       ADR 015 dice que volvió cuatro veces, sólo que por el otro lado. */
+    showToast((d.error || d.motivo) ? tError(d) : t('ops_no_vigente'));
+    return true;                      // SÍ se escribió: la hoja se relee igual
+  }
+  if (typeof deshacer === 'function') showToastAccion(t(exitoClave), t('ops_deshacer'), deshacer, 4000);
+  else showToast(t(exitoClave));
+  return true;
+}
+
+/* El POST compartido por las tres acciones. Molde de `depEnviar`, SIN su `bitacoraRegistrar`: el
+   servidor de operaciones ya escribe la bitácora en las tres, y duplicarla en un log append-only es
+   lo que R3 prohíbe. */
+function opsEnviar(accion, extra, clave, btn, exitoClave, deshacer){
+  if (visorBloquea(t('ops_titulo'))) return;                       // P185 · el visor no escribe
+  if (DASH && DASH.demoMode){ showToast(t('demo_aplicado')); return Promise.resolve(true); }
+  const cred = (DASH && DASH.params) || {};
+  if (!cred.usuario || !cred.pass){ showToast(t('tar_err_creds')); return; }
+  if (faltaEmpresaParaEscribir()) return;
+  /* Candado por clave: sin soporte de `inert` (iOS < 15.5) un doble toque mandaba dos POST iguales.
+     Es el mismo `_enVuelo` de Departamentos, y la clave incluye la persona para que asignar a dos
+     personas distintas no se bloquee entre sí. */
+  const enVuelo = OPSADM._enVuelo || (OPSADM._enVuelo = {});
+  if (enVuelo[clave]) return enVuelo[clave];
+  if (btn) btnSpin(btn, true, false);
+  const mio = DASH;                                                // guarda de identidad, como `ausTocar`
+  const cuerpo = Object.assign({ action: accion, usuario: cred.usuario, pass: cred.pass,
+    empresa: gestEmpresaActual(), dispositivoId: dispositivoId(),
+    quien: (getProfile() || {}).nombre || '' }, extra || {});
+  const hoja = document.querySelector('#opsOv .sheet') || document.getElementById('opsOv');
+  const prom = conCarga(hoja, fetchConReloj(SHEETS_DASHBOARD_URL,
+      { method:'POST', body: JSON.stringify(cuerpo) })
+    .then(r => r.json())
+    .then(d => {
+      const ok = opsResultado(d, exitoClave, deshacer);
+      /* Se relee del servidor y no se pinta en optimista: mostrar la operación creada antes de que
+         el CH la tenga es la clase de mentira que hace desconfiar de la pantalla (el mismo criterio
+         que `depEnviar` dejó escrito). Y sólo si el panel sigue siendo el mismo. */
+      if (DASH === mio) opsCargar();
+      return ok;
+    })
+    .catch(() => { showToast(t('ops_error')); return false; })
+    .finally(() => { if (btn) btnSpin(btn, false); delete enVuelo[clave]; }));
+  enVuelo[clave] = prom;
+  return prom;
+}
+
+/* Crear o editar: es el MISMO upsert por clave, igual que `departamento_guardar`. Reactivar una
+   operación de baja también es éste (el servidor contesta `reactivada:true`): no hay acción propia. */
+function opsGuardar(btn){
+  const inp = document.getElementById('opsNombre'); if (!inp) return;
+  const nombre = String(inp.value || '').trim().replace(/\s+/g, ' ');
+  if (!nombre){ opsError(t('ops_err_nombre')); inp.focus(); return; }
+  const tipo = (document.getElementById('opsTipo') || {}).value || 'instalacion';
+  const esEvento = tipo === 'evento';
+  const inicio = esEvento ? ((document.getElementById('opsInicio') || {}).value || '') : '';
+  const fin    = esEvento ? ((document.getElementById('opsFin') || {}).value || '') : '';
+  /* El servidor rechaza un evento sin `inicio` (`falta_inicio`) y un `fin` anterior (`fin_antes`).
+     Se valida acá TAMBIÉN para no gastar un viaje y para que el error aparezca junto al campo, no en
+     un toast: el servidor sigue siendo el que manda. */
+  if (esEvento && !inicio){ opsError(t('err_m_falta_inicio')); return; }
+  if (esEvento && fin && fin < inicio){ opsError(t('err_m_fin_antes')); return; }
+  opsError('');
+  const r = opsEnviar('operacion_guardar', { operacion: nombre, tipo: tipo, inicio: inicio, fin: fin },
+                      'g|' + dashNorm(nombre), btn, 'ops_creada');
+  if (r && r.then) r.then(ok => { if (ok) opsLimpiarAlta(); });
+  return r;
+}
+
+function opsPedirBaja(btn){
+  const nombre = btn && btn.getAttribute('data-op'); if (!nombre) return;
+  /* ⚠️ El `confirm` NO dice cuánta gente tiene. `departamento_baja` negocia con `con_gente` y espera
+     `forzar`; `operacion_baja` no tiene nada de eso, así que el único conteo disponible sería el
+     `genteN` del cliente — y contar en el cliente lo que el servidor ya sabe es la segunda
+     derivación que este repo pagó más veces. Cerrar una operación no borra sus asignaciones: las
+     deja de contar, y eso es reversible con «Reabrir». */
+  if (!confirm(t('ops_conf_cerrar', { o: nombre }))) return;
+  haptic(16);
+  return opsEnviar('operacion_baja', { operacion: nombre }, 'b|' + dashNorm(nombre), btn, 'ops_cerrada');
+}
+
+function opsPedirAlta(btn){
+  const nombre = btn && btn.getAttribute('data-op'); if (!nombre) return;
+  if (!confirm(t('ops_conf_reabrir', { o: nombre }))) return;
+  haptic(12);                                            // 12 para reactivar, como Departamentos
+  /* Reabrir es `operacion_guardar` sobre una fila de baja. Se manda el tipo que ya tiene para no
+     cambiárselo sin querer: el upsert reescribe la fila entera. */
+  const o = OPSADM.lista.filter(x => x && String(x.nombre) === String(nombre))[0] || {};
+  return opsEnviar('operacion_guardar',
+    { operacion: nombre, tipo: o.tipo || 'instalacion', inicio: o.inicio || '', fin: o.fin || '' },
+    'g|' + dashNorm(nombre), btn, 'ops_reabierta');
+}
+
+/* Asignar y quitar NO piden `confirm()`: háptico y «Deshacer» de 4 segundos, que es lo que P189
+   decidió para `ausTocar` y por la misma razón — se marcan varias personas seguidas y un diálogo por
+   cada una vuelve la tarea insoportable, con el reflejo de darle Aceptar sin leer. R8 queda cumplida
+   por la vía que el proyecto ya eligió para el caso en lote. */
+function opsAsignar(btn){
+  const sel = btn && btn.parentElement && btn.parentElement.querySelector('select');
+  const nombre = sel && sel.getAttribute('data-op');
+  const persona = sel && sel.value;
+  if (!nombre || !persona){ if (sel) sel.focus(); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const cedula = (opt && opt.getAttribute('data-ced')) || '';
+  haptic(16);
+  const mio = DASH;
+  return opsEnviar('operacion_asignar', { operacion: nombre, persona: persona, cedula: cedula },
+    'a|' + dashNorm(nombre) + '|' + dashNorm(persona), btn,
+    'ops_asignada',
+    function(){ if (DASH === mio) opsEnviar('operacion_asignar',
+        { operacion: nombre, persona: persona, quitar: '1' },
+        'a|' + dashNorm(nombre) + '|' + dashNorm(persona), null, 'ops_quitada'); });
+}
+
+function opsQuitar(btn){
+  const nombre = btn && btn.getAttribute('data-op');
+  const persona = btn && btn.getAttribute('data-per');
+  if (!nombre || !persona) return;
+  haptic(16);
+  const mio = DASH;
+  return opsEnviar('operacion_asignar', { operacion: nombre, persona: persona, quitar: '1' },
+    'a|' + dashNorm(nombre) + '|' + dashNorm(persona), btn,
+    'ops_quitada',
+    function(){ if (DASH === mio) opsEnviar('operacion_asignar',
+        { operacion: nombre, persona: persona },
+        'a|' + dashNorm(nombre) + '|' + dashNorm(persona), null, 'ops_asignada'); });
 }
 
 function depActualizarBoton(){
