@@ -168,13 +168,31 @@ def cargar(ruta):
     # del `\`, o sea en `j + 1`, asi que la condicion era falsa y el autochequeo pasaba igual.
     # Lo cazo correr el discriminador (quitar las dos lineas del parche y ver si salta): no saltaba.
     # Un autochequeo que no puede fallar es peor que no tenerlo, porque cierra la pregunta.
+    # ⚠️ SE RECORREN TODAS las barras escapadas de la linea, no la primera. Mi version anterior
+    # usaba `l.find("\\/")` y quedo en NO-OP: en `/^https?:\/\//` el defecto se dispara en la
+    # SEGUNDA (`\/\//` forma el `//`), y la primera sobrevive, asi que mirar solo esa no ve nada.
+    # Lo cazo correr el discriminador con el parche quitado: pasaba igual. Tercera vez en el dia que
+    # un instrumento mio no mide lo que dice medir.
     cr, li, sospechosas = crudo.split("\n"), limpio.split("\n"), []
     for k, l in enumerate(cr):
-        j = l.find("\\/")
-        if j < 0:
+        posiciones, desde = [], 0
+        while True:
+            j = l.find("\\/", desde)
+            if j < 0:
+                break
+            posiciones.append(j); desde = j + 1
+        if not posiciones:
             continue
-        if li[k][j:j + 2] != "\\/":
-            sospechosas.append(k + 1)
+        # ⚠️ SE EXIGE QUE EL `\` HAYA SOBREVIVIDO. Comparar `li[k][j:j+2] != "\\/"` reventaba con
+        # cualquier COMENTARIO que mencionara un regex —`/* la URL se valida con /^https?:\/\// */`—,
+        # porque al quitarlo las columnas se corren y ahí ya no hay nada. Y el mensaje culpaba al
+        # lexer por algo que el lexer hizo bien, mandando al siguiente a buscar un bug inexistente.
+        # El defecto real es que el `\` quede y el `/` no: si la linea era comentario, el `\`
+        # tampoco esta.
+        for j in posiciones:
+            if li[k][j:j + 1] == "\\" and li[k][j + 1:j + 2] != "/":
+                sospechosas.append(k + 1)
+                break
     assert not sospechosas, (
         "el despojador se comio codigo en estas lineas (barra escapada leida como comentario): %s"
         % sospechosas[:8])

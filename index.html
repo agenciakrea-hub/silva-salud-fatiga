@@ -7793,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.32';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.35';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -35814,7 +35814,11 @@ function nominaListCargar(){
      buscador y cambiar el filtro de departamento sobre una lista que todavía no existía, y al
      llegar los datos el filtro se pisaba solo. */
   const hojaNom = document.querySelector('#nominaListOv .sheet') || document.getElementById('nominaListOv');
-  conCarga(hojaNom, dashRequest(dashAuth({ action:'nomina_listar' }))
+  /* ⚠️ DEVUELVE LA PROMESA, por el mismo motivo que A15 se lo hizo a `depEnviar`: permite que un
+     llamador espere a que TERMINE en vez de medir el instante anterior. Acá hay un segundo motivo
+     concreto: `opsCargar` la dispara para poblar el selector de candidatos y necesita repintar
+     cuando llega. No cambia nada para `nominaListAbrir`, que no la usa. */
+  return conCarga(hojaNom, dashRequest(dashAuth({ action:'nomina_listar' }))
     .then(d => {
       NOMLIST.cargando = false;
       if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>'; return; }
@@ -36104,8 +36108,8 @@ const DEPS = { lista: [], empresa: '', puedeEditar: false, duplicadas: 0, cargan
    aparece como fragmento en prosa va a disparar ese barrido para siempre.
    ⚠️ Queda la deuda de fondo anotada: el barrido de R16 LEE LOS COMENTARIOS. Si alguno de sus 19
    hallazgos preexistentes es de esta misma clase, alguien lo viene arrastrando sin saberlo. */
-const OPSADM = { lista: [], empresa: '', puedeEditar: false, soloAgregados: false,
-              asgError: null, cargando: false };
+const OPSADM = { lista: [], empresa: '', vista: '', puedeEditar: false, soloAgregados: false,
+              asgError: null };
 
 /* ⚠️ ESPEJO EXACTO de `norm()` del .gs, que es lo que `depClave()` usa allá para decidir si dos
    textos son el MISMO departamento. Tiene que ser idéntica letra por letra, y hay un caso que la
@@ -36163,7 +36167,13 @@ function opsAbrir(){
      indefinidamente si el pedido cuelga—. Se decide con lo que YA sabemos y sigue valiendo: si la
      última carga fue de esta misma empresa, su `puedeEditar` vale y la caja no parpadea; si la
      empresa cambió, se apaga hasta que el servidor conteste. */
-  opsMostrarAlta(OPSADM.puedeEditar && OPSADM.empresa === gestEmpresaActual());
+  /* ⚠️ También se invalida por VISTA, no sólo por empresa: el administrador que se pone el visor de
+     Dirección sobre la MISMA empresa conservaba el `puedeEditar:true` de su carga anterior, así que
+     veía el campo y el «+» por los 2-5 s de la lectura. No puede escribir (`opsEnviar` arranca con
+     `visorBloquea`), o sea es cosmético — pero es el inverso exacto del defecto que esta línea vino
+     a cerrar, y el visor es justo quien no tiene que ver un campo de alta. */
+  opsMostrarAlta(OPSADM.puedeEditar && OPSADM.empresa === gestEmpresaActual() &&
+                 OPSADM.vista === (DASH && DASH.vista));
   opsPintarAyuda();
   opsCargar();
 }
@@ -36206,6 +36216,10 @@ function opsCargar(){
   /* Si cambió la empresa desde la última apertura, la lista vieja no vale: se descarta ANTES de
      pedir, o la hoja muestra las operaciones de la empresa anterior mientras carga (es el defecto
      que `depCargar` documenta para su propio caso). */
+  /* La generación se toma ARRIBA de todo: la usa también el `.then` de la nómina, que se dispara
+     antes del pedido de operaciones. */
+  const miGen = (OPSADM._gen = (OPSADM._gen || 0) + 1);
+  const vigente = () => OPSADM._gen === miGen;
   const empAhora = gestEmpresaActual();
   if (OPSADM.empresa && empAhora && OPSADM.empresa !== empAhora){
     OPSADM.lista = []; OPSADM.puedeEditar = false; OPSADM.asgError = null; OPSADM.empresa = '';
@@ -36217,11 +36231,11 @@ function opsCargar(){
     /* La demostración no tiene credenciales contra las que pedir, y una hoja vacía haría concluir
        que la función está rota en vez de que es un ejemplo. Misma lección que la nómina en demo. */
     OPSADM.lista = (Array.isArray(DASH.operaciones) ? DASH.operaciones : []).slice();
-    OPSADM.empresa = empAhora; OPSADM.puedeEditar = false; OPSADM.asgError = null; OPSADM.cargando = false;
+    OPSADM.empresa = empAhora; OPSADM.puedeEditar = false; OPSADM.asgError = null;
     franjaQuitar(body); opsPintar(); return;
   }
   if (!cred.usuario || !cred.pass){
-    OPSADM.cargando = false; franjaQuitar(body);
+    franjaQuitar(body);
     /* ⚠️ La caja de alta SE APAGA, y es lo que `depCargar` ya hacía con su motivo escrito: «dejarlo a
        la vista invita a escribir un nombre y que no pase nada». `opsPintar` es el único que la
        apaga y no corre por este camino, así que sin esto quedaba el campo y el «+» sobre un cuerpo
@@ -36231,14 +36245,28 @@ function opsCargar(){
     if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
     return;
   }
-  OPSADM.cargando = true;
+  /* ⚠️ LA NÓMINA SE PIDE ACÁ, y sin esto `operacion_asignar` seguía siendo INALCANZABLE en una
+     sesión fresca. `nominaListCargar()` tiene un solo llamador —`nominaListAbrir()`—, así que quien
+     entra al panel y toca el botón de operaciones sin haber abierto antes la hoja de Nómina ve el
+     selector vacío con el botón «Asignar» dibujado. La ronda 1 arregló la FORMA del campo
+     (`persona`, no `nombre`) y el bloqueante seguía vivo por el otro lado: la lista estaba vacía.
+     Medido en el DOM: `NOMLIST.datos` en 0, una sola opción («Elige a una persona») y la nota falsa.
+     ⚠️ Se repinta cuando llega, y sólo si esta carga sigue siendo la vigente. */
+  if (!(NOMLIST.datos || []).length && !NOMLIST.cargando){
+    try {
+      const rn = nominaListCargar();
+      if (rn && rn.then) rn.then(() => { if (vigente() && OPSADM.lista.length) opsPintar(); });
+    } catch(e){}
+  }
+  /* ⚠️ NO HAY `OPSADM.cargando`. Lo tenía, con 5 escrituras y **0 lecturas** en todo el archivo: un
+     campo que nadie consulta se lee como una guarda puesta y no es ninguna. Lo que de verdad resuelve
+     el solape es la generación de abajo, y el único «¿está cargando?» que hace falta es el de
+     `NOMLIST.cargando`, que sí se lee (arriba, para no pedir la nómina dos veces). */
   /* ⚠️ GENERACIÓN DE CARGA. Sin esto, dos `opsCargar` solapadas se pisan y la que LLEGA TARDE gana:
      medido, la nueva pintaba la lista bien y después la vieja fallaba, apagaba la caja de alta y
      escribía «No se pudo conectar» encima de datos frescos — y la hoja no tiene botón de recargar,
      así que la única salida era cerrarla y reabrirla. El solape se volvió común con el arreglo del
      `.catch` de `opsEnviar`, que ahora dispara su propio `opsCargar` por cada envío fallido. */
-  const miGen = (OPSADM._gen = (OPSADM._gen || 0) + 1);
-  const vigente = () => OPSADM._gen === miGen;
   const hoja = document.querySelector('#opsOv .sheet') || document.getElementById('opsOv');
   /* ⚠️ `action:'operaciones'` y no el payload del panel. Es la ÚNICA respuesta que trae
      `puedeEditar`, y ese campo lo decide el servidor (ADR 015): sumarlo al payload del panel habría
@@ -36247,7 +36275,6 @@ function opsCargar(){
   return conCarga(hoja, dashRequest(dashAuth({ action:'operaciones' }))
     .then(d => {
       if (!vigente()) return;           // otra carga más nueva ya pintó: esta respuesta es vieja
-      OPSADM.cargando = false;
       if (!d || !d.ok){
         opsMostrarAlta(false);          // mismo motivo: con `sin_empresa` tampoco corre `opsPintar`
         if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>';
@@ -36257,13 +36284,18 @@ function opsCargar(){
       OPSADM.empresa = d.empresa || '';
       OPSADM.puedeEditar = !!d.puedeEditar;
       OPSADM.soloAgregados = !!d.soloAgregados;
+      OPSADM.vista = (DASH && DASH.vista) || '';     // con qué vista se obtuvo este `puedeEditar`
       OPSADM.asgError = d.asignacionesError || null;
       opsPintar();
     })
     .catch(() => { if (!vigente()) return;
-      OPSADM.cargando = false; opsMostrarAlta(false);
+      opsMostrarAlta(false);
       if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
-    .finally(() => franjaQuitar(body)));
+    /* ⚠️ `if (vigente())`, y sin esto la carga DESCARTADA le quitaba la franja a la vigente.
+       `franjaQuitar` borra `.tar-cargando` sin contar anidamientos (a diferencia de `conCarga`, que
+       sí los cuenta desde A15): carga A en vuelo, el usuario dispara B, A resuelve y su `.finally`
+       deja a B corriendo sin ningún indicador. */
+    .finally(() => { if (vigente()) franjaQuitar(body); }));
 }
 
 /* Un solo lugar que decide si la caja de alta se ve. Antes lo decidía `opsPintar` y nada más, y los
@@ -36350,6 +36382,7 @@ function opsGenteHtml(o, esBaja){
       const quitar = (OPSADM.puedeEditar && !esBaja)
         ? '<button type="button" class="ops-x" data-op="' + esc(nom) + '" data-per="' + esc(per) +
           '" data-desde="' + esc(String((g && g.desde) || '')) + '"' +
+          ' data-hasta="' + esc(String((g && g.hasta) || '')) + '"' +
           ' onclick="opsQuitar(this)" aria-label="' + esc(t('ops_quitar')) + '">×</button>' : '';
       return '<li>' + esc(per) + quitar + '</li>';
     }).join('') + '</ul>';
@@ -36373,11 +36406,19 @@ function opsGenteHtml(o, esBaja){
        la cédula de la otra. La cédula ya la decide la nómina en el servidor (GS 2026-10-09.2), pero
        ofrecer a quien no corresponde sigue siendo una pantalla que invita al error.
        Si no sabemos la empresa no se filtra: el servidor falla cerrado igual, y vaciar el selector
-       sería el síntoma que este prompt acaba de arreglar. */
-    const empHoja = dashNorm(OPSADM.empresa || '');
+       sería el síntoma que este prompt acaba de arreglar.
+       ⚠️ `depClaveCliente` Y NO `dashNorm`, y la diferencia es medible: el servidor concede este
+       derecho con `norm()` en las dos puntas (`opPersonaEnNomina_`, `opMismaEmpresa`), y `norm`
+       convierte la puntuación en espacio mientras `dashNorm` **no** —lo dice el comentario de
+       `depClaveCliente`, que es justamente la réplica de `norm` («igual que el .gs», dos veces)—.
+       Con `dashNorm`, «Cardon IV C.A.» y «Cardon IV, C.A.» no empatan y el selector queda VACÍO con
+       su nota falsa, mientras el servidor habría aceptado a esa persona. Es la quinta comparación de
+       empresa del repo y el `.gs` tiene escrito arriba de la suya: «UNA SOLA COMPARACIÓN DE EMPRESA,
+       Y ESTÁ ACÁ POR UN DEFECTO MEDIDO». */
+    const empHoja = depClaveCliente(OPSADM.empresa || '');
     const cand = (NOMLIST.datos || []).filter(function (x) {
       if (!x || !x.persona || yaEstan[dashNorm(x.persona)]) return false;
-      return !empHoja || !x.empresa || dashNorm(x.empresa) === empHoja;
+      return !empHoja || !x.empresa || depClaveCliente(x.empresa) === empHoja;
     });
     h += '<div class="ops-asg">' +
       '<select class="gest-search ops-sel" data-op="' + esc(nom) + '">' +
@@ -36388,7 +36429,13 @@ function opsGenteHtml(o, esBaja){
       }).join('') + '</select>' +
       '<button type="button" class="ops-btn ops-btn-asg" onclick="opsAsignar(this)">' +
       esc(t('ops_asignar')) + '</button></div>';
-    if (!cand.length) h += '<div class="ops-nota">' + esc(t('ops_sin_candidatos')) + '</div>';
+    /* ⚠️ LA NOTA EXIGE QUE LA NÓMINA ESTÉ CARGADA. Con `NOMLIST.datos` vacío —la primera apertura
+       de la hoja, antes de que llegue la nómina— decía «toda la nómina ya está asignada a esta
+       operación» sobre una operación sin NADIE. Una frase falsa que además se lee como un dato:
+       quien la ve concluye que no hay a quién asignar. Mientras la nómina viene, no se dice nada: la
+       franja de carga ya está puesta. */
+    if (!cand.length && (NOMLIST.datos || []).length)
+      h += '<div class="ops-nota">' + esc(t('ops_sin_candidatos')) + '</div>';
   }
   return h;
 }
@@ -36420,7 +36467,22 @@ function opsResultado(d, exitoClave, deshacer){
      Invertir no le quita el mensaje a nadie: si escribió, `cambio` es `true` y no entra acá. Lo que
      se pierde es el motivo en el caso del reenvío, y eso es correcto — la persona ya lo leyó en el
      primer toque, y lo que necesita saber ahora es que el CH no cambió, para no seguir tocando. */
-  if (d.cambio === false){ showToast(t('ops_sin_cambio')); return true; }
+  /* ⚠️ ESTA RAMA DECIDE EL «DESHACER», NO EL TEXTO. La ronda anterior mostraba `ops_sin_cambio` a
+     secas y con eso TIRABA el `motivo` de los 32 estados que el `.gs` enumera — y el `motivo` es la
+     parte que dice QUÉ HACER («para registrar su participación hay que indicar desde y hasta cuándo
+     estuvo asignada»). Mi comentario justificaba la pérdida diciendo «la persona ya lo leyó en el
+     primer toque», y el verificador midió que es FALSO: el caso llega en el PRIMER toque —evento
+     terminado, la persona con su fila abierta, el panel la saca de `gente` por no vigente y el
+     selector la vuelve a ofrecer—, así que la pantalla decía «ya estaba así», releía, y la persona
+     seguía sin aparecer sin ninguna explicación. Y contradecía la política que el endpoint tiene
+     escrita: «lo que la política prohíbe es contestar `repetida:true` SIN el motivo».
+     ⚠️ El prefijo del servidor dejó de afirmar la escritura cuando no hubo (GS 2026-10-09.4): ahora
+     dice «Nada cambió, y esa persona no queda asignada…». Por eso se puede mostrar su texto sin
+     mentir. Lo que esta rama garantiza es que NUNCA se ofrezca «Deshacer» sobre cero celdas. */
+  if (d.cambio === false){
+    showToast((d.error || d.motivo) ? tError(d) : t('ops_sin_cambio'));
+    return true;
+  }
   if (d.vigente === false){
     /* ⚠️ `d.error ? … : …` Y NO `tError(d) || …`, y esto lo destapó medir los cuatro estados en el
        navegador, no leer el código. `tError()` NUNCA devuelve vacío: sin texto cae en
@@ -36582,15 +36644,33 @@ function opsQuitar(btn){
   const nombre = btn && btn.getAttribute('data-op');
   const persona = btn && btn.getAttribute('data-per');
   if (!nombre || !persona) return;
-  /* El `Desde` original, para que el «Deshacer» reponga la fila como estaba y no la reabra hoy. */
-  const desde = (btn && btn.getAttribute('data-desde')) || '';
+  /* ⚠️ EL TRAMO SON LAS DOS COLUMNAS, y la ronda anterior repuso una sola. Mandar `desde` y no
+     `hasta` deja `hastaParam` vacío, la fila está de baja → `tramoNuevo` → el servidor escribe
+     `Hasta=""`: el «Deshacer» borraba el borde DERECHO de la ventana, que es el mismo daño que esa
+     ronda vino a cerrar del lado izquierdo. El ADR 015 lo nombra para esta columna: «para un evento,
+     que existe para contestar ¿cómo estuvo esa gente durante?, borra la ventana que esa pregunta
+     necesita». Los dos valores vienen en el payload (`opPayloadPara_` manda `{persona, clave, desde,
+     hasta}`) y el cliente tiraba uno.
+     ⚠️ Y SE REENVÍA SÓLO LO QUE ES UNA FECHA. `normFecha` del servidor devuelve la celda tal cual
+     cuando no la entiende —`Desde="marzo"` es una forma real, el propio `.gs` la nombra—, así que el
+     payload puede traer basura; y la guarda de entrada de `operacion_asignar` RECHAZA lo que no sea
+     `AAAA-MM-DD`, aunque el cálculo de diez líneas más abajo sepa tolerarla. Reenviarla volvía el
+     «Deshacer» un error duro («la fecha de inicio tiene que venir como AAAA-MM-DD») sobre un campo
+     que la persona no tocó, y la fila quedaba en baja **sin camino de vuelta por la pantalla**: la
+     ronda anterior cambió «pierde la ventana» por «no se puede deshacer», que es peor. Sin fecha
+     válida, el servidor usa su valor por defecto, que es el comportamiento de antes. */
+  const fechaOk = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
+  const desde = fechaOk(btn && btn.getAttribute('data-desde'));
+  const hasta = fechaOk(btn && btn.getAttribute('data-hasta'));
   haptic(16);
   const mio = DASH;
   return opsEnviar('operacion_asignar', { operacion: nombre, persona: persona, quitar: '1' },
     'a|' + dashNorm(nombre) + '|' + dashNorm(persona), btn,
     'ops_quitada',
     function(){ if (DASH === mio) opsEnviar('operacion_asignar',
-        Object.assign({ operacion: nombre, persona: persona }, desde ? { desde: desde } : null),
+        Object.assign({ operacion: nombre, persona: persona },
+                      desde ? { desde: desde } : null,
+                      hasta ? { hasta: hasta } : null),
         'a|' + dashNorm(nombre) + '|' + dashNorm(persona), null, 'ops_asignada'); });
 }
 

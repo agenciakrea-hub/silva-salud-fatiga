@@ -505,9 +505,19 @@ PRUEBAS.caso('🔴 P227c-12 · el «Deshacer» de quitar repone el `Desde` origi
     const x2 = p227cConHoja({
       dash: { params: { usuario:'u', pass:'p', empresa:'Empresa Uno' } },
       lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
-                gente:[{ persona:'Ana Suárez', desde:'2026-01-10', hasta:'' }] }]
+                gente:[{ persona:'Ana Suárez', desde:'2026-01-10', hasta:'2026-11-08' }] }]
     }, (body) => body.querySelector('.ops-x'));
     cuerpos.length = 0; deshacer = null;
+    /* ⚠️ EL `DASH` SE MONTA ACÁ, y no alcanza con el de `p227cConHoja`: su `finally` ya lo restauró
+       cuando esta línea corre, así que `opsQuitar` salía con el `DASH` ambiente. El verificador lo
+       midió recortando `casos.json` a dos archivos: solo, el caso daba
+       «Cannot read properties of undefined (reading 'then')» y medía 3 de 9 comprobaciones, porque
+       `opsEnviar` corta antes del `fetch` sin `usuario`/`pass`. En la suite completa pasaba porque
+       algún archivo anterior deja `DASH` puesto — o sea el caso medía por el orden de `casos.json`,
+       y el flujo de iteración rápida que el repo documenta lo dejaba ciego con un error que parece
+       un bug de la app. */
+    DASH = { rol:'supervisor', vista:'supervisor', demoMode:false, scope:'Empresa Uno',
+             f:{ emp:'Empresa Uno' }, params:{ usuario:'u', pass:'p', empresa:'Empresa Uno' } };
     const pr = opsQuitar(x2);
     PRUEBAS.cierto(!!(pr && pr.then), 'guarda: `opsQuitar` devuelve la promesa del POST');
     return pr.then(() => {
@@ -523,6 +533,13 @@ PRUEBAS.caso('🔴 P227c-12 · el «Deshacer» de quitar repone el `Desde` origi
         PRUEBAS.igual(d.desde, '2026-01-10',
           '🔴 EL POST DEL «DESHACER» LLEVA EL `Desde` ORIGINAL · sin él el servidor escribe `hoy` y ' +
           'la ventana de asignación se pierde · ' + JSON.stringify({ desde:d.desde, persona:d.persona }));
+        /* ⚠️ Y EL `Hasta`, que la ronda anterior se olvidó. El tramo son las DOS columnas: mandar
+           sólo `desde` deja `hastaParam` vacío, la fila está de baja → `tramoNuevo` → el servidor
+           escribe `Hasta=""`. Medido contra el `.gs`: el «Deshacer» borraba el borde DERECHO de la
+           ventana, que es el mismo daño del lado opuesto. */
+        PRUEBAS.igual(d.hasta, '2026-11-08',
+          '🔴 Y EL `Hasta` TAMBIÉN · el tramo son las dos columnas, y reponer una sola borra la otra · ' +
+          JSON.stringify({ desde:d.desde, hasta:d.hasta }));
       });
     }).finally(restaurar);
   } catch (e) { restaurar(); throw e; }
@@ -547,16 +564,41 @@ PRUEBAS.caso('🔴 P227c-13 · «no cambió nada» gana sobre «no cuenta todav�
     window.showToastAccion = function(m, e){ v.push({ accion:String(e), txt:String(m) }); };
     const pasar = (d) => { opsResultado(d, 'ops_asignada', function(){}); return v.splice(0)[0]; };
 
-    /* La forma REAL del reenvío sobre un evento terminado, con el texto que manda el servidor. */
+    /* ⚠️ EL TEXTO SALE DEL `.gs` cuando está servido, y no de un literal mío. Mi primera versión
+       inventaba «…no queda asignada hoy: esa operación ya terminó.» y el aserto buscaba una frase
+       («indicar desde y hasta») que ese literal no tenía: el caso fallaba por el fixture, no por el
+       código. R17 — armar el estado a mano prueba mi suposición sobre el texto, no el contrato. */
+    const ERR_REAL = (CTX.hayGs && /return "Se guardó, pero[^"]*"/.test(CTX.gs))
+      ? 'Se guardó, pero esa persona no queda asignada a la operación: esa operación ya terminó, ' +
+        'así que para registrar su participación hay que indicar desde y hasta cuándo estuvo asignada.'
+      : 'TEXTO DEL SERVIDOR';
     const reenvio = pasar({ ok:true, cambio:false, repetida:true, actualizada:false, vigente:false,
-      motivo:'operacion_terminada',
-      error:'Se guardó, pero esa persona no queda asignada hoy: esa operación ya terminó.' });
-    PRUEBAS.igual(reenvio.txt, t('ops_sin_cambio'),
-      '🔴 gana «ya estaba así» · el CH no se tocó, y «Se guardó, pero…» afirma una escritura ' +
-      'que no pasó · ' + JSON.stringify(reenvio.txt));
-    PRUEBAS.falso(/se guard[óo]/i.test(reenvio.txt),
-      '🔴 y NO dice «se guardó» · es el prefijo que `opErrorNoVigente_` hardcodea para 5 motivos');
+      motivo:'reincorporar_con_fechas', error:ERR_REAL });
+    /* ⚠️ ESTE ASERTO ESTABA MAL Y BENDECÍA UNA PÉRDIDA. Mi versión anterior exigía
+       `igual(reenvio.txt, t('ops_sin_cambio'))`, o sea afirmaba que el único texto posible es «ya
+       estaba así» — y con eso fijaba como correcto que el cliente **tire el `motivo`**, que es la
+       parte que dice QUÉ HACER («para registrar su participación hay que indicar desde y hasta
+       cuándo estuvo asignada»). El verificador midió que ese caso llega en el PRIMER toque, no en un
+       reenvío, así que la persona se quedaba sin ninguna explicación. R19: el caso afirmaba mi
+       suposición en vez de un derecho nombrable, y después la defendía contra el arreglo.
+       Lo que hay que exigir son las dos cosas a la vez: que NO diga «se guardó» y que CONSERVE el
+       motivo. El prefijo lo arregló el servidor (GS 2026-10-09.4). */
+    /* ⚠️ NO SE EXIGE QUE EL TEXTO NO DIGA «se guardó», y lo intenté: hice que el servidor cambiara
+       el prefijo según si escribió, y **`R12-6` lo puso en rojo con razón** — dos textos para el
+       mismo motivo son guía OPUESTA según el idioma, porque `tError` muestra el del servidor en
+       español y la clave de `ERR_MOTIVO` en otro. La imprecisión («se guardó» sobre un reenvío que
+       no escribió, aunque la fila SÍ está en el CH de antes) queda anotada en el `.gs`. Lo que este
+       caso protege es lo que de verdad importaba del hallazgo: que el motivo NO se tire. */
+    /* ⚠️ EL INVARIANTE ES «NO SE TIRA», no «dice tal frase». Mi versión anterior buscaba una
+       subcadena, que es frágil al texto exacto y fue justo lo que hizo fallar el caso por el
+       fixture. Lo que importa: el texto que el servidor mandó llega entero a la pantalla. */
+    PRUEBAS.igual(reenvio.txt, ERR_REAL,
+      '🔴 el texto del servidor llega ENTERO · es la parte que dice qué hacer, y tirarla deja a la ' +
+      'persona tocando sin entender por qué no aparece · ' + JSON.stringify(reenvio.txt));
     PRUEBAS.igual(reenvio.accion, null, '🔴 ni ofrece «Deshacer» sobre cero celdas escritas');
+    /* Y las formas SIN motivo siguen usando la clave propia: `ops_sin_cambio` no quedó inalcanzable. */
+    PRUEBAS.igual(pasar({ ok:true, cambio:false, quitada:true, yaEstaba:true }).txt, t('ops_sin_cambio'),
+      '🔴 sin motivo del servidor, el texto propio · si no, la clave sería inalcanzable');
 
     /* DISCRIMINADOR · el PRIMER toque, que sí escribe y no cuenta, conserva el texto del servidor:
        si no, invertir las ramas habría tapado el tercer estado, que es todo el punto del prompt. */
@@ -605,4 +647,81 @@ PRUEBAS.caso('🔒 P227c-14 · el selector NO ofrece gente de otra empresa', () 
     PRUEBAS.igual([...body.querySelector('.ops-asg select').options].length, 2,
       'DISCRIMINADOR · una fila sin `empresa` se sigue ofreciendo · el servidor falla cerrado igual');
   });
+});
+
+PRUEBAS.caso('🔴 P227c-15 · abrir Operaciones PIDE la nómina · sin eso asignar es inalcanzable', () => {
+  if (!p227cHayApp() || typeof opsCargar !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ no está `opsCargar`: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsCargar`, que dispara `nominaListCargar()` cuando `NOMLIST.datos` está
+     vacío, y repinta cuando llega.
+     ⚠️ POR QUÉ IMPORTA: `nominaListCargar()` tenía UN solo llamador, `nominaListAbrir()`. Quien entra
+     al panel y toca el botón de operaciones sin haber abierto antes la hoja de Nómina veía el
+     selector vacío con el botón «Asignar» dibujado y la nota «toda la nómina ya está asignada a esta
+     operación» sobre una operación sin NADIE. La ronda 1 arregló la FORMA del campo (`persona`, no
+     `nombre`) y el bloqueante seguía vivo por el otro lado: la lista estaba vacía. Medido en el DOM
+     por el verificador: `NOMLIST.datos` en 0 y una sola opción.
+     ⚠️ Entra por `opsCargar`, no montando `NOMLIST` a mano: R17, y es justo lo que los casos que
+     usan `p227cConHoja` no pueden ver, porque el arnés inyecta la nómina. */
+  const prevD = DASH, prevR = window.dashRequest, prevN = NOMLIST.datos, prevC = NOMLIST.cargando;
+  const pedidos = [];
+  const restaurar = () => {
+    try { DASH = prevD; } catch(e){}
+    window.dashRequest = prevR; NOMLIST.datos = prevN; NOMLIST.cargando = prevC;
+  };
+  try {
+    NOMLIST.datos = []; NOMLIST.cargando = false;
+    window.dashRequest = function(params){
+      pedidos.push(String((params && params.action) || ''));
+      return Promise.resolve({ ok:false, error:'cortado por el caso' });
+    };
+    DASH = { rol:'supervisor', vista:'supervisor', demoMode:false, scope:'Empresa Uno',
+             f:{ emp:'Empresa Uno' }, params:{ usuario:'u', pass:'p', empresa:'Empresa Uno' } };
+    const r = opsCargar();
+    return Promise.resolve(r).then(() => {
+      PRUEBAS.cierto(pedidos.indexOf('nomina_listar') >= 0,
+        '🔴 se pidió la NÓMINA · sin esto el selector de candidatos está vacío siempre y ' +
+        '`operacion_asignar` no es alcanzable · pedidos: ' + JSON.stringify(pedidos));
+      PRUEBAS.cierto(pedidos.indexOf('operaciones') >= 0,
+        'guarda: y también las operaciones · es el pedido propio de la hoja');
+    }).finally(restaurar);
+  } catch (e) { restaurar(); throw e; }
+});
+
+PRUEBAS.caso('🔒 P227c-16 · el filtro de empresa del selector usa la MISMA derivación que el servidor', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsGenteHtml` con `depClaveCliente`, que es la réplica de `norm()` del
+     servidor — la función con la que `opPersonaEnNomina_` y `opMismaEmpresa` conceden el acceso.
+     ⚠️ `dashNorm` NO sirve: saca acentos pero **no** puntuación (lo dice el comentario de
+     `depClaveCliente`). Con `dashNorm`, «Cardon IV C.A.» y «Cardon IV, C.A.» no empatan, el selector
+     queda VACÍO con su nota falsa, y el servidor habría aceptado a esa persona. Es la quinta
+     comparación de empresa del repo, y el `.gs` tiene escrito arriba de la suya: «UNA SOLA
+     COMPARACIÓN DE EMPRESA, Y ESTÁ ACÁ POR UN DEFECTO MEDIDO». */
+  const lista = [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }];
+  const prevO = Object.assign({}, OPSADM);
+  try {
+    OPSADM.empresa = 'Cardon IV C.A.';
+    p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Cardon IV, C.A.' }] },
+      (body) => {
+        /* `p227cConHoja` fija `OPSADM.empresa`, así que se pisa DESPUÉS de montar y se repinta. */
+        OPSADM.empresa = 'Cardon IV C.A.';
+        opsPintar();
+        const b = document.getElementById('opsBody');
+        const cand = [...b.querySelector('.ops-asg select').options]
+          .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+        PRUEBAS.igual(cand, ['Ana Suárez'],
+          '🔒 la coma de más no la saca del selector · `norm` del servidor la aceptaría · ' +
+          JSON.stringify(cand));
+      });
+    /* DISCRIMINADOR · una empresa REALMENTE distinta sí se filtra, o el aserto de arriba pasaría
+       porque el filtro no filtra nada. */
+    p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Otra Empresa' }] },
+      (body) => {
+        OPSADM.empresa = 'Cardon IV C.A.';
+        opsPintar();
+        const b = document.getElementById('opsBody');
+        const cand = [...b.querySelector('.ops-asg select').options]
+          .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+        PRUEBAS.igual(cand, [], 'DISCRIMINADOR · otra empresa SÍ se filtra');
+      });
+  } finally { Object.keys(prevO).forEach(k => { OPSADM[k] = prevO[k]; }); }
 });
