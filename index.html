@@ -7793,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.36';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.37';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7896,6 +7896,9 @@ const I18N = {
       ops_creada:'Operación guardada', ops_cerrada:'Operación cerrada',
       ops_reabierta:'Operación reabierta', ops_asignada:'Persona asignada',
       ops_quitada:'Persona quitada',
+      /* ⚠️ P227h · dice los DOS nombres y deja crear igual. «Cardón 4» y «Cardón IV» son la misma
+         operación para la empresa y dos claves distintas para el CH: `norm` no traduce romanos. */
+      ops_conf_parecida:'Ya existe una operación llamada «{b}». ¿Quieres crear «{a}» como una operación distinta? Si querías editar «{b}», escribe su nombre tal como está.',
       ops_conf_cerrar:'¿Cerrar «{o}»? Deja de contar en el panel y su gente queda guardada. Puedes reabrirla después.',
       ops_conf_reabrir:'¿Reabrir «{o}»? Vuelve a contar en el panel con la gente que tenía.',
       hlp_ops:'Una <b>operación</b> es un lugar o un trabajo con gente asignada: una <b>instalación</b> es permanente (un campo, una base) y un <b>evento</b> tiene fecha de inicio y, si se sabe, de fin. Sirve para ver el estado de un grupo completo sin depender del departamento, que no distingue entre dos sitios distintos.<br><br>Asignar a alguien no cambia su departamento ni su cargo: son datos de la persona. <b>Cerrar</b> una operación no borra nada — deja de contar en el panel y la puedes reabrir con la gente que tenía.<br><br>Si al asignar aparece «se guardó, pero todavía no cuenta», la fila quedó escrita y no cuenta hoy: suele ser una operación cerrada o un evento cuya fecha ya pasó.',
@@ -10129,6 +10132,7 @@ const I18N = {
       ops_creada:'Operation saved', ops_cerrada:'Operation closed',
       ops_reabierta:'Operation reopened', ops_asignada:'Person assigned',
       ops_quitada:'Person removed',
+      ops_conf_parecida:'An operation called "{b}" already exists. Create "{a}" as a separate one? If you meant to edit "{b}", type its name exactly as it is.',
       ops_conf_cerrar:'Close "{o}"? It stops counting in the panel and its people are kept. You can reopen it later.',
       ops_conf_reabrir:'Reopen "{o}"? It counts again in the panel with the people it had.',
       hlp_ops:'An <b>operation</b> is a place or a job with people assigned to it: an <b>installation</b> is permanent (a field, a base) and an <b>event</b> has a start date and, if known, an end date. It lets you see the status of a whole group without relying on the department, which does not tell two different sites apart.<br><br>Assigning someone does not change their department or their role: those belong to the person. <b>Closing</b> an operation deletes nothing — it stops counting in the panel and you can reopen it with the people it had.<br><br>If assigning shows "saved, but it does not count yet", the row was written and does not count today: usually a closed operation or an event whose date has passed.',
@@ -36317,6 +36321,35 @@ function opsCargar(){
     .finally(() => { if (vigente()) franjaQuitar(body); }));
 }
 
+/* ⚠️ P227h · «Cardón 4» Y «Cardón IV» SON LA MISMA OPERACIÓN PARA LA EMPRESA Y DOS PARA EL CÓDIGO.
+   `opClave` (= `norm`) saca tildes, baja a minúsculas y colapsa puntuación, pero **no traduce
+   números romanos**, así que `cardon iv` y `cardon 4` son claves distintas. Y en `PLAN_PULIDO.md`
+   está la frase textual de Franco: «civ es cardon 4, osea IV, la plataforma». Resultado: escribir
+   «Cardón 4» en el campo de alta **crea una operación nueva** en vez de editar Cardón IV, con la
+   gente repartida entre las dos y los paneles contándolas separadas — y nada avisa, porque dar de
+   alta algo nuevo es una operación válida.
+   ⚠️ ESTO NO REEMPLAZA A `opClave`, Y ES LA DECISIÓN DE FRANCO. Normalizar los romanos en la clave
+   cambiaría la clave de todas las operaciones que ya existen en el CH: habría que mirar si alguna
+   convive hoy con su variante y qué pasa con las filas de `Asignaciones` que ya están. Eso es una
+   migración, no un arreglo. Esta clave se usa **sólo para preguntar**, y el aviso deja crear igual,
+   porque dos nombres parecidos pueden ser dos operaciones de verdad.
+   ⚠️ Sólo los numerales, nada de distancia de edición: con distancia 1, «Feria 1» y «Feria 2»
+   avisarían siendo legítimamente distintas, y un aviso que grita de más se aprende a ignorar igual
+   que uno que falta. */
+const OPS_NUMERAL = { i:'1', ii:'2', iii:'3', iv:'4', v:'5', vi:'6', vii:'7', viii:'8', ix:'9',
+                      x:'10', xi:'11', xii:'12' };
+function opsClaveLaxa(s){
+  return depClaveCliente(s).split(' ').map(function (t) { return OPS_NUMERAL[t] || t; }).join(' ');
+}
+/* La operación ya existente que se parece a `nombre` sin ser la misma, o `null`. */
+function opsParecida(nombre){
+  const laxa = opsClaveLaxa(nombre), exacta = depClaveCliente(nombre);
+  const hit = (OPSADM.lista || []).filter(function (x) {
+    return x && x.nombre && opsClaveLaxa(x.nombre) === laxa && depClaveCliente(x.nombre) !== exacta;
+  });
+  return hit.length ? hit[0] : null;
+}
+
 /* Un solo lugar que decide si la caja de alta se ve. Antes lo decidía `opsPintar` y nada más, y los
    tres caminos que no llegan a `opsPintar` la dejaban como la empresa anterior. */
 function opsMostrarAlta(ver){
@@ -36611,6 +36644,15 @@ function opsGuardar(btn){
      un toast: el servidor sigue siendo el que manda. */
   if (esEvento && !inicio){ opsError(t('err_m_falta_inicio')); return; }
   if (esEvento && fin && fin < inicio){ opsError(t('err_m_fin_antes')); return; }
+  /* ⚠️ P227h · EL AVISO VA ACÁ Y NO EN `opsPedirAlta`: éste es el único camino que crea una
+     operación desde texto libre. «Reabrir» trabaja sobre una que ya está en la lista, así que no
+     puede duplicar nada. Y va DESPUÉS de las validaciones de fecha: preguntar por el nombre y
+     después rechazar por el `inicio` haría contestar dos veces. */
+  const par = opsParecida(nombre);
+  if (par){
+    if (!confirm(t('ops_conf_parecida', { a: nombre, b: par.nombre }))) { inp.focus(); return; }
+    haptic(12);
+  }
   opsError('');
   const r = opsEnviar('operacion_guardar', { operacion: nombre, tipo: tipo, inicio: inicio, fin: fin },
                       'g|' + dashNorm(nombre), btn, 'ops_creada');

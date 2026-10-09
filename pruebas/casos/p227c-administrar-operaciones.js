@@ -794,3 +794,55 @@ PRUEBAS.caso('🔴 P227c-17 · el «Deshacer» no manda un `hasta` que el servid
     return chain.finally(restaurar);
   } catch (e) { restaurar(); throw e; }
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P227h · EL AVISO DE NOMBRE PARECIDO                                           (2026-10-09)
+   Decisión de Franco: avisar antes de crear, no normalizar los romanos en la clave — normalizar
+   cambiaría la clave de todas las operaciones del CH y es una migración, no un arreglo.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 P227h · «Cardón 4» avisa que ya existe «Cardón IV», y deja crear igual', () => {
+  if (typeof opsParecida !== 'function' || typeof opsClaveLaxa !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ no están `opsParecida`/`opsClaveLaxa`: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo conceden `opsClaveLaxa` —que es `depClaveCliente` MÁS la equivalencia de
+     numerales— y `opsParecida`, que la usa contra `OPSADM.lista`.
+     ⚠️ POR QUÉ: `opClave` (= `norm`) saca tildes y colapsa puntuación pero NO traduce romanos, así
+     que `cardon iv` y `cardon 4` son claves distintas, y en el plan está la frase textual de Franco
+     «civ es cardon 4, osea IV». Escribir «Cardón 4» en el campo de alta CREA una operación nueva en
+     vez de editar Cardón IV, con la gente repartida y los paneles contándolas separadas.
+     ⚠️ Lo que este caso protege tanto como el aviso es que NO grite de más: un aviso que salta sobre
+     nombres legítimamente distintos se aprende a ignorar igual que uno que falta. Por eso la métrica
+     son sólo los numerales y no una distancia de edición —con distancia 1, «Feria 1» y «Feria 2»
+     avisarían—. */
+  const prevO = Object.assign({}, OPSADM);
+  try {
+    OPSADM.lista = [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo' },
+                    { nombre:'Feria 1',   tipo:'evento',      estado:'activo' },
+                    { nombre:'Simulacro V', tipo:'evento',    estado:'baja' }];
+    const CASOS = [
+      ['Cardón 4',     'Cardón IV',  '🔴 el caso de Franco: romano contra árabe'],
+      ['Cardon 4',     'Cardón IV',  '🔴 y sin tilde también'],
+      ['Simulacro 5',  'Simulacro V','🔴 incluso contra una operación CERRADA · duplicarla igual duplica'],
+      ['cardon iv',    null,         '⚠️ la MISMA con otra grafía NO avisa · es una edición, y `opClave` las empata'],
+      ['Cardón IV',    null,         '⚠️ idéntica tampoco'],
+      ['Feria 2',      null,         '⚠️ y «Feria 2» NO avisa contra «Feria 1» · son dos de verdad'],
+      ['Cardón V',     null,         '⚠️ ni «Cardón V» contra «Cardón IV» · la quinta no es la cuarta'],
+      ['Planta Nueva', null,         '⚠️ ni un nombre sin relación']
+    ];
+    CASOS.forEach(function (c) {
+      const hit = opsParecida(c[0]);
+      PRUEBAS.igual(hit ? hit.nombre : null, c[1], c[2] + ' · «' + c[0] + '» → ' +
+                    JSON.stringify(hit ? hit.nombre : null));
+    });
+    /* El texto dice los DOS nombres: sin eso la persona no sabe contra qué está chocando. */
+    const txt = t('ops_conf_parecida', { a:'Cardón 4', b:'Cardón IV' });
+    PRUEBAS.cierto(txt.indexOf('Cardón 4') >= 0 && txt.indexOf('Cardón IV') >= 0,
+      '🔴 el aviso nombra las dos operaciones · ' + JSON.stringify(txt.slice(0, 90)));
+    PRUEBAS.falso(/\{[ab]\}/.test(txt), '⚠️ y los dos marcadores se reemplazaron');
+    /* DISCRIMINADOR · sin la tabla de numerales, el caso de Franco deja de avisar. */
+    const sinTabla = (s) => depClaveCliente(s);
+    PRUEBAS.igual(OPSADM.lista.filter(x => sinTabla(x.nombre) === sinTabla('Cardón 4')).length, 0,
+      'DISCRIMINADOR · con la clave EXACTA no hay coincidencia · es por qué el aviso necesita la ' +
+      'equivalencia de numerales, y por qué no alcanzaba con lo que ya había');
+  } finally { Object.keys(prevO).forEach(k => { OPSADM[k] = prevO[k]; }); }
+});
