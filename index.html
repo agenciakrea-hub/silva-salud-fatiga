@@ -7793,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.35';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.36';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -35818,7 +35818,10 @@ function nominaListCargar(){
      llamador espere a que TERMINE en vez de medir el instante anterior. Acá hay un segundo motivo
      concreto: `opsCargar` la dispara para poblar el selector de candidatos y necesita repintar
      cuando llega. No cambia nada para `nominaListAbrir`, que no la usa. */
-  return conCarga(hojaNom, dashRequest(dashAuth({ action:'nomina_listar' }))
+  /* ⚠️ LA PROMESA SE GUARDA, para que un segundo interesado se cuelgue de la que ya está en vuelo
+     en vez de disparar otro `nomina_listar`. Lo necesita `opsCargar`: el botón de Operaciones vive
+     dentro de esta hoja y se puede tocar mientras la nómina viaja. */
+  return (NOMLIST._prom = conCarga(hojaNom, dashRequest(dashAuth({ action:'nomina_listar' }))
     .then(d => {
       NOMLIST.cargando = false;
       if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>'; return; }
@@ -35829,7 +35832,7 @@ function nominaListCargar(){
       nominaListFiltrar();
     })
     .catch(() => { NOMLIST.cargando = false; if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
-    .finally(() => franjaQuitar(body)));   // P190
+    .finally(() => franjaQuitar(body))));   // P190
 }
 function nominaListPintarDeptos(){
   const sel = document.getElementById('nomListDepto'); if (!sel) return;
@@ -36220,6 +36223,7 @@ function opsCargar(){
      antes del pedido de operaciones. */
   const miGen = (OPSADM._gen = (OPSADM._gen || 0) + 1);
   const vigente = () => OPSADM._gen === miGen;
+  OPSADM._okGen = 0;                 // esta generación todavía no leyó nada bien
   const empAhora = gestEmpresaActual();
   if (OPSADM.empresa && empAhora && OPSADM.empresa !== empAhora){
     OPSADM.lista = []; OPSADM.puedeEditar = false; OPSADM.asgError = null; OPSADM.empresa = '';
@@ -36245,17 +36249,25 @@ function opsCargar(){
     if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
     return;
   }
-  /* ⚠️ LA NÓMINA SE PIDE ACÁ, y sin esto `operacion_asignar` seguía siendo INALCANZABLE en una
-     sesión fresca. `nominaListCargar()` tiene un solo llamador —`nominaListAbrir()`—, así que quien
-     entra al panel y toca el botón de operaciones sin haber abierto antes la hoja de Nómina ve el
-     selector vacío con el botón «Asignar» dibujado. La ronda 1 arregló la FORMA del campo
-     (`persona`, no `nombre`) y el bloqueante seguía vivo por el otro lado: la lista estaba vacía.
-     Medido en el DOM: `NOMLIST.datos` en 0, una sola opción («Elige a una persona») y la nota falsa.
-     ⚠️ Se repinta cuando llega, y sólo si esta carga sigue siendo la vigente. */
-  if (!(NOMLIST.datos || []).length && !NOMLIST.cargando){
+  /* ⚠️ EL GANCHO SE CUELGA DE LA CARGA QUE HAYA, EN VUELO O NUEVA, y el `!NOMLIST.cargando` de mi
+     versión anterior lo dejaba sin registrar justo en el caso normal. La premisa con la que lo
+     escribí era falsa y no la verifiqué: creí que se podía tocar «Operaciones» sin haber abierto la
+     Nómina, y `#opsFabBtn` vive **adentro de `#nominaListOv`** —un solo llamador—, así que
+     `nominaListCargar()` ya corrió siempre. Lo que de verdad pasa es que está EN VUELO: el botón se
+     ve desde el primer instante y la nómina tarda 2-5 s, así que con `!NOMLIST.cargando` el gancho
+     no se registraba, la nómina llegaba, y el selector quedaba vacío hasta cerrar y reabrir la hoja.
+     Medido: `NOMLIST.datos` en 2 y el selector con una sola opción; un `opsPintar()` a mano lo
+     poblaba, o sea el dato estaba y faltaba el repintado.
+     ⚠️ `NOMLIST._prom` guarda la promesa en vuelo para que un segundo interesado se cuelgue de ella
+     en vez de disparar un pedido más. */
+  if (!(NOMLIST.datos || []).length){
     try {
-      const rn = nominaListCargar();
-      if (rn && rn.then) rn.then(() => { if (vigente() && OPSADM.lista.length) opsPintar(); });
+      const rn = (NOMLIST.cargando && NOMLIST._prom) ? NOMLIST._prom : nominaListCargar();
+      if (rn && rn.then) rn.then(() => {
+        /* Sólo si el pedido de operaciones de ESTA generación salió bien: si falló, el cuerpo dice
+           por qué y repintar encima pondría la lista vieja sobre un error fresco. */
+        if (vigente() && OPSADM._okGen === miGen && OPSADM.lista.length) opsPintar();
+      });
     } catch(e){}
   }
   /* ⚠️ NO HAY `OPSADM.cargando`. Lo tenía, con 5 escrituras y **0 lecturas** en todo el archivo: un
@@ -36285,6 +36297,13 @@ function opsCargar(){
       OPSADM.puedeEditar = !!d.puedeEditar;
       OPSADM.soloAgregados = !!d.soloAgregados;
       OPSADM.vista = (DASH && DASH.vista) || '';     // con qué vista se obtuvo este `puedeEditar`
+      /* ⚠️ MARCA QUE ESTA GENERACIÓN LEYÓ BIEN, y es lo que el `.then` de la nómina consulta antes
+         de repintar. Sin esto: la nómina falla una vez · se abre Operaciones y lee bien · se reabre
+         y esta vez `operaciones` FALLA, pero la nómina llega después y repinta la lista VIEJA encima
+         del «No se pudo conectar» **y vuelve a prender la caja de alta**. Medido. `vigente()` no
+         protegía: es la misma generación. Es el defecto que la generación vino a cerrar, en la
+         dirección contraria. */
+      OPSADM._okGen = miGen;
       OPSADM.asgError = d.asignacionesError || null;
       opsPintar();
     })
@@ -36464,9 +36483,10 @@ function opsResultado(d, exitoClave, deshacer){
      terminó, Ana con su fila abierta; el panel la saca de `gente` por no vigente y el selector la
      vuelve a ofrecer; el supervisor toca «Asignar» → `igual:true, cambio:false, vigente:false` →
      antes decía «Se guardó, pero…» sobre cero celdas.
-     Invertir no le quita el mensaje a nadie: si escribió, `cambio` es `true` y no entra acá. Lo que
-     se pierde es el motivo en el caso del reenvío, y eso es correcto — la persona ya lo leyó en el
-     primer toque, y lo que necesita saber ahora es que el CH no cambió, para no seguir tocando. */
+     Invertir no le quita el mensaje a nadie: si escribió, `cambio` es `true` y no entra acá. Y el
+     motivo NO se pierde: la rama de abajo muestra el texto del servidor cuando viene. (Una versión
+     anterior de este bloque decía que perderlo «es correcto porque la persona ya lo leyó en el
+     primer toque» — medido falso: el caso llega EN el primer toque.) */
   /* ⚠️ ESTA RAMA DECIDE EL «DESHACER», NO EL TEXTO. La ronda anterior mostraba `ops_sin_cambio` a
      secas y con eso TIRABA el `motivo` de los 32 estados que el `.gs` enumera — y el `motivo` es la
      parte que dice QUÉ HACER («para registrar su participación hay que indicar desde y hasta cuándo
@@ -36476,9 +36496,17 @@ function opsResultado(d, exitoClave, deshacer){
      selector la vuelve a ofrecer—, así que la pantalla decía «ya estaba así», releía, y la persona
      seguía sin aparecer sin ninguna explicación. Y contradecía la política que el endpoint tiene
      escrita: «lo que la política prohíbe es contestar `repetida:true` SIN el motivo».
-     ⚠️ El prefijo del servidor dejó de afirmar la escritura cuando no hubo (GS 2026-10-09.4): ahora
-     dice «Nada cambió, y esa persona no queda asignada…». Por eso se puede mostrar su texto sin
-     mentir. Lo que esta rama garantiza es que NUNCA se ofrezca «Deshacer» sobre cero celdas. */
+     ⚠️ EL TEXTO DEL SERVIDOR SIGUE DICIENDO «Se guardó, pero…», y es inexacto acá: esta rama son
+     respuestas que no escribieron una celda. Intenté partir el prefijo en el servidor y `R12-6` lo
+     rechazó con razón —dos textos para el mismo motivo son guía OPUESTA según el idioma, porque
+     `tError` muestra el del servidor en español y la clave de `ERR_MOTIVO` en otro, y esas claves
+     llevan el mismo prefijo—. Queda anotado como `P227g`. Se muestra igual porque el **detalle** es
+     lo que la persona necesita para salir del paso, y la fila SÍ está en el CH, de antes.
+     ⚠️ Una versión anterior de este comentario afirmaba que el servidor ya decía «Nada cambió…», y
+     eso lo revertí **en el mismo commit**: el comentario quedó contradiciendo al código y al bloque
+     de arriba. En un repo donde el comentario ES la memoria, dos bloques pegados con guía opuesta
+     cuestan más que la imprecisión que describían.
+     Lo que esta rama garantiza es que NUNCA se ofrezca «Deshacer» sobre cero celdas. */
   if (d.cambio === false){
     showToast((d.error || d.motivo) ? tError(d) : t('ops_sin_cambio'));
     return true;
@@ -36661,7 +36689,25 @@ function opsQuitar(btn){
      válida, el servidor usa su valor por defecto, que es el comportamiento de antes. */
   const fechaOk = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
   const desde = fechaOk(btn && btn.getAttribute('data-desde'));
-  const hasta = fechaOk(btn && btn.getAttribute('data-hasta'));
+  let hasta = fechaOk(btn && btn.getAttribute('data-hasta'));
+  /* ⚠️ EL `hasta` SE MANDA SÓLO SI EL SERVIDOR LO VA A ACEPTAR, y esto lo destapó medir los cuatro
+     sub-estados en vez de uno. Reponer el tramo mejora dos y **empeora los otros dos**: con un
+     `Hasta` posterior al `Fin` del evento el servidor contesta `fuera_de_ventana`, y con un
+     `Hasta` anterior al `Desde` —estado que el `.gs` documenta como real del CH— contesta
+     `fin_antes`. En los dos la fila **queda en baja**, el «Deshacer» falla con un error sobre
+     fechas que nadie tipeó, y el único camino de vuelta por la pantalla es el selector, que manda
+     sin fechas y pierde LAS DOS columnas. O sea el arreglo del `Hasta` cambiaba «pierde una» por
+     «no se puede deshacer y después pierde las dos», que es lo que mi propio commit declara peor.
+     ⚠️ Las dos condiciones se chequean con lo que la pantalla YA TIENE —`OPSADM.lista` trae `fin`—,
+     sin un viaje más. Si el par no es coherente, se manda sólo `desde` y el servidor usa su valor
+     por defecto: se vuelve al comportamiento de 7.33, que repone al menos la mitad. La raíz de
+     fondo —que el servidor rechace el reenvío de lo que él mismo tiene escrito— toca las guardas de
+     los 32 estados documentados y es un prompt propio, no un parche de acá. */
+  if (hasta){
+    const op = OPSADM.lista.filter(x => x && String(x.nombre) === String(nombre))[0] || {};
+    const fin = fechaOk(op.fin);
+    if ((desde && hasta < desde) || (fin && hasta > fin)) hasta = '';
+  }
   haptic(16);
   const mio = DASH;
   return opsEnviar('operacion_asignar', { operacion: nombre, persona: persona, quitar: '1' },

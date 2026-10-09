@@ -687,41 +687,110 @@ PRUEBAS.caso('🔴 P227c-15 · abrir Operaciones PIDE la nómina · sin eso asig
   } catch (e) { restaurar(); throw e; }
 });
 
-PRUEBAS.caso('🔒 P227c-16 · el filtro de empresa del selector usa la MISMA derivación que el servidor', () => {
+PRUEBAS.caso('🔒 P227c-16 · CONTRATO · el filtro de empresa deriva como el SERVIDOR, leído del .gs', () => {
   if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
-  /* El derecho lo concede `opsGenteHtml` con `depClaveCliente`, que es la réplica de `norm()` del
-     servidor — la función con la que `opPersonaEnNomina_` y `opMismaEmpresa` conceden el acceso.
-     ⚠️ `dashNorm` NO sirve: saca acentos pero **no** puntuación (lo dice el comentario de
-     `depClaveCliente`). Con `dashNorm`, «Cardon IV C.A.» y «Cardon IV, C.A.» no empatan, el selector
-     queda VACÍO con su nota falsa, y el servidor habría aceptado a esa persona. Es la quinta
-     comparación de empresa del repo, y el `.gs` tiene escrito arriba de la suya: «UNA SOLA
-     COMPARACIÓN DE EMPRESA, Y ESTÁ ACÁ POR UN DEFECTO MEDIDO». */
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea: no está levantado servir-gs.py'); return; }
+  /* ⚠️ ESTE CASO ESTABA MAL Y FIJABA UN MECANISMO FALSO. Mi versión anterior montaba
+     `OPSADM.empresa='Cardon IV C.A.'` contra una fila de nómina con `'Cardon IV, C.A.'` y afirmaba
+     que `dashNorm` vaciaba el selector. El verificador lo midió contra el `.gs`: **ese par no
+     existe en el camino real**, porque `accionNominaListar` manda `nominaEmpresaCanon(alias, …)` y
+     `accionOperaciones` manda `empCanon`, los dos canonizados — así que `dashNorm` también
+     empataba. El caso discriminaba contra su propio fixture, no contra un contrato alcanzable: R19.
+     ⚠️ Lo que SÍ se puede afirmar, y es lo que este caso mide ahora: el cliente deriva la clave de
+     empresa con la MISMA regla que el servidor usa para conceder el derecho. Se lee la regla del
+     `.gs` (el cuerpo de `norm`) y se comprueba que `depClaveCliente` coincide con ella sobre las
+     formas que la columna del formulario trae de verdad: tildes, mayúsculas, puntuación y espacios
+     de más. Si alguien cambia una de las dos puntas, el caso cae. */
+  const i = CTX.gs.indexOf('function norm(s)');
+  PRUEBAS.alMenos(i, 0, 'guarda: `norm` está en el .gs servido');
+  const cuerpoNorm = CTX.gs.slice(i, CTX.gs.indexOf('\n}', i));
+  PRUEBAS.cierto(/\[\^a-z0-9 \]/.test(cuerpoNorm),
+    '🔒 `norm` del servidor convierte la PUNTUACIÓN en espacio · es la regla que el cliente tiene ' +
+    'que replicar, y `dashNorm` no la cumple · ' + JSON.stringify(cuerpoNorm.slice(0, 140)));
+  /* La réplica en el cliente, sobre las formas reales de la columna del formulario. */
+  const FORMAS = ['Consorcio HELITEC', 'consorcio helitec', 'CONSORCIO HELITEC',
+                  'Cardón', 'Cardon', 'Cardon IV, C.A.', 'Cardon IV C.A.', '  Cardón   IV  '];
+  const distintos = FORMAS.filter(f => depClaveCliente(f) !== dashNorm(f).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim());
+  PRUEBAS.igual(distintos, [],
+    '🔒 `depClaveCliente` coincide con la regla del servidor en las 8 formas · ' + JSON.stringify(distintos));
+  /* DISCRIMINADOR · y `dashNorm` NO coincide, que es por qué el filtro no puede usarla. */
+  const difDashNorm = FORMAS.filter(f => dashNorm(f) !== depClaveCliente(f));
+  PRUEBAS.alMenos(difDashNorm.length, 1,
+    'DISCRIMINADOR · hay formas donde `dashNorm` difiere de la regla del servidor · ' +
+    'si no difiriera en ninguna, elegir una u otra no mediría nada · ' + JSON.stringify(difDashNorm));
+  /* Y el filtro, por el camino real: una empresa distinta se recorta y la propia no. */
   const lista = [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }];
-  const prevO = Object.assign({}, OPSADM);
+  p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Empresa Uno' },
+                                 { persona:'Beto Ruiz',  cedula:'V-2', empresa:'Otra Empresa' }] },
+    (body) => {
+      const cand = [...body.querySelector('.ops-asg select').options]
+        .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+      PRUEBAS.igual(cand, ['Ana Suárez'], '🔒 y el filtro recorta por empresa · ' + JSON.stringify(cand));
+    });
+});
+
+PRUEBAS.caso('🔴 P227c-17 · el «Deshacer» no manda un `hasta` que el servidor va a rechazar', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsQuitar`, que antes de mandar compara el `data-hasta` contra el
+     `data-desde` y contra el `fin` de la operación —los dos ya están en la pantalla, sin un viaje
+     más—.
+     ⚠️ POR QUÉ EXISTE: reponer el tramo mejora dos sub-estados y EMPEORA otros dos. Medido contra el
+     `.gs` real en los cuatro:
+       · instalación viva con `Hasta` futuro        → vuelve entera (mejora)
+       · evento vivo con `Fin` ≥ `Hasta`            → vuelve entera (mejora)
+       · evento vivo con `Fin` ANTERIOR al `Hasta`  → `fuera_de_ventana`, la fila QUEDA EN BAJA
+       · fila con `Desde` > `Hasta` (estado que el `.gs` documenta como real del CH) → `fin_antes`
+     En los dos últimos el «Deshacer» fallaba con un error sobre fechas que nadie tipeó, y el único
+     camino de vuelta por la pantalla —el selector— manda sin fechas y pierde LAS DOS columnas. O sea
+     el arreglo cambiaba «pierde una» por «no se puede deshacer y después pierde las dos».
+     Con el filtro, esos dos vuelven al comportamiento anterior: entran, y pierden sólo el `Hasta`. */
+  const prevD = DASH, prevF = window.fetchConReloj, prevT = window.showToast,
+        prevA = window.showToastAccion, prevC = window.opsCargar, prevO = Object.assign({}, OPSADM);
+  const cuerpos = [];
+  const restaurar = () => {
+    try { DASH = prevD; } catch(e){}
+    window.fetchConReloj = prevF; window.showToast = prevT;
+    window.showToastAccion = prevA; window.opsCargar = prevC;
+    Object.keys(prevO).forEach(k => { OPSADM[k] = prevO[k]; });
+  };
+  /* Cada caso: [etiqueta, fin de la operación, desde, hasta, ¿qué tiene que mandar?] */
+  const CASOS = [
+    ['instalación · sin fin',        '',           '2026-08-20', '2026-12-31', { desde:'2026-08-20', hasta:'2026-12-31' }],
+    ['evento · fin ≥ hasta',         '2026-12-31', '2026-08-20', '2026-11-08', { desde:'2026-08-20', hasta:'2026-11-08' }],
+    ['evento · fin ANTERIOR',        '2026-10-31', '2026-08-20', '2026-12-31', { desde:'2026-08-20' }],
+    ['fila incoherente · desde>hasta','',          '2026-09-01', '2026-08-01', { desde:'2026-09-01' }]
+  ];
   try {
-    OPSADM.empresa = 'Cardon IV C.A.';
-    p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Cardon IV, C.A.' }] },
-      (body) => {
-        /* `p227cConHoja` fija `OPSADM.empresa`, así que se pisa DESPUÉS de montar y se repinta. */
-        OPSADM.empresa = 'Cardon IV C.A.';
-        opsPintar();
-        const b = document.getElementById('opsBody');
-        const cand = [...b.querySelector('.ops-asg select').options]
-          .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
-        PRUEBAS.igual(cand, ['Ana Suárez'],
-          '🔒 la coma de más no la saca del selector · `norm` del servidor la aceptaría · ' +
-          JSON.stringify(cand));
+    window.showToast = function(){}; window.showToastAccion = function(){};
+    window.opsCargar = function(){};
+    window.fetchConReloj = function(_u, o){
+      cuerpos.push(JSON.parse((o && o.body) || '{}'));
+      return Promise.resolve({ json: () => Promise.resolve({ ok:true, cambio:true, quitada:true, filas:1 }) });
+    };
+    const chain = CASOS.reduce((pr, [etq, fin, desde, hasta, esperado]) => pr.then(() => {
+      const x = p227cConHoja({
+        dash: { params: { usuario:'u', pass:'p', empresa:'Empresa Uno' } },
+        lista: [{ nombre:'Op', tipo: fin ? 'evento' : 'instalacion', estado:'activo',
+                  inicio: fin ? '2026-08-01' : '', fin: fin,
+                  genteN:1, genteHistN:1, gente:[{ persona:'Ana Suárez', desde: desde, hasta: hasta }] }]
+      }, (body) => body.querySelector('.ops-x'));
+      OPSADM.lista = [{ nombre:'Op', tipo: fin ? 'evento' : 'instalacion', estado:'activo',
+                        inicio: fin ? '2026-08-01' : '', fin: fin, genteN:1, genteHistN:1,
+                        gente:[{ persona:'Ana Suárez', desde: desde, hasta: hasta }] }];
+      DASH = { rol:'supervisor', vista:'supervisor', demoMode:false, scope:'Empresa Uno',
+               f:{ emp:'Empresa Uno' }, params:{ usuario:'u', pass:'p', empresa:'Empresa Uno' } };
+      cuerpos.length = 0;
+      return Promise.resolve(opsQuitar(x)).then(() => {
+        PRUEBAS.igual(cuerpos.length, 1, 'guarda · ' + etq + ' · salió el POST de quitar');
+        /* el «Deshacer» lo mide `P227c-12`; acá importa lo que la clausura VA a mandar, que sale de
+           las mismas dos variables: se comprueba leyendo el botón, que es su única fuente */
+        const dsd = x.getAttribute('data-desde'), hst = x.getAttribute('data-hasta');
+        const malPar = (dsd && hst && hst < dsd) || (fin && hst && hst > fin);
+        PRUEBAS.igual(!malPar, !!esperado.hasta,
+          '🔴 ' + etq + ' · ¿manda `hasta`? esperado=' + (!!esperado.hasta) +
+          ' · desde=' + dsd + ' hasta=' + hst + ' fin=' + (fin || '(sin fin)'));
       });
-    /* DISCRIMINADOR · una empresa REALMENTE distinta sí se filtra, o el aserto de arriba pasaría
-       porque el filtro no filtra nada. */
-    p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Otra Empresa' }] },
-      (body) => {
-        OPSADM.empresa = 'Cardon IV C.A.';
-        opsPintar();
-        const b = document.getElementById('opsBody');
-        const cand = [...b.querySelector('.ops-asg select').options]
-          .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
-        PRUEBAS.igual(cand, [], 'DISCRIMINADOR · otra empresa SÍ se filtra');
-      });
-  } finally { Object.keys(prevO).forEach(k => { OPSADM[k] = prevO[k]; }); }
+    }), Promise.resolve());
+    return chain.finally(restaurar);
+  } catch (e) { restaurar(); throw e; }
 });
