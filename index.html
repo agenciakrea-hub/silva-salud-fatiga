@@ -7793,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.30';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.31';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -7888,6 +7888,10 @@ const I18N = {
       /* ⚠️ El texto del tercer estado: se escribió en el CH y NO cuenta todavía. Sólo se usa si el
          servidor no manda su propio texto, que es más específico (ver `opsResultado`). */
       ops_no_vigente:'Se guardó, pero todavía no cuenta.',
+      /* ⚠️ El CUARTO estado: el pedido entró y no cambió nada porque el CH ya estaba así. No es
+         éxito ni error, y sobre todo NO lleva «Deshacer» (ver `opsResultado`). */
+      ops_sin_cambio:'Ya estaba así. No se cambió nada.',
+      ops_sin_respuesta:'No llegó la respuesta. Revisa la lista: el cambio pudo haberse guardado.',
       ops_error:'No se pudo completar. Intenta de nuevo.',
       ops_creada:'Operación guardada', ops_cerrada:'Operación cerrada',
       ops_reabierta:'Operación reabierta', ops_asignada:'Persona asignada',
@@ -7902,10 +7906,14 @@ const I18N = {
       ope_personas:'personas',
       ope_cerrada:'cerrada',
       ope_sin_medir:'Sin medir',
-      /* `ope_sin_detalle` se quitó: describía el recorte por privacidad de Dirección, y Dirección
-         no llega a esta pantalla (`dashTabsFor` le da `aptitud` sólo al supervisor). Una clave sin
-         usuario es exactamente lo que el trinquete `P227a-8` cuenta como huérfana. Cuando `P227c`
-         le muestre operaciones a Dirección, la clave se crea ahí, con su consumidor. */
+      /* ⚠️ `ope_sin_detalle` VUELVE, con su consumidor, y el comentario anterior prometía justamente
+         esto: «cuando P227c le muestre operaciones a Dirección, la clave se crea ahí». P227c escribió
+         el consumidor (`opsGenteHtml`, rama `soloAgregados`) y NO la clave, así que `t()` devolvía el
+         literal `ope_sin_detalle` y la pantalla le mostraba un identificador de código a Dirección.
+         Hoy esa rama no se alcanza por toque —el botón está escondido para su vista—, pero está
+         escrita por si llega, y una rama escrita «por si llega» con la clave sin definir es peor que
+         no tenerla: parece resuelta. */
+      ope_sin_detalle:'Se muestra el total y no los nombres.',
       ope_sin_gente:'Sin gente asignada',
       ope_sin_empresa:'Elige una empresa en el filtro para ver sus operaciones.',
       ope_error:'No se pudieron leer las operaciones. El resto del panel sí es confiable.',
@@ -10115,6 +10123,8 @@ const I18N = {
       ops_sin_vigentes:'Nobody assigned today; there were people before.',
       ops_err_nombre:'Type a name for the operation.',
       ops_no_vigente:'Saved, but it does not count yet.',
+      ops_sin_cambio:'It was already like this. Nothing changed.',
+      ops_sin_respuesta:'No reply arrived. Check the list: the change may have been saved.',
       ops_error:'Could not complete. Try again.',
       ops_creada:'Operation saved', ops_cerrada:'Operation closed',
       ops_reabierta:'Operation reopened', ops_asignada:'Person assigned',
@@ -10129,6 +10139,7 @@ const I18N = {
       ope_personas:'people',
       ope_cerrada:'closed',
       ope_sin_medir:'Not measured',
+      ope_sin_detalle:'The total is shown, not the names.',
       ope_sin_gente:'No one assigned',
       ope_sin_empresa:'Pick a company in the filter to see its operations.',
       ope_error:'Operations could not be read. The rest of the panel is reliable.',
@@ -36205,6 +36216,12 @@ function opsCargar(){
   }
   if (!cred.usuario || !cred.pass){
     OPSADM.cargando = false; franjaQuitar(body);
+    /* ⚠️ La caja de alta SE APAGA, y es lo que `depCargar` ya hacía con su motivo escrito: «dejarlo a
+       la vista invita a escribir un nombre y que no pase nada». `opsPintar` es el único que la
+       apaga y no corre por este camino, así que sin esto quedaba el campo y el «+» sobre un cuerpo
+       que dice «faltan credenciales». Se llega de verdad: `closePortal()` deja hojas huérfanas sobre
+       el inicio y pone `DASH = null`. */
+    opsMostrarAlta(false);
     if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('tar_err_creds')) + '</div>';
     return;
   }
@@ -36218,6 +36235,7 @@ function opsCargar(){
     .then(d => {
       OPSADM.cargando = false;
       if (!d || !d.ok){
+        opsMostrarAlta(false);          // mismo motivo: con `sin_empresa` tampoco corre `opsPintar`
         if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>';
         return;
       }
@@ -36228,16 +36246,22 @@ function opsCargar(){
       OPSADM.asgError = d.asignacionesError || null;
       opsPintar();
     })
-    .catch(() => { OPSADM.cargando = false;
+    .catch(() => { OPSADM.cargando = false; opsMostrarAlta(false);
       if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
     .finally(() => franjaQuitar(body)));
 }
 
+/* Un solo lugar que decide si la caja de alta se ve. Antes lo decidía `opsPintar` y nada más, y los
+   tres caminos que no llegan a `opsPintar` la dejaban como la empresa anterior. */
+function opsMostrarAlta(ver){
+  const caja = document.getElementById('opsAltaCaja');
+  if (caja) caja.style.display = ver ? '' : 'none';
+}
 function opsPintar(){
-  const caja = document.getElementById('opsAltaCaja'), body = document.getElementById('opsBody');
+  const body = document.getElementById('opsBody');
   if (!body) return;
   opsPintarAyuda();
-  if (caja) caja.style.display = OPSADM.puedeEditar ? '' : 'none';
+  opsMostrarAlta(OPSADM.puedeEditar);
 
   let h = '';
   if (!OPSADM.puedeEditar) h += '<div class="ops-aviso">' + esc(t('ops_solo_lectura')) + '</div>';
@@ -36276,10 +36300,17 @@ function opsSeccion(titulo, filas, esBaja){
 }
 
 /* La gente de la operación, con su botón de quitar, y el selector para asignar a alguien nuevo.
-   ⚠️ Los candidatos salen de `NOMLIST.datos`, que es la nómina que esta misma pantalla ya cargó
-   —la hoja se abre DESDE la nómina— y que trae `nombre` y `cedula`, los dos campos que
-   `operacion_asignar` pide. El servidor valida igual contra la nómina (`persona_sin_nomina`): el
-   selector es una comodidad, no el candado. */
+   ⚠️ EL CAMPO ES `persona`, NO `nombre`, y escribir `x.nombre` dejó esta función MUERTA: el selector
+   salía siempre vacío con su nota «toda la nómina ya está asignada», así que `operacion_asignar` era
+   inalcanzable en todos los roles, todas las empresas y la demostración. Lo escribí leyendo mi propio
+   comentario —que afirmaba «trae `nombre` y `cedula`»— en vez de leer al productor: `accionNominaListar`
+   empuja `{ persona: r.nombre, … }` y los otros cinco consumidores de `NOMLIST.datos` leen `x.persona`.
+   ⚠️ Es la CUARTA vez (R17), y la tercera está escrita doce líneas arriba del `out.push` que me
+   contradecía: P154 existe porque ese mismo `out.push` recortaba la cédula y dejó la función Y5 entera
+   muerta en producción mientras la demostración se veía andando. El fixture de mis casos fabricaba
+   `{nombre:'José Pérez'}`, así que el caso escrito PARA medir el cruce de candidatos bendecía el defecto.
+   El servidor valida igual contra la nómina (`persona_sin_nomina`): el selector es una comodidad, no el
+   candado. */
 function opsGenteHtml(o, esBaja){
   const gente = Array.isArray(o.gente) ? o.gente : [];
   const nom = String(o.nombre || '');
@@ -36310,14 +36341,14 @@ function opsGenteHtml(o, esBaja){
     const yaEstan = {};
     gente.forEach(function (g) { if (g && g.persona) yaEstan[dashNorm(g.persona)] = 1; });
     const cand = (NOMLIST.datos || []).filter(function (x) {
-      return x && x.nombre && !yaEstan[dashNorm(x.nombre)];
+      return x && x.persona && !yaEstan[dashNorm(x.persona)];
     });
     h += '<div class="ops-asg">' +
       '<select class="gest-search ops-sel" data-op="' + esc(nom) + '">' +
       '<option value="">' + esc(t('ops_elegir')) + '</option>' +
       cand.map(function (x) {
-        return '<option value="' + esc(String(x.nombre)) + '" data-ced="' + esc(String(x.cedula || '')) + '">' +
-               esc(String(x.nombre)) + '</option>';
+        return '<option value="' + esc(String(x.persona)) + '" data-ced="' + esc(String(x.cedula || '')) + '">' +
+               esc(String(x.persona)) + '</option>';
       }).join('') + '</select>' +
       '<button type="button" class="ops-btn ops-btn-asg" onclick="opsAsignar(this)">' +
       esc(t('ops_asignar')) + '</button></div>';
@@ -36351,6 +36382,25 @@ function opsResultado(d, exitoClave, deshacer){
     showToast((d.error || d.motivo) ? tError(d) : t('ops_no_vigente'));
     return true;                      // SÍ se escribió: la hoja se relee igual
   }
+  /* ⚠️ EL CUARTO ESTADO · `cambio:false` → EL PEDIDO ENTRÓ Y NO ESCRIBIÓ NADA, y lo decisivo es que
+     acá NO va «Deshacer». El verificador pasó por esta función las 17 formas que emiten las tres
+     acciones y encontró tres que contestan `ok:true` sin tocar una celda: `noEstaba`, `yaEstaba` y
+     `repetida:igual`. Con el «Deshacer» colgado, el escenario medido es:
+       A quita a Ana de Cardón IV · la pantalla de B todavía la muestra con su × · B toca × y el
+       servidor contesta `yaEstaba` (no escribe, no deja bitácora) · B ve «Persona quitada» y toca
+       «Deshacer» · eso manda `operacion_asignar` y Ana vuelve a quedar asignada, con su `Desde`
+       original perdido y una línea nueva en un log append-only (R3).
+     O sea un botón rotulado «Deshacer», sobre una acción que no hizo nada, revirtiendo lo que otra
+     persona acabó de hacer. Y la ventana no son los 4 segundos del toast: `toastReponerAlVolver`
+     vuelve a colgar el mismo botón al volver al primer plano, hasta 15 minutos después.
+     ⚠️ `cambio` lo DERIVA EL SERVIDOR de la misma expresión que decide la bitácora, y acá se lee UN
+     campo. Enumerar las tres formas en el cliente (`d.noEstaba || d.yaEstaba || d.repetida`) habría
+     sido la sexta vez que el lector re-deriva lo que el escritor ya sabe, y la cuarta forma que
+     alguien agregue mañana traería el defecto de nuevo. Es R15 y es el bug más repetido del repo.
+     ⚠️ `=== false` y no `!d.cambio`: contra un endpoint anterior a GS 2026-10-09.1 el campo llega
+     `undefined` y la pantalla se comporta como antes, en vez de perder el «Deshacer» de los casos
+     que SÍ escribieron. Por eso el endpoint se publica primero. */
+  if (d.cambio === false){ showToast(t('ops_sin_cambio')); return true; }
   if (typeof deshacer === 'function') showToastAccion(t(exitoClave), t('ops_deshacer'), deshacer, 4000);
   else showToast(t(exitoClave));
   return true;
@@ -36372,9 +36422,18 @@ function opsEnviar(accion, extra, clave, btn, exitoClave, deshacer){
   if (enVuelo[clave]) return enVuelo[clave];
   if (btn) btnSpin(btn, true, false);
   const mio = DASH;                                                // guarda de identidad, como `ausTocar`
-  const cuerpo = Object.assign({ action: accion, usuario: cred.usuario, pass: cred.pass,
-    empresa: gestEmpresaActual(), dispositivoId: dispositivoId(),
-    quien: (getProfile() || {}).nombre || '' }, extra || {});
+  /* ⚠️ `dashAuth` Y NO UN LITERAL A MANO, y esto corrige dos cosas de la primera versión. La
+     primera: `opsCargar` LEE la hoja con `dashAuth` —`DASH.f.emp || cred.empresa || cred.usuario`—
+     y yo ESCRIBÍA con `gestEmpresaActual()`, que es `(DASH.f.emp || DASH.scope) || gestEmpresaRecordada()
+     || 'General'`. Dos derivaciones distintas de la misma empresa en la misma hoja es la familia de
+     defectos que este repo pagó más veces, y `depEnviar` —de donde copié el molde— usa la de
+     `dashAuth`. Hoy falla cerrado (el servidor recorta al alcance de la cuenta y
+     `faltaEmpresaParaEscribir` frena al maestro sin empresa), pero «Cardón» es tres cosas distintas
+     según el ADR 015 y el nombre de operación se repite entre empresas.
+     La segunda, que no estaba en el informe: `dashAuth` agrega `verEmpresa`/`verVista` cuando el
+     visor está puesto (P185), y mi literal no los mandaba. */
+  const cuerpo = dashAuth(Object.assign({ action: accion,
+    quien: (getProfile() || {}).nombre || '' }, extra || {}));
   const hoja = document.querySelector('#opsOv .sheet') || document.getElementById('opsOv');
   const prom = conCarga(hoja, fetchConReloj(SHEETS_DASHBOARD_URL,
       { method:'POST', body: JSON.stringify(cuerpo) })
@@ -36387,7 +36446,13 @@ function opsEnviar(accion, extra, clave, btn, exitoClave, deshacer){
       if (DASH === mio) opsCargar();
       return ok;
     })
-    .catch(() => { showToast(t('ops_error')); return false; })
+    /* ⚠️ SE RELEE TAMBIÉN AL FALLAR, y el mensaje no afirma lo que no sabe. Si el servidor cierra la
+       operación y la respuesta se pierde (o `fetchConReloj` aborta a los 90 s), el `.catch` anterior
+       decía «No se pudo completar» —falso— y dejaba la operación listada en Activas con su botón
+       «Cerrar»: la pantalla contradecía al CH. Reintentar es idempotente, así que el daño era el
+       mensaje y la desincronización. La relectura puede fallar también, y entonces el cuerpo dice
+       «sin conexión», que es la verdad. */
+    .catch(() => { showToast(t('ops_sin_respuesta')); if (DASH === mio) opsCargar(); return false; })
     .finally(() => { if (btn) btnSpin(btn, false); delete enVuelo[clave]; }));
   enVuelo[clave] = prom;
   return prom;
@@ -36433,7 +36498,12 @@ function opsPedirAlta(btn){
   haptic(12);                                            // 12 para reactivar, como Departamentos
   /* Reabrir es `operacion_guardar` sobre una fila de baja. Se manda el tipo que ya tiene para no
      cambiárselo sin querer: el upsert reescribe la fila entera. */
-  const o = OPSADM.lista.filter(x => x && String(x.nombre) === String(nombre))[0] || {};
+  /* ⚠️ SE ABORTA, no se cae a `instalacion`. El fallback `|| {}` mandaba `tipo:'instalacion'`, y el
+     servidor hace `if (tipo === "instalacion") fin = ""`: un evento perdía su `Fin`. No pude
+     alcanzar el estado —el `data-op` sale de la misma lista que pintó el botón— pero un fallback
+     silencioso que elige el valor DESTRUCTIVO es el que no hay que escribir. */
+  const o = OPSADM.lista.filter(x => x && String(x.nombre) === String(nombre))[0];
+  if (!o){ showToast(t('ops_error')); opsCargar(); return; }
   return opsEnviar('operacion_guardar',
     { operacion: nombre, tipo: o.tipo || 'instalacion', inicio: o.inicio || '', fin: o.fin || '' },
     'g|' + dashNorm(nombre), btn, 'ops_reabierta');

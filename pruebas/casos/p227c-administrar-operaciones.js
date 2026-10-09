@@ -20,7 +20,13 @@ function p227cHayApp(){
          typeof OPSADM === 'object' && OPSADM !== null;
 }
 /* Monta la hoja con un payload de la forma que manda `action:'operaciones'` y la pinta. Devuelve el
-   `#opsBody` ya renderizado. Restaura `OPSADM`, `DASH` y `NOMLIST` al salir. */
+   `#opsBody` ya renderizado. Restaura `OPSADM`, `DASH` y `NOMLIST` al salir.
+   ⚠️ `estado.nomina` LLEVA `persona`, NO `nombre`, porque eso es lo que `accionNominaListar` empuja.
+   La primera versión de este arnés fabricaba `{nombre:'José Pérez'}` y con eso el caso P227c-4 —el
+   que existe PARA medir el cruce de candidatos— daba verde sobre un selector que en producción
+   salía SIEMPRE vacío: `operacion_asignar` era inalcanzable en todos los roles. El arnés que
+   inventa la forma no prueba que el llamador real pueda dar lo que la función pide (R17), y la
+   defensa contra la quinta vez no es este comentario sino `P227c-8`, que deriva la forma del `.gs`. */
 function p227cConHoja(estado, fn){
   const prevD = (typeof DASH !== 'undefined') ? DASH : null;
   const prevO = Object.assign({}, OPSADM);
@@ -93,7 +99,7 @@ PRUEBAS.caso('🔴 P227c-2 · la hoja pinta las operaciones separadas por estado
   /* El derecho lo conceden `opsPintar` y `opsSeccion`. Entra por `opsPintar()`, que es lo que llama
      `opsCargar` tras la respuesta del servidor: el payload es el de `action:'operaciones'`. */
   p227cConHoja({
-    nomina: [{ nombre:'Ana Suárez', cedula:'V-1' }, { nombre:'Beto Ruiz', cedula:'V-2' }],
+    nomina: [{ persona:'Ana Suárez', cedula:'V-1' }, { persona:'Beto Ruiz', cedula:'V-2' }],
     lista: [
       { nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1, gente:[{persona:'Ana Suárez'}] },
       { nombre:'Simulacro Marzo', tipo:'evento', estado:'activo', genteN:0, genteHistN:5, gente:[] },
@@ -130,7 +136,7 @@ PRUEBAS.caso('🔒 P227c-3 · sin `puedeEditar` no se ofrece ningún control de 
      caja de alta, y `opsSeccion`/`opsGenteHtml`, que no dibujan botones. */
   const lista = [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
                    gente:[{persona:'Ana Suárez'}] }];
-  const nomina = [{ nombre:'Beto Ruiz', cedula:'V-2' }];
+  const nomina = [{ persona:'Beto Ruiz', cedula:'V-2' }];
   p227cConHoja({ lista, nomina, puedeEditar: false }, (body) => {
     PRUEBAS.igual(body.querySelectorAll('.ops-btn').length, 0, '🔒 ningún botón de cerrar/reabrir/asignar');
     PRUEBAS.igual(body.querySelectorAll('.ops-x').length, 0, '🔒 ni el × de quitar a alguien');
@@ -155,7 +161,7 @@ PRUEBAS.caso('🔴 P227c-4 · el selector no ofrece a quien ya está asignado', 
      formulario cuando la identidad no se resolvió al padrón, así que «José Pérez» y «Jose Perez»
      son la misma persona y ofrecerla dos veces crearía una asignación duplicada. */
   p227cConHoja({
-    nomina: [{ nombre:'José Pérez', cedula:'V-1' }, { nombre:'Beto Ruiz', cedula:'V-2' }],
+    nomina: [{ persona:'José Pérez', cedula:'V-1' }, { persona:'Beto Ruiz', cedula:'V-2' }],
     lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
               gente:[{persona:'Jose Perez'}] }]        // ← sin tildes, como lo escribiría el formulario
   }, (body) => {
@@ -170,7 +176,7 @@ PRUEBAS.caso('🔴 P227c-4 · el selector no ofrece a quien ya está asignado', 
   });
   /* DISCRIMINADOR · si nadie está asignado, la nómina entera se ofrece. */
   p227cConHoja({
-    nomina: [{ nombre:'José Pérez', cedula:'V-1' }, { nombre:'Beto Ruiz', cedula:'V-2' }],
+    nomina: [{ persona:'José Pérez', cedula:'V-1' }, { persona:'Beto Ruiz', cedula:'V-2' }],
     lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }]
   }, (body) => {
     const cand = [...body.querySelector('.ops-asg select').options]
@@ -264,5 +270,169 @@ PRUEBAS.caso('🔴 P227c-7 · las claves `ops_` están en los dos idiomas, sin v
     /* Y que no se haya pisado ninguna clave de los otros dos prefijos. */
     PRUEBAS.igual(claves.filter(k => /^op_|^ope_/.test(k)), [],
       '🔴 ninguna clave nueva cae en `op_` ni en `ope_`, que ya están ocupados');
+  });
+});
+
+PRUEBAS.caso('🔴 P227c-8 · CONTRATO · el selector come la forma que el SERVIDOR manda, no una inventada', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea: no está levantado servir-gs.py'); return; }
+  /* ⚠️ ESTE ES EL CASO QUE CORTA LA SERIE, y existe porque el defecto ya iba por la CUARTA vez.
+     `opsGenteHtml` leía `x.nombre` de `NOMLIST.datos`; `accionNominaListar` empuja `persona`. El
+     selector salía siempre vacío con su nota «toda la nómina ya está asignada» y `operacion_asignar`
+     no era alcanzable por ningún camino —ni en la demostración—, mientras la suite daba verde porque
+     el fixture inventaba la forma. Es textual P154, que existe porque el MISMO `out.push` recortaba
+     la cédula y dejó muerta la función Y5 entera.
+     ⚠️ Cómo no depende de la forma del código cliente: las claves se LEEN del `.gs` y el fixture se
+     arma poniendo un valor en CADA una. Si el cliente lee un campo que el servidor no manda, ese
+     campo llega `undefined`, el filtro descarta la fila y no hay candidatos. No mira el fuente del
+     cliente, mide el comportamiento. */
+  const i = CTX.gs.indexOf('function accionNominaListar(');
+  PRUEBAS.alMenos(i, 0, 'guarda: `accionNominaListar` está en el .gs servido');
+  const j = CTX.gs.indexOf('out.push({', i);
+  const bloque = CTX.gs.slice(j, CTX.gs.indexOf('});', j)).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const claves = (bloque.match(/(\w+)\s*:/g) || []).map(x => x.replace(':', '').trim())
+                  .filter(k => k !== 'push');
+  PRUEBAS.alMenos(claves.length, 4, 'guarda: se extrajeron las claves del payload · ' + JSON.stringify(claves));
+  PRUEBAS.cierto(claves.indexOf('nombre') < 0,
+    '🔴 el servidor NO manda `nombre` · si alguna vez lo mandara, este caso hay que revisarlo entero · ' +
+    JSON.stringify(claves));
+
+  /* La fila se arma con las claves del SERVIDOR, todas con el mismo valor. */
+  const fila = { }; claves.forEach(k => { fila[k] = 'Ana Suárez'; });
+  p227cConHoja({
+    nomina: [fila],
+    lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }]
+  }, (body) => {
+    const sel = body.querySelector('.ops-asg select');
+    PRUEBAS.cierto(!!sel, 'guarda: hay selector');
+    const cand = [...sel.options].map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+    PRUEBAS.igual(cand, ['Ana Suárez'],
+      '🔴 con la forma REAL del servidor, la persona SE OFRECE · un selector vacío acá significa que ' +
+      '`operacion_asignar` no es alcanzable en producción · ' + JSON.stringify(cand));
+    PRUEBAS.falso([...body.querySelectorAll('.ops-nota')].some(x => x.textContent === t('ops_sin_candidatos')),
+      '🔴 y NO dice «toda la nómina ya está asignada» sobre una operación sin nadie · ' +
+      'ése era el síntoma exacto, y se leía como un dato');
+  });
+  /* DISCRIMINADOR · sin la clave que lleva el nombre, el caso tiene que ponerse en rojo. */
+  const mutilada = Object.assign({}, fila); delete mutilada.persona;
+  p227cConHoja({
+    nomina: [mutilada],
+    lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }]
+  }, (body) => {
+    const cand = [...body.querySelector('.ops-asg select').options]
+      .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+    PRUEBAS.igual(cand, [],
+      'DISCRIMINADOR · quitando la clave del nombre el selector queda vacío · ' +
+      'o el aserto de arriba no mide nada');
+  });
+});
+
+PRUEBAS.caso('🔴 P227c-9 · una respuesta que NO escribió nada no ofrece «Deshacer»', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsResultado`, leyendo `d.cambio` —que el servidor deriva de la misma
+     expresión con la que decide la bitácora (GS 2026-10-09.1)—.
+     ⚠️ POR QUÉ IMPORTA, con el escenario medido: A quita a Ana de Cardón IV; la pantalla de B todavía
+     la muestra con su ×; B toca × y el servidor contesta `yaEstaba` (no escribe, no deja bitácora);
+     B ve «Persona quitada» con «Deshacer» y lo toca → `operacion_asignar` reincorpora a Ana, con su
+     `Desde` original perdido y una línea nueva en un log append-only (R3). Un botón rotulado
+     «Deshacer», sobre una acción que no hizo nada, revirtiendo lo de otra persona.
+     ⚠️ Las tres formas son LAS DEL SERVIDOR, no inventadas: `{quitada,noEstaba}` y
+     `{quitada,yaEstaba}` de `accionOperacionAsignar`, y `{repetida:igual}` de su upsert. */
+  const prevToast = window.showToast, prevAcc = window.showToastAccion, prevD = DASH;
+  const v = [];
+  try {
+    DASH = { rol:'supervisor', vista:'supervisor', params:{}, f:{emp:'E'}, scope:'E' };
+    window.showToast = function(m){ v.push({ accion:null, txt:String(m) }); };
+    window.showToastAccion = function(m, e){ v.push({ accion:String(e), txt:String(m) }); };
+    const pasar = (d) => { opsResultado(d, 'ops_quitada', function(){}); return v.splice(0)[0]; };
+
+    const noEstaba  = pasar({ ok:true, cambio:false, quitada:true, noEstaba:true });
+    const yaEstaba  = pasar({ ok:true, cambio:false, quitada:true, yaEstaba:true });
+    const repetida  = pasar({ ok:true, cambio:false, actualizada:false, repetida:true, vigente:true });
+    const siCambio  = pasar({ ok:true, cambio:true, quitada:true, filas:1 });
+
+    PRUEBAS.igual([noEstaba.accion, yaEstaba.accion, repetida.accion], [null, null, null],
+      '🔴 ninguna de las tres formas no-op ofrece «Deshacer» · deshacer lo que no se hizo escribe un ' +
+      'hecho nuevo y revierte lo de otra persona');
+    PRUEBAS.igual([noEstaba.txt, yaEstaba.txt, repetida.txt],
+      [t('ops_sin_cambio'), t('ops_sin_cambio'), t('ops_sin_cambio')],
+      '🔴 y las tres lo DICEN · «Persona quitada» sobre un no-op es una pantalla que miente');
+    PRUEBAS.igual(siCambio.accion, t('ops_deshacer'),
+      'DISCRIMINADOR · la que SÍ escribió conserva su «Deshacer» · sin esto el caso pasaría quitándolo siempre');
+    /* ⚠️ `=== false`, no `!d.cambio`: contra un endpoint anterior a GS 2026-10-09.1 el campo llega
+       `undefined` y la pantalla se comporta como antes, en vez de perder el «Deshacer» de los casos
+       que sí escribieron. Es lo que permite publicar el endpoint primero y la app después. */
+    PRUEBAS.igual(pasar({ ok:true, quitada:true }).accion, t('ops_deshacer'),
+      '🔴 sin el campo (endpoint viejo) se comporta como antes · el despliegue no tiene ventana rota');
+  } finally { window.showToast = prevToast; window.showToastAccion = prevAcc; try { DASH = prevD; } catch(e){} }
+});
+
+PRUEBAS.caso('🔴 P227c-10 · toda clave que la pantalla USA está definida en los dos idiomas', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ Esto cazó `ope_sin_detalle`: P227c escribió su consumidor y NO la clave, así que `t()` caía en
+     `if (s == null) s = String(clave)` y la pantalla mostraba el literal `ope_sin_detalle` a
+     Dirección. Lo prometía el comentario que la había quitado —«cuando P227c le muestre operaciones
+     a Dirección, la clave se crea ahí, con su consumidor»— y P227c cumplió la mitad.
+     El trinquete de P227a-8 cuenta HUÉRFANAS (clave sin consumidor); esto es el sentido contrario, y
+     es el que deja ver un identificador de código en producción.
+     ⚠️ Se barre el cuerpo de las funciones `ops*`, no el archivo: un barrido más amplio que su
+     invariante marca lo correcto, y ya pasó tres veces en este prompt. */
+  const src = document.documentElement.outerHTML;
+  const fuente = (typeof opsGenteHtml === 'function')
+    ? [opsGenteHtml, opsPintar, opsSeccion, opsResultado, opsCargar, opsEnviar, opsAbrir,
+       opsGuardar, opsPedirAlta, opsPedirBaja, opsAsignar, opsQuitar, opsError, opsLimpiarAlta,
+       opsTipoCambio, opsActualizarBoton].map(f => String(f)).join('\n') : '';
+  PRUEBAS.alMenos(fuente.length, 2000, 'guarda: se leyeron los cuerpos de las funciones `ops*`');
+  /* ⚠️ `matchAll` con el GRUPO, no `match` + `replace`. Mi primera versión hacía
+     `.replace(/^.*'/, '')` sobre `t('ops_quitar'`, y `^.*'` es GREEDY: se comía hasta el último
+     apóstrofo y dejaba la cadena vacía. Las 19 claves colapsaban en `['']` y `usadas.length` daba 1.
+     Lo cazó la guarda `alMenos(usadas.length, 15)`, que es exactamente para lo que está: sin ella
+     el caso habría dado verde midiendo una sola clave inventada. */
+  const usadas = [...new Set([...fuente.matchAll(/\bt\('([a-z0-9_]+)'/g)].map(m => m[1]))];
+  PRUEBAS.alMenos(usadas.length, 15, 'guarda: hay claves que medir · ' + usadas.length);
+  const sinTraducir = usadas.filter(k => t(k) === k);
+  PRUEBAS.igual(sinTraducir, [],
+    '🔴 ninguna clave usada sale sin traducir · `t()` devuelve el literal y eso se VE en pantalla · ' +
+    JSON.stringify(sinTraducir));
+  /* Y en los DOS idiomas: una clave sólo en español deja el literal para quien usa inglés. */
+  const faltaEn = usadas.filter(k => {
+    const re = new RegExp('\\b' + k + "\\s*:\\s*'", 'g');
+    return (src.match(re) || []).length < 2;
+  });
+  PRUEBAS.igual(faltaEn, [],
+    '🔴 y definida DOS veces · una por idioma · ' + JSON.stringify(faltaEn));
+  /* DISCRIMINADOR · una clave que nadie definió tiene que caer. */
+  PRUEBAS.igual(t('ops_clave_que_no_existe_jamas'), 'ops_clave_que_no_existe_jamas',
+    'DISCRIMINADOR · `t()` de una clave inexistente devuelve el literal · es lo que el filtro detecta');
+});
+
+PRUEBAS.caso('🔒 P227c-11 · sin credenciales la caja de alta NO queda a la vista', () => {
+  if (!p227cHayApp() || typeof opsMostrarAlta !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ no está `opsMostrarAlta`: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsCargar`, que llama `opsMostrarAlta(false)` en los tres caminos que no
+     llegan a `opsPintar`. Es lo que `depCargar` ya hacía con su motivo escrito: «dejarlo a la vista
+     invita a escribir un nombre y que no pase nada».
+     ⚠️ Se llega de verdad: `closePortal()` deja hojas huérfanas sobre el inicio y pone `DASH = null`.
+     Con la nómina huérfana arriba, tocar «Operaciones» abre la hoja, el cuerpo dice «faltan
+     credenciales» y antes quedaba el campo y el «+» invitando a escribir. */
+  const caja = document.getElementById('opsAltaCaja');
+  PRUEBAS.cierto(!!caja, 'guarda: la caja existe en el HTML');
+  const prevD = DASH, prevF = window.fetchConReloj;
+  try {
+    window.fetchConReloj = () => new Promise(() => {});      // nada sale a la red
+    opsMostrarAlta(true);                                     // se parte de «visible», como tras otra empresa
+    PRUEBAS.igual(caja.style.display, '', 'guarda: la caja arranca visible');
+    DASH = { rol:'supervisor', vista:'supervisor', params:{}, f:{}, scope:'E', demoMode:false };
+    opsCargar();                                              // sin usuario ni clave
+    PRUEBAS.igual(caja.style.display, 'none',
+      '🔒 sin credenciales la caja se apaga · un campo que no puede guardar nada es una promesa falsa');
+    const body = document.getElementById('opsBody');
+    PRUEBAS.cierto(body && body.textContent.indexOf(t('tar_err_creds')) >= 0,
+      '🔒 y el cuerpo dice por qué');
+  } finally { try { DASH = prevD; } catch(e){} window.fetchConReloj = prevF; }
+  /* DISCRIMINADOR · con `puedeEditar` la caja SÍ se ve, o el aserto pasaría siempre. */
+  p227cConHoja({ lista: [], puedeEditar: true }, () => {
+    PRUEBAS.igual(document.getElementById('opsAltaCaja').style.display, '',
+      'DISCRIMINADOR · con permiso de escritura la caja se ve');
   });
 });

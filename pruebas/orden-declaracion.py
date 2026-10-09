@@ -104,8 +104,54 @@ IDX = os.path.normpath(os.path.join(AQUI, "..", "index.html"))
 PROF_MAX = 3
 
 
+def sin_comentarios(s):
+    """Quita comentarios respetando cadenas, PRESERVANDO los saltos de linea para que los
+    numeros de linea que este barrido reporta sigan siendo los del archivo real.
+
+    ⚠️ POR QUE ESTA ACA. Hasta el 2026-10-09 este barrido leia el archivo CRUDO, y 7 de sus 19
+    hallazgos eran FALSOS POSITIVOS por comentario: `DASH` en `empFlush()`, `TAREAS` en
+    `onDashData()`, `TURNO_TIPOS` en `turnoGuardar()` y los cuatro `_*Cache` de `gestPush()` no se
+    usan en esas funciones — se MENCIONAN en un comentario. La cabecera de este archivo declara 10
+    casos "ya revisados y por que estan bien", o sea alguien los reviso uno por uno sin notar que
+    siete no eran hallazgos. Un barrido que grita por lo correcto se aprende a ignorar igual que uno
+    que no ve lo que falta, y el dia que marque un orden de declaracion real nadie lo va a mirar.
+    Ademas arregla de paso el conteo de llaves de `funciones()`: una `{` dentro de un comentario
+    desincronizaba el cuerpo, que es el defecto que ya mordio a otros dos barridos del repo.
+    ⚠️ Lo que NO hace: no toca las llaves dentro de CADENAS. Una `{` en un template literal sigue
+    desincronizando el conteo. Es el hueco conocido de este script, no se midio cuanto pesa."""
+    out, i, n, estado = [], 0, len(s), None
+    while i < n:
+        c, d = s[i], (s[i + 1] if i + 1 < n else "")
+        if estado is None:
+            if c == "/" and d == "/":
+                estado = "linea"; i += 2; continue
+            if c == "/" and d == "*":
+                estado = "bloque"; out.append(" "); i += 2; continue
+            if c in ('"', "'", "`"):
+                estado = c; out.append(c); i += 1; continue
+            out.append(c); i += 1; continue
+        if estado == "linea":
+            if c == "\n":
+                estado = None; out.append("\n")
+            i += 1; continue
+        if estado == "bloque":
+            if c == "*" and d == "/":
+                estado = None; i += 2; continue
+            out.append("\n" if c == "\n" else " "); i += 1; continue
+        if c == "\\":
+            out.append(c); out.append(d); i += 2; continue
+        out.append(c)
+        if c == estado:
+            estado = None
+        i += 1
+    return "".join(out)
+
+
 def cargar(ruta):
-    return io.open(ruta, encoding="utf-8", errors="replace").read().split("\n")
+    crudo = io.open(ruta, encoding="utf-8", errors="replace").read()
+    limpio = sin_comentarios(crudo)
+    assert limpio.count("\n") == crudo.count("\n"), "el despojador corrio las lineas"
+    return limpio.split("\n")
 
 
 def variables_con_valor(L):
