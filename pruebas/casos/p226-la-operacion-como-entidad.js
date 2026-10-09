@@ -3321,3 +3321,99 @@ PRUEBAS.caso('🔴 R14-1 · ninguna comparación contra `OP_BAJA` lee la celda s
     '⚠️ estas comparan la celda CRUDA contra `OP_BAJA`: un `" Baja "` escrito a mano —forma real de ' +
     'este CH, H5 la documenta— las haría derivar distinto del resto');
 });
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   LOS DOS HALLAZGOS DEL VERIFICADOR SOBRE GS 2026-10-09.1                        (2026-10-09)
+   El campo `cambio` que ese deploy agregó se derivó de la misma expresión que decide la bitácora
+   —`mismosDatos`— y heredó su punto ciego. Y el selector de P227c, al volverse alcanzable, destapó
+   una escritura que nadie había medido.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 P226-R · un RENOMBRE de grafía escribe dos hojas, y `cambio` tiene que decirlo', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea: no está levantado servir-gs.py'); return; }
+  /* El derecho lo concede `mismosDatos` en `accionOperacionGuardar`, que ahora compara
+     `opNombreMostrar(previo[1])` contra `nombre`.
+     ⚠️ POR QUÉ IMPORTA: el campo de alta es texto libre con la lista de operaciones debajo, y
+     `opClave` (= `norm`) empata «cardon iv» con «Cardón IV» — saca tildes, baja a minúsculas y
+     colapsa espacios y puntuación. ⚠️ **NO** empata «cardon 4»: lo escribí así en la primera
+     versión de este caso y la guarda lo puso en rojo, porque `norm` no traduce números romanos.
+     Un escenario mal escrito habría dejado el caso midiendo un alta nueva en vez de un renombre.
+     El `setValues` escribe la grafía NUEVA
+     en `Operaciones Listadas` y `opRenombrarAsignaciones_` la propaga a las N filas de
+     `Asignaciones` — corre SIEMPRE, no sólo si cambió—. Con `mismosDatos` ciego al nombre eso daba
+     `cambio:false`, o sea la pantalla decía «Ya estaba así. No se cambió nada.» sobre N+1 celdas
+     reescritas, y la bitácora no registraba un hecho que escribió dos hojas (R3). */
+  const api = p226Api({
+    'Operaciones Listadas': [['Empresa','Operacion','Tipo','Inicio','Fin','Estado','Creada','CreadaPor','Baja','BajaPor'],
+      ['Consorcio HELITEC','Cardón IV','instalacion','','','activo','2026-01-01T00:00:00','x','','']],
+    'Asignaciones': [['Empresa','Operacion','Persona','Cedula','Desde','Hasta','Estado','Sello','Quien','Baja','BajaPor'],
+      ['Consorcio HELITEC','Cardón IV','Ana Suárez','V-11111','2026-01-10','','activo','2026-01-10T00:00:00','x','','']]
+  });
+  const bitAntes = p226Bitacora(api).length;
+
+  const r = JSON.parse(api.accionOperacionGuardar(p226Con(P226_SUP,
+    { operacion:'cardon iv', tipo:'instalacion' })).getContent());
+
+  const ops = p226Filas(api, p226Hoja('OPERACIONES'));
+  const asg = p226Filas(api, p226Hoja('ASIGNACIONES'));
+  PRUEBAS.igual(ops[0][1], 'cardon iv', 'guarda: la celda de `Operaciones Listadas` SE REESCRIBIÓ');
+  PRUEBAS.igual(asg[0][1], 'cardon iv', 'guarda: y la de `Asignaciones` también · son N+1 celdas');
+  PRUEBAS.igual(r.cambio, true,
+    '🔴 `cambio:true` · escribió dos hojas, y con `false` la pantalla dice «no se cambió nada» · ' +
+    JSON.stringify({ cambio:r.cambio, mismosDatos:r.mismosDatos, actualizada:r.actualizada }));
+  PRUEBAS.igual(r.mismosDatos, false, '🔴 y `mismosDatos` ve el nombre, que es de donde sale `cambio`');
+  PRUEBAS.alMenos(p226Bitacora(api).length - bitAntes, 1,
+    '🔴 R3 · y queda línea de bitácora · un hecho que reescribe dos hojas sin registro es R3 incumplida');
+
+  /* DISCRIMINADOR · el reenvío IDÉNTICO sigue siendo un no-op: ni bitácora ni `cambio`. */
+  const api2 = p226Api({
+    'Operaciones Listadas': [['Empresa','Operacion','Tipo','Inicio','Fin','Estado','Creada','CreadaPor','Baja','BajaPor'],
+      ['Consorcio HELITEC','Cardón IV','instalacion','','','activo','2026-01-01T00:00:00','x','','']]
+  });
+  const b2 = p226Bitacora(api2).length;
+  const r2 = JSON.parse(api2.accionOperacionGuardar(p226Con(P226_SUP,
+    { operacion:'Cardón IV', tipo:'instalacion' })).getContent());
+  PRUEBAS.igual(r2.cambio, false,
+    'DISCRIMINADOR · la MISMA grafía sigue dando `cambio:false` · si diera true, el campo no mide nada · ' +
+    JSON.stringify({ cambio:r2.cambio, mismosDatos:r2.mismosDatos }));
+  PRUEBAS.igual(p226Bitacora(api2).length, b2,
+    'DISCRIMINADOR · y sin línea nueva de bitácora (R3: se cuentan hechos, no pedidos)');
+});
+
+PRUEBAS.caso('🔒 P226-C · la cédula de una asignación es texto libre POR DISEÑO, y el candado está en el cliente', () => {
+  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea: no está levantado servir-gs.py'); return; }
+  /* ⚠️ ESTE CASO EXISTE PARA QUE NADIE —yo incluido, otra vez— CIERRE ESTO EN EL SERVIDOR.
+     El verificador midió un defecto real: con dos homónimas en empresas distintas, un pedido con el
+     nombre de la de HELITEC y la cédula de la de Cardón escribía la fila de HELITEC con la cédula
+     ajena y contestaba `ok:true`. Mi arreglo fue hacer que la cédula saliera de la nómina
+     (`opPersonaEnNomina_` devolviendo la fila), **y 9 casos de este archivo se pusieron en rojo**:
+     `R6-5`, `R6-7`, `R7-1`, `R10-1` y los suyos. Al leerlos quedó claro por qué — existe un camino
+     DELIBERADO para corregir a mano la cédula de un tramo, con su línea de bitácora propia, y
+     `R6-5` corrige a `V-99999`, que NO está en la nómina. O sea la columna es texto libre a
+     propósito y traerla de la nómina mataba la corrección.
+     El hallazgo estaba del OTRO lado de la cadena: el **selector** del cliente ofrecía gente de otra
+     empresa, porque `accionNominaListar` le manda al admin maestro la nómina de TODAS y el selector
+     sólo muestra el nombre. Ahí se cerró (`opsGenteHtml`, caso `P227c-14`), y es donde correspondía.
+     ⚠️ Hoy nadie LEE esta columna (`opPayloadPara_` usa 0,1,2,4,5,6). El día que alguien la lea hay
+     que decidir quién la declara, y es una decisión de Franco: está anotada en `PENDIENTES_USUARIO.md`. */
+  const api = p226Api({
+    'Operaciones Listadas': [['Empresa','Operacion','Tipo','Inicio','Fin','Estado','Creada','CreadaPor','Baja','BajaPor'],
+      ['Consorcio HELITEC','Alfa','instalacion','','','activo','2026-01-01T00:00:00','x','','']]
+  });
+  /* La cédula que manda el cliente SE ESCRIBE tal cual, aunque no coincida con la nómina
+     (`Ana Suárez` es `V-11111` en el fixture). Es el camino de corrección. */
+  const r = JSON.parse(api.accionOperacionAsignar(p226Con(P226_SUP,
+    { operacion:'Alfa', persona:'Ana Suárez', cedula:'V-99999' })).getContent());
+  PRUEBAS.igual(r.ok, true, 'guarda: la persona está en la nómina de HELITEC, así que entra');
+  const asg = p226Filas(api, p226Hoja('ASIGNACIONES'));
+  PRUEBAS.igual(asg[asg.length - 1][3], 'V-99999',
+    '🔒 la cédula del pedido se escribe tal cual · traerla de la nómina rompe 9 casos de corrección · ' +
+    JSON.stringify(asg[asg.length - 1]));
+  /* Y el candado que SÍ corresponde al servidor sigue puesto: el NOMBRE se valida contra la nómina
+     de esta empresa, así que alguien de otra no entra por más cédula que mande. */
+  const r2 = JSON.parse(api.accionOperacionAsignar(p226Con(P226_SUP,
+    { operacion:'Alfa', persona:'Pedro Salas', cedula:'V-44444' })).getContent());
+  PRUEBAS.igual(r2.motivo, 'persona_sin_nomina',
+    '🔒 DISCRIMINADOR · el nombre sí se valida: quien no está en esta nómina no entra · ' +
+    'ése es el candado del servidor, y el de la cédula vive en el selector del cliente');
+});

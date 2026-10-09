@@ -267,9 +267,20 @@ PRUEBAS.caso('🔴 P227c-7 · las claves `ops_` están en los dos idiomas, sin v
       .filter(par => VOSEO.test(par));
     PRUEBAS.igual(conVoseo, [],
       '🔴 R1 · español neutro, sin voseo · los clientes son de Venezuela · ' + JSON.stringify(conVoseo.slice(0,2)));
-    /* Y que no se haya pisado ninguna clave de los otros dos prefijos. */
-    PRUEBAS.igual(claves.filter(k => /^op_|^ope_/.test(k)), [],
-      '🔴 ninguna clave nueva cae en `op_` ni en `ope_`, que ya están ocupados');
+    /* ⚠️ ESTE ASERTO ERA UN NO-OP y lo encontró el verificador. `claves` sólo puede contener
+       `ops_*` o `hlp_ops` —el `match` de arriba las filtra así—, y ni `^op_` ni `^ope_` pueden
+       matchear `ops_x`: el filtro daba `[]` **siempre**. Peor: el commit que lo escribió agregó
+       después `ope_sin_detalle`, una clave en el prefijo que este aserto decía vigilar, y no se
+       movió. Lo que de verdad delata una colisión de prefijo es una clave definida MÁS de dos veces
+       (una por idioma): eso pasa cuando un renombre masivo pisa el namespace de otro módulo, que es
+       cómo se perdió `op_titulo` en este mismo bloque. */
+    const dobles = claves.filter(k => (src.match(new RegExp('\\b' + k + "\\s*:\\s*'", 'g')) || []).length !== 2);
+    PRUEBAS.igual(dobles, [],
+      '🔴 cada clave está definida EXACTAMENTE dos veces, una por idioma · más de dos es una ' +
+      'colisión de prefijo, menos de dos deja el literal en pantalla · ' + JSON.stringify(dobles));
+    /* DISCRIMINADOR · el barrido tiene que poder contar mal si le doy una clave inventada. */
+    PRUEBAS.igual((src.match(/\bops_clave_inventada_para_el_discriminador\s*:\s*'/g) || []).length, 0,
+      'DISCRIMINADOR · una clave que nadie definió cuenta 0, no 2 · el filtro la marcaría');
   });
 });
 
@@ -297,8 +308,15 @@ PRUEBAS.caso('🔴 P227c-8 · CONTRATO · el selector come la forma que el SERVI
     '🔴 el servidor NO manda `nombre` · si alguna vez lo mandara, este caso hay que revisarlo entero · ' +
     JSON.stringify(claves));
 
-  /* La fila se arma con las claves del SERVIDOR, todas con el mismo valor. */
+  /* La fila se arma con las claves del SERVIDOR, todas con un valor no vacío, así que si el cliente
+     lee un campo que el servidor NO manda, ese campo llega `undefined` y el filtro descarta la fila.
+     ⚠️ `empresa` es la única excepción y lleva la de la hoja: `opsGenteHtml` acota los candidatos a
+     la empresa de la operación (el arreglo del hallazgo de la cédula ajena), así que ponerle el
+     nombre de la persona ahí hacía caer este caso por una razón que no es la que mide. Lo cazó mi
+     propio arreglo del filtro por empresa, y poner el valor correcto no debilita el caso: todas las
+     demás claves siguen llevando el nombre. */
   const fila = { }; claves.forEach(k => { fila[k] = 'Ana Suárez'; });
+  if ('empresa' in fila) fila.empresa = 'Empresa Uno';
   p227cConHoja({
     nomina: [fila],
     lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }]
@@ -434,5 +452,157 @@ PRUEBAS.caso('🔒 P227c-11 · sin credenciales la caja de alta NO queda a la vi
   p227cConHoja({ lista: [], puedeEditar: true }, () => {
     PRUEBAS.igual(document.getElementById('opsAltaCaja').style.display, '',
       'DISCRIMINADOR · con permiso de escritura la caja se ve');
+  });
+});
+
+PRUEBAS.caso('🔴 P227c-12 · el «Deshacer» de quitar repone el `Desde` original, no lo pisa con hoy', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo conceden `opsGenteHtml` (que pone `data-desde` en el `.ops-x`) y `opsQuitar`
+     (que lo pasa a la clausura del «Deshacer»).
+     ⚠️ POR QUÉ IMPORTA, medido contra el `.gs` real por el verificador: Ana está en Cardón IV desde
+     el 2026-01-10 · el supervisor toca × por error · toca «Deshacer» en los 4 s —el flujo que esta
+     pantalla está hecha para ofrecer— y `operacion_asignar` SIN `desde` escribe `Desde=hoy`. Nueve
+     meses de ventana de asignación desaparecen sin rastro, y el ADR 015 justifica la tabla
+     `Asignaciones` diciendo que «medir el evento exige saber quién estaba asignado EN ESA VENTANA».
+     El dato ya venía en el payload y el cliente lo tiraba. */
+  const prevD = DASH, prevF = window.fetchConReloj, prevT = window.showToast,
+        prevA = window.showToastAccion, prevC = window.opsCargar;
+  const cuerpos = []; let deshacer = null;
+  /* ⚠️ R18 · SE RESTAURA EN EL `.finally()` DE LA PROMESA, nunca en el `finally` del bloque. El
+     `finally` sincrónico corre ANTES de que resuelva, y acá el POST del «Deshacer» sale DENTRO del
+     `.then`: con los stubs ya repuestos, ese `opsEnviar` llamaría al `fetchConReloj` de verdad y
+     dejaría el `fetch` de este caso puesto para el siguiente. Es el defecto que R18 documenta con
+     dos rojos falsos cobrados. Mi primera versión de este caso tenía el `finally` sincrónico **con
+     un comentario que afirmaba que acá no aplicaba**, y era falso. */
+  const restaurar = () => {
+    try { DASH = prevD; } catch(e){}
+    window.fetchConReloj = prevF; window.showToast = prevT;
+    window.showToastAccion = prevA; window.opsCargar = prevC;
+  };
+  try {
+    window.fetchConReloj = function(_u, o){
+      cuerpos.push(JSON.parse((o && o.body) || '{}'));
+      return Promise.resolve({ json: () => Promise.resolve({ ok:true, cambio:true, quitada:true, filas:1 }) });
+    };
+    window.showToast = function(){};
+    window.showToastAccion = function(_m, _e, fn){ deshacer = fn; };
+    window.opsCargar = function(){};                       // no se relee: mido el POST, no la hoja
+    p227cConHoja({
+      dash: { params: { usuario:'u', pass:'p', empresa:'Empresa Uno' } },
+      lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
+                gente:[{ persona:'Ana Suárez', desde:'2026-01-10', hasta:'' }] }]
+    }, (body) => {
+      const x = body.querySelector('.ops-x');
+      PRUEBAS.cierto(!!x, 'guarda: está el × de quitar');
+      PRUEBAS.igual(x.getAttribute('data-desde'), '2026-01-10',
+        '🔴 el `Desde` original viaja en el botón · es el único lugar de donde puede salir después');
+      return x;
+    });
+    /* ⚠️ Y AHORA EL CAMINO COMPLETO, que es lo que de verdad hay que medir: el atributo puede estar
+       y `opsQuitar` ignorarlo igual. Se dispara el × , se toma la clausura que `showToastAccion`
+       recibió y se la llama, mirando el cuerpo del SEGUNDO POST. La primera versión de este caso
+       sólo comprobaba el atributo —dos comprobaciones— y el defecto vive en el POST. */
+    const x2 = p227cConHoja({
+      dash: { params: { usuario:'u', pass:'p', empresa:'Empresa Uno' } },
+      lista: [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:1, genteHistN:1,
+                gente:[{ persona:'Ana Suárez', desde:'2026-01-10', hasta:'' }] }]
+    }, (body) => body.querySelector('.ops-x'));
+    cuerpos.length = 0; deshacer = null;
+    const pr = opsQuitar(x2);
+    PRUEBAS.cierto(!!(pr && pr.then), 'guarda: `opsQuitar` devuelve la promesa del POST');
+    return pr.then(() => {
+      PRUEBAS.igual(cuerpos.length, 1, 'guarda: salió UN POST de quitar');
+      PRUEBAS.igual(cuerpos[0].quitar, '1', 'guarda: y era el de quitar');
+      PRUEBAS.cierto(typeof deshacer === 'function',
+        '🔴 guarda: se ofreció «Deshacer» · el servidor contestó `cambio:true`, o sea escribió');
+      const p2 = deshacer();
+      return Promise.resolve(p2).then(() => {
+        PRUEBAS.igual(cuerpos.length, 2, 'guarda: el «Deshacer» mandó su propio POST');
+        const d = cuerpos[1];
+        PRUEBAS.cierto(!d.quitar, 'guarda: el segundo POST es el de asignar, no otro quitar');
+        PRUEBAS.igual(d.desde, '2026-01-10',
+          '🔴 EL POST DEL «DESHACER» LLEVA EL `Desde` ORIGINAL · sin él el servidor escribe `hoy` y ' +
+          'la ventana de asignación se pierde · ' + JSON.stringify({ desde:d.desde, persona:d.persona }));
+      });
+    }).finally(restaurar);
+  } catch (e) { restaurar(); throw e; }
+});
+
+PRUEBAS.caso('🔴 P227c-13 · «no cambió nada» gana sobre «no cuenta todavía» cuando el CH no se tocó', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede el ORDEN de las ramas de `opsResultado`: `cambio === false` antes de
+     `vigente === false`.
+     ⚠️ ESTA ES LA COMBINACIÓN QUE FALTABA EN `P227c-9` y por la que la suite no pudo ver el defecto.
+     `opErrorNoVigente_` hardcodea el prefijo «Se guardó, pero esa persona no queda asignada…» para
+     sus 5 motivos, y el `.gs` documenta 32 estados de esa familia que «0 escriben una sola celda»
+     (22 de operación cerrada + 10 de evento terminado). Con `vigente` primero, los 32 anunciaban una
+     escritura que no pasó. Escenario alcanzable sin pantalla vieja: un evento que ya terminó, Ana
+     con su fila abierta; el panel la saca de `gente` por no vigente, el selector la vuelve a ofrecer
+     y el supervisor toca «Asignar» → `igual:true, cambio:false, vigente:false`. */
+  const prevToast = window.showToast, prevAcc = window.showToastAccion, prevD = DASH;
+  const v = [];
+  try {
+    DASH = { rol:'supervisor', vista:'supervisor', params:{}, f:{emp:'E'}, scope:'E' };
+    window.showToast = function(m){ v.push({ accion:null, txt:String(m) }); };
+    window.showToastAccion = function(m, e){ v.push({ accion:String(e), txt:String(m) }); };
+    const pasar = (d) => { opsResultado(d, 'ops_asignada', function(){}); return v.splice(0)[0]; };
+
+    /* La forma REAL del reenvío sobre un evento terminado, con el texto que manda el servidor. */
+    const reenvio = pasar({ ok:true, cambio:false, repetida:true, actualizada:false, vigente:false,
+      motivo:'operacion_terminada',
+      error:'Se guardó, pero esa persona no queda asignada hoy: esa operación ya terminó.' });
+    PRUEBAS.igual(reenvio.txt, t('ops_sin_cambio'),
+      '🔴 gana «ya estaba así» · el CH no se tocó, y «Se guardó, pero…» afirma una escritura ' +
+      'que no pasó · ' + JSON.stringify(reenvio.txt));
+    PRUEBAS.falso(/se guard[óo]/i.test(reenvio.txt),
+      '🔴 y NO dice «se guardó» · es el prefijo que `opErrorNoVigente_` hardcodea para 5 motivos');
+    PRUEBAS.igual(reenvio.accion, null, '🔴 ni ofrece «Deshacer» sobre cero celdas escritas');
+
+    /* DISCRIMINADOR · el PRIMER toque, que sí escribe y no cuenta, conserva el texto del servidor:
+       si no, invertir las ramas habría tapado el tercer estado, que es todo el punto del prompt. */
+    const primero = pasar({ ok:true, cambio:true, nueva:true, vigente:false,
+      motivo:'operacion_terminada',
+      error:'Se guardó, pero esa persona no queda asignada hoy: esa operación ya terminó.' });
+    PRUEBAS.cierto(/se guard[óo]/i.test(primero.txt),
+      'DISCRIMINADOR · cuando SÍ escribió y no cuenta, gana el texto del servidor · ' +
+      'el tercer estado sigue vivo · ' + JSON.stringify(primero.txt));
+    PRUEBAS.igual(primero.accion, null, 'y ese estado nunca ofreció «Deshacer», como antes');
+  } finally { window.showToast = prevToast; window.showToastAccion = prevAcc; try { DASH = prevD; } catch(e){} }
+});
+
+PRUEBAS.caso('🔒 P227c-14 · el selector NO ofrece gente de otra empresa', () => {
+  if (!p227cHayApp()) { PRUEBAS.cierto(false, '⚠️ no está la app cargada: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `opsGenteHtml`, que filtra por `dashNorm(x.empresa) === dashNorm(OPSADM.empresa)`.
+     ⚠️ `accionNominaListar` le manda al admin MAESTRO la nómina de TODAS las empresas (`permitidasN`
+     queda `null` y el filtro no corre) y el selector sólo muestra el nombre. Con una HOMÓNIMA en dos
+     empresas —medido por el verificador contra el `.gs`: «Ana Suárez» en HELITEC y en Cardón— el
+     pedido entraba, porque el servidor valida el nombre contra la nómina de la empresa de la
+     operación, y escribía la fila de una con la cédula de la otra. */
+  const lista = [{ nombre:'Cardón IV', tipo:'instalacion', estado:'activo', genteN:0, genteHistN:0, gente:[] }];
+  p227cConHoja({
+    lista,
+    nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Empresa Uno' },
+             { persona:'Beto Ruiz',  cedula:'V-2', empresa:'Empresa Dos' }]
+  }, (body) => {
+    const cand = [...body.querySelector('.ops-asg select').options]
+      .map(o => o.textContent).filter(x => x !== t('ops_elegir'));
+    PRUEBAS.igual(cand, ['Ana Suárez'],
+      '🔒 sólo quien está en la nómina de ESTA empresa · ' + JSON.stringify(cand));
+  });
+  /* DISCRIMINADOR 1 · las dos en la misma empresa se ofrecen las dos, o el filtro estaría
+     recortando por otra razón (por ejemplo por un campo ausente). */
+  p227cConHoja({
+    lista,
+    nomina: [{ persona:'Ana Suárez', cedula:'V-1', empresa:'Empresa Uno' },
+             { persona:'Beto Ruiz',  cedula:'V-2', empresa:'Empresa Uno' }]
+  }, (body) => {
+    PRUEBAS.igual([...body.querySelector('.ops-asg select').options].length, 3,
+      'DISCRIMINADOR · misma empresa: se ofrecen las dos más el «elige»');
+  });
+  /* DISCRIMINADOR 2 · sin `empresa` en la fila NO se recorta: vaciar el selector por un campo que
+     el servidor podría no mandar es el síntoma que este prompt acaba de arreglar. */
+  p227cConHoja({ lista, nomina: [{ persona:'Ana Suárez', cedula:'V-1' }] }, (body) => {
+    PRUEBAS.igual([...body.querySelector('.ops-asg select').options].length, 2,
+      'DISCRIMINADOR · una fila sin `empresa` se sigue ofreciendo · el servidor falla cerrado igual');
   });
 });

@@ -7793,7 +7793,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.31';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.32';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -36158,6 +36158,12 @@ function opsAbrir(){
   document.body.classList.add('modal-open');
   navPush();
   opsLimpiarAlta();
+  /* ⚠️ EL CUARTO CAMINO, y el de ventana más larga: el HTML estático deja `#opsAltaCaja` visible,
+     así que el servicio médico veía 146 px de campo y un «+» durante los 2-5 s de la lectura —o
+     indefinidamente si el pedido cuelga—. Se decide con lo que YA sabemos y sigue valiendo: si la
+     última carga fue de esta misma empresa, su `puedeEditar` vale y la caja no parpadea; si la
+     empresa cambió, se apaga hasta que el servidor conteste. */
+  opsMostrarAlta(OPSADM.puedeEditar && OPSADM.empresa === gestEmpresaActual());
   opsPintarAyuda();
   opsCargar();
 }
@@ -36226,6 +36232,13 @@ function opsCargar(){
     return;
   }
   OPSADM.cargando = true;
+  /* ⚠️ GENERACIÓN DE CARGA. Sin esto, dos `opsCargar` solapadas se pisan y la que LLEGA TARDE gana:
+     medido, la nueva pintaba la lista bien y después la vieja fallaba, apagaba la caja de alta y
+     escribía «No se pudo conectar» encima de datos frescos — y la hoja no tiene botón de recargar,
+     así que la única salida era cerrarla y reabrirla. El solape se volvió común con el arreglo del
+     `.catch` de `opsEnviar`, que ahora dispara su propio `opsCargar` por cada envío fallido. */
+  const miGen = (OPSADM._gen = (OPSADM._gen || 0) + 1);
+  const vigente = () => OPSADM._gen === miGen;
   const hoja = document.querySelector('#opsOv .sheet') || document.getElementById('opsOv');
   /* ⚠️ `action:'operaciones'` y no el payload del panel. Es la ÚNICA respuesta que trae
      `puedeEditar`, y ese campo lo decide el servidor (ADR 015): sumarlo al payload del panel habría
@@ -36233,6 +36246,7 @@ function opsCargar(){
      campo en silencio siete veces. Pedirlo acá es el molde de `depCargar`. */
   return conCarga(hoja, dashRequest(dashAuth({ action:'operaciones' }))
     .then(d => {
+      if (!vigente()) return;           // otra carga más nueva ya pintó: esta respuesta es vieja
       OPSADM.cargando = false;
       if (!d || !d.ok){
         opsMostrarAlta(false);          // mismo motivo: con `sin_empresa` tampoco corre `opsPintar`
@@ -36246,7 +36260,8 @@ function opsCargar(){
       OPSADM.asgError = d.asignacionesError || null;
       opsPintar();
     })
-    .catch(() => { OPSADM.cargando = false; opsMostrarAlta(false);
+    .catch(() => { if (!vigente()) return;
+      OPSADM.cargando = false; opsMostrarAlta(false);
       if (body) body.innerHTML = '<div class="nom-vacio">' + esc(t('sin_conexion')) + '</div>'; })
     .finally(() => franjaQuitar(body)));
 }
@@ -36323,9 +36338,19 @@ function opsGenteHtml(o, esBaja){
   } else if (gente.length){
     h += '<ul class="ops-gente">' + gente.map(function (g) {
       const per = String((g && g.persona) || '');
+      /* ⚠️ `data-desde` VIAJA, y sin él el «Deshacer» de quitar BORRABA la ventana de asignación.
+         Medido contra el `.gs` real: Ana asignada desde el 2026-01-10 · el supervisor toca × por
+         error · toca «Deshacer» en los 4 s —el flujo que esta pantalla está hecha para ofrecer— y
+         `operacion_asignar` sin `desde` escribe `Desde=hoy`, así que nueve meses desaparecen sin
+         rastro. El ADR 015 justifica la tabla `Asignaciones` diciendo que «medir el evento exige
+         saber quién estaba asignado EN ESA VENTANA»: `Desde` es el borde izquierdo de esa ventana.
+         El dato YA venía en el payload (`opPayloadPara_` manda `{persona, clave, desde, hasta}` por
+         persona) y el cliente lo tiraba. Mi commit anterior nombró este daño y lo cerró sólo para
+         las respuestas que no escriben nada; en el camino donde el botón SÍ aparece seguía vivo. */
       const quitar = (OPSADM.puedeEditar && !esBaja)
         ? '<button type="button" class="ops-x" data-op="' + esc(nom) + '" data-per="' + esc(per) +
-          '" onclick="opsQuitar(this)" aria-label="' + esc(t('ops_quitar')) + '">×</button>' : '';
+          '" data-desde="' + esc(String((g && g.desde) || '')) + '"' +
+          ' onclick="opsQuitar(this)" aria-label="' + esc(t('ops_quitar')) + '">×</button>' : '';
       return '<li>' + esc(per) + quitar + '</li>';
     }).join('') + '</ul>';
   } else if (Number(o.genteHistN) > 0 && !esBaja){
@@ -36340,8 +36365,19 @@ function opsGenteHtml(o, esBaja){
   if (OPSADM.puedeEditar && !esBaja){
     const yaEstan = {};
     gente.forEach(function (g) { if (g && g.persona) yaEstan[dashNorm(g.persona)] = 1; });
+    /* ⚠️ SE ACOTA A LA EMPRESA DE LA HOJA. `accionNominaListar` le manda al admin MAESTRO la nómina
+       de TODAS las empresas (`permitidasN` queda `null` y el filtro no corre), y el selector sólo
+       muestra el nombre: ofrecía a alguien de otra empresa sin decirlo. El servidor valida el nombre
+       contra la nómina de la empresa de la operación, así que con una HOMÓNIMA en dos empresas
+       —medido: «Ana Suárez» en HELITEC y en Cardón— el pedido entraba y escribía la fila de una con
+       la cédula de la otra. La cédula ya la decide la nómina en el servidor (GS 2026-10-09.2), pero
+       ofrecer a quien no corresponde sigue siendo una pantalla que invita al error.
+       Si no sabemos la empresa no se filtra: el servidor falla cerrado igual, y vaciar el selector
+       sería el síntoma que este prompt acaba de arreglar. */
+    const empHoja = dashNorm(OPSADM.empresa || '');
     const cand = (NOMLIST.datos || []).filter(function (x) {
-      return x && x.persona && !yaEstan[dashNorm(x.persona)];
+      if (!x || !x.persona || yaEstan[dashNorm(x.persona)]) return false;
+      return !empHoja || !x.empresa || dashNorm(x.empresa) === empHoja;
     });
     h += '<div class="ops-asg">' +
       '<select class="gest-search ops-sel" data-op="' + esc(nom) + '">' +
@@ -36372,6 +36408,19 @@ function opsGenteHtml(o, esBaja){
    acá empeoraría el mensaje en español, que es el idioma de los pilotos. */
 function opsResultado(d, exitoClave, deshacer){
   if (!d || !d.ok){ showToast(tError(d)); return false; }
+  /* ⚠️ `cambio === false` VA PRIMERO, y ponerlo segundo fue mi error en la ronda anterior: razoné
+     que `vigente` daba «el mensaje más específico» y no medí la familia entera. El verificador pasó
+     las 18 formas reales y encontró que `opErrorNoVigente_` hardcodea el prefijo «Se guardó, pero
+     esa persona no queda asignada…» para sus 5 motivos — así que los 32 estados que el propio `.gs`
+     documenta como «0 escriben una sola celda» (22 de operación cerrada + 10 de evento terminado)
+     anunciaban una escritura que no pasó. Escenario alcanzable sin pantalla vieja: un evento que ya
+     terminó, Ana con su fila abierta; el panel la saca de `gente` por no vigente y el selector la
+     vuelve a ofrecer; el supervisor toca «Asignar» → `igual:true, cambio:false, vigente:false` →
+     antes decía «Se guardó, pero…» sobre cero celdas.
+     Invertir no le quita el mensaje a nadie: si escribió, `cambio` es `true` y no entra acá. Lo que
+     se pierde es el motivo en el caso del reenvío, y eso es correcto — la persona ya lo leyó en el
+     primer toque, y lo que necesita saber ahora es que el CH no cambió, para no seguir tocando. */
+  if (d.cambio === false){ showToast(t('ops_sin_cambio')); return true; }
   if (d.vigente === false){
     /* ⚠️ `d.error ? … : …` Y NO `tError(d) || …`, y esto lo destapó medir los cuatro estados en el
        navegador, no leer el código. `tError()` NUNCA devuelve vacío: sin texto cae en
@@ -36400,7 +36449,6 @@ function opsResultado(d, exitoClave, deshacer){
      ⚠️ `=== false` y no `!d.cambio`: contra un endpoint anterior a GS 2026-10-09.1 el campo llega
      `undefined` y la pantalla se comporta como antes, en vez de perder el «Deshacer» de los casos
      que SÍ escribieron. Por eso el endpoint se publica primero. */
-  if (d.cambio === false){ showToast(t('ops_sin_cambio')); return true; }
   if (typeof deshacer === 'function') showToastAccion(t(exitoClave), t('ops_deshacer'), deshacer, 4000);
   else showToast(t(exitoClave));
   return true;
@@ -36534,13 +36582,15 @@ function opsQuitar(btn){
   const nombre = btn && btn.getAttribute('data-op');
   const persona = btn && btn.getAttribute('data-per');
   if (!nombre || !persona) return;
+  /* El `Desde` original, para que el «Deshacer» reponga la fila como estaba y no la reabra hoy. */
+  const desde = (btn && btn.getAttribute('data-desde')) || '';
   haptic(16);
   const mio = DASH;
   return opsEnviar('operacion_asignar', { operacion: nombre, persona: persona, quitar: '1' },
     'a|' + dashNorm(nombre) + '|' + dashNorm(persona), btn,
     'ops_quitada',
     function(){ if (DASH === mio) opsEnviar('operacion_asignar',
-        { operacion: nombre, persona: persona },
+        Object.assign({ operacion: nombre, persona: persona }, desde ? { desde: desde } : null),
         'a|' + dashNorm(nombre) + '|' + dashNorm(persona), null, 'ops_asignada'); });
 }
 

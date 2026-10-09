@@ -123,6 +123,15 @@ def sin_comentarios(s):
     while i < n:
         c, d = s[i], (s[i + 1] if i + 1 < n else "")
         if estado is None:
+            # Una barra ESCAPADA no abre comentario: esta rama es la que faltaba y el verificador la
+            # midio. Fuera de una cadena, un `\` antes de `/` solo aparece dentro de un literal de
+            # regex, y el despojador no los modela: `if (/EdgiOS|Edg\//.test(ua)) …` entraba en
+            # estado "linea" y SE COMIA el resto de la linea, incluido codigo. Con el discriminador
+            # ejecutado quedo probado que podia HACER DESAPARECER un hallazgo real de R16 — una
+            # lectura en zona muerta en una de esas lineas dejaba de verse, o sea el script quedaba
+            # PEOR que antes para ese caso. Cinco sitios en el index.html vivo.
+            if c == "/" and s[i - 1:i] == "\\":
+                out.append(c); i += 1; continue
             if c == "/" and d == "/":
                 estado = "linea"; i += 2; continue
             if c == "/" and d == "*":
@@ -151,6 +160,24 @@ def cargar(ruta):
     crudo = io.open(ruta, encoding="utf-8", errors="replace").read()
     limpio = sin_comentarios(crudo)
     assert limpio.count("\n") == crudo.count("\n"), "el despojador corrio las lineas"
+    # ⚠️ AUTOCHEQUEO · el assert de arriba NO ve el defecto que importa: la rama "linea" conserva el
+    # salto, asi que comerse media linea de codigo deja el conteo intacto. Esto mira el sintoma
+    # directo: una linea con `\/` cuyo limpio quedo mas corto que el crudo hasta esa barra.
+    # ⚠️ SE MIRA SI LA BARRA SIGUE AHI, no la longitud. Mi primera version comparaba
+    # `len(li[k].rstrip()) <= j` y NO DISCRIMINABA: sin el parche el limpio termina justo DESPUES
+    # del `\`, o sea en `j + 1`, asi que la condicion era falsa y el autochequeo pasaba igual.
+    # Lo cazo correr el discriminador (quitar las dos lineas del parche y ver si salta): no saltaba.
+    # Un autochequeo que no puede fallar es peor que no tenerlo, porque cierra la pregunta.
+    cr, li, sospechosas = crudo.split("\n"), limpio.split("\n"), []
+    for k, l in enumerate(cr):
+        j = l.find("\\/")
+        if j < 0:
+            continue
+        if li[k][j:j + 2] != "\\/":
+            sospechosas.append(k + 1)
+    assert not sospechosas, (
+        "el despojador se comio codigo en estas lineas (barra escapada leida como comentario): %s"
+        % sospechosas[:8])
     return limpio.split("\n")
 
 
