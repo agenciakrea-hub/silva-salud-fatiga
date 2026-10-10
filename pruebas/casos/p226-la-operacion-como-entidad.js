@@ -3194,9 +3194,16 @@ PRUEBAS.caso('🔴 R13-1 · ningún motivo puede caer en el texto de respaldo, q
      otro borde. Este caso lee el `.gs` REAL y cruza las tres listas; no comprueba comportamiento,
      comprueba que las tres no se separen. */
   const gs = CTX.gs;
+  /* ⚠️ EL CORTE VA HASTA `opDetalleNoVigente_`, NO HASTA `opErrorNoVigente_`, y esto lo movió
+     `P227g`: el detalle se separó del prefijo, así que los literales de los motivos viven ahora en
+     `opDetalleNoVigente_` y `opErrorNoVigente_` quedó con un solo `return` compuesto. Con el corte
+     viejo, ese `return det;` entraba en `cuerpoMotivo` y el primer aserto lo reportaba como «un
+     `return` que no devuelve literal» — el caso en rojo por la FORMA del código, no por el
+     invariante, que sigue intacto: las tres listas no se separan. Es otra vez «los barridos leen
+     formas, no código». */
   const cuerpoMotivo = gs.slice(gs.indexOf('function opMotivoNoVigente_'),
-                                gs.indexOf('function opErrorNoVigente_'));
-  const cuerpoTexto  = gs.slice(gs.indexOf('function opErrorNoVigente_'));
+                                gs.indexOf('function opDetalleNoVigente_'));
+  const cuerpoTexto  = gs.slice(gs.indexOf('function opDetalleNoVigente_'));
   const sinComentarios = t => t.replace(/\/\*[\s\S]*?\*\//g, '')
                                .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
   /* ⚠️ EL EXTRACTOR VEÍA UNA DE SEIS FORMAS, y la que no veía es la que la casa usa. La regex pedía

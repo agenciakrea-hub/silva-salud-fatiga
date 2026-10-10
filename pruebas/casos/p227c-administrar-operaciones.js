@@ -589,12 +589,15 @@ PRUEBAS.caso('🔴 P227c-13 · «no cambió nada» gana sobre «no cuenta todav�
        español y la clave de `ERR_MOTIVO` en otro. La imprecisión («se guardó» sobre un reenvío que
        no escribió, aunque la fila SÍ está en el CH de antes) queda anotada en el `.gs`. Lo que este
        caso protege es lo que de verdad importaba del hallazgo: que el motivo NO se tire. */
-    /* ⚠️ EL INVARIANTE ES «NO SE TIRA», no «dice tal frase». Mi versión anterior buscaba una
-       subcadena, que es frágil al texto exacto y fue justo lo que hizo fallar el caso por el
-       fixture. Lo que importa: el texto que el servidor mandó llega entero a la pantalla. */
-    PRUEBAS.igual(reenvio.txt, ERR_REAL,
-      '🔴 el texto del servidor llega ENTERO · es la parte que dice qué hacer, y tirarla deja a la ' +
-      'persona tocando sin entender por qué no aparece · ' + JSON.stringify(reenvio.txt));
+    /* ⚠️ EL INVARIANTE ES «EL DETALLE NO SE TIRA», y cambió de forma con `P227g`: antes el cliente
+       mostraba el `error` del servidor tal cual, y ahora **compone** el prefijo de su rama más el
+       detalle, así que el texto ya no es idéntico al `error`. Lo que no puede perderse es el
+       detalle —la parte que dice qué hacer— y eso es lo que se mide. `P227g` tiene su propio caso
+       para el prefijo. */
+    const DET_REAL = ERR_REAL.slice(ERR_REAL.indexOf(': ') + 2);
+    PRUEBAS.cierto(reenvio.txt.indexOf(DET_REAL) >= 0,
+      '🔴 el DETALLE llega entero · es la parte que dice qué hacer, y tirarla deja a la persona ' +
+      'tocando sin entender por qué no aparece · ' + JSON.stringify(reenvio.txt));
     PRUEBAS.igual(reenvio.accion, null, '🔴 ni ofrece «Deshacer» sobre cero celdas escritas');
     /* Y las formas SIN motivo siguen usando la clave propia: `ops_sin_cambio` no quedó inalcanzable. */
     PRUEBAS.igual(pasar({ ok:true, cambio:false, quitada:true, yaEstaba:true }).txt, t('ops_sin_cambio'),
@@ -845,4 +848,127 @@ PRUEBAS.caso('🔴 P227h · «Cardón 4» avisa que ya existe «Cardón IV», y 
       'DISCRIMINADOR · con la clave EXACTA no hay coincidencia · es por qué el aviso necesita la ' +
       'equivalencia de numerales, y por qué no alcanzaba con lo que ya había');
   } finally { Object.keys(prevO).forEach(k => { OPSADM[k] = prevO[k]; }); }
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P227f · LA CUENTA COMBINADA TAMBIÉN ES EL SUPERVISOR                          (2026-10-09)
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔒 P227f · la vista médica COMBINADA recibe las pantallas de supervisor, la separada no', () => {
+  if (typeof dashTabsFor !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ no está `dashTabsFor`: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo concede `dashTabsFor`, que pasó a recibir `combinada`.
+     ⚠️ LO QUE SE MIDIÓ, y cambió el prompt: cuando una empresa **no tiene contraseña médica
+     separada** (columna `ClaveMedica` de `Accesos` vacía), `validarAcceso` devuelve `vista:"medico"`
+     con `combinada:true` para su ÚNICA contraseña — la del supervisor. Esa persona ES las dos cosas,
+     el servidor le acepta las escrituras de ambas (su comentario dice que rechazar «medico» a secas
+     «dejaría afuera justamente al supervisor de toda empresa que todavía no separó los roles»), y
+     esta función le daba las nueve pestañas médicas y NINGUNA de supervisor: sin `aptitud` —donde
+     vive la tarjeta por operación— y sin el ciclo del día.
+     ⚠️ Los tres invariantes que este caso protege son tanto lo que se suma como lo que NO:
+       · el servicio médico SEPARADO no gana nada (era la condición de Franco);
+       · `opiniones` no se suma nunca a la vista médica — el buzón anónimo existe para no tener
+         nombres al lado, y la vista médica los tiene;
+       · HSEQ y empleado no cambian con `combinada`. */
+  const f = (rol, vista, comb) => dashTabsFor(rol, false, vista, null, comb);
+  const sep = f('empresa', 'medico', false), comb = f('empresa', 'medico', true);
+
+  PRUEBAS.falso(sep.indexOf('aptitud') >= 0,
+    '🔒 el servicio médico SEPARADO no tiene `aptitud` · era la condición de Franco · ' + JSON.stringify(sep));
+  PRUEBAS.cierto(comb.indexOf('aptitud') >= 0,
+    '🔴 la COMBINADA sí · es el supervisor de su empresa y ahí vive la tarjeta por operación · ' +
+    JSON.stringify(comb));
+  PRUEBAS.cierto(comb.indexOf('ciclo') >= 0, '🔴 y el ciclo operativo del día, que también es suyo');
+  PRUEBAS.falso(comb.indexOf('opiniones') >= 0,
+    '🔒 y NO gana `opiniones` · el buzón anónimo existe para no tener nombres al lado, y esta vista ' +
+    'los tiene · agregarlo acá rompería ese cortafuegos por la puerta de atrás');
+  /* Lo que la combinada suma es EXACTAMENTE eso: nada más se cuela. */
+  PRUEBAS.igual(comb.filter(x => sep.indexOf(x) < 0).sort(), ['aptitud','ciclo'],
+    '🔒 sólo esas dos de diferencia · ' + JSON.stringify(comb.filter(x => sep.indexOf(x) < 0)));
+  /* Las otras dos vistas no se mueven con `combinada`: el servidor nunca las manda combinadas, y si
+     alguna vez lo hiciera, esto lo deja sin efecto en vez de destapar pantallas. */
+  PRUEBAS.igual(f('empresa','hseq',true), f('empresa','hseq',false),
+    '🔒 HSEQ no cambia con `combinada`');
+  PRUEBAS.igual(f('empresa','empleado',true), f('empresa','empleado',false),
+    '🔒 ni la vista personal');
+  PRUEBAS.igual(f('empresa','supervisor',true), f('empresa','supervisor',false),
+    '🔒 ni la de supervisor, que ya las tenía');
+  /* DISCRIMINADOR · sin el argumento (como estaba antes), la combinada no gana nada. */
+  PRUEBAS.igual(dashTabsFor('empresa', false, 'medico', null), sep,
+    'DISCRIMINADOR · sin pasar `combinada` el resultado es el del médico separado · ' +
+    'es por qué el argumento hacía falta');
+});
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P227g · EL PREFIJO DICE LA VERDAD DE SU RAMA                                  (2026-10-09)
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+PRUEBAS.caso('🔴 P227g · el prefijo no afirma una escritura que no pasó, y el detalle se conserva', () => {
+  if (typeof opsDetalle !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ no está `opsDetalle`: este contrato queda SIN MEDIR'); return; }
+  /* El derecho lo conceden `opsDetalle` —que pide el detalle SIN prefijo, con la misma política que
+     `tError`: la clave gana si existe en el idioma, si no el texto del servidor— y las dos ramas de
+     `opsResultado`, que componen el prefijo que corresponde.
+     ⚠️ POR QUÉ, y por qué así: los cinco mensajes de «no queda asignada» arrancaban con «Se guardó,
+     pero…», y eso es **falso en los 32 estados** que el `.gs` documenta como «0 escriben una sola
+     celda». Partir el texto del SERVIDOR en dos es lo que `R12-6` rechaza con razón —`tError` usa el
+     del servidor en español y la clave en otro idioma, así que dos textos para un motivo son guía
+     OPUESTA por idioma—. La salida: el `error` del servidor NO cambió (R12-6 intacto) y además viaja
+     el `detalle` suelto; las claves `err_m_*` de los cuatro motivos pasaron a ser **sólo el
+     detalle**, y el prefijo lo pone la rama. El detalle sigue escrito una sola vez por idioma.
+     ⚠️ Los cuatro motivos son exclusivos de operaciones: medido, ningún otro camino los consume. */
+  const prevT = window.showToast, prevA = window.showToastAccion, prevD = DASH;
+  const v = [];
+  const ERR = 'Se guardó, pero esa persona no queda asignada a la operación: esa operación está cerrada.';
+  const DET = 'esa operación está cerrada.';
+  try {
+    DASH = { rol:'supervisor', vista:'supervisor', params:{}, f:{emp:'E'}, scope:'E' };
+    window.showToast = (m) => v.push(String(m));
+    window.showToastAccion = (m) => v.push('[undo] ' + String(m));
+    const pasar = (d) => { v.length = 0; opsResultado(d, 'ops_asignada', function(){}); return v[0] || ''; };
+
+    const noEscribio = pasar({ ok:true, cambio:false, repetida:true, vigente:false,
+      motivo:'operacion_cerrada', error:ERR, detalle:DET });
+    PRUEBAS.falso(/se guard[óo]/i.test(noEscribio),
+      '🔴 cuando NO escribió, el prefijo no dice «se guardó» · ' + JSON.stringify(noEscribio));
+    PRUEBAS.cierto(noEscribio.indexOf(DET) >= 0,
+      '🔴 y el detalle se conserva · es la parte que dice qué hacer · ' + JSON.stringify(noEscribio));
+
+    const siEscribio = pasar({ ok:true, cambio:true, nueva:true, vigente:false,
+      motivo:'operacion_cerrada', error:ERR, detalle:DET });
+    PRUEBAS.cierto(/se guard[óo]/i.test(siEscribio),
+      '🔴 cuando SÍ escribió, el prefijo lo afirma con razón · ' + JSON.stringify(siEscribio));
+    PRUEBAS.cierto(siEscribio.indexOf(DET) >= 0, '🔴 y también conserva el detalle');
+    PRUEBAS.falso(noEscribio === siEscribio,
+      '🔴 los dos mensajes son DISTINTOS · si colapsaran, las dos ramas dirían lo mismo y el prefijo ' +
+      'no mediría nada');
+
+    /* Compatibilidad: un endpoint anterior a GS 2026-10-09.5 no manda `detalle`. La clave ya está
+       sin prefijo, así que el mensaje se arma igual. */
+    const viejo = pasar({ ok:true, cambio:false, repetida:true, vigente:false,
+      motivo:'operacion_cerrada', error:ERR });
+    PRUEBAS.falso(/se guard[óo]/i.test(viejo),
+      '🔴 contra un endpoint VIEJO (sin `detalle`) tampoco dice «se guardó» · ' + JSON.stringify(viejo));
+    PRUEBAS.cierto(viejo.indexOf('cerrada') >= 0, 'y conserva el motivo igual');
+
+    /* Sin motivo del servidor, la clave propia: `ops_sin_cambio` no quedó inalcanzable. */
+    PRUEBAS.igual(pasar({ ok:true, cambio:false, quitada:true, yaEstaba:true }), t('ops_sin_cambio'),
+      '🔴 sin motivo, el texto propio · si no, la clave sería inalcanzable');
+
+    /* ⚠️ R12-6 SIGUE VALIENDO: las claves de los cuatro motivos NO llevan el prefijo. Si alguien se
+       lo vuelve a pegar, el mensaje de la rama «no escribió» dice las dos cosas y se contradice. */
+    const src = document.documentElement.outerHTML;
+    const conPrefijo = ['err_m_reincorporar_con_fechas','err_m_operacion_cerrada',
+                        'err_m_tramo_vencido','err_m_operacion_terminada']
+      .filter(k => new RegExp('\\b' + k + ":\\s*'(Se guardó|Saved)").test(src));
+    PRUEBAS.igual(conPrefijo, [],
+      '🔴 ninguna de las cuatro claves lleva el prefijo pegado · el prefijo lo pone la rama · ' +
+      JSON.stringify(conPrefijo));
+    /* DISCRIMINADOR · y las cuatro siguen DEFINIDAS en los dos idiomas (quitar el prefijo no las borró). */
+    const faltan = ['err_m_reincorporar_con_fechas','err_m_operacion_cerrada',
+                    'err_m_tramo_vencido','err_m_operacion_terminada']
+      .filter(k => (src.match(new RegExp('\\b' + k + "\\s*:\\s*'", 'g')) || []).length !== 2);
+    PRUEBAS.igual(faltan, [], 'DISCRIMINADOR · las cuatro definidas dos veces, una por idioma · ' +
+      JSON.stringify(faltan));
+  } finally { window.showToast = prevT; window.showToastAccion = prevA; try { DASH = prevD; } catch(e){} }
 });
