@@ -1280,6 +1280,27 @@
     border-radius: 10px; color: #fff; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
   .dash-refresh svg { width: 16px; height: 16px; }
   .dash-refresh.spin svg { animation: dashspin .7s linear infinite; }
+  /* F004 · El nombre del destino, sólo donde entra. En el celular la barra tiene seis elementos en
+     375 px y un texto más la parte; en escritorio sobra ancho y es justo donde se administra, así
+     que ahí los dos botones que LLEVAN A OTRA PANTALLA (Nómina, Operaciones) dicen a dónde van.
+     «Actualizar» y «✕» no la llevan: actúan sobre la pantalla donde ya estás, y el icono alcanza. */
+  .dash-ir-lbl { display: none; }
+  /* ⚠️ Y LA PUERTA NUEVA TAMPOCO EXISTE EN EL CELULAR, que es lo que midió el caso de T3 al
+     ponerse en rojo. A 390 px la barra ya lleva seis elementos —atrás, logo, el nombre de la
+     empresa, Nómina, Actualizar y ✕—; el séptimo le come el ancho al nombre, y eso no es teoría:
+     con el botón puesto, `#dashScope` pasó de los 90 px que el caso le fuerza a **33 px reales**,
+     porque es un ítem flex sin `flex-shrink: 0` y el contenedor lo aprieta. Es literalmente la
+     queja de `F005` («muy espaciado, todo apretado, se sale de la pantalla») reaparecida en la
+     barra de arriba. En el teléfono queda el camino de siempre —Nómina → Operaciones—, que es
+     donde el espacio alcanza; la puerta directa vive en escritorio, que es donde se administra.
+     ⚠️ `!important` ES NECESARIO y no es pereza: `opsActualizarBoton()` escribe `style.display`
+     en línea, y una regla sin él nunca le gana. El permiso lo sigue decidiendo esa función —acá
+     no hay ninguna decisión de rol—: esto es sólo el ancho. */
+  /* ⚠️ `899.98px` Y NO `899px`. Con `899px` + `min-width: 900px` queda un hueco: un ancho
+     fraccionario —zoom del navegador, `devicePixelRatio` no entero— cae entre las dos y no engancha
+     ninguna, así que el botón aparece **y sin su etiqueta**, justo en el ancho donde la decisión
+     era que no apareciera. El repo ya tropezó con esto en `.ent-brand`. */
+  @media (max-width: 899.98px) { #opsFabTop { display: none !important; } }
   @keyframes dashspin { to { transform: rotate(360deg); } }
   .dash-top .portal-x { position: static; flex-shrink: 0; background: rgba(255,255,255,.1); color: #fff; }
   .dash-tabs { display: flex; gap: .35rem; padding: .65rem 1.2rem; border-bottom: 1px solid var(--linea); overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
@@ -1419,7 +1440,11 @@
     html, body { background: #fff !important; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     /* Fuera todo lo que no se puede tocar en papel */
-    .bottom-nav, .install, .gest-fab, .dash-top-actions, #dashRefreshBtn, .dfm-toggle,
+    /* ⚠️ `#nomFabBtn` y `#opsFabTop` van en esta lista por el mismo motivo que `#dashRefreshBtn`,
+       y faltaban: una A4 apaisada da ~1123 px, o sea NO engancha el corte de celular y SÍ el de
+       escritorio, así que el informe salía con «Nómina» y «Operaciones» impresos en el encabezado.
+       Son controles, no contenido. */
+    .bottom-nav, .install, .gest-fab, .dash-top-actions, #dashRefreshBtn, #nomFabBtn, #opsFabTop, .dfm-toggle,
     .dash-filters, .gest-quick, .gest-tools, .undo, .sim-bar, .imp-btn, .ctx-back,
     .an-row, .an-form, .rl-click, .pchip, .metric-picker, .dtab, .dash-tabs, .period-chips,
     .test-next-btn, .save-btn, .cancel-btn, .hh-edit,
@@ -2700,6 +2725,12 @@
        Se mantiene el área en 44 y se achica sólo el dibujo de adentro. */
     .portal-back, .dash-refresh, .dash-top .portal-x { width: 44px; height: 44px; font-size: 1rem; }
     .dash-refresh svg { width: 14px; height: 14px; }
+    /* ⚠️ VA DESPUÉS de la regla de arriba a propósito: esa fija `width: 44px` para toda
+       `.dash-refresh`, y con la misma especificidad ganaría la última. `.dash-top .dash-ir` suma
+       un selector más, así que gana esté donde esté, y además se lee en orden. */
+    .dash-top .dash-ir { width: auto; min-width: 44px; gap: .42rem; padding: 0 .72rem; }
+    .dash-top .dash-ir .dash-ir-lbl { display: inline; font-size: .74rem; font-weight: 700;
+      letter-spacing: .01em; white-space: nowrap; }
     /* El menú/filtros TAMBIÉN se despliega en escritorio (antes quedaba fijo abierto): expandido
        se comía ~180 px de alto entre pestañas, rango y selectores, y encima dejaba al Glosario en
        un renglón propio. Colapsado es una sola fila compacta: [Menú y filtros ▾] [Glosario]. */
@@ -7415,8 +7446,23 @@
           </div>
           <div class="dash-updated" id="dashUpdated"></div>
         </div>
-        <button class="dash-refresh" id="nomFabBtn" onclick="nominaListAbrir()" style="display:none" title="Nómina" aria-label="Nómina" data-i18n-attr="aria-label:nomlist_titulo;title:nomlist_titulo">
+        <button class="dash-refresh dash-ir" id="nomFabBtn" onclick="nominaListAbrir()" style="display:none" title="Nómina" aria-label="Nómina" data-i18n-attr="aria-label:nomlist_titulo;title:nomlist_titulo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h5"/></svg>
+          <span class="dash-ir-lbl" data-i18n="nomlist_titulo">Nómina</span>
+        </button>
+        <!-- F004 · LA SEGUNDA PUERTA A OPERACIONES, y la razón por la que existe: Franco la buscó
+             («intenté desde admin en aeroambulancias, y no pude, no sé dónde se hace») y no la
+             encontró, porque la única entrada vivía ADENTRO de la hoja de Nómina —dos toques y un
+             destino que el nombre de la puerta no anuncia—. Esta la pone en la misma barra, al
+             lado, y en escritorio con su nombre escrito: el icono mudo era la otra mitad del
+             problema. `#opsFabBtn`, el de adentro, NO se saca: quien ya está en la nómina lo tiene
+             a mano y sacarlo sería cambiarle el camino aprendido a quien sí lo encontró.
+             ⚠️ Los dos botones los muestra `opsActualizarBoton()`, que los recorre a los dos: el
+             permiso se deriva UNA vez. Dos criterios para la misma puerta es el defecto que este
+             repo más repitió. -->
+        <button class="dash-refresh dash-ir" id="opsFabTop" onclick="opsAbrir()" style="display:none" title="Operaciones" aria-label="Operaciones" data-i18n-attr="aria-label:ops_titulo;title:ops_titulo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          <span class="dash-ir-lbl" data-i18n="ops_titulo">Operaciones</span>
         </button>
         <button class="dash-refresh" id="dashRefreshBtn" onclick="dashRefresh(true)" title="Actualizar" aria-label="Actualizar" data-i18n-attr="aria-label:tar_actualizar;title:tar_actualizar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -7823,7 +7869,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.46';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.48';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -22047,7 +22093,31 @@ function dashTabsFor(rol, hasPvt, vista, costosCfg, combinada){
    R16: `_cargaUI` se declara SIN asignar, para no pisar lo que el arranque pudiera haber dejado. */
 let _cargaN = 0;
 var _cargaUI;
-function cargaIniciar(ui){ _cargaUI = ui || null; return ++_cargaN; }
+/* ⚠️ LAS PUERTAS DE LA BARRA SE CIERRAN MIENTRAS HAY UNA CARGA EN VUELO, y esto NO es cosmético.
+   `dashUpdateNomFab()` y `opsActualizarBoton()` deciden bien —son criterios complementarios
+   exactos—, pero tienen **un solo llamador**: el final de `renderDash()`. El `style.display` que
+   escriben queda en línea y **sobrevive a la sesión**: nada lo borra al volver al gate, al cerrar
+   sesión ni al cambiar de vista con el visor. Medido: con el panel de un supervisor abierto, un
+   `portalBackToGate()` deja `#nomFabBtn` y `#opsFabTop` en `display:''` —`DASH` sí queda en `null`,
+   pero las funciones no se vuelven a llamar—, y las cuatro rutas que muestran `#portalDash`
+   (los dos auto-login, el login manual y la demostración) lo hacen ANTES del primer `renderDash`
+   de la sesión nueva. O sea: quien entra después como **Dirección** ve en su barra, durante los
+   2-5 s de la lectura, las dos puertas que el criterio existe para esconderle — y las puede tocar,
+   porque `cargaZona()` deja la barra fuera del `inert` a propósito.
+   ⚠️ El agujero NO lo abrió `F004`: `#nomFabBtn` lo tenía igual y desde la Nómina se llegaba a
+   Operaciones en dos toques. Lo que cambió es que ahora la palabra «Operaciones» está escrita en la
+   barra de un panel que está por ser de otra persona, así que se cierra para los tres.
+   **Por qué acá y no en las cuatro rutas:** `cargaIniciar` es el punto por el que pasan TODAS las
+   cargas del panel y del gate —las siete de hoy y la que alguien agregue mañana—, y cerrar no
+   necesita saber de quién es la sesión. Abrir sí, y eso lo sigue decidiendo `renderDash` con el
+   dato ya en la mano. Falla cerrado: si una carga falla, las puertas quedan escondidas hasta el
+   próximo repintado, que es el lado correcto para equivocarse. */
+function dashPuertasCerrar(){
+  ['nomFabBtn', 'opsFabTop', 'opsFabBtn'].forEach(function (id) {
+    const e = document.getElementById(id); if (e) e.style.display = 'none';
+  });
+}
+function cargaIniciar(ui){ _cargaUI = ui || null; dashPuertasCerrar(); return ++_cargaN; }
 function cargaCancelar(){
   _cargaN++;                                           // invalida cualquier carga en vuelo
   const ui = _cargaUI; _cargaUI = null;
@@ -35909,7 +35979,35 @@ function portalReponerLoDeEmpresa(){
    🔒 El recorte de qué NO viaja (cédula, teléfono, correo) está en el servidor
    (`accionNominaListar`), no acá: no hay nada que ocultar en esta pantalla porque el dato
    sensible directamente nunca llega al navegador. */
-const NOMLIST = { datos: [], total: 0, registrados: 0, cargando: false };
+const NOMLIST = { datos: [], total: 0, registrados: 0, cargando: false, empresa: null };
+/* ⚠️ `NOMLIST.empresa` ES EL SELLO DE A QUIÉN PERTENECE LO QUE HAY CARGADO, y existe por un defecto
+   que `F004` destapó. `NOMLIST.datos` **no se invalida nunca** al cambiar de empresa: ni
+   `dashFilterChange('emp')`, ni `dashEmpresaAdminCambiar()`, ni `visorAplicar` lo tocan, y las dos
+   únicas escrituras del archivo están acá dentro. Hasta `F004` eso no se notaba porque la única
+   puerta a Operaciones vivía DENTRO de la hoja de Nómina, y `nominaListAbrir()` siempre llama a
+   `nominaListCargar()`: la lista se auto-sanaba en cada entrada. La puerta nueva de la barra
+   saltea ese refresco, y el gancho de `opsCargar` sólo pedía la nómina **si estaba vacía**.
+   El daño medido en el código, con admin que mira la empresa A y pasa a la B: `opsGenteHtml`
+   filtra los candidatos por `depClaveCliente(OPSADM.empresa)` contra una nómina que sigue siendo
+   la de A, no queda ninguno, y como `NOMLIST.datos.length` es mayor que cero se pinta **«Toda la
+   nómina ya está asignada a esta operación»** sobre una operación recién creada y vacía. Una frase
+   falsa que se lee como un dato — textualmente lo que el comentario de `ops_sin_candidatos` dice
+   haber cerrado, reabierto por la otra punta. Y no es transitorio: no hay ninguna recarga pendiente
+   que lo arregle.
+   ⚠️ EL SELLO ES LO QUE VIAJÓ EN EL PEDIDO, no `gestEmpresaActual()`. Son dos derivaciones
+   distintas y hay que resistir la tentación de mezclarlas: `dashAuth` manda
+   `DASH.f.emp || cred.empresa || cred.usuario` y `gestEmpresaActual()` devuelve
+   `DASH.f.emp || DASH.scope || la recordada || "General"`. Sellar con una y comparar con la otra da
+   un desacuerdo permanente —recarga infinita o, peor, un «coincide» falso—, que es el defecto que
+   este repo pagó más veces. Por eso `nominaListEmpresaPedido()` es la única expresión que produce
+   los dos lados. */
+function nominaListEmpresaPedido(){
+  try { return String(dashAuth({}).empresa || ''); } catch (e) { return ''; }
+}
+/* ¿Lo que está cargado sirve para la empresa que se está mirando AHORA? */
+function nominaListSirve(){
+  return (NOMLIST.datos || []).length > 0 && NOMLIST.empresa === nominaListEmpresaPedido();
+}
 
 function dashUpdateNomFab(){
   const btn = document.getElementById('nomFabBtn'); if (!btn) return;
@@ -35959,6 +36057,7 @@ function nominaListCargar(){
      Es el hueco que el plan marcaba en una línea ("en la demo de supervisor no está la nómina"). */
   if (DASH && DASH.demoMode){
     NOMLIST.datos = nominaDemo();
+    NOMLIST.empresa = nominaListEmpresaPedido();   // el sello también en la demostración: un solo camino
     NOMLIST.total = NOMLIST.datos.length;
     NOMLIST.registrados = NOMLIST.datos.filter(x => x.registrado).length;
     NOMLIST.cargando = false;
@@ -35987,6 +36086,10 @@ function nominaListCargar(){
       NOMLIST.cargando = false;
       if (!d || !d.ok){ if (body) body.innerHTML = '<div class="nom-vacio">' + esc(tError(d)) + '</div>'; return; }
       NOMLIST.datos = d.nomina || [];
+      /* El sello se pone con la MISMA expresión que armó el pedido, y después de la respuesta: si
+         la empresa cambió mientras la nómina viajaba, lo que queda sellado es la de ahora y el
+         próximo consumidor pide de nuevo. Fallar hacia «no sirve» es el lado correcto. */
+      NOMLIST.empresa = nominaListEmpresaPedido();
       NOMLIST.total = Number(d.total) || NOMLIST.datos.length;
       NOMLIST.registrados = Number(d.registrados) || 0;
       nominaListPintarDeptos();
@@ -36312,12 +36415,27 @@ function depClaveCliente(s){
       para crear la primera.
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 function opsActualizarBoton(){
-  const btn = document.getElementById('opsFabBtn'); if (!btn) return;
+  /* F004 · DOS botones, UN criterio. El de la barra del panel (`opsFabTop`) y el de adentro de la
+     hoja de Nómina (`opsFabBtn`) abren la misma pantalla, así que el permiso se deriva una sola vez
+     y se aplica a los dos. Escribirlo dos veces es el defecto que este repo pagó más caro: el día
+     que el criterio cambie, el que quede viejo deja una puerta abierta o cerrada de más. */
+  const btns = ['opsFabTop', 'opsFabBtn']
+    .map(function (id) { return document.getElementById(id); })
+    .filter(Boolean);
+  if (!btns.length) return;
   /* Mismo criterio que Departamentos —todos menos el empleado— más Dirección fuera: el servidor le
-     rechaza las escrituras (`opPuedeEscribir` corta `vista === "hseq"`) y la puerta de la nómina ya
-     la esconde, así que esto es el segundo cerrojo del mismo candado. La vista médica entra a mirar
-     y el servidor le rechaza lo que escriba; `puedeEditar` apaga los controles. */
-  btn.style.display = (DASH && DASH.vista !== 'empleado' && DASH.vista !== 'hseq') ? '' : 'none';
+     rechaza las escrituras (`opPuedeEscribir` corta `vista === "hseq"`). La vista médica entra a
+     mirar y el servidor le rechaza lo que escriba; `puedeEditar` apaga los controles.
+     ⚠️ ESTE COMENTARIO DECÍA «es el segundo cerrojo del mismo candado, la puerta de la nómina ya
+     lo esconde», y con `F004` dejó de ser cierto: `#opsFabTop` vive en la barra del panel, afuera
+     de la nómina, así que acá ya no hay un primer cerrojo detrás del cual escudarse. Medido antes
+     de sacarlo afuera, que es lo que decidía si el cambio abría estados: el criterio de
+     `dashUpdateNomFab` es `!DASH || vista === "empleado" || vista === "hseq"` y éste es su
+     complemento EXACTO, los tres términos incluido el `!DASH`. O sea que quien ve el botón nuevo
+     ya veía el de la nómina y, adentro, el de operaciones: **cero estados nuevos**. Si alguno de
+     los dos criterios cambia y el otro no, esa igualdad se rompe sin que nada avise. */
+  const mostrar = (DASH && DASH.vista !== 'empleado' && DASH.vista !== 'hseq') ? '' : 'none';
+  btns.forEach(function (b) { b.style.display = mostrar; });
 }
 function opsAbrir(){
   const tit = document.getElementById('opsTitle');
@@ -36421,7 +36539,10 @@ function opsCargar(){
      poblaba, o sea el dato estaba y faltaba el repintado.
      ⚠️ `NOMLIST._prom` guarda la promesa en vuelo para que un segundo interesado se cuelgue de ella
      en vez de disparar un pedido más. */
-  if (!(NOMLIST.datos || []).length){
+  /* ⚠️ `nominaListSirve()` Y NO `.length`. Decía `if (!(NOMLIST.datos||[]).length)`, o sea: con la
+     nómina de OTRA empresa cargada no pedía nada y el selector se armaba contra ella. Ver el
+     comentario del sello, arriba de `nominaListEmpresaPedido`. */
+  if (!nominaListSirve()){
     try {
       const rn = (NOMLIST.cargando && NOMLIST._prom) ? NOMLIST._prom : nominaListCargar();
       if (rn && rn.then) rn.then(() => {
@@ -36643,7 +36764,11 @@ function opsGenteHtml(o, esBaja){
        operación» sobre una operación sin NADIE. Una frase falsa que además se lee como un dato:
        quien la ve concluye que no hay a quién asignar. Mientras la nómina viene, no se dice nada: la
        franja de carga ya está puesta. */
-    if (!cand.length && (NOMLIST.datos || []).length)
+    /* ⚠️ `nominaListSirve()` y no `.length`: la condición vieja daba `true` con la nómina de otra
+       empresa cargada, que es el estado exacto en el que `cand` queda vacío por el filtro de
+       empresa y la frase miente. Mientras la buena viene, no se dice nada — igual que en la primera
+       apertura: la franja de carga ya está puesta. */
+    if (!cand.length && nominaListSirve())
       h += '<div class="ops-nota">' + esc(t('ops_sin_candidatos')) + '</div>';
   }
   return h;

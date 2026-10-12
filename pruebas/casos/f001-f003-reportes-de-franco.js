@@ -251,3 +251,225 @@ PRUEBAS.caso('🔴 F007 · la pista del idioma se lee y se alinea con el TEXTO d
   PRUEBAS.falso(malo >= 4.5,
     'DISCRIMINADOR · `--text-muted` sobre ese navy NO llega a 4,5:1 · ' + malo.toFixed(2));
 });
+
+PRUEBAS.caso('🔴 F004 · Operaciones tiene puerta propia en la barra, y con el MISMO permiso que la Nómina', () => {
+  if (typeof opsActualizarBoton !== 'function' || typeof dashUpdateNomFab !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ faltan `opsActualizarBoton`/`dashUpdateNomFab`: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ QUÉ DERECHO SE AFIRMA Y QUIÉN LO CONCEDE (R19). El derecho a ver cada puerta lo conceden
+     dos funciones distintas: `dashUpdateNomFab()` para `#nomFabBtn` y `opsActualizarBoton()` para
+     `#opsFabTop` y `#opsFabBtn`. Eso es lo que hace que este caso valga la pena: hasta F004 el
+     botón de operaciones vivía ADENTRO de la hoja de Nómina y su comentario se escudaba en eso
+     («la puerta de la nómina ya lo esconde, esto es el segundo cerrojo»). Sacarlo a la barra del
+     panel le quita ese primer cerrojo, así que el único invariante que queda en pie es: **nadie
+     ve la puerta de Operaciones sin ver la de Nómina.**
+     ⚠️ NO se afirma la FORMA del criterio («vista !== hseq»): se afirma el invariante entre los
+     dos, que es lo que se rompe si alguien toca uno solo. Un aserto sobre la forma sobrevive a la
+     divergencia justamente en el caso que importa.
+     ⚠️ Los dos botones viven dentro de `#app`, que está en `display:none` sin sesión (R11), así
+     que acá NO se mide `offsetParent` ni visibilidad real: se mide el `style.display` que estas
+     dos funciones escriben, que es el dato que ellas producen. */
+  const ids = ['nomFabBtn', 'opsFabTop', 'opsFabBtn'];
+  const els = {}; ids.forEach(function (id) { els[id] = document.getElementById(id); });
+  const faltan = ids.filter(function (id) { return !els[id]; });
+  PRUEBAS.igual(faltan.join(','), '',
+    '🔴 los tres botones existen en el HTML · `#opsFabTop` es la puerta nueva de F004 · faltan: ' + faltan.join(','));
+  if (faltan.length) return;
+
+  const previos = {}; ids.forEach(function (id) { previos[id] = els[id].style.display; });
+  const dashPrevio = (typeof DASH !== 'undefined') ? DASH : undefined;
+  const mostrado = function (id) { return els[id].style.display !== 'none'; };
+  const corrida = function (vista) {
+    DASH = vista === null ? null : { vista: vista };
+    dashUpdateNomFab(); opsActualizarBoton();
+    return { nom: mostrado('nomFabBtn'), top: mostrado('opsFabTop'), dentro: mostrado('opsFabBtn') };
+  };
+  try {
+    /* Las cinco vistas que el servidor puede mandar, más el estado sin panel. */
+    const vistas = [null, 'empleado', 'hseq', 'medico', 'supervisor', 'admin'];
+    let abiertas = 0, cerradas = 0, fugas = [];
+    vistas.forEach(function (v) {
+      const r = corrida(v);
+      if (r.nom) abiertas++; else cerradas++;
+      /* EL INVARIANTE: la puerta nueva no puede estar abierta donde la de la nómina está cerrada. */
+      if (!r.nom && (r.top || r.dentro)) fugas.push(String(v) + ' → nom:no ops:' + (r.top ? 'top ' : '') + (r.dentro ? 'dentro' : ''));
+      /* Y las dos puertas a la MISMA pantalla no pueden discrepar entre ellas. */
+      if (r.top !== r.dentro) fugas.push(String(v) + ' → las dos puertas de Operaciones discrepan');
+    });
+    PRUEBAS.igual(fugas.join(' · '), '',
+      '🔴 nadie ve Operaciones sin ver la Nómina, y las dos puertas de Operaciones dicen lo mismo · ' + fugas.join(' · '));
+    /* DISCRIMINADORES · sin estos dos, un criterio que devolviera siempre lo mismo pasaría. */
+    PRUEBAS.cierto(abiertas > 0, 'DISCRIMINADOR · alguna vista SÍ ve la nómina · si no, el invariante se cumple vacío');
+    PRUEBAS.cierto(cerradas > 0, 'DISCRIMINADOR · alguna vista NO la ve · si no, no hay nada que proteger');
+    /* DISCRIMINADOR 3 · romper el criterio de operaciones a propósito tiene que dar fuga. */
+    DASH = { vista: 'hseq' };
+    dashUpdateNomFab();
+    els.opsFabTop.style.display = ''; els.opsFabBtn.style.display = '';
+    PRUEBAS.cierto(!mostrado('nomFabBtn') && mostrado('opsFabTop'),
+      'DISCRIMINADOR · forzada a mano, la fuga que este caso busca SÍ se puede producir · el aserto de arriba no es decorativo');
+  } finally {
+    DASH = dashPrevio;
+    ids.forEach(function (id) { els[id].style.display = previos[id]; });
+  }
+});
+
+PRUEBAS.caso('🔴 F004 · la puerta nueva NO le come el ancho a la barra del celular', () => {
+  const btn = document.getElementById('opsFabTop');
+  const scope = document.getElementById('dashScope');
+  if (!btn || !scope){
+    PRUEBAS.cierto(false, '⚠️ faltan `#opsFabTop`/`#dashScope`: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ ESTE CASO EXISTE PORQUE EL DE T3 SE PUSO EN ROJO, y el rojo decía la verdad. La suite
+     corre la app en un iframe de 390 px. Con el botón nuevo en la barra, `#dashScope` —que es un
+     ítem flex sin `flex-shrink: 0`— pasó de los 90 px que T3 le fuerza a **33 px medidos**, y el
+     texto de una letra activó la marquesina. O sea: la barra de 390 px no tiene lugar para un
+     séptimo elemento, que es la misma queja de `F005` («se sale de la pantalla») una franja más
+     arriba. El derecho a ocupar ancho lo concede ahora el CSS —`@media (max-width: 899px)
+     { #opsFabTop { display: none !important } }`—, no `opsActualizarBoton()`, que sigue
+     decidiendo sólo el permiso por rol.
+     ⚠️ Por eso NO se mide `style.display` acá: esa propiedad la escribe la función de permiso y
+     diría «visible» igual. Se mide lo que de verdad decide el ancho, que es el `display`
+     COMPUTADO bajo el ancho real de esta ventana. */
+  const ancho = window.innerWidth;
+  const computado = getComputedStyle(btn).display;
+  if (ancho < 900){
+    PRUEBAS.igual(computado, 'none',
+      '🔴 bajo 900px la puerta nueva no ocupa la barra · ancho=' + ancho + ' display=' + computado);
+  } else {
+    PRUEBAS.cierto(computado !== 'none',
+      '🔴 de 900px para arriba la puerta nueva SÍ está · ancho=' + ancho + ' display=' + computado);
+  }
+  /* ⚠️ EL OTRO LADO DEL CORTE NO LO PUEDE EJECUTAR ESTA SUITE: `panel.html` fija el iframe en
+     390 px, así que `window.innerWidth` es siempre 390 y la rama de escritorio de arriba nunca
+     corre. Un caso que PARECE cubrir los dos lados y cubre uno es peor que uno que declara su
+     límite, así que acá se mide lo que sí se puede medir sin redimensionar: que **las dos** reglas
+     del corte existan y que sus condiciones sean complementarias. Lo pidió el verificador con un
+     escenario concreto: con el discriminador anterior —que sólo miraba el bloque de celular—
+     alguien podía escribir `min-width: 9000px` en el otro, el botón no existiría en NINGÚN ancho y
+     el caso seguía en verde. La rama de escritorio queda verificada A MANO (375/768/899/900/1366). */
+  const corte = { ocultaEnCelular: null, muestraEtiquetaEnEscritorio: null };
+  for (const hoja of document.styleSheets){
+    let reglas; try { reglas = hoja.cssRules; } catch (e) { continue; }
+    for (const r of (reglas || [])){
+      if (r.type !== CSSRule.MEDIA_RULE) continue;
+      const cond = r.conditionText || '';
+      for (const sub of (r.cssRules || [])){
+        const sel = sub.selectorText || '';
+        if (sel.indexOf('#opsFabTop') >= 0 && /max-width/.test(cond)) corte.ocultaEnCelular = cond;
+        if (sel.indexOf('.dash-ir-lbl') >= 0 && /min-width/.test(cond)) corte.muestraEtiquetaEnEscritorio = cond;
+      }
+    }
+  }
+  PRUEBAS.cierto(!!corte.ocultaEnCelular,
+    'DISCRIMINADOR 1 · existe la regla que la esconde en celular · ' + corte.ocultaEnCelular);
+  PRUEBAS.cierto(!!corte.muestraEtiquetaEnEscritorio,
+    'DISCRIMINADOR 2 · existe la regla que la muestra con su nombre en escritorio · si alguien pone un ancho imposible acá, el botón no existe en ninguna pantalla · ' + corte.muestraEtiquetaEnEscritorio);
+  /* Y que los dos números sean el MISMO corte: un `max-width: 400px` contra un `min-width: 900px`
+     dejaría 500 px de tierra de nadie, que es el hueco fraccionario que este cambio ya cerró una
+     vez (`899px` contra `900px`). Se comparan redondeados al entero de arriba. */
+  const num = (c) => { const m = /(\d+(?:\.\d+)?)px/.exec(c || ''); return m ? Math.ceil(parseFloat(m[1])) : null; };
+  PRUEBAS.igual(num(corte.ocultaEnCelular), num(corte.muestraEtiquetaEnEscritorio),
+    '🔴 los dos lados del corte usan el MISMO ancho · sin esto queda una franja sin ninguna de las dos reglas');
+});
+
+PRUEBAS.caso('🔒 F004 · la nómina de OTRA empresa no arma el selector ni la frase «ya está asignada»', () => {
+  if (typeof opsCargar !== 'function' || typeof nominaListSirve !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ faltan `opsCargar`/`nominaListSirve`: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ QUÉ DERECHO SE AFIRMA Y QUIÉN LO CONCEDE (R19). El derecho a reusar lo que hay cargado lo
+     concede `nominaListSirve()`, que compara `NOMLIST.empresa` —el sello que pone
+     `nominaListCargar()`— contra `nominaListEmpresaPedido()`. Los dos lados salen de la MISMA
+     expresión, `dashAuth({}).empresa`, a propósito: sellar con una derivación y comparar con otra
+     (`gestEmpresaActual()`) es el defecto que este repo pagó más veces.
+     ⚠️ POR QUÉ EXISTE ESTE CASO. Lo encontró el verificador de `F004`: `NOMLIST.datos` no se
+     invalida NUNCA al cambiar de empresa, y hasta `F004` eso no se notaba porque la única puerta a
+     Operaciones vivía dentro de la hoja de Nómina, que se recarga al abrirse. La puerta nueva de la
+     barra saltea ese refresco. Admin mirando A, pasa a B, toca Operaciones: el selector se armaba
+     contra la gente de A, el filtro por empresa lo dejaba vacío, y como había datos se pintaba
+     «Toda la nómina ya está asignada a esta operación» sobre una operación vacía. No transitorio.
+     ⚠️ Entra por `opsCargar`, no montando `NOMLIST` a mano (R17): lo que se mide es que el
+     LLAMADOR real vuelva a pedir la nómina, no que la función sepa comparar dos cadenas. */
+  const prevD = DASH, prevR = window.dashRequest;
+  const prevN = NOMLIST.datos, prevC = NOMLIST.cargando, prevE = NOMLIST.empresa;
+  const restaurar = () => {
+    try { DASH = prevD; } catch(e){}
+    window.dashRequest = prevR;
+    NOMLIST.datos = prevN; NOMLIST.cargando = prevC; NOMLIST.empresa = prevE;
+  };
+  const pedidos = [];
+  try {
+    window.dashRequest = function (params) {
+      pedidos.push(String((params && params.action) || ''));
+      return Promise.resolve({ ok:false, error:'cortado por el caso' });
+    };
+    /* La nómina quedó cargada mirando la empresa A. */
+    NOMLIST.cargando = false;
+    NOMLIST.datos = [{ persona:'Ana de la A', empresa:'Empresa A', cedula:'1' }];
+    NOMLIST.empresa = 'Empresa A';
+    /* Y ahora se está mirando la B — el estado real tras `dashEmpresaAdminCambiar()`. */
+    DASH = { rol:'supervisor', vista:'supervisor', demoMode:false, scope:'Empresa B',
+             f:{ emp:'Empresa B' }, params:{ usuario:'u', pass:'p', empresa:'Empresa B' } };
+    PRUEBAS.falso(nominaListSirve(),
+      '🔴 lo cargado NO sirve para la empresa que se mira ahora · sello=' + JSON.stringify(NOMLIST.empresa) +
+      ' pedido=' + JSON.stringify(nominaListEmpresaPedido()));
+    const r = opsCargar();
+    return Promise.resolve(r).then(() => {
+      PRUEBAS.cierto(pedidos.indexOf('nomina_listar') >= 0,
+        '🔴 se vuelve a PEDIR la nómina · antes no, porque la condición miraba `.length` · pedidos: ' + JSON.stringify(pedidos));
+      /* DISCRIMINADOR · con el sello correcto NO se vuelve a pedir: el arreglo no es «pedir siempre»,
+         que convertiría cada apertura de la hoja en un pedido de más. */
+      pedidos.length = 0;
+      NOMLIST.empresa = nominaListEmpresaPedido();
+      PRUEBAS.cierto(nominaListSirve(), 'DISCRIMINADOR · con el sello de ESTA empresa, lo cargado sí sirve');
+      const r2 = opsCargar();
+      return Promise.resolve(r2).then(() => {
+        PRUEBAS.igual(pedidos.indexOf('nomina_listar'), -1,
+          'DISCRIMINADOR · y entonces NO se pide de nuevo · pedidos: ' + JSON.stringify(pedidos));
+      });
+    }).finally(restaurar);
+  } catch (e) { restaurar(); throw e; }
+});
+
+PRUEBAS.caso('🔒 F004 · mientras una carga está en vuelo, las puertas de la barra están cerradas', () => {
+  if (typeof cargaIniciar !== 'function' || typeof dashPuertasCerrar !== 'function'){
+    PRUEBAS.cierto(false, '⚠️ faltan `cargaIniciar`/`dashPuertasCerrar`: este contrato queda SIN MEDIR'); return; }
+  /* ⚠️ QUÉ DERECHO SE AFIRMA Y QUIÉN LO CONCEDE (R19). Abrir las puertas lo deciden
+     `dashUpdateNomFab()` y `opsActualizarBoton()`, con el dato en la mano, al final de
+     `renderDash()`. CERRARLAS lo concede `dashPuertasCerrar()`, llamada desde `cargaIniciar()`.
+     ⚠️ POR QUÉ. Las dos funciones que deciden tienen un solo llamador, y el `style.display` que
+     escriben queda en línea y **sobrevive a la sesión**: medido, con el panel de un supervisor
+     abierto un `portalBackToGate()` deja `#nomFabBtn` y `#opsFabTop` visibles, y las cuatro rutas
+     que muestran `#portalDash` lo hacen ANTES del primer `renderDash` de la sesión nueva. Quien
+     entra después como Dirección veía durante 2-5 s —y podía tocar, porque `cargaZona()` deja la
+     barra fuera del `inert`— las dos puertas que el criterio existe para esconderle.
+     ⚠️ El aserto es sobre el INVARIANTE («ninguna puerta abierta durante una carga»), no sobre la
+     forma del criterio: el criterio por rol ya tiene su propio caso, y éste cubre la ventana en la
+     que ese criterio no corrió todavía. */
+  const ids = ['nomFabBtn', 'opsFabTop', 'opsFabBtn'];
+  const els = {}; ids.forEach(id => { els[id] = document.getElementById(id); });
+  if (ids.some(id => !els[id])){
+    PRUEBAS.cierto(false, '⚠️ faltan botones en el HTML: este contrato queda SIN MEDIR'); return; }
+  const previos = {}; ids.forEach(id => { previos[id] = els[id].style.display; });
+  const prevD = DASH;
+  const abiertas = () => ids.filter(id => els[id].style.display !== 'none');
+  try {
+    /* Una sesión anterior dejó las tres puertas abiertas. */
+    ids.forEach(id => { els[id].style.display = ''; });
+    PRUEBAS.igual(abiertas().length, 3, 'guarda: arrancan abiertas · si no, el caso no mide nada');
+    /* Arranca CUALQUIER carga — un login, el visor, un cambio de empresa: todas pasan por acá. */
+    cargaIniciar({ gate: document.getElementById('portalDash') });
+    PRUEBAS.igual(abiertas().join(','), '',
+      '🔴 ninguna puerta queda abierta mientras la carga viaja · abiertas: ' + abiertas().join(','));
+    /* DISCRIMINADOR · y se vuelven a abrir con el dato en la mano, o el arreglo sería «apagarlas
+       para siempre», que rompe la pantalla en vez de protegerla. */
+    DASH = { vista:'supervisor', f:{ emp:'Empresa Uno' } };
+    dashUpdateNomFab(); opsActualizarBoton();
+    PRUEBAS.igual(abiertas().length, 3,
+      'DISCRIMINADOR · con una sesión de supervisor vuelven las tres · abiertas: ' + abiertas().join(','));
+    /* DISCRIMINADOR 2 · y para Dirección no vuelve ninguna, que es a quién protege todo esto. */
+    DASH = { vista:'hseq', f:{ emp:'Empresa Uno' } };
+    dashUpdateNomFab(); opsActualizarBoton();
+    PRUEBAS.igual(abiertas().join(','), '',
+      'DISCRIMINADOR 2 · Dirección no recupera ninguna · abiertas: ' + abiertas().join(','));
+  } finally {
+    try { DASH = prevD; } catch(e){}
+    ids.forEach(id => { els[id].style.display = previos[id]; });
+  }
+});
