@@ -432,7 +432,7 @@ PRUEBAS.caso('el estado global se declara SIN asignar (R16): "= null" pisaría l
   PRUEBAS.falso(/^var _splLangHint\s*=/m.test(fuente), 'y no puede volver a llevar asignación');
 });
 
-PRUEBAS.caso('⚠️ el color de la pista pasa 4,5:1 en los DOS temas, sobre el navy del splash y sobre la tarjeta clara de escritorio', () => {
+PRUEBAS.caso('⚠️ el color de la pista pasa 4,5:1 en los DOS temas y en los dos anchos, sobre el fondo REAL', () => {
   const ov = document.getElementById('splashOv');
   const teniaOv = ov.classList.contains('show');
   const temaPrevio = temaGuardado();
@@ -449,8 +449,27 @@ PRUEBAS.caso('⚠️ el color de la pista pasa 4,5:1 en los DOS temas, sobre el 
       });
       PRUEBAS.enVentana(1366, 800, () => {
         const color = getComputedStyle(hint).color;
-        const card = CTX.token('var(--card)');
-        resultados['card-' + tema] = CTX.contraste(color, card);
+        /* ⚠️ EL FONDO SE MIDE, NO SE ASUME, y antes esta línea tomaba `var(--card)` por decreto
+           «porque en escritorio la pista cae sobre la tarjeta clara». **Medido el 2026-10-12: es
+           falso.** Con `#splashOv` abierto a 1366×800, lo que hay detrás del texto de la pista es
+           el navy del propio overlay (`rgb(14,42,86)`); las únicas superficies con `--card` dentro
+           del splash son las láminas del carrusel (`.spl-p`), que viven en `y≈515` mientras la
+           pista está en `y≈57` — **ninguna se solapa con ella**.
+           La misma premisa falsa estaba escrita en el CSS, en una regla que le ponía `--text-muted`
+           a la pista para escritorio: 2,80 sobre ese navy, ilegible, y es lo que Franco reportó
+           («gris sobre naranja, no se lee»). El caso no lo cazó porque medía contra un fondo
+           imaginario donde ese token sí pasa.
+           Ahora se toma el fondo real con `elementsFromPoint`, así que si mañana alguien mueve el
+           chip sobre una tarjeta clara, este caso lo ve. */
+        const r = hint.getBoundingClientRect();
+        const capas = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        let fondo = '';
+        for (let i = 0; i < capas.length; i++){
+          const bg = getComputedStyle(capas[i]).backgroundColor;
+          if (bg && !/rgba\(0, 0, 0, 0\)|transparent/.test(bg)){ fondo = bg; break; }
+        }
+        resultados['card-' + tema] = fondo ? CTX.contraste(color, fondo) : 0;
+        resultados['fondo-' + tema] = fondo;
       });
     });
   } finally {
@@ -460,8 +479,11 @@ PRUEBAS.caso('⚠️ el color de la pista pasa 4,5:1 en los DOS temas, sobre el 
   }
   PRUEBAS.alMenos(resultados['navy-claro'], 4.5, 'navy · tema claro: ' + resultados['navy-claro'] + ':1 (usa --entrada-tenue, invariante entre temas)');
   PRUEBAS.alMenos(resultados['navy-oscuro'], 4.5, 'navy · tema oscuro: ' + resultados['navy-oscuro'] + ':1');
-  PRUEBAS.alMenos(resultados['card-claro'], 4.5, 'tarjeta de escritorio (≥900px) · tema claro: ' + resultados['card-claro'] + ':1 (usa --text-muted, theme-aware)');
-  PRUEBAS.alMenos(resultados['card-oscuro'], 4.5, 'tarjeta de escritorio (≥900px) · tema oscuro: ' + resultados['card-oscuro'] + ':1');
+  PRUEBAS.alMenos(resultados['card-claro'], 4.5,
+    'escritorio (≥900px) · tema claro: ' + resultados['card-claro'] + ':1 sobre el fondo REAL ' +
+    resultados['fondo-claro'] + ' (medido, no asumido)');
+  PRUEBAS.alMenos(resultados['card-oscuro'], 4.5,
+    'escritorio (≥900px) · tema oscuro: ' + resultados['card-oscuro'] + ':1 sobre ' + resultados['fondo-oscuro']);
 });
 
 PRUEBAS.caso('el aria-label del botón de idioma también pasa por t()', () => {

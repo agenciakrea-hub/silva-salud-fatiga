@@ -180,3 +180,74 @@ PRUEBAS.caso('🔴 F003 · «Actividad reciente» respeta la persona filtrada', 
       'alcance, así que la suya puede existir fuera de esa ventana (R2)');
   } finally { try { DASH = prevD; } catch(e){} if (prevM) MOV = prevM; }
 });
+
+PRUEBAS.caso('🔴 F005 · en escritorio las hojas no se estiran a todo el ancho', () => {
+  /* Lo reportó Franco de la Nómina: «en admin se ve feo, o sea muy espaciado, todo apretado, se
+     sale de la pantalla». Medido en 1280 px: `.gest-sheet` tenía `width:100%` y `max-width:100%`,
+     así que la hoja medía **1280 px** y cada fila se estiraba a lo ancho completo.
+     ⚠️ Son las TRES que comparten `.gest-sheet` —Nómina, Departamentos y Operaciones—, no sólo la
+     que él nombró: arreglar una sola las dejaría distintas entre sí.
+     ⚠️ Se mide la REGLA y no el ancho renderizado: el pane de pruebas no tiene 1280 px y un
+     `getBoundingClientRect` acá daría el ancho del pane, no el del breakpoint. El invariante es que
+     exista el tope para `min-width:900px` y que NO exista fuera de esa media (en teléfono la hoja
+     va a pantalla completa a propósito). */
+  /* ⚠️ `.gest-sheet {` CON LA LLAVE, y mi primera versión buscaba `.gest-sheet` a secas: la PRIMERA
+     aparición en el archivo es `.gest-sheet, .dash-scroll, #portalDash, …` dentro de `@media print`,
+     así que el caso leía las reglas de impresión y fallaba sin que hubiera nada roto. Un barrido que
+     corta por un texto que aparece en varios lugares lee el equivocado. */
+  const src = document.documentElement.outerHTML;
+  const i = src.indexOf('.gest-sheet {');
+  PRUEBAS.alMenos(i, 0, 'guarda: la regla propia de `.gest-sheet` está en el CSS');
+  const tramo = src.slice(i, i + 2600);
+  PRUEBAS.cierto(/@media \(min-width: 900px\)[^}]*\{[^}]*\.gest-sheet\s*\{[^}]*max-width:\s*960px/.test(tramo.replace(/\s+/g, ' ')),
+    '🔴 hay tope de 960 px para escritorio · sin él la hoja mide lo que mida la pantalla');
+  PRUEBAS.cierto(/margin-inline:\s*auto/.test(tramo),
+    '🔴 y queda centrada · con el tope pero sin centrar, la hoja se pega a la izquierda');
+  /* DISCRIMINADOR · la regla base sigue siendo pantalla completa: el tope vive SÓLO en la media. */
+  const base = tramo.slice(0, tramo.indexOf('@media'));
+  PRUEBAS.cierto(/max-width:\s*100%/.test(base),
+    'DISCRIMINADOR · la regla base sigue en 100% · en teléfono la hoja ocupa la pantalla a propósito');
+});
+
+PRUEBAS.caso('🔴 F007 · la pista del idioma se lee y se alinea con el TEXTO del chip', () => {
+  const hint = document.getElementById('splashLangHint');
+  const btn  = document.getElementById('splashLangBtn');
+  if (!hint || !btn) { PRUEBAS.cierto(false, '⚠️ no está el chip de idioma: este contrato queda SIN MEDIR'); return; }
+  /* Lo reportó Franco: «el texto de abajo está desalineado con el botón, y además gris sobre
+     naranja, no se lee».
+     ⚠️ LAS DOS COSAS ESTABAN MEDIDAS Y ERAN CIERTAS:
+       · alineación: la pista se alineaba con el BORDE del chip, no con su TEXTO — 15 px de
+         diferencia, que es exactamente el padding lateral del botón (14,4 px);
+       · contraste: una regla dentro de `@media (min-width: 900px)` le ponía `--text-muted` sobre el
+         navy del splash → **2,80**, muy por debajo de 4,5:1. Su comentario afirmaba que «la pista
+         cae sobre la tarjeta clara acá» y la medición dijo lo contrario: el chip vive en
+         `.splash-der`, que sigue sobre el navy. La regla se quitó. */
+  const src = document.documentElement.outerHTML;
+  PRUEBAS.falso(/\.splash-lang-hint\s*\{\s*color:\s*var\(--text-muted\)/.test(src),
+    '🔴 ninguna regla le pone `--text-muted` · ese token mide 2,80 sobre el navy del splash');
+  const reglas = (src.match(/\.splash-lang-hint\s*\{[^}]*color[^}]*\}/g) || []);
+  PRUEBAS.igual(reglas.length, 1,
+    '🔴 UNA sola regla fija su color · dos reglas es cómo volvió el defecto · ' + reglas.length);
+  PRUEBAS.cierto(/--entrada-tenue/.test(reglas[0] || ''),
+    '🔴 y es el token medido sobre navy (6,76) · ' + (reglas[0] || '').slice(0, 80));
+  PRUEBAS.cierto(/\.splash-lang-hint\s*\{[^}]*padding-right:\s*\.9rem/.test(src.replace(/\s+/g, ' ')),
+    '🔴 y lleva el padding del chip · sin él su texto queda 15 px corrido del de «ES»');
+  /* El contraste se calcula de verdad, con los tokens resueltos: si alguien cambia el valor de
+     `--entrada-tenue` en el futuro, esto cae. */
+  const probe = (tok) => { const s = document.createElement('span'); s.style.color = 'var(' + tok + ')';
+    document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
+  const rgb = (c) => (c.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+  const lum = (c) => { const [r, g, b] = rgb(c).map(v => { v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const L1 = lum(a), L2 = lum(b);
+    return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); };
+  const navy = probe('--navy');
+  const c = ratio(probe('--entrada-tenue'), navy);
+  PRUEBAS.cierto(c >= 4.5,
+    '🔴 el contraste real pasa 4,5:1 sobre el navy del splash · ' + c.toFixed(2));
+  /* DISCRIMINADOR · el token que se quitó NO lo pasa: si pasara, el arreglo no medía nada. */
+  const malo = ratio(probe('--text-muted'), navy);
+  PRUEBAS.falso(malo >= 4.5,
+    'DISCRIMINADOR · `--text-muted` sobre ese navy NO llega a 4,5:1 · ' + malo.toFixed(2));
+});

@@ -3173,8 +3173,13 @@
      pantalla. `--entrada-tenue` ya está medido para pasar 4,5:1 sobre el navy del splash (es el
      mismo que usa la credencial normativa del pie). `pointer-events:none` porque no hace nada al
      tocarlo: quien quiere cambiar de idioma toca el chip de arriba. */
+  /* ⚠️ F007 · `padding-right` IGUAL AL DEL CHIP, y sin esto la pista se alineaba con el BORDE del
+     botón en vez de con su TEXTO: medido, «Idioma» quedaba **15 px** corrido a la derecha de «ES»,
+     que es exactamente el padding lateral del chip (14,4 px). Los bordes coincidían —0 px— y por eso
+     parecía bien en una medición de cajas; lo que se ve desalineado son las dos palabras. */
   .splash-lang-hint { font-size:.66rem; font-weight:700; letter-spacing:.02em; line-height:1.2;
-    color:var(--entrada-tenue); pointer-events:none; text-align:right; max-width:92px; }
+    color:var(--entrada-tenue); pointer-events:none; text-align:right; max-width:92px;
+    padding-right:.9rem; box-sizing:content-box; }
   /* ⚠️ `position:static` con `z-index` a secas, y no `position:relative`. El logo se ancla con
      `position:absolute` a la esquina superior izquierda, y su contenedor es el ancestro POSICIONADO
      más cercano: mientras esto era `relative`, el logo se anclaba al CUERPO, así que al repartir el
@@ -4157,9 +4162,15 @@
     /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
        arriba sino dentro de la columna izquierda, en el flujo. */
     .splash-lang { background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
-    /* P043 · la pista también cae sobre la tarjeta clara acá: mismo criterio que arriba, tokens
-       theme-aware en vez del invariante de navy. */
-    .splash-lang-hint { color: var(--text-muted); }
+    /* ⚠️ F007 · ESTA REGLA SE QUITÓ, y su comentario decía algo FALSO. Afirmaba que «la pista
+       también cae sobre la tarjeta clara acá» y la medición dice lo contrario: el chip de idioma
+       vive en `.splash-der`, que en escritorio sigue sobre el overlay navy `#0e2a56`. Con
+       `--text-muted` (#666f82) el contraste era **2,80** —muy por debajo de 4,5:1, ilegible— en
+       TODO escritorio, porque la media query es `min-width: 900px`. Lo reportó Franco: «gris sobre
+       naranja, no se lee».
+       Sin esta línea vale la regla base con `--entrada-tenue`, que mide **6,76** sobre ese navy.
+       ⚠️ El BOTÓN sí cambia acá y está bien (fondo blanco, texto navy): esa parte del bloque queda,
+       porque el chip sí tiene su propio fondo claro. La pista no tiene fondo: hereda el navy. */
 
     /* ═══ B2 · Carrusel ═══
        El panel izquierdo queda QUIETO y sólo desliza el derecho: en escritorio el movimiento
@@ -4253,6 +4264,20 @@
   .gest-overlay { padding: 0; }
   .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
     padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sup-suave); }
+
+  /* ⚠️ F005 · LAS HOJAS NO SE ESTIRAN A TODO EL ANCHO EN ESCRITORIO. Lo reportó Franco de la
+     Nómina: «en admin se ve feo, o sea muy espaciado, todo apretado, se sale de la pantalla».
+     Medido en 1280 px: `.gest-sheet` tiene `width:100%` y `max-width:100%`, así que la hoja medía
+     **1280 px** y cada fila se estiraba a lo ancho completo — el nombre a la izquierda, el estado a
+     la derecha y un campo de aire en el medio. Es el patrón de «hoja» de teléfono: correcto ahí y
+     equivocado acá.
+     ⚠️ Son las TRES hojas, no sólo la Nómina: `nominaListOv`, `depOv` y `opsOv` comparten
+     `.gest-sheet` y las tres medían 1280. Arreglar una sola las dejaría distintas entre sí.
+     ⚠️ Sólo el ANCHO: el alto sigue en `100dvh`, porque de ahí cuelgan el scroll interno de la
+     lista y el encabezado fijo. 960 px es un tope que este archivo ya usa en otra pantalla. */
+  @media (min-width: 900px) {
+    .gest-sheet { max-width: 960px; margin-inline: auto; }
+  }
   /* `flex-wrap` · a 320 px con la letra grande el botón de la derecha quedaba 62 px fuera de la
      pantalla, sin forma de tocarlo. La cabecera la comparten Nómina, Departamentos y Gestiones. */
   .gest-top { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .9rem 1rem;
@@ -7798,7 +7823,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.43';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.46';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
