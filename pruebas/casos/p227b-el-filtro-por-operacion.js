@@ -281,7 +281,16 @@ PRUEBAS.caso('🔴 P227b-7 · ninguna función enumera ALGUNAS dimensiones del a
       demoIdiomaCambio:        'no enumera: copia los filtros enteros con `Object.assign({}, DASH.f)`',
       dashEffectiveRange:      'su cuerpo sólo usa `period`/`desde`/`hasta` · las menciones de `emp`/`per` ' +
                                'que el barrido le atribuye están en el COMENTARIO de la función siguiente, ' +
-                               'porque el corte es por `^function` y no sabe dónde termina un cuerpo'
+                               'porque el corte es por `^function` y no sabe dónde termina un cuerpo',
+      /* F003 (2026-10-12) · las dos del registro de movimientos. Aplican las TRES dimensiones que
+         el movimiento puede sostener —`emp` la aplica el servidor, y `per`/`dep` viajan en cada
+         fila: el payload es `{ts, tipo, que, persona, empresa, dep}`, medido en el `.gs`— y no las
+         otras dos, por un motivo que se puede verificar: */
+      movBloque:               'no puede aplicar `nivel` (se deriva con el cargo, que el movimiento ' +
+                               'no trae: daría un nivel distinto del que el panel usa para la misma ' +
+                               'persona) ni `op` (filtrarla esconderia la actividad del SISTEMA, que ' +
+                               'no tiene operación: altas de nómina, cierres de ciclo)',
+      movAlcanceTexto:         'ídem · rotula el mismo alcance que filtra `movBloque`'
     };
 
     const enumeradores = (texto) => {

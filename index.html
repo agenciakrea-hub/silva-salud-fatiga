@@ -1221,8 +1221,8 @@
     transform: rotate(-45deg); transition: transform .18s; margin: 0 .1rem 0 .15rem; }
   .visor-cab-btn[aria-expanded="true"] .visor-chev { transform: rotate(45deg); }
   .visor-t { flex-shrink: 0; font-size: .7rem; font-weight: 800; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
-  .visor-resumen { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; font-weight: 800; color: var(--orange-legible); }
-  .visor-resumen b { color: var(--text); font-weight: 800; }
+  .visor-resumen { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; font-weight: 800; color: var(--text-soft); }
+  .visor-resumen b { color: var(--orange-legible); font-weight: 800; }
   .visor-volver { flex-shrink: 0; min-height: 44px; padding: .3rem .65rem; border-radius: 999px; border: 1.5px solid var(--sup-borde);
     background: var(--sup-campo); color: var(--text); font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
   .visor-volver:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
@@ -1251,8 +1251,13 @@
   .visor-trabajo-nota { font-size: .76rem; line-height: 1.45; color: var(--text-muted);
     padding-bottom: .6rem; margin-bottom: .6rem; border-bottom: 1px solid var(--linea); }
   .visor-trabajo-nota b { color: var(--text); }
-  .visor-viendo { font-size: .8rem; font-weight: 700; color: var(--orange-legible); line-height: 1.4; }
-  .visor-viendo b { color: var(--text); }
+  /* ⚠️ F002 · EL NARANJA VA EN EL VALOR, NO EN LA FRASE, y estaba al revés. Lo dijo Franco:
+     «todas las empresas debería ser naranja y estás viendo negro debería ser, o sea está al
+     contrario». Tenía razón y el motivo es de lectura: lo que hay que notar de un vistazo es QUÉ
+     empresa y QUÉ vista, no la frase que los envuelve — pintar la frase entera de acento le quita
+     el acento justo a lo único que cambia. */
+  .visor-viendo { font-size: .8rem; font-weight: 600; color: var(--text-soft); line-height: 1.4; }
+  .visor-viendo b { color: var(--orange-legible); font-weight: 800; }
   @media (max-width: 420px) { .visor-sels { grid-template-columns: 1fr; } .visor-t { display: none; } }
   /* el acceso de administración: uso interno, con la marca y los datos técnicos a la vista */
   .adm-gate-cab { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: .2rem 0 .45rem; }
@@ -7793,7 +7798,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.40';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.43';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8581,6 +8586,10 @@ const I18N = {
       visor_vista:'Ver como', visor_sup:'Supervisor', visor_med:'Servicio médico', visor_hseq:'Dirección / HSEQ',
       visor_viendo:'Estás viendo el panel de <b>{empresa}</b> como <b>{vista}</b>, sin escribir nada.',
       visor_viendo_todas:'Estás viendo <b>todas las empresas</b> como <b>{vista}</b>.',
+      /* ⚠️ F002 · el visor APAGADO con una empresa de trabajo puesta. No dice «sin escribir nada»
+         —que es lo que distingue al visor— porque acá sí se escribe, y eso lo detalla la nota de
+         «trabajar sobre» justo arriba. */
+      visor_viendo_trabajo:'Estás viendo <b>{empresa}</b> como <b>{vista}</b>.',
       visor_guia:'<p>Elige una empresa y un rol, y verás <b>exactamente</b> el panel que ve esa persona: los mismos datos, los mismos recortes. No hace falta escribir ninguna contraseña.</p><p>Como <b>Dirección / HSEQ</b> las personas aparecen como P1, P2… porque ese panel no ve nombres: es lo que ve Dirección de verdad.</p><p>El visor es <b>sólo para mirar</b>: no restringe tareas, no marca ausencias ni firma determinaciones. Para actuar, entra con la contraseña de la empresa.</p>',
       visor_solo_lectura_nota:'El visor no escribe notas clínicas.',
       visor_informe_nota:'El visor no genera informes; el historial de arriba sí se puede leer.',
@@ -9562,6 +9571,9 @@ const I18N = {
       mov_vacio:'Todavía no hay actividad registrada.',
       mov_vacio_pista:'Cuando alguien contesta una prueba o se actualiza la nómina, aparece aquí.',
       mov_vacio_emp:'{emp} todavía no registra actividad.',
+      /* ⚠️ F003 · NO dice «no tuvo actividad»: la lista son los últimos movimientos del alcance, y
+         los de esa persona pueden existir fuera de esa ventana. Se afirma sólo lo que se sabe. */
+      mov_vacio_per:'No hay movimientos de {p} entre los últimos registrados.',
       mov_cargando:'Cargando la actividad…',
       mov_error:'No se pudo leer la actividad.',
       mov_reintentar:'Reintentar',
@@ -10767,6 +10779,7 @@ const I18N = {
       visor_vista:'View as', visor_sup:'Supervisor', visor_med:'Medical service', visor_hseq:'Management / HSEQ',
       visor_viendo:'You are viewing the <b>{empresa}</b> panel as <b>{vista}</b>, without writing anything.',
       visor_viendo_todas:'You are viewing <b>all companies</b> as <b>{vista}</b>.',
+      visor_viendo_trabajo:'You are viewing <b>{empresa}</b> as <b>{vista}</b>.',
       visor_guia:'<p>Pick a company and a role and you will see <b>exactly</b> the panel that person sees: same data, same cuts. No password needed.</p><p>As <b>Management / HSEQ</b> people show up as P1, P2… because that panel never sees names: it is what Management really sees.</p><p>The viewer is <b>read-only</b>: it does not restrict tasks, mark absences or sign determinations. To act, sign in with the company password.</p>',
       visor_solo_lectura_nota:'The viewer does not write clinical notes.',
       visor_informe_nota:'The viewer does not generate reports; the history above can be read.',
@@ -11809,6 +11822,7 @@ const I18N = {
       mov_vacio:'No activity recorded yet.',
       mov_vacio_pista:'When someone completes a test or the roster is updated, it shows up here.',
       mov_vacio_emp:'{emp} has no recorded activity yet.',
+      mov_vacio_per:'No activity from {p} among the latest records.',
       mov_cargando:'Loading activity…',
       mov_error:'Could not load activity.',
       mov_reintentar:'Retry',
@@ -21660,11 +21674,24 @@ function visorPintar(){
     cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
   $('visorVista').innerHTML = ['supervisor', 'medico', 'hseq'].map(k =>
     '<option value="' + k + '"' + (k === visAct ? ' selected' : '') + '>' + esc(visorVistaTxt(k)) + '</option>').join('');
+  /* ⚠️ F002 · ESTE MENSAJE AFIRMABA ALGO FALSO, y lo reportó Franco: con «trabajando sobre
+     Aeroambulancias» puesto, decía «Estás viendo **todas las empresas**». Miraba sólo
+     `DASH.visor.empresa` —el visor— e ignoraba `DASH.f.emp`, que es la empresa de trabajo. Y la
+     empresa de trabajo **también recorta la lectura**: `dashEmpresaAdminCambiar` la manda como
+     `params.empresa`, y `ausScope` se la devuelve al admin como alcance único. O sea el panel
+     mostraba UNA empresa mientras el cartel decía que las mostraba todas.
+     ⚠️ Los dos controles siguen siendo dos cosas distintas (ADR 014 el de trabajo, ADR 007 el
+     visor) y el mensaje lo dice: con el visor puesto agrega «sin escribir nada», que es su
+     diferencia real; con el visor apagado y una empresa de trabajo, no lo dice, porque ahí SÍ se
+     escribe. */
+  const empVista = empAct || empTrab;
   $('visorViendo').innerHTML = empAct
     ? t('visor_viendo', { empresa: esc(empAct), vista: esc(visorVistaTxt(visAct)) })
-    : t('visor_viendo_todas', { vista: esc(visorVistaTxt(visAct)) });
+    : (empTrab
+        ? t('visor_viendo_trabajo', { empresa: esc(empTrab), vista: esc(visorVistaTxt(visAct)) })
+        : t('visor_viendo_todas', { vista: esc(visorVistaTxt(visAct)) }));
   /* la línea plegada: «Consorcio HELITEC · Supervisor» o «Todas las empresas · Servicio médico» */
-  $('visorResumen').innerHTML = '<b>' + esc(empAct || t('visor_todas')) + '</b> · ' + esc(visorVistaTxt(visAct));
+  $('visorResumen').innerHTML = '<b>' + esc(empVista || t('visor_todas')) + '</b> · ' + esc(visorVistaTxt(visAct));
   /* el camino de vuelta, sólo cuando hace falta: fuera de «Todas · Servicio médico» */
   const volver = $('visorVolver');
   const enCasa = !empAct && visAct === 'medico';
@@ -23711,26 +23738,40 @@ function dashWireAnResMarquee(){
     }
   });
 }
+/* ⚠️ F001 · MIDE AL PONER EL TEXTO, y antes no lo hacía: 13 llamadas cambiaban el contenido y
+   NINGUNA volvía a medir, así que el chip se quedaba con la clase `.marquee` y la
+   `--marquee-dist` del texto ANTERIOR. El síntoma que reportó Franco: al elegir una empresa en
+   «trabajando sobre», el chip pasa a decir «Cargando…» —tres palabras que entran de sobra— y se
+   desplazaba la distancia que medía «Aeroambulancias Silva, C.A.», o sea se iba de pantalla. La
+   animación no estaba rota: estaba midiendo un texto que ya no estaba.
+   Se extrae la medición de UNO (`dashMedirMq`) para que la use tanto esto como el barrido. */
+function dashMedirMq(el){
+  if (!el) return;
+  const inner = el.querySelector('.mq-in');
+  if (!inner){ el.classList.remove('marquee'); el.style.removeProperty('--marquee-dist'); return; }
+  const sobra = inner.scrollWidth - el.clientWidth;
+  if (sobra > 2){
+    el.style.setProperty('--marquee-dist', (-sobra - 4) + 'px');
+    el.classList.add('marquee');
+  } else {
+    el.classList.remove('marquee');
+    el.style.removeProperty('--marquee-dist');
+  }
+}
 // T3 · pone texto en un contenedor que `dashWireMarquees()` puede medir y hacer deslizar si no entra.
 function dashSetMq(id, texto){
   const el = document.getElementById(id);
-  if (el) el.innerHTML = '<span class="mq-in">' + esc(texto) + '</span>';
+  if (!el) return;
+  el.innerHTML = '<span class="mq-in">' + esc(texto) + '</span>';
+  /* El texto cambió: la medición anterior ya no vale. Se vuelve a medir acá y no se espera al
+     barrido, porque entre un `dashSetMq` y el próximo `dashWireMarquees` puede pasar toda la
+     carga —que es justo cuando se ve el «Cargando…» mal puesto—. */
+  dashMedirMq(el);
 }
 // T3 · generaliza dashWireAnResMarquee a los cortes detectados en el resto del panel: el nombre de
 // la empresa/alcance, "toca ↻ para actualizar" y el título del informe ejecutivo colapsado.
 function dashWireMarquees(){
-  document.querySelectorAll('#dashScope, #dashUpdated, .inf-prev').forEach(el => {
-    const inner = el.querySelector('.mq-in');
-    if (!inner) return;
-    const overflow = inner.scrollWidth - el.clientWidth;
-    if (overflow > 2){
-      el.style.setProperty('--marquee-dist', (-overflow - 4) + 'px');
-      el.classList.add('marquee');
-    } else {
-      el.classList.remove('marquee');
-      el.style.removeProperty('--marquee-dist');
-    }
-  });
+  document.querySelectorAll('#dashScope, #dashUpdated, .inf-prev').forEach(dashMedirMq);
 }
 /* ⚠️ A2 · VOLVER A MEDIR AL CAMBIAR EL ANCHO. Lo encontró la auditoría de cierre y era un agujero
    de verdad, no un falso positivo del auditor: si entra o no entra depende del ancho, y hasta acá
@@ -24025,7 +24066,24 @@ function movCuando(ts){
    Se reusa la derivación que el panel ya tiene en otros dos lugares (`DASH.f.emp ||
    dashScopeVisible(DASH.scope)`) en vez de escribir una tercera: `DASH.scope` guarda SIEMPRE el
    canónico y cambia al entrar al visor. */
+/* ⚠️ F003 · ESTA FUNCIÓN Y `movBloque` MIRAN TRES DIMENSIONES DE CINCO, y está declarado en
+   `P227b-7` con su razón. Las tres son las que el movimiento **puede** sostener: `emp` la aplica el
+   servidor al armar la lista, y `per` y `dep` viajan en cada fila (medido: el payload es
+   `{ts, tipo, que, persona, empresa, dep}`).
+   Las dos que faltan no se aplican a propósito:
+     · `nivel` se deriva con `nivelRiesgoDe(persona, dep, empresa, cargo)` y el movimiento **no trae
+       cargo**: derivarlo sin él daría un nivel distinto del que el resto del panel usa para la misma
+       persona, y la actividad escondería o mostraría gente de forma incoherente con la pantalla.
+     · `op` se derivaría con `opNombresDe`, que necesita el índice de asignaciones; es alcanzable,
+       pero el registro de movimientos no es una vista de operaciones y filtrarlo por una
+       escondería la actividad del sistema (altas de nómina, cierres) que no tiene operación. */
 function movAlcanceTexto(){
+  /* F003 · con una persona o un departamento filtrados, el rótulo los nombra: si no, la lista dice
+     una cosa y el encabezado otra. */
+  const per = (DASH && DASH.f && DASH.f.per) || '';
+  if (per) return per;
+  const dep = (DASH && DASH.f && DASH.f.dep) || '';
+  if (dep) return dep;
   const emp = (DASH && DASH.f && DASH.f.emp) || '';
   if (emp) return emp;
   try {
@@ -24107,11 +24165,42 @@ function movCoberturaBloque(){
     cif(medidos, t('mov_cob_medidos')) + cif(faltan.length, t('mov_cob_faltan'), faltan.length > 0) +
     '</div>' + lista + '</div>';
 }
+/* ⚠️ F003 · LOS MOVIMIENTOS DE LA PERSONA FILTRADA, y antes mostraba los de todos. Lo reportó
+   Franco: «lo veo en todos los paneles a pesar de que estoy viendo particularmente el perfil de un
+   empleado dentro de aeroambulanciassilva, de última debería ver sólo actividad reciente de esa
+   persona». El bloque se pinta en el encabezado del panel —por eso aparece en todas las pestañas,
+   que es a propósito— pero sus filas ignoraban `DASH.f.per`.
+   ⚠️ Se compara con `dashNorm`, igual que el resto del panel: `registros[].persona` conserva la
+   grafía del formulario cuando la identidad no se resolvió al padrón, así que una comparación
+   exacta dejaría afuera a la misma persona escrita distinto. */
+function movItemsVisibles(items){
+  const F = (DASH && DASH.f) || {};
+  const per = F.per || '', dep = F.dep || '';
+  if (!per && !dep) return items || [];
+  const kp = per ? dashNorm(per) : '';
+  const kd = dep ? depClaveCliente(dep) : '';
+  return (items || []).filter(function (i) {
+    if (!i) return false;
+    if (kp && dashNorm(i.persona || '') !== kp) return false;
+    /* ⚠️ `dep` TAMBIÉN, y mi primera versión sólo miraba la persona porque supuse que el item no
+       traía el departamento. Lo midió el barrido de `P227b-7` y lo desmintió el productor: el
+       servidor manda `{ts, tipo, que, persona, empresa, dep}` por movimiento. Si el filtro de
+       departamento está puesto y la actividad muestra gente de otro, es el mismo defecto que
+       Franco reportó para la persona, en otra dimensión.
+       `depClaveCliente` y no `dashNorm`: es la que replica `norm()` del servidor, que es cómo se
+       comparan los departamentos en todo el panel (un tilde ya partió un departamento en dos). */
+    if (kd && depClaveCliente(i.dep || '') !== kd) return false;
+    return true;
+  });
+}
 function movBloque(){
   /* Sólo donde tiene sentido: el panel es de quien administra o supervisa. El empleado ve su
      propia pantalla, no un registro de movimientos de otras personas. */
   if (!DASH || DASH.rol === 'empleado') return '';
-  const A = movEstado();
+  const A0 = movEstado();
+  const _per = (DASH && DASH.f && DASH.f.per) || '';
+  const _dep = (DASH && DASH.f && DASH.f.dep) || '';
+  const A = (_per || _dep) ? Object.assign({}, A0, { items: movItemsVisibles(A0.items) }) : A0;
   const alc = esc(movAlcanceTexto());
   /* ⚠️ `dashHelp()`, la función que YA existe para esto (R5: guía cerrada por defecto, con
      `<details>` nativo y sin estado en JS). Mi primera versión llamó a un `guiaBloque(id, titulo,
@@ -24128,8 +24217,13 @@ function movBloque(){
   } else if (!A.items.length){
     /* ⚠️ EL VACÍO SE DICE, no se deja en blanco. Es la mitad del pedido: «que se sepa si hubo
        actividad o no». Un panel vacío es indistinguible de un panel roto. */
+    /* ⚠️ F003 · con una persona filtrada el texto NO puede afirmar que no tuvo actividad: lo que
+       llega son los últimos movimientos del alcance, así que la suya puede existir y haber quedado
+       fuera de esa ventana. Se dice sólo lo que se sabe. */
     const emp = (DASH && DASH.f && DASH.f.emp) || '';
-    cuerpo = '<p class="mov-nota">' + esc(emp ? t('mov_vacio_emp', { emp: emp }) : t('mov_vacio')) +
+    cuerpo = '<p class="mov-nota">' + esc(
+        _per ? t('mov_vacio_per', { p: _per })
+             : (emp ? t('mov_vacio_emp', { emp: emp }) : t('mov_vacio'))) +
              '</p><p class="mov-nota mov-nota-sub">' + esc(t('mov_vacio_pista')) + '</p>';
   } else {
     const sinFiltro = !((DASH && DASH.f && DASH.f.emp));
