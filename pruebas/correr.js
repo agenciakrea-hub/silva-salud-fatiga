@@ -211,6 +211,10 @@
       'font-weight:bold;font-size:14px;color:' + (rep.ok ? 'green' : 'red'));
     console.log(rep);
     window.__ULTIMO_REPORTE = rep;
+    /* ⚠️ P301 · S1 · Y SE LIMPIA AL TERMINAR. Lo que deje el último caso —un perfil, una credencial de
+       prueba— lo hereda el próximo arranque de la app en este origen, que corre ANTES de cualquier
+       candado de red y habla con el endpoint de producción. El reporte ya está en memoria. */
+    try { localStorage.clear(); } catch (e) {}
     return JSON.stringify(rep, null, 1);
 
   } catch (e) {

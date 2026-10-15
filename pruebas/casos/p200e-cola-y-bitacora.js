@@ -251,14 +251,21 @@ PRUEBAS.caso('🔴 P200e · marcar y anular una ausencia dejan su línea en la b
     '🔴 marcar deja UNA línea · antes dejaba cero, y marcar a alguien ausente lo saca del denominador de la cobertura de ese día: la app promete en Documentación que «cada acción con consecuencia queda anotada: quién, cuándo, sobre quién»');
   PRUEBAS.igual(String(b[0][2]), 'ausencia_marcada', 'con su acción');
   PRUEBAS.igual(String(b[0][3]), 'Ana Suárez', 'y su sujeto · sin sujeto, Trazabilidad la muestra como «Del sistema»');
-  PRUEBAS.igual(String(b[0][4]), 'Marta Supervisora', 'y quién la tomó');
+  /* P301 · la columna Actor es la CUENTA que autenticó (`p.usuario || p.empresa`, como
+     `accionCicloCerrar`), no `p.quien`, que lo escribe el teléfono. El nombre del perfil no se pierde:
+     queda como declarado en `detalle.quien` (y en `MarcadaPor`, que no cambió). */
+  PRUEBAS.igual(String(b[0][4]), 'helitec', 'y quién la tomó: la cuenta que autenticó, no el nombre que manda el teléfono (P301)');
+  PRUEBAS.igual((JSON.parse(String(b[0][12] || '{}')).detalle || {}).quien, 'Marta Supervisora',
+    'y el nombre del perfil queda como DECLARADO en `detalle.quien` · es el único dato de qué persona tocó, porque la cuenta es de la empresa');
 
   const r2 = JSON.parse(api.accionAusenciaGuardar(Object.assign({}, base, { anular:'1', quien:'Pedro Supervisor' })).getContent());
   PRUEBAS.igual(r2.anulada, true, 'guarda: se anuló');
   b = p200eBita(env);
   PRUEBAS.igual(b.length, 2, '🔴 y anular deja la suya · «quién la volvió a poner» es la otra mitad de la pregunta que R3 existe para contestar');
   PRUEBAS.igual(String(b[1][2]), 'ausencia_anulada', 'con su acción');
-  PRUEBAS.igual(String(b[1][4]), 'Pedro Supervisor', 'y con QUIÉN anuló, que no es quien marcó');
+  PRUEBAS.igual(String(b[1][4]), 'helitec', 'anuló la misma cuenta (P301: el actor es la cuenta)');
+  PRUEBAS.igual((JSON.parse(String(b[1][12] || '{}')).detalle || {}).quien, 'Pedro Supervisor',
+    'y QUIÉN anuló, que no es quien marcó, queda declarado en `detalle.quien`');
 });
 
 PRUEBAS.caso('🔴 P200e · volver a marcar el mismo día no borra quién la había anulado', () => {

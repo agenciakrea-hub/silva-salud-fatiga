@@ -7869,7 +7869,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.48';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.49';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -19373,8 +19373,8 @@ function saveProfile(){
        panel entero, que bloquea la entrada de TODOS los campos, no sólo el botón — cierra el hueco
        de raíz en vez de parchear la guarda que quedó sin escribir. */
     conBloqueo('#setup .sheet', Promise.all([
-      (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass) : Promise.resolve(null),
-      (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass) : Promise.resolve(null)
+      (esSupervisor && supPass) ? validarSupervisorCreds(empresa, supPass, 'supervisor') : Promise.resolve(null),   // P301 · cada campo, su pestaña
+      (esServicioMedico && medPass) ? validarSupervisorCreds(empresa, medPass, 'medico') : Promise.resolve(null)
     ])).then(([resSup, resMed]) => {
       if (btn) btnSpin(btn, false);
       let bad = false;
@@ -19418,7 +19418,20 @@ function saveProfile(){
   finalizar();
 }
 // Verifica usuario+contraseña de supervisor contra el endpoint. 'ok' | 'bad' | 'unknown' (sin conexión)
-function validarSupervisorCreds(usuario, pass){
+/* ⚠️ P301 · Y MANDA LA PESTAÑA (`pedida`), como el login. `rol` es el campo que se está verificando:
+   'medico' para la contraseña médica, 'supervisor' para la de supervisor, 'hseq' para Dirección. Sin
+   `pedida`, en una cuenta COMBINADA el servidor contestaba la vista médica entera —comentarios y
+   puntajes— aunque acá sólo se mire `d.ok`: no se pintaba, pero viajaba (lo encontró el verificador de
+   P301). Sin `rol`, o con Dirección, se pide Supervisor: es la vista que menos datos trae, y en una
+   cuenta que no es combinada el servidor ignora `pedida` (la vista la decide la contraseña). */
+/* ⚠️ P301 · S2 · `exigirVista`: además de que la contraseña sirva, que abra la vista de ESE rol. Lo pide
+   sólo el ofrecimiento del rol (`rolConfirmar`), con el mismo criterio que el candado del login
+   (`PORTAL_VISTA === 'hseq' && d.vista !== 'hseq'`): sin él, alguien de Dirección en una cuenta
+   combinada activaba su rol con la contraseña de supervisor y su ranura quedaba con una clave que no es
+   la de Dirección. Devuelve 'otra_vista_<la que abrió>' en vez de 'ok'. El formulario de perfil no lo
+   pide y sigue igual. */
+function validarSupervisorCreds(usuario, pass, rol, exigirVista){
+  const pedida = (rol === 'medico') ? 'medico' : 'supervisor';
   if (DASH_DEMO) return Promise.resolve('unknown');
   /* ⚠️ P174 · EL `dispositivoId` NO ES OPCIONAL ACÁ. Sin él el servidor usa la cadena «sin-id» y
      el contador de intentos fallidos pasa a ser UNO SOLO para todos los dispositivos del mundo —lo
@@ -19427,9 +19440,13 @@ function validarSupervisorCreds(usuario, pass){
      seis POST con una contraseña cualquiera dejaban diez minutos sin poder ACTIVAR SU ACCESO a
      todo supervisor de esa empresa, mientras el portal —que sí manda el campo— los dejaba entrar:
      «el panel me abre pero activar mi acceso dice que la clave está mal». */
-  return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId() }) })
+  return fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST', body: JSON.stringify({ action:'supervisor', usuario:usuario, empresa:usuario, pass:pass, dispositivoId:dispositivoId(), pedida:pedida }) })
     .then(r => r.json())
-    .then(d => (d && d.ok) ? 'ok' : 'bad').catch(() => 'unknown');
+    .then(d => {
+      if (!(d && d.ok)) return 'bad';
+      if (exigirVista && d.vista !== rol) return 'otra_vista_' + String(d.vista || 'desconocida');
+      return 'ok';
+    }).catch(() => 'unknown');
 }
 function dashSaveCredsValues(usuario, pass){ try { localStorage.setItem(K_DASH_CREDS, JSON.stringify({ usuario:usuario, pass:pass })); } catch(e){} }
 // Credenciales de SERVICIO MÉDICO, guardadas aparte de las de supervisor (pueden ser distintas
@@ -20021,6 +20038,26 @@ function openPortalGate(){
     }
   }
 }
+/* ⚠️ P301 · F021 · LA RANURA DICE POR QUÉ PESTAÑA SE ENTRÓ, y el auto-login la perdía.
+   En una cuenta COMBINADA (sin contraseña médica en `Accesos`) la misma clave abre Supervisor y
+   Servicio médico, y lo que elige cuál es la pestaña: `portalLoginSupervisor` manda
+   `pedida: PORTAL_VISTA` y `accionSupervisor` la aplica (`if (!acc.visor && acc.combinada && …)`).
+   La sesión recordada guarda `vista:"medico"` para la combinada —`accionSesionCrear` no lee
+   `pedida`, y no tiene que leerla: fuera de `accionSupervisor` el servidor ve la combinada como
+   médica y el cliente lo da por hecho (`gestTiposMandables`)—, así que sin `pedida` el auto-login
+   abría SIEMPRE Servicio médico. Medido: una persona que en la nómina es sólo supervisor entra por
+   Supervisor, toca «recordar», vuelve, y le aparecían comentarios y puntajes.
+   El dato de qué pestaña eligió ya estaba en el teléfono: la RANURA donde `dashSaveCreds` guardó el
+   token (`rolCredClave(DASH.vista)`). Se manda igual que el login con contraseña: 'supervisor' o
+   'medico'; la de Dirección manda '' como manda ese login con `PORTAL_VISTA === 'hseq'`, y la del
+   administrador también '' (el servidor sólo mira `pedida` en una combinada, y el admin no lo es).
+   Desde la segunda vuelta de P301 el servidor además abre SUPERVISOR a la sesión de una combinada que
+   llega sin pestaña («Supervisor si no sabe»: la app vieja). O sea que, hoy, lo que esta función le
+   cuida a la persona es la ranura MÉDICA: sin `pedida:'medico'`, Servicio médico caería en Supervisor.
+   Función declarada (R16): la alcanza el arranque por `portalAbrirDirecto` → `openPortal`. */
+function portalPedidaDeRanura(credKey){
+  return credKey === K_DASH_CREDS ? 'supervisor' : (credKey === K_DASH_CREDS_MED ? 'medico' : '');
+}
 // Entra directo a la empresa con las credenciales guardadas (supervisor o servicio médico). Si ya no son válidas, cae al gate.
 function portalAutoLoginSupervisor(c, credKey){
   credKey = credKey || K_DASH_CREDS;
@@ -20032,8 +20069,10 @@ function portalAutoLoginSupervisor(c, credKey){
      que es por donde pasan todas las acciones, así que el resto de la app no se entera del cambio.
      `c.pass` sigue contemplado sólo por los dispositivos que todavía no migraron. */
   const secreto = c.token || c.pass;
+  /* P301 · `pedida` sale de la ranura (ver `portalPedidaDeRanura`). Viaja en `params`, que queda en
+     `DASH.params`: el refresco y los pedidos que siguen la llevan igual que tras un login. */
   const params = { action:'supervisor', usuario:c.usuario, empresa:c.usuario, pass:secreto,
-                   dispositivoId: dispositivoId() };
+                   dispositivoId: dispositivoId(), pedida: portalPedidaDeRanura(credKey) };
   conBloqueo('#portalDash', dashRequest(params).then(d => {
     if (!d || !d.ok){                                    // sesión cerrada / contraseña cambiada → volver al gate
       /* ⚠️ Q4d · SE CONSERVA EL USUARIO. Antes se borraba la credencial entera, así que el gate se
@@ -35119,10 +35158,20 @@ function rolConfirmar(btn){
      hoja sigue viva, y se puede tocar "Ahora no" y cerrarla — la respuesta llegaría a una pantalla
      que ya no está, y el `avanzarAlta()` de abajo se pisaría con el de `rolPosponer`. */
   conBloqueo('#rolOv .sheet',
-    validarSupervisorCreds(p.empresa || '', pass)
+    validarSupervisorCreds(p.empresa || '', pass, rol, true)   // P301 · la pestaña del rol, y que abra ESE rol
     .then(res => {
       btnSpin(btn, false);
       if (res === 'bad'){ if (err) err.textContent = t('rol_of_mal'); return; }
+      /* ⚠️ P301 · S2 · LA CONTRASEÑA SIRVE, PERO ABRE OTRO PANEL. No se activa: con la de supervisor de
+         una cuenta combinada, Dirección quedaba con esa clave en su ranura y su panel abría Servicio
+         médico —comentarios y puntajes— la primera vez. Los mismos textos que el candado del login. */
+      if (String(res).indexOf('otra_vista_') === 0){
+        const abre = String(res).slice('otra_vista_'.length);
+        if (err) err.textContent = (rol === 'hseq') ? t('adm_no_hseq')
+          : (rol === 'medico') ? t(abre === 'hseq' ? 'adm_es_hseq_no_med' : 'adm_es_sup_no_med')
+          : t('rol_of_mal');
+        return;
+      }
       /* 'unknown' = no se pudo hablar con el servidor. NO se activa: activar sin verificar sería
          guardar una contraseña sin saber si sirve, y la persona se enteraría recién al abrir el
          panel y ver un error que no puede relacionar con esta pantalla. */

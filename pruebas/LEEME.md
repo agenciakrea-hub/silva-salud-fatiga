@@ -70,6 +70,12 @@ Reglas que quedan: un caso que necesite una respuesta stubea `window.fetch`/`fet
 siempre y al restaurar vuelve al candado (`window.__redCandado`), no al `fetch` pelado. Lo que la
 app dispara ANTES de evaluar `correr.js` (el arranque del iframe) no lo cubre: por eso el arnés limpia
 `localStorage` antes de cargar. `humo-red.js` lo prueba con discriminador (un pedido local sí llega).
+⚠️ **Esa limpieza recién existe desde P301** (2026-10-14): hasta ahí este archivo y `correr.js` la daban por
+hecha y nadie la hacía. Un caso dejó guardada una contraseña de prueba, y el arranque siguiente de la app local
+la mandó al endpoint de producción. Ahora `panel.html` limpia `localStorage` y `sessionStorage` antes de cargar
+el iframe, y `correr.js` limpia el `localStorage` al terminar. Si corrés casos a mano en una pestaña con la app
+(`SOLO_CASOS`), la misma regla: antes de volver a abrir la app, `localStorage.clear()` desde una página que no
+sea la app (por ejemplo este archivo), para que el arranque no encuentre nada.
 
 ## Correr UN archivo mientras se trabaja (2026-09-15)
 
@@ -334,6 +340,22 @@ La salida fácil sería copiarlo adentro y ponerlo en `.gitignore`. No se hace, 
 `_check.js` y `_harness.js` estaban listados en `.gitignore` **y aun así publicados en GitHub**,
 porque se commitearon antes de que se agregara el ignore. Si esa secuencia se repitiera con una
 copia del `.gs`, lo que se publica es una clave de API.
+
+## Otro `.gs` y el banco de sesiones (P301, para P303 · 2026-10-14)
+
+`servir-gs.py` puede servir OTRO `.gs` sin copiarlo: `--gs RUTA` cambia el de `/endpoint`, `--viejo RUTA`
+suma `/endpoint-viejo`, y `--puerto N` lo levanta aparte para no pisar al de la suite. Sin argumentos,
+idéntico a antes. Sirve para cargar el `.gs` de antes de un arreglo y el de ahora sobre el MISMO libro
+(`GS.cargarGs` sobre el mismo entorno), y como discriminador de la suite entera.
+
+`node pruebas/banco-sesiones.js correr` prueba de punta a punta lo que la suite no alcanza: sesiones
+recordadas EMITIDAS con la app y el `.gs` viejos (`git show <commit>:…`, la copia de `endpoint/respaldos/`),
+abiertas después con los nuevos, con el service worker de verdad. Cada «teléfono» es un puerto (un origen:
+su `localStorage` y su worker sobreviven al cambio de versión). Corre en Chrome sin cabeza (CDP con el
+`WebSocket` de Node, sin dependencias) porque **el panel del navegador de Claude no registra service
+workers** (medido: `getRegistrations()` da 0 con la app cargada). Nada sale de la máquina: a `index.html` se
+le inyecta un envoltorio de `fetch` que manda el endpoint al emulador y corta todo otro `script.google.com`.
+Cómo se usa, qué mide y qué no cubre: `docs/specs/P301/p303-preparacion.md` (fuera del repo).
 
 ## Cómo agregar un caso
 

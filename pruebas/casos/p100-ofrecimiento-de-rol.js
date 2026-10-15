@@ -289,7 +289,10 @@ PRUEBAS.caso('🔴 activar guarda la credencial y el flag · y el rol lo AUTORIZ
     avanzarAlta();
     PRUEBAS.cierto(p100Abierto(), 'precondición · la pantalla tiene que estar abierta para poder escribir');
     document.getElementById('rolPass').value = P100_PASS;
-    window.fetch = p100Stub({ ok:true });
+    /* P301 · S2 · con la forma REAL de la respuesta: `accionSupervisor` siempre manda `vista`, y desde P301
+       el ofrecimiento exige que sea la del rol (con `{ok:true}` pelado, una contraseña que abre otro panel
+       activaba el rol: así Dirección de una combinada quedaba con la clave de supervisor). */
+    window.fetch = p100Stub({ ok:true, vista:'supervisor' });
     rolConfirmar(document.querySelector('#rolOv .save-btn'));
     await p100Tick(40);
 
@@ -434,7 +437,7 @@ PRUEBAS.caso('🔴 el servicio médico va a SU ranura, no a la de supervisor', a
     PRUEBAS.igual(document.getElementById('rolPassLbl').textContent, t('rol_of_pass_med'),
       '⚠️ y la etiqueta pide la contraseña MÉDICA · pedir "la de la empresa" a secas provoca el intento fallido');
     document.getElementById('rolPass').value = P100_PASS;
-    window.fetch = p100Stub({ ok:true });
+    window.fetch = p100Stub({ ok:true, vista:'medico' });   // P301 · S2 · la forma real: con la vista del rol
     rolConfirmar(document.querySelector('#rolOv .save-btn'));
     await p100Tick(40);
     PRUEBAS.cierto(!!(getProfile() || {}).esServicioMedico, 'queda como servicio médico');

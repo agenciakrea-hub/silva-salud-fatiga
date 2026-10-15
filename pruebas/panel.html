@@ -106,6 +106,13 @@ function cargarApp() {
     f.onerror = () => rej(new Error('no se pudo cargar la app en el iframe'));
     // Se recarga siempre, para que cada corrida arranque de una app limpia y no arrastre el
     // estado que dejó la corrida anterior.
+    /* ⚠️ P301 · S1 · EL ALMACÉN SE LIMPIA ANTES DE ARRANCAR LA APP. `correr.js` lo daba por hecho
+       («por eso el arnés limpia `localStorage` antes de cargar») y nadie lo hacía. El candado de red
+       recién se instala al evaluar `correr.js`, o sea DESPUÉS del arranque: si un caso dejó una
+       credencial de prueba guardada, el arranque del iframe la mandaba al endpoint de PRODUCCIÓN
+       (medido por el verificador de P301: `action=supervisor usuario=silva` con la contraseña de
+       prueba). El iframe es del mismo origen que este panel: es el mismo almacén. */
+    try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
     f.src = '/index.html?suite=' + Date.now();
   });
 }

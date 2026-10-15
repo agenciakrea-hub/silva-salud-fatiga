@@ -254,6 +254,10 @@ function __digestHex(bytes) {
     return out;
   };
   RangoFalso.prototype.getValue = function () { return this.getValues()[0][0]; };
+  /* P301 · lo usa la tarea `medir_appendrow_guion` para mostrar qué quedó en la celda. Devuelve el
+     TEXTO del valor guardado, sin aplicar formato de número ni de fecha: alcanza para ver «#ERROR!» o
+     un hash intacto, que es para lo que se lee. No sirve para medir cómo Sheets pinta un número. */
+  RangoFalso.prototype.getDisplayValue = function () { const v = this.getValue(); return v == null ? '' : String(v); };
   RangoFalso.prototype.setValues = function (vals) {
     for (let i = 0; i < vals.length; i++) {
       const fi = this._f - 1 + i;
