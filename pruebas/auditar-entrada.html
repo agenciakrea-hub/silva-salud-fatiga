@@ -119,7 +119,7 @@ async function auditar(){
   }
   log('autodiagnóstico OK: el auditor detecta las cuatro familias de defecto.');
 
-  const hallazgos = [], desbalances = [], vacias = [];
+  const hallazgos = [], desbalances = [], vacias = [], apartados = {};
   let corridas = 0;
 
   for (const p of PANTALLAS){
@@ -171,6 +171,9 @@ async function auditar(){
         const donde = p.nombre + ' · ' + w + 'px · ' + tema;
         ['contraste','carruseles','cortes','solapamientos','areasDeToque','superficiesClarasEnOscuro','cortesDeTinta']
           .forEach(k => (r[k] || []).forEach(x => hallazgos.push({ tipo: k, donde, que: x })));
+        /* P302 · lo que el auditor aparta A PROPÓSITO (`AUDITOR.FONDO_QUE_NO_VE`) sale en el informe con su
+           porqué y dónde: un elemento que no se mide y no se nombra es un defecto que se puede esconder. */
+        (r.sinMedirAProposito || []).forEach(x => { (apartados[x] = apartados[x] || []).push(donde); });
 
         if (p.nombre === 'splash' && w >= 900){
           const b = balance(doc, '.splash-wrap', '.splash-acciones', '.splash-pie');
@@ -196,7 +199,7 @@ async function auditar(){
     .map(u => ({ tipo: u.tipo, que: u.que, veces: u.dondes.length, ejemplo: u.dondes[0] }))
     .sort((a,b) => b.veces - a.veces);
 
-  window.RESULTADO = { corridas, hallazgos, resumen, desbalances, vacias };
+  window.RESULTADO = { corridas, hallazgos, resumen, desbalances, vacias, sinMedirAProposito: apartados };
   const porTipo = {}; resumen.forEach(x => porTipo[x.tipo] = (porTipo[x.tipo]||0)+1);
   /* ⚠️ UNA GUARDA CUYO RESULTADO NO APARECE EN EL INFORME NO ES UNA GUARDA. `vacias` se llenaba y
      se quedaba en `window.RESULTADO`, que nadie mira: si una pantalla no se abre, el informe decía
@@ -209,7 +212,9 @@ async function auditar(){
         : '') +
       'LISTO · ' + corridas + ' de ' + (PANTALLAS.length * ANCHOS.length * 2) + ' corridas\n' +
       'hallazgos únicos: ' + resumen.length + '  ' + JSON.stringify(porTipo) + '\n' +
-      'desbalances verticales: ' + desbalances.length + '\n\n' +
+      'desbalances verticales: ' + desbalances.length + '\n' +
+      'SIN MEDIR A PROPÓSITO (los mide otro instrumento): ' + Object.keys(apartados).length +
+      Object.keys(apartados).map(k => '\n  · ' + k + ' · en ' + apartados[k].length + ' corridas').join('') + '\n\n' +
       JSON.stringify(resumen.slice(0,25), null, 1) + '\n\n' +
       JSON.stringify(desbalances, null, 1));
 }

@@ -432,58 +432,430 @@ PRUEBAS.caso('el estado global se declara SIN asignar (R16): "= null" pisaría l
   PRUEBAS.falso(/^var _splLangHint\s*=/m.test(fuente), 'y no puede volver a llevar asignación');
 });
 
-PRUEBAS.caso('⚠️ el color de la pista pasa 4,5:1 en los DOS temas y en los dos anchos, sobre el fondo REAL', () => {
-  const ov = document.getElementById('splashOv');
-  const teniaOv = ov.classList.contains('show');
-  const temaPrevio = temaGuardado();
-  ov.classList.add('show');
-  const hint = document.getElementById('splashLangHint');
-  const resultados = {};
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P302 · LO QUE LA GEOMETRÍA PONE DEBAJO DE LA PISTA, Y DÓNDE QUEDA RESPECTO DEL CHIP
+   Lo usan este archivo y `f001-f003-reportes-de-franco.js`. Son `function` a propósito: las `const`
+   de un archivo de casos no se ven desde otro (LEEME, «Cómo agregar un caso»).
+
+   ⚠️ POR QUÉ NO `backgroundColor` NI `elementsFromPoint`. Con eso se dieron por buenos `F007` y `F034`,
+   dos veces: debajo de la pista hay un `::after` (que `elementsFromPoint` no devuelve) o un degradé
+   (que es `background-image`, no `backgroundColor`), y los dos instrumentos caían en el navy del
+   overlay, que no se ve ahí en ningún ancho. Acá se arma la pila de lo que pinta en cada punto de la
+   caja del texto, de arriba hacia abajo, cada capa con su color y su caja:
+     1. el fondo propio de la pista y el de sus envoltorios, si alguno lo tuviera;
+     2. los círculos de la banda (`::after` arriba de `::before`, por su `z-index`), recortados por la
+        banda y en TODA su deriva. La deriva sale de la hoja de estilos —las reglas que le ponen una
+        animación al pseudoelemento y sus `@keyframes`—, no del estado del momento: en esta pestaña
+        oculta `.sin-animaciones` la apaga, y quien tiene movimiento SÍ la ve;
+     3. el degradé de `.splash-wrap`, evaluado en esa x, y su `background-color`;
+     4. el fondo del overlay, que es lo último.
+   Una capa que tapa el punto SIEMPRE corta la pila. Una que lo tapa A VECES (un círculo que al derivar
+   entra y sale de él) suma su color y deja ver la de abajo: la pista tiene que leerse sobre las dos.
+   El píxel de verdad está en `pruebas/medir-pista-idioma.js` (la suite no rasteriza, R11); este
+   modelo se calibró contra él en P302 (`docs/specs/P302/`, fuera del repo).
+   ⚠️ Lo que el modelo no conoce no se adivina: otro elemento que pinte en ese punto, un degradé que no
+   sabe leer o una capa con transparencia parcial van a `sinModelar`, y el caso se pone rojo por eso.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+function p043Rgba(css) {
+  const m = String(css).match(/[\d.]+/g) || [];
+  return [+m[0] || 0, +m[1] || 0, +m[2] || 0, m.length >= 4 ? +m[3] : 1];
+}
+function p043RgbTexto(c) { return 'rgb(' + c.slice(0, 3).map(v => Math.round(v)).join(', ') + ')'; }
+
+/* Las reglas de estilo de un texto CSS, a cualquier profundidad (adentro de `@media` también), como
+   { sel, decl }. Sin comentarios y saltando las cadenas, para que una llave adentro de un texto no
+   desarme el recorrido. */
+function p043CssReglas(texto) {
+  const s = String(texto).replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const out = [], pila = [];
+  let ini = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '"' || ch === "'") { const j = s.indexOf(ch, i + 1); i = j < 0 ? s.length : j; continue; }
+    if (ch === '{') { pila.push({ pre: s.slice(ini, i).trim(), desde: i + 1 }); ini = i + 1; }
+    else if (ch === '}') { const b = pila.pop(); if (b && b.pre && b.pre[0] !== '@') out.push({ sel: b.pre, decl: s.slice(b.desde, i) }); ini = i + 1; }
+    else if (ch === ';') ini = i + 1;
+  }
+  return out;
+}
+/* Las animaciones que alguna regla le pone a `el::<nombre>` y los traslados de sus `@keyframes`, sin
+   resolver todavía los porcentajes (dependen del tamaño del pseudoelemento en cada ancho).
+   ⚠️ EL NOMBRE DE LA ANIMACIÓN SE LEE DEL TEXTO DE LA HOJA, NO DEL CSSOM, y no por gusto. La regla es
+   `animation: entDeriva var(--dur-deriva) …` y la sigue un `animation-delay` en el mismo bloque: con un
+   `var()` adentro, Chrome guarda los largos de `animation` como «pendientes de sustitución» y el CSSOM
+   los devuelve VACÍOS (`animation-name: ;`, medido en P302). Y el estilo calculado tampoco sirve: acá
+   la apagan `.sin-animaciones` y, en una máquina con movimiento reducido, la propia media query. Los
+   `@keyframes` sí se leen del CSSOM: no llevan `var()`. */
+function p043DerivaReglas(el, nombre) {
+  const fin = new RegExp('::?' + nombre + '$');
+  const kf = {};
+  const recorrer = (reglas, f) => { for (const r of reglas) { f(r); if (r.cssRules && !(r instanceof CSSKeyframesRule)) recorrer(r.cssRules, f); } };
+  for (const s of document.styleSheets) {
+    try { recorrer(s.cssRules, r => { if (r instanceof CSSKeyframesRule) kf[r.name] = r; }); } catch (e) {}
+  }
+  const nombres = new Set();
+  [...document.querySelectorAll('style')].forEach(st => p043CssReglas(st.textContent).forEach(r => {
+    const decls = (r.decl.match(/(^|;)\s*animation(-name)?\s*:[^;]*/g) || []).join(' ');
+    if (!decls) return;
+    r.sel.split(',').forEach(sel => {
+      sel = sel.trim();
+      if (!fin.test(sel)) return;
+      let ok = false;
+      try { ok = el.matches(sel.replace(fin, '') || '*'); } catch (e) { ok = false; }
+      if (!ok) return;
+      decls.split(/[\s,:;]+/).forEach(t => { if (kf[t]) nombres.add(t); });
+    });
+  }));
+  const caminos = [];
+  nombres.forEach(n => {
+    const pasos = [];
+    for (const k of kf[n].cssRules) {
+      const tr = { transform: (k.style.getPropertyValue('transform') || '').trim(), translate: (k.style.getPropertyValue('translate') || '').trim() };
+      k.keyText.split(',').forEach(x => { x = x.trim(); pasos.push({ en: x === 'from' ? 0 : x === 'to' ? 100 : parseFloat(x), tr }); });
+    }
+    pasos.sort((a, b) => a.en - b.en);
+    caminos.push({ nombre: n, pasos });
+  });
+  return { nombres: [...nombres], caminos };
+}
+/* Un traslado de keyframe, en px. `null` si es una transformación que este modelo no sabe recorrer. */
+function p043Traslado(tr, w, h) {
+  const px = (s, base) => /%$/.test(s) ? parseFloat(s) / 100 * base : parseFloat(s);
+  let v = [0, 0];
+  if (tr.transform && tr.transform !== 'none') {
+    const m = /^translate\(\s*(-?[\d.]+(?:px|%)?)\s*(?:,\s*(-?[\d.]+(?:px|%)?)\s*)?\)$/.exec(tr.transform);
+    const mx = /^translateX\(\s*(-?[\d.]+(?:px|%)?)\s*\)$/.exec(tr.transform);
+    const my = /^translateY\(\s*(-?[\d.]+(?:px|%)?)\s*\)$/.exec(tr.transform);
+    if (m) v = [px(m[1], w), m[2] ? px(m[2], h) : 0];
+    else if (mx) v = [px(mx[1], w), 0];
+    else if (my) v = [0, px(my[1], h)];
+    else return null;
+  }
+  if (tr.translate && tr.translate !== 'none') {
+    const p = tr.translate.split(/\s+/);
+    v = [v[0] + px(p[0], w), v[1] + (p[1] ? px(p[1], h) : 0)];
+  }
+  return v;
+}
+/* ¿El disco de radio `r`, cuyo centro recorre las polilíneas `caminos`, tapa el punto `p`?
+   La distancia de un punto fijo a un centro que se mueve en línea recta es convexa: la mayor está en
+   un vértice y la menor puede caer en el medio de un tramo. */
+function p043Cubre(p, caminos, r, clip) {
+  if (p[0] < clip.left || p[0] > clip.right || p[1] < clip.top || p[1] > clip.bottom) return 'nunca';
+  let max = 0, min = Infinity;
+  caminos.forEach(c => {
+    c.forEach(v => { max = Math.max(max, Math.hypot(p[0] - v[0], p[1] - v[1])); });
+    for (let i = 0; i < c.length; i++) {
+      const a = c[i], b = c[Math.min(i + 1, c.length - 1)], dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
+      min = Math.min(min, Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy)));
+    }
+  });
+  return max <= r ? 'siempre' : (min <= r ? 'a veces' : 'nunca');
+}
+/* Los colores de un `linear-gradient` horizontal o vertical en el punto `p` de la caja `rect`.
+   Devuelve una lista (en un corte duro, los dos colores) o `null` si no lo sabe leer. */
+function p043ColoresDelDegrade(img, rect, p) {
+  const m = /^linear-gradient\((.*)\)$/.exec(String(img).trim());
+  if (!m) return null;
+  const partes = [];
+  let prof = 0, cur = '';
+  for (const ch of m[1]) {
+    if (ch === '(') prof++;
+    if (ch === ')') prof--;
+    if (ch === ',' && !prof) { partes.push(cur.trim()); cur = ''; } else cur += ch;
+  }
+  partes.push(cur.trim());
+  let dir = 'to bottom';
+  if (/^(to\s|-?[\d.]+deg$)/.test(partes[0])) dir = partes.shift();
+  const ang = ({ 'to top': 0, 'to right': 90, 'to bottom': 180, 'to left': 270 })[dir];
+  const grados = ang != null ? ang : (/deg$/.test(dir) ? ((parseFloat(dir) % 360) + 360) % 360 : NaN);
+  if (!(grados % 90 === 0)) return null;
+  const horiz = grados % 180 === 90, largo = horiz ? rect.width : rect.height;
+  let pos = horiz ? p[0] - rect.left : p[1] - rect.top;
+  if (grados === 270 || grados === 0) pos = largo - pos;
+  const paradas = [];
+  for (const s of partes) {
+    const c = /^(rgba?\([^)]*\)|transparent)\s*(.*)$/.exec(s);
+    if (!c) return null;
+    const color = c[1] === 'transparent' ? 'rgba(0, 0, 0, 0)' : c[1];
+    const ps = c[2].split(/\s+/).filter(Boolean).map(x => /%$/.test(x) ? parseFloat(x) / 100 * largo : (/px$/.test(x) ? parseFloat(x) : NaN));
+    if (ps.some(isNaN)) return null;
+    if (!ps.length) paradas.push({ color, en: null });
+    ps.forEach(x => paradas.push({ color, en: x }));
+  }
+  if (paradas.length < 2) return null;
+  if (paradas[0].en == null) paradas[0].en = 0;
+  if (paradas[paradas.length - 1].en == null) paradas[paradas.length - 1].en = largo;
+  let ult = paradas[0].en;
+  paradas.forEach(q => { if (q.en != null) { q.en = Math.max(q.en, ult); ult = q.en; } });
+  for (let i = 1; i < paradas.length; i++) {
+    if (paradas[i].en != null) continue;
+    let j = i; while (paradas[j].en == null) j++;
+    const a = paradas[i - 1].en, b = paradas[j].en;
+    for (let k = i; k < j; k++) paradas[k].en = a + (b - a) * (k - i + 1) / (j - i + 1);
+  }
+  if (pos <= paradas[0].en) return [p043Rgba(paradas[0].color)];
+  if (pos >= paradas[paradas.length - 1].en) return [p043Rgba(paradas[paradas.length - 1].color)];
+  const res = [];
+  for (let i = 0; i < paradas.length - 1; i++) {
+    const a = paradas[i], b = paradas[i + 1];
+    if (pos < a.en || pos > b.en) continue;
+    if (b.en === a.en) { res.push(p043Rgba(a.color), p043Rgba(b.color)); continue; }
+    const t = (pos - a.en) / (b.en - a.en), ca = p043Rgba(a.color), cb = p043Rgba(b.color);
+    res.push(ca.map((v, j) => v + (cb[j] - v) * t));
+  }
+  return res;
+}
+
+/* Lo que la geometría pone debajo de la caja del TEXTO de `nodo` (un elemento del splash, TAL COMO
+   ESTÁ AHORA: ancho, tema e idioma los pone quien llama). Devuelve el peor contraste contra cada capa
+   posible, las capas vistas y lo que no se pudo modelar. `reglas` es la deriva leída una vez
+   (`p043DerivaReglas`). Lo usan la pista del idioma y la credencial del pie. */
+function p043FondosBajo(nodo, reglas) {
+  const ov = document.getElementById('splashOv'), wrap = ov.querySelector('.splash-wrap');
+  const band = ov.querySelector('.splash-circ-band'), circ = band && band.querySelector('.ent-circulos');
+  const out = { sinModelar: [], capas: {}, min: Infinity, peor: '', puntos: 0 };
+  if (!nodo) { out.sinModelar.push('no está el elemento a medir'); return out; }
+  const rg = document.createRange(); rg.selectNodeContents(nodo);
+  const t = rg.getBoundingClientRect();
+  out.caja = { x: Math.round(t.left), y: Math.round(t.top), r: Math.round(t.right), b: Math.round(t.bottom) };
+  if (!(t.width > 0 && t.height > 0) || !ov.classList.contains('show')) { out.sinModelar.push('el texto no mide nada'); return out; }
+  if (!wrap || !band || !circ) { out.sinModelar.push('falta la banda de círculos o `.splash-wrap`'); return out; }
+  const hs = getComputedStyle(nodo), tinta = p043Rgba(hs.color);
+  out.color = hs.color;
+  if (tinta[3] < 0.99 || +hs.opacity < 0.99) out.sinModelar.push('el texto tiene transparencia: ' + hs.color + ' · opacidad ' + hs.opacity);
+  /* 1 · el elemento y sus envoltorios hasta `.splash-wrap` */
+  const propias = [];
+  for (let el = nodo; el && el !== wrap; el = el.parentElement) propias.push(el);
+  /* 2 · los círculos, en toda su deriva */
+  const cb = circ.getBoundingClientRect(), clip = band.getBoundingClientRect();
+  const circulos = ['after', 'before'].map(n => {
+    const cs = getComputedStyle(circ, '::' + n);
+    if (cs.content === 'none' || cs.display === 'none') return null;
+    const w = parseFloat(cs.width), h = parseFloat(cs.height);
+    const x0 = cs.left === 'auto' ? cb.right - parseFloat(cs.right) - w : cb.left + parseFloat(cs.left);
+    const c0 = [x0 + w / 2, cb.top + parseFloat(cs.top) + h / 2];
+    const capa = '.ent-circulos::' + n;
+    if (!(Math.abs(w - h) < 0.5 && cs.borderTopLeftRadius === '50%')) out.sinModelar.push(capa + ' no es un círculo');
+    if (+cs.opacity < 0.99) out.sinModelar.push(capa + ' tiene opacidad ' + cs.opacity);
+    const caminos = [[c0]];
+    (reglas[n] ? reglas[n].caminos : []).forEach(cam => {
+      const vs = cam.pasos.map(q => p043Traslado(q.tr, w, h));
+      if (vs.some(v => v == null)) { out.sinModelar.push(capa + ': la animación «' + cam.nombre + '» no es un traslado'); return; }
+      if (!cam.pasos.length || cam.pasos[0].en > 0) vs.unshift([0, 0]);
+      if (!cam.pasos.length || cam.pasos[cam.pasos.length - 1].en < 100) vs.push([0, 0]);
+      caminos.push(vs.map(v => [c0[0] + v[0], c0[1] + v[1]]));
+    });
+    return { capa, z: parseInt(cs.zIndex, 10) || 0, color: p043Rgba(cs.backgroundColor), r: w / 2, caminos };
+  }).filter(Boolean).sort((a, c) => c.z - a.z);
+  /* 3 y 4 · el degradé de `.splash-wrap`, su color, y el overlay */
+  const wr = wrap.getBoundingClientRect(), ws = getComputedStyle(wrap), os = getComputedStyle(ov);
+  /* ⚠️ Lo que pinta y el modelo NO conoce: cualquier otro elemento del splash con fondo, o una imagen,
+     cuya caja contenga el punto. Se excluyen sólo el elemento, sus ancestros y la banda (que se modelan). */
+  const ajenos = [...ov.querySelectorAll('*')].filter(el => {
+    if (el.contains(nodo) || el === band || band.contains(el)) return false;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility !== 'visible' || +cs.opacity === 0) return false;
+    return p043Rgba(cs.backgroundColor)[3] > 0.01 || cs.backgroundImage !== 'none' || /^(IMG|CANVAS|VIDEO|svg)$/i.test(el.tagName);
+  }).map(el => ({ el, r: el.getBoundingClientRect() })).filter(x => x.r.width > 0 && x.r.height > 0);
+  const xs = [t.left + 0.5, t.left + t.width / 4, (t.left + t.right) / 2, t.left + 3 * t.width / 4, t.right - 0.5];
+  const ys = [t.top + 0.5, (t.top + t.bottom) / 2, t.bottom - 0.5];
+  xs.forEach(x => ys.forEach(y => {
+    const p = [x, y], vistas = [];
+    ajenos.forEach(a => { if (x >= a.r.left && x <= a.r.right && y >= a.r.top && y <= a.r.bottom)
+      out.sinModelar.push('pinta debajo y el modelo no lo conoce: ' + a.el.tagName.toLowerCase() + (a.el.id ? '#' + a.el.id : '') + '.' + [...a.el.classList].join('.')); });
+    /* Agrega la capa si pinta el punto; devuelve true si lo tapa SIEMPRE (la pila se corta ahí). */
+    const capa = (nombre, c, cubre) => {
+      if (cubre === 'nunca' || c[3] <= 0.01) return false;
+      if (c[3] < 0.99) { out.sinModelar.push(nombre + ' es semitransparente (' + p043RgbTexto(c) + ' alfa ' + c[3] + ')'); return true; }
+      vistas.push(nombre + ' ' + p043RgbTexto(c));
+      return cubre === 'siempre';
+    };
+    let tapado = false;
+    for (const el of propias) {
+      if (tapado) break;
+      const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+      const dentro = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+      if (cs.backgroundImage !== 'none' && dentro) { out.sinModelar.push((el === nodo ? 'el elemento' : 'un envoltorio') + ' tiene imagen de fondo'); tapado = true; break; }
+      tapado = capa(el === nodo ? 'fondo propio' : 'fondo de ' + el.className, p043Rgba(cs.backgroundColor), dentro ? 'siempre' : 'nunca');
+    }
+    for (const c of circulos) { if (tapado) break; tapado = capa(c.capa, c.color, p043Cubre(p, c.caminos, c.r, clip)); }
+    if (!tapado && ws.backgroundImage !== 'none') {
+      const cols = p043ColoresDelDegrade(ws.backgroundImage, wr, p);
+      if (!cols) { out.sinModelar.push('el degradé de .splash-wrap no se sabe leer: ' + ws.backgroundImage); tapado = true; }
+      else {
+        let todos = cols.length > 0;
+        cols.forEach(c => { if (!capa('degradé de .splash-wrap', c, 'siempre')) todos = false; });
+        tapado = todos;
+      }
+    }
+    if (!tapado) tapado = capa('fondo de .splash-wrap', p043Rgba(ws.backgroundColor), 'siempre');
+    if (!tapado) tapado = capa('fondo del overlay', p043Rgba(os.backgroundColor), 'siempre');
+    if (!tapado) out.sinModelar.push('en (' + Math.round(x) + ', ' + Math.round(y) + ') ninguna capa tapa del todo');
+    vistas.forEach(v => {
+      const col = v.slice(v.lastIndexOf('rgb('));
+      const c = CTX.contraste(hs.color, col);
+      out.capas[v] = c;
+      if (c < out.min) { out.min = c; out.peor = v; }
+    });
+    out.puntos++;
+  }));
+  out.sinModelar = [...new Set(out.sinModelar)];
+  out.circulos = circulos; out.clip = clip;   // para el discriminador de la deriva
+  return out;
+}
+/* La pista: lo de abajo (`p043FondosBajo`) y el desvío de su centro respecto del centro del chip. */
+function p043PistaMedir(reglas) {
+  const hint = document.getElementById('splashLangHint'), btn = document.getElementById('splashLangBtn');
+  const out = Object.assign({ palabra: hint.textContent, chip: btn.textContent }, p043FondosBajo(hint, reglas));
+  const rg = document.createRange(); rg.selectNodeContents(hint);
+  const t = rg.getBoundingClientRect(), b = btn.getBoundingClientRect();
+  if (!(b.width > 0)) { out.sinModelar.push('el chip no mide nada'); return out; }
+  if (t.width > 0) out.dx = +(((t.left + t.right) / 2) - ((b.left + b.right) / 2)).toFixed(1);
+  return out;
+}
+
+/* Recorre las cuatro cosas que la persona puede ver: el chip en «ES» y en «EN», y debajo de cada uno
+   las DOS palabras, porque la pista alterna. Entra por las funciones reales: `splashCambiarIdioma()`
+   (lo que hace tocar el chip: cambia el idioma y reescribe el «ES»/«EN»), `splashLangHintArrancar()`
+   y su temporizador, con el reloj falso de este archivo (`p043RelojFalso`). */
+function p043PistaEstados(fn) {
+  const html = document.documentElement, hint = document.getElementById('splashLangHint');
+  const teniaSinAnim = html.classList.contains('sin-animaciones'), idiomaPrevio = idiomaActual(), oMM = window.matchMedia;
   try {
-    ['claro', 'oscuro'].forEach(tema => {
-      fijarTema(tema);
-      PRUEBAS.enVentana(390, 844, () => {
-        const color = getComputedStyle(hint).color;
-        const navy = getComputedStyle(ov).backgroundColor;
-        resultados['navy-' + tema] = CTX.contraste(color, navy);
-      });
-      PRUEBAS.enVentana(1366, 800, () => {
-        const color = getComputedStyle(hint).color;
-        /* ⚠️ EL FONDO SE MIDE, NO SE ASUME, y antes esta línea tomaba `var(--card)` por decreto
-           «porque en escritorio la pista cae sobre la tarjeta clara». **Medido el 2026-10-12: es
-           falso.** Con `#splashOv` abierto a 1366×800, lo que hay detrás del texto de la pista es
-           el navy del propio overlay (`rgb(14,42,86)`); las únicas superficies con `--card` dentro
-           del splash son las láminas del carrusel (`.spl-p`), que viven en `y≈515` mientras la
-           pista está en `y≈57` — **ninguna se solapa con ella**.
-           La misma premisa falsa estaba escrita en el CSS, en una regla que le ponía `--text-muted`
-           a la pista para escritorio: 2,80 sobre ese navy, ilegible, y es lo que Franco reportó
-           («gris sobre naranja, no se lee»). El caso no lo cazó porque medía contra un fondo
-           imaginario donde ese token sí pasa.
-           Ahora se toma el fondo real con `elementsFromPoint`, así que si mañana alguien mueve el
-           chip sobre una tarjeta clara, este caso lo ve. */
-        const r = hint.getBoundingClientRect();
-        const capas = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        let fondo = '';
-        for (let i = 0; i < capas.length; i++){
-          const bg = getComputedStyle(capas[i]).backgroundColor;
-          if (bg && !/rgba\(0, 0, 0, 0\)|transparent/.test(bg)){ fondo = bg; break; }
-        }
-        resultados['card-' + tema] = fondo ? CTX.contraste(color, fondo) : 0;
-        resultados['fondo-' + tema] = fondo;
-      });
+    ['es', 'en'].forEach(idioma => {
+      fijarIdioma(idioma === 'es' ? 'en' : 'es');
+      splashCambiarIdioma();
+      const reloj = p043RelojFalso();
+      try {
+        splashLangHintFrenar();
+        window.matchMedia = q => ({ matches: false, media: q, addEventListener: () => {}, removeEventListener: () => {} });
+        html.classList.remove('sin-animaciones');
+        splashLangHintArrancar();                 // la primera palabra: la del idioma vigente
+        const primera = hint.textContent;
+        fn(idioma, primera);
+        for (let i = 0; i < 100 && hint.textContent === primera; i++) reloj.avanzar(100);
+        fn(idioma, hint.textContent);             // la otra palabra, bajo el MISMO chip
+      } finally { splashLangHintFrenar(); reloj.restaurar(); window.matchMedia = oMM; }
+    });
+  } finally {
+    html.classList.toggle('sin-animaciones', teniaSinAnim);
+    fijarIdioma(idiomaPrevio);
+  }
+}
+
+/* Abre el splash, mide cada estado de la pista en cada ancho y cada tema, y deja todo como estaba. */
+function p043PistaRecorrer(ventanas, temas) {
+  const ov = document.getElementById('splashOv'), btn = document.getElementById('splashLangBtn');
+  const circ = ov.querySelector('.splash-circ-band .ent-circulos');
+  const teniaOv = ov.classList.contains('show'), chipPrevio = btn.textContent;
+  const reglas = circ ? { after: p043DerivaReglas(circ, 'after'), before: p043DerivaReglas(circ, 'before') } : {};
+  const filas = [];
+  ov.classList.add('show');
+  try {
+    p043PistaEstados((idioma, palabra) => {
+      temas.forEach(tema => PRUEBAS.enTema(tema, () => ventanas.forEach(([w, h]) => PRUEBAS.enVentana(w, h, () =>
+        PRUEBAS.sinAnimaciones(() => filas.push(Object.assign({ ancho: w, alto: h, tema, idioma, esperada: palabra },
+          p043PistaMedir(reglas))))))));
     });
   } finally {
     if (!teniaOv) ov.classList.remove('show');
-    if (temaPrevio) fijarTema(temaPrevio);
-    else { try { localStorage.removeItem(K_TEMA); } catch (e) {} aplicarTema(); }
+    btn.textContent = chipPrevio;
   }
-  PRUEBAS.alMenos(resultados['navy-claro'], 4.5, 'navy · tema claro: ' + resultados['navy-claro'] + ':1 (usa --entrada-tenue, invariante entre temas)');
-  PRUEBAS.alMenos(resultados['navy-oscuro'], 4.5, 'navy · tema oscuro: ' + resultados['navy-oscuro'] + ':1');
-  PRUEBAS.alMenos(resultados['card-claro'], 4.5,
-    'escritorio (≥900px) · tema claro: ' + resultados['card-claro'] + ':1 sobre el fondo REAL ' +
-    resultados['fondo-claro'] + ' (medido, no asumido)');
-  PRUEBAS.alMenos(resultados['card-oscuro'], 4.5,
-    'escritorio (≥900px) · tema oscuro: ' + resultados['card-oscuro'] + ':1 sobre ' + resultados['fondo-oscuro']);
+  filas.deriva = (reglas.after && reglas.after.nombres) || [];
+  return filas;
+}
+function p043PistaFila(f) {
+  return f.ancho + '×' + f.alto + ' ' + f.tema + (f.letra ? ' letra ' + f.letra : '') + ' «' + f.chip + '»/«' + f.palabra + '»: ' +
+    (isFinite(f.min) ? f.min + ':1 sobre ' + f.peor : 'sin medir') + ' · centro ' + (f.dx > 0 ? '+' : '') + f.dx + ' px';
+}
+
+PRUEBAS.caso('⚠️ P302 · la pista pasa 4,5:1 contra TODO lo que la geometría le pone debajo —el círculo con su deriva y el degradé de escritorio—, en todos los anchos, los dos temas, las dos palabras y con la letra más grande', () => {
+  /* ⚠️ ESTE CASO DABA VERDE CON LA PISTA ILEGIBLE. Medía el fondo del teléfono con el `backgroundColor`
+     del overlay, y el de escritorio caminando `elementsFromPoint` hasta el primer `backgroundColor` que
+     no fuera transparente. Las dos lecturas caían en el navy (`#0e2a56`), y con `--entrada-tenue` eso
+     daba 6,76. Medido contra el píxel en la 7.49 publicada (`pruebas/medir-pista-idioma.js`): debajo
+     de 900 px la pista estaba sobre el círculo naranja → **1,02:1**; desde 900 px, en tema claro,
+     sobre el blanco del degradé de `.splash-wrap` → **2,09:1**. Lo que el caso no veía era justo lo
+     que está debajo: un pseudoelemento y un `background-image`.
+     ⚠️ QUÉ REGLAS CONCEDEN LO QUE SE AFIRMA (R19), en `index.html`:
+       · sobre el naranja: `.splash-lang-hint { … color: var(--entrada-chip-ink) }` (la regla base);
+       · sobre la tarjeta de escritorio: `.splash-lang-hint { color: var(--text-muted) }` dentro de
+         `@media (min-width: 900px)`, que sigue al tema.
+     Se afirma el INVARIANTE (4,5:1 contra cada capa posible), no esos tokens: si mañana la pista lleva
+     fondo propio, el caso mide contra ese fondo y sigue valiendo.
+     Los anchos son los de referencia (`PRUEBAS.VENTANAS`) más el borde exacto del escritorio (900) y
+     uno ancho (1920). La letra más grande (135 %) baja y ensancha la pista: también tiene que leerse. */
+  const VENT = PRUEBAS.VENTANAS.map(v => [v.w, v.h]).concat([[900, 700], [1920, 1080]]);
+  let nivelPrevio = null;
+  try { nivelPrevio = localStorage.getItem(K_TEXTO); } catch (e) {}
+  let filas = [], deriva = [];
+  try {
+    [1, 3].forEach(nivel => {
+      fijarTamanoTexto(nivel);
+      const r = p043PistaRecorrer(VENT, ['claro', 'oscuro']);
+      deriva = r.deriva;
+      filas = filas.concat(r.map(f => Object.assign(f, { letra: nivel === 3 ? 'máxima' : 'normal' })));
+    });
+  } finally {
+    if (nivelPrevio == null) { try { localStorage.removeItem(K_TEXTO); } catch (e) {} aplicarTamanoTexto(); }
+    else fijarTamanoTexto(nivelPrevio);
+  }
+  PRUEBAS.igual(filas.length, VENT.length * 2 * 4 * 2,
+    'guarda: ' + VENT.length + ' anchos × 2 temas × 4 estados (chip ES y EN, con las dos palabras) × 2 tamaños de letra');
+  PRUEBAS.cierto(filas.some(f => f.palabra === 'Idioma') && filas.some(f => f.palabra === 'Language'),
+    'guarda: se midió con las DOS palabras · si la pista no alternó, la mitad de las filas mide una sola');
+  PRUEBAS.cierto(deriva.length > 0,
+    'guarda: el modelo encontró la animación de deriva del círculo en la hoja de estilos · si no, mide el círculo quieto');
+  PRUEBAS.igual(filas.filter(f => f.sinModelar.length).map(f => p043PistaFila(f) + ' · ' + f.sinModelar.join(' | ')), [],
+    '⚠️ nada pinta debajo de la pista que el modelo no conozca · si algo aparece acá, el contraste de abajo no vale');
+  PRUEBAS.igual(filas.filter(f => !(f.min >= 4.5)).map(p043PistaFila), [],
+    '⚠️ 4,5:1 o más contra cada capa que la geometría le pone debajo · peor: ' +
+    p043PistaFila(filas.reduce((a, f) => (f.min < a.min ? f : a), filas[0] || { min: Infinity })));
+  /* DISCRIMINADORES · el modelo tiene que VER las dos superficies que los instrumentos de antes no veían. */
+  const forzar = (color, ventanas, temas) => {
+    const st = document.createElement('style');
+    st.textContent = '#splashOv .splash-lang-hint { color: ' + color + ' !important; }';
+    document.head.appendChild(st);
+    try { return p043PistaRecorrer(ventanas, temas); } finally { st.remove(); }
+  };
+  /* 1 · el token de antes, `--entrada-tenue`: pasa sobre el navy (6,76) y por eso los casos viejos daban
+     verde. Tiene que dar rojo sobre el naranja (teléfono) y sobre el blanco del degradé (escritorio). */
+  const tenue = forzar('var(--entrada-tenue)', [[375, 812], [1366, 768]], ['claro']);
+  [375, 1366].forEach(w => {
+    const fw = tenue.filter(f => f.ancho === w);
+    PRUEBAS.cierto(fw.length > 0 && fw.every(f => f.min < 4.5),
+      'DISCRIMINADOR · con `--entrada-tenue` a ' + w + ' px en claro NO llega a 4,5:1 · ' + fw.map(f => f.min + ' sobre ' + f.peor).join(' | '));
+  });
+  /* 2 · la tinta del teléfono en escritorio oscuro: navy sobre la tarjeta oscura. Si el modelo leyera el
+     degradé de un solo tema (o el overlay), esto daría verde. */
+  const navy = forzar('var(--entrada-chip-ink)', [[1366, 768]], ['oscuro']);
+  PRUEBAS.cierto(navy.length > 0 && navy.every(f => f.min < 4.5),
+    'DISCRIMINADOR · la tinta del teléfono sobre la tarjeta OSCURA de escritorio no llega a 4,5:1 · ' + navy.map(f => f.min + ' sobre ' + f.peor).join(' | '));
+  /* 3 · la deriva se MODELA, no sólo se encuentra. A 375 la deriva lleva el círculo a la izquierda y
+     abajo, así que un punto justo afuera de su borde de abajo a la izquierda queda tapado sólo en parte
+     del ciclo: tiene que dar «a veces». Con el círculo quieto daría «nunca», y la pista podría estar
+     sobre dos fondos sin que el caso lo viera. */
+  const ov = document.getElementById('splashOv'), teniaOv = ov.classList.contains('show');
+  const circ = ov.querySelector('.splash-circ-band .ent-circulos');
+  ov.classList.add('show');
+  let deriva3 = null;
+  try {
+    deriva3 = PRUEBAS.enVentana(375, 812, () => PRUEBAS.sinAnimaciones(() => {
+      const m = p043PistaMedir({ after: p043DerivaReglas(circ, 'after'), before: p043DerivaReglas(circ, 'before') });
+      const c = (m.circulos || []).filter(x => x.capa === '.ent-circulos::after')[0];
+      if (!c || c.caminos.length < 2) return { error: 'sin camino de deriva para el ::after' };
+      const c0 = c.caminos[0][0];
+      const d = c.caminos[1].reduce((a, v) => (Math.hypot(v[0] - c0[0], v[1] - c0[1]) > Math.hypot(a[0] - c0[0], a[1] - c0[1]) ? v : a), c0);
+      const n = Math.hypot(d[0] - c0[0], d[1] - c0[1]);
+      if (!(n > 1)) return { error: 'la deriva mide ' + n + ' px' };
+      const p = [c0[0] + (d[0] - c0[0]) / n * (c.r + 2), c0[1] + (d[1] - c0[1]) / n * (c.r + 2)];
+      return { n: +n.toFixed(2), conDeriva: p043Cubre(p, c.caminos, c.r, m.clip), quieto: p043Cubre(p, [[c0]], c.r, m.clip), p: p.map(v => +v.toFixed(1)) };
+    }));
+  } finally { if (!teniaOv) ov.classList.remove('show'); }
+  PRUEBAS.cierto(deriva3 && deriva3.conDeriva === 'a veces' && deriva3.quieto === 'nunca',
+    'DISCRIMINADOR · a 375, un punto 2 px afuera del borde del círculo, del lado hacia donde deriva, queda tapado «a veces» (quieto: «nunca») · ' + JSON.stringify(deriva3));
 });
 
 PRUEBAS.caso('el aria-label del botón de idioma también pasa por t()', () => {
@@ -505,4 +877,97 @@ PRUEBAS.caso('el aria-label del botón de idioma también pasa por t()', () => {
   PRUEBAS.falso(leidos.es === leidos.en,
     '⚠️ y CAMBIA con el idioma · estaba fijo en español · es «' + leidos.es + '» / en «' +
     leidos.en + '»');
+});
+
+
+PRUEBAS.grupo('P302 · la credencial del pie del splash, sobre el fondo que de verdad tiene');
+
+/* Mide la credencial en cada ancho, tema, idioma y tamaño de letra, con el mismo modelo que la pista
+   (`p043FondosBajo`), y deja todo como estaba. El idioma entra por `fijarIdioma` (el texto cambia de largo
+   y de renglones) y la letra por `fijarTamanoTexto`: con «Muy grande» la tira se esconde y la grilla de
+   escritorio se reacomoda, que es justo lo que movía la credencial de columna. */
+function p043NormaRecorrer(ventanas, temas, letras) {
+  const ov = document.getElementById('splashOv'), norma = ov.querySelector('.splash-norma');
+  const circ = ov.querySelector('.splash-circ-band .ent-circulos');
+  const teniaOv = ov.classList.contains('show'), idiomaPrevio = idiomaActual();
+  let letraPrevia = null;
+  try { letraPrevia = localStorage.getItem(K_TEXTO); } catch (e) {}
+  const reglas = circ ? { after: p043DerivaReglas(circ, 'after'), before: p043DerivaReglas(circ, 'before') } : {};
+  const filas = [];
+  ov.classList.add('show');
+  try {
+    (letras || [1]).forEach(letra => {
+      fijarTamanoTexto(letra);
+      ['es', 'en'].forEach(idioma => {
+        fijarIdioma(idioma);
+        temas.forEach(tema => PRUEBAS.enTema(tema, () => ventanas.forEach(([w, h]) => PRUEBAS.enVentana(w, h, () =>
+          PRUEBAS.sinAnimaciones(() => {
+            const wr = ov.querySelector('.splash-wrap').getBoundingClientRect(), nr = norma.getBoundingClientRect();
+            filas.push(Object.assign({ ancho: w, alto: h, tema, idioma, letra: letra === 3 ? 'máxima' : 'normal',
+              lado: nr.left >= wr.left + wr.width / 2 ? 'derecha' : (nr.right <= wr.left + wr.width / 2 ? 'izquierda' : 'cruza') },
+              p043FondosBajo(norma, reglas)));
+          })))));
+      });
+    });
+  } finally {
+    fijarIdioma(idiomaPrevio);
+    if (letraPrevia == null) { try { localStorage.removeItem(K_TEXTO); } catch (e) {} aplicarTamanoTexto(); }
+    else fijarTamanoTexto(letraPrevia);
+    if (!teniaOv) ov.classList.remove('show');
+  }
+  return filas;
+}
+function p043NormaFila(f) {
+  return f.ancho + '×' + f.alto + ' ' + f.tema + ' ' + f.idioma + ' letra ' + f.letra + ' (' + f.lado + '): ' +
+    (isFinite(f.min) ? f.min + ':1 sobre ' + f.peor : 'sin medir');
+}
+
+PRUEBAS.caso('⚠️ P302 · la credencial del pie pasa 4,5:1 contra lo que la geometría le pone debajo —el navy en el teléfono, la tarjeta del degradé en escritorio—, en los dos temas, los dos idiomas y con la letra más grande', () => {
+  /* ⚠️ POR QUÉ EXISTE. Apareció revisando las pantallas vecinas de la pista del idioma (P302): la
+     credencial («Programa de gestión de fatiga ajustado a los lineamientos de la OACI…») usaba
+     `--entrada-tenue`, un token pensado para el navy, y desde 900 px la grilla la pone en la columna
+     DERECHA, sobre la mitad `var(--card)` del degradé de `.splash-wrap`. Medido contra el píxel en la
+     7.49 (`pruebas/medir-pista-idioma.js`): **2,09:1** sobre el blanco del tema claro. Ningún caso lo
+     veía, y el auditor no mide texto sobre un degradé direccional: lo cuenta «sin medir».
+     ⚠️ Y CON LA LETRA «MUY GRANDE» SE MOVÍA DE COLUMNA. `html.texto-maximo .splash-anim { display:none }`
+     libera la celda de la tira, los puntitos suben a ella y la colocación automática de la grilla
+     pasaba la credencial a la columna IZQUIERDA, sobre el navy: con el color de escritorio,
+     `--text-muted`, ahí da 2,80:1 (medido contra el píxel). Por eso se mide también con esa letra.
+     ⚠️ QUÉ REGLAS CONCEDEN LO QUE SE AFIRMA (R19), en `index.html`:
+       · debajo de 900 px, sobre el navy del overlay: el `color:var(--entrada-tenue)` de la regla base
+         `.splash-norma`;
+       · desde 900 px, sobre la mitad `var(--card)` del degradé: `.splash-norma { grid-column: 2;
+         color: var(--text-muted) }` dentro de `@media (min-width: 900px)`. El `grid-column: 2` es lo
+         que la deja siempre de ese lado, con cualquier letra; el color sigue al tema.
+     Se afirma el INVARIANTE (4,5:1 contra cada capa que la geometría pone debajo de la caja del texto),
+     no esos tokens ni la columna. El modelo es el de la pista (`p043FondosBajo`, explicado arriba). */
+  if (typeof p043FondosBajo !== 'function') { PRUEBAS.cierto(false, '⚠️ falta `p043FondosBajo`: este contrato queda SIN MEDIR'); return; }
+  const VENT = [[375, 812], [768, 1024], [1366, 768]];
+  const filas = p043NormaRecorrer(VENT, ['claro', 'oscuro'], [1, 3]);
+  PRUEBAS.igual(filas.length, VENT.length * 2 * 2 * 2, 'guarda: 3 anchos × 2 temas × 2 idiomas × 2 tamaños de letra · ' + filas.length);
+  PRUEBAS.igual(filas.filter(f => f.sinModelar.length).map(f => p043NormaFila(f) + ' · ' + f.sinModelar.join(' | ')), [],
+    '⚠️ nada pinta debajo de la credencial que el modelo no conozca · si algo aparece acá, el contraste no vale');
+  PRUEBAS.igual(filas.filter(f => !(f.min >= 4.5)).map(p043NormaFila), [],
+    '⚠️ 4,5:1 o más contra cada capa que la geometría le pone debajo · peor: ' +
+    p043NormaFila(filas.reduce((a, f) => (f.min < a.min ? f : a), filas[0] || { min: Infinity })));
+  /* DISCRIMINADOR · las reglas de la 7.49: la credencial con `--entrada-tenue` en todos los anchos. Tiene
+     que dar ROJO a 1366 en claro (sobre el blanco del degradé) y seguir en VERDE a 375 (sobre el navy):
+     si diera rojo en los dos, el modelo no estaría distinguiendo los fondos, sólo el color. */
+  const forzar = (css, ventanas, letras) => {
+    const st = document.createElement('style');
+    st.textContent = '#splashOv .splash-norma { ' + css + ' }';
+    document.head.appendChild(st);
+    try { return p043NormaRecorrer(ventanas, ['claro'], letras); } finally { st.remove(); }
+  };
+  /* 1 · la regla de la 7.49: `--entrada-tenue` en todos los anchos y la columna que diera la grilla. */
+  const viejas = forzar('color: var(--entrada-tenue) !important; grid-column: auto !important;', [[375, 812], [1366, 768]], [1]);
+  const de = w => viejas.filter(f => f.ancho === w);
+  PRUEBAS.cierto(de(1366).length === 2 && de(1366).every(f => f.min < 4.5),
+    'DISCRIMINADOR · con la regla de la 7.49, a 1366 en claro NO llega a 4,5:1 · ' + de(1366).map(p043NormaFila).join(' | '));
+  PRUEBAS.cierto(de(375).length === 2 && de(375).every(f => f.min >= 4.5),
+    'DISCRIMINADOR · y a 375 sí pasa, porque ahí debajo está el navy · ' + de(375).map(p043NormaFila).join(' | '));
+  /* 2 · el color de escritorio SIN la columna fija: con la letra «Muy grande» la grilla la pasa al navy. */
+  const sueltas = forzar('grid-column: auto !important;', [[1366, 768]], [3]);
+  PRUEBAS.cierto(sueltas.length === 2 && sueltas.every(f => f.min < 4.5 && f.lado === 'izquierda'),
+    'DISCRIMINADOR · sin `grid-column: 2`, con la letra máxima a 1366 en claro cae a la izquierda y NO llega a 4,5:1 · ' + sueltas.map(p043NormaFila).join(' | '));
 });

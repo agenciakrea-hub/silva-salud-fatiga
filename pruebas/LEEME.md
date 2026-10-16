@@ -357,6 +357,40 @@ workers** (medido: `getRegistrations()` da 0 con la app cargada). Nada sale de l
 le inyecta un envoltorio de `fetch` que manda el endpoint al emulador y corta todo otro `script.google.com`.
 Cómo se usa, qué mide y qué no cubre: `docs/specs/P301/p303-preparacion.md` (fuera del repo).
 
+## La pista del idioma, contra el píxel (P302 · 2026-10-16)
+
+```bash
+node pruebas/medir-pista-idioma.js                      # el sitio publicado, 5 anchos × 2 temas × con y sin movimiento × es/en
+node pruebas/medir-pista-idioma.js --doc trabajo        # el index.html de este árbol, servido en el MISMO origen
+node pruebas/medir-pista-idioma.js --doc 130bb1a        # otra versión (un commit), para el discriminador
+```
+
+Mide la pista «Idioma»/«Language» del splash y la credencial del pie (`.splash-norma`) contra lo que
+DE VERDAD se pinta debajo: un recorte de captura sobre la caja del texto, dos veces —con el texto y con
+el texto transparente—, en un Chrome sin cabeza aparte, un contexto nuevo por medición, sin sesión y sin
+el `localStorage` de nadie. Da el peor contraste contra cada píxel del fondo y, para la pista, el desvío
+de su centro respecto del chip; lo repite con la deriva del círculo (reposo, mitad y deriva máxima) y,
+para la pista, con las dos palabras. `--texto 3` mide con la letra «Muy grande», que reacomoda la grilla
+de escritorio. Sale 0 si todo pasa, 1 si algo no, 3 si no pudo medir. Sólo pide el documento y la hoja
+de fuentes; los pedidos al endpoint y el service worker se cortan.
+
+**Por qué existe.** `F007` y `F034` se cerraron dos veces en falso porque los instrumentos de siempre
+no ven lo que hay debajo de la pista: `elementsFromPoint` no devuelve el `::after` del círculo naranja,
+y el degradé de escritorio es `background-image`, no `backgroundColor`. Los dos caían en el navy del
+overlay (6,76) cuando el píxel daba 1,02 y 2,09. **`auditor.js` tiene el mismo punto ciego** (sube por
+los ancestros): por eso la pista —ese único elemento, `#splashLangHint`— está en
+`AUDITOR.FONDO_QUE_NO_VE`, y el auditor la informa aparte, con su porqué (`apartados`,
+`sinMedirAProposito`, y la línea «SIN MEDIR A PROPÓSITO» de `auditar-entrada.html`). Todo lo demás
+sobre un pseudoelemento se sigue midiendo con el punto ciego de siempre. Y `impeccable detect` tampoco
+resuelve el degradé de escritorio: marca la credencial como «#666f82 on #0e2a56, 2,8:1» cuando el píxel
+la da sobre blanco (5,05); es el mismo error que su «#ffffff on #ffffff» del titular.
+
+En la suite, el contrato vive en `p043-idioma-y-etiquetas.js` (`p043FondosBajo`, que modela la pila de
+capas: el círculo con su deriva leída de la hoja de estilos, el degradé evaluado en esa x, el overlay;
+lo usan la pista y la credencial) y en `f001-f003-reportes-de-franco.js`. Ese modelo se calibró
+contra este instrumento: dan los mismos números (pista: 1,02 · 2,09 · −10,5 y −18,2 px con las reglas
+de la 7.48; credencial: 2,09 con la regla de la 7.49, y 2,80 sin la columna fija con letra máxima).
+
 ## Cómo agregar un caso
 
 1. Crear el archivo en `casos/`. La convención del nombre es `cliente-*.js` o `servidor-*.js`.

@@ -358,12 +358,18 @@
        splash). INVARIANTES entre temas, por el mismo motivo que --entrada-naranja: el splash es
        siempre el mundo navy con los círculos naranjas, no cambia con el tema de la app. Un token
        theme-aware acá oscurecería el chip en modo oscuro y volvería a perderse contra el fondo,
-       que es justo el bug que esto arregla (medido: 1.94:1 sobre el naranja). */
+       que es justo el bug que esto arregla (medido: 1.94:1 sobre el naranja).
+       ⚠️ P302 · `--entrada-chip-ink` es además la tinta de la pista «Idioma»/«Language» que va
+       DEBAJO del chip, directamente sobre `--entrada-naranja` (sin fondo propio): si cambia, medir
+       otra vez la pista contra el naranja, no sólo el chip contra el blanco. */
     --entrada-chip:     #ffffff;
     --entrada-chip-ink: #0a1f40;
     /* Texto secundario sobre el navy del splash (la credencial normativa del pie). INVARIANTE
        entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
-       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
+       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px.
+       ⚠️ P302 · «siempre navy» vale por debajo de 900 px. Desde 900, la mitad derecha del splash es
+       `var(--card)` (blanco en claro) y este token ahí da 2,09:1: lo que cae de ese lado se retiñe
+       en el bloque de escritorio (la credencial y la pista del idioma, con `--text-muted`). */
     --entrada-tenue:    #a9b4c6;
 
     /* ⚠️ P112 · AQUÍ VIVÍA `--radius-lg: 28px`, y se sacó. Estaba declarado desde su prompt y
@@ -558,7 +564,10 @@
     --entrada-chip-ink: #0a1f40;
     /* Texto secundario sobre el navy del splash (la credencial normativa del pie). INVARIANTE
        entre temas por el mismo motivo que los dos de arriba: el fondo del splash es siempre navy.
-       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px. */
+       El valor sale de medir: sobre #0a1f40 tiene que pasar 4.5:1 con texto de ~10 px.
+       ⚠️ P302 · «siempre navy» vale por debajo de 900 px. Desde 900, la mitad derecha del splash es
+       `var(--card)` (blanco en claro) y este token ahí da 2,09:1: lo que cae de ese lado se retiñe
+       en el bloque de escritorio (la credencial y la pista del idioma, con `--text-muted`). */
     --entrada-tenue:    #a9b4c6;
   }
 
@@ -3200,17 +3209,30 @@
     display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
   /* P043 · "Idioma" / "Language" alternando en bucle: quien no sabe qué hace el botón de arriba
      tiene, tarde o temprano, la palabra en el idioma que SÍ entiende. Suave a propósito — no puede
-     competir con el botón ni con el titular —, por eso chico y con el token más apagado de esta
-     pantalla. `--entrada-tenue` ya está medido para pasar 4,5:1 sobre el navy del splash (es el
-     mismo que usa la credencial normativa del pie). `pointer-events:none` porque no hace nada al
-     tocarlo: quien quiere cambiar de idioma toca el chip de arriba. */
-  /* ⚠️ F007 · `padding-right` IGUAL AL DEL CHIP, y sin esto la pista se alineaba con el BORDE del
-     botón en vez de con su TEXTO: medido, «Idioma» quedaba **15 px** corrido a la derecha de «ES»,
-     que es exactamente el padding lateral del chip (14,4 px). Los bordes coincidían —0 px— y por eso
-     parecía bien en una medición de cajas; lo que se ve desalineado son las dos palabras. */
-  .splash-lang-hint { font-size:.66rem; font-weight:700; letter-spacing:.02em; line-height:1.2;
-    color:var(--entrada-tenue); pointer-events:none; text-align:right; max-width:92px;
-    padding-right:.9rem; box-sizing:content-box; }
+     competir con el botón ni con el titular —, por eso chica. `pointer-events:none` porque no hace
+     nada al tocarlo: quien quiere cambiar de idioma toca el chip de arriba. */
+  /* ⚠️ P302 · F007 · F034 · DEBAJO DE LA PISTA NO HAY NAVY, y dos arreglos se midieron contra el
+     navy. Medido contra el píxel (`pruebas/medir-pista-idioma.js`, en la 7.49 publicada):
+       · por debajo de 900 px la pista cae ENTERA sobre el círculo naranja
+         (`.ent-circulos--naranja-navy::after`, `--entrada-naranja`), en los dos temas y en toda la
+         deriva de su animación: con `--entrada-tenue` daba **1,02:1** de 360 a 768 px;
+       · desde 900 px cae sobre la mitad derecha del degradé de `.splash-wrap` (`var(--card)`): eso
+         lo resuelve la regla de escritorio (busca «P302» en el bloque de 900 px).
+     Por eso la tinta es la del chip, `--entrada-chip-ink`: el navy del «ES», invariante entre temas
+     igual que el naranja que tiene debajo → **7,65:1**. El navy del overlay no se ve debajo de la
+     pista en ningún ancho: un `backgroundColor` o un `elementsFromPoint` que lo devuelva está
+     mirando la capa que el círculo tapa.
+     ⚠️ CENTRADA BAJO EL CHIP, no alineada por un borde. Antes iba en el flujo del envoltorio, pegada
+     al borde derecho (`align-items:flex-end` + el relleno del chip): «Idioma» quedaba 10,5 px corrida
+     del centro de «ES» y «Language» 18,2, y como la pista ALTERNA, ningún borde sirve para las dos
+     palabras. `position:absolute` la saca del flujo: el ancho del envoltorio lo da sólo el chip, y su
+     mitad es el centro del chip. `left:50%` + `translateX(-50%)` centra la palabra que haya, mida lo
+     que mida, sin mover el chip (que tiene que seguir en las mismas coordenadas que el logo, ver
+     arriba). `top:100%` + `margin-top:.3rem` es el mismo aire que daba el `gap` del envoltorio: la
+     pista no sube ni baja. `nowrap` porque «Language» es más ancha que el chip y no puede partirse. */
+  .splash-lang-hint { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:.3rem;
+    font-size:.66rem; font-weight:700; letter-spacing:.02em; line-height:1.2; white-space:nowrap;
+    text-align:center; color:var(--entrada-chip-ink); pointer-events:none; }
   /* ⚠️ `position:static` con `z-index` a secas, y no `position:relative`. El logo se ancla con
      `position:absolute` a la esquina superior izquierda, y su contenedor es el ancestro POSICIONADO
      más cercano: mientras esto era `relative`, el logo se anclaba al CUERPO, así que al repartir el
@@ -4193,15 +4215,31 @@
     /* Vuelve a la derecha: en escritorio esa esquina es la tarjeta clara, y el logo no está acá
        arriba sino dentro de la columna izquierda, en el flujo. */
     .splash-lang { background: var(--chip-bg); color: var(--text-soft); border: 1px solid var(--sup-borde); }
-    /* ⚠️ F007 · ESTA REGLA SE QUITÓ, y su comentario decía algo FALSO. Afirmaba que «la pista
-       también cae sobre la tarjeta clara acá» y la medición dice lo contrario: el chip de idioma
-       vive en `.splash-der`, que en escritorio sigue sobre el overlay navy `#0e2a56`. Con
-       `--text-muted` (#666f82) el contraste era **2,80** —muy por debajo de 4,5:1, ilegible— en
-       TODO escritorio, porque la media query es `min-width: 900px`. Lo reportó Franco: «gris sobre
-       naranja, no se lee».
-       Sin esta línea vale la regla base con `--entrada-tenue`, que mide **6,76** sobre ese navy.
-       ⚠️ El BOTÓN sí cambia acá y está bien (fondo blanco, texto navy): esa parte del bloque queda,
-       porque el chip sí tiene su propio fondo claro. La pista no tiene fondo: hereda el navy. */
+    /* ⚠️ P302 · LA PISTA DEL IDIOMA TAMBIÉN SE RETIÑE ACÁ, y F007 se equivocó al sacar esta regla.
+       Su comentario afirmaba que la pista vivía «sobre el overlay navy» y por eso medía `--text-muted`
+       contra ese navy (2,80): la cuenta estaba bien, pero ese navy no está debajo de la pista. La
+       pista es hija de `.splash-wrap`, y desde 900 px `.splash-wrap` pinta su mitad derecha con
+       `var(--card)` (el degradé de arriba, que es `background-image` y por eso ni `backgroundColor`
+       ni `elementsFromPoint` lo devuelven). Medido contra el píxel en la 7.49,
+       sin esta regla: `--entrada-tenue` daba **2,09:1** sobre el blanco del tema claro. Y la tinta de
+       teléfono (`--entrada-chip-ink`, navy) se perdería sobre la tarjeta oscura.
+       `--text-muted` es el texto más apagado de la tarjeta y sigue al tema: **5,05:1** sobre `--card`
+       claro y **5,56:1** sobre el oscuro. Queda más apagado que el chip (`--text-soft`), que es lo
+       que tiene que ser la pista. */
+    .splash-lang-hint { color: var(--text-muted); }
+    /* ⚠️ P302 · LA CREDENCIAL DEL PIE, POR LA MISMA RAZÓN. `.splash-norma` es hija directa de
+       `.splash-wrap` y desde 900 px cae en la columna DERECHA, sobre la mitad `var(--card)` del
+       degradé: con `--entrada-tenue` (pensado para el navy) daba **2,09:1** sobre el blanco del tema
+       claro, medido contra el píxel en la 7.49. Debajo de 900 px sigue sobre el navy del overlay y
+       conserva su token. Mismo retinte que la pista: 5,05:1 en claro, 5,56:1 en oscuro.
+       ⚠️ Y LA COLUMNA VA FIJA, porque el color depende de ella. Sin `grid-column` la ubicaba la
+       colocación automática de la grilla, y eso cambia con la letra: con «Muy grande»
+       (`html.texto-maximo .splash-anim { display:none }`) se libera la celda de la tira, los
+       puntitos suben a ella y la credencial pasaba a la columna IZQUIERDA, sobre el navy. Medido
+       contra el píxel a 1366 en claro: `--text-muted` ahí da **2,80:1**. Fija en la 2, queda siempre
+       sobre la tarjeta, que es para lo que está el color de esta regla. Con la letra normal ya estaba
+       ahí: no se mueve nada. */
+    .splash-norma { grid-column: 2; color: var(--text-muted); }
 
     /* ═══ B2 · Carrusel ═══
        El panel izquierdo queda QUIETO y sólo desliza el derecho: en escritorio el movimiento
@@ -7869,7 +7907,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.49';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.50';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

@@ -209,47 +209,65 @@ PRUEBAS.caso('🔴 F005 · en escritorio las hojas no se estiran a todo el ancho
     'DISCRIMINADOR · la regla base sigue en 100% · en teléfono la hoja ocupa la pantalla a propósito');
 });
 
-PRUEBAS.caso('🔴 F007 · la pista del idioma se lee y se alinea con el TEXTO del chip', () => {
-  const hint = document.getElementById('splashLangHint');
-  const btn  = document.getElementById('splashLangBtn');
-  if (!hint || !btn) { PRUEBAS.cierto(false, '⚠️ no está el chip de idioma: este contrato queda SIN MEDIR'); return; }
-  /* Lo reportó Franco: «el texto de abajo está desalineado con el botón, y además gris sobre
-     naranja, no se lee».
-     ⚠️ LAS DOS COSAS ESTABAN MEDIDAS Y ERAN CIERTAS:
-       · alineación: la pista se alineaba con el BORDE del chip, no con su TEXTO — 15 px de
-         diferencia, que es exactamente el padding lateral del botón (14,4 px);
-       · contraste: una regla dentro de `@media (min-width: 900px)` le ponía `--text-muted` sobre el
-         navy del splash → **2,80**, muy por debajo de 4,5:1. Su comentario afirmaba que «la pista
-         cae sobre la tarjeta clara acá» y la medición dijo lo contrario: el chip vive en
-         `.splash-der`, que sigue sobre el navy. La regla se quitó. */
-  const src = document.documentElement.outerHTML;
-  PRUEBAS.falso(/\.splash-lang-hint\s*\{\s*color:\s*var\(--text-muted\)/.test(src),
-    '🔴 ninguna regla le pone `--text-muted` · ese token mide 2,80 sobre el navy del splash');
-  const reglas = (src.match(/\.splash-lang-hint\s*\{[^}]*color[^}]*\}/g) || []);
-  PRUEBAS.igual(reglas.length, 1,
-    '🔴 UNA sola regla fija su color · dos reglas es cómo volvió el defecto · ' + reglas.length);
-  PRUEBAS.cierto(/--entrada-tenue/.test(reglas[0] || ''),
-    '🔴 y es el token medido sobre navy (6,76) · ' + (reglas[0] || '').slice(0, 80));
-  PRUEBAS.cierto(/\.splash-lang-hint\s*\{[^}]*padding-right:\s*\.9rem/.test(src.replace(/\s+/g, ' ')),
-    '🔴 y lleva el padding del chip · sin él su texto queda 15 px corrido del de «ES»');
-  /* El contraste se calcula de verdad, con los tokens resueltos: si alguien cambia el valor de
-     `--entrada-tenue` en el futuro, esto cae. */
-  const probe = (tok) => { const s = document.createElement('span'); s.style.color = 'var(' + tok + ')';
-    document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
-  const rgb = (c) => (c.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
-  const lum = (c) => { const [r, g, b] = rgb(c).map(v => { v /= 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-  const ratio = (a, b) => { const L1 = lum(a), L2 = lum(b);
-    return (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05); };
-  const navy = probe('--navy');
-  const c = ratio(probe('--entrada-tenue'), navy);
-  PRUEBAS.cierto(c >= 4.5,
-    '🔴 el contraste real pasa 4,5:1 sobre el navy del splash · ' + c.toFixed(2));
-  /* DISCRIMINADOR · el token que se quitó NO lo pasa: si pasara, el arreglo no medía nada. */
-  const malo = ratio(probe('--text-muted'), navy);
-  PRUEBAS.falso(malo >= 4.5,
-    'DISCRIMINADOR · `--text-muted` sobre ese navy NO llega a 4,5:1 · ' + malo.toFixed(2));
+PRUEBAS.caso('🔴 F007 · F034 · la pista del idioma se lee sobre lo que DE VERDAD tiene debajo y queda CENTRADA bajo el chip, con «Idioma» y con «Language»', () => {
+  if (typeof p043PistaRecorrer !== 'function' || typeof p043PistaFila !== 'function') {
+    PRUEBAS.cierto(false, '⚠️ faltan `p043PistaRecorrer`/`p043PistaFila` (viven en `p043-idioma-y-etiquetas.js`): ' +
+      'este contrato queda SIN MEDIR. Corré los dos archivos juntos'); return; }
+  /* Lo reportó Franco dos veces, y las dos se cerró en falso:
+       F007 · «en la pantalla de inicio splash lo de idioma osea el texto de abajo esta desalineado con
+               el boton, y ademas gris sobre naranja, no se lee. arregla eso.»
+       F034 · «Lo del idioma que cambia no se lee, es gris, además no está centrado»
+     ⚠️ LA PREMISA, MEDIDA CONTRA EL PÍXEL (`pruebas/medir-pista-idioma.js`, la 7.49 publicada): debajo
+     de la pista NO hay navy en ningún ancho. Por debajo de 900 px está el círculo naranja
+     (`.ent-circulos--naranja-navy::after`), entero y en toda su deriva; desde 900 px, la mitad
+     `var(--card)` del degradé de `.splash-wrap`. Con `--entrada-tenue` daba 1,02:1 y 2,09:1, y la pista
+     iba alineada por el borde derecho del chip: «Idioma» quedaba 10,5 px corrida y «Language» 18,2.
+     ⚠️ ESTE CASO EXISTÍA Y DABA VERDE. Su comentario decía que el chip «sigue sobre el navy», comparaba
+     el contraste contra `--navy` por decreto (su discriminador también), y exigía la FORMA del arreglo
+     de F007 —una sola regla de color, `--entrada-tenue`, `padding-right:.9rem`—: afirmaba un contrato
+     que era el defecto.
+     ⚠️ QUÉ REGLAS CONCEDEN LO QUE SE AFIRMA (R19), en `index.html`:
+       · el centrado: `.splash-lang-hint { position:absolute; left:50%; transform:translateX(-50%) }`,
+         con el chip como único hijo en flujo de `.splash-lang-wrap` (su mitad es el centro del chip);
+       · la lectura sobre el naranja: el `color: var(--entrada-chip-ink)` de esa misma regla base;
+       · la lectura sobre la tarjeta: `.splash-lang-hint { color: var(--text-muted) }` dentro de
+         `@media (min-width: 900px)`.
+     Se afirman los dos INVARIANTES, no esas formas: si mañana la pista lleva fondo propio o se centra de
+     otra manera, el caso sigue diciendo lo que importa. El modelo de lo que hay debajo (círculo con su
+     deriva, degradé, overlay) es `p043PistaMedir`, y está explicado en `p043-idioma-y-etiquetas.js`. */
+  const VENT = [[375, 812], [768, 1024], [1366, 768]];
+  const filas = p043PistaRecorrer(VENT, ['claro', 'oscuro']);
+  PRUEBAS.igual(filas.length, VENT.length * 2 * 4,
+    'guarda: 3 anchos × 2 temas × 4 estados (el chip en ES y en EN, cada uno con las dos palabras) · ' + filas.length);
+  const vistas = new Set(filas.map(f => f.chip + '/' + f.palabra));
+  PRUEBAS.cierto(['ES/Idioma', 'ES/Language', 'EN/Language', 'EN/Idioma'].every(k => vistas.has(k)),
+    'guarda: se midió cada palabra bajo cada chip · la pista ALTERNA, así que las dos tienen que quedar bien · ' + [...vistas].join(', '));
+  PRUEBAS.igual(filas.filter(f => f.palabra !== f.esperada).map(p043PistaFila), [],
+    'guarda: la palabra medida es la que la pista mostraba en ese momento');
+  PRUEBAS.igual(filas.filter(f => f.sinModelar.length).map(f => p043PistaFila(f) + ' · ' + f.sinModelar.join(' | ')), [],
+    '⚠️ nada pinta debajo de la pista que el modelo no conozca · si algo aparece acá, el contraste no vale');
+  PRUEBAS.igual(filas.filter(f => !(Math.abs(f.dx) <= 1)).map(p043PistaFila), [],
+    '🔴 el centro del texto de la pista cae sobre el centro del chip (±1 px), con las dos palabras · es «no está centrado»');
+  PRUEBAS.igual(filas.filter(f => !(f.min >= 4.5)).map(p043PistaFila), [],
+    '🔴 4,5:1 o más contra cada capa que la geometría le pone debajo —el círculo naranja con su deriva, la tarjeta del degradé— · es «gris sobre naranja, no se lee»');
+  /* DISCRIMINADOR · las reglas de la pista en la 7.48 (la publicada cuando Franco reportó F034):
+     en el flujo del envoltorio, alineada a la derecha con el relleno del chip, y `--entrada-tenue` en
+     todos los anchos. El envoltorio no cambió. Con eso, el caso tiene que dar ROJO a 375 y a 1366 en
+     tema claro, por las dos cosas. */
+  const st = document.createElement('style');
+  st.textContent = '#splashOv .splash-lang-hint { position: static !important; transform: none !important; ' +
+    'margin-top: 0 !important; white-space: normal !important; text-align: right !important; max-width: 92px !important; ' +
+    'padding-right: .9rem !important; box-sizing: content-box !important; color: var(--entrada-tenue) !important; }';
+  document.head.appendChild(st);
+  let viejas;
+  try { viejas = p043PistaRecorrer([[375, 812], [1366, 768]], ['claro']); } finally { st.remove(); }
+  [375, 1366].forEach(w => {
+    const fw = viejas.filter(f => f.ancho === w);
+    PRUEBAS.cierto(fw.length === 4 && fw.every(f => f.min < 4.5),
+      'DISCRIMINADOR · con las reglas de la 7.48, a ' + w + ' px en claro la pista NO llega a 4,5:1 · ' + fw.map(f => f.min + ' sobre ' + f.peor).join(' | '));
+    PRUEBAS.cierto(fw.length === 4 && fw.every(f => Math.abs(f.dx) > 1),
+      'DISCRIMINADOR · y queda corrida del centro del chip · ' + fw.map(f => f.chip + '/' + f.palabra + ' ' + f.dx).join(' | '));
+  });
 });
 
 PRUEBAS.caso('🔴 F004 · Operaciones tiene puerta propia en la barra, y con el MISMO permiso que la Nómina', () => {

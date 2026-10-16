@@ -157,6 +157,26 @@
      informa mal, igual que el «47 hallazgos» que en realidad eran 6. */
   const NO_ES_TEXTO = { SCRIPT:1, STYLE:1, TEMPLATE:1, NOSCRIPT:1, TITLE:1 };
 
+  /* ⚠️ P302 · TEXTO ENCIMA DE UN PSEUDOELEMENTO, QUE ESTE AUDITOR NO VE. `fondoEfectivo` sube por los
+     ANCESTROS, y los círculos de `.ent-circulos` son `::before`/`::after`: no son ancestros de nadie.
+     La pista «Idioma» del splash vive encima del `::after` naranja, y acá salía medida contra el navy
+     del overlay. Con el color de la 7.49 daba 6,76 —y el píxel, 1,02—; con el de la 7.50 da 1,16 —y el
+     píxel, 7,65—. Un falso verde y después un falso rojo sobre el mismo elemento: la segunda invita a
+     «arreglar» la pista volviendo al color ilegible.
+     ⚠️ EL ALCANCE ES UN SOLO ELEMENTO, por su `id`, y sólo porque otro instrumento lo mide de verdad:
+     `pruebas/medir-pista-idioma.js` (el píxel) y los casos de `p043-idioma-y-etiquetas.js` y
+     `f001-f003-reportes-de-franco.js` (la geometría del círculo). NO alcanza a todo lo que esté encima
+     de un pseudoelemento: el resto se sigue midiendo como siempre, con el punto ciego de siempre. Y NO
+     es un silencio: cada elemento apartado sale con su porqué en `apartados` (de `contraste()`) y en
+     `sinMedirAProposito` (de `todo()`), además de contar en `sinMedir`. Sumar uno acá exige que algo lo
+     mida contra el píxel; si no, es tapar un defecto. */
+  AUDITOR.FONDO_QUE_NO_VE = [
+    { selector: '#splashLangHint',
+      porque: 'debajo de 900 px queda encima del ::after de .ent-circulos (un pseudoelemento), y desde 900 px sobre el ' +
+              'degradé de .splash-wrap (un background-image): este auditor sube por los ancestros leyendo backgroundColor y no ve ninguno de los dos. ' +
+              'La miden pruebas/medir-pista-idioma.js (píxel) y p043/f001 (geometría del círculo)' }
+  ];
+
   AUDITOR.contraste = function () {
     /* ⚠️ `medidos` NO ES UNA ESTADÍSTICA: es la guarda de medibilidad del propio auditor. Un
        recuento de defectos en cero puede significar dos cosas opuestas —«está limpio» o «no miré
@@ -164,7 +184,7 @@
        en `display:none` daba «0 defectos» en las 108 combinaciones, y se leyó como una auditoría
        limpia. Con esto, cero defectos sobre cero elementos medidos es un ERROR del instrumento, no
        un resultado del producto. */
-    const malos = [], sinMedir = [];
+    const malos = [], sinMedir = [], apartados = [];
     let medidos = 0;
     document.querySelectorAll('body *').forEach(el => {
       if (NO_ES_TEXTO[el.tagName]) return;
@@ -172,6 +192,8 @@
         .map(n => n.textContent.trim()).join('');
       if (!propio) return;
       if (!visible(el)) { sinMedir.push(nombre(el)); return; }
+      const aparte = AUDITOR.FONDO_QUE_NO_VE.filter(x => el.matches(x.selector))[0];   // P302: ver arriba
+      if (aparte) { sinMedir.push(nombre(el)); apartados.push(nombre(el) + ' · ' + aparte.porque); return; }
       const cs = getComputedStyle(el);
       const fondo = fondoEfectivo(el);
       if (fondo == null) { sinMedir.push(nombre(el)); return; }   // gradiente direccional: ver arriba
@@ -195,7 +217,8 @@
                    ' ⟨' + propio.slice(0, 26).replace(/\s+/g, ' ') + '⟩');
       }
     });
-    return { malos: [...new Set(malos)], sinMedir: [...new Set(sinMedir)].length, medidos };
+    return { malos: [...new Set(malos)], sinMedir: [...new Set(sinMedir)].length, medidos,
+             apartados: [...new Set(apartados)] };
   };
 
   /* ── 2 · Superficies claras en tema oscuro ──────────────────────────────────────────────── */
@@ -691,6 +714,8 @@
       desplegados,
       contraste: c.malos,
       sinPoderMedir: c.sinMedir,
+      /* P302 · los que se apartan A PROPÓSITO, cada uno con su porqué (`AUDITOR.FONDO_QUE_NO_VE`). */
+      sinMedirAProposito: c.apartados,
       /* Cuántos textos se pudieron medir DE VERDAD en esta corrida. Cero acá invalida el cero de
          `contraste`: ver la nota en `AUDITOR.contraste`. */
       medidos: c.medidos,
