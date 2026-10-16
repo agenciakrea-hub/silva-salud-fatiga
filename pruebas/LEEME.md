@@ -371,7 +371,9 @@ el texto transparente—, en un Chrome sin cabeza aparte, un contexto nuevo por 
 el `localStorage` de nadie. Da el peor contraste contra cada píxel del fondo y, para la pista, el desvío
 de su centro respecto del chip; lo repite con la deriva del círculo (reposo, mitad y deriva máxima) y,
 para la pista, con las dos palabras. `--texto 3` mide con la letra «Muy grande», que reacomoda la grilla
-de escritorio. Sale 0 si todo pasa, 1 si algo no, 3 si no pudo medir. Sólo pide el documento y la hoja
+de escritorio. También mide el aire entre la tinta de la pista y el anillo de foco del chip (`aire_anillo`:
+menor distancia entre centros de píxel, en px CSS; desde la 7.51 tiene que quedar en 3,3 o más con la letra
+«Pequeño») y el margen de la caja del texto al borde del círculo. Sale 0 si todo pasa, 1 si algo no, 3 si no pudo medir. Sólo pide el documento y la hoja
 de fuentes; los pedidos al endpoint y el service worker se cortan.
 
 **Por qué existe.** `F007` y `F034` se cerraron dos veces en falso porque los instrumentos de siempre

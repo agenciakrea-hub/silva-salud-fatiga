@@ -33,6 +33,12 @@
         el cual centrarse), en cada posición de la deriva. Tenía el mismo defecto que la pista: desde
         900 px cae sobre la mitad `var(--card)` del degradé, con un token pensado para el navy. Si no
         entra en la vista, se la trae con `scrollIntoView` y se devuelve el desplazamiento.
+     7. El AIRE entre la tinta de la pista y el anillo de foco del chip (la app enfoca el chip sola al
+        abrir el splash, y el anillo se ve). Tres capturas de la misma zona: como está, sin el anillo
+        (`outline:none` en el chip) y sin la pista (texto transparente). Las diferencias dan la máscara
+        del anillo y la de la tinta; la distancia es la menor entre centros de píxel de una y otra, en px
+        CSS (`aire_anillo`). Y `margen_circulo`: cuánto le sobra a la caja del texto para seguir adentro
+        del círculo naranja, en esa posición de la deriva (negativo = se sale).
 
    ⚠️ LO ÚNICO QUE SE PIDE AFUERA SON LECTURAS: el documento y los recursos del sitio público, y la hoja
    de fuentes de Google. Se cortan los pedidos a `script.google.com` (los cuenta: tienen que ser cero)
@@ -260,6 +266,7 @@ function medirEnPagina() {
       desvio_caja: f1(cx - (bb.left + bb.right) / 2), desvio_texto: f1(cx - (bt.left + bt.right) / 2) },
     after, before,
     esquinas_en_after: esq.map(([x, y]) => enBanda(x, y) && Math.hypot(x - after.cx, y - after.cy) <= after.r),
+    margen_circulo: f1(Math.min.apply(null, esq.map(([x, y]) => enBanda(x, y) ? after.r - Math.hypot(x - after.cx, y - after.cy) : -Infinity))),
     degrade: { imagen: ws.backgroundImage, mitad: f1(wr.left + wr.width / 2),
       lado: ws.backgroundImage === 'none' ? 'sin degradé' : (ht.left >= wr.left + wr.width / 2 ? 'derecha' : (ht.right <= wr.left + wr.width / 2 ? 'izquierda' : 'cruza')) },
     overlay: getComputedStyle(ov).backgroundColor
@@ -334,6 +341,40 @@ async function medirCombinacion(c, docBody, v, tema, mov, idioma) {
     const clip = { x: x0, y: y0, width: x1 - x0, height: y1 - y0, scale: 1 };
     const r = await sesion('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: false });
     return { buf: Buffer.from(r.data, 'base64'), clip };
+  };
+  /* El aire entre la tinta de la pista y el anillo de foco del chip. Si el chip no tiene el anillo a la
+     vista (no tiene el foco, o `:focus-visible` no aplica), lo dice en vez de medir aire contra nada. */
+  const anillo = async (g, base) => {
+    const c = g.chip.caja, t = g.pista.caja_texto, borde = 8;
+    const zona = { x: Math.max(0, Math.min(c.x, t.x) - borde), y: Math.max(0, c.y - borde) };
+    zona.w = Math.min(v.w, Math.max(c.r, t.r) + borde) - zona.x; zona.h = Math.min(v.h, t.b + borde) - zona.y;
+    const foco = await ev('(() => { const b = document.getElementById("splashLangBtn"); return document.activeElement === b && b.matches(":focus-visible"); })()');
+    const R0 = await captura(zona);
+    await ev('(() => { document.getElementById("splashLangBtn").style.setProperty("outline", "none", "important"); return true; })()');
+    await cuadro();
+    const R1 = await captura(zona);
+    await ev('(() => { document.getElementById("splashLangBtn").style.removeProperty("outline"); document.getElementById("splashLangHint").style.setProperty("color", "transparent", "important"); return true; })()');
+    await cuadro();
+    const R2 = await captura(zona);
+    await ev('(() => { document.getElementById("splashLangHint").style.removeProperty("color"); return true; })()');
+    await cuadro();
+    fs.writeFileSync(path.join(SALIDA, base + '-anillo.png'), R0.buf);
+    const a = leerPng(R0.buf), b = leerPng(R1.buf), k = leerPng(R2.buf);
+    const difiere = (p, q, i) => Math.abs(p.px[i * p.bpp] - q.px[i * q.bpp]) + Math.abs(p.px[i * p.bpp + 1] - q.px[i * q.bpp + 1]) +
+      Math.abs(p.px[i * p.bpp + 2] - q.px[i * q.bpp + 2]);
+    const aro = [], tinta = [];
+    for (let i = 0; i < a.ancho * a.alto; i++) {
+      const xy = [i % a.ancho, Math.floor(i / a.ancho)];
+      if (difiere(a, b, i) > 0) aro.push(xy);
+      if (difiere(a, k, i) > 0) tinta.push(xy);
+    }
+    let min = Infinity, dx = 0, dy = 0;
+    for (const p of tinta) for (const q of aro) {
+      const d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      if (d < min) { min = d; dx = q[0] - p[0]; dy = q[1] - p[1]; }
+    }
+    return { foco_visible: foco, px_anillo: aro.length, px_tinta: tinta.length,
+      aire: aro.length && tinta.length ? r2(min / v.dpr) : null, dx_dispositivo: dx, dy_dispositivo: dy };
   };
   /* La credencial: mismo método que la pista (con texto / con el texto transparente). Si no está a la
      vista se la trae y después se devuelve el desplazamiento: la pista ya se midió en su lugar. */
@@ -424,7 +465,9 @@ async function medirCombinacion(c, docBody, v, tema, mov, idioma) {
           fs.writeFileSync(path.join(SALIDA, base + '-texto.png'), A.buf);
           fs.writeFileSync(path.join(SALIDA, base + '-fondo.png'), B.buf);
           const px = analizar(A.buf, B.buf, g.pista.color);
-          filas.push(Object.assign({ palabra, deriva: pos.k, T: pos.T, recorte: A.clip, archivo: base + '-texto.png' }, g, { pixel: px }));
+          const fila = Object.assign({ palabra, deriva: pos.k, T: pos.T, recorte: A.clip, archivo: base + '-texto.png' }, g, { pixel: px });
+          if (pos === posiciones[0]) fila.anillo = await anillo(g, base);
+          filas.push(fila);
           if (palabra === palabras[0]) cred.push(await credencial(pos, base.replace('-' + palabra, '-credencial')));
         }
         const sigue = await ev('document.getElementById("splashLangHint").textContent === ' + JSON.stringify(palabra));
@@ -473,7 +516,9 @@ async function medirCombinacion(c, docBody, v, tema, mov, idioma) {
         console.log([guarda ? (ok ? '✔' : '✘') : '⚠', 'v' + m.version, v.w + 'x' + v.h + '@' + v.dpr, tema, mov, idioma,
           '«' + m.palabra + '»', m.deriva, 'fondo ' + m.pixel.fondo_moda, 'min ' + m.pixel.contraste_min + ':1',
           'moda ' + m.pixel.contraste_moda + ':1', 'centro ' + (m.centro.desvio_caja > 0 ? '+' : '') + m.centro.desvio_caja + ' px',
-          'tinta ' + m.pixel.tinta_medida + ' (' + m.pista.color + ')', m.pixel.px_tinta + ' px de tinta'].join(' · '));
+          'tinta ' + m.pixel.tinta_medida + ' (' + m.pista.color + ')', m.pixel.px_tinta + ' px de tinta']
+          .concat(m.anillo ? ['aire al anillo ' + (m.anillo.aire == null ? 'sin anillo a la vista' : m.anillo.aire + ' px')] : [])
+          .concat(m.margen_circulo > -Infinity && m.margen_circulo != null ? ['margen al círculo ' + m.margen_circulo + ' px'] : []).join(' · '));
       }
       if (!r.credencial.length) { sinMedir++; console.log('✘ la credencial no se midió', JSON.stringify(r.combinacion)); }
       for (const m of r.credencial) {
