@@ -548,11 +548,16 @@ cuyo título matchee `cedula|telefono|email|correo|contrase|clave|pass|hash|sal|
 ### La zona del SCRIPT y la del LIBRO · separadas desde `P304` (2026-10-19)
 
 **Hoy:** `GS.crearEntorno(hojas, { zonaScript, zonaLibro })` las separa (las conceden `zonaDelScript_`
-y `zonaDelLibro_` en `emulador-gs.js`). `{ zona }` sola sigue moviendo las dos, y sin opciones las dos
-son la del script real, como desde `P161`: ningún caso viejo cambió (mismas fallas en Node con el
-emulador de antes y el de ahora, y la suite del panel 2335/2335). Lo vigila
-`casos/p304-dos-zonas.js`, con su discriminador. Para medir lo de producción:
-`{ zonaScript: 'America/Argentina/Buenos_Aires', zonaLibro: 'America/Caracas' }`.
+y `zonaDelLibro_` en `emulador-gs.js`). `{ zona }` sola sigue moviendo las dos. **Sin opciones, desde
+`P305`, son las de producción: el script en Buenos Aires y el libro en Caracas** (`ZONA_DEL_LIBRO`;
+hasta `P305` el libro caía en la del script). `GS.fechaDeCelda(iso)` arma la celda a medianoche de
+Caracas por lo mismo. Lo vigilan `casos/p304-dos-zonas.js` y `casos/p305-caracas-fija.js`, con sus
+discriminadores.
+
+**Y el endpoint ya no fecha con ninguna de las dos** (`P305`): todo día y toda hora que lee una
+persona sale de `ZONA_FECHAS_GS` (Caracas, fija). La zona del script sólo queda en el par de sellos
+`formatoIsoLocal_`/`parsearIsoAEpoch_`, a propósito. Para fijar «ahora» en un caso sin tocar el `Date`
+de la suite: `env.Date = <una subclase de Date>` antes de `GS.cargarGs` (ver `p305Reloj`).
 
 **Lo que pasaba hasta `P304`, y por qué importa:** `GS.crearEntorno(hojas, { zona })` fijaba **las dos a la vez**: `Session.getScriptTimeZone()` y
 `libro.getSpreadsheetTimeZone()` devuelven lo mismo. En producción son distintas — el libro del CH

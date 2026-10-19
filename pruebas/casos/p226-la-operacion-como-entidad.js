@@ -1478,32 +1478,45 @@ PRUEBAS.caso('🔴 R3-5 · «genteHistN» cuenta PERSONAS, no filas', () => {
   PRUEBAS.igual(op2.genteHistN, 2, '⚠️ discriminador: pero el histórico son 2 personas');
 });
 
-PRUEBAS.caso('🔴 R3-6 · «hoy» lo define la zona de la EMPRESA · MEDIDO POR EFECTO', () => {
+PRUEBAS.caso('🔴 R3-6 · P305 · «hoy» es el de CARACAS, aunque la empresa tenga otra zona cargada · MEDIDO POR EFECTO', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  /* ⚠️ MI PRIMERA VERSIÓN MEDÍA VOCABULARIO: que el código NOMBRE `zonaOperacionServer` y que no
-     aparezca un literal. Tres sabotajes distintos la dejaban verde, incluido el defecto completo
-     —`opHoy_` dejando de usar la zona con la llamada quedando muerta— y uno peor: un `if` por
-     empresa, que R14 prohíbe. Un instrumento que verifica palabras no defiende comportamiento.
-     ⚠️ Acá se mide POR EFECTO, con dos zonas separadas por 25 horas: `Pacific/Kiritimati` (UTC+14)
-     y `Pacific/Niue` (UTC−11) **nunca** están en el mismo día, en ningún instante. Eso hace el
-     discriminador válido siempre, sin depender de la hora a la que corra la suite. */
-  function diaEn(z) { return new Date().toLocaleDateString('en-CA', { timeZone: z }); }
+  /* ⚠️ P305 · ESTE CASO AFIRMABA LO CONTRARIO, y lo afirmaba bien para la decisión de entonces: hasta
+     P305 la zona de cada empresa (`zonaHoraria` en `Config Empresa`) definía su «hoy». El 2026-10-12
+     Franco eligió «Caracas fija para todo» sobre esa opción, así que el derecho cambió de dueño.
+     R19 · lo concede `opHoy_` → `hoyFijo_` (`ZONA_FECHAS_GS`). Se conserva la forma de medir —POR
+     EFECTO, con zonas que nunca coinciden—, que es la que tiene discriminador.
+     ⚠️ (de la versión anterior) MI PRIMERA VERSIÓN MEDÍA VOCABULARIO: que el código NOMBRE una
+     función y que no aparezca un literal. Tres sabotajes la dejaban verde, incluido un `if` por
+     empresa, que R14 prohíbe. Un instrumento que verifica palabras no defiende comportamiento. */
   const zA = 'Pacific/Kiritimati', zB = 'Pacific/Niue';
-  PRUEBAS.cierto(diaEn(zA) !== diaEn(zB),
-    '⚠️ las dos zonas tienen que estar en días distintos SIEMPRE · ' + diaEn(zA) + ' vs ' + diaEn(zB));
+  const diaEnBorde = z => new Date('2026-10-20T03:30:00Z').toLocaleDateString('en-CA', { timeZone: z });
+  /* Guardas del discriminador, en el instante fijo de abajo: Kiritimati y Buenos Aires ya están en el
+     20, así que un `quitar` que usara la zona de la empresa o la del script escribiría el 20. */
+  PRUEBAS.igual([diaEnBorde(zA), diaEnBorde('America/Argentina/Buenos_Aires'), diaEnBorde('America/Caracas')],
+    ['2026-10-20', '2026-10-20', '2026-10-19'], '⚠️ guarda: en el borde, Kiritimati y Buenos Aires dicen 20 y Caracas 19');
 
-  [[zA, diaEn(zA)], [zB, diaEn(zB)]].forEach(par => {
-    const api = p226Api({ 'Config Empresa': [['Empresa', 'Clave', 'Valor'],
-                                             ['Consorcio HELITEC', 'zonaHoraria', par[0]]] });
+  /* ⚠️ Y EL RELOJ FIJO EN EL BORDE (23:30 del 19 en Caracas = 00:30 del 20 en Buenos Aires). Sin él, el
+     caso sólo distinguía «Caracas» de «la zona del script» entre las 23 y las 24 de Caracas: el
+     verificador de P305 le cambió el `hoy` de `quitar` por el día del script y a las 17:30 quedaba
+     verde. Con el reloj fijo, el día correcto es el 19 a cualquier hora en que corra la suite. */
+  const P226_BORDE = '2026-10-20T03:30:00Z';
+  [zA, zB].forEach(z => {
+    const env = GS.crearEntorno(p226Hojas({ 'Config Empresa': [['Empresa', 'Clave', 'Valor'],
+                                                               ['Consorcio HELITEC', 'zonaHoraria', z]] }));
+    env.Date = GS.relojFijo(P226_BORDE);
+    const api = GS.cargarGs(CTX.gs, env,
+      ['accionOperaciones', 'accionOperacionGuardar', 'accionOperacionBaja', 'accionOperacionAsignar', 'manejar']);
+    api.__env = env;
     p226Alta(api, P226_SUP, 'Cardón IV');
     p226Asignar(api, P226_SUP, 'Cardón IV', 'Ana Suárez', { desde: '2026-01-01' });
     p226Asignar(api, P226_SUP, 'Cardón IV', 'Ana Suárez', { quitar: '1' });   // `hasta` = «hoy»
-    PRUEBAS.igual(String(p226Filas(api, p226Hoja('ASIGNACIONES'))[0][5]), par[1],
-      '⚠️ con zona ' + par[0] + ' el día escrito es el de ESA zona · esperaba ' + par[1]);
+    PRUEBAS.igual(String(p226Filas(api, p226Hoja('ASIGNACIONES'))[0][5]), '2026-10-19',
+      '🔴 con zona ' + z + ' cargada y el reloj a las 23:30 de Caracas, `quitar` escribe el 19 — el script ya decía 20');
   });
 
   /* Y la duplicación está VIGILADA: `opZonaDe_` existe para no crear la hoja de config desde un
-     camino de lectura, y tiene que leer lo MISMO que `zonaOperacionServer`. Es la forma que paró la
+     camino de lectura, y tiene que leer lo MISMO que `zonaOperacionServer`. (Desde P305 las dos
+     devuelven `ZONA_FECHAS_GS`; el vigilante se queda por si alguien vuelve a leer la config.) Es la forma que paró la
      serie de P211: una función por lado y un caso que compara las dos derivaciones. */
   /* ⚠️ MI PRIMERA VERSIÓN DE ESTE VIGILANTE ERA CIEGA A SUS DOS DIVERGENCIAS MÁS PROBABLES:
      probaba una sola fila propia con el nombre canónico, así que quedaba verde al quitar el

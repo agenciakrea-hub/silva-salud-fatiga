@@ -52,8 +52,13 @@ PRUEBAS.caso('⚠️ la zona del emulador es la del `appsscript.json` real', () 
   const api = p161Env(['formatoIsoLocal_']);
   PRUEBAS.igual(api.__env.Session.getScriptTimeZone(), 'America/Argentina/Buenos_Aires',
     '⚠️ la del script real · si el proyecto cambia de zona, hay que cambiarla acá también');
-  PRUEBAS.igual(api.__env.__libro.getSpreadsheetTimeZone(), 'America/Argentina/Buenos_Aires',
-    'y la del libro, que en Apps Script son dos cosas pero acá conviene que coincidan');
+  /* ⚠️ P305 · LA DEL LIBRO YA NO COINCIDE, A PROPÓSITO. P161 las igualaba porque había lectores que
+     formateaban con la zona del libro y otros con `new Date(componentes)`, que corre en la del host:
+     si diferían, el emulador inventaba una hora de desfase. Desde P305 ningún lector de fechas usa la
+     zona del libro (todos usan `ZONA_FECHAS_GS`), y el CH de producción está en Caracas —medido con
+     `medir_fechas_tests`—: un libro en Buenos Aires armaba celdas `Date` que en el CH no existen. */
+  PRUEBAS.igual(api.__env.__libro.getSpreadsheetTimeZone(), 'America/Caracas',
+    'y la del libro es la del CH real, Caracas (desde P305; antes se igualaba a la del script)');
 });
 
 PRUEBAS.caso('🔒 el DISCRIMINADOR: con una zona distinta a propósito, SÍ desfasa', () => {

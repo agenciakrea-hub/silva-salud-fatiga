@@ -400,6 +400,10 @@ function __digestHex(bytes) {
    que en ese caso `new Date(componentes)` NO la respeta: sólo se puede confiar en lo que pase por
    `Utilities.formatDate`. */
 var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/appsscript.json
+/* P305 · la del CH en producción (medido con `medir_fechas_tests`, 2026-10-19). Desde P305 es la zona
+   por defecto del LIBRO: el endpoint ya no fecha con la del script, y un emulador cuyo libro está en
+   Buenos Aires arma celdas `Date` que en producción no existen (lo cazó H11 de P226). */
+var ZONA_DEL_LIBRO = 'America/Caracas';
 
   /* ⚠️ FALTABA, y sin esto NINGUNA prueba podía entrar por `accionSupervisor` (P051, 2026-09-06):
      `leerTurnos` y `leerOperacional` la llaman para formatear en la zona de la operación, así que
@@ -412,7 +416,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      CH en Caracas. Con una sola zona, toda medición de un cambio de zona daba «0 diferencias» sin
      medir nada (memoria «el emulador no modela las dos zonas»). `opciones.zonaScript` y
      `opciones.zonaLibro` las separan; cada una cae en `opciones.zona` y después en la del script. */
-  LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || ZONA_DEL_SCRIPT; };
+  LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || ZONA_DEL_LIBRO; };
 
 
   LibroFalso.prototype.getSheets = function () { return Object.keys(this._hojas).map(n => this._hojas[n]); };
@@ -442,7 +446,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      necesita, así una prueba de duplicados no depende de los datos de otra. */
   /* P304 · la zona del script y la del libro, cada una por su lado (ver `getSpreadsheetTimeZone`). */
   function zonaDelScript_(opciones) { return opciones.zonaScript || opciones.zona || ZONA_DEL_SCRIPT; }
-  function zonaDelLibro_(opciones) { return opciones.zonaLibro || opciones.zona || ZONA_DEL_SCRIPT; }
+  function zonaDelLibro_(opciones) { return opciones.zonaLibro || opciones.zona || ZONA_DEL_LIBRO; }   // P305 · por defecto, como producción
 
   function crearEntorno(hojas, opciones) {
     opciones = opciones || {};
@@ -801,7 +805,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      Verificado con `TZ=America/Caracas`, `TZ=UTC`, `TZ=Asia/Tokyo` y `TZ=Pacific/Kiritimati`: el
      epoch que devuelve es el MISMO en los cuatro. */
   function fechaDeCelda_(iso, zona) {
-    const z = zona || ZONA_DEL_SCRIPT;
+    const z = zona || ZONA_DEL_LIBRO;   // P305 · «medianoche en la zona del libro»: el CH está en Caracas
     const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(String(iso || ''));
     if (!m) throw new Error('GS.fechaDeCelda: se espera AAAA-MM-DD[THH:MM[:SS]], llegó ' + iso);
     const [, Y, M, D, h, mi, se] = m;
@@ -820,9 +824,25 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
     return new Date(t);
   };
 
+  /* P305 · UN `Date` CON «AHORA» FIJO, para pasarlo como `env.Date` antes de `cargarGs`: `cargarGs`
+     entrega cada clave del entorno como una variable del archivo, así que el `.gs` ve este `Date` y la
+     suite sigue con el suyo (nada que restaurar, R18). `instanceof` reconoce los `Date` de verdad,
+     los que traen las celdas, porque `normFecha` pregunta `v instanceof Date` con ESTE `Date`.
+     ⚠️ Fija el «ahora», no la zona: `getDate()` y `new Date(a, m, d)` siguen en la del host (P161). */
+  function relojFijo_(iso) {
+    const ms = Date.parse(iso), Real = Date;
+    class Fija extends Real {
+      constructor(...a) { if (a.length) super(...a); else super(ms); }
+      static now() { return ms; }
+      static [Symbol.hasInstance](x) { return x instanceof Real; }
+    }
+    return Fija;
+  }
+
   global.GS = {
     /* P234 · «la celda quedó como Date», sin depender del huso del host (ver la función arriba) */
     fechaDeCelda: fechaDeCelda_,
+    relojFijo: relojFijo_,
     crearEntorno: crearEntorno,
     cargarGs: cargarGs,
     formatearFecha: formatearFecha,

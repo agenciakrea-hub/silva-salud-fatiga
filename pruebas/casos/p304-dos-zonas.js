@@ -50,6 +50,9 @@ PRUEBAS.caso('🔴 DISCRIMINADOR · con una sola zona (lo de antes de P304) los 
   const una = p304Dias({ zona: P304_CCS });
   PRUEBAS.igual([una.zonaScript, una.zonaLibro], [P304_CCS, P304_CCS], '`zona` sola mueve las dos, como antes');
   PRUEBAS.igual(una.diaScript, una.diaLibro, 'con una sola zona no hay diferencia que medir');
+  /* P305 · sin opciones, las de PRODUCCIÓN: el script en Buenos Aires y el libro en Caracas. Hasta
+     P305 el libro caía en la del script (BA/BA): con el endpoint fechando en Caracas, eso armaba celdas
+     `Date` a la medianoche de Buenos Aires, que en el CH real no existen. */
   const def = p304Dias({});
-  PRUEBAS.igual([def.zonaScript, def.zonaLibro], [P304_BA, P304_BA], 'sin opciones, las dos son la del script real, como desde P161');
+  PRUEBAS.igual([def.zonaScript, def.zonaLibro], [P304_BA, P304_CCS], 'sin opciones, las de producción: script en Buenos Aires, libro en Caracas');
 });
