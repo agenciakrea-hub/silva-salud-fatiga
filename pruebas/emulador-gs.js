@@ -406,9 +406,12 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
      el pedido moría con "getSpreadsheetTimeZone is not a function" antes de devolver nada. El
      efecto real era que las pruebas del recorte por rol se escribían llamando a los helpers de
      adentro (`armarAptitudServer`, `anonimizarHseq`) con datos armados a mano — probando la pieza
-     y no el uso, que es justo lo que R17 vino a prohibir. Devuelve la MISMA zona que
-     `Session.getScriptTimeZone`: son dos cosas distintas en Apps Script (la del libro y la del
-     script) pero acá conviene que coincidan, y `opciones.zona` las mueve a las dos juntas. */
+     y no el uso, que es justo lo que R17 vino a prohibir. Por defecto devuelve la MISMA zona que
+     `Session.getScriptTimeZone`, y `opciones.zona` las mueve a las dos juntas.
+     ⚠️ P304 · EN PRODUCCIÓN SON DISTINTAS: el script está en Buenos Aires (`appsscript.json`) y el
+     CH en Caracas. Con una sola zona, toda medición de un cambio de zona daba «0 diferencias» sin
+     medir nada (memoria «el emulador no modela las dos zonas»). `opciones.zonaScript` y
+     `opciones.zonaLibro` las separan; cada una cae en `opciones.zona` y después en la del script. */
   LibroFalso.prototype.getSpreadsheetTimeZone = function () { return this._zona || ZONA_DEL_SCRIPT; };
 
 
@@ -437,6 +440,10 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
   /* ── El entorno completo ────────────────────────────────────────────────────────────────────
      `hojas` es un objeto {nombreDeHoja: [[fila],[fila]]}. Lo arma cada caso con los datos que
      necesita, así una prueba de duplicados no depende de los datos de otra. */
+  /* P304 · la zona del script y la del libro, cada una por su lado (ver `getSpreadsheetTimeZone`). */
+  function zonaDelScript_(opciones) { return opciones.zonaScript || opciones.zona || ZONA_DEL_SCRIPT; }
+  function zonaDelLibro_(opciones) { return opciones.zonaLibro || opciones.zona || ZONA_DEL_SCRIPT; }
+
   function crearEntorno(hojas, opciones) {
     opciones = opciones || {};
     const cache = {};
@@ -459,7 +466,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
           env.__libros = env.__libros || {};
           const n = (env.__nLibros = (env.__nLibros || 0) + 1);   // contador: un id nunca se reusa (ni tras la papelera)
           const l = new LibroFalso({ 'Hoja 1': [] });
-          l._id = 'libro-creado-' + n; l._nombre = String(nombre || ''); l._zona = opciones.zona || ZONA_DEL_SCRIPT;
+          l._id = 'libro-creado-' + n; l._nombre = String(nombre || ''); l._zona = zonaDelLibro_(opciones);
           env.__libros[l._id] = l;
           registro.libros.push({ id: l._id, nombre: l._nombre });
           return l;
@@ -477,7 +484,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
         },
         flush: function () {}
       },
-      __libro: (function (l) { l._zona = opciones.zona || ZONA_DEL_SCRIPT; return l; })(new LibroFalso(hojas)),
+      __libro: (function (l) { l._zona = zonaDelLibro_(opciones); return l; })(new LibroFalso(hojas)),
 
       /* — Caché: implementación real en memoria, no un stub que devuelve null.
            Importa porque hay lógica que DEPENDE de que la caché funcione (el freno de fuerza
@@ -550,7 +557,7 @@ var ZONA_DEL_SCRIPT = 'America/Argentina/Buenos_Aires';   // la de endpoint/apps
       __uuid: 0,
 
       Session: {
-        getScriptTimeZone: function () { return opciones.zona || ZONA_DEL_SCRIPT; },   // P161
+        getScriptTimeZone: function () { return zonaDelScript_(opciones); },   // P161 · P304: puede ser distinta de la del libro
         getActiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; },
         getEffectiveUser: function () { return { getEmail: () => opciones.email || 'prueba@ejemplo.com' }; }
       },

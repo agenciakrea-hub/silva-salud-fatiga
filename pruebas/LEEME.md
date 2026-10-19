@@ -545,9 +545,16 @@ cuyo título matchee `cedula|telefono|email|correo|contrase|clave|pass|hash|sal|
 — por eso tapa la columna EMPRESAS de `Accesos` (su título dice «usuario») y la columna Clave de
 `Config Empresa`. Cualquier medición sobre esas columnas hecha con `volcar` no vale.
 
-### El emulador NO distingue la zona del SCRIPT de la del LIBRO
+### La zona del SCRIPT y la del LIBRO · separadas desde `P304` (2026-10-19)
 
-`GS.crearEntorno(hojas, { zona })` fija **las dos a la vez**: `Session.getScriptTimeZone()` y
+**Hoy:** `GS.crearEntorno(hojas, { zonaScript, zonaLibro })` las separa (las conceden `zonaDelScript_`
+y `zonaDelLibro_` en `emulador-gs.js`). `{ zona }` sola sigue moviendo las dos, y sin opciones las dos
+son la del script real, como desde `P161`: ningún caso viejo cambió (mismas fallas en Node con el
+emulador de antes y el de ahora, y la suite del panel 2335/2335). Lo vigila
+`casos/p304-dos-zonas.js`, con su discriminador. Para medir lo de producción:
+`{ zonaScript: 'America/Argentina/Buenos_Aires', zonaLibro: 'America/Caracas' }`.
+
+**Lo que pasaba hasta `P304`, y por qué importa:** `GS.crearEntorno(hojas, { zona })` fijaba **las dos a la vez**: `Session.getScriptTimeZone()` y
 `libro.getSpreadsheetTimeZone()` devuelven lo mismo. En producción son distintas — el libro del CH
 está en `America/Caracas` y el script en `America/Argentina/Buenos_Aires` (`appsscript.json`) — y esa
 diferencia **fecha un día después** todo instante tomado entre 23:00 y 23:59 de Caracas: medido con
@@ -558,8 +565,7 @@ da «0 diferencias» porque las dos zonas son la misma ahí. Si una medición de
 primero el discriminador: formatear un instante de borde con las dos y confirmar que dan días
 distintos. Si no difieren, el instrumento no modela lo que se quiere medir.
 
-Para poder medirlo hay que darle al emulador zonas separadas (`{ zonaScript, zonaLibro }`). Está
-anotado como pendiente.
+Con `{ zonaScript, zonaLibro }` (arriba), esa medición ya se puede hacer en el emulador.
 
 ## La suite depende del huso del HOST, y eso no está modelado (medido el 2026-10-06)
 
