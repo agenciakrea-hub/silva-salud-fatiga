@@ -49,8 +49,11 @@ PRUEBAS.caso('🔴 `Accesos`: el código resuelve las seis columnas con los tít
   PRUEBAS.igual(c.pass, 1, 'la contraseña de supervisor en la suya');
   PRUEBAS.igual(c.empresas, 3, 'EMPRESAS en la suya');
   PRUEBAS.cierto(c.passMed > 0, 'la médica se reconoce · «Contraseña Médica (si no se pone…)»');
-  PRUEBAS.cierto(c.passHseq > 0, 'y la de Dirección · dice «Contraseña HSQ», sin la E');
-  PRUEBAS.cierto(c.passMed !== c.pass && c.passHseq !== c.passMed,
+  /* ⚠️ P306 · la «Contraseña HSQ» es la de DIRECCIÓN (`passDir`). La del panel de HSEQ (`passHseq`) es
+     una columna nueva, «Contraseña panel HSEQ», que el CH real todavía no tiene (ADR 017). */
+  PRUEBAS.cierto(c.passDir > 0, 'y la de Dirección · dice «Contraseña HSQ», sin la E');
+  PRUEBAS.igual(c.passHseq, -1, 'P306 · y la del panel de HSEQ no está: el CH real no tiene la columna nueva');
+  PRUEBAS.cierto(c.passMed !== c.pass && c.passDir !== c.passMed,
     '🔒 y las tres son columnas DISTINTAS · confundirlas convierte a un supervisor en médico');
 });
 

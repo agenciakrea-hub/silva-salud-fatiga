@@ -259,6 +259,18 @@ function __digestHex(bytes) {
      un hash intacto, que es para lo que se lee. No sirve para medir cómo Sheets pinta un número. */
   RangoFalso.prototype.getDisplayValue = function () { const v = this.getValue(); return v == null ? '' : String(v); };
   RangoFalso.prototype.setValues = function (vals) {
+    /* ⚠️ P306 · LAS MEDIDAS SE VALIDAN, COMO EN SHEETS. Apps Script lanza «The number of columns in the
+       data does not match the number of columns in the range» si los datos no tienen exactamente las
+       filas y columnas del rango. Este emulador escribía igual, y por eso la suite no vio que la tarea
+       de títulos de la nómina metía 4 valores en un rango de 3 (lo midió el verificador de P306). */
+    if (!Array.isArray(vals) || vals.length !== this._nf)
+      throw new Error('The number of rows in the data does not match the number of rows in the range. The data has ' +
+                      (Array.isArray(vals) ? vals.length : 0) + ' but the range has ' + this._nf + '.');
+    for (let i = 0; i < vals.length; i++) {
+      if (!Array.isArray(vals[i]) || vals[i].length !== this._nc)
+        throw new Error('The number of columns in the data does not match the number of columns in the range. The data has ' +
+                        (Array.isArray(vals[i]) ? vals[i].length : 0) + ' but the range has ' + this._nc + '.');
+    }
     for (let i = 0; i < vals.length; i++) {
       const fi = this._f - 1 + i;
       if (!this._h._datos[fi]) this._h._datos[fi] = [];

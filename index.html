@@ -7913,7 +7913,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.51';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.52';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8698,7 +8698,7 @@ const I18N = {
       dash_emp_admin_si:'Estás trabajando sobre <b>{e}</b>: lo que registres queda en esa empresa.',
       visor_empresa:'Empresa', visor_todas:'Todas las empresas',
       visor_volver:'← Todas las empresas', visor_volver_aria:'Volver al panel de todas las empresas como servicio médico',
-      visor_vista:'Ver como', visor_sup:'Supervisor', visor_med:'Servicio médico', visor_hseq:'Dirección / HSEQ',
+      visor_vista:'Ver como', visor_sup:'Supervisor', visor_med:'Servicio médico', visor_hseq:'HSEQ', visor_direccion:'Dirección',
       visor_viendo:'Estás viendo el panel de <b>{empresa}</b> como <b>{vista}</b>, sin escribir nada.',
       visor_viendo_todas:'Estás viendo <b>todas las empresas</b> como <b>{vista}</b>.',
       /* ⚠️ F002 · el visor APAGADO con una empresa de trabajo puesta. No dice «sin escribir nada»
@@ -9600,7 +9600,7 @@ const I18N = {
       sim_txt:'Estás viendo la app <b id="simRol">—</b> · <b>modo simulación, no se guarda nada</b>',
       sim_como:'como {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
-      vista_medico:'Servicio médico', vista_hseq:'Dirección / HSEQ',
+      vista_medico:'Servicio médico', vista_hseq:'Dirección / HSEQ', vista_direccion:'Dirección', vista_panel_hseq:'HSEQ',
       /* S7 · etiquetas cortas para el selector de la demostración: las largas no entran en una
          fila a 375 px. Y el texto de la barra dice qué es sin sonar a error ni a disculpa: quien
          la lee es un cliente al que le están mostrando el producto. */
@@ -10891,7 +10891,7 @@ const I18N = {
       dash_emp_admin_si:'You are working on <b>{e}</b>: whatever you record stays in that company.',
       visor_empresa:'Company', visor_todas:'All companies',
       visor_volver:'← All companies', visor_volver_aria:'Back to the panel for all companies as medical service',
-      visor_vista:'View as', visor_sup:'Supervisor', visor_med:'Medical service', visor_hseq:'Management / HSEQ',
+      visor_vista:'View as', visor_sup:'Supervisor', visor_med:'Medical service', visor_hseq:'HSEQ', visor_direccion:'Management',
       visor_viendo:'You are viewing the <b>{empresa}</b> panel as <b>{vista}</b>, without writing anything.',
       visor_viendo_todas:'You are viewing <b>all companies</b> as <b>{vista}</b>.',
       visor_viendo_trabajo:'You are viewing <b>{empresa}</b> as <b>{vista}</b>.',
@@ -11859,7 +11859,7 @@ const I18N = {
       sim_txt:'You are viewing the app <b id="simRol">—</b> · <b>simulation mode, nothing is saved</b>',
       sim_como:'as {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
-      vista_medico:'Medical staff', vista_hseq:'Management / HSEQ',
+      vista_medico:'Medical staff', vista_hseq:'Management / HSEQ', vista_direccion:'Management', vista_panel_hseq:'HSEQ',
       dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
@@ -21772,7 +21772,7 @@ function toggleAdminLogin(){
    persona—, nunca un `dashRefresh` (que hace un merge parcial y conserva rol/vista/pestañas).
    «Todas las empresas · Servicio médico» NO manda parámetros: es el administrador de siempre, con
    lo que hoy puede hacer. Cualquier otra combinación es el visor, de sólo lectura. */
-function visorVistaTxt(v){ return t(v === 'supervisor' ? 'visor_sup' : (v === 'hseq' ? 'visor_hseq' : 'visor_med')); }
+function visorVistaTxt(v){ return t(v === 'supervisor' ? 'visor_sup' : (v === 'hseq' ? 'visor_hseq' : (v === 'direccion' ? 'visor_direccion' : 'visor_med'))); }
 /* El visor arranca PLEGADO (pedido de Franco: ocupaba media pantalla en cada panel) y recuerda si se
    dejó abierto. Es una preferencia de este dispositivo, no un dato: vive en localStorage. */
 const K_VISOR_ABIERTO = 'silva_visor_abierto_v1';
@@ -21826,7 +21826,8 @@ function visorPintar(){
   }
   $('visorEmpresa').innerHTML = '<option value="">' + esc(t('visor_todas')) + '</option>' +
     cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
-  $('visorVista').innerHTML = ['supervisor', 'medico', 'hseq'].map(k =>
+  /* P306 · Dirección y HSEQ por separado: el servidor fabrica la misma vista `hseq`, con o sin la marca. */
+  $('visorVista').innerHTML = ['supervisor', 'medico', 'direccion', 'hseq'].map(k =>
     '<option value="' + k + '"' + (k === visAct ? ' selected' : '') + '>' + esc(visorVistaTxt(k)) + '</option>').join('');
   /* ⚠️ F002 · ESTE MENSAJE AFIRMABA ALGO FALSO, y lo reportó Franco: con «trabajando sobre
      Aeroambulancias» puesto, decía «Estás viendo **todas las empresas**». Miraba sólo
@@ -22012,7 +22013,15 @@ function tabLabel(k){ return t('tab_' + k); }
 // selector (.portal-tabs) — si el día de mañana cambia un nombre, cambia acá y en ningún otro lado.
 const DASH_VISTA_LABEL_DEF = { empleado:'vista_personal', supervisor:'vista_supervisor', medico:'vista_medico', hseq:'vista_hseq' };
 // La etiqueta de la vista, ya traducida. También la usa la barra de simulación.
-function vistaLabel(v){ const k = DASH_VISTA_LABEL_DEF[v]; return k ? t(k) : ''; }
+function vistaLabel(v){
+  /* P306 · dentro de `hseq`, el nombre del panel: «Dirección» o «HSEQ», según la marca del servidor.
+     ⚠️ try/catch y no sólo `typeof`: `DASH` es `let` y en zona muerta `typeof` también lanza (R16). */
+  try {
+    if (v === 'hseq' && typeof DASH !== 'undefined' && DASH && (DASH.panel === 'hseq' || DASH.panel === 'direccion'))
+      return t(DASH.panel === 'hseq' ? 'vista_panel_hseq' : 'vista_direccion');
+  } catch(e){}
+  const k = DASH_VISTA_LABEL_DEF[v]; return k ? t(k) : '';
+}
 /* ⚠️ ZD · UNA SOLA DESCRIPCIÓN POR PANEL, PARA LOS DOS LUGARES QUE LA MUESTRAN. La misma cadena
    la lee el gate (antes de entrar, en `portalMode`) y el panel (ya adentro, acá). Dos juegos de
    textos que dicen lo mismo es el defecto que este proyecto viene persiguiendo desde hace un mes:
@@ -22262,6 +22271,10 @@ function dashCamposDelServidor(d){
     /* P075 · `combinada` (la clave única de la empresa abre las dos secciones): dos guardas del
        cliente la leían y nunca estaba — el médico combinado veía menos de lo que el servidor manda. */
     combinada: !!d.combinada,
+    /* P306 · DENTRO DE LA VISTA `hseq`, QUÉ PANEL ES: «direccion» o «hseq». Lo decide el servidor
+       por la contraseña con que se entró (ADR 017); la app sólo lo nombra. Un servidor viejo no lo
+       manda y queda `null`: el nombre de siempre, «Dirección / HSEQ». */
+    panel: (d.panel === 'hseq' || d.panel === 'direccion') ? d.panel : null,
     cicloPlanPersona: d.cicloPlanPersona || null,
     cicloPlanPersonaError: d.cicloPlanPersonaError || null,
     marca: d.marca || null,

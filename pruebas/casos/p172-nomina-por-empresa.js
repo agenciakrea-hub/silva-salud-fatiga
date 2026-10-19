@@ -68,7 +68,7 @@ PRUEBAS.caso('⚠️ sin `confirmar`, `nomina_hoja_crear` SIMULA: dice qué har�
   PRUEBAS.igual(api.valorConfigPropio('Consorcio HELITEC', 'nominaHojaId'), '', 'ni anotó nada en Config');
 });
 
-PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 15 columnas, sembrada, texto, listas cerradas, compartida, anotada, con disparadores', () => {
+PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 16 columnas, sembrada, texto, listas cerradas, compartida, anotada, con disparadores', () => {
   if (p172Sin()) return;
   const api = p172Env();
   const r = api.__crear({ editores:'rrhh@helitec.com; jefe@helitec.com' });
@@ -78,8 +78,8 @@ PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 15 columnas, 
   PRUEBAS.cierto(/Consorcio HELITEC/.test(reg.libros[0].nombre) && /Silva Salud Fatiga/.test(reg.libros[0].nombre), 'con el nombre de la empresa y el del producto');
   const sh = api.__hojaEmpresa();
   const v = sh.__volcado();
-  PRUEBAS.igual(v[0], ['Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo','¿Supervisor?','¿Servicio médico?','¿Dirección?'],
-    '🔴 las 15 columnas: las 12 de siempre —sin «Empresa» (la hoja ES la empresa) ni «Estado» (borrar la fila es la baja)— más las TRES de rol de P177');
+  PRUEBAS.igual(v[0], ['Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo','¿Supervisor?','¿Servicio médico?','¿Dirección?','¿HSEQ?'],
+    '🔴 las 16 columnas: las 12 de siempre —sin «Empresa» (la hoja ES la empresa) ni «Estado» (borrar la fila es la baja)— más las TRES de rol de P177 y «¿HSEQ?» de P306');
   PRUEBAS.igual(v.length, 3, 'sembrada con las dos personas de Helitec');
   PRUEBAS.igual(v[1][0], 'Ana Suárez', 'Ana…');
   PRUEBAS.igual(v[2][0], 'Beto Pérez', '…y Beto');
@@ -92,7 +92,7 @@ PRUEBAS.caso('🔴 `nomina_hoja_crear` crea la hoja de la empresa: 15 columnas, 
   PRUEBAS.igual((val(11) && val(11).getCriteriaValues()[0]) || null, ['Empleado','Supervisor','Servicio médico','Dirección'], '🔴 «Rol en la app» también');
   /* P177 · y las tres nuevas, con la misma lista cerrada Sí/No: la validación fuerte es la razón
      por la que se eligieron tres columnas y no una celda con comas. */
-  [13, 14, 15].forEach(c => PRUEBAS.igual((val(c) && val(c).getCriteriaValues()[0]) || null, ['Sí','No'],
+  [13, 14, 15, 16].forEach(c => PRUEBAS.igual((val(c) && val(c).getCriteriaValues()[0]) || null, ['Sí','No'],
     '🔴 P177 · la columna ' + c + ' es una lista cerrada Sí/No'));
   /* Y se siembran DERIVADAS del rol que ya tenía: la empresa abre su hoja y ve el modelo nuevo
      cargado, sin traducir nada a mano. Ana es «Empleado» en el CH de prueba → No en las tres. */
@@ -162,6 +162,9 @@ function p172Editar(api, cambios) {
     if (f[0] === 'Ana Suárez' && cambios.cedAna !== undefined) f[1] = cambios.cedAna;
   });
   (cambios.agregar || []).forEach(f => filas.push(f));
+  /* P306 · cada fila con el ancho de la hoja: el emulador valida las medidas como Sheets, y una
+     persona de 12 valores en una hoja de 16 columnas lanzaba. Lo que falta son celdas vacías. */
+  filas.forEach(f => { while (f.length < v[0].length) f.push(''); });
   sh.clear();
   sh.getRange(1, 1, 1, v[0].length).setValues([v[0]]);
   if (filas.length) sh.getRange(2, 1, filas.length, v[0].length).setValues(filas);

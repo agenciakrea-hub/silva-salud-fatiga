@@ -39,7 +39,7 @@ function p201Payload(extra){
     /* P227a · el panel por operación. Van en el fixture base porque el servidor los manda siempre;
        si falta acá, el aserto de «ninguno congelado» falla sin decir que el hueco es del fixture. */
     operaciones: [], operacionesError: null,
-    config: { sector: 'aviacion' }, marca: null, combinada: false, zonaOp: null,
+    config: { sector: 'aviacion' }, marca: null, combinada: false, panel: 'direccion', zonaOp: null,   // P306 · panel
     nominaTotal: 2, nominaSinDato: [], nominaError: null,
     cicloPlanPersona: { ana: { jornada: 600 } }, cicloPlanPersonaError: null,
     cuentas: null, visor: null, visorError: null, atajosAdmin: null
@@ -97,7 +97,7 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
     /* TODO cambiado, incluido lo que el panel usa para decir la verdad sobre la cobertura. */
     const v2 = p201Payload({
       registros: [p201Reg('Ana Uno', 9)],
-      config: { sector: 'campo' }, marca: { nombre: 'Marca Nueva' }, combinada: true,
+      config: { sector: 'campo' }, marca: { nombre: 'Marca Nueva' }, combinada: true, panel: 'hseq',
       zonaOp: 'America/Bogota', nominaTotal: 6, nominaSinDato: ['Beto', 'Caro'],
       nominaError: 'No se pudo leer la nómina',
       cicloPlanPersona: { ana: { jornada: 720 } }, cicloPlanPersonaError: 'plan ilegible',
