@@ -187,10 +187,11 @@ const P185_ESCRITURAS = [
   ['accionCredencialReiniciar',  { cedula: 'V-11111', _post: true }],
   ['accionCasoOdooGuardar',      { caso: JSON.stringify({ id: 'c1' }) }],
   ['accionSembrarNivelesDemo',   {}],
-  ['generarInforme',             { objetivo: 'x' }]
+  ['generarInforme',             { objetivo: 'x' }],
+  ['accionEmpresaConfigGuardar', { que: 'sector', sector: 'aviacion' }]   // P312
 ];
 
-PRUEBAS.caso('🔴 CANDADO 2 · las catorce acciones que escriben responden «solo_lectura» al visor', () => {
+PRUEBAS.caso('🔴 CANDADO 2 · las quince acciones que escriben responden «solo_lectura» al visor', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = p185Api(P185_ESCRITURAS.map(e => e[0]));
   const base = { usuario: '*', pass: P185_ADMIN, dispositivoId: 'p185', empresa: 'Consorcio HELITEC',

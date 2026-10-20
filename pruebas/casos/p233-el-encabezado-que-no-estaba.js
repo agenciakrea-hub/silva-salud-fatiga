@@ -129,7 +129,7 @@ PRUEBAS.caso('🔴 P233-3 · un encabezado RENOMBRADO o corrido NO se toca (P163
     '⚠️ y la fila 1 quedó TAL CUAL, con la columna de más y los nombres donde estaban');
 });
 
-PRUEBAS.caso('🔴 P233-4 · los 25 constructores de hoja aseguran su encabezado, no sólo al crear', () => {
+PRUEBAS.caso('🔴 P233-4 · todos los constructores de hoja aseguran su encabezado, no sólo al crear', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   /* ⚠️ EL BARRIDO DE FORMA, porque el de comportamiento no alcanza: probar las 25 hojas por su
      camino real serían 25 fixtures, y el defecto es idéntico en todas. Acá se mide que ninguna
@@ -140,7 +140,7 @@ PRUEBAS.caso('🔴 P233-4 · los 25 constructores de hoja aseguran su encabezado
   const sinComentarios = CTX.gs.replace(/\/\*[\s\S]*?\*\//g, '')
                                .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
   const cuerpos = {};
-  const re = /function (obtenerHoja[A-Za-z]*)\s*\([^)]*\)\s*\{/g;
+  const re = /function (obtenerHoja[A-Za-z_]*)\s*\([^)]*\)\s*\{/g;   // P312 · con `_`: un constructor `obtenerHojaX_` se le escapaba
   let m;
   while ((m = re.exec(sinComentarios))) {
     let i = m.index + m[0].length, prof = 1;

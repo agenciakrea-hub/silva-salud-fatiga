@@ -1239,6 +1239,28 @@
   .visor-salir { display: block; width: 100%; margin-top: .6rem; min-height: 44px; padding: .5rem .8rem; border-radius: var(--radius-sm);
     border: 1.5px solid var(--sup-borde); background: transparent; color: var(--text-soft); font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
   .visor-salir:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+  /* P312 · la puerta a la configuración de la empresa de TRABAJO, en el bloque del administrador:
+     se ve en todos los anchos (la barra de arriba no tiene lugar en el teléfono, ver `#opsFabTop`). */
+  .visor-config { display: block; width: 100%; margin-top: .55rem; min-height: 44px; padding: .5rem .8rem; border-radius: var(--radius-sm);
+    border: 1.5px solid var(--orange); background: transparent; color: var(--orange-legible); font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+  .visor-config:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+  /* P312 · la pantalla: tres bloques, los campos con la forma de las otras hojas de gestión. */
+  .cfg-sec { margin: 0 0 .9rem; padding: .85rem .9rem; border: 1px solid var(--linea); border-radius: var(--radius-sm); background: var(--card); }
+  .cfg-sec h3 { margin: 0 0 .2rem; font-size: .95rem; color: var(--text); }
+  .cfg-nota { margin: 0 0 .6rem; font-size: .78rem; line-height: 1.45; color: var(--text-muted); }
+  .cfg-campo { display: flex; flex-direction: column; gap: .3rem; margin: 0 0 .6rem; font-size: .8rem; font-weight: 700; color: var(--text-soft); }
+  .cfg-color { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  .cfg-color input[type="color"] { width: 3rem; height: 44px; padding: 0; border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; }
+  .cfg-sin { display: flex; align-items: center; gap: .4rem; min-height: 44px; font-weight: 600; color: var(--text-soft); }
+  .cfg-guardar { min-height: 44px; padding: .5rem 1.1rem; border: none; border-radius: 11px; cursor: pointer;
+    background: var(--orange-txt); color: var(--sobre-marca); font: inherit; font-size: .85rem; font-weight: 800; }
+  .cfg-guardar:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+  .cfg-err { margin-top: .4rem; font-size: .8rem; font-weight: 700; color: var(--sem-rojo-txt); }
+  .cfg-err:empty { display: none; }
+  .cfg-esc { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  .cfg-esc td { padding: .5rem .25rem; border-top: 1px solid var(--linea); vertical-align: middle; color: var(--text); }
+  .cfg-esc td .cfg-nota { margin: .15rem 0 0; }
+  .cfg-esc td.cfg-n { width: 5.25rem; }
   .visor-pie { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; margin-top: .55rem; }
   .visor-info { flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 999px; border: 1.5px solid var(--sup-borde);
     background: var(--sup-campo); color: var(--text-muted); font-weight: 800; font-size: .8rem; cursor: pointer; }
@@ -7540,6 +7562,9 @@
               <select id="dashEmpAdmin" onchange="dashEmpresaAdminCambiar()"></select></label>
           </div>
           <div class="visor-trabajo-nota" id="dashEmpAdminNota"></div>
+          <!-- P312 · configurar la empresa de TRABAJO (sector, marca, escala). Sólo el administrador y sólo
+               con una empresa elegida acá arriba (ADR 014). Lo muestra `cfgActualizarBoton()`. -->
+          <button type="button" class="visor-config" id="cfgFabBtn" onclick="cfgAbrir()" style="display:none" data-i18n="cfg_abrir">Configurar esta empresa</button>
           <div class="visor-sels">
             <label class="visor-sel"><span id="visorLblEmpresa"></span>
               <select id="visorEmpresa" onchange="visorCambiar()"></select></label>
@@ -7700,6 +7725,22 @@
         <button class="gest-quick-btn" onclick="depAgregar(this)" data-i18n-attr="aria-label:dep_agregar">+</button>
       </div>
       <div id="depBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- P312 · CONFIGURACIÓN DE LA EMPRESA · misma forma que `#depOv`. Estática por lo mismo que `#opsOv`
+     (el observador del foco e `inert` sólo engancha los `.overlay` presentes al cargar) y nombrada en
+     `silvaAtras`, cuya lista es explícita. -->
+<div class="overlay gest-overlay" id="cfgOv">
+  <div class="sheet gest-sheet">
+    <div class="gest-top">
+      <button class="gest-back" onclick="cfgCerrarUI()" data-i18n="nomlist_volver">‹ Estadísticas</button>
+      <div class="gest-title" id="cfgTitle">Configuración de la empresa</div>
+    </div>
+    <div class="gest-scroll">
+      <div id="cfgAyuda"></div>
+      <div id="cfgBody"></div>
     </div>
   </div>
 </div>
@@ -7913,7 +7954,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.52';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.53';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8089,6 +8130,10 @@ const I18N = {
       err_m_panel_viejo:'Esta pantalla quedó desactualizada. Vuelve a cargarla.',
       err_m_solo_lectura:'Esta sesión es de solo lectura: puede consultar, pero no guardar cambios.',
       err_m_sin_permiso:'Esta vista no tiene permiso para hacer eso.',
+      err_m_sector_invalido:'Ese sector no existe.', err_m_color_invalido:'El color va como #RRGGBB.',
+      err_m_logo_invalido:'El logo va como un enlace que empiece con https://.',
+      err_m_nivel_invalido:'Elige un cargo de la nómina y un nivel de 1 a 5.',
+      err_m_nivel_sin_efecto:'Ese cambio no le movería el nivel a nadie: a todas las personas con ese cargo las gobierna otra regla. Esa regla se cambia en la hoja «Niveles Riesgo».',
       err_m_no_admin:'Solo el administrador puede hacer eso.',
       err_m_sin_atajo:'Solo el administrador puede usar este atajo.',
       err_m_vista:'Esta bandeja la ven el supervisor y la dirección.',
@@ -9500,6 +9545,8 @@ const I18N = {
       acc_cred_cambiada:'Contraseña cambiada', acc_cred_reiniciada:'Contraseña reiniciada',
       acc_cred_aviso:'Aviso de contraseña creada', acc_accesos_admin:'Acceso de administrador actualizado',
       acc_aus_marcada:'Ausencia marcada', acc_aus_anulada:'Ausencia anulada',
+      acc_emp_sector:'Sector de la empresa cambiado', acc_emp_marca:'Marca de la empresa cambiada',
+      acc_emp_nivel:'Nivel de riesgo de un cargo cambiado', acc_acceso_panel:'Contraseña de panel creada',
       tz_cambio:'Cambio: {q}', tz_antes_general:'antes regía la configuración general',
       tz_antes_ninguno:'antes no había horas configuradas', tz_quien:'tocado por {q}',
       tz_titulo:'Trazabilidad ({n})', tz_exportar:'Exportar como CSV',
@@ -9870,6 +9917,28 @@ const I18N = {
       // ── Nómina de sólo lectura (D2) ──
       /* ── P039 · T5 · gestión de departamentos (2026-09-06) ── */
       dep_titulo:'Departamentos', dep_abrir:'Departamentos',
+      cfg_abrir:'Configurar esta empresa', cfg_abrir_emp:'Configurar {empresa}', cfg_titulo:'Configuración de la empresa',
+      cfg_cargando:'Cargando la configuración…', cfg_guardar:'Guardar',
+      hlp_cfg:'Lo que la empresa <b>carga sobre sí misma</b>, sin abrir la planilla: el <b>sector</b> (cambia cómo se llaman las cosas para toda la empresa), la <b>marca</b> (el nombre, el color y el logo de su panel) y la <b>escala de riesgo por cargo</b> (a qué distancia del límite se actúa con cada cargo; la referencia clínica no se mueve). Sólo la ve el administrador, sobre la empresa elegida arriba, y cada cambio queda en la bitácora.',
+      cfg_sector_t:'Sector', cfg_sector_d:'Define cómo se llaman las cosas en la app para toda la empresa: el ciclo, los turnos y el personal.',
+      cfg_sector_ninguno:'Sin sector (nombres generales)', cfg_sector_aviacion:'Aviación', cfg_sector_planta:'Planta industrial',
+      cfg_sector_campo:'Campo', cfg_sector_generico:'General', cfg_sector_elegi:'Elige un sector.',
+      cfg_sector_conf:'¿Cambiar el sector de {empresa} de «{antes}» a «{despues}»? Cambia los nombres que ve toda la empresa.',
+      cfg_marca_t:'Marca', cfg_marca_d:'El nombre y el logo se ven en el panel de la empresa. El color se usa sólo si es lo bastante oscuro para leer texto blanco encima.',
+      cfg_marca_nombre:'Nombre a mostrar', cfg_marca_color:'Color', cfg_marca_sin_color:'Sin color propio',
+      cfg_marca_logo:'Logo (un enlace que empiece con https://)', cfg_marca_logo_ph:'https://…',
+      cfg_escala_t:'Escala de riesgo por cargo',
+      cfg_escala_d:'El nivel de cada cargo, de 1 a 5, fija la tolerancia operativa: a qué distancia del límite se actúa. La referencia clínica no se mueve. La regla del cargo le gana a la del departamento; la de una persona le gana a las dos.',
+      cfg_escala_vacia:'La nómina de esta empresa todavía no tiene cargos.', cfg_escala_persona:'1 persona', cfg_escala_personas:'{n} personas',
+      cfg_escala_regla:'regla propia', cfg_escala_nivel:'nivel {n}', cfg_escala_varia:'niveles {min} a {max}', cfg_escala_varia_op:'Varía',
+      cfg_escala_sombra:'en {n}, manda otra regla', cfg_escala_sombra_todas:'a todas las gobierna otra regla: se cambia en la hoja «Niveles Riesgo»',
+      cfg_nivel_de:'Nivel de {cargo}',
+      cfg_nivel_conf:'¿Fijar el nivel de «{cargo}» en {despues}? Cambia a qué distancia del límite se actúa para {n} personas.',
+      cfg_nivel_conf_uno:'¿Fijar el nivel de «{cargo}» en {despues}? Cambia a qué distancia del límite se actúa para 1 persona.',
+      cfg_nivel_conf_sombra:'De las {total} personas con este cargo, a {s} las gobierna otra regla: no cambian.',
+      cfg_nivel_conf_otros:'Incluye a {lista}: la regla alcanza a todo cargo que contenga «{cargo}».',
+      cfg_escala_alcanza:'también alcanza a: {lista}',
+      cfg_guardado:'Guardado.', cfg_sin_cambio:'Ya estaba así. No se cambió nada.', cfg_guardado_sin_bitacora:'Se guardó, pero no quedó en la bitácora.',
       dep_nuevo_ph:'Nombre del área nueva…', dep_agregar:'Agregar',
       dep_activos:'Activos', dep_de_baja:'Dados de baja',
       dep_personas:'{n} en la nómina', dep_sin_gente:'Sin personas asignadas',
@@ -10321,6 +10390,10 @@ const I18N = {
       err_m_panel_viejo:'This screen is out of date. Reload it.',
       err_m_solo_lectura:'This session is read-only: it can view, but not save changes.',
       err_m_sin_permiso:'This view does not have permission to do that.',
+      err_m_sector_invalido:'That sector does not exist.', err_m_color_invalido:'The color goes as #RRGGBB.',
+      err_m_logo_invalido:'The logo goes as a link that starts with https://.',
+      err_m_nivel_invalido:'Pick a job title from the roster and a level from 1 to 5.',
+      err_m_nivel_sin_efecto:'That change would not move anyone\'s level: everyone with that title is governed by another rule. That rule is changed in the «Niveles Riesgo» sheet.',
       err_m_no_admin:'Only the administrator can do that.',
       err_m_sin_atajo:'Only the administrator can use this shortcut.',
       err_m_vista:'This inbox is seen by the supervisor and management.',
@@ -11762,6 +11835,8 @@ const I18N = {
       acc_cred_cambiada:'Password changed', acc_cred_reiniciada:'Password reset',
       acc_cred_aviso:'Password-created notice', acc_accesos_admin:'Administrator access updated',
       acc_aus_marcada:'Marked absent', acc_aus_anulada:'Absence removed',
+      acc_emp_sector:'Company sector changed', acc_emp_marca:'Company branding changed',
+      acc_emp_nivel:'Risk level of a role changed', acc_acceso_panel:'Dashboard password created',
       tz_cambio:'Change: {q}', tz_antes_general:'the general setting applied before',
       tz_antes_ninguno:'no hours were configured before', tz_quien:'by {q} (device profile)',
       tz_titulo:'Traceability ({n})', tz_exportar:'Export as CSV',
@@ -12107,6 +12182,28 @@ const I18N = {
       // ── Read-only roster (D2) ──
       /* ── P039 · T5 · department management (2026-09-06) ── */
       dep_titulo:'Departments', dep_abrir:'Departments',
+      cfg_abrir:'Set up this company', cfg_abrir_emp:'Set up {empresa}', cfg_titulo:'Company settings',
+      cfg_cargando:'Loading the settings…', cfg_guardar:'Save',
+      hlp_cfg:'What the company <b>sets about itself</b>, without opening the spreadsheet: the <b>sector</b> (changes what things are called for the whole company), the <b>brand</b> (the name, color and logo of its dashboard) and the <b>risk scale by job title</b> (how far from the limit to act for each title; the clinical reference does not move). Only the administrator sees it, for the company chosen above, and every change is logged.',
+      cfg_sector_t:'Sector', cfg_sector_d:'Defines what things are called in the app for the whole company: the cycle, the shifts and the staff.',
+      cfg_sector_ninguno:'No sector (general names)', cfg_sector_aviacion:'Aviation', cfg_sector_planta:'Industrial plant',
+      cfg_sector_campo:'Field', cfg_sector_generico:'General', cfg_sector_elegi:'Pick a sector.',
+      cfg_sector_conf:'Change the sector of {empresa} from “{antes}” to “{despues}”? It changes the names the whole company sees.',
+      cfg_marca_t:'Brand', cfg_marca_d:'The name and the logo show on the company dashboard. The color is used only if it is dark enough to read white text on top.',
+      cfg_marca_nombre:'Display name', cfg_marca_color:'Color', cfg_marca_sin_color:'No color of its own',
+      cfg_marca_logo:'Logo (a link that starts with https://)', cfg_marca_logo_ph:'https://…',
+      cfg_escala_t:'Risk scale by job title',
+      cfg_escala_d:'Each title\'s level, from 1 to 5, sets the operational tolerance: how far from the limit to act. The clinical reference does not move. A title rule beats a department rule; a person\'s own rule beats both.',
+      cfg_escala_vacia:'This company\'s roster has no job titles yet.', cfg_escala_persona:'1 person', cfg_escala_personas:'{n} people',
+      cfg_escala_regla:'own rule', cfg_escala_nivel:'level {n}', cfg_escala_varia:'levels {min} to {max}', cfg_escala_varia_op:'Varies',
+      cfg_escala_sombra:'for {n}, another rule applies', cfg_escala_sombra_todas:'another rule governs all of them: change it in the «Niveles Riesgo» sheet',
+      cfg_nivel_de:'Level for {cargo}',
+      cfg_nivel_conf:'Set the level of “{cargo}” to {despues}? It changes how far from the limit to act for {n} people.',
+      cfg_nivel_conf_uno:'Set the level of “{cargo}” to {despues}? It changes how far from the limit to act for 1 person.',
+      cfg_nivel_conf_sombra:'Of the {total} people with this title, {s} are governed by another rule: they do not change.',
+      cfg_nivel_conf_otros:'That includes {lista}: the rule reaches every title that contains “{cargo}”.',
+      cfg_escala_alcanza:'also reaches: {lista}',
+      cfg_guardado:'Saved.', cfg_sin_cambio:'It was already like that. Nothing changed.', cfg_guardado_sin_bitacora:'Saved, but it did not go into the log.',
       dep_nuevo_ph:'Name of the new area…', dep_agregar:'Add',
       dep_activos:'Active', dep_de_baja:'Deactivated',
       dep_personas:'{n} on the roster', dep_sin_gente:'No one assigned',
@@ -12546,7 +12643,10 @@ const ERR_MOTIVO = {
   sin_empresa:'err_m_sin_empresa', falta_empresa:'err_m_falta_empresa', sin_ciclo:'err_m_sin_ciclo',
   ya_cerrado:'err_m_ya_cerrado', plan_invalido:'err_m_plan_invalido', con_gente:'err_m_con_gente',
   nombre_invalido:'err_m_nombre_invalido', nombre_largo:'err_m_nombre_largo', motivo_invalido:'err_m_motivo_invalido',
-  faltan_datos:'err_m_faltan_datos', demo_pass:'err_m_demo_pass', demo_pass_mal:'err_m_demo_pass_mal'
+  faltan_datos:'err_m_faltan_datos', demo_pass:'err_m_demo_pass', demo_pass_mal:'err_m_demo_pass_mal',
+  sector_invalido:'err_m_sector_invalido', color_invalido:'err_m_color_invalido',   // P312
+  logo_invalido:'err_m_logo_invalido', nivel_invalido:'err_m_nivel_invalido',
+  nivel_sin_efecto:'err_m_nivel_sin_efecto'
 };
 function tError(msg){
   /* Si viene la respuesta entera, trae un motivo conocido Y la app NO está en español, gana el
@@ -18018,6 +18118,7 @@ function silvaAtras(){
      antes de la nómina porque se abre desde la pestaña del ciclo, por encima del panel. */
   if (visible('cicFullOv')){ cicloFullCerrar(); return true; }         // P055
   if (visible('opsOv')){ opsCerrar(); return true; }                   // P227c · ídem `depOv`: se abre desde la nómina
+  if (visible('cfgOv')){ cfgCerrar(); return true; }                   // P312 · se abre desde el bloque del administrador
   if (visible('depOv')){ depCerrar(); return true; }                   // P039: va ENCIMA de la nómina, que es de donde se abre
   if (visible('nominaListOv')){ nominaListCerrar(); return true; }     // nómina (D2) idem
   if (visible('pvtOverlay')){ closePVT(); return true; }
@@ -22205,7 +22306,7 @@ var _cargaUI;
    dato ya en la mano. Falla cerrado: si una carga falla, las puertas quedan escondidas hasta el
    próximo repintado, que es el lado correcto para equivocarse. */
 function dashPuertasCerrar(){
-  ['nomFabBtn', 'opsFabTop', 'opsFabBtn'].forEach(function (id) {
+  ['nomFabBtn', 'opsFabTop', 'opsFabBtn', 'cfgFabBtn'].forEach(function (id) {   // P312 · + la de configuración
     const e = document.getElementById(id); if (e) e.style.display = 'none';
   });
 }
@@ -23903,6 +24004,7 @@ function renderDash(){
   dashUpdateNomFab();
   depActualizarBoton();                       // P039: el botón de departamentos vive dentro de la nómina
   opsActualizarBoton();                       // P227c: el de operaciones, al lado
+  cfgActualizarBoton();                       // P312: el de configuración, en el bloque del administrador
   // La flecha "atrás" ahora también depende de si hay un filtro puesto, así que hay que
   // recalcularla en cada repintado y no sólo al cargar el panel.
   dashUpdateBackBtn();
@@ -26040,7 +26142,11 @@ const HSEQ_ACCION_LABEL = {
   credencial_creada_aviso:'acc_cred_aviso', accesos_admin_set:'acc_accesos_admin',
   /* A8 #12 · marcar a alguien ausente lo saca del denominador de la cobertura de ese día: es una
      decisión con consecuencia y no dejaba ninguna línea. */
-  ausencia_marcada:'acc_aus_marcada', ausencia_anulada:'acc_aus_anulada'
+  ausencia_marcada:'acc_aus_marcada', ausencia_anulada:'acc_aus_anulada',
+  /* P312 · la configuración de la empresa desde el panel */
+  empresa_sector:'acc_emp_sector', empresa_marca:'acc_emp_marca', empresa_nivel:'acc_emp_nivel',
+  /* F084 · una contraseña de panel creada por la tarea de mantenimiento (sin el valor) */
+  acceso_panel_creado:'acc_acceso_panel'
 };
 /* P074 · el «de qué a qué» de un cambio de horas, legible: sólo los tramos que cambiaron, con las
    etiquetas de la forma del sector. Es el único `detalle` que Trazabilidad muestra: no es clínico,
@@ -37203,6 +37309,185 @@ function depCerrar(){
   syncScrollLock();
 }
 function depCerrarUI(){ depCerrar(); navConsumir(); }
+
+/* ══ P312 · LA CONFIGURACIÓN DE LA EMPRESA ═════════════════════════════════════════════════════
+   Sector, marca y escala de riesgo por cargo, desde el panel (antes, a mano en el CH). Sólo el
+   administrador, sobre la empresa de TRABAJO (ADR 014: `DASH.f.emp`, la que manda `dashAuth`), y
+   nunca en el visor ni en la demostración. El servidor decide lo mismo (`empCfgAcceso_`): esto sólo
+   pone o saca la puerta. Cada cambio queda en la bitácora; el sector y la escala piden confirmación
+   (R8): el sector cambia los nombres que ve toda la empresa, y la escala la tolerancia de su gente. */
+var CFG;   // R16 · `var` sin asignar: lo que traiga el servidor la última vez que se abrió
+function cfgPuede(){ return !!(DASH && DASH.rol === 'admin' && DASH.vista !== 'hseq' && !DASH.visor && !DASH.demoMode && DASH.f && DASH.f.emp); }
+function cfgActualizarBoton(){
+  const b = document.getElementById('cfgFabBtn'); if (!b) return;
+  const va = cfgPuede();
+  b.style.display = va ? '' : 'none';
+  if (va) b.textContent = t('cfg_abrir_emp', { empresa: dashScopeVisible(DASH.f.emp) });
+}
+function cfgAbrir(){
+  if (!cfgPuede()) return;
+  const tit = document.getElementById('cfgTitle');
+  if (tit) tit.textContent = t('cfg_titulo') + ' · ' + dashScopeVisible(DASH.f.emp);
+  document.getElementById('cfgOv').classList.add('show');
+  document.body.classList.add('modal-open');
+  navPush();
+  /* R5 · la guía va acá y no en el repintado: tiene que estar aunque la carga falle (como `depAbrir`). */
+  const a = document.getElementById('cfgAyuda'); if (a) a.innerHTML = dashHelp(t('hlp_cfg'));
+  cfgCargar();
+}
+function cfgCerrar(){ document.getElementById('cfgOv').classList.remove('show'); syncScrollLock(); }
+function cfgCerrarUI(){ cfgCerrar(); navConsumir(); }
+function cfgCargar(){
+  const body = document.getElementById('cfgBody'); if (!body) return;
+  CFG = null;
+  body.innerHTML = cargandoHtml(t('cfg_cargando'));
+  const emp = DASH.f.emp;
+  return conBloqueo('#cfgOv .sheet', dashRequest(dashAuth({ action:'empresa_config' }))
+    .then(d => {
+      /* si mientras tanto se cerró o cambió la empresa de trabajo, esta respuesta ya no es de lo que se mira */
+      if (!document.getElementById('cfgOv').classList.contains('show') || !DASH || !DASH.f || DASH.f.emp !== emp) return;
+      if (!d || !d.ok){ body.innerHTML = '<p class="cfg-err">' + esc(tError(d)) + '</p>'; return; }
+      CFG = d; cfgPintar();
+    })
+    .catch(() => { body.innerHTML = '<p class="cfg-err">' + esc(t('sin_conexion')) + '.</p>'; }));
+}
+/* P312 · lo que dice cada fila de la escala sale del servidor, que lo calcula persona por persona con
+   el mismo lector que usa el panel (`empCfgEscala_`): el nivel de un cargo no es uno solo si una
+   persona, un departamento o una fila anterior de «Niveles Riesgo» mandan sobre parte de la gente. */
+function cfgGobernadas(r){ return r && r.gobernadas != null ? r.gobernadas : (r ? r.personas : 0); }
+function cfgEscalaNota(r){
+  const ks = Object.keys(r.niveles || {}).map(Number).sort((a, b) => a - b);
+  const partes = [t(r.personas === 1 ? 'cfg_escala_persona' : 'cfg_escala_personas', { n: r.personas })];
+  partes.push(r.vigente != null ? t('cfg_escala_nivel', { n: r.vigente })
+    : (ks.length ? t('cfg_escala_varia', { min: ks[0], max: ks[ks.length - 1] }) : ''));
+  if (r.regla) partes.push(t('cfg_escala_regla'));
+  const gob = cfgGobernadas(r), sombra = r.personas - gob;
+  if (!gob) partes.push(t('cfg_escala_sombra_todas'));
+  else if (sombra > 0) partes.push(t('cfg_escala_sombra', { n: sombra }));
+  if (gob && (r.alcanza || []).length) partes.push(t('cfg_escala_alcanza', { lista: r.alcanza.map(a => a.cargo).join(', ') }));
+  return partes.filter(Boolean).join(' · ');
+}
+/* El color que la hoja trae, en la forma que entiende `<input type=color>` (#rrggbb). La hoja se edita
+   también a mano y la app aplica «#036» y «#003366ff» (`dashAplicarMarca`): mostrar el naranja de la app
+   en esos casos hacía creer que no había color. Lo que no se puede mostrar, vuelve vacío. */
+function cfgColorParaSelector(c){
+  const v = String(c || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(v)) return ('#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3]).toLowerCase();
+  if (/^#[0-9a-fA-F]{8}$/.test(v)) return v.slice(0, 7).toLowerCase();
+  return '';
+}
+function cfgSectorNombre(s){ return s ? t('cfg_sector_' + s) : t('cfg_sector_ninguno'); }
+function cfgPintar(){
+  const body = document.getElementById('cfgBody'); if (!body || !CFG) return;
+  const d = CFG, m = d.marca || {};
+  const opSec = ['<option value=""' + (d.sector ? '' : ' selected') + '>' + esc(cfgSectorNombre('')) + '</option>']
+    .concat((d.sectores || []).map(s => '<option value="' + esc(s) + '"' + (s === d.sector ? ' selected' : '') + '>' + esc(cfgSectorNombre(s)) + '</option>')).join('');
+  /* el color por defecto del selector sale de un TOKEN, no de un literal (R13): es el de la marca de la app */
+  let colorDef = '';
+  try { colorDef = getComputedStyle(document.documentElement).getPropertyValue('--orange').trim(); } catch(e){}
+  const color = cfgColorParaSelector(m.color) || (/^#[0-9a-fA-F]{6}$/.test(colorDef) ? colorDef : '');
+  const filas = (d.escala || []).map((r, i) =>
+    '<tr><td><b>' + esc(r.cargo) + '</b><div class="cfg-nota" id="cfgNivelNota' + i + '">' + esc(cfgEscalaNota(r)) + '</div></td>' +
+    '<td class="cfg-n"><select class="gest-search" id="cfgNivel' + i + '" aria-label="' + esc(t('cfg_nivel_de', { cargo: r.cargo })) +
+      '" aria-describedby="cfgNivelNota' + i + '"' + (cfgGobernadas(r) ? '' : ' disabled') + ' onchange="cfgGuardarNivel(' + i + ', this)">' +
+      (r.vigente == null ? '<option value="" selected>' + esc(t('cfg_escala_varia_op')) + '</option>' : '') +
+      [1, 2, 3, 4, 5].map(n => '<option value="' + n + '"' + (n === r.vigente ? ' selected' : '') + '>' + n + '</option>').join('') +
+    '</select></td></tr>').join('');
+  body.innerHTML =
+    '<section class="cfg-sec"><h3>' + esc(t('cfg_sector_t')) + '</h3><p class="cfg-nota">' + esc(t('cfg_sector_d')) + '</p>' +
+      '<label class="cfg-campo"><span>' + esc(t('cfg_sector_t')) + '</span><select class="gest-search" id="cfgSector">' + opSec + '</select></label>' +
+      '<button type="button" class="cfg-guardar" onclick="cfgGuardarSector(this)">' + esc(t('cfg_guardar')) + '</button>' +
+      '<div class="cfg-err" id="cfgErrSector" role="alert"></div></section>' +
+    '<section class="cfg-sec"><h3>' + esc(t('cfg_marca_t')) + '</h3><p class="cfg-nota">' + esc(t('cfg_marca_d')) + '</p>' +
+      '<label class="cfg-campo"><span>' + esc(t('cfg_marca_nombre')) + '</span><input class="gest-search" id="cfgMarcaNombre" type="text" maxlength="60" autocomplete="off" value="' + esc(m.nombre || '') + '"></label>' +
+      '<div class="cfg-campo"><span>' + esc(t('cfg_marca_color')) + '</span><div class="cfg-color">' +
+        (color ? '<input id="cfgMarcaColor" type="color" value="' + esc(color) + '" data-ini="' + esc(color.toLowerCase()) + '" aria-label="' + esc(t('cfg_marca_color')) + '">' : '') +
+        '<label class="cfg-sin"><input id="cfgMarcaSinColor" type="checkbox"' + (m.color ? '' : ' checked') + '> ' + esc(t('cfg_marca_sin_color')) + '</label></div></div>' +
+      '<label class="cfg-campo"><span>' + esc(t('cfg_marca_logo')) + '</span><input class="gest-search" id="cfgMarcaLogo" type="url" inputmode="url" maxlength="300" autocomplete="off" placeholder="' + esc(t('cfg_marca_logo_ph')) + '" value="' + esc(m.logo || '') + '"></label>' +
+      '<button type="button" class="cfg-guardar" onclick="cfgGuardarMarca(this)">' + esc(t('cfg_guardar')) + '</button>' +
+      '<div class="cfg-err" id="cfgErrMarca" role="alert"></div></section>' +
+    '<section class="cfg-sec"><h3>' + esc(t('cfg_escala_t')) + '</h3><p class="cfg-nota">' + esc(t('cfg_escala_d')) + '</p>' +
+      (filas ? '<table class="cfg-esc"><tbody>' + filas + '</tbody></table>' : '<p class="cfg-nota">' + esc(t('cfg_escala_vacia')) + '</p>') +
+      '<div class="cfg-err" id="cfgErrNivel" role="alert"></div></section>';
+}
+/* Un solo camino para los tres guardados. Devuelve la respuesta si salió bien, `null` si no (y dice por qué). */
+function cfgEnviar(datos, btn, errId){
+  const err = document.getElementById(errId); if (err) err.textContent = '';
+  if (btn) btnSpin(btn, true, t('guardando'));
+  return conBloqueo('#cfgOv .sheet', dashRequest(dashAuth(Object.assign({ action:'empresa_config_guardar' }, datos)))
+    .then(d => {
+      if (btn) btnSpin(btn, false);
+      if (!d || !d.ok){ if (err) err.textContent = tError(d); return null; }
+      /* R3 · si guardó pero no quedó en la bitácora, se dice */
+      showToast(t(d.cambio === false ? 'cfg_sin_cambio' : (d.bitacora === null ? 'cfg_guardado_sin_bitacora' : 'cfg_guardado')));
+      return d;
+    })
+    .catch(() => { if (btn) btnSpin(btn, false); if (err) err.textContent = t('sin_conexion') + '.'; return null; }));
+}
+function cfgGuardarSector(btn){
+  const sel = document.getElementById('cfgSector'); if (!sel || !CFG) return;
+  const nuevo = sel.value, antes = CFG.sector || '';
+  const err = document.getElementById('cfgErrSector');
+  if (!nuevo){ if (err) err.textContent = t('cfg_sector_elegi'); return; }
+  if (nuevo === antes){ showToast(t('cfg_sin_cambio')); return; }
+  if (!confirm(t('cfg_sector_conf', { empresa: dashScopeVisible(DASH.f.emp), antes: cfgSectorNombre(antes), despues: cfgSectorNombre(nuevo) }))){ sel.value = antes; return; }
+  try { haptic(16); } catch(e){}
+  const mio = CFG;
+  cfgEnviar({ que:'sector', sector:nuevo }, btn, 'cfgErrSector').then(d => { if (d){ if (CFG === mio) CFG.sector = d.sector || nuevo; dashRefresh(); } });
+}
+function cfgGuardarMarca(btn){
+  if (!CFG) return;
+  const m = CFG.marca || {}, mio = CFG;
+  const nombre = ((document.getElementById('cfgMarcaNombre') || {}).value || '').trim();
+  const sinColor = !!(document.getElementById('cfgMarcaSinColor') || {}).checked;
+  const sel = document.getElementById('cfgMarcaColor');
+  const logo = ((document.getElementById('cfgMarcaLogo') || {}).value || '').trim();
+  const err = document.getElementById('cfgErrMarca');
+  /* ⚠️ SÓLO LO QUE CAMBIÓ. La hoja se edita también a mano («#036», un nombre que empieza con «-»): mandar
+     los tres campos siempre le reescribía a la empresa lo que no tocó. */
+  const datos = { que:'marca' };
+  if (nombre !== String(m.nombre || '').trim()) datos.nombre = nombre;
+  if (logo !== String(m.logo || '').trim()) datos.logo = logo;
+  const teniaColor = !!String(m.color || '').trim();
+  if (sinColor && teniaColor) datos.color = '';
+  else if (!sinColor && sel && (!teniaColor || sel.value.toLowerCase() !== String(sel.dataset.ini || '').toLowerCase())) datos.color = sel.value;
+  if (Object.keys(datos).length === 1){ showToast(t('cfg_sin_cambio')); return; }
+  /* el logo se controla sólo si se manda: uno «http://» cargado a mano no tiene que trabar un cambio de nombre */
+  if (datos.logo && !/^https:\/\//i.test(datos.logo)){ if (err) err.textContent = t('err_m_logo_invalido'); return; }
+  cfgEnviar(datos, btn, 'cfgErrMarca')
+    .then(d => { if (d && d.marca){ if (CFG === mio){ CFG.marca = d.marca; cfgPintar(); } dashRefresh(); } });
+}
+function cfgGuardarNivel(i, sel){
+  const r = ((CFG && CFG.escala) || [])[i]; if (!r || !sel) return;
+  const nuevo = +sel.value, previo = r.vigente == null ? '' : String(r.vigente);
+  if (!(nuevo >= 1 && nuevo <= 5)){ sel.value = previo; return; }
+  /* `gobernadas` son las de ESTE cargo; `gobernadasTotal`, todas las que seguirían a la regla (otros cargos
+     que contienen la palabra incluidos): a cuántas les cambia sale del total, la sombra sale de las del cargo */
+  const gob = cfgGobernadas(r), tot = r.gobernadasTotal != null ? r.gobernadasTotal : gob;
+  const cambian = tot - (((r.nivelesGob || {})[nuevo]) || 0), sombra = r.personas - gob;
+  const otros = (r.alcanza || []).map(a => a.cargo + ' (' + a.personas + ')').join(', ');
+  const aviso = t(cambian === 1 ? 'cfg_nivel_conf_uno' : 'cfg_nivel_conf', { cargo: r.cargo, despues: nuevo, n: cambian }) +
+    (otros ? ' ' + t('cfg_nivel_conf_otros', { lista: otros, cargo: r.cargo }) : '') +
+    (sombra > 0 ? ' ' + t('cfg_nivel_conf_sombra', { s: sombra, total: r.personas }) : '');
+  if (!confirm(aviso)){ sel.value = previo; return; }
+  try { haptic(16); } catch(e){}
+  sel.disabled = true;
+  const mio = CFG;
+  cfgEnviar({ que:'nivel', cargo:r.cargo, nivel:nuevo }, null, 'cfgErrNivel').then(d => {
+    sel.disabled = false;
+    /* ⚠️ el panel lee la tabla de niveles UNA vez por sesión (`dashCargarNiveles`) y `dashRefresh` no la
+       vuelve a pedir: sin esto seguiría juzgando con el nivel viejo, y `bitUmbralDe` escribiría ese umbral
+       en la bitácora, que no se corrige (R3). Se pide con CUALQUIER respuesta buena: si la primera se
+       perdió en el camino, el reintento contesta «ya estaba así» y el panel igual tiene la tabla vieja. */
+    if (d && d.ok && DASH && !DASH.demoMode){ DASH._nivelesPedidos = false; try { dashCargarNiveles(); } catch(e){} }
+    /* la fila nueva la calcula el servidor DESPUÉS de escribir: es lo que rige, no lo que se eligió.
+       Si mientras viajaba se cerró la pantalla o se volvió a cargar, la respuesta no la pisa. */
+    if (CFG !== mio) return;
+    if (d && d.fila){ CFG.escala[i] = d.fila; cfgPintar(); }
+    else sel.value = previo;
+  });
+}
 
 function depCargar(){
   const body = document.getElementById('depBody');
