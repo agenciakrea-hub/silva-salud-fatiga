@@ -58,13 +58,19 @@ PRUEBAS.caso('el cruce entre los arreglos se mantiene', () => {
     'y dos personas distintas no pueden compartirlo, o se contarían como una');
 });
 
-PRUEBAS.caso('lo que NO identifica se conserva', () => {
-  /* El recorte tiene que ser quirúrgico: si se llevara puesto el nivel o el departamento, los
-     agregados perderían justamente la información que Dirección sí tiene que ver. */
+PRUEBAS.caso('lo que NO identifica se conserva, y el color de un test ya no viaja con el alias', () => {
+  /* El recorte tiene que ser quirúrgico: si se llevara puesto el departamento, los agregados perderían
+     justamente la información que Dirección sí tiene que ver.
+     ⚠️ P308 · DADO VUELTA, por decisión de Franco (2026-10-14, «Tests sólo en totales»): el `nivel` del
+     test del botón y el `kssNivel` del check-in ERAN «lo que no identifica» y viajaban a propósito
+     (K1a). Pero son el resultado de un test pegado al alias, con su día y su hora —«P1 · Presidente ·
+     KSS medio»—, y la regla no deja ningún test de una persona con ningún alias. R19: lo que los saca es
+     la lista blanca de `anonimizarHseq` (`CAMPOS_HSEQ`), y vale para la vista `hseq` entera —Dirección
+     y HSEQ—: ninguna de sus pantallas los lee (el ciclo de esa vista es `cicloHseqAgregado`). */
   const r = anonimizado();
-  PRUEBAS.igual(r.operacional[0].nivel, 'medio', 'el semáforo de K1a tiene que seguir viajando');
+  PRUEBAS.igual('nivel' in r.operacional[0], false, '🔴 P308 · el color del test del ciclo ya no viaja con el alias');
   PRUEBAS.igual(r.registros[0].departamento, 'Operaciones', 'el departamento no es un identificador directo');
-  PRUEBAS.igual(r.turnos[0].kssNivel, 'ok', 'y el nivel del turno también sigue');
+  PRUEBAS.igual('kssNivel' in r.turnos[0], false, '🔴 P308 · ni el color del KSS del turno');
 });
 
 PRUEBAS.grupo('K1b · la pantalla del ciclo por rol');

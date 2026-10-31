@@ -199,6 +199,14 @@ function __digestHex(bytes) {
     p.setDescription = function (d) { p._desc = String(d || ''); return p; };
     p.getDescription = function () { return p._desc; };
     p.isWarningOnly = function () { return p._aviso; };
+    /* P308 · los editores de una protección: no se modela quién puede editar (no hay usuarios), sólo la lista */
+    p._editores = [];
+    p.getEditors = function () { return p._editores.slice(); };
+    p.addEditor = function (u) { const m = u && u.getEmail ? u.getEmail() : String(u); if (!p._editores.some(x => x.getEmail() === m)) p._editores.push({ getEmail: () => m }); return p; };
+    p.removeEditors = function (us) { const fuera = (us || []).map(u => u.getEmail ? u.getEmail() : String(u)); p._editores = p._editores.filter(x => fuera.indexOf(x.getEmail()) < 0); return p; };
+    p.canDomainEdit = function () { return false; };
+    p.setDomainEdit = function () { return p; };
+    p.remove = function () { h._protecciones = (h._protecciones || []).filter(x => x !== p); };
     h._protecciones = h._protecciones || [];
     h._protecciones.push(p);
     return p;
@@ -521,6 +529,10 @@ var ZONA_DEL_LIBRO = 'America/Caracas';
            contención real no se puede en un solo hilo, así que se emula el camino feliz. */
       LockService: {
         getScriptLock: function () {
+          return { tryLock: () => true, waitLock: () => true, releaseLock: () => {}, hasLock: () => true };
+        },
+        /* P308 · el sellado de HSEQ usa el del usuario, para no frenar los guardados de la app */
+        getUserLock: function () {
           return { tryLock: () => true, waitLock: () => true, releaseLock: () => {}, hasLock: () => true };
         }
       },

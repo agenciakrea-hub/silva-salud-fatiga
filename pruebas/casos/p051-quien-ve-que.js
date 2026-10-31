@@ -52,7 +52,10 @@ const P051_PROMESA_CLAVES = P051_CLAVES.concat([
   'consent_roles_html', 'pg_hint_hseq', 'pg_desc_hseq', 'pg_desc_med', 'rol_of_guia_hseq', 'hlp_idc',
   'cic_hseq_d', 'cic_hseq_exc',
   'doc_2_p', 'doc_2_p2', 'doc_2_f2d', 'doc_2_f6', 'doc_2_f6a', 'doc_2_f6b', 'doc_2_f7', 'doc_2_f7b', 'doc_2_f8',
-  'doc_c_hseq', 'doc_c_admin']);
+  'doc_c_hseq', 'doc_c_admin',
+  /* P308 · lo que el panel de HSEQ dice de sus totales, en la pantalla y en su guía */
+  'doc_2_f2h', 'doc_2_f9', 'doc_2_f9h', 'hlp_idc_hseq', 'hlp_mrfo_hseq', 'kpi_bajo_piso', 'kpi_bajo_piso_d',
+  'hst_sub', 'hst_filtro', 'hst_sin_mapa']);
 /* Las que prometen algo de HSEQ o de Dirección (las que mira el candado). */
 const P051_PROMESA_HSEQ_DIR = ['car4_hseq_d', 'car4_dir_d', 'priv_hseq_1', 'priv_dir_1', 'priv_dir_2',
                                'consent_roles_html', 'pg_hint_hseq', 'pg_desc_hseq', 'rol_of_guia_hseq'];
@@ -273,19 +276,44 @@ PRUEBAS.caso('⚠️ FILA "DIRECCIÓN" · ni puntajes ni comentarios, y el MISMO
   p051SinValoresYMismoSemaforo(p051Respuestas(), 'direccion', 'Dirección');
 });
 
-PRUEBAS.caso('⚠️ FILA "HSEQ" · hoy recibe lo mismo que Dirección', () => {
+PRUEBAS.caso('⚠️ FILA "HSEQ" · de los tests, sólo totales; el ciclo y la jornada por alias, sin nada de un test', () => {
   /* R19 · `accionSupervisor` con la contraseña del panel de HSEQ (`validarAcceso` → `panel:"hseq"`).
-     `car4_hseq_d` y `priv_hseq_2` ANUNCIAN «valores del grupo»: eso lo da `P308`, y anunciar acceso
-     antes de darlo está permitido; lo que no se puede es prometer una restricción antes de cumplirla.
-     `priv_hseq_1` es de HOY: «lo mismo que Dirección». */
+     Los totales los arma `totalesHseq_` y los entrega sólo `esPanelHseq_`; la aptitud por persona la
+     deja en `null` el mismo `esPanelHseq_`, y `CAMPOS_HSEQ` saca el color del test del ciclo (`nivel`) y
+     el del KSS del turno (`kssNivel`). Hasta P307 esta fila decía «lo mismo que Dirección»: P308 lo
+     cambió, y lo que ahora dicen `car4_hseq_d` y `priv_hseq_1..3` se mide acá contra el payload. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const r = p051Respuestas();
-  p051SinValoresYMismoSemaforo(r, 'hseq', 'HSEQ');
-  /* Hoy Dirección y HSEQ reciben lo mismo (ADR 017): si eso cambia —`P308`—, este caso lo ve y los
-     textos de los dos se tienen que revisar. */
-  const sinMarca = x => JSON.stringify(Object.assign({}, x, { panel: null }));
-  PRUEBAS.igual(sinMarca(r.hseq) === sinMarca(r.direccion), true,
-    '⚠️ HSEQ y Dirección reciben lo mismo HOY · si dejan de hacerlo, los textos que los igualan dejan de ser ciertos');
+  const r = p051Respuestas(), h = r.hseq, mets = p051Metricas();
+  const fila = (h.registros || [])[0] || {};
+  PRUEBAS.igual(mets.filter(m => fila[m] !== undefined), [], '⚠️ ningún indicador en `registros` de HSEQ · ' + JSON.stringify(fila));
+  PRUEBAS.igual(h.pvt, [], '⚠️ ni el test de reacción');
+  PRUEBAS.igual(h.comentarios, [], '⚠️ ni los comentarios');
+  PRUEBAS.igual(h.aptitud, null,
+    '🔴 `priv_hseq_1` · «nunca tu resultado, ni con un seudónimo»: la aptitud por persona NO llega a HSEQ');
+  PRUEBAS.igual((h.operacional || []).filter(o => 'nivel' in o || 'kss' in o).map(o => o.persona), [],
+    '🔴 ni el color del test del ciclo (`nivel`) pegado al alias');
+  PRUEBAS.igual((h.turnos || []).filter(o => 'kssNivel' in o || 'nivel' in o || 'kss' in o).map(o => o.persona), [],
+    '🔴 ni el color del KSS del turno (`kssNivel`)');
+  /* `priv_hseq_2` · el ciclo, la jornada y la carga, por alias, con el día, y la marca de que hubo un test */
+  const ciclo = h.operacional || [];
+  PRUEBAS.alMenos(ciclo.length, 2, 'guarda: el ciclo trae a las dos personas del CH de prueba');
+  PRUEBAS.cierto(ciclo.every(o => /^P\d+$/.test(o.persona || '') && !!o.fecha && !!o.departamento),
+    '⚠️ el ciclo llega por alias, con el día y con su departamento · ' + JSON.stringify(ciclo[0] || {}));
+  PRUEBAS.cierto(ciclo.some(o => o.test === 'kss'), 'y la marca de que hubo un test queda, sin su resultado (P347)');
+  PRUEBAS.cierto((h.turnos || []).length > 0 && (h.turnos || []).every(o => /^P\d+$/.test(o.persona || '') && o.carga != null),
+    '⚠️ la carga que declara cada persona, por alias');
+  PRUEBAS.cierto((((h.duty || {}).diario) || []).every(o => /^P\d+$/.test(o.persona || '') && !!o.fecha),
+    '⚠️ y la jornada, por alias y con el día');
+  /* `priv_hseq_1` · los totales, con el piso: este CH de prueba tiene DOS personas medidas, así que no hay
+     ningún total, en ningún período: «con menos de 5 personas, nada, ni el color». */
+  const T = h.totalesHseq || {};
+  PRUEBAS.cierto(T.piso >= 5 && !!T.periodos, '⚠️ llegan los totales, con el piso · ' + JSON.stringify(T).slice(0, 160));
+  const algo = Object.keys(T.periodos || {}).filter(per => Object.keys((T.periodos[per] || {}).metricas || {})
+    .some(m => T.periodos[per].metricas[m] !== null));
+  PRUEBAS.igual(algo, [], '🔴 con 2 personas medidas no hay NINGÚN total, en ningún período');
+  /* Y Dirección no (ADR 017): sin totales, y con el semáforo por persona hasta P313. */
+  PRUEBAS.igual(r.direccion.totalesHseq, null, '🔴 los totales de HSEQ no le llegan a Dirección (`esPanelHseq_`)');
+  PRUEBAS.alMenos((r.direccion.aptitud || []).length, 1, 'Dirección sigue con el semáforo por persona hasta P313');
 });
 
 PRUEBAS.caso('⚠️ FILA "ADMINISTRACIÓN" · todo, con nombre', () => {
@@ -657,11 +685,13 @@ PRUEBAS.caso('🔴 P307 · los seis que reciben algo están en los cuatro lugare
     '⚠️ y la tabla de quién ve qué tiene la columna de HSEQ y la de la administración');
 });
 
-PRUEBAS.caso('🔴 P307 · LA RESTRICCIÓN DE P308 TODAVÍA NO SE ESCRIBE: hoy HSEQ recibe el semáforo de cada persona', () => {
+PRUEBAS.caso('🔴 P308 · LA RESTRICCIÓN DE LOS TESTS SE DICE donde la persona decide, sólo de HSEQ, y es cierta', () => {
   /* El plan (sección de P307, «Quién escribe esa parte»): lo que la lámina RESTRINGE —«de tus tests,
      HSEQ ve sólo totales de 5 o más»— lo escribe y lo publica `P308`, en la misma versión que cambia el
-     payload. Escrito antes, alguien que se registra en el medio lee algo falso justo donde decide si
-     contesta la verdad (R4). Cuando `P308` cambie el payload, este caso se da vuelta: pasa a exigirlo. */
+     payload. Hasta P307 este caso lo PROHIBÍA (escrito antes, quien se registraba en el medio leía algo
+     falso donde decide si contesta la verdad, R4); desde P308 lo EXIGE, en los lugares donde se decide:
+     la lámina, «Quién ve qué», el consentimiento, la guía del rol y la puerta. Y lo sigue prohibiendo
+     para Dirección, que recibe el semáforo de cada persona hasta P313 (ADR 017): ahí sería falso. */
   /* El verificador de P307 encontró que la primera versión no veía 8 de 10 redacciones equivalentes, y que
      miraba sólo una lista fija de claves. Ahora mira TODAS las del diccionario que nombran a HSEQ o a
      Dirección, en los dos idiomas. */
@@ -678,18 +708,45 @@ PRUEBAS.caso('🔴 P307 · LA RESTRICCIÓN DE P308 TODAVÍA NO SE ESCRIBE: hoy H
   /* ⚠️ Por mención Y por prefijo: una línea de la lista de Dirección («Mira cómo está la organización…») no
      nombra a Dirección —lo hace el título de su bloque— y con sólo la mención se escapaba (lo mostró el
      discriminador de esta misma guarda). */
-  const PREFIJO = /^(priv_|car4_|consent_|doc_2_|doc_c_|rol_of_|pg_hint_|pg_desc_|cic_hseq_|hlp_idc)/;
+  /* (1) DONDE SE DECIDE, en los dos idiomas. El consentimiento se mira por PÁRRAFO: el de HSEQ tiene que
+     decirlo y el de Dirección no (un solo texto con los dos haría pasar cualquiera de las dos mitades). */
+  const parrafo = (l, rotulo) => {
+    const html = texto('consent_roles_html', l);
+    const i = html.search(rotulo);
+    if (i < 0) return '';
+    const fin = html.indexOf('</p>', i);
+    return html.slice(i, fin < 0 ? undefined : fin);
+  };
+  const ROT_HSEQ = /<strong>(Seguridad|Safety) \(HSEQ\)\.<\/strong>/, ROT_DIR = /<strong>(Direcci[oó]n de la empresa|Company management|Management)[^<]*\.<\/strong>/;
+  ['es', 'en'].forEach(l => {
+    PRUEBAS.cierto(parrafo(l, ROT_HSEQ).length > 40 && parrafo(l, ROT_DIR).length > 40,
+      'guarda: se encuentran los párrafos de HSEQ y de Dirección en el consentimiento (' + l + ')');
+    const faltan = ['car4_hseq_d', 'priv_hseq_1', 'rol_of_guia_hseq', 'pg_hint_hseq', 'pg_desc_hseq']
+      .filter(k => !RESTRICCION.test(texto(k, l)));
+    if (!RESTRICCION.test(parrafo(l, ROT_HSEQ))) faltan.push('consent_roles_html (HSEQ)');
+    PRUEBAS.igual(faltan, [], '🔴 R4 · la restricción de los tests de HSEQ se dice donde la persona decide (' + l + ') · faltan: ' + faltan.join(', '));
+  });
+  /* (2) DIRECCIÓN, TODAVÍA NO: ninguna cadena que hable de Dirección sin hablar de HSEQ —ni su párrafo del
+     consentimiento— le promete «sólo totales». Por prefijo también: «Mira cómo está la organización» es de
+     Dirección y no la nombra (lo mostró el discriminador de P307). */
+  const PREF_DIR = /^(priv_dir_|car4_dir_|doc_2_f2d$)/;
   const adelantadas = [...claves].filter(k => { const tx = textoTodo(k, 'es') + ' ' + textoTodo(k, 'en');
-    return (MENCIONA.test(tx) || PREFIJO.test(k)) && RESTRICCION.test(tx); });
-  PRUEBAS.igual(adelantadas, [], '🔴 ninguna cadena dice todavía que HSEQ ve sólo totales · ' + adelantadas.join(', '));
+    const esDeDir = PREF_DIR.test(k) || (/Direcci[oó]n|Management/i.test(tx) && !/HSEQ|seguridad|safety/i.test(tx));
+    return esDeDir && RESTRICCION.test(tx); });
+  ['es', 'en'].forEach(l => { if (RESTRICCION.test(parrafo(l, ROT_DIR))) adelantadas.push('consent_roles_html (Dirección, ' + l + ')'); });
+  PRUEBAS.igual(adelantadas, [], '🔴 a Dirección no se le promete «sólo totales» antes de P313 · ' + adelantadas.join(', '));
   ['De tus tests, HSEQ ve sólo totales de 5 o más', 'HSEQ ve cinco o más', 'al menos 5 personas', 'nunca grupos de menos de 5',
    'únicamente como totales', 'only totals of five or more', 'never groups of fewer than 5',
    'grupos de 5 personas o más', 'groups of 5 people or more', 'sólo promedios', 'sólo agregados', 'a partir de 5', 'mínimo de 5'].forEach(x =>
     PRUEBAS.cierto(RESTRICCION.test(x), 'discriminador: el detector reconoce «' + x + '»'));
+  PRUEBAS.cierto(!RESTRICCION.test('Semáforo, ciclo y jornada, sin nombres ni puntajes'),
+    'discriminador: y no confunde la fila de Dirección de hoy con una restricción');
+  /* (3) Y ES CIERTO: lo dice el payload, no el texto. */
   if (CTX.hayGs) {
     const r = p051Respuestas();
-    PRUEBAS.alMenos((r.hseq.aptitud || []).length, 1,
-      'y es cierto que todavía no: HSEQ recibe el semáforo de cada persona (P1, P2…) · cuando deje de recibirlo, es `P308`');
+    PRUEBAS.igual(r.hseq.aptitud, null, '🔴 HSEQ ya no recibe el semáforo de cada persona (`esPanelHseq_` en `accionSupervisor`)');
+    PRUEBAS.cierto(!!(r.hseq.totalesHseq && r.hseq.totalesHseq.periodos), 'y recibe los totales (`totalesHseq_`)');
+    PRUEBAS.alMenos((r.direccion.aptitud || []).length, 1, 'Dirección todavía recibe el semáforo de cada persona: por eso a ella no se le promete');
   }
 });
 

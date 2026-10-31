@@ -1528,6 +1528,10 @@
   .kfresco { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: -.9rem; margin-bottom: 1.1rem; }
   .kfresco-viejo { color: var(--sem-ambar-txt); font-weight: 700; }
   .kpi.over .kref { color: var(--sem-rojo-txt); }
+  /* P308 · debajo del piso de personas medidas la tarjeta no pinta nada que salga de los tests, ni el
+     color: queda neutra (nunca `over`) y la frase va al tamaño de una etiqueta, no al del número. */
+  .kpi.kpi-bajo-piso { border-style: dashed; }
+  .kpi .kv.kv-bajo-piso { font-size: .92rem; font-weight: 700; color: var(--text-soft); margin: .45rem 0 .2rem; line-height: 1.25; }
 
   /* ⚠️ CADA BLOQUE ES UNA TARJETA, y hasta ahora no lo era: la única regla base era
      `margin-bottom: 1.5rem`. Sin fondo, sin borde, sin sombra — 24 px de aire y nada más entre un
@@ -5894,6 +5898,8 @@
     border-radius: 12px;
     background: repeating-linear-gradient(135deg, var(--demo-bar), var(--demo-bar) 12px, var(--demo-bar-2) 12px, var(--demo-bar-2) 24px); }
   #demoVistasOv .db-v { flex: 1 1 auto; text-align: center; }
+  .db-v-corte { display: none; }
+  #demoVistasOv .db-v-corte { display: block; flex-basis: 100%; height: 0; }
   #demoVistasOv .demo-salir { background: var(--demo-bar); color: var(--sobre-claro-txt); border: none; border-radius: 12px; font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; }
   /* P172 · el aviso de baja en el inicio: mismo molde que la determinación firmada, con los tokens del rojo */
   .ini-baja { --inic-c: var(--sem-rojo); --inic-bg: var(--sem-rojo-bg); color: var(--sem-rojo-txt); }
@@ -7985,7 +7991,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.54';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.55';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8288,7 +8294,7 @@ const I18N = {
       car4_dir_t:'Dirección',
       car4_dir_d:'Semáforo, ciclo y jornada, sin nombres ni puntajes',
       car4_hseq_t:'Seguridad (HSEQ)',
-      car4_hseq_d:'Lo mismo que Dirección, y valores del grupo. Tu nombre, sólo en el formato 008 de horas de sueño',
+      car4_hseq_d:'De tus tests, sólo totales de 5 o más personas. Ciclo y jornada, con seudónimo. Tu nombre, sólo en la forma 008',
       car4_adm_t:'Administración de la plataforma',
       car4_adm_d:'Todo, con nombre',
       car4_pie:'Si tu empresa usa una sola contraseña para supervisión y servicio médico, quien la tiene ve las dos cosas.',
@@ -8344,9 +8350,9 @@ const I18N = {
       priv_dir_3:'<b>No recibe</b> los puntajes de tus tests, ni tu test de reacción, ni lo que escribes en los comentarios.',
       priv_dir_4:'Mira cómo está la organización, no quién es quién.',
       priv_hseq_t:'Seguridad (HSEQ)',
-      priv_hseq_1:'Lo mismo que Dirección: cada persona aparece como P1, P2, P3…, <b>sin nombre</b>.',
-      priv_hseq_2:'Además, <b>valores del grupo</b>: cómo está la organización en cada indicador.',
-      priv_hseq_3:'Tu nombre aparece en un solo lugar: el formato de horas de sueño (forma 008), que arma HSEQ y se entrega al cliente de la operación. Con ese formato, HSEQ puede llegar a saber de quién es cada ciclo.',
+      priv_hseq_1:'De tus tests, <b>sólo totales de 5 o más personas medidas</b>: cómo está la organización en cada indicador. Nunca tu resultado, ni con un seudónimo; con menos de 5 personas, nada, ni el color.',
+      priv_hseq_2:'Tu ciclo, tu jornada, la carga de trabajo que declaras y las acciones registradas sobre ti, como P1, P2, P3…, <b>sin tu nombre</b>, con tu departamento y tu cargo, y sin ningún resultado de tus tests.',
+      priv_hseq_3:'Tu nombre aparece en un solo lugar: el formato de horas de sueño (forma 008), que arma HSEQ y se entrega al cliente de la operación. Con ese formato, HSEQ puede llegar a saber de quién es cada ciclo, nunca un resultado de tus tests.',
       priv_adm_t:'La administración de la plataforma',
       priv_adm_1:'Quien presta el servicio y guarda los datos, y el equipo que desarrolla y mantiene la aplicación, ven todo, con nombre.',
       priv_pie:'Esto no depende de una promesa: el recorte lo hace el servidor antes de enviar los datos, así que lo que no aparece en esta lista no le llega a esa persona aunque quiera buscarlo.',
@@ -8492,7 +8498,7 @@ const I18N = {
         '<p class="consent-text"><strong>Supervisión.</strong> Accede a tu nombre y al nivel de cada indicador (verde, amarillo o rojo), a tu ciclo y a la carga de trabajo que declaras, para la asignación de tareas. <strong>No accede a los valores de tus evaluaciones</strong> ni al contenido de la información clínica. Si tu empresa usa una sola contraseña para supervisión y servicio médico, quien la tiene accede también a lo que se detalla para el servicio médico.</p>' +
         '<p class="consent-text"><strong>Servicio médico.</strong> Accede a los resultados completos, por ser el único responsable de su interpretación clínica. Para redactar sus informes puede usar un asistente de inteligencia artificial de Google (Gemini), al que se le envían valores y comentarios con el nombre de cada persona.</p>' +
         '<p class="consent-text"><strong>Dirección de la empresa.</strong> Accede a la información del conjunto del personal: el nivel de cada indicador, el ciclo, la jornada, la carga declarada y las acciones registradas, de cada persona bajo un seudónimo (P1, P2…). <strong>En ningún caso a tu nombre ni a los valores de tus evaluaciones.</strong></p>' +
-        '<p class="consent-text"><strong>Seguridad (HSEQ).</strong> Accede a lo mismo que la Dirección y, además, a los valores del grupo. Tu nombre aparece sólo en el formato de horas de sueño (forma 008), que se entrega al cliente de la operación. <strong>No accede a los valores de tus evaluaciones</strong> ni al contenido de la información clínica.</p>' +
+        '<p class="consent-text"><strong>Seguridad (HSEQ).</strong> De tus evaluaciones accede <strong>sólo a totales de grupos de 5 o más personas medidas</strong>: nunca a tu resultado ni a tu color, tampoco bajo un seudónimo. De cada persona bajo un seudónimo (P1, P2…) accede al ciclo, la jornada, la carga declarada y las acciones registradas, sin ningún resultado de sus evaluaciones. Tu nombre aparece sólo en el formato de horas de sueño (forma 008), que se entrega al cliente de la operación: con él puede llegar a saber de quién es cada ciclo, nunca un resultado de tus evaluaciones. No accede al contenido de la información clínica.</p>' +
         '<p class="consent-text"><strong>Administración de la plataforma.</strong> Quien presta el servicio y guarda los datos, y el equipo que desarrolla y mantiene la aplicación, acceden a toda la información, con nombre, para mantenerla y resolver incidencias.</p>',
       consent_justa_t:'Finalidad preventiva, no sancionatoria',
       consent_justa_html:'<p class="consent-text">Cuando se detectan indicadores compatibles con fatiga, <strong>la aplicación no emite una determinación de aptitud</strong>. Únicamente señala la necesidad de una revisión por parte del servicio médico, que es quien la determina.</p>' +
@@ -8750,7 +8756,7 @@ const I18N = {
          no ve, y qué decide. Es lo que hace que aceptar el rol sea una decisión informada. */
       rol_of_guia_sup:'<b>Qué vas a ver:</b> los indicadores de descanso y carga de tu equipo, para decidir la asignación del día. <b>Qué no vas a ver:</b> resultados clínicos ni comentarios personales — eso queda en el servicio médico. <b>Qué decides tú:</b> sobre la tarea, nunca sobre la salud de nadie.',
       rol_of_guia_med:'<b>Qué vas a ver:</b> los resultados de las pruebas, los comentarios y la evolución de cada persona. Es la vista con más detalle y por eso la de mayor responsabilidad. <b>Qué decides tú:</b> las determinaciones médicas, que sólo firma un médico. La aplicación nunca emite una sola.',
-      rol_of_guia_hseq:'<b>Qué vas a ver:</b> cómo está la organización —tendencias, cobertura y costos— y, de cada persona bajo un seudónimo (P1, P2…), el semáforo, el ciclo, la jornada y la carga de trabajo que declara. Si entras como HSEQ, además, valores del grupo. <b>Qué no vas a ver:</b> los valores de los tests de nadie ni nombres (salvo, si eres de HSEQ, en el formato de horas de sueño). <b>Qué decides tú:</b> sobre el programa, no sobre personas.',
+      rol_of_guia_hseq:'<b>Qué vas a ver:</b> cómo está la organización —tendencias, cobertura y costos— y, de cada persona bajo un seudónimo (P1, P2…), el ciclo, la jornada y la carga de trabajo que declara. En Dirección, además, el semáforo de cada persona; en HSEQ, de los tests, sólo totales de 5 o más personas medidas. <b>Qué no vas a ver:</b> los valores de los tests de nadie ni nombres (salvo, si eres de HSEQ, en el formato de horas de sueño). <b>Qué decides tú:</b> sobre el programa, no sobre personas.',
       mi_rol:'Mi acceso al panel',
       mi_rol_d:'Tu empresa te registró como {rol}. Actívalo con la contraseña de la empresa.',
       mi_rol_d_si:'Activo. Toca para abrir el panel de tu empresa.',
@@ -8765,12 +8771,12 @@ const I18N = {
       reg_no_en_nomina:'Tu cédula todavía no está en la nómina de tu empresa. Pide a tu supervisor que te cargue; mientras tanto, lo que registres se guarda en este dispositivo.',
       pg_hint_sup:'Vista operativa: quiénes están en condiciones de trabajar. No muestra datos médicos ni resultados de los tests.',
       pg_hint_med:'Vista completa del servicio médico: indicadores, evolución, comentarios, informes y gestiones.',
-      pg_hint_hseq:'Dirección y HSEQ: indicadores de la organización, trazabilidad y costos. No muestra datos clínicos ni los valores de los tests de una persona; HSEQ ve además valores del grupo.',
+      pg_hint_hseq:'Dirección y HSEQ: indicadores de la organización, trazabilidad y costos. No muestra datos clínicos ni los valores de los tests de una persona; HSEQ ve además los totales de los tests, de 5 o más personas.',
       pg_hint_emp:'Vas a ver tus propios registros.',
       pg_desc_emp:'Panel personal: aquí cada persona ve sus propios registros, la evolución de sus indicadores y las recomendaciones que recibe. Es la vista de quien responde el registro diario.',
       pg_desc_sup:'Panel del supervisor: estadísticas del equipo y acciones sobre el trabajo del día — quiénes están en condiciones de trabajar, a quién conviene revisar y qué medida tomar. No muestra datos médicos ni resultados de los tests.',
       pg_desc_med:'Panel del servicio médico: estadísticas clínicas y acciones sobre cada persona — indicadores, evolución, comentarios, informes y gestiones. Es la única vista que muestra los valores de los tests de cada persona.',
-      pg_desc_hseq:'Panel de Dirección y HSEQ: estadísticas de toda la organización y decisiones de gestión — indicadores, trazabilidad y costos. No muestra datos clínicos ni los valores de los tests de una persona; HSEQ ve además valores del grupo.',
+      pg_desc_hseq:'Panel de Dirección y HSEQ: estadísticas de toda la organización y decisiones de gestión — indicadores, trazabilidad y costos. No muestra datos clínicos ni los valores de los tests de una persona; HSEQ ve además los totales de los tests, de 5 o más personas.',
       pg_desc_inicio:'Esta es la parte de estadísticas y de acción. Aparte existe un panel de inicio, que es lo que cada persona usa todos los días: el registro diario, los tests y sus avisos.',
       /* ⚠️ ZD · CORTOS A PROPÓSITO. "Ver demostración con datos simulados (para dirección /
          HSEQ)" partía el botón en dos líneas a 375 px, y como los cuatro paneles comparten un
@@ -9238,6 +9244,24 @@ const I18N = {
       fresco_hoy:'hoy', fresco_ayer:'ayer', fresco_dias:'hace {n} días',
       fresco_ultimo:'Último registro: {q}',
       sub_vs_previo:'Las flechas comparan contra el período anterior del mismo largo.',
+      /* P308 · los totales de los tests del panel de HSEQ (`totalesHseq_` del endpoint) */
+      kpi_bajo_piso:'Todavía no hay un grupo de {n}',
+      kpi_bajo_piso_d:'El total aparece cuando se completa un grupo de {n} personas medidas que estén en la nómina: así no queda a la vista el resultado de nadie.',
+      hst_t:'Indicadores de toda la empresa',
+      hst_per_hoy:'Hoy, {d}', hst_per_semana:'Semana del {d} al {h}', hst_per_rango:'Del {d} al {h}', hst_per_todo:'Todo el historial',
+      hst_sub:'Promedios de toda la empresa, en grupos de {n} o más personas de la nómina. Cada grupo cuenta el día de su último test.',
+      hst_vs_previo:'Las flechas comparan contra el período anterior del calendario.',
+      hst_corte:'Último grupo completo: {d}, {h}.',
+      hst_sin_corte:'Todavía no se completó ningún grupo de {n} personas de la nómina.',
+      hst_sin_corrida:'Los totales todavía no se calcularon.', hst_reloj_parado:'⚠ Los totales no se actualizan desde el {d}, {h}.',
+      hst_detenido:'⚠ El cierre de grupos está detenido desde el {d}, {h}: cambiaron datos de grupos ya cerrados, o no se pudieron comprobar. No se suman grupos nuevos hasta que se revise.',
+      hst_detenido_sin:'⚠ El cierre de grupos está detenido: cambiaron datos de grupos ya cerrados, o no se pudieron comprobar. No se suman grupos nuevos hasta que se revise.',
+      hst_cuenta:'Los totales de los tests no están disponibles: la cuenta de tu empresa tiene que revisarse en el sistema. Avísale al administrador.',
+      hst_hoja:'Los totales de los tests no se muestran: la hoja de los grupos ya cerrados cambió y hay que revisarla. Avísale al administrador.',
+      hst_filtro:'Los tests se muestran para toda la empresa, con o sin filtro: por área, cargo, nivel, operación o persona, un grupo chico dejaría ver el resultado de alguien. Los filtros se aplican al ciclo y a la jornada.',
+      hst_rango:'Con un rango a medida no hay totales de los tests: elige hoy, semana, mes, trimestre, semestre, año o todo.',
+      hst_error:'No llegaron los totales de los tests. Toca ↻ para intentar de nuevo; si sigue igual, avísale al administrador.',
+      hst_sin_mapa:'El mapa de los tests por área no se muestra: por área, un grupo chico dejaría ver el resultado de una persona. Los tests se ven como totales de toda la empresa, en «Disponibilidad».',
       // ── Anotaciones en los gráficos ──
       anot_g_determinacion:'Determinación médica', anot_g_restriccion:'Restricción de tarea',
       // ── Informe imprimible ──
@@ -9292,7 +9316,8 @@ const I18N = {
       doc_2_t:'2 · Qué ve exactamente cada rol (el cortafuegos)',
       doc_2_p:'<p>La regla general: <b>cuanto más lejos de la persona está un rol, menos detalle ve</b>. No es una restricción técnica, es el diseño: nadie necesita más información de la que necesita para decidir lo que le toca. La excepción es la administración de la plataforma, que la mantiene y ve todo.</p>',
       doc_2_f1:'Sus propios valores de test', doc_2_f2:'Estado de otras personas',
-      doc_2_f2b:'Sí (semáforo)', doc_2_f2d:'Semáforo, con seudónimo',
+      doc_2_f2b:'Sí (semáforo)', doc_2_f2d:'Semáforo, con seudónimo', doc_2_f2h:'No: de los tests, sólo totales',
+      doc_2_f9:'Totales de los tests del grupo', doc_2_f9h:'De 5 o más personas medidas',
       doc_2_f6:'Nombres de las personas', doc_2_f6a:'El suyo', doc_2_f6b:'No (sólo en la forma 008)',
       doc_2_f7:'Ciclo y carga declarada', doc_2_f7b:'Con seudónimo', doc_2_f8:'Jornada (horas y exceso)',
       doc_2_f3:'Notas clínicas', doc_2_f4:'Quién mandó un reporte anónimo',
@@ -9426,6 +9451,9 @@ const I18N = {
       // Corregidos a neutro al pasarlos al diccionario.
       hlp_sin_registros:'Sin registros para este filtro.',
       hlp_idc:'<b>Disponibilidad cognitiva</b>: qué proporción de la nómina está en condiciones de operar, según sus registros más recientes.<br><br>Se calcula <b>sólo sobre las personas que tienen datos</b>. Las que no hicieron tests se informan aparte, nunca se cuentan como disponibles: un indicador alto porque nadie se midió no es una buena noticia, es falta de información.<br><br>Son <b>cantidades de personas</b>: esta pestaña no muestra valores de tests ni datos clínicos de nadie.',
+      /* P308 · la guía de las dos pestañas en el panel de HSEQ, que desde acá muestran otra cosa que en Dirección (R5). */
+      hlp_idc_hseq:'<b>Indicadores de toda la empresa</b>: el promedio de cada test, la flecha contra el período anterior y la tendencia.<br><br>De los tests, HSEQ ve <b>sólo totales de 5 o más personas medidas</b>, calculados en el servidor. Mientras no se completa un grupo, la tarjeta no muestra ni el número ni el color. Ningún resultado de una persona llega a esta pantalla, ni con un seudónimo.<br><br>Los totales se arman en grupos de 5 o más personas medidas que estén en la nómina, en el orden en que llegan los tests, y un grupo completo queda guardado tal como se cerró. Las últimas personas medidas esperan a completar el grupo siguiente, y un grupo cuenta el día de su último test, aunque traiga tests de días anteriores. Por eso un día con pocas mediciones puede no mostrar nada, y por eso los totales son siempre de toda la empresa. Los grupos se cierran cada 15 minutos. Un test que aparece con una hora anterior a lo ya cerrado no se suma, y si alguien modifica datos de grupos ya cerrados, el cierre se detiene y esta pantalla lo avisa.',
+      hlp_mrfo_hseq:'<b>Señales del puesto y del turno</b>: los reportes rápidos <b>anónimos</b> del período (carga, entorno, turnos), contados por tipo y por área. Las áreas con menos de <b>{n} personas</b> no se desglosan. Son problemas del diseño del trabajo, no de una persona.<br><br>El <b>mapa de los tests por área</b> no se muestra en HSEQ: con tan poca gente por área, el número de un área es prácticamente el de una persona.',
       hlp_mrfo:'<b>Mapa de riesgo por área</b>: qué proporción de cada departamento tiene indicadores que requieren atención. Sirve para saber <b>dónde mirar primero</b>, no para evaluar a nadie en particular.<br><br>Los departamentos con menos de <b>{n} personas</b> no se desglosan: con tan poca gente, el número del área es prácticamente el de una persona.<br><br><b>Señales del puesto y del turno</b>: los reportes rápidos <b>anónimos</b> del período (carga, entorno, turnos), contados por tipo y por área con la misma regla de {n} personas. Son problemas del diseño del trabajo, no de una persona: la decisión es de esta consola.',
       hlp_intervenciones:'<b>Intervenciones preventivas</b>: cada vez que alguien actuó <b>antes</b> de que pasara algo — una tarea reasignada, una consulta ofrecida, una determinación médica.<br><br>Se llaman <b>no punitivas</b> porque ninguna es una sanción: son medidas de cuidado. Que este número sea alto es una buena señal, no una mala: significa que el sistema se está usando.<br><br>Muestra <b>qué se hizo</b>, nunca el contenido clínico de esas acciones.',
       hlp_trazabilidad:'<b>Trazabilidad</b>: el registro de todo lo que se hizo, en orden. No se puede editar ni borrar desde la aplicación — si algo se hizo mal, la corrección se anota como un hecho nuevo y el error queda a la vista.<br><br>Cada línea guarda además <b>con qué umbral se juzgó</b> a esa persona en ese momento. Sin eso, cambiar un umbral mañana reescribiría en silencio el sentido de todas las decisiones pasadas.<br><br>Se ve <b>qué se hizo y quién lo hizo</b>. El contenido clínico de cada acción no se muestra aquí: eso es del servicio médico.',
@@ -9706,7 +9734,7 @@ const I18N = {
       /* S7 · etiquetas cortas para el selector de la demostración: las largas no entran en una
          fila a 375 px. Y el texto de la barra dice qué es sin sonar a error ni a disculpa: quien
          la lee es un cliente al que le están mostrando el producto. */
-      dv_medico:'Médico', dv_direccion:'Dirección', vista_grupo:'Vista',
+      dv_medico:'Médico', dv_direccion:'Dirección', dv_hseq:'HSEQ', vista_grupo:'Vista',
       demo_bar_txt:'Demostración con datos de ejemplo. Puedes tocar todo: nada se guarda.',
       demo_bar_corto:'Demostración · nada se guarda',
       demo_aplicado:'Aplicado en el ejemplo. Al salir vuelve todo como estaba.',
@@ -10544,7 +10572,7 @@ const I18N = {
       car4_dir_t:'Management',
       car4_dir_d:'Status light, cycle and shift, without names or scores',
       car4_hseq_t:'Safety (HSEQ)',
-      car4_hseq_d:'The same as Management, plus group values. Your name only on sleep-hours form 008',
+      car4_hseq_d:'Of your tests, only totals of 5 or more people. Cycle and shift, under a pseudonym. Your name only on form 008',
       car4_adm_t:'Platform administration',
       car4_adm_d:'Everything, with names',
       car4_pie:'If your company uses a single password for supervision and the medical service, whoever has it sees both.',
@@ -10600,9 +10628,9 @@ const I18N = {
       priv_dir_3:'<b>Does not receive</b> your test scores, your reaction test or what you write in the comments.',
       priv_dir_4:'They look at how the organization is doing, not at who is who.',
       priv_hseq_t:'Safety (HSEQ)',
-      priv_hseq_1:'The same as Management: each person appears as P1, P2, P3…, <b>without a name</b>.',
-      priv_hseq_2:'Also, <b>group values</b>: how the organization is doing on each indicator.',
-      priv_hseq_3:'Your name appears in one place only: the sleep-hours form (form 008), which HSEQ prepares and which is handed to the client of the operation. With that form, HSEQ may be able to tell whose cycle is whose.',
+      priv_hseq_1:'Of your tests, <b>only totals of 5 or more measured people</b>: how the organization is doing on each indicator. Never your own result, not even under a pseudonym; with fewer than 5 people, nothing, not even the color.',
+      priv_hseq_2:'Your cycle, your shift, the workload you report and the actions recorded about you, as P1, P2, P3…, <b>without your name</b>, with your department and job title, and with none of your test results.',
+      priv_hseq_3:'Your name appears in one place only: the sleep-hours form (form 008), which HSEQ prepares and which is handed to the client of the operation. With that form, HSEQ may be able to tell whose cycle is whose, never a result of your tests.',
       priv_adm_t:'Platform administration',
       priv_adm_1:'Whoever provides the service and keeps the data, and the team that develops and maintains the app, see everything, with names.',
       priv_pie:'This is not a promise: the server trims the data before sending it, so whatever is not on this list never reaches that person, even if they go looking for it.',
@@ -10738,7 +10766,7 @@ const I18N = {
         '<p class="consent-text"><strong>Supervision.</strong> Sees your name and the level of each indicator (green, amber or red), your cycle and the workload you report, for the purpose of assigning tasks. <strong>It does not see the values of your assessments</strong> or the content of any clinical information. If your company uses a single password for supervision and the medical service, whoever has it also sees what is described for the medical service.</p>' +
         '<p class="consent-text"><strong>Medical service.</strong> Sees the complete results, being solely responsible for their clinical interpretation. To write its reports it may use an artificial intelligence assistant from Google (Gemini), which receives values and comments with each person\u2019s name.</p>' +
         '<p class="consent-text"><strong>Company management.</strong> Sees information about the workforce as a whole: the level of each indicator, the cycle, the shift, the reported workload and the recorded actions, for each person under a pseudonym (P1, P2…). <strong>Never your name or the values of your assessments.</strong></p>' +
-        '<p class="consent-text"><strong>Safety (HSEQ).</strong> Sees the same as Management, plus group values. Your name appears only on the sleep-hours form (form 008), which is handed to the client of the operation. <strong>It does not see the values of your assessments</strong> or the content of any clinical information.</p>' +
+        '<p class="consent-text"><strong>Safety (HSEQ).</strong> Of your assessments it sees <strong>only totals of groups of 5 or more measured people</strong>: never your own result or your color, not even under a pseudonym. For each person under a pseudonym (P1, P2…) it sees the cycle, the shift, the reported workload and the recorded actions, with none of their assessment results. Your name appears only on the sleep-hours form (form 008), which is handed to the client of the operation: with it, HSEQ may be able to tell whose cycle is whose, never a result of your assessments. It does not see the content of any clinical information.</p>' +
         '<p class="consent-text"><strong>Platform administration.</strong> Whoever provides the service and keeps the data, and the team that develops and maintains the app, see all the information, with names, to maintain it and resolve incidents.</p>',
       consent_justa_t:'Preventive purpose, not punitive',
       consent_justa_html:'<p class="consent-text">When indicators consistent with fatigue are detected, <strong>the application does not issue a fitness determination</strong>. It only signals the need for a review by the medical service, which is what determines it.</p>' +
@@ -11002,7 +11030,7 @@ const I18N = {
       rol_of_justa:'Having this role changes nothing about what you record on your own rest. Reporting fatigue has no consequences for anyone’s job, yours included.',
       rol_of_guia_sup:'<b>What you will see:</b> your team’s rest and workload indicators, to decide the day’s assignment. <b>What you will not see:</b> clinical results or personal comments — those stay with the medical staff. <b>What you decide:</b> about the task, never about anyone’s health.',
       rol_of_guia_med:'<b>What you will see:</b> test results, comments and each person’s trend. It is the most detailed view and therefore the one with most responsibility. <b>What you decide:</b> the medical determinations, which only a physician signs. The app never issues one on its own.',
-      rol_of_guia_hseq:'<b>What you will see:</b> how the organization is doing —trends, coverage and costs— and, for each person under a pseudonym (P1, P2…), the status light, the cycle, the shift and the workload they report. If you sign in as HSEQ, group values as well. <b>What you will not see:</b> anyone\u2019s test values, or names (except, for HSEQ, on the sleep-hours form). <b>What you decide:</b> about the program, not about people.',
+      rol_of_guia_hseq:'<b>What you will see:</b> how the organization is doing —trends, coverage and costs— and, for each person under a pseudonym (P1, P2…), the cycle, the shift and the workload they report. In Management, also each person\u2019s status light; in HSEQ, of the tests, only totals of 5 or more measured people. <b>What you will not see:</b> anyone\u2019s test values, or names (except, for HSEQ, on the sleep-hours form). <b>What you decide:</b> about the program, not about people.',
       mi_rol:'My panel access',
       mi_rol_d:'Your company registered you as {rol}. Turn it on with the company password.',
       mi_rol_d_si:'Active. Tap to open your company panel.',
@@ -11011,12 +11039,12 @@ const I18N = {
       reg_no_en_nomina:'Your ID is not in your company\u2019s roster yet. Ask your supervisor to add you; meanwhile, what you record is kept on this device.',
       pg_hint_sup:'Operational view: who is fit to work. It shows no medical data and no test results.',
       pg_hint_med:'Full medical service view: indicators, evolution, comments, reports and case management.',
-      pg_hint_hseq:'Management and HSEQ: organization indicators, traceability and costs. It shows no clinical data and no individual test values; HSEQ also sees group values.',
+      pg_hint_hseq:'Management and HSEQ: organization indicators, traceability and costs. It shows no clinical data and no individual test values; HSEQ also sees the test totals, from 5 or more people.',
       pg_hint_emp:'You will see your own entries.',
       pg_desc_emp:'Personal panel: here each person sees their own entries, how their indicators evolve and the recommendations they get. It is the view of whoever fills in the daily check-in.',
       pg_desc_sup:'Supervisor panel: team statistics and actions on the day\u2019s work \u2014 who is fit to work, who is worth reviewing and what measure to take. It shows no medical data and no test results.',
       pg_desc_med:'Medical service panel: clinical statistics and actions on each person \u2014 indicators, evolution, comments, reports and case management. It is the only view that shows each person\u2019s test values.',
-      pg_desc_hseq:'Management and HSEQ panel: statistics for the whole organization and management decisions \u2014 indicators, traceability and costs. It shows no clinical data and no individual test values; HSEQ also sees group values.',
+      pg_desc_hseq:'Management and HSEQ panel: statistics for the whole organization and management decisions \u2014 indicators, traceability and costs. It shows no clinical data and no individual test values; HSEQ also sees the test totals, from 5 or more people.',
       pg_desc_inicio:'This is the statistics and action side. There is also a separate home panel, the one each person uses every day: the daily check-in, the tests and their notices.',
       pg_ver_ejemplo:'Open the personal panel',
       pg_demo_error:'The demo could not be opened.',
@@ -11491,6 +11519,24 @@ const I18N = {
       fresco_hoy:'today', fresco_ayer:'yesterday', fresco_dias:'{n} days ago',
       fresco_ultimo:'Latest record: {q}',
       sub_vs_previo:'The arrows compare against the previous period of the same length.',
+      /* P308 · the HSEQ panel's test totals */
+      kpi_bajo_piso:'No group of {n} yet',
+      kpi_bajo_piso_d:'The total appears once a group of {n} measured people on the payroll is complete, so nobody’s result is on display.',
+      hst_t:'Indicators for the whole company',
+      hst_per_hoy:'Today, {d}', hst_per_semana:'Week of {d} to {h}', hst_per_rango:'From {d} to {h}', hst_per_todo:'Full history',
+      hst_sub:'Averages for the whole company, in groups of {n} or more people on the payroll. Each group counts on the day of its last test.',
+      hst_vs_previo:'The arrows compare against the previous calendar period.',
+      hst_corte:'Last completed group: {d}, {h}.',
+      hst_sin_corte:'No group of {n} people on the payroll has been completed yet.',
+      hst_sin_corrida:'The totals have not been calculated yet.', hst_reloj_parado:'⚠ The totals have not updated since {d}, {h}.',
+      hst_detenido:'⚠ Closing groups has been paused since {d}, {h}: data in already closed groups changed, or could not be checked. No new groups are added until it is reviewed.',
+      hst_detenido_sin:'⚠ Closing groups is paused: data in already closed groups changed, or could not be checked. No new groups are added until it is reviewed.',
+      hst_cuenta:'The test totals are not available: your company’s account needs to be reviewed in the system. Let the administrator know.',
+      hst_hoja:'The test totals are not shown: the sheet of closed groups changed and needs to be reviewed. Let the administrator know.',
+      hst_filtro:'Tests are shown for the whole company, with or without a filter: by area, position, level, operation or person, a small group would expose someone’s result. Filters apply to the cycle and to duty time.',
+      hst_rango:'A custom range has no test totals: choose today, week, month, quarter, half-year, year or all.',
+      hst_error:'The test totals did not arrive. Tap ↻ to try again; if it keeps happening, let the administrator know.',
+      hst_sin_mapa:'The test map by area is not shown: by area, a small group would expose one person’s result. Tests are shown as whole-company totals, under «Availability».',
       // ── Chart annotations ──
       anot_g_determinacion:'Medical determination', anot_g_restriccion:'Task restriction',
       // ── Printable report ──
@@ -11544,7 +11590,8 @@ const I18N = {
       doc_2_t:'2 · Exactly what each role sees (the firewall)',
       doc_2_p:'<p>The general rule: <b>the further a role is from the person, the less detail it sees</b>. It is not a technical restriction, it is the design: nobody needs more information than they need to decide what is theirs to decide. The exception is platform administration, which maintains it and sees everything.</p>',
       doc_2_f1:'Their own test values', doc_2_f2:'Other people\u2019s status',
-      doc_2_f2b:'Yes (status light)', doc_2_f2d:'Status light, under a pseudonym',
+      doc_2_f2b:'Yes (status light)', doc_2_f2d:'Status light, under a pseudonym', doc_2_f2h:'No: of the tests, only totals',
+      doc_2_f9:'Group test totals', doc_2_f9h:'From 5 or more measured people',
       doc_2_f6:'People\u2019s names', doc_2_f6a:'Their own', doc_2_f6b:'No (only on form 008)',
       doc_2_f7:'Cycle and reported workload', doc_2_f7b:'Under a pseudonym', doc_2_f8:'Shift (hours and overtime)',
       doc_2_f3:'Clinical notes', doc_2_f4:'Who sent an anonymous report',
@@ -11676,6 +11723,8 @@ const I18N = {
       // ══════ F3 · Long help texts (the ⓘ panel on each block) ══════
       hlp_sin_registros:'No records for this filter.',
       hlp_idc:'<b>Cognitive availability</b>: what share of the workforce is fit to operate, based on their most recent records.<br><br>It is calculated <b>only over people who have data</b>. Those who have not taken any test are reported separately and are never counted as available: a high figure because nobody was measured is not good news, it is missing information.<br><br>These are <b>counts of people</b>: this tab shows no test values and no clinical data about anyone.',
+      hlp_idc_hseq:'<b>Indicators for the whole company</b>: the average of each test, the arrow against the previous period and the trend.<br><br>Of the tests, HSEQ sees <b>only totals of 5 or more measured people</b>, calculated on the server. Until a group is complete, the card shows neither the number nor the color. No individual result reaches this screen, not even under a pseudonym.<br><br>Totals are built in groups of 5 or more measured people on the payroll, in the order the tests arrive, and a completed group is stored exactly as it closed. The last people measured wait for the next group to complete, and a group counts on the day of its last test, even if it carries tests from earlier days. That is why a day with few measurements may show nothing, and why totals are always for the whole company. Groups close every 15 minutes. A test that shows up with a time earlier than what is already closed is not added, and if someone changes data in already closed groups, closing stops and this screen says so.',
+      hlp_mrfo_hseq:'<b>Job and shift signals</b>: the <b>anonymous</b> quick reports of the period (workload, environment, shifts), counted by type and by area. Areas with fewer than <b>{n} people</b> are not broken down. They are problems of how the work is designed, not of one person.<br><br>The <b>test map by area</b> is not shown in HSEQ: with so few people per area, an area’s figure is practically one person’s.',
       hlp_mrfo:'<b>Risk map by area</b>: what share of each department has indicators needing attention. It tells you <b>where to look first</b>, not how to assess any individual.<br><br>Departments with fewer than <b>{n} people</b> are not broken down: with so few, the area figure is practically one person\u2019s.<br><br><b>Job and shift signals</b>: the <b>anonymous</b> quick reports of the period (workload, environment, shifts), counted by type and by area under the same {n}-people rule. They are problems of how the work is designed, not of one person: the decision belongs to this console.',
       hlp_intervenciones:'<b>Preventive interventions</b>: every time someone acted <b>before</b> something happened — a task reassigned, a consultation offered, a medical determination.<br><br>They are called <b>non-punitive</b> because none of them is a sanction: they are acts of care. A high number here is a good sign, not a bad one: it means the system is being used.<br><br>It shows <b>what was done</b>, never the clinical content of those actions.',
       hlp_trazabilidad:'<b>Traceability</b>: the record of everything that was done, in order. It cannot be edited or deleted from the application — if something was done wrong, the correction is recorded as a new fact and the error stays visible.<br><br>Each line also stores <b>which threshold that person was judged against</b> at that moment. Without it, changing a threshold tomorrow would silently rewrite the meaning of every past decision.<br><br>You see <b>what was done and who did it</b>. The clinical content of each action is not shown here: that belongs to medical staff.',
@@ -12010,7 +12059,7 @@ const I18N = {
       sim_como:'as {rol}',
       vista_personal:'Personal', vista_supervisor:'Supervisor',
       vista_medico:'Medical staff', vista_hseq:'Management / HSEQ', vista_direccion:'Management', vista_panel_hseq:'HSEQ',
-      dv_medico:'Medical', dv_direccion:'Management', vista_grupo:'View',
+      dv_medico:'Medical', dv_direccion:'Management', dv_hseq:'HSEQ', vista_grupo:'View',
       demo_bar_txt:'Demo with sample data. Try anything: nothing is saved.',
       demo_bar_corto:'Demo · nothing is saved',
       demo_aplicado:'Applied in the demo. Everything resets when you leave.',
@@ -21275,11 +21324,14 @@ function admRenderDoc(){
   h += docSec(t('doc_2_t'), t('doc_2_p') +
     /* P307 · HSEQ y Dirección por separado (ADR 017) y la administración de la plataforma. Lo que dice
        cada celda es lo que el servidor manda HOY (`p051-quien-ve-que.js`): Dirección recibe el semáforo
-       de cada persona con seudónimo hasta `P313`, que lo cambia por totales. */
+       de cada persona con seudónimo hasta `P313`, que lo cambia por totales.
+       P308 · HSEQ ya no: de los tests recibe sólo los totales de la empresa (`totalesHseq_`), y por eso
+       tiene su fila propia, la de los totales del grupo. Dirección todavía no los recibe. */
     docTabla(['', t('doc_c_persona'), t('vista_supervisor'), t('doc_c_medico'), t('doc_c_hseq'), t('doc_c_direccion'), t('doc_c_admin')], [
       [t('doc_2_f1'), t('si'), t('no'), t('si'), t('no'), t('no'), t('si')],
       [t('doc_2_f6'), t('doc_2_f6a'), t('si'), t('si'), t('doc_2_f6b'), t('no'), t('si')],
-      [t('doc_2_f2'), t('no'), t('doc_2_f2b'), t('si'), t('doc_2_f2d'), t('doc_2_f2d'), t('si')],
+      [t('doc_2_f2'), t('no'), t('doc_2_f2b'), t('si'), t('doc_2_f2h'), t('doc_2_f2d'), t('si')],
+      [t('doc_2_f9'), t('no'), t('no'), t('si'), t('doc_2_f9h'), t('no'), t('si')],
       [t('doc_2_f7'), t('doc_2_f5a'), t('si'), t('si'), t('doc_2_f7b'), t('doc_2_f7b'), t('si')],
       [t('doc_2_f8'), t('doc_2_f5a'), t('no'), t('si'), t('doc_2_f7b'), t('doc_2_f7b'), t('si')],
       [t('doc_2_f3'), t('no'), '<b>' + t('no') + '</b>', t('si'), '<b>' + t('no') + '</b>', '<b>' + t('no') + '</b>', t('si')],
@@ -21732,13 +21784,13 @@ function demoVerVista(vista){
   /* Si se está simulando un rol, el rol simulado ES la vista elegida. Sin esto `SIMUL.vista`
      quedaba con lo que fijó `simEntrar` una sola vez: la barra diría "como Servicio médico" con el
      panel de Supervisor en pantalla. */
-  if (SIMUL){ SIMUL.vista = vista; SIMUL.rol = (vista === 'empleado' ? 'empleado' : 'supervisor'); }
+  if (SIMUL){ SIMUL.vista = demoVistaReal(vista); SIMUL.rol = (vista === 'empleado' ? 'empleado' : 'supervisor'); }
   if (vista === 'empleado'){
     const uno = demoPersonaEjemplo(g.d);
     if (!uno) return false;
     onDashData(demoRecortarAPersona(g.d, uno), uno, g.params, 'empleado');
   } else {
-    onDashData(g.d, g.scope, g.params, vista);
+    onDashData(demoPayloadDeVista(g.d, vista), g.scope, g.params, demoVistaReal(vista));
   }
   /* ⚠️ ACÁ NO VA `simPintarBarra()`. Es la barra de SIMULACIÓN DE ROL, otra distinta, y con
      `SIMUL === null` sólo le pone `display:none` a un elemento que ya está oculto: código muerto
@@ -21777,10 +21829,29 @@ function demoPintarBarra(){
   }
   const cont = document.getElementById('dbVistas');
   if (!cont) return;
-  cont.innerHTML = ['empleado','supervisor','medico','hseq'].map(v =>
+  /* P308 · cinco botones: los tres roles arriba y los dos paneles de la dirección —Dirección y HSEQ— juntos
+     abajo. Sin el corte, a 1366 entraban cuatro en la primera fila y HSEQ quedaba solo y estirado. */
+  cont.innerHTML = ['empleado','supervisor','medico','hseq','hseqPanel'].map(v =>
+    (v === 'hseq' ? '<span class="db-v-corte" aria-hidden="true"></span>' : '') +
     '<button type="button" class="db-v" onclick="demoElegirVista(\'' + v + '\')"' +
-    ' aria-pressed="' + (DASH.vista === v ? 'true' : 'false') + '">' +
+    ' aria-pressed="' + (demoVistaActual() === v ? 'true' : 'false') + '">' +
     esc(t(DEMO_VISTA_CORTA[v])) + '</button>').join('');
+}
+/* ⚠️ P308 · EL PANEL DE HSEQ EN LA DEMOSTRACIÓN. Desde P308 HSEQ ve otra cosa que Dirección —los
+   totales de los tests, sin la aptitud por persona—, y la demostración sólo ofrecía «Dirección». Los
+   dos comparten la vista `hseq` y los separa la marca `panel` (ADR 017), así que el selector los
+   ofrece como dos botones: `hseq` es Dirección y `hseqPanel` es HSEQ, y la marca viaja dentro del
+   payload, que es por donde la lee el panel de verdad (`dashCamposDelServidor`). Los totales los
+   calcula el servidor (`accionDemo` los manda con el payload): nada se arma acá desde filas. */
+function demoVistaReal(v){ return v === 'hseqPanel' ? 'hseq' : v; }
+function demoVistaActual(){
+  if (!DASH) return '';
+  return (DASH.vista === 'hseq' && DASH.panel === 'hseq') ? 'hseqPanel' : DASH.vista;
+}
+function demoPayloadDeVista(d, v){
+  if (v === 'hseqPanel') return Object.assign({}, d, { panel: 'hseq' });
+  if (v === 'hseq') return Object.assign({}, d, { panel: 'direccion' });
+  return d;
 }
 /* La hoja del ojo. Apila su entrada como cualquier overlay (P153); el botón físico «atrás» la
    cierra desde `silvaAtras`. */
@@ -21804,12 +21875,12 @@ function demoElegirVista(v){
 /* Etiquetas CORTAS para el selector. Las largas ("Servicio médico", "Dirección / HSEQ") no entran
    en una fila a 375 px, y acortarlas en el momento de pintar sería adivinar. */
 const DEMO_VISTA_CORTA = { empleado:'vista_personal', supervisor:'vista_supervisor',
-                           medico:'dv_medico', hseq:'dv_direccion' };
+                           medico:'dv_medico', hseq:'dv_direccion', hseqPanel:'dv_hseq' };
 
 /* Lo que toca el botón. Si por lo que sea no hay payload guardado, se avisa en vez de dejar la
    pantalla igual sin explicación — un botón que no hace nada es peor que uno que dice por qué. */
 function demoIrVista(v){
-  if (DASH && DASH.vista === v) return;          // ya está ahí: no rehacer el panel al pedo
+  if (DASH && demoVistaActual() === v) return;   // ya está ahí: no rehacer el panel al pedo
   if (!demoVerVista(v)) showToast(t('demo_sin_datos'));
 }
 
@@ -22507,7 +22578,11 @@ function dashCamposDelServidor(d){
     nominaSinDatoN: (typeof d.nominaSinDatoN === 'number')
       ? d.nominaSinDatoN
       : (Array.isArray(demoNominaSinDato(d)) ? demoNominaSinDato(d).length : 0),
-    nominaError: d.nominaError || null
+    nominaError: d.nominaError || null,
+    /* P308 · DE LOS TESTS, HSEQ RECIBE SÓLO ESTO: los totales de la empresa entera por período del
+       calendario, ya con el piso aplicado (`totalesHseq_` en el `.gs`). La tarjeta los pinta y NO
+       los recalcula. Sólo llega al panel de HSEQ; la demostración lo trae para armar el suyo. */
+    totalesHseq: (d.totalesHseq && typeof d.totalesHseq === 'object') ? d.totalesHseq : null
   };
 }
 /* Lo que el supervisor guardó hace un rato manda sobre la foto que trae el refresco, igual que con
@@ -23059,6 +23134,11 @@ function dashRefresh(manual){
     if (btn){ btn.classList.remove('spin'); btn.disabled = false; }
     if (DASH !== mio) return false;   // P185 · si el visor cambió de panel mientras esto volaba, la respuesta es de OTRA empresa: se descarta
     if (!d || !d.ok){ if (manual) showToast(t('ts_no_actualizar')); return false; }
+    /* ⚠️ P308 · EN LA DEMOSTRACIÓN, EL PANEL VIAJA EN EL PAYLOAD QUE ARMA EL TELÉFONO (`demoPayloadDeVista`),
+       no en el de `accionDemo`, que no lo trae. Sin esto el ↻ dejaba `DASH.panel` en `null`: el panel de
+       HSEQ caía a la rama de Dirección sobre filas sin puntajes y le decía «sin dato» a todos (lo encontró
+       el verificador leyendo el código). */
+    if (DASH.demoMode) d = demoPayloadDeVista(d, demoVistaActual());
     dashMergeNombres(d.registros, d.pvt || []);          // une variantes del mismo nombre también en el refresco
     DASH.updated = Date.now(); updateDashUpdated();
     if (manual){ dashReintentarNiveles(true); dashRecargarPendientes(); }   // P187 · el ↻ vuelve a pedir lo que nunca llegó o falló. P208 · los niveles sin tope de intentos: lo pidió una persona
@@ -25944,11 +26024,83 @@ function ausenteHoy(p){
       || ausentePersonaEse(p.nombre || p.persona, todayStr());
 }
 
+/* ══════════ P308 · LOS SIETE PROMEDIOS DE HSEQ, COMO TOTALES DEL SERVIDOR ══════════════════════
+   De los tests, el panel de HSEQ recibe sólo `DASH.totalesHseq` (Franco, 2026-10-14, «Tests sólo en
+   totales»): la empresa entera, por período del calendario, ya con el piso. Esto los PINTA; no
+   recalcula nada desde filas ni filtra nada — no hay totales por grupo, y armarlos acá sería volver a
+   derivar en el teléfono lo que el servidor existe para no mandar.
+   ⚠️ El período sale del filtro, pero es el DEL CALENDARIO que el servidor ya calculó: la «semana»
+   de los totales va de lunes a domingo, no son los últimos siete días que usa el resto del panel. Por
+   eso la pantalla nombra las fechas exactas. Un rango a medida no tiene totales. */
+function hseqPiso(){
+  const p = Number(DASH && DASH.totalesHseq && DASH.totalesHseq.piso);
+  return p >= 5 ? p : 5;
+}
+function hseqPeriodoTotales(){
+  const p = (DASH && DASH.f && DASH.f.period) || 'all';
+  return ({ dia:'hoy', semana:'semana', mes:'mes', trimestre:'trimestre', semestre:'semestre',
+            anio:'anio', all:'todo' })[p] || null;
+}
+function hseqFiltroDeAlcance(){
+  const f = (DASH && DASH.f) || {};
+  return !!(f.dep || f.per || f.nivel || f.op);
+}
+function hseqTotalesHtml(){
+  const T = DASH && DASH.totalesHseq;
+  const tit = '<div class="db-title">' + esc(t('hst_t')) + '</div>';
+  /* Sin totales no hay nada que mostrar, y se dice: una pestaña en blanco se leería como «no hay tests». */
+  if (!T || T.error || !T.periodos) return '<div class="dash-block">' + tit +
+    /* `causa: "cuenta"`: la empresa no tiene una cuenta única, o su clave trae grupos de otra empresa; `"hoja"`: la
+       hoja de los grupos cerrados de esta cuenta no es la confirmada, y el servidor no manda nada. Reintentar no lo
+       arregla: lo dice, en vez de pedir el ↻ (verificador, 4.ª vuelta). */
+    dashWarn(esc(t(T && T.causa === 'cuenta' ? 'hst_cuenta' : T && T.causa === 'hoja' ? 'hst_hoja' : 'hst_error'))) + '</div>';
+  const piso = hseqPiso(), per = hseqPeriodoTotales();
+  if (!per) return '<div class="dash-block">' + tit + '<div class="db-sub">' + esc(t('hst_rango')) + '</div></div>';
+  const P = T.periodos[per] || { metricas: {} };
+  const nombre = per === 'todo' ? t('hst_per_todo')
+    : per === 'hoy' ? t('hst_per_hoy', { d: dashFechaLinda(P.desde) })
+    : t(per === 'semana' ? 'hst_per_semana' : 'hst_per_rango', { d: dashFechaLinda(P.desde), h: dashFechaLinda(P.hasta) });
+  let corte = t('hst_sin_corte', { n: piso });
+  const c = T.corte ? new Date(T.corte) : null;
+  if (c && !isNaN(c)) corte = t('hst_corte', { d: dashFechaLinda(fechaOpDe(c)), h: horaOpDe(c) });
+  /* El reloj que sella los grupos: sin esto, un disparador caído se ve igual que «nadie se midió». Y si el
+     servidor DETUVO el sellado (la hoja de totales tocada, o filas de tests ya cerradas reescritas), se dice
+     arriba de las tarjetas: lo sellado sigue valiendo, pero no se suman grupos nuevos. Va en lugar del aviso del
+     reloj, que diría lo mismo sin la causa. */
+  const det = T.detenido, dd = det && det.desde ? new Date(det.desde) : null;
+  /* `.hs-aviso-est` y no `dashWarn`: su título dice «Faltan estadísticas», y acá lo sellado sigue a la vista. */
+  const aviso = !det ? '' : '<div class="hs-aviso-est hst-detenido">' + esc(dd && !isNaN(dd)
+    ? t('hst_detenido', { d: dashFechaLinda(fechaOpDe(dd)), h: horaOpDe(dd) }) : t('hst_detenido_sin')) + '</div>';
+  const u = T.ultimaCorrida ? new Date(T.ultimaCorrida) : null;
+  if (det) { /* el aviso de arriba ya lo dice */ }
+  else if (!u || isNaN(u)) corte += ' ' + t('hst_sin_corrida');
+  else if (Date.now() - u.getTime() > 60 * 60000) corte += ' ' + t('hst_reloj_parado', { d: dashFechaLinda(fechaOpDe(u)), h: horaOpDe(u) });
+  const prev = (P.previo && P.previo.metricas) || {};
+  return '<div class="dash-block hst">' + tit +
+    '<div class="db-sub">' + esc(nombre) + ' · ' + esc(t('hst_sub', { n: 5 })) +
+      (P.previo ? ' ' + esc(t('hst_vs_previo')) : '') + '</div>' +
+    (hseqFiltroDeAlcance() ? '<div class="hs-aviso-est">' + esc(t('hst_filtro')) + '</div>' : '') +
+    aviso +
+    '<div class="kpi-grid">' +
+      Object.keys(P.metricas || {}).map(m => dashKpiCardTotal(m, P.metricas[m], prev[m], piso)).join('') +
+    '</div>' +
+    '<div class="kfresco">' + esc(corte) + '</div>' +
+  '</div>';
+}
+
 /* IDC — Índice de Disponibilidad Cognitiva.
    ⚠️ Un IDC alto porque nadie hizo tests es una mentira peligrosa: parece que todo está bien
    cuando en realidad no se sabe nada. Por eso el numerador/denominador es sobre quienes SÍ tienen
    dato, y los que quedan afuera se informan al lado, con el mismo tamaño, no en letra chica. */
+/* ⚠️ P308 · EN EL PANEL DE HSEQ ESTA PESTAÑA YA NO CUENTA PERSONAS. Todo lo de abajo sale de
+   `hseqGente` → `aptPersona` → `DASH.aptitud`, el color de cada indicador de cada P1, P2…, que desde
+   P308 no le llega a HSEQ. Sin esa rama, `aptPersona` caería a calcular desde registros SIN puntajes:
+   todos «sin dato», y el IDC le afirmaría a HSEQ que no se midió a nadie (R2). Lo que HSEQ ve de los
+   tests son los totales de la empresa (`hseqTotalesHtml`). Dirección sigue con lo de siempre hasta
+   P313 (ADR 017): la pregunta es el PANEL, no la vista, que es la misma para los dos. */
 function renderHseqIdc(rows){
+  if (DASH.panel === 'hseq')
+    return dashHelp(t('hlp_idc_hseq', { n: hseqPiso() })) + hseqTotalesHtml();
   const gente = hseqGente(rows);
   if (!gente.length) return dashHelp(t('hlp_sin_registros')) + dashVacio('idc', 'gente');
   /* ⚠️ Y5 · A QUIEN NO LE TOCABA NO CUENTA EN LA COBERTURA. Antes, alguien de vacaciones bajaba la
@@ -26060,7 +26212,15 @@ function renderHseqIdc(rows){
 /* MRFO — Matriz de Riesgo de Fatiga Organizacional.
    Mapa de calor por departamento. Se muestra el % de personas que NO están en condiciones, que es
    lo accionable: dónde mirar primero. Nunca valores de tests. */
+/* ⚠️ P308 · EN EL PANEL DE HSEQ NO HAY MAPA DE LOS TESTS: también salía de la aptitud por persona, y
+   un total por área no pasa el piso (Aeroambulancias Silva: un área de 13 personas y cinco de 1 o 2)
+   ni se puede restar de la empresa sin aislar a alguien (ver `totalesHseq_` en el `.gs`). Quedan las
+   señales anónimas, que no son tests. Sin esta rama, el mapa pintaba cada área en verde: todas sus
+   personas «sin dato» contaban como 0 % que requiere atención (R2). */
 function renderHseqMrfo(rows){
+  if (DASH.panel === 'hseq')
+    return dashHelp(t('hlp_mrfo_hseq', { n: cfg('anonN') })) +
+      '<div class="dash-block"><div class="db-sub">' + esc(t('hst_sin_mapa')) + '</div></div>' + hseqSenalesHtml();
   const gente = hseqGente(rows);
   /* P081 · las señales anónimas van ANTES del corte por gente: sin tests en el período (un área que
      no mide, «Hoy» a las 7:00, una empresa que sólo usa el reporte rápido) el mapa está vacío pero los
@@ -28174,6 +28334,20 @@ function demoAnonimizarHseq(){
     DASH.turnos      = copiar(DASH.turnos, 'persona');
     DASH.pvt         = copiar(DASH.pvt, 'persona');
     DASH.comentarios = copiar(DASH.comentarios, 'persona');
+    /* ⚠️ P308 · EL PANEL DE HSEQ DE LA DEMOSTRACIÓN RECIBE LO MISMO QUE EL DE VERDAD: ningún test por
+       persona. El payload de la demostración es el del servicio médico —puntajes por fila—, y el
+       servidor real le manda a HSEQ `registros` con una fila por persona y sin puntajes, `aptitud`
+       nula, sin PVT ni comentarios (`accionSupervisor`, `armarAptitudServer`). Sin esto, la demo de
+       HSEQ tendría los valores de cada persona en memoria —ficticios, pero mostrando justo lo que
+       la lámina dice que HSEQ no recibe—. De los tests le quedan los totales de `totalesHseq`. */
+    if (DASH.panel === 'hseq'){
+      const vistas = {};
+      DASH.registros = (DASH.registros || []).filter(r => {
+        if (!r || !r.persona || vistas[r.persona]) return false;
+        vistas[r.persona] = 1; return true;
+      }).map(r => ({ persona: r.persona, empresa: r.empresa, departamento: r.departamento, cargo: r.cargo }));
+      DASH.aptitud = null; DASH.pvt = []; DASH.comentarios = [];
+    }
     if (DASH.duty) DASH.duty = Object.assign({}, DASH.duty, {
       diario:   copiar(DASH.duty.diario, 'persona'),
       personas: copiar(DASH.duty.personas, 'persona') });
@@ -29748,18 +29922,41 @@ function dashImprimirDesactivado(){
    Lo que NO se hace: cambiar el promedio para excluir los tests poco confiables. Ver la nota de
    dashPocoConfiables(). */
 function dashKpiCard(rows, m, filasPrev){
-  const a = dashAvg(rows, m), ref = DASH.ref[m];
+  const a = dashAvg(rows, m);
+  return dashKpiCardHtml(m, a, (a != null && filasPrev) ? dashAvg(filasPrev, m) : null,
+    dashSerieDiaria(rows, m), dashPocoConfiables(rows, m));
+}
+/* ── P308 · LA MISMA TARJETA, CON UN TOTAL DEL SERVIDOR ──
+   En HSEQ no hay filas que promediar: llega el total de la empresa ya armado (`totalesHseq_` del
+   `.gs`), con su conteo, el del período anterior y la serie por día. Acá sólo se DIVIDE suma entre
+   conteo; no se recalcula nada desde filas, que es la regla de raíz de P308. Sin total (`null`: el
+   período no juntó todavía un grupo de `piso` personas), la tarjeta no pinta NADA que salga de los
+   tests —ni número, ni color, ni tendencia, ni flecha, ni referencia, ni «poco confiables»—: dice
+   «menos de N medidos» y por qué. */
+function dashKpiCardTotal(m, tot, prev, piso){
+  if (!tot || !(tot.n > 0)) return dashKpiCardBajoPiso(m, piso);
+  const media = x => (x && x.n > 0) ? x.suma / x.n : null;
+  const serie = (Array.isArray(tot.serie) ? tot.serie : []).filter(p => p && p.n > 0).map(media);
+  return dashKpiCardHtml(m, media(tot), media(prev), serie, Number(tot.pocoConfiables) || 0);
+}
+function dashKpiCardBajoPiso(m, piso){
+  return '<div class="kpi kpi-bajo-piso" data-m="' + esc(m) + '">' +
+    '<div class="km">' + esc(METRIC_LABELS[m] || m) + '</div>' +
+    '<div class="kv kv-bajo-piso">' + esc(t('kpi_bajo_piso', { n: piso || 5 })) + '</div>' +
+    '<div class="kref">' + esc(t('kpi_bajo_piso_d', { n: piso || 5 })) + '</div></div>';
+}
+function dashKpiCardHtml(m, a, prev, serie, nMal){
+  const ref = DASH.ref[m];
   const over = a != null && ref != null && a > ref;
-  let html = '<div class="kpi ' + (over ? 'over' : '') + '">' +
+  let html = '<div class="kpi ' + (over ? 'over' : '') + '" data-m="' + esc(m) + '">' +
     '<div class="km">' + esc(METRIC_LABELS[m] || m) + '</div>' +
     '<div class="kv">' + (a == null ? '—' : a.toFixed(1)) + '</div>';
 
   // ── Hacia dónde va ──
   // Sólo si HAY período anterior y HAY dato en los dos lados. Con un lado vacío no hay
   // comparación posible, y un "▲ 100%" contra la nada sería un número inventado.
-  if (a != null && filasPrev){
-    const prev = dashAvg(filasPrev, m);
-    if (prev != null && Math.abs(prev) > 0.01){
+  if (a != null && prev != null){
+    if (Math.abs(prev) > 0.01){
       const pct = Math.round((a - prev) / Math.abs(prev) * 100);
       if (pct === 0){
         html += '<div class="ktrend ktrend-igual">= ' + esc(t('kpi_igual')) + '</div>';
@@ -29773,7 +29970,7 @@ function dashKpiCard(rows, m, filasPrev){
   }
 
   // ── La forma ──
-  html += dashSpark(dashSerieDiaria(rows, m), ref);
+  html += dashSpark(serie || [], ref);
 
   // ── Contra qué se compara ──
   // El número solo no dice nada: "18,4" es tranquilizador o alarmante según cuál sea el límite.
@@ -29787,7 +29984,6 @@ function dashKpiCard(rows, m, filasPrev){
   }
 
   // ── Qué tan confiable es ──
-  const nMal = dashPocoConfiables(rows, m);
   if (nMal > 0){
     html += '<div class="kconf" title="' + esc(t('kpi_conf_ayuda')) + '">⚠ ' +
       esc(t(nMal === 1 ? 'kpi_conf_1' : 'kpi_conf_n', { n: nMal })) + '</div>';
@@ -36100,7 +36296,7 @@ function demoAplicarGuardado(vista){
     if (!uno) return false;
     onDashData(demoRecortarAPersona(g.d, uno), uno, g.params, 'empleado');
   } else {
-    onDashData(g.d, g.scope, g.params, vista);
+    onDashData(demoPayloadDeVista(g.d, vista), g.scope, g.params, demoVistaReal(vista));   // P308
   }
   return true;
 }
@@ -36129,7 +36325,9 @@ function demoIdiomaCambio(){
   if (!DASH || !DASH.demoMode || !DEMO_PAYLOAD || !DEMO_PAYLOAD.params) return Promise.resolve(false);
   if ((DEMO_PAYLOAD.lang || 'es') === idiomaActual()) return Promise.resolve(false);
   const params = Object.assign({}, DEMO_PAYLOAD.params, { lang: idiomaActual() });
-  const vista = DASH.vista, per = (DASH.f && DASH.f.per) || '', tab = DASH.tab, filtros = Object.assign({}, DASH.f || {});
+  /* P308 · `demoVistaActual()`, no `DASH.vista`: Dirección y HSEQ comparten la vista y volver a entrar
+     con `hseq` a secas dejaba a quien miraba HSEQ en Dirección. */
+  const vista = demoVistaActual(), per = (DASH.f && DASH.f.per) || '', tab = DASH.tab, filtros = Object.assign({}, DASH.f || {});
   const n = (_demoPedidoN = (_demoPedidoN || 0) + 1);
   try { dashMostrarEsqueleto(); } catch(e){}   // mientras viaja, el esqueleto del panel (m1: feedback visible)
   return conBloqueo('#portalDash', dashRequest(params).then(d => {
@@ -36140,7 +36338,7 @@ function demoIdiomaCambio(){
     DEMO_PAYLOAD = { d: d, params: params, scope: 'Empresa Demo', lang: params.lang };
     demoSembradoPurgar();
     if (vista === 'empleado'){ const uno = per || demoPersonaEjemplo(d); if (!uno) return false; onDashData(demoRecortarAPersona(d, uno), uno, params, 'empleado'); }
-    else onDashData(d, 'Empresa Demo', params, vista);
+    else onDashData(demoPayloadDeVista(d, vista), 'Empresa Demo', params, demoVistaReal(vista));
     /* la pestaña y los filtros sobreviven al reingreso (el de departamento, traducido: el nombre cambió de idioma) */
     try {
       if (DASH && DASH.demoMode){

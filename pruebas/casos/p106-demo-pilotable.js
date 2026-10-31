@@ -239,16 +239,27 @@ PRUEBAS.caso('el ojo aparece SÓLO en la demostración, y la barra vieja ya no e
   });
 });
 
-PRUEBAS.caso('los cuatro botones existen y sólo uno queda marcado', () => {
+PRUEBAS.caso('los cinco botones existen y sólo uno queda marcado', () => {
+  /* P308 · CINCO desde P308: Dirección y HSEQ ven cosas distintas (HSEQ, de los tests, sólo totales) y
+     la demostración ofrece los dos. Comparten la vista `hseq`; los separa la marca `panel` (ADR 017), y
+     el botón marcado sale de `demoVistaActual`, que mira las dos. */
   p106ConPortal(() => {
     p106Entrar('hseq');
     p106AbrirOjo();
     const bs = [...document.querySelectorAll('#dbVistas .db-v')];
     p106CerrarOjo();
-    PRUEBAS.igual(bs.length, 4, 'Personal · Supervisor · Médico · Dirección');
+    PRUEBAS.igual(bs.length, 5, 'Personal · Supervisor · Médico · Dirección · HSEQ');
     const marcados = bs.filter(b => b.getAttribute('aria-pressed') === 'true');
     PRUEBAS.igual(marcados.length, 1, '⚠️ exactamente uno marcado, nunca dos ni ninguno');
     PRUEBAS.igual(marcados[0].textContent.trim(), t('dv_direccion'), 'y es el de la vista actual');
+    /* y entrando por el quinto —por el camino del botón, `demoVerVista`—, el marcado es HSEQ, no
+       Dirección: la vista es la misma */
+    PRUEBAS.cierto(demoVerVista('hseqPanel'), 'guarda: el quinto botón abre su panel');
+    p106AbrirOjo();
+    const bs2 = [...document.querySelectorAll('#dbVistas .db-v')];
+    p106CerrarOjo();
+    const m2 = bs2.filter(b => b.getAttribute('aria-pressed') === 'true');
+    PRUEBAS.igual(m2.map(b => b.textContent.trim()), [t('dv_hseq')], '⚠️ en el panel de HSEQ queda marcado HSEQ, y sólo HSEQ');
   });
 });
 

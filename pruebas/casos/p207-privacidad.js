@@ -287,7 +287,13 @@ PRUEBAS.caso('🔴 P207 · el recorte de Dirección conserva `resultado`: sin é
     '🔴 el instante del cierre viaja · es lo que distingue «cerrado» de «detenido»');
   PRUEBAS.igual(r.turnos[0].kss, undefined,
     '⚠️ pero el puntaje crudo del turno NO · es lo que K1a existe para sacar');
-  PRUEBAS.igual(r.turnos[0].kssNivel, 'ok', '⚠️ y el semáforo sí, que es lo que Dirección usa');
+  /* ⚠️ P308 · DADO VUELTA (Franco, 2026-10-14, «Tests sólo en totales»): hasta P308 el semáforo del KSS
+     del turno viajaba «porque Dirección lo usa». Ninguna pantalla de la vista `hseq` lo leía —sólo la
+     tarjeta por persona del ciclo, que esa vista no arma— y era el resultado de un test con el alias de
+     la persona. R19: lo saca la lista blanca de `anonimizarHseq` (`CAMPOS_HSEQ.turnos`), para Dirección
+     y para HSEQ. Lo que se conserva de la fila de parada (arriba) no es un test: es un instante. */
+  PRUEBAS.igual(r.turnos[0].kssNivel, undefined, '🔴 P308 · y el semáforo del KSS tampoco: es el test de una persona con su alias');
+  PRUEBAS.igual(r.operacional[0].nivel, undefined, '🔴 P308 · ni el color del test del ciclo');
 });
 
 PRUEBAS.caso('⚠️ P207 · el detalle de un cambio de departamento sobrevive entero al recorte', () => {

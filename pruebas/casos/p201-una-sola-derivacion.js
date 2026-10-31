@@ -103,7 +103,9 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
       cicloPlanPersona: { ana: { jornada: 720 } }, cicloPlanPersonaError: 'plan ilegible',
       cuentas: ['x'], visor: { empresa: 'Otra' }, visorError: 'no existe',
       operaciones: [{ nombre: 'Cardón IV', tipo: 'instalacion', gente: [{ persona: 'Ana Uno' }] }],
-      operacionesError: 'no se pudo leer el libro'
+      operacionesError: 'no se pudo leer el libro',
+      /* P308 · los totales del panel de HSEQ: un campo de contexto más, que el refresco tiene que mover */
+      totalesHseq: { piso: 5, regla: 'unidades', periodos: {} }
     });
     /* ⚠️ LA GUARDA QUE FALTABA, y el modo de falla que arregla. El aserto de «ninguno congelado»
        recorre TODOS los campos del molde, pero `v2` los enumera a mano: un campo nuevo que `v2` no
