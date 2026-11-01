@@ -156,14 +156,20 @@ function pantallas(win){
   const out = [];
   ['supervisor','medico','hseq'].forEach(vista => {
     ev(win, 'dashTabsFor(DASH.rol, false, ' + JSON.stringify(vista) + ')')
-      .forEach(tab => out.push({ vista, tab }));
+      .forEach(tab => out.push({ vista, tab, panel: vista === 'hseq' ? 'direccion' : null }));
   });
+  /* P309 · EL PANEL DE HSEQ comparte la vista `hseq` con Dirección y abre con su INICIO, que sólo existe con la marca
+     `panel:"hseq"` (`dashTabsFor(…, panel)`). Sin esta vuelta el auditor nunca lo vería: pedía las pestañas sin
+     marca y medía las de Dirección dos veces. La demostración trae los totales (`totalesHseqDemo_`). */
+  ev(win, 'dashTabsFor(DASH.rol, false, "hseq", null, false, "hseq")')
+    .forEach(tab => out.push({ vista: 'hseq', tab, panel: 'hseq', etiqueta: 'hseqPanel' }));
   return out;
 }
 
-function pintar(win, vista, tab){
+function pintar(win, vista, tab, panel){
   ev(win,
-    'DASH.tabs = dashTabsFor(DASH.rol, false, ' + JSON.stringify(vista) + ');' +
+    'DASH.panel = ' + JSON.stringify(panel || null) + ';' +
+    'DASH.tabs = dashTabsFor(DASH.rol, false, ' + JSON.stringify(vista) + ', null, false, ' + JSON.stringify(panel || null) + ');' +
     'DASH.vista = ' + JSON.stringify(vista) + ';' +
     'DASH.tab = ' + JSON.stringify(tab) + ';' +
     'buildDashFilters(); renderDash();' +
@@ -211,11 +217,11 @@ async function auditar(){
       for (const tema of ['claro','oscuro']){
         f.style.width = w + 'px'; f.style.height = h + 'px';
         win.document.documentElement.setAttribute('data-tema', tema);
-        pintar(win, p.vista, p.tab);
+        pintar(win, p.vista, p.tab, p.panel);
         void win.document.body.offsetWidth;
         const r = win.AUDITOR.todo();
         corridas++;
-        const donde = p.vista + '/' + p.tab + ' · ' + w + 'px · ' + tema;
+        const donde = (p.etiqueta || p.vista) + '/' + p.tab + ' · ' + w + 'px · ' + tema;
         ['contraste','superficiesClarasEnOscuro','cortes','solapamientos','areasDeToque','cortesDeTinta'].forEach(k => {
           (r[k] || []).forEach(x => hallazgos.push({ tipo: k, donde, que: x }));
         });

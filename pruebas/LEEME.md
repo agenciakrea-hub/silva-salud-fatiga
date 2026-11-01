@@ -668,3 +668,10 @@ heredan. Treinta y cinco mensajes idénticos no son treinta y cinco defectos: so
 **Qué NO hacer:** diagnosticar los 74 de a uno. Se pierden horas sobre un instrumento, no sobre el
 sistema. Y lo contrario también vale: una corrida contaminada **no sirve como verde** — hay que
 repetirla con la máquina quieta antes de publicar.
+
+**2026-10-31 · P309, otra vez por carga.** Con el detector de diseño (un Chrome sin pantalla) corriendo en paralelo,
+la suite tardó 139 s en vez de ~95 y cuatro casos de sesión ajenos al cambio (`L9` «Mi contraseña», `P135` reingreso,
+`P301` F021 ×2) se colgaron a los 10 s; el segundo F021 heredó las aserciones del primero, que siguió corriendo
+después del corte. En las corridas siguientes, con la máquina quieta, pasaron. Decisión de Franco: se anota y se
+publica con la corrida final en verde, sin las cinco corridas de validación. Regla práctica: **nada pesado en
+paralelo mientras corre la suite** (impeccable, otro navegador, compilaciones).

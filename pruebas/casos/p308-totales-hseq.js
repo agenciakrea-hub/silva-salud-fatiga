@@ -1322,13 +1322,18 @@ function p308Pintar(payload, vista, f) {
   try {
     CTX.resetear(); localStorage.clear();
     onDashData(payload, 'Helitec', { usuario: 'helitec' }, vista || 'hseq');
-    if (f) Object.assign(DASH.f, f);
-    const cont = document.createElement('div');
-    cont.innerHTML = renderHseqIdc(dashFiltered());
-    const mapa = document.createElement('div');
-    mapa.innerHTML = renderHseqMrfo(dashFiltered());
-    return { cont: cont, mapa: mapa, panel: DASH.panel, aptitud: DASH.aptitud, tot: DASH.totalesHseq };
-  } finally { try { DASH = prev; localStorage.clear(); } catch (e) {} }
+    if (f) { Object.assign(DASH.f, f); renderDash(); }
+    /* P309 · lo que el panel MUESTRA, leído de lo que pintó `renderDash` (R17): el panel de HSEQ abre con su inicio
+       (`dashTabsFor` le da `inicio` en lugar de `idc`) y Dirección con su pestaña de siempre. Antes se llamaba
+       `renderHseqIdc` directo, y desde P309 su rama de HSEQ no la ejecuta nadie: estos casos cuidaban código al que no
+       se llega (verificador de P309, hallazgo 1). */
+    const sec = id => { const x = document.createElement('div'), s = document.getElementById(id); x.innerHTML = s ? s.innerHTML : ''; return x; };
+    const cont = sec(document.getElementById('dsec-inicio') ? 'dsec-inicio' : 'dsec-idc');
+    const mapa = sec('dsec-mrfo');
+    return { cont: cont, mapa: mapa, panel: DASH.panel, aptitud: DASH.aptitud, tot: DASH.totalesHseq,
+             secs: [...document.querySelectorAll('#dashBody .dash-sec')].map(s => s.dataset.tab),
+             duos: document.querySelectorAll('#dashBody .hs-duo').length };
+  } finally { try { DASH = prev; localStorage.clear(); dashUpdateHseqUI(); } catch (e) {} }
 }
 function p308Limpio(r) { const x = JSON.parse(JSON.stringify(r)); delete x.__sellado; return x; }
 
@@ -1390,7 +1395,10 @@ PRUEBAS.caso('⚠️ P308 · Dirección sigue con su pestaña de siempre; un pan
   const v2 = p308Pintar(sin, 'hseq');
   PRUEBAS.cierto((v2.cont.textContent || '').indexOf(t('hst_error').slice(0, 25)) >= 0,
     '⚠️ un panel de HSEQ sin totales lo dice (una pestaña en blanco se leería como «no hay tests»)');
-  PRUEBAS.igual(v2.cont.querySelectorAll('.hs-duo').length, 0, 'y no cae al IDC por persona, que diría «nadie medido»');
+  /* P309 · se mira el panel entero: ni la sección del IDC ni sus duplas. Mirar `.hs-duo` sólo adentro de la sección quedó
+     vacío desde que la sección del panel de HSEQ es el inicio (verificador de P309, 2.ª vuelta). */
+  PRUEBAS.cierto(v2.secs.indexOf('idc') < 0 && v2.duos === 0,
+    'y no cae al IDC por persona, que diría «nadie medido» · ' + v2.secs.join(','));
 });
 
 PRUEBAS.caso('⚠️ P308 · con el cierre detenido, la sección lo dice arriba de las tarjetas, y sin él no', () => {

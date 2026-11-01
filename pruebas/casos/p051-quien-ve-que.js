@@ -55,7 +55,9 @@ const P051_PROMESA_CLAVES = P051_CLAVES.concat([
   'doc_c_hseq', 'doc_c_admin',
   /* P308 · lo que el panel de HSEQ dice de sus totales, en la pantalla y en su guía */
   'doc_2_f2h', 'doc_2_f9', 'doc_2_f9h', 'hlp_idc_hseq', 'hlp_mrfo_hseq', 'kpi_bajo_piso', 'kpi_bajo_piso_d',
-  'hst_sub', 'hst_filtro', 'hst_sin_mapa']);
+  'hst_sub', 'hst_filtro', 'hst_sin_mapa',
+  /* P309 · el inicio de HSEQ: su guía ⓘ, la razón corta debajo del piso y la hoja de la semana */
+  'hsi_guia', 'hsi_bajo_piso_d', 'hsi_sem_sub']);
 /* Las que prometen algo de HSEQ o de Dirección (las que mira el candado). */
 const P051_PROMESA_HSEQ_DIR = ['car4_hseq_d', 'car4_dir_d', 'priv_hseq_1', 'priv_dir_1', 'priv_dir_2',
                                'consent_roles_html', 'pg_hint_hseq', 'pg_desc_hseq', 'rol_of_guia_hseq'];
