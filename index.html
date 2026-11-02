@@ -5786,6 +5786,8 @@
      al mismo ritmo. */
   .mq-in { display: inline-block; white-space: nowrap; }
   .marquee .mq-in { animation: anResMarquee 5s ease-in-out infinite; }
+  /* F087 · la parte que se puede omitir (`.mq-pista`) se omite ANTES de deslizar; lo decide `dashMedirMq`. */
+  .mq-sin-pista .mq-pista { display: none; }
   /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
   .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
@@ -8143,7 +8145,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.57';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.58';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -23504,7 +23506,7 @@ function updateDashUpdated(){
   const e = document.getElementById('dashUpdated');
   if (!e || !DASH) return;
   const d = new Date(DASH.updated), p = n => String(n).padStart(2,'0');
-  dashSetMq('dashUpdated', t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }) + (DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar'))));
+  dashSetMq('dashUpdated', t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }), DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar')));   // F087: la pista se omite en el celular
   /* T3: dashRefresh() puede llamar acá y volver SIN renderizar de nuevo (sig sin cambios) — el
      rAF de renderDash no corre en ese camino, así que se mide acá directo. Es barato: un par de
      querySelector. */
@@ -24455,7 +24457,24 @@ function dashMedirMq(el){
   if (!el) return;
   const inner = el.querySelector('.mq-in');
   if (!inner){ el.classList.remove('marquee'); el.style.removeProperty('--marquee-dist'); return; }
-  const sobra = inner.scrollWidth - el.clientWidth;
+  /* ⚠️ F087 · LO QUE SE PUEDE OMITIR SE OMITE ANTES DE DESLIZAR. Es la regla de T3 —un texto en
+     movimiento se lee peor que uno quieto— y acá pesa más: con «reducir movimiento» la app apaga
+     todas las animaciones (`html.sin-animaciones`) y el texto que no entra queda cortado en seco,
+     sin «…». En un teléfono de 375 px «Actualizado 15:37:30 · toca ↻ para actualizar» mide 222 px
+     para una caja de 130, y sin la pista, 102: en el header SIN logo y con letra Normal o Pequeña
+     entra quieto de 360 px para arriba. NO alcanza con logo (la caja queda en 25 a 91 px, y al
+     nombre de la empresa le quedan 0 a 39) ni con letra «Muy grande» (caja de 103 para 132): ahí
+     sigue deslizándose, y con «reducir movimiento», cortado. Eso es el header apretado, no esta
+     línea (verificador de F087, medido; la hoja `Marca` no tenía ningún logo el 2026-11-02).
+     Se mide primero ENTERO cada vez, no sólo la primera: al girar el teléfono (A2) la caja crece y
+     la pista tiene que volver. Sólo si sin la pista tampoco entra, se desliza (y la distancia sale
+     del texto sin la pista, que es el que queda en pantalla). */
+  el.classList.remove('mq-sin-pista');
+  let sobra = inner.scrollWidth - el.clientWidth;
+  if (sobra > 2 && inner.querySelector('.mq-pista')){
+    el.classList.add('mq-sin-pista');
+    sobra = inner.scrollWidth - el.clientWidth;
+  }
   if (sobra > 2){
     el.style.setProperty('--marquee-dist', (-sobra - 4) + 'px');
     el.classList.add('marquee');
@@ -24465,10 +24484,12 @@ function dashMedirMq(el){
   }
 }
 // T3 · pone texto en un contenedor que `dashWireMarquees()` puede medir y hacer deslizar si no entra.
-function dashSetMq(id, texto){
+// F087 · `pista` (opcional) va al final y es lo primero que se omite si no entra: repite lo que ya
+// dice otro control, como «toca ↻ para actualizar» al lado del ↻.
+function dashSetMq(id, texto, pista){
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = '<span class="mq-in">' + esc(texto) + '</span>';
+  el.innerHTML = '<span class="mq-in">' + esc(texto) + (pista ? '<span class="mq-pista">' + esc(pista) + '</span>' : '') + '</span>';
   /* El texto cambió: la medición anterior ya no vale. Se vuelve a medir acá y no se espera al
      barrido, porque entre un `dashSetMq` y el próximo `dashWireMarquees` puede pasar toda la
      carga —que es justo cuando se ve el «Cargando…» mal puesto—. */
