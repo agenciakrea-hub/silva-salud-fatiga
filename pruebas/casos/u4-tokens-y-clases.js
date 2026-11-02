@@ -24,7 +24,10 @@ const U4_INLINE = ['--anc','--gpp','--hc','--tc','--spl-traza','--marquee-dist',
                    /* alturas y colores calculados: `style="--h:34%"`, `style="--gse:#...;--gseb:#..."` */
                    '--h','--gse','--gseb','--ab','--ac','--act','--sfbg','--tbg',
                    /* nota médica y evento del formulario: `style="--anc:...;--anct:...;--anbg:..."` */
-                   '--anbg','--ansol','--anct'];
+                   '--anbg','--ansol','--anct',
+                   /* F089 · el alto de los desplegables del header hasta el borde de la pantalla:
+                      `dashDesplegablesAjustar` → `setProperty` en #dfmPanel y #glossPanel */
+                   '--dfm-alto','--gloss-alto'];
 
 /* ⚠️ EL TEXTO SIN COMENTARIOS, Y POR QUÉ ESTO ES UN HELPER Y NO CUATRO COPIAS. Los dos casos de
    abajo barrían `x.textContent` del `<style>` con la misma regex escrita dos veces cada una

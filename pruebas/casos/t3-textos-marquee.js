@@ -83,24 +83,27 @@ PRUEBAS.caso('⚠️ #dashScope se desliza cuando el nombre no entra, y deja de 
   }
 });
 
-PRUEBAS.caso('⚠️ #dashUpdated: mismo mecanismo, y updateDashUpdated() lo dispara solo', () => {
-  /* CASO BORDE DEL PLAN: dashRefresh() puede terminar SIN volver a renderizar todo el panel (si no
-     hay cambios), así que updateDashUpdated() tiene que disparar la medición por su cuenta y no
-     depender del rAF que arma renderDash(). Se comprueba llamando SÓLO a updateDashUpdated().
-     El ancho se fuerza bien chico para que el corte se note tanto en modo demo (texto corto, sin
-     "toca ↻ para actualizar") como fuera de demo — `DASH_DEMO` es `const` en la app real y no se
-     puede pisar desde una prueba, así que esto no depende de en cuál de los dos modos corra. */
+PRUEBAS.caso('⚠️ #dashUpdated SALIÓ del deslizamiento (F089): ni con una caja de 40 px se desliza', () => {
+  /* Hasta la 7.58 este caso afirmaba lo contrario: que la línea entraba al mecanismo de T3 y que
+     `updateDashUpdated()` disparaba la medición por su cuenta. F089 (Franco, 2026-11-02: «todo debe
+     verse y leer, y pensá que es para gente 40 plus») la sacó: un texto que se mueve se lee peor que
+     uno quieto, y la línea ahora va entera en su propia fila del celular y baja de renglón si no
+     entra. Lo que se ve está en `f087-actualizado-en-celular.js`; acá queda que T3 ya no la toca. */
   const el = document.getElementById('dashUpdated');
   const antes = { html: el.innerHTML, cls: el.className, w: el.style.width };
   const previoDash = (typeof DASH !== 'undefined') ? DASH : null;
   try {
-    t3ConPanelVisible(() => {
+    /* A 1366: en el celular la línea va en su propia fila con `flex: 1 1 100%`, que le gana al `width`, y la «caja de
+       40 px» mediría 352 (verificador de F089, T3). La guarda lo dice si vuelve a pasar. */
+    PRUEBAS.enVentana(1366, 768, () => t3ConPanelVisible(() => {
       DASH = { updated: Date.now(), f:{}, _cfg:{} };
       el.style.width = '40px';
       updateDashUpdated();
-      dashWireMarquees();                       // por si el rAF no llegó a correr en este entorno (R11)
-      PRUEBAS.cierto(el.classList.contains('marquee'), 'con 40px, "Actualizado HH:MM:SS..." no puede entrar');
-    });
+      dashWireMarquees();
+      PRUEBAS.cierto(el.clientWidth <= 45, 'guarda: la caja mide de verdad 40 px (' + el.clientWidth + ')');
+      PRUEBAS.falso(el.classList.contains('marquee'), 'con 40px tampoco se marca para deslizar');
+      PRUEBAS.falso(!!el.querySelector('.mq-in'), 'ni lleva el contenedor del deslizamiento');
+    }));
   } finally {
     el.innerHTML = antes.html; el.className = antes.cls; el.style.width = antes.w;
     DASH = previoDash;

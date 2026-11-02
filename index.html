@@ -100,6 +100,10 @@
        4.64 de los dos extremos del degradado que reemplaza. Invariante entre temas por el
        mismo motivo que su fondo: es fondo de marca, no superficie del tema. */
     --sobre-marca: #fff;
+    /* F089 · la tinta SECUNDARIA sobre el header navy: «Actualizado … · toca ↻ para actualizar».
+       Era `rgba(255,255,255,.65)` escrito a mano (6,8:1 sobre `--navy` claro); al 80 % da 9,5:1,
+       que es lo que pide «pensá que es para gente 40 plus». Igual en los dos temas, como su fondo. */
+    --sobre-marca-2: rgba(255,255,255,.8);
     /* P310 · el estado global va sobre el header NAVY en los dos temas, así que sus tintas son las mismas en los dos y no
        las del semáforo de las tarjetas (`--sem-ambar` y `--sem-rojo` no llegan a 4,5:1 sobre `--navy` claro). Contraste
        medido sobre `--navy` del tema claro (el más bajo de los dos): verde 7,6 · ámbar 8,3 · rojo 6,2 · tenue 6,4. */
@@ -555,6 +559,7 @@
     --orange-legible: #ff9d4d;   /* éste SÍ: ver el comentario en :root */
     --orange-solido: #b8500a;    /* éste NO cambia a propósito: es fondo, no tinta (ver :root) */
     --sobre-marca: #fff;         /* idem: acompaña a --orange-solido */
+    --sobre-marca-2: rgba(255,255,255,.8);   /* idem (ver :root) */
     /* P310 · el estado global va sobre el header NAVY en los dos temas, así que sus tintas son las mismas en los dos y no
        las del semáforo de las tarjetas (`--sem-ambar` y `--sem-rojo` no llegan a 4,5:1 sobre `--navy` claro). Contraste
        medido sobre `--navy` del tema claro (el más bajo de los dos): verde 7,6 · ámbar 8,3 · rojo 6,2 · tenue 6,4. */
@@ -1220,7 +1225,9 @@
      «Empresa Demo · ejemplo» entra a la mitad — pero T3 ya resolvió esto MEJOR: `dashWireMarquees`
      le pone `.marquee` cuando el texto no entra y lo desplaza, así se lee ENTERO. La elipsis
      compite con esa animación: recorta antes de que el deslizamiento pueda mostrar el final.
-     Hay un caso que se pone en rojo si alguien se la vuelve a agregar (`t3-textos-marquee.js`). */
+     Hay un caso que se pone en rojo si alguien se la vuelve a agregar (`t3-textos-marquee.js`).
+     La única excepción es F088: sin animaciones («reducir movimiento») no hay nada que deslizar, y
+     ahí el `.mq-in` de adentro sí termina en «…» (ver `html.sin-animaciones .marquee .mq-in`). */
   .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; }
   /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
      viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
@@ -1311,7 +1318,34 @@
   .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
     padding: .12rem .5rem; white-space: nowrap; }
-  .dash-updated { font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; margin-top: 1px; }   /* idem: sin elipsis a propósito, lo desplaza `dashWireMarquees` */
+  .dash-updated { font-size: .78rem; font-weight: 600; line-height: 1.35; color: var(--sobre-marca-2); margin-top: 1px; }   /* F089: entera, quieta y legible; si no entra, baja de renglón */
+  /* ⚠️ F089 · EN EL CELULAR, «ACTUALIZADO …» VA EN SU PROPIA FILA, A TODO EL ANCHO. Compartía la columna
+     del nombre con los botones del header: a 375 px eran 130 px para 222 de texto, y se deslizaba (T3)
+     o, en la 7.58 (F087), perdía «toca ↻ para actualizar». Franco: «todo debe verse y leer, y pensá
+     que es para gente 40 plus». En su fila tiene 337 px a 375 y entra entera en 12,5 px, también a
+     320; con letra «Muy grande» baja a dos renglones, pero se ve toda. El header crece 17 a 22 px con
+     letra Normal (17 en HSEQ), y hasta unos 49 con letra grande, donde la línea ocupa dos renglones:
+     por eso los desplegables del header miden el lugar que les queda (`dashAltoHastaElPiso`).
+     `display: contents` deja al nombre y a la línea como hijos directos de la barra, para que la línea
+     baje (`order`) sin tocar el DOM; en escritorio (≥ 900 px) sigue al lado del título.
+     Vacía —antes de que lleguen los datos— guarda su lugar con el MISMO texto, invisible
+     (`data-reserva`, traducido): ocupa los renglones que va a ocupar, también con letra grande, donde
+     son dos. Sin eso el header crecía de golpe al llegar los datos y empujaba todo (verificador de
+     F089, H4 y N4: un espacio duro guardaba un renglón y con letra grande saltaba igual 20 px).
+     Límite: la reserva usa «00:00:00», y en DM Sans el 0 es la cifra más ancha —no tiene cifras del
+     mismo ancho, `tabular-nums` no le hace nada: «00:00:00» mide 58 px y «11:11:11», 33—. La reserva
+     nunca queda corta; en el borde puede guardar un renglón de más, que se devuelve al llegar los datos
+     (el header se achica 20 a 23 px, una vez). Medido por el verificador de F089: en español a 340 y
+     360 con letra Grande y a 390 con Muy grande, sólo con horas de cifras angostas («11:11:11»); en
+     inglés, a 320 y 340 con Muy grande. */
+  @media (max-width: 899.98px) {
+    .dash-top { flex-wrap: wrap; row-gap: .35rem; }
+    .dash-scope-wrap { display: contents; }
+    .dash-scope-top { flex: 1; min-width: 0; }
+    .dash-updated { order: 1; flex: 1 1 100%; margin-top: 0; }
+    .dash-updated:empty::before { content: attr(data-reserva); visibility: hidden; }
+    .hseq-estado-fila { order: 2; }
+  }
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
     background: var(--card); padding: 2px; }
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: 999px;
@@ -1406,7 +1440,10 @@
     display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease;
     background: var(--card); border-radius: 0 0 18px 18px; }
   .dfm-panel.open { grid-template-rows: 1fr; box-shadow: 0 20px 44px rgba(14,42,86,.22); }
-  .dfm-panel-inner { overflow: hidden; min-height: 0; }
+  /* F089 · H3: el alto que queda hasta el borde de la pantalla (`dashDesplegablesAjustar`, al abrir y al girar); lo que
+     no entra se desplaza adentro. Fuera de `.open` sigue en `hidden`, que es lo que anima el abrir y el cerrar. */
+  .dfm-panel-inner { overflow: hidden; min-height: 0; max-height: var(--dfm-alto, none); }
+  .dfm-panel.open.dfm-con-scroll .dfm-panel-inner { overflow-y: auto; overscroll-behavior: contain; }   /* sólo si no entra (N3) */
   .dfm-panel-inner .dash-tabs-wrap { border-top: 1px solid var(--linea); }
   .dfm-panel-inner .dash-rango { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
     padding: .9rem 1.2rem 0; }
@@ -1438,10 +1475,11 @@
      y al terminar en 0, el panel colapsa de verdad a 0px (no queda un cuadro fantasma). El borde
      sigue condicionado a .open nomás (evita la rayita fantasma del borde en 0 de alto). */
   .gloss-panel-inner { overflow: hidden; min-height: 0; display: flex; flex-direction: column;
-    padding: 0 1.1rem; border-radius: 14px; transition: padding .25s ease; }
+    padding: 0 1.1rem; border-radius: 14px; transition: padding .25s ease;
+    max-height: var(--gloss-alto, none); }   /* F089 · H3: hasta el borde de la pantalla; la lista se achica y se desplaza */
   .gloss-panel.open .gloss-panel-inner { padding: 1rem 1.1rem 1.2rem; border: 1px solid var(--sup-borde); }
   .gloss-panel-title { flex-shrink: 0; font-weight: 800; font-size: .92rem; color: var(--text); margin-bottom: .5rem; }
-  .gloss-panel-scroll { overflow-y: auto; max-height: min(60vh, 380px); }
+  .gloss-panel-scroll { overflow-y: auto; max-height: min(60vh, 380px); min-height: 0; overscroll-behavior: contain; }
   .gloss-panel-scroll .gloss-i:first-of-type { padding-top: 0; }
 
   /* Glosario: items dentro del panel desplegable fijo (ver .gloss-panel más arriba) */
@@ -2765,7 +2803,7 @@
     .dash-top { padding: .55rem 1.1rem; gap: .45rem; }
     .dash-scope-wrap { display: flex; align-items: baseline; gap: .55rem; flex-wrap: wrap; }
     .dash-scope { font-size: 1rem; }
-    .dash-updated { font-size: .68rem; margin-top: 0; }
+    .dash-updated { margin-top: 0; }   /* F089: el tamaño es el del celular (.78rem): se lee igual en los dos */
     /* Antes esto los bajaba a 30 px justo en la pantalla donde MÁS importa el tamaño del toque.
        Se mantiene el área en 44 y se achica sólo el dibujo de adentro. */
     .portal-back, .dash-refresh, .dash-top .portal-x { width: 44px; height: 44px; font-size: 1rem; }
@@ -5786,8 +5824,17 @@
      al mismo ritmo. */
   .mq-in { display: inline-block; white-space: nowrap; }
   .marquee .mq-in { animation: anResMarquee 5s ease-in-out infinite; }
-  /* F087 · la parte que se puede omitir (`.mq-pista`) se omite ANTES de deslizar; lo decide `dashMedirMq`. */
-  .mq-sin-pista .mq-pista { display: none; }
+  /* ⚠️ F088 · SIN ANIMACIONES NO HAY NADA QUE DESLIZAR: EL TEXTO TERMINA EN «…». `html.sin-animaciones`
+     (la pone el arranque cuando el teléfono pide «reducir movimiento», o cuando la pestaña estaba
+     oculta AL CARGAR, hasta que se vuelve visible) apaga la animación, y sin ella el texto quedaba
+     cortado en seco: a 375 px «Aeroambulancias
+     Silva, C.A.» mostraba 78 de sus 226 px y nada avisaba que había más. La elipsis compite con el
+     deslizamiento (T3, ver `.dash-scope`), pero acá no hay deslizamiento que proteger.
+     Va en el hijo que se mueve, con su ancho topado al de la caja: su `scrollWidth` sigue midiendo el
+     texto entero, así que `dashMedirMq` y el auditor miden lo mismo que antes. `vertical-align: top`
+     porque un inline-block con `overflow` toma su borde de abajo como línea de base y subiría el texto. */
+  html.sin-animaciones .marquee .mq-in,
+  html.sin-animaciones .an-res-hasta.marquee .an-res-hasta-in { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
   /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
   .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
@@ -7670,7 +7717,7 @@
             <div class="dash-scope" id="dashScope">—</div>
             <span class="dash-vista" id="dashVista"></span>
           </div>
-          <div class="dash-updated" id="dashUpdated"></div>
+          <div class="dash-updated" id="dashUpdated" data-reserva="Actualizado 00:00:00 · toca ↻ para actualizar" data-i18n-attr="data-reserva:dash_reserva"></div>
         </div>
         <button class="dash-refresh dash-ir" id="nomFabBtn" onclick="nominaListAbrir()" style="display:none" title="Nómina" aria-label="Nómina" data-i18n-attr="aria-label:nomlist_titulo;title:nomlist_titulo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M8 11h8M8 15h5"/></svg>
@@ -8145,7 +8192,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.58';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.59';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -10016,7 +10063,7 @@ const I18N = {
       mov_a_operacion_asignada:'Asignada a una operación',
       mov_a_operacion_desasignada:'Retirada de una operación',
       mov_a_accesos_admin_set:'Permisos de acceso cambiados',
-      dash_actualizado:'Actualizado {h}', dash_toca_actualizar:'toca ↻ para actualizar',
+      dash_actualizado:'Actualizado {h}', dash_toca_actualizar:'toca ↻ para actualizar', dash_reserva:'Actualizado 00:00:00 · toca ↻ para actualizar',
       rng_del_al:'del {a} al {b}', rng_desde:'desde {a}', rng_hasta:'hasta {a}',
       rng_elige:'elige un rango de fechas', rng_sin_reg:'sin registros en este período',
       rng_todo:'todo el historial · {s}',
@@ -12343,7 +12390,7 @@ const I18N = {
       mov_a_operacion_asignada:'Assigned to an operation',
       mov_a_operacion_desasignada:'Removed from an operation',
       mov_a_accesos_admin_set:'Access permissions changed',
-      dash_actualizado:'Updated {h}', dash_toca_actualizar:'tap ↻ to refresh',
+      dash_actualizado:'Updated {h}', dash_toca_actualizar:'tap ↻ to refresh', dash_reserva:'Updated 00:00:00 · tap ↻ to refresh',
       rng_del_al:'from {a} to {b}', rng_desde:'from {a}', rng_hasta:'up to {a}',
       rng_elige:'choose a date range', rng_sin_reg:'no records in this period',
       rng_todo:'entire history · {s}',
@@ -23306,7 +23353,7 @@ function dashApplyMarca(marca){
   }
   const logoEl = document.getElementById('dashBrandLogo');
   if (logoEl){
-    if (marca && marca.logo && /^https?:\/\//.test(marca.logo)){ logoEl.src = marca.logo; logoEl.style.display = ''; logoEl.onerror = function(){ logoEl.style.display='none'; try { dashUpdateHseqUI(); } catch(e){} /* P309 · sin logo, las iniciales */ }; }
+    if (marca && marca.logo && /^https?:\/\//.test(marca.logo)){ logoEl.src = marca.logo; logoEl.style.display = ''; logoEl.onerror = function(){ logoEl.style.display='none'; try { dashUpdateHseqUI(); } catch(e){} /* P309 · sin logo, las iniciales */ }; logoEl.onload = function(){ try { dashWireMarquees(); } catch(e){} }; /* F088 · H2: el logo que carga tarde achica la caja del nombre: se vuelve a medir */ }
     else logoEl.style.display = 'none';
   }
 }
@@ -23506,10 +23553,17 @@ function updateDashUpdated(){
   const e = document.getElementById('dashUpdated');
   if (!e || !DASH) return;
   const d = new Date(DASH.updated), p = n => String(n).padStart(2,'0');
-  dashSetMq('dashUpdated', t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }), DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar')));   // F087: la pista se omite en el celular
-  /* T3: dashRefresh() puede llamar acá y volver SIN renderizar de nuevo (sig sin cambios) — el
-     rAF de renderDash no corre en ese camino, así que se mide acá directo. Es barato: un par de
-     querySelector. */
+  /* ⚠️ F089 · ENTERA, QUIETA Y DEL TAMAÑO QUE SE LEE. Franco, al ver que F087 escondía «toca ↻ para
+     actualizar» en el celular: «todo debe verse y leer, y pensá que es para gente 40 plus». Por eso ya
+     no pasa por el deslizamiento de T3 (`dashSetMq`): en el celular va en su propia fila del header, a
+     todo el ancho (el CSS de F089, junto a `.dash-updated`), y si aun así no entra —letra «Muy
+     grande»— baja de renglón. Nada se esconde, nada se mueve, y no depende de ningún cuadro que
+     vuelva a medir. */
+  e.textContent = t('dash_actualizado', { h: p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) }) + (DASH_DEMO ? '' : (' · ' + t('dash_toca_actualizar')));
+  /* ⚠️ Esta línea ya no lo necesita, pero el barrido se queda: un ↻ sin datos nuevos vuelve acá SIN repintar, y es
+     la única medición de ese camino para lo que pudo cambiar de ancho por detrás —el nombre de la empresa tras un
+     logo, la fuente—. La 7.58 lo hacía de rebote; F089 lo sacó creyendo que era sólo por esta línea (verificador de
+     F089, H2). Ahora está dicho. */
   requestAnimationFrame(dashWireMarquees);
 }
 // ¿El timestamp es del mismo día calendario que ahora? Se usa para decidir si hace falta pedirle
@@ -23577,8 +23631,38 @@ function dfmToggle(){
   // El panel flota por encima del contenido: se cierra solo si se toca afuera (no al elegir
   // pestaña/período/filtro, eso queda abierto para seguir eligiendo). Sólo uno de los dos
   // desplegables (filtros / glosario) puede estar abierto a la vez.
-  if (open){ glossClose(); document.addEventListener('click', dfmOutsideClick, true); }
+  if (open){
+    glossClose(); dashDesplegablesAjustar();
+    const inn = panel.querySelector('.dfm-panel-inner'); if (inn) inn.scrollTop = 0;   // F089 · abre desde arriba
+    document.addEventListener('click', dfmOutsideClick, true);
+  }
   else document.removeEventListener('click', dfmOutsideClick, true);
+}
+/* ⚠️ F089 · LOS DESPLEGABLES DEL HEADER TERMINAN ANTES DEL BORDE DE LA PANTALLA. «Menú y filtros» y el Glosario
+   cuelgan debajo del header, y la hoja (`.sheet.portal`) recorta lo que pase su borde. Con el header de F089 (la línea
+   «Actualizado» en su propia fila) y letra grande, en un teléfono chico el menú colgaba 48 px por debajo, sin scroll:
+   Departamento y Empleado no se podían alcanzar (verificador de F089, H3). Al abrirlos se les da el alto que les queda
+   hasta el piso, y lo que no entra se desplaza adentro (CSS de `.dfm-panel-inner` y `.gloss-panel-inner`). Se
+   recalcula al girar el teléfono, desde `dashRemedirMarquees`. */
+function dashAltoHastaElPiso(el){
+  const hoja = el.closest('.sheet');
+  const piso = Math.min(window.innerHeight, hoja ? hoja.getBoundingClientRect().bottom : window.innerHeight);
+  /* Piso de 40 y no más: con el teléfono acostado, el visor y letra grande queda poco lugar, y un mínimo mayor (era
+     96) hacía pasar el borde y dejaba el final del menú fuera de alcance (verificador de F089, N2). */
+  return Math.max(40, Math.floor(piso - el.getBoundingClientRect().top - 8));
+}
+function dashDesplegablesAjustar(){
+  const m = document.getElementById('dfmPanel'), g = document.getElementById('glossPanel');
+  /* M1 (verificador de F089): con el panel oculto no se mide. «Atrás» no cierra el menú, y al volver a entrar
+     `onDashData` repinta ANTES de mostrar el panel: medido ahí, el tope da 0 y el alto, el de la pantalla entera
+     (560 px a 320×568), sin desplazamiento. Se deja el último alto medido, y lo corrige el próximo repintado. */
+  const seVe = el => !!el && el.getClientRects().length > 0;
+  if (seVe(m) && m.classList.contains('open')){
+    const alto = dashAltoHastaElPiso(m), inn = m.querySelector('.dfm-panel-inner');
+    m.style.setProperty('--dfm-alto', alto + 'px');
+    m.classList.toggle('dfm-con-scroll', !!inn && inn.scrollHeight > alto + 1);   // N3: la barra, sólo si hace falta
+  }
+  if (seVe(g) && g.classList.contains('open')) g.style.setProperty('--gloss-alto', dashAltoHastaElPiso(g) + 'px');
 }
 function dfmOutsideClick(e){
   const wrap = document.querySelector('.dfm-wrap');
@@ -24211,6 +24295,8 @@ function glossToggle(){
   if (open){
     dfmClose();
     const body = document.getElementById('glossPanelBody'); if (body) body.innerHTML = glossPanelHtml();
+    dashDesplegablesAjustar();   // F089 · H3: hasta el borde de la pantalla
+    const lst = panel.querySelector('.gloss-panel-scroll'); if (lst) lst.scrollTop = 0;   // F089 · abre desde arriba
     document.addEventListener('click', glossOutsideClick, true);
   } else document.removeEventListener('click', glossOutsideClick, true);
 }
@@ -24429,6 +24515,9 @@ function renderDash(){
   else cicloTickStop();
   requestAnimationFrame(dashWireAnResMarquee);
   requestAnimationFrame(dashWireMarquees);
+  /* F089 · N1: el menú se queda abierto al elegir período o filtro, y el repintado puede cambiar el alto del header
+     (en HSEQ, el estado global de «Semana» es más alto que el de «Rango»): el lugar que le queda se vuelve a medir. */
+  dashDesplegablesAjustar();
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
 // al lado), se desliza sola de un lado al otro para poder leerla entera en vez de cortarla con "…".
@@ -24457,24 +24546,7 @@ function dashMedirMq(el){
   if (!el) return;
   const inner = el.querySelector('.mq-in');
   if (!inner){ el.classList.remove('marquee'); el.style.removeProperty('--marquee-dist'); return; }
-  /* ⚠️ F087 · LO QUE SE PUEDE OMITIR SE OMITE ANTES DE DESLIZAR. Es la regla de T3 —un texto en
-     movimiento se lee peor que uno quieto— y acá pesa más: con «reducir movimiento» la app apaga
-     todas las animaciones (`html.sin-animaciones`) y el texto que no entra queda cortado en seco,
-     sin «…». En un teléfono de 375 px «Actualizado 15:37:30 · toca ↻ para actualizar» mide 222 px
-     para una caja de 130, y sin la pista, 102: en el header SIN logo y con letra Normal o Pequeña
-     entra quieto de 360 px para arriba. NO alcanza con logo (la caja queda en 25 a 91 px, y al
-     nombre de la empresa le quedan 0 a 39) ni con letra «Muy grande» (caja de 103 para 132): ahí
-     sigue deslizándose, y con «reducir movimiento», cortado. Eso es el header apretado, no esta
-     línea (verificador de F087, medido; la hoja `Marca` no tenía ningún logo el 2026-11-02).
-     Se mide primero ENTERO cada vez, no sólo la primera: al girar el teléfono (A2) la caja crece y
-     la pista tiene que volver. Sólo si sin la pista tampoco entra, se desliza (y la distancia sale
-     del texto sin la pista, que es el que queda en pantalla). */
-  el.classList.remove('mq-sin-pista');
-  let sobra = inner.scrollWidth - el.clientWidth;
-  if (sobra > 2 && inner.querySelector('.mq-pista')){
-    el.classList.add('mq-sin-pista');
-    sobra = inner.scrollWidth - el.clientWidth;
-  }
+  const sobra = inner.scrollWidth - el.clientWidth;
   if (sobra > 2){
     el.style.setProperty('--marquee-dist', (-sobra - 4) + 'px');
     el.classList.add('marquee');
@@ -24484,21 +24556,20 @@ function dashMedirMq(el){
   }
 }
 // T3 · pone texto en un contenedor que `dashWireMarquees()` puede medir y hacer deslizar si no entra.
-// F087 · `pista` (opcional) va al final y es lo primero que se omite si no entra: repite lo que ya
-// dice otro control, como «toca ↻ para actualizar» al lado del ↻.
-function dashSetMq(id, texto, pista){
+function dashSetMq(id, texto){
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = '<span class="mq-in">' + esc(texto) + (pista ? '<span class="mq-pista">' + esc(pista) + '</span>' : '') + '</span>';
+  el.innerHTML = '<span class="mq-in">' + esc(texto) + '</span>';
   /* El texto cambió: la medición anterior ya no vale. Se vuelve a medir acá y no se espera al
      barrido, porque entre un `dashSetMq` y el próximo `dashWireMarquees` puede pasar toda la
      carga —que es justo cuando se ve el «Cargando…» mal puesto—. */
   dashMedirMq(el);
 }
 // T3 · generaliza dashWireAnResMarquee a los cortes detectados en el resto del panel: el nombre de
-// la empresa/alcance, "toca ↻ para actualizar" y el título del informe ejecutivo colapsado.
+// la empresa/alcance y el título del informe ejecutivo colapsado. «Actualizado … · toca ↻ para
+// actualizar» estuvo acá hasta F089: ya no se desliza, se ve entera (ver `updateDashUpdated`).
 function dashWireMarquees(){
-  document.querySelectorAll('#dashScope, #dashUpdated, .inf-prev').forEach(dashMedirMq);
+  document.querySelectorAll('#dashScope, .inf-prev').forEach(dashMedirMq);
 }
 /* ⚠️ A2 · VOLVER A MEDIR AL CAMBIAR EL ANCHO. Lo encontró la auditoría de cierre y era un agujero
    de verdad, no un falso positivo del auditor: si entra o no entra depende del ancho, y hasta acá
@@ -24521,6 +24592,7 @@ function dashRemedirMarquees(){
     dashWireAnResMarquee();
     dashWireMarquees();
     splMedirTrazo();
+    dashDesplegablesAjustar();   // F089 · H3: al girar, el lugar debajo del header cambia
   });
 }
 /* ⚠️ Mide el largo REAL del trazo de la tira de presentación, en píxeles de pantalla, y lo deja en
@@ -31368,6 +31440,10 @@ function dashRepintarInforme(){
   if (!DASH) return;
   const sec = document.getElementById('dsec-informe'); if (!sec) return;
   try { sec.innerHTML = renderInforme(dashFiltered()); } catch(e){}
+  /* ⚠️ F088 · LAS TARJETAS QUE LLEGAN TARDE SE MIDEN ACÁ. El historial llega después del primer pintado, y el
+     `requestAnimationFrame(dashWireMarquees)` de `renderDash` ya corrió: sin esto el título de la tarjeta quedaba
+     sin `.marquee`, o sea ni se deslizaba ni, con «reducir movimiento», terminaba en «…» (verificador de F089, H1). */
+  dashWireMarquees();
 }
 // Primera línea de texto útil del informe, para el preview colapsado
 function informePreview(txt){
