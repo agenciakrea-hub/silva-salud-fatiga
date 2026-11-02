@@ -49,7 +49,8 @@ const P308_GENTE = {
 };
 const P308_ETIQUETAS = ['Operaciones', 'Administración', 'Legal', 'Mantenimiento', 'Piloto', 'Técnico',
                         'Presidente', 'Abogado', 'Mecánico'];
-const P308_COL_ID = 88;   // una columna que `parseRegistros` no lee: el id estable de cada test del CH de prueba
+const P308_COL_ID = 88;
+const P308_METRICAS_FILA = ['kss', 'estres', 'ansiedad', 'fatiga', 'gastro', 'depresion', 'cansancio'];   // P310   // una columna que `parseRegistros` no lee: el id estable de cada test del CH de prueba
 
 /* Un test: { p, d, h, v } — persona, día, hora de llegada, valor de KSS. El instante va en la marca y en
    la fecha (desde agosto el CH las tiene iguales), como una celda Date de verdad. */
@@ -113,15 +114,18 @@ const P308_TRAZA = [
   ['    out.push(reg);', '    reg.__fila = String(fila[' + P308_COL_ID + '] || r); out.push(reg);'],
   ['  a.suma = Math.round(a.suma * 1000) / 1000;\n  return a;',
    '  a.suma = Math.round(a.suma * 1000) / 1000;\n  a.__filas = u.regs.map(function (r) { return r.__fila; });\n  return a;'],
-  /* la traza va en una columna 15, DESPUÉS de las huellas: el rango que se escribe se ensancha en una */
-  ['                      un.regs.map(function (r) { return huella(r, m); }).join(",")]);',
-   '                      un.regs.map(function (r) { return huella(r, m); }).join(","), JSON.stringify(a.__filas)]);'],
-  ['            filas.push([k, etiqueta, HSEQ_EXCLUIDOS, "", "", tramo.length, "", "", "", "", "", "", sellada, tramo.join(",")]);',
-   '            filas.push([k, etiqueta, HSEQ_EXCLUIDOS, "", "", tramo.length, "", "", "", "", "", "", sellada, tramo.join(","), "[]"]);'],
+  /* la traza va en una columna 19, DESPUÉS de las huellas y de las cuatro de los grupos «estado» (P310): el rango que
+     se escribe se ensancha en una */
+  ['                      un.regs.map(function (r) { return huella(r, m); }).join(","), "", "", "", ""]);',
+   '                      un.regs.map(function (r) { return huella(r, m); }).join(","), "", "", "", "", JSON.stringify(a.__filas)]);'],
+  ['            filas.push([k, etiqueta, HSEQ_EXCLUIDOS, "", "", tramo.length, "", "", "", "", "", "", sellada, tramo.join(","), "", "", "", ""]);',
+   '            filas.push([k, etiqueta, HSEQ_EXCLUIDOS, "", "", tramo.length, "", "", "", "", "", "", sellada, tramo.join(","), "", "", "", "", "[]"]);'],
+  ['                        e.verdes, e.amarillos, e.rojos, e.ids.join(",")]);',
+   '                        e.verdes, e.amarillos, e.rojos, e.ids.join(","), "[]"]);'],
   ['      var rango = sh.getRange(ultima + 1, 1, filas.length, TOTALES_HSEQ_HEAD.length);',
    '      var rango = sh.getRange(ultima + 1, 1, filas.length, TOTALES_HSEQ_HEAD.length + 1);'],
   ['                  sellada: Date.parse(String(v[i][12] || "")) || 0 });',
-   '                  sellada: Date.parse(String(v[i][12] || "")) || 0, __filas: JSON.parse(String(v[i][14] || "[]")) });'],
+   '                  sellada: Date.parse(String(v[i][12] || "")) || 0, __filas: JSON.parse(String(v[i][18] || "[]")) });'],
   ['    t.n += u.n; t.suma += u.suma; t.pocoConfiables += u.pc;',
    '    t.n += u.n; t.suma += u.suma; t.pocoConfiables += u.pc; (t.__filas = t.__filas || []).push.apply(t.__filas, u.__filas || []);'],
   ['    porK[sk].n += u.n; porK[sk].suma += u.suma;',
@@ -142,8 +146,8 @@ const P308_AYUDA =
   '    out[m] = formarUnidadesHseq_(ts, piso, function (r) { return piso1 ? norm(r.persona) : cedulaNorm(r.cedula); }).unidades\n' +
   '      .map(function (u) { var a = agregarUnidadHseq_(u, m, null); a.sellada = a.hasta; return a; }); });\n' +
   '  return totalesHseq_(out, piso1 ? 5 : piso, Date.now()); }\n';
-const P308_FN_LEE = 'function totalesHseqDeEmpresa_(empresaCanon, anonN) {';
-const P308_LEE = '    var T = totalesHseq_(U, pisoHseq_(anonN), Date.now());';
+const P308_FN_LEE = 'function totalesHseqDeEmpresa_(empresaCanon, anonN, umbral) {';
+const P308_LEE = '    var T = totalesHseq_(U, pisoHseq_(anonN), Date.now(), umbral);';
 /* Un sabotaje que EXTIENDE lo que lee el panel: `extra` es código que recibe `T` (los totales de verdad) y
    `regs` (los registros resueltos de la empresa) y les agrega lo que el servidor real no manda. */
 function p308Extiende(extra) {
@@ -160,8 +164,8 @@ const P308_SABOTAJES = {
   colorChico: p308Extiende('    T.colores = { "Administración": "rojo" };'),
   /* períodos (1) «calcular sobre el rango pedido»: lo inyecta `accionSupervisor`, que es quien ve el rango */
   rangoPedido: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
-    ['  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN) : null;',
-     '  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN) : null;\n' +
+    ['  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado) : null;',
+     '  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado) : null;\n' +
      '  if (totalesHseq && p.opDesde) totalesHseq.rango = p308Crudo_(p308Regs_(gestScope(acc, p.empresa)), "kss", function (x) { return x.fecha >= p.opDesde && x.fecha <= (p.opHasta || "9999"); });']],
   /* períodos (2) «semanas y meses de calendario, cada uno con su piso»: sin unidades (cada test es una), sin sellar */
   cadaUnoSuPiso: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
@@ -395,6 +399,9 @@ function p308Restas(respuestas, chicos) {
 const P308_CLAVES_OK = ['piso', 'regla', 'hoy', 'corte', 'corteDia', 'periodos', 'desde', 'hasta',
   'metricas', 'previo', 'n', 'suma', 'pocoConfiables', 'evaluados', 'serie', 'k', 'error', '__filas', 'ultimaCorrida',
   'detenido', 'causa',
+  /* P310 · el estado global de cada período y el umbral. R19: los arma `estadoPeriodoHseq_`, sobre grupos «estado»
+     sellados y sólo con al menos `piso` personas distintas con color; sus reglas las mide `p310-estado-hseq.js`. */
+  'estado', 'etapa', 'personas', 'umbralEstado',
   'semana', 'mes', 'trimestre', 'semestre', 'anio', 'todo',
   'kss', 'estres', 'ansiedad', 'fatiga', 'gastro', 'depresion', 'cansancio'];
 function p308Forma(T) {
@@ -723,10 +730,16 @@ function p308Claves(cambio, sabotaje) {
   }
   if (cambio === 'huellasVaciadas') {
     const h = w.hoja('Totales HSEQ'), v = h.getDataRange().getValues();
-    for (let i = 1; i < v.length; i++) if (String(v[i][3]) === '1') { h.getRange(i + 1, 14).setValue(''); break; }
+    /* P310 · el primer grupo de KSS, por lo que ES y no por su número: los grupos «estado» tienen sus propios casos en
+       `p310-estado-hseq.js` */
+    for (let i = 1; i < v.length; i++) if (String(v[i][2]) === 'kss') { h.getRange(i + 1, 14).setValue(''); break; }
     w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente'));
   }
-  if (cambio === 'filaBorrada') { const h = w.hoja('Totales HSEQ'); h.deleteRow(h.getLastRow()); w.borrarFilaDeId(base[7].id); }
+  /* P310 · «la última fila sellada» es la última de una MÉTRICA: desde P310 una corrida también escribe grupos «estado»,
+     que tienen sus propios casos en `p310-estado-hseq.js` */
+  const ultimaDeMetrica = h => { const v = h.getDataRange().getValues();
+    for (let i = v.length - 1; i >= 1; i--) if (P308_METRICAS_FILA.indexOf(String(v[i][2])) >= 0) return i + 1; return h.getLastRow(); };
+  if (cambio === 'filaBorrada') { const h = w.hoja('Totales HSEQ'); h.deleteRow(ultimaDeMetrica(h)); w.borrarFilaDeId(base[7].id); }
   if (cambio === 'multimetrica') w.borrarFilaDeId(base[7].id);
   /* una fila con la forma de una unidad de verdad (5 personas, piso 5): sólo la firma la delata */
   if (cambio === 'filaAgregada') w.hoja('Totales HSEQ').appendRow(['helitec', 'Helitec', 'kss', '99', '2026-11-03', 5, 25, 0, 0, 5, 5,
@@ -761,7 +774,7 @@ function p308Claves(cambio, sabotaje) {
   /* (y Pedro entra a la nómina: sin un cambio de composición, re-sellar daría las mismas unidades y no se vería) */
   if (cambio === 'futuroLejano') { base.slice(0, 11).forEach(x => w.reescribir(x.id, masDias(x.d, 5), x.h)); w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente')); }
   /* 6.ª vuelta · alguien escribe 2027 en el «Hasta» de la última unidad (con «sólo aviso» se puede) */
-  if (cambio === 'hastaFuturo') { const h = w.hoja('Totales HSEQ'); h.getRange(h.getLastRow(), 12).setValue('2027-11-03T12:00:00.000Z'); }
+  if (cambio === 'hastaFuturo') { const h = w.hoja('Totales HSEQ'); h.getRange(ultimaDeMetrica(h), 12).setValue('2027-11-03T12:00:00.000Z'); }
   /* 6.ª vuelta · se borran 10 tests sellados en dos tandas de 5 (ninguna detiene), después el `Usuario` cambia y se traspasa */
   if (cambio === 'reclaveConAusentes') {
     base.slice(0, 5).forEach(x => w.borrarFilaDeId(x.id));

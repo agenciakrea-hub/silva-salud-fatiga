@@ -178,8 +178,9 @@ PRUEBAS.caso('🔴 P309 · cada número del inicio es el total del servidor, y e
   PRUEBAS.cierto(h.tarjetas.estres.kref.length > 0, '🔴 el pilar 2 sí lleva «% bajo ref» (fila 26)');
   PRUEBAS.cierto(h.tarjetas.gastro.sparkAlta, '🔴 la tarjeta ancha lleva el gráfico grande (fila 32)');
 
-  /* La tendencia, en «Todo el historial» (lo que ve al abrir): KSS y estrés tienen dos semanas cerradas. */
-  const todo = p309Pintar(D.hseq), Pt = D.hseq.totalesHseq.periodos.todo;
+  /* La tendencia, en «Todo el historial» (elegido en el ☰: desde P310 el panel de HSEQ abre en la semana): KSS y estrés
+     tienen dos semanas cerradas. */
+  const todo = p309Pintar(D.hseq, { period: 'all' }), Pt = D.hseq.totalesHseq.periodos.todo;
   const serieKss = (Pt.metricas.kss.serie || []).filter(x => x && x.n > 0).map(p309Media);
   PRUEBAS.cierto(serieKss.length >= 2 && serieKss[serieKss.length - 1] > serieKss[0] &&
     p309Media(Pt.metricas.kss) <= ref.kss, 'guarda: la serie de KSS SUBE y el promedio queda bajo la referencia · ' +
@@ -200,7 +201,7 @@ PRUEBAS.caso('🔴 P309 · cada número del inicio es el total del servidor, y e
   /* ⚠️ discriminador · el MISMO payload con la referencia de KSS por debajo del promedio: la tarjeta, el arco y la
      tendencia pasan a rojo juntos. Si el color saliera de otro lado, uno de los tres se quedaría verde. */
   const conRefBaja = Object.assign({}, D.hseq, { referencia: Object.assign({}, ref, { kss: 0.5 }) });
-  const r = p309Pintar(conRefBaja).tarjetas.kss;
+  const r = p309Pintar(conRefBaja, { period: 'all' }).tarjetas.kss;   // P310 · en «todo», como la tendencia de arriba (la semana tiene un punto)
   PRUEBAS.cierto(r.over, '⚠️ discriminador · con la referencia abajo, KSS en rojo');
   PRUEBAS.igual(r.arcoColor, rojo, '⚠️ y el arco también');
   PRUEBAS.igual(r.sparkColor, rojo, '⚠️ y la tendencia también');
@@ -353,7 +354,7 @@ PRUEBAS.caso('🔴 P309 · «Ver reporte semanal ›» abre la semana del servid
   window.navPush = () => {}; window.navConsumir = () => {};
   try {
     /* El inicio en «Todo el historial» (lo que ve al abrir): la hoja es de la SEMANA igual, no del filtro. */
-    h = p309Pintar(D.hseq, null, () => {
+    h = p309Pintar(D.hseq, { period: 'all' }, () => {   // P310 · con el filtro en «todo» (el panel abre en la semana), para que la hoja no lo lea por casualidad
       document.querySelector('#hseqBar .hseq-bar-sem').click();
       const ov = document.getElementById('hseqSemanaOv');
       const out = { abierta: ov.classList.contains('show') };
