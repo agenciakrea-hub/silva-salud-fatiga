@@ -2113,6 +2113,7 @@
   .mov-falta-ok { color: var(--text-muted); }
   .mov-res { margin: .35rem 0 .2rem; font-size: .78rem; color: var(--text-soft);
              font-variant-numeric: tabular-nums; }
+  .mov-res-pz { white-space: nowrap; }   /* P385 · V3-1 · la fecha con su hora, y cada cuenta, en un solo renglón */
   .mov-nota { margin: .5rem 0 .35rem; font-size: .82rem; color: var(--text-soft); }
   .mov-nota-sub { margin-top: -.15rem; font-size: .75rem; color: var(--text-muted); }
   .mov-nota-err { color: var(--orange-legible); }
@@ -4963,6 +4964,9 @@
   /* Los dos números (disponibilidad y cobertura) van SIEMPRE juntos: ver el comentario en
      renderHseqIdc sobre por qué la disponibilidad sola es engañosa. */
   .hs-duo { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin:.6rem 0 .5rem; }
+  /* P385 · D2 · con un filtro de alcance la cobertura no se muestra (no se conoce la nómina del filtro): el número
+     que queda ocupa el ancho entero, en vez de media columna con un hueco al lado. */
+  .hs-duo--solo { grid-template-columns:1fr; }
   .hs-duo-c { text-align:center; padding:.5rem .3rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
   .hs-duo-c .hs-cap small { font-size:.72rem; color:var(--text-muted); font-weight:600; }
   .hs-duo-flojo .hs-pct-big { color:var(--text-muted); }        /* poca cobertura: no es dato confiable */
@@ -4976,8 +4980,13 @@
   /* P174 · la llave, al lado del de ausencia: mismo alto de toque, ancho mínimo (es un ícono). */
   .nomlist-pass { display:inline-flex; align-items:center; justify-content:center; min-width:44px; padding:.3rem; }
   .nomlist-row.nomlist-ausente { opacity:.72; }
-  .hs-nota-aus { font-size:.74rem; color:var(--text-muted); background:var(--chip-bg);
+  /* P385 · D2 · la línea «la cobertura de la nómina se ve sin filtros» es la misma clase de dato de control:
+     discreta, legible, sin color de alarma (no es un problema, es dónde mirar). */
+  /* P385 · V2-2 · 12,8 px y el gris más oscuro (5,96:1 en claro, 7,25:1 en oscuro, sobre `--chip-bg`): con `.74rem` y
+     `--text-muted` quedaba en 11,84 px y 4,54:1, debajo de lo que pidió Franco para gente de 40 para arriba. */
+  .hs-nota-aus, .hs-nota-filtro { font-size:.8rem; color:var(--text-soft); background:var(--chip-bg);
     border-radius:var(--radius-xs); padding:.4rem .55rem; margin-top:.4rem; line-height:1.35; }
+  .hs-nota-filtro { margin-top:.7rem; }
   .hs-duo-alerta { background:var(--sem-ambar-bg); }
   .hs-duo-alerta .hs-pct-big { color:var(--sem-ambar); }
   .hs-pct-big { font-size:2.4rem; font-weight:800; color:var(--text); line-height:1.05; font-variant-numeric: tabular-nums; }
@@ -8211,7 +8220,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.60';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.61';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9239,6 +9248,8 @@ const I18N = {
       sub_resumen_op:'Resumen operativo del grupo que tengas filtrado',
       sub_cobertura:'Siempre junto a la cobertura: un porcentaje alto sobre poca gente medida no dice nada',
       idc_cob_sin_nomina:'⚠️ No se pudo leer la nómina, así que la cobertura se calcula sobre quienes ya tienen mediciones, no sobre todo el personal. El porcentaje queda alto por esa razón, no porque falte menos gente por medir.',
+      /* P385 · D2 · con un filtro de alcance la nómina del filtro no se conoce: se dice dónde se ve la cobertura. */
+      idc_cob_filtro:'Con un filtro no se sabe cuánta gente falta medir: el porcentaje es sólo de quienes tienen datos.',
       /* Y5. Se dice el número, no se esconde: una ausencia mal cargada tiene que poder verse. */
       /* ⚠️ A4 · NO DICE "de guardia". El plan lo deja escrito: ese término NO EXISTE en el
          vocabulario del producto, y el propio commit de Y5 dice "se declara la AUSENCIA, no la
@@ -10046,10 +10057,21 @@ const I18N = {
       mov_cob_sin_nomina:'Esta empresa todavía no tiene una nómina cargada, así que no se puede saber a quién falta medir.',
       mov_cob_error:'No se pudo leer la nómina, así que el conteo de abajo no es sobre el total de tu gente.',
       mov_resumen_ultimo:'Último movimiento: {cuando}',
+      /* P385 · V2-1 · en el panel de HSEQ la lista son sólo acciones del sistema: «Último movimiento» se leía como la
+         última actividad de la empresa, y la última PRUEBA (que no llega a este panel) suele ser más nueva. */
+      mov_resumen_ultimo_hseq:'Última acción del sistema: {cuando}',
       mov_resumen_total:'{n} en total',
       mov_resumen_tests:'{n} pruebas contestadas',
       mov_vacio:'Todavía no hay actividad registrada.',
       mov_vacio_pista:'Cuando alguien contesta una prueba o se actualiza la nómina, aparece aquí.',
+      /* P385 · el panel de HSEQ no recibe las pruebas en la actividad (`accionActividad`, `sinTests`) */
+      mov_vacio_pista_hseq:'Cuando se actualiza la nómina o el sistema registra una acción, aparece aquí.',
+      /* P385 · V2-1 · el vacío del panel de HSEQ: «todavía no hay actividad» era falso con pruebas contestadas */
+      mov_vacio_hseq:'Todavía no hay acciones del sistema registradas.',
+      mov_vacio_emp_hseq:'{emp} todavía no registra acciones del sistema.',
+      mov_sin_atribuir:'En este panel la actividad no se separa por persona ni por departamento.',
+      /* P385 · D1 · con persona o departamento, en lugar del bloque «Tu gente» */
+      mov_cob_filtro:'Con un filtro no se ve cuánta gente falta medir.',
       mov_vacio_emp:'{emp} todavía no registra actividad.',
       /* ⚠️ F003 · NO dice «no tuvo actividad»: la lista son los últimos movimientos del alcance, y
          los de esa persona pueden existir fuera de esa ventana. Se afirma sólo lo que se sabe. */
@@ -10061,7 +10083,11 @@ const I18N = {
       mov_ayer:'ayer',
       mov_sin_nombre:'una persona',
       mov_ayuda:'Los últimos movimientos registrados, del más reciente al más antiguo, con su fecha y hora. Sirve para confirmar de un vistazo que la aplicación está recibiendo información. Si filtras por una empresa, la lista muestra solo esa empresa.',
+      /* P385 · V3-2 · el primer párrafo de la ⓘ en el panel de HSEQ: la lista ya no confirma que llegan las pruebas (no le
+         llegan), así que «está recibiendo información» llevaba a concluir que todo anda con el envío de tests caído. */
+      mov_ayuda_hseq:'Los últimos cambios que registra el sistema, del más reciente al más antiguo, con su fecha y hora. Sirve para confirmar que se registran los cambios de nómina, claves y ciclos; no dice si están llegando las pruebas. Si filtras por una empresa, la lista muestra solo esa empresa.',
       mov_ayuda_fuente:'Se arma con dos cosas: las pruebas que contesta cada persona y las acciones que registra el sistema (nómina, claves, ciclos). La hora se muestra en la zona horaria de operación de la empresa.',
+      mov_ayuda_fuente_hseq:'En este panel se ven sólo las acciones que registra el sistema (nómina, claves, ciclos): las pruebas de cada persona no se listan. De los tests, este panel ve sólo los totales de 5 o más personas medidas, en «{s}». La hora se muestra en la zona horaria de operación de la empresa.',
       /* Las acciones, traducidas. La clave es `mov_a_` + el nombre técnico que guarda la
          bitácora. Si aparece una acción que no está acá, `movQueTexto()` muestra el nombre
          crudo legible en vez de la clave: la bitácora la escribe el endpoint y puede sumar
@@ -11546,6 +11572,7 @@ const I18N = {
       sub_resumen_op:'Operational summary of the group you have filtered',
       sub_cobertura:'Always read with coverage: a high percentage over few people measured says nothing',
       idc_cob_sin_nomina:'⚠️ The roster could not be read, so coverage is calculated over people who already have measurements, not over all staff. The percentage looks high for that reason, not because fewer people are pending.',
+      idc_cob_filtro:'With a filter, how many people are still unmeasured is unknown: the percentage only covers people with data.',
       hs_no_tocaba:'{n} people were absent today and are not counted in coverage.',
       hs_no_tocaba_1:'1 person was absent today and is not counted in coverage.',
       ver_nueva:'A new version of the app is available.', ver_nueva_btn:'Update',
@@ -12381,10 +12408,16 @@ const I18N = {
       mov_cob_sin_nomina:'This company has no roster loaded yet, so there is no way to know who is missing.',
       mov_cob_error:'The roster could not be read, so the count below is not against your full headcount.',
       mov_resumen_ultimo:'Last activity: {cuando}',
+      mov_resumen_ultimo_hseq:'Last system action: {cuando}',
       mov_resumen_total:'{n} total',
       mov_resumen_tests:'{n} tests completed',
       mov_vacio:'No activity recorded yet.',
       mov_vacio_pista:'When someone completes a test or the roster is updated, it shows up here.',
+      mov_vacio_pista_hseq:'When the roster is updated or the system records an action, it shows up here.',
+      mov_vacio_hseq:'No system actions recorded yet.',
+      mov_vacio_emp_hseq:'{emp} has no recorded system actions yet.',
+      mov_sin_atribuir:'In this panel, activity is not broken down by person or department.',
+      mov_cob_filtro:'With a filter, how many people are still unmeasured is not shown.',
       mov_vacio_emp:'{emp} has no recorded activity yet.',
       mov_vacio_per:'No activity from {p} among the latest records.',
       mov_cargando:'Loading activity…',
@@ -12394,7 +12427,9 @@ const I18N = {
       mov_ayer:'yesterday',
       mov_sin_nombre:'a person',
       mov_ayuda:'The latest recorded events, newest first, with date and time. Use it to confirm at a glance that the app is receiving data. If you filter by company, the list shows only that company.',
+      mov_ayuda_hseq:'The latest changes the system records, newest first, with date and time. Use it to confirm that roster, credential and cycle changes are being recorded; it does not tell whether tests are coming in. If you filter by company, the list shows only that company.',
       mov_ayuda_fuente:'It combines two sources: the tests people complete and the actions the system records (roster, credentials, cycles). Times are shown in the company\'s operating time zone.',
+      mov_ayuda_fuente_hseq:'In this panel only the actions the system records are shown (roster, credentials, cycles): each person\'s tests are not listed. Of the tests, this panel only sees totals of 5 or more measured people, under «{s}». Times are shown in the company\'s operating time zone.',
       mov_a_test:'Test completed',
       mov_a_nomina_sync:'Roster updated',
       mov_a_credencial_creada:'Credential created',
@@ -22902,6 +22937,14 @@ function onDashData(d, scopeLabel, params, vista){
      cancelaba el reintento pendiente y nada lo volvía a armar — el médico se quedaba el turno
      entero juzgando con el nivel por omisión. Lo cazó el verificador. */
   dashNivelesFrenar();
+  /* ⚠️ P385 · D3 · Y EL PEDIDO DE PERÍODO (7/30/90) DEL PANEL ANTERIOR, TAMBIÉN. Es del panel que lo hizo: si se
+     cambiaba de empresa con «30 días» viajando, el panel nuevo heredaba el esqueleto y el botón de 30 (que
+     `cicloPeriodoActual` muestra mientras hay algo en vuelo), y al llegar la respuesta vieja —descartada por
+     `dashRefresh` con `DASH !== mio`— `cicloPeriodoSet` creía que había fallado: le ponía al panel NUEVO los
+     parámetros del viejo (otra empresa en el próximo ↻ o en el refresco del ciclo) y avisaba «no se pudo traer».
+     Subir `CICLO_PIDE_N` es lo mismo que hace un segundo toque («llegó tarde»): su `.then` ya no decide nada. */
+  CICLO_PIDIENDO = 0;
+  CICLO_PIDE_N = (Number(CICLO_PIDE_N) || 0) + 1;
   /* ⚠️ R14 · SE MIDE ANTES DE PISAR `DASH`. `sectorActual()` mira `DASH._cfg.sector` PRIMERO, así
      que en cuanto este objeto se reemplaza el sector puede cambiar de golpe — y lo que ya estaba
      pintado afuera del panel (el inicio, sus botones operacionales) se queda con la terminología
@@ -24839,7 +24882,7 @@ function dashWireScrollspy(){
 var MOV;
 function movEstado(){
   if (!MOV) MOV = { estado:'', items:[], total:0, tests:0, ultima:0, alcance:null, err:'',
-                    pedido:'', alcanceVisto:'', intentos:0 };
+                    pedido:'', alcanceVisto:'', intentos:0, sinTests:false };   // P385 · `sinTests`: ver `movCargar`
   return MOV;
 }
 /* El nombre legible de una acción. ⚠️ CON FALLBACK A PROPÓSITO: la bitácora la escribe el endpoint
@@ -25011,6 +25054,27 @@ function movItemsVisibles(items){
     return true;
   });
 }
+/* ⚠️ P385 · D1 · CON PERSONA O DEPARTAMENTO, EL RESUMEN DICE SÓLO EL ÚLTIMO MOVIMIENTO. F003 filtró la LISTA
+   y dejó el resumen con `ultima`, `tests` y `total` de la respuesta, que son de TODO el alcance: con «Luis
+   Ferrer» puesto el bloque decía «Último movimiento: hoy · 4 pruebas contestadas · 4 en total» debajo de su
+   nombre, cuando su último test era de hacía tres días y tenía dos.
+   La primera vuelta de P385 contó sobre los ítems que se ven, y el verificador midió por qué tampoco alcanza
+   (H1): el servidor manda los últimos 10 movimientos de la EMPRESA, así que esas cuentas eran de la ventana y
+   se leían como el total de la persona. Con 17 tests en HELITEC y 5 de Luis, decía «1 en total»: un número
+   falso creíble en lugar de uno evidente, y en el caso normal de producción, no en un borde.
+   Lo único exacto es el último: si alguno de la persona entró en la ventana, el más reciente entró, porque la
+   ventana son los más recientes del alcance (si no entró ninguno, se ve el vacío de F003). Por eso, con
+   filtro, se dice eso y nada más, y `tests`/`total` quedan en `null`: no hay de dónde sacarlos sin que el
+   servidor cuente por persona. */
+function movDeLoVisible(A0){
+  const items = movItemsVisibles(A0.items);
+  let ultima = 0;
+  items.forEach(function (i) {
+    const ts = Number(i && i.ts) || 0;
+    if (ts > ultima) ultima = ts;
+  });
+  return Object.assign({}, A0, { items: items, ultima: ultima, tests: null, total: null });
+}
 function movBloque(){
   /* Sólo donde tiene sentido: el panel es de quien administra o supervisa. El empleado ve su
      propia pantalla, no un registro de movimientos de otras personas. */
@@ -25018,13 +25082,22 @@ function movBloque(){
   const A0 = movEstado();
   const _per = (DASH && DASH.f && DASH.f.per) || '';
   const _dep = (DASH && DASH.f && DASH.f.dep) || '';
-  const A = (_per || _dep) ? Object.assign({}, A0, { items: movItemsVisibles(A0.items) }) : A0;
+  /* P385 · D1 · con persona o departamento, el resumen sale de lo que se ve y dice sólo el último
+     movimiento (`movDeLoVisible`); sin filtro, es el del servidor, como siempre. */
+  const filtrado = !!(_per || _dep);
+  const A = filtrado ? movDeLoVisible(A0) : A0;
   const alc = esc(movAlcanceTexto());
   /* ⚠️ `dashHelp()`, la función que YA existe para esto (R5: guía cerrada por defecto, con
      `<details>` nativo y sin estado en JS). Mi primera versión llamó a un `guiaBloque(id, titulo,
      html)` que **no existe en este archivo**: lo inventé. Un `grep` de la firma lo cazó antes de
      correr nada, pero es el error que el CLAUDE.md nombra primero — nunca suponer una API. */
-  const ayuda = dashHelp('<p>' + esc(t('mov_ayuda')) + '</p><p>' + esc(t('mov_ayuda_fuente')) + '</p>');
+  /* P385 · el segundo párrafo dice de dónde sale la lista, y en el panel de HSEQ la fuente es otra: el
+     servidor no le manda las pruebas (`accionActividad`, `sinTests`). Se elige con lo que contestó el
+     servidor, no con el panel que el cliente cree tener, y mientras no contestó no se afirma ninguna. */
+  const fuente = (A.estado === 'listo')
+    ? '<p>' + esc(t(A.sinTests ? 'mov_ayuda_fuente_hseq' : 'mov_ayuda_fuente', { s: tabLabel('inicio') })) + '</p>' : '';
+  /* V3-2 · y el primer párrafo, igual: con lo que contestó el servidor (`sinTests`), sólo cuando contestó. */
+  const ayuda = dashHelp('<p>' + esc(t((A.estado === 'listo' && A.sinTests) ? 'mov_ayuda_hseq' : 'mov_ayuda')) + '</p>' + fuente);
 
   let cuerpo;
   if (A.estado === 'cargando' || A.estado === ''){
@@ -25039,10 +25112,21 @@ function movBloque(){
        llega son los últimos movimientos del alcance, así que la suya puede existir y haber quedado
        fuera de esa ventana. Se dice sólo lo que se sabe. */
     const emp = (DASH && DASH.f && DASH.f.emp) || '';
-    cuerpo = '<p class="mov-nota">' + esc(
-        _per ? t('mov_vacio_per', { p: _per })
-             : (emp ? t('mov_vacio_emp', { emp: emp }) : t('mov_vacio'))) +
-             '</p><p class="mov-nota mov-nota-sub">' + esc(t('mov_vacio_pista')) + '</p>';
+    if (A.sinTests && filtrado){
+      /* P385 · en el panel de HSEQ la lista son sólo acciones del sistema, sin persona ni departamento: con
+         un filtro no puede quedar ninguna, y «no hay movimientos de P1» o «todavía no hay actividad»
+         afirmarían algo que no se midió. Se dice por qué está vacía. */
+      cuerpo = '<p class="mov-nota">' + esc(t('mov_sin_atribuir')) + '</p>';
+    } else {
+      /* P385 · V2-1 · en el panel de HSEQ el vacío habla de ACCIONES DEL SISTEMA: «todavía no hay actividad» era falso
+         en una empresa con pruebas contestadas, que no le llegan a este panel (verificador, vuelta 2). */
+      cuerpo = '<p class="mov-nota">' + esc(
+          _per ? t('mov_vacio_per', { p: _per })
+               : (emp ? t(A.sinTests ? 'mov_vacio_emp_hseq' : 'mov_vacio_emp', { emp: emp })
+                      : t(A.sinTests ? 'mov_vacio_hseq' : 'mov_vacio'))) +
+               /* P385 · en el panel de HSEQ una prueba contestada no aparece acá: la pista no lo promete */
+               '</p><p class="mov-nota mov-nota-sub">' + esc(t(A.sinTests ? 'mov_vacio_pista_hseq' : 'mov_vacio_pista')) + '</p>';
+    }
   } else {
     const sinFiltro = !((DASH && DASH.f && DASH.f.emp));
     const filasArr = A.items.map(function(i){
@@ -25074,20 +25158,38 @@ function movBloque(){
   let resumen = '';
   if (A.estado === 'listo' && A.items.length){
     const c = movCuando(A.ultima);
-    const partes = [ t('mov_resumen_ultimo', { cuando: c.dia + ' ' + c.hora }),
-                     t('mov_resumen_tests', { n: A.tests }),
-                     t('mov_resumen_total', { n: A.total }) ];
-    resumen = '<p class="mov-res">' + esc(partes.join(' · ')) + '</p>';
+    /* P385 · V2-1 · en el panel de HSEQ, lo último de la lista es la última ACCIÓN DEL SISTEMA, y así se dice: con
+       «Último movimiento» se leía como la última actividad de la empresa, días antes de la última prueba. */
+    /* V3-1 · ningún pedazo se parte por la mitad: la fecha con su hora va junta, y cada cuenta también (`.mov-res-pz`).
+       Con la etiqueta de HSEQ, más larga, a 375 px quedaba «… · 2» / «en total» (verificador, vuelta 3). Cada pedazo
+       se escapa por separado: `t()` no escapa. */
+    const pz = s => '<span class="mov-res-pz">' + esc(s) + '</span>';
+    const ult = t(A.sinTests ? 'mov_resumen_ultimo_hseq' : 'mov_resumen_ultimo', { cuando: '\u0000' }).split('\u0000');
+    const partes = [ esc(ult[0]) + pz(c.dia + ' ' + c.hora) + esc(ult.slice(1).join('')) ];
+    /* P385 · las cuentas sólo cuando hay un número cierto que decir. Con persona o departamento no lo hay
+       (`movDeLoVisible` las deja en `null`), y en el panel de HSEQ las pruebas no se cuentan: `tests` llega
+       en `null`, y un 0 diría «nadie contestó ninguna», que es falso. */
+    if (A.tests != null) partes.push(pz(t('mov_resumen_tests', { n: A.tests })));
+    if (A.total != null) partes.push(pz(t('mov_resumen_total', { n: A.total })));
+    resumen = '<p class="mov-res">' + partes.join(' · ') + '</p>';
   }
   const avisoErr = (A.estado === 'listo' && A.err)
     ? '<p class="mov-nota mov-nota-err">' + esc(A.err) + '</p>' : '';
 
   /* La cobertura va PRIMERO: «¿a quién me falta medir?» es más urgente que «qué pasó», y es lo
      que Rafael fue a buscar. */
+  /* ⚠️ P385 · D1 · Y CON PERSONA O DEPARTAMENTO NO VA. Sus tres números (`nominaTotal`, `nominaSinDatoN`, la
+     lista de `movSinMedirNunca`) son de la empresa entera, y debajo del nombre filtrado nombraba como «sin
+     medir» a gente de otro departamento. No hay forma de recortarlos: la nómina por filtro no se conoce,
+     porque quien no tiene tests llega sin departamento (observación 12 de la investigación). Sin filtro,
+     igual que siempre.
+     En su lugar va una línea (H4 del verificador): sin ella, que falte el bloque se lee como «no falta
+     nadie». Misma clase que la de la disponibilidad de Dirección, que dice lo mismo por la misma razón. */
   return '<section class="mov" aria-labelledby="movTit">' +
     '<div class="mov-h"><h3 id="movTit" class="mov-t">' + esc(t('mov_titulo')) + '</h3>' +
     '<span class="mov-scope" title="' + alc + '">' + alc + '</span>' + ayuda + '</div>' +
-    movCoberturaBloque() + resumen + avisoErr + cuerpo + '</section>';
+    (filtrado ? '<div class="hs-nota-filtro">' + esc(t('mov_cob_filtro')) + '</div>' : movCoberturaBloque()) +
+    resumen + avisoErr + cuerpo + '</section>';
 }
 /* Pide la actividad y repinta. ⚠️ El `pedido` evita que dos cargas en vuelo se pisen: con el
    filtro de empresa se dispara una por cada cambio, y la respuesta lenta de la anterior llegaba
@@ -25118,8 +25220,11 @@ function movCargar(){
   const A = movEstado();
   /* La demostración se resuelve LOCAL y no toca la red. */
   if (DASH.demo) {
-    const demo = movDemoItems();
-    A.items = demo.slice(0, 10); A.total = demo.length; A.tests = demo.length;
+    /* P385 · igual que el servidor (`accionActividad`): al panel de HSEQ no le van las pruebas. La
+       demostración no tiene acciones de bitácora, así que ahí la lista queda vacía, y lo dice. */
+    const sinTests = hseqEsPanel();
+    const demo = sinTests ? [] : movDemoItems();
+    A.items = demo.slice(0, 10); A.total = demo.length; A.tests = sinTests ? null : demo.length; A.sinTests = sinTests;
     A.ultima = demo.length ? demo[0].ts : 0; A.alcance = null; A.err = '';
     A.estado = 'listo'; movRepintar(); return;
   }
@@ -25132,7 +25237,12 @@ function movCargar(){
     if (!d || d.ok !== true){ A.estado = 'error'; A.items = []; movRepintar(); return; }
     A.items = Array.isArray(d.items) ? d.items : [];
     A.total = Number(d.total) || 0;
-    A.tests = Number(d.tests) || 0;
+    /* ⚠️ P385 · `sinTests`: al panel de HSEQ el servidor no le manda las pruebas (cada una era una prueba de
+       una persona, con su hora y su departamento, contra `priv_hseq_1`), y `tests` llega en `null`. Se lee lo
+       que el servidor DICE haber hecho, no el panel que el cliente cree tener: con un `.gs` viejo, que sí las
+       manda, `sinTests` no viene y la pantalla las cuenta como siempre. */
+    A.sinTests = !!d.sinTests;
+    A.tests = A.sinTests ? null : (Number(d.tests) || 0);
     A.ultima = Number(d.ultima) || 0;
     A.alcance = (d.alcance === null) ? null : d.alcance;
     A.err = d.error ? String(d.error) : '';
@@ -25155,8 +25265,13 @@ function movCargarSiHaceFalta(){
   const A = movEstado();
   /* ⚠️ LA CLAVE INCLUYE LA VISTA, no sólo la empresa: el servidor recorta los NOMBRES por vista
      (`sinNombres` para Dirección), así que entrar al visor de Dirección sobre la misma empresa
-     cambia lo que hay que mostrar aunque el alcance sea idéntico. */
-  const alc = movAlcanceTexto() + '|' + ((DASH && DASH.vista) || '');
+     cambia lo que hay que mostrar aunque el alcance sea idéntico.
+     ⚠️ P385 · Y EL PANEL. Desde que el panel de HSEQ no recibe las pruebas (`accionActividad`, `sinTests`),
+     Dirección y HSEQ —la misma vista `hseq`— reciben listas distintas de la misma empresa. Con la clave vieja,
+     pasar de «HELITEC · Dirección» a «HELITEC · HSEQ» no volvía a pedir y el panel de HSEQ mostraba las
+     pruebas que llegaron para Dirección (y al revés, Dirección se quedaba sin las suyas). `MOV` vive fuera de
+     `DASH` y sobrevive al panel, así que pasa también con dos entradas seguidas en el mismo teléfono. */
+  const alc = movAlcanceTexto() + '|' + ((DASH && DASH.vista) || '') + '|' + ((DASH && DASH.panel) || '');
   if ((A.estado === 'listo' || A.estado === 'cargando') && A.alcanceVisto === alc) return;
   /* ⚠️ Y EL ERROR TIENE FRENO. Las dos guardas de arriba cubrían `listo` y `cargando` y ninguna
      cubría `error`: con el endpoint fallando, **cada** `renderDash()` lanzaba otro POST — medido,
@@ -26774,24 +26889,47 @@ function renderHseqIdc(rows){
      estructuralmente imposible leer uno sin el otro. Y si la cobertura es baja, la disponibilidad
      se muestra atenuada: no es un dato en el que se pueda confiar todavía. */
   const COBERTURA_MINIMA = dashCoberturaMinima();   // P310 · el mismo corte que el estado global de HSEQ
-  const cobFlaca = cobertura < COBERTURA_MINIMA;
+  /* ⚠️ P385 · D2 · CON UN FILTRO DE ALCANCE PUESTO NO HAY COBERTURA QUE MOSTRAR. Los medidos salen de las filas
+     filtradas y el denominador era `DASH.nominaTotal`, la nómina de TODA la empresa (o de todas, en «Todas ·
+     Dirección»): con un departamento de una sola persona, medida, la pantalla decía «33 % de la nómina medida ·
+     1 de 3 · 2 personas sin registros» y que la disponibilidad no era confiable. El filtro achicaba el numerador
+     y no el denominador, y todos los que dejaba afuera se contaban «sin registros».
+     No se puede recortar la nómina acá: a Dirección el servidor le manda sólo el total, sin departamentos ni
+     nombres (K1b). Así que con departamento, persona, nivel u operación se muestra lo que sale de las filas
+     filtradas —el % en condiciones y «N de N con datos»— y una línea que dice que la cobertura no se conoce.
+     Nada de «% de la nómina medida», «N de M personas», «sin registros», «cobertura completa» ni «nunca se
+     midieron» (también es de la nómina entera).
+     ⚠️ Y EL NÚMERO VA ATENUADO, como con la cobertura floja (H2 del verificador). La primera vuelta lo dejaba a
+     toda letra: con un departamento de 4 y 1 medido, «100 %» sin ninguna señal, debajo de «Siempre junto a la
+     cobertura…». La regla de arriba («nadie lee el aviso: lee el número grande») vale igual cuando la
+     cobertura no es baja sino DESCONOCIDA: el número no es un dato en el que se pueda confiar todavía. Con eso
+     el subtítulo sigue siendo cierto: el porcentaje no está solo, está atenuado y con la línea que dice por qué.
+     La pregunta es `hseqFiltroDeAlcance()`, la que los totales de HSEQ ya usan para lo mismo («los tests se ven
+     para toda la empresa»): una sola derivación de «hay un filtro de alcance», con las cuatro dimensiones que
+     achican la gente, la operación incluida. La empresa no entra: la aplica el servidor y la nómina que manda
+     ya es la de esa empresa. Sin filtro, todo igual que antes. */
+  const conFiltro = hseqFiltroDeAlcance();
+  const cobFlaca = !conFiltro && cobertura < COBERTURA_MINIMA;
+  const numFlojo = conFiltro || cobFlaca;   // la cobertura baja o desconocida: el número no es confiable
   return ayuda +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_disp_cognitiva')) + '</div>' +
-      '<div class="db-sub">' + esc(t('sub_cobertura')) + '</div>' + cobAviso +
-      '<div class="hs-duo">' +
-        '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-flojo' : '') + '">' +
+      '<div class="db-sub">' + esc(t('sub_cobertura')) + '</div>' + (conFiltro ? '' : cobAviso) +
+      '<div class="hs-duo' + (conFiltro ? ' hs-duo--solo' : '') + '">' +
+        '<div class="hs-duo-c' + (numFlojo ? ' hs-duo-flojo' : '') + '">' +
           '<div class="hs-pct-big">' + (pct == null ? '—' : pct + '%') + '</div>' +
           '<div class="hs-cap">' + esc(t('hs_en_condiciones')) + '<br><small>' + esc(t('hs_n_de_m_datos', { n: disp, m: conDato.length })) + '</small></div></div>' +
+        (conFiltro ? '' :
         '<div class="hs-duo-c' + (cobFlaca ? ' hs-duo-alerta' : '') + '">' +
           '<div class="hs-pct-big">' + (cobertura == null ? '—' : cobertura + '%') + '</div>' +
-          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: baseCob })) + '</small></div></div>' +
+          '<div class="hs-cap">' + esc(t('hs_nomina_medida')) + '<br><small>' + esc(t('hs_n_de_m_pers', { n: conDato.length, m: baseCob })) + '</small></div></div>') +
       '</div>' +
       '<div class="hs-bar"><i style="width:' + (pct || 0) + '%"></i></div>' +
       /* ⚠️ P187 · «Cobertura completa» se medía entre quienes YA tenían registros (`sinDato`), no contra la
          nómina: al lado de «50 % de la nómina medida · 2 de 4» decía «cobertura completa: las 2 personas
          tienen registros». Los sin registro son los que faltan de la NÓMINA (P096 arregló el número, no
          esta nota). */
-      ((sinDato || conDato.length < baseCob) ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: Math.max(sinDato, baseCob - conDato.length), u: t(Math.max(sinDato, baseCob - conDato.length)===1?'n_persona':'n_personas') }) +
+      (conFiltro ? '<div class="hs-nota-filtro">' + esc(t('idc_cob_filtro')) + '</div>'
+      : (sinDato || conDato.length < baseCob) ? '<div class="hs-alerta">' + t('hs_sin_registros', { n: Math.max(sinDato, baseCob - conDato.length), u: t(Math.max(sinDato, baseCob - conDato.length)===1?'n_persona':'n_personas') }) +
         (cobFlaca ? (' ' + t('hs_cob_flaca')) : '') + '</div>'
               : '<div class="hs-ok">' + esc(t('hs_cob_completa', { n: conDato.length })) + '</div>') +
       /* ⚠️ A quién NO se le contó el día se DICE, siempre. Sacarlos del denominador en silencio
@@ -26803,8 +26941,9 @@ function renderHseqIdc(rows){
          medido nunca sigue siendo invisible: no está en ninguna lista del panel, porque todas se
          arman desde los registros y esa persona no tiene ninguno.
          Se nombran hasta cuatro y después se resume: la lista completa está en la nómina, y un
-         bloque de veinte nombres en el panel de Dirección deja de leerse. */
-      (nuncaMedidos.length
+         bloque de veinte nombres en el panel de Dirección deja de leerse.
+         P385 · D2 · con un filtro de alcance, no: la lista es de la nómina entera y no trae departamento. */
+      ((!conFiltro && nuncaMedidos.length)
         ? '<div class="hs-alerta">' + esc(t(nuncaMedidos.length === 1 ? 'hs_nunca_1' : 'hs_nunca_n', { n: nuncaMedidos.length })) +
           ' <small>' + esc(nuncaMedidos.slice(0, 4).join(' · ') + (nuncaMedidos.length > 4 ? ' …' : '')) + '</small></div>'
         : '') +
@@ -29187,7 +29326,30 @@ var CICLO_PERIODO;
 var CICLO_PIDIENDO;
 var CICLO_PIDE_N;
 
-function cicloPeriodoActual(){ return CICLO_PERIODO || 'hoy'; }
+/* ⚠️ P385 · D3 · EL PERÍODO QUE SE VE ELEGIDO SALE DE LO TRAÍDO, NO SÓLO DE LO QUE SE TOCÓ.
+   `CICLO_PERIODO` es una global que sobrevive al panel: la escribe `cicloPeriodoSet` y nada la baja. Los datos
+   que describe, en cambio, viven en `DASH` y mueren con él. Cambiar de empresa por el visor (`visorCambiar`) o
+   por «Trabajar sobre» (`dashEmpresaAdminCambiar`) borra `opDias` a propósito («un panel nuevo arranca como al
+   entrar»), y cerrar con la ✕ y volver a entrar arma los parámetros de cero: el panel nuevo traía 7 días y el
+   botón seguía en «30 días», con la vista de 30 armada con 7 días de datos. Es lo que P089 escribió con estas
+   palabras: «una pantalla que promete tres meses y muestra siete días miente sin que nadie se entere».
+   POR QUÉ ACÁ Y NO UNA CUARTA PUERTA QUE RESETEE (decidido al leer `cicloPeriodoSet`): las tres puertas tienen
+   la misma causa —el escritor de lo elegido y el lector de lo traído son dos— y resetear en cada una deja la
+   cuarta abierta (cualquier camino futuro que traiga otros días sin pasar por el botón). Derivarlo acá, en el único
+   lector de lo elegido, hace imposible que el botón prometa más que `cicloDiasTraidos()`, que es el lector
+   real de lo que vino y el mismo que `cicloPeriodoSet` usa para decidir si pide (R21):
+     · con un pedido de período EN VUELO, manda lo que se tocó (P089: el botón de 30 se ve elegido mientras
+       viaja, y si falla `cicloPeriodoSet` lo devuelve al anterior);
+     · si no, lo elegido vale mientras entre en lo traído (90 → 7 sigue siendo un recorte en el cliente);
+     · si no entra, es «En curso», que es como arranca un panel.
+   La otra mitad está en `onDashData`: un pedido en vuelo es del panel que lo hizo, y un panel nuevo lo
+   invalida; si no, «en vuelo» le prestaría a un panel el pedido de otro. Y Jornada, que no recorta en el
+   cliente, marca lo traído (`jorPeriodoHtml`). */
+function cicloPeriodoActual(){
+  const id = CICLO_PERIODO || 'hoy';
+  if (CICLO_PIDIENDO) return id;
+  return (cicloPeriodoDias(id) <= cicloDiasTraidos()) ? id : 'hoy';
+}
 
 /* Cuántos días necesita un período para poder mostrarse completo. */
 function cicloPeriodoDias(id){
@@ -29456,8 +29618,13 @@ function jorEventosHtml(eventos){
 /* El selector de período de Jornada: los mismos botones que el ciclo, sin «En curso» (acá no hay
    un ciclo abierto que mirar: son jornadas ya medidas), y con `exacto` (ver `cicloPeriodoSet`).
    El período activo se lee por DÍAS y no por id: el default `hoy` también son 7 días. */
+/* ⚠️ P385 · D3 · Y LOS DÍAS MARCADOS SON LOS TRAÍDOS, salvo con un pedido en vuelo (P089: se ve elegido lo que se
+   pidió). Leerlos del período del ciclo dejaba una puerta más: con 30 días traídos desde Jornada, tocar «En
+   curso» en Ciclo (que no pide: 7 entran en 30) dejaba Jornada con «7 días» marcado arriba de «Últimos 30 días» y
+   treinta días de filas. Jornada no recorta en el cliente (`exacto`): lo que muestra es exactamente lo traído, y
+   `cicloDiasTraidos()` es el mismo lector con que `cicloPeriodoSet` decide no volver a pedir. */
 function jorPeriodoHtml(){
-  const diasAct = cicloPeriodoDias(cicloPeriodoActual());
+  const diasAct = CICLO_PIDIENDO ? CICLO_PIDIENDO : cicloDiasTraidos();
   const botones = cicloPeriodos().filter(pe => !pe.soloHoy).map(pe =>
     '<button type="button" class="cic-per' + (pe.dias === diasAct ? ' on' : '') + '"' +
     ' aria-pressed="' + (pe.dias === diasAct ? 'true' : 'false') + '"' +

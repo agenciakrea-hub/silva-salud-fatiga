@@ -1253,8 +1253,13 @@ function p308LoQueViaja(sabotaje) {
 
 PRUEBAS.caso('🔴 P308 · lo que viaja a HSEQ, por lista blanca: ningún campo de un test pegado a una persona', () => {
   /* R19 · la lista blanca es `CAMPOS_HSEQ` (`anonimizarHseq`), y la aptitud por persona la saca
-     `esPanelHseq_` en `accionSupervisor`. `accionActividad` manda el instante y el área de cada test,
-     sin resultado ni alias: si algún día llevara uno, el test de una persona volvería por ahí. */
+     `esPanelHseq_` en `accionSupervisor`.
+     ⚠️ P385 (GS 2026-11-03.1) · `accionActividad` le mandaba al panel de HSEQ el instante y el área de cada
+     test, sin resultado ni alias, y este caso lo exigía como guarda. Ya no le manda NINGÚN test (`sinTests`):
+     cada uno era una prueba de una persona, y con un área chica el área funciona como seudónimo, contra «de tus
+     tests, sólo totales de 5 o más… con menos de 5 personas, nada» (`priv_hseq_1`, ADR 018). Decidido en la
+     segunda vuelta de P385. Lo que este caso afirmaba de cada test (sin alias ni resultado) pasa a
+     afirmarse más fuerte: no viaja ninguno, ni contado. Dirección sigue recibiéndolos: lo mide `p385`. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const m = p308LoQueViaja();
   PRUEBAS.igual(m.faltan || [], [], 'guarda: el trazador se aplicó');
@@ -1267,9 +1272,10 @@ PRUEBAS.caso('🔴 P308 · lo que viaja a HSEQ, por lista blanca: ningún campo 
   PRUEBAS.igual(m.deTest, [], '🔴 ninguna fila por persona trae un campo que salga de un test');
   PRUEBAS.cierto(m.act && m.act.ok, 'guarda: `accionActividad` contesta al panel de HSEQ');
   const tests = ((m.act && m.act.items) || []).filter(x => x.tipo === 'test');
-  PRUEBAS.alMenos(tests.length, 5, 'guarda: la actividad trae los tests');
-  PRUEBAS.igual(tests.filter(x => x.persona || Object.keys(x).some(k => ['ts', 'tipo', 'que', 'persona', 'empresa', 'dep'].indexOf(k) < 0))
-    .map(x => JSON.stringify(x)), [], '🔴 la actividad: cada test con su instante y su área, sin alias ni resultado');
+  PRUEBAS.alMenos((m.r.registros || []).length, 5, 'guarda: hay tests de 5 o más personas en el CH (si no, «ninguno» no mediría nada)');
+  PRUEBAS.igual(tests.map(x => JSON.stringify(x)), [], '🔴 P385 · la actividad no le trae al panel de HSEQ ningún test, ni con su instante y su área');
+  PRUEBAS.igual(m.act && m.act.tests, null, '🔴 P385 · ni contados');
+  PRUEBAS.igual(m.act && m.act.sinTests, true, '🔴 P385 · y lo dice (`sinTests`)');
 });
 
 PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de lo que viaja: la aptitud por persona, el color del ciclo, el del turno', () => {
