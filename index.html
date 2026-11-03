@@ -104,6 +104,12 @@
        Era `rgba(255,255,255,.65)` escrito a mano (6,8:1 sobre `--navy` claro); al 80 % da 9,5:1,
        que es lo que pide «pensá que es para gente 40 plus». Igual en los dos temas, como su fondo. */
     --sobre-marca-2: rgba(255,255,255,.8);
+    /* F091 · EL ALTO DE LA BARRA DEL SISTEMA DEL IPHONE (la hora, la batería, la isla de la cámara). La app la ocupa a
+       propósito —`viewport-fit=cover` con la barra translúcida—, así que lo que va pegado arriba tiene que dejarle
+       su lugar: debajo de esa franja iOS se queda con los toques, y la ✕ del panel no respondía (Rafael tenía que
+       girar el teléfono, porque acostado la barra se esconde). Va en un token y no `env()` suelto para que una
+       prueba pueda simular el iPhone en Chrome, que no tiene esa barra. No es un color: vale igual en los dos temas. */
+    --area-segura-arriba: env(safe-area-inset-top, 0px);
     /* P310 · el estado global va sobre el header NAVY en los dos temas, así que sus tintas son las mismas en los dos y no
        las del semáforo de las tarjetas (`--sem-ambar` y `--sem-rojo` no llegan a 4,5:1 sobre `--navy` claro). Contraste
        medido sobre `--navy` del tema claro (el más bajo de los dos): verde 7,6 · ámbar 8,3 · rojo 6,2 · tenue 6,4. */
@@ -853,6 +859,7 @@
      los dos sentidos sin tocar ninguno de esos 40 sitios. */
   .overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(6,16,38,0.86);
     display: none; align-items: center; justify-content: center; padding: 1.2rem;
+    padding-top: max(1.2rem, var(--area-segura-arriba));   /* F091 · ninguna hoja arranca debajo de la barra del sistema */
     opacity: 0; transition: opacity .22s ease, display .22s ease allow-discrete; }
   /* P048 · El desenfoque del fondo sólo se declara acá, en `.show`, y no en `.overlay` a secas.
      No está en la lista de `transition`, así que al CERRAR (se saca la clase) desaparece en el
@@ -1173,6 +1180,11 @@
   /* P166b · la ✕ del alta: `.sheet` a secas no es `position:relative` (sólo `.sheet.portal`), y sin
      esto la ✕ se posicionaría contra el overlay entero. El título deja lugar a la derecha. */
   #nominaOv .sheet { position: relative; }
+  /* F091 · Y TODAS. La ✕ (`.portal-x`) es absoluta, y su referencia era la hoja sólo porque la animación de entrada
+     le pone un `transform`. Con «reducir movimiento» (`html.sin-animaciones .sheet { transform: none }`) la referencia
+     pasaba a ser la capa fija: la ✕ quedaba a 16 px del borde, debajo de la barra del sistema del iPhone, en Opinión
+     (que no tiene otra salida), Quién ve qué, Mis datos y el ciclo en grande (verificador de F091). */
+  .sheet { position: relative; }
   #nominaOv .sheet > h2 { padding-right: 3.2rem; }
   .stats-entry { display: flex; align-items: center; gap: .85rem; width: 100%; padding: .85rem 1rem; margin: 0 0 1rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: var(--radius); color: var(--text); cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; text-align: left; }
   .stats-entry:active { transform: scale(.985); }
@@ -2408,8 +2420,13 @@
   .alert-card .ac-name { color: var(--text); }
 
   @media (max-width: 600px) {
-    #portalOverlay { padding: 0; }
-    .sheet.portal { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    /* F091 · a pantalla completa, el panel arranca DEBAJO de la barra del sistema y descuenta su alto: si no, su
+       barra quedaba bajo la hora y la batería y la ✕ no respondía en el iPhone. */
+    #portalOverlay { padding: 0; padding-top: var(--area-segura-arriba); }
+    .sheet.portal { max-width: 100%; width: 100%; height: calc(100vh - var(--area-segura-arriba)); max-height: calc(100vh - var(--area-segura-arriba)); border-radius: 0; }
+    /* F091 · `dvh` va aparte: con `var()` adentro, un navegador sin `dvh` acepta la línea al leerla y la invalida al
+       calcular, y la hoja quedaba sin alto (crecía con el contenido y la ✕ se iba de la pantalla). */
+    @supports (height: 100dvh) { .sheet.portal { height: calc(100dvh - var(--area-segura-arriba)); max-height: calc(100dvh - var(--area-segura-arriba)); } }
   }
 
   /* ── Desktop: usar más ancho, 2 columnas, y TODO más grande (supervisores en PC) ── */
@@ -2739,8 +2756,9 @@
      tape todo y luego la ventana también tape todo — no una ventana flotante), con el
      contenido distribuido en dos columnas y centrado como una app de escritorio. ── */
   @media (min-width: 900px) {
-    #portalOverlay { padding: 0; }
-    .sheet.portal { max-width: 100%; width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    #portalOverlay { padding: 0; padding-top: var(--area-segura-arriba); }   /* F091 · ídem en el iPad acostado */
+    .sheet.portal { max-width: 100%; width: 100vw; height: calc(100vh - var(--area-segura-arriba)); max-height: calc(100vh - var(--area-segura-arriba)); border-radius: 0; }
+    @supports (height: 100dvh) { .sheet.portal { height: calc(100dvh - var(--area-segura-arriba)); max-height: calc(100dvh - var(--area-segura-arriba)); } }   /* F091 · ídem */
     /* El cuerpo con scroll centra su contenido y le da aire, sin estirarlo de borde a borde */
     .dash-scroll { padding: 1.6rem 2.4rem 3rem; }
     .dash-scroll > * { max-width: 1400px; margin-left: auto; margin-right: auto; }
@@ -4410,9 +4428,10 @@
   .tar-mini-vencida .tar-mini-e { color:var(--sem-rojo); }
 
   /* ════════════ PANEL DE GESTIONES (servicio médico) ════════════ */
-  .gest-overlay { padding: 0; }
-  .gest-sheet { max-width: 100%; width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0;
+  .gest-overlay { padding: 0; padding-top: var(--area-segura-arriba); }   /* F091 · ídem: Gestiones también ocupa la pantalla entera */
+  .gest-sheet { max-width: 100%; width: 100%; height: calc(100vh - var(--area-segura-arriba)); max-height: calc(100vh - var(--area-segura-arriba)); border-radius: 0;
     padding: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sup-suave); }
+  @supports (height: 100dvh) { .gest-sheet { height: calc(100dvh - var(--area-segura-arriba)); max-height: calc(100dvh - var(--area-segura-arriba)); } }   /* F091 · ídem */
 
   /* ⚠️ F005 · LAS HOJAS NO SE ESTIRAN A TODO EL ANCHO EN ESCRITORIO. Lo reportó Franco de la
      Nómina: «en admin se ve feo, o sea muy espaciado, todo apretado, se sale de la pantalla».
@@ -4906,7 +4925,7 @@
      así que en modo oscuro quedaba un panel claro con texto claro encima (la intro daba 1.77:1,
      ilegible). --sup-bg es el token que ya existe para esto ("superficies claras: paneles,
      documentación") y su valor en tema claro es exactamente ese mismo #f4f6fa. */
-  .doc-win { position:fixed; inset:0; background:var(--sup-bg); display:flex; flex-direction:column; }
+  .doc-win { position:fixed; inset:0; top:var(--area-segura-arriba); background:var(--sup-bg); display:flex; flex-direction:column; }   /* F091 · su ✕ quedaba debajo de la barra del sistema */
   .doc-top { display:flex; align-items:center; gap:.6rem; padding:.8rem 1rem;
     background:var(--navy); color:#fff; flex:0 0 auto; }
   .doc-title { flex:1 1 auto; font-size:1rem; font-weight:800; }
@@ -8192,7 +8211,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.59';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.60';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
