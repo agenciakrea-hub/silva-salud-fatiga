@@ -151,15 +151,23 @@ PRUEBAS.caso('⚠️ P200d · el comentario viaja entero, y el candado del clien
    y el visor del administrador («Empresa Demo · X», `accesoPanel_` con `verEmpresa`/`verVista`).
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
+/* ⚠️ P391 · LA EMPRESA DEMO LLEVA GENTE DEL ELENCO, CON FECHAS DEL SEMBRADO. Desde P391 la demostración y la cuenta
+   Empresa Demo muestran sólo el elenco (`DEMO_ELENCO`) y sólo filas del CH hasta `DEMO_ELENCO_HASTA` (D1). Hasta acá eran
+   «Ana Demo» y «Beto Demo», con fecha de hoy: el filtro las sacaba, los cuatro asertos de abajo recibían 0 registros, y
+   las guardas «trae registros» se ponían en rojo (medido). Dos personajes de verdad, del mismo departamento que antes. */
+const P200D_ELENCO = ['Diego Ramírez', 'José Duarte'];
+const P200D_DIA_DEMO = '2026-07-14';   // dentro del sembrado: antes del corte de P391
 function p200dDemo(entrada){
   const hojas = p200dHojas();
   /* La cuenta Empresa Demo (combinada no: con contraseña médica propia) y el administrador del visor. */
   hojas['Accesos'] = hojas['Accesos'].concat([['*', 'adm-200d', 'admin', '', '', ''],
                                               ['demo', 'sup-200dd', 'supervisor', 'Empresa Demo', 'med-200dd', 'dir-200dd']]);
-  /* La Empresa Demo, con sus propias personas. */
+  /* La Empresa Demo, con dos personajes del elenco, el mismo día (así ese día es el ancla y se corre a hoy). */
+  const deDemo = (persona, dep, kss) => { const f = p200dFila(persona, dep, kss); f[72] = 'Empresa Demo';
+                                          f[0] = P200D_DIA_DEMO + ' 08:00:00'; f[73] = P200D_DIA_DEMO; return f; };
   hojas['Respuestas de formulario 1'] = hojas['Respuestas de formulario 1'].concat([
-    (function(){ const f = p200dFila('Ana Demo', 'Operaciones', 6); f[72] = 'Empresa Demo'; return f; })(),
-    (function(){ const f = p200dFila('Beto Demo', 'Mantenimiento', 4); f[72] = 'Empresa Demo'; return f; })()
+    deDemo(P200D_ELENCO[0], 'Operaciones', 6),
+    deDemo(P200D_ELENCO[1], 'Mantenimiento', 4)
   ]);
   const env = GS.crearEntorno(hojas);
   const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
@@ -180,12 +188,13 @@ PRUEBAS.caso('🔴 P200d · la cuenta Empresa Demo «como Dirección» —contra
     PRUEBAS.igual(r.vista, 'hseq', 'guarda: ' + q + ' abre la vista de Dirección');
     const personas = (r.registros || []).map(x => x.persona).sort();
     PRUEBAS.alMenos(personas.length, 2, 'guarda: ' + q + ' trae registros · con cero, lo de abajo no probaría nada');
-    PRUEBAS.igual(personas.filter(p => /Demo/.test(String(p))), [],
+    PRUEBAS.igual(personas.filter(p => P200D_ELENCO.indexOf(String(p)) >= 0), [],
       '🔴 ' + q + ' · ningún nombre real en `registros` · la demostración de la vista de Dirección es la vista de Dirección, y es el camino que se usa para explicarle a un cliente qué ve cada rol');
     PRUEBAS.cierto(personas.every(p => /^P\d+$/.test(String(p))),
       q + ' · y todos son identificadores opacos (P1, P2…) · ' + personas.join(', '));
     const enAptitud = (r.aptitud || []).map(a => a.nombre);
-    PRUEBAS.igual(enAptitud.filter(n => /Demo/.test(String(n))), [], q + ' · tampoco en `aptitud`');
+    PRUEBAS.alMenos(enAptitud.length, 2, 'guarda: ' + q + ' trae `aptitud` · con cero, el aserto de abajo no probaría nada');
+    PRUEBAS.igual(enAptitud.filter(n => P200D_ELENCO.indexOf(String(n)) >= 0), [], q + ' · tampoco en `aptitud`');
   });
 });
 
@@ -196,7 +205,7 @@ PRUEBAS.caso('🔴 P200d · DISCRIMINADOR · la misma cuenta con la clave de SUP
     const r = p200dDemo(e);
     PRUEBAS.igual(r.vista, 'supervisor', 'guarda: ' + q + ' abre Supervisor');
     const personas = (r.registros || []).map(x => x.persona);
-    PRUEBAS.alMenos(personas.filter(p => /Demo/.test(String(p))).length, 2,
+    PRUEBAS.alMenos(personas.filter(p => P200D_ELENCO.indexOf(String(p)) >= 0).length, 2,
       '🔴 ' + q + ' · el supervisor SÍ ve los nombres · si el arreglo hubiera anonimizado todo, este caso estaría en rojo y el de arriba pasaría por la razón equivocada');
   });
 });

@@ -251,12 +251,21 @@ PRUEBAS.caso('🔴 P310 · el umbral es por empresa (`umbralEstado`, de 20 a 100
 PRUEBAS.caso('P310 · la demostración trae el estado con la misma función, y sus registros no llevan campos internos', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
   /* R19 · lo arma `totalesHseqDemo_` → `unidadesDemoHseq_` (grupos por nombre, sobre COPIAS) → `estadoPeriodoHseq_` */
-  const tests = P310_VERDES.concat(['Oscar Uno']).map((p, i) => Object.assign(p310T(p, '2026-11-03', '08:0' + i, 3), { emp: 'Empresa Demo' }));
+  /* ⚠️ P391 · SEIS PERSONAJES DEL ELENCO, CON UNA FECHA DEL SEMBRADO. Desde P391 la demostración muestra sólo el elenco
+     (`DEMO_ELENCO`) y sólo filas del CH hasta `DEMO_ELENCO_HASTA` (D1). Con los nombres de P308 y la fecha de hoy, el filtro
+     dejaba la demostración VACÍA y este caso seguía en verde sin medir nada (investigación de P391, §7.2): los asertos de
+     abajo valen igual sin registros. Por eso la guarda «hay registros». El día: el último del CH al 2026-11-03, que el
+     corte deja pasar (inclusive); los seis el mismo día, así es el ancla y se corre a hoy. */
+  const tests = ['Ana Suárez', 'Camila Torres', 'Federico Blanco', 'Gabriel Ortiz', 'José Duarte', 'Diego Ramírez']
+    .map((p, i) => Object.assign(p310T(p, '2026-08-05', '08:0' + i, 3), { emp: 'Empresa Demo' }));
   const w = p308Mundo(tests);
   if (w.faltan) { PRUEBAS.igual(w.faltan, [], 'guarda'); return; }
   const d = JSON.parse(w.api.accionDemo({ dispositivoId: 'p310' }).getContent());
   PRUEBAS.cierto(d.ok && !!(d.totalesHseq && d.totalesHseq.periodos), 'guarda: la demostración trae sus totales');
   if (!d.ok) return;
+  PRUEBAS.igual((d.registros || []).length, tests.length, 'guarda: la demostración trae los ' + tests.length + ' tests (vacía, los asertos de abajo no medirían nada)');
+  PRUEBAS.cierto(Object.keys(d.totalesHseq.periodos).some(k => (d.totalesHseq.periodos[k].estado || {}).etapa),
+    'guarda: algún período tiene etapa (con sólo causas, «trae su estado» no probaría el cálculo)');
   const pers = Object.keys(d.totalesHseq.periodos).map(k => d.totalesHseq.periodos[k].estado);
   PRUEBAS.cierto(pers.every(e => e && (e.etapa === null ? !!e.causa : ['seguro', 'atencion', 'levemente', 'poco'].indexOf(e.etapa) >= 0)),
     '🔴 cada período de la demo trae su estado (o la causa) · ' + JSON.stringify(pers.slice(0, 2)));

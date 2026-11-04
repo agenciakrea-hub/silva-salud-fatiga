@@ -1506,12 +1506,23 @@ PRUEBAS.caso('🔴 P308 · la demostración tiene su panel de HSEQ, con sus tota
      `demoPayloadDeVista`, `demoAnonimizarHseq` le saca lo que el servidor real no le manda, y `dashRefresh`
      vuelve a pasar el payload por `demoPayloadDeVista` (si no, el ↻ lo dejaba en Dirección). */
   if (!CTX.hayGs || typeof onDashData !== 'function') { PRUEBAS.cierto(true, 'se saltea (sin app o sin .gs)'); return; }
-  const tests = p308Cuatro().map(x => Object.assign({}, x, { emp: 'Empresa Demo' }));
+  /* ⚠️ P391 · LAS CUATRO SITUACIONES, CON PERSONAJES DEL ELENCO Y FECHAS DEL SEMBRADO. Desde P391 la demostración muestra
+     sólo el elenco (`DEMO_ELENCO`) y sólo filas del CH hasta `DEMO_ELENCO_HASTA` (D1). Con la gente de P308 y las fechas
+     de noviembre, el filtro dejaba la demostración VACÍA y este caso seguía en verde sin medir nada: «sin un puntaje ni
+     un día en sus filas» valía igual sin filas (investigación de P391, §7.2, por lectura). Cada persona pasa a un
+     personaje y cada día a uno del sembrado (el 16 de julio, el último, es el ancla y se corre a hoy). */
+  const ELENCO = { 'Lara Legal': 'Rodolfo Ruiz', 'Leo Legal': 'Ana Suárez', 'Oscar Uno': 'Carlos Méndez', 'Olga Dos': 'Diego Ramírez',
+                   'Alma Única': 'Ricardo Salcedo', 'Omar Tres': 'Lucía Fernández', 'Otto Cuatro': 'Martín Ibáñez',
+                   'Oriana Cinco': 'Sofía Núñez', 'Orlando Seis': 'Valentina Ríos' };
+  const DIA = { '2026-11-02': '2026-07-15', '2026-11-03': '2026-07-16' };
+  const tests = p308Cuatro().map(x => Object.assign({}, x, { emp: 'Empresa Demo', p: ELENCO[x.p], d: DIA[x.d] }));
+  PRUEBAS.igual(tests.filter(x => !x.p || !x.d).length, 0, 'guarda: cada test de `p308Cuatro` pasó a un personaje y a un día del sembrado');
   const w = p308Mundo(tests);
   if (w.faltan) { PRUEBAS.igual(w.faltan, [], 'guarda'); return; }
   const d = JSON.parse(w.api.accionDemo({ dispositivoId: 'p308' }).getContent());
   PRUEBAS.cierto(d.ok && !!(d.totalesHseq && d.totalesHseq.periodos), 'guarda: la demostración trae sus totales · ' + JSON.stringify(d.error || ''));
   if (!d.ok) return;
+  PRUEBAS.igual((d.registros || []).length, tests.length, 'guarda: la demostración trae los ' + tests.length + ' tests (vacía, los asertos de abajo no medirían nada)');
   const prev = DASH, prevReq = window.dashRequest;
   return Promise.resolve().then(() => {
     CTX.resetear(); localStorage.clear();

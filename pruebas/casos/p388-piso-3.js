@@ -323,14 +323,23 @@ PRUEBAS.caso('P388 · la demostración arma sus totales en el momento, con el pi
      nómina»: la demo no la usa. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
   const P = p388Num('PISO_MIN_HSEQ');
+  /* ⚠️ P391 · PERSONAJES DEL ELENCO, CON UNA FECHA DEL SEMBRADO. Desde P391 la demostración muestra sólo el elenco
+     (`DEMO_ELENCO`) y sólo filas del CH hasta `DEMO_ELENCO_HASTA` (D1). Con la gente de P308 y la fecha de hoy, el filtro
+     dejaba la demostración VACÍA y este caso seguía en verde sin medir nada (investigación de P391, §7.2). Por eso las
+     guardas de abajo: los tests están, y algún período tiene un total armado con el piso. El día: el último del CH al
+     2026-11-03, que el corte deja pasar (inclusive). */
+  const ELENCO = ['Ana Suárez', 'Camila Torres', 'Federico Blanco', 'Gabriel Ortiz', 'José Duarte', 'Diego Ramírez', 'Sofía Núñez', 'Valentina Ríos'];
+  const gente = ELENCO.slice(0, P + 1);
   const correr = gs => {
-    const w = p388Mundo(p388Tests(P388_GENTE.slice(0, P + 1), '2026-11-03', '08').map(x => Object.assign(x, { emp: 'Empresa Demo' })), { gs: gs });
+    const w = p388Mundo(p388Tests(gente, '2026-08-05', '08').map(x => Object.assign(x, { emp: 'Empresa Demo' })), { gs: gs });
     return w.faltan.length ? { faltan: w.faltan } : w.demo();
   };
   const d = correr();
   PRUEBAS.igual(d.faltan || [], [], 'guarda');
   if (d.faltan) return;
   PRUEBAS.cierto(d.ok && !!(d.totalesHseq && d.totalesHseq.periodos), 'guarda: la demostración trae sus totales');
+  PRUEBAS.igual((d.registros || []).length, gente.length, 'guarda: la demostración trae los ' + gente.length + ' tests (vacía, los asertos de abajo no medirían nada)');
+  PRUEBAS.cierto(p388AlgunTotal(d.totalesHseq), 'guarda: algún período trae un total armado con el piso (P = ' + P + ', ' + gente.length + ' personas)');
   PRUEBAS.igual([d.totalesHseq.piso, d.totalesHseq.sinNomina], [P, undefined], '🔴 con el piso del `.gs`, y sin `sinNomina`');
   const s = p308Parchar(CTX.gs, [['    T.ultimaCorrida = new Date().toISOString();   // la demostración se arma en el momento: siempre está al día',
     '    T.ultimaCorrida = new Date().toISOString(); T.sinNomina = true;']]);

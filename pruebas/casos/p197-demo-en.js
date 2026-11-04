@@ -13,11 +13,15 @@ function p197TablaGs(){
   const src = CTX.gs.slice(i, j);
   return new Function(src + '\nreturn DEMO_TRADUCCIONES;')();
 }
+/* ⚠️ P391 · LAS FILAS VAN FECHADAS DENTRO DEL SEMBRADO, no hoy. Desde P391 la demostración muestra sólo el elenco y sólo
+   filas del CH hasta `DEMO_ELENCO_HASTA` (D1): con la fecha de hoy, el corte las sacaba todas y este caso medía una
+   demostración vacía (los dos asertos de departamentos daban «»). El día sale del `.gs` real: el corte, o el último día
+   del CH al 2026-11-03 si el `.gs` no tiene corte. */
 function p197Hoja(filas){
   const cab = new Array(90).fill(''); cab[0] = 'Marca temporal'; cab[1] = 'Nombre'; cab[2] = 'Departamento'; cab[72] = 'Empresa'; cab[73] = 'Fecha'; cab[86] = 'KSS';
-  const hoy = new Date().toISOString().slice(0, 10);
+  const dia = (/\nvar DEMO_ELENCO_HASTA = "(\d{4}-\d{2}-\d{2})";/.exec(String(CTX.gs || '')) || [])[1] || '2026-08-05';
   // el .gs lee desde la fila 3 (dos filas de encabezado en la hoja real): se agrega una segunda fila de cabecera
-  return [cab, cab.slice()].concat(filas.map(f => { const r = new Array(90).fill(''); r[0] = hoy + ' 10:00:00'; r[1] = f[0]; r[2] = f[1]; r[72] = 'Empresa Demo'; r[73] = hoy; r[86] = f[2] || 5; return r; }));
+  return [cab, cab.slice()].concat(filas.map(f => { const r = new Array(90).fill(''); r[0] = dia + ' 10:00:00'; r[1] = f[0]; r[2] = f[1]; r[72] = 'Empresa Demo'; r[73] = dia; r[86] = f[2] || 5; return r; }));
 }
 
 PRUEBAS.caso('🔴 P197 · contrato: la tabla DEMO_TRADUCCIONES del .gs y demoTablaEn() del cliente son la MISMA tabla (los dos lados, par por par)', () => {
