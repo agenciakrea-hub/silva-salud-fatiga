@@ -4912,13 +4912,23 @@
     color:var(--text); margin-bottom:.3rem; }
   .adm-sub + .adm-p { margin-bottom:.6rem; }
   .adm-p { font-size:.81rem; color:var(--text-soft); line-height:1.5; }
-  .adm-roles { display:grid; grid-template-columns:1fr 1fr; gap:.45rem; margin-bottom:1rem; }
-  .adm-rol { display:flex; flex-direction:column; gap:.15rem; min-height:60px; padding:.55rem .65rem;
+  /* P387 · CINCO BOTONES: los tres roles arriba y Dirección y HSEQ juntos abajo, como el ojo de la demostración
+     (`.db-v-corte`). Seis columnas desde 430 px: cada rol ocupa dos y cada panel de la dirección tres. Con la
+     grilla de antes (dos columnas, cuatro desde 700 px) el quinto quedaba solo en su fila. `minmax(0, 1fr)` y
+     `min-width:0` para que una palabra larga no ensanche su columna y saque la grilla del panel; y la descripción
+     en 12 px (antes 11,5), la letra mínima de la app (memoria «usuarios de 40 para arriba»).
+     ⚠️ Por debajo de 430 px de ancho, uno debajo del otro (abajo): «determinaciones» (94 px en 12 px) no entraba en la
+     columna de un rol (77 px a 375) y la tarjeta la partía, sin guion en un motor sin diccionario de español. Para gente
+     de 40 para arriba, nada partido. Lo mide `p387-empresa-demo.js`. */
+  .adm-roles { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:.45rem; margin-bottom:1rem; }
+  .adm-rol { grid-column:span 2; min-width:0; display:flex; flex-direction:column; gap:.15rem; min-height:60px; padding:.55rem .6rem;
     border-radius:var(--radius-sm); border:1.5px solid var(--sup-borde); background: var(--card); cursor:pointer;
     font-family:inherit; text-align:left; }
+  .adm-rol--abajo { grid-column:span 3; }
+  @media (max-width: 429px){ .adm-roles { grid-template-columns:1fr; } .adm-rol, .adm-rol--abajo { grid-column:auto; } }
   .adm-rol:active { transform:scale(.98); }
-  .adm-rol-t { font-size:.85rem; font-weight:800; color:var(--text); }
-  .adm-rol-d { font-size:.72rem; color:var(--text-muted); line-height:1.35; }
+  .adm-rol-t { font-size:.85rem; font-weight:800; color:var(--text); overflow-wrap:break-word; -webkit-hyphens:auto; hyphens:auto; }
+  .adm-rol-d { font-size:.75rem; color:var(--text-muted); line-height:1.35; overflow-wrap:break-word; -webkit-hyphens:auto; hyphens:auto; }
   .adm-doc-btn { margin-top:.2rem; }
 
   /* ── Documentación interna (P8) ── */
@@ -4956,7 +4966,7 @@
   .doc-pie { text-align:center; font-size:.74rem; color:var(--text-muted); margin:1rem 0 2rem; }
   @media (min-width: 700px){
     .doc-body { max-width:760px; margin:0 auto; width:100%; }
-    .adm-roles { grid-template-columns:repeat(4,1fr); }
+    /* P387 · `.adm-roles` ya no cambia de columnas acá: seis desde 430 px y una por debajo (ver arriba). */
   }
 
   /* ── Consola de Dirección / HSEQ (P7) ── */
@@ -8220,7 +8230,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.61';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.62';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8995,6 +9005,9 @@ const I18N = {
          estadísticas trae y qué se puede accionar desde ahí; `pg_desc_inicio` va en los cuatro y
          aclara que el inicio es otra pantalla, para que nadie confunda el panel con la app. */
       ts_sim_demo_pass:'La demostración pide una clave y esta sesión no la trae. Vuelve a entrar como administrador.',
+      /* P387 · «Ver como…» sin la contraseña del administrador en esta pestaña ni su sesión guardada (por ejemplo,
+         después de recargar): no se manda nada y se vuelve a pedir. */
+      ts_sim_reingresar:'Para ver la app como otro rol, vuelve a escribir la contraseña de administrador.',
       /* Las pistas del login REAL (no la demostración): cortas, sólo confirman qué vista se
          eligió. Antes vivían a mano dentro de `portalMode()` y no se traducían. */
       reg_no_en_nomina:'Tu cédula todavía no está en la nómina de tu empresa. Pide a tu supervisor que te cargue; mientras tanto, lo que registres se guarda en este dispositivo.',
@@ -10362,7 +10375,9 @@ const I18N = {
       adm_es_sup_no_med:'Esa no es la contraseña de servicio médico — es la de supervisor.',
       adm_rol_emp_t:'Personal', adm_rol_emp_d:'Su semáforo, su turno y su reporte rápido',
       adm_rol_sup_d:'Aptitud operativa y bandeja de reportes', adm_rol_med_d:'Indicadores, ficha médica y determinaciones',
-      adm_rol_hseq_d:'Agregados, trazabilidad y costos',
+      /* P387 · «Ver como…» separa Dirección y HSEQ, como el ojo de la demostración: dos paneles distintos (ADR 017). */
+      adm_rol_dir_d:'Agregados de la organización sin nombres: indicadores, trazabilidad y costos',
+      adm_rol_hseq_d:'Totales de los tests de toda la empresa, sin el resultado de nadie',
       apt_reg_sin_fecha_1:'1 registro · sin fecha', apt_reg_sin_fecha_n:'{n} registros · sin fecha', apt_sin_registros:'sin registros',
       apt_ultimo_hoy:'último test hoy', apt_ultimo_ayer:'último test ayer',
       apt_desactualizada:'Hay un test nuevo posterior a la última indicación médica: vuelve a revisión.',
@@ -11297,6 +11312,7 @@ const I18N = {
       mi_rol_d_si:'Active. Tap to open your company panel.',
       pg_propios_demo:'You will see one sample person\u2019s screen, exactly as they see it.',
       ts_sim_demo_pass:'The demo requires a password and this session does not carry one. Sign in as administrator again.',
+      ts_sim_reingresar:'To view the app as another role, enter the administrator password again.',   // P387
       reg_no_en_nomina:'Your ID is not in your company\u2019s roster yet. Ask your supervisor to add you; meanwhile, what you record is kept on this device.',
       pg_hint_sup:'Operational view: who is fit to work. It shows no medical data and no test results.',
       pg_hint_med:'Full medical service view: indicators, evolution, comments, reports and case management.',
@@ -12654,7 +12670,8 @@ const I18N = {
       adm_es_sup_no_med:'That is not the medical staff password — it is the supervisor one.',
       adm_rol_emp_t:'Staff', adm_rol_emp_d:'Their traffic light, their shift and their quick report',
       adm_rol_sup_d:'Operational fitness and reports inbox', adm_rol_med_d:'Indicators, medical record and determinations',
-      adm_rol_hseq_d:'Aggregates, traceability and costs',
+      adm_rol_dir_d:'Organization-wide aggregates without names: indicators, traceability and costs',   // P387
+      adm_rol_hseq_d:'Test totals for the whole company, with no one\u2019s individual result',
       apt_reg_sin_fecha_1:'1 record · no date', apt_reg_sin_fecha_n:'{n} records · no date', apt_sin_registros:'no records',
       apt_ultimo_hoy:'last test today', apt_ultimo_ayer:'last test yesterday',
       apt_desactualizada:'There is a new test after the last medical indication: back to review.',
@@ -21030,6 +21047,21 @@ function dashAuth(extra){
   if (cred.verVista)   base.verVista   = cred.verVista;
   return Object.assign(base, extra || {});
 }
+/* ⚠️ P387 · LA CREDENCIAL DEL ADMINISTRADOR CUANDO NO HAY PANEL ABIERTO, que es la de «Ver como…». Desde Más →
+   Administración `DASH` es `null` (`closePortal` lo borra al cerrar el panel), y `simEntrar` armaba el pedido con
+   `dashAuth()`: usuario, empresa y contraseña salían en `undefined`, el servidor contestaba `demo_pass_mal` y
+   NINGÚN «Ver como…» abría (medido por el camino real, `docs/specs/P387/investigacion.md` §6.2). Según el código,
+   además, cada intento le sumaba un fallo al freno de fuerza bruta de este dispositivo.
+   Se arma ACÁ, al lado de `dashAuth`, por la regla de A15: nunca a mano. Toma `ADM_PASS` —la contraseña que
+   `admEntrar` validó en esta pestaña— o, si no está, la sesión guardada del administrador (`admSesionGuardada`:
+   su token, que el servidor resuelve en `validarAcceso` igual que una contraseña). Sin ninguna de las dos
+   devuelve `null`, y quien llama NO manda el pedido: una credencial que no hay no se prueba contra el freno. */
+function admAuth(extra){
+  const ses = ADM_PASS ? null : admSesionGuardada();
+  const secreto = ADM_PASS || (ses && ses.token) || '';
+  if (!secreto) return null;
+  return Object.assign({ usuario:'*', empresa:'*', pass: secreto, dispositivoId: dispositivoId() }, extra || {});
+}
 function dashRequest(params){
   if (!DASH_DEMO){
     if (params && params.pass){
@@ -21250,6 +21282,24 @@ function admSalir(){
   document.getElementById('admBox').hidden = false;
   document.getElementById('admPass').value = '';
   showToast(t('ts_admin_cerrada'));
+}
+/* P387 · «Ver como…» sin credencial (`admAuth` devolvió `null`: la página se recargó, así que `ADM_PASS` —que vive
+   en memoria— se perdió, y no hay sesión guardada del administrador; la marca `K_ADM_OK` sí sobrevive, porque vive
+   en `sessionStorage`). No se manda nada: se vuelve a la caja de la contraseña, con el aviso ahí y en el toast.
+   Se retira la marca porque sin credencial esta pantalla no puede abrir ningún rol, y mostrar los botones como
+   si pudiera deja a quien los toca sin que pase nada. */
+function admPedirClave(){
+  try { sessionStorage.removeItem(K_ADM_OK); } catch(e){}
+  ADM_PASS = '';
+  const panel = document.getElementById('admPanel'), box = document.getElementById('admBox');
+  if (panel) panel.hidden = true;
+  if (box) box.hidden = false;
+  const chev = document.getElementById('admChev'), btn = document.getElementById('admBtn');
+  if (chev) chev.style.transform = 'rotate(90deg)';
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  const err = document.getElementById('admErr'); if (err) err.textContent = t('ts_sim_reingresar');
+  showToast(t('ts_sim_reingresar'));
+  try { const pw = document.getElementById('admPass'); if (pw){ pw.value = ''; pw.focus(); } } catch(e){}
 }
 
 /* ══════════ CERRAR SESIÓN (J1) ══════════
@@ -21510,15 +21560,20 @@ function admEntrar(btn){
 let ADM_PASS = '';
 const ADM_ROLES = [
   // P191 · claves del diccionario, no textos: `admPintarRoles` las resuelve con t() al pintar
-  { k:'empleado',   t:'adm_rol_emp_t',  d:'adm_rol_emp_d' },
-  { k:'supervisor', t:'rol_supervisor', d:'adm_rol_sup_d' },
-  { k:'medico',     t:'rol_medico',     d:'adm_rol_med_d' },
-  { k:'hseq',       t:'pg_hseq',        d:'adm_rol_hseq_d' }
+  /* ⚠️ P387 · CINCO, CON LAS CLAVES DEL OJO DE LA DEMOSTRACIÓN (`DEMO_VISTA_CORTA`): `hseq` es Dirección y `hseqPanel`
+     es HSEQ. Hasta acá había un solo «Dirección / HSEQ» que abría la demo sin la marca `panel`, así que el panel
+     nuevo de HSEQ no se podía ver desde acá (`hseqEsPanel` exige `DASH.panel === 'hseq'`). Los títulos son los
+     mismos que usa `vistaLabel`, así el botón y el rótulo del panel dicen lo mismo. `abajo`: la fila de abajo. */
+  { k:'empleado',   t:'adm_rol_emp_t',    d:'adm_rol_emp_d' },
+  { k:'supervisor', t:'rol_supervisor',   d:'adm_rol_sup_d' },
+  { k:'medico',     t:'rol_medico',       d:'adm_rol_med_d' },
+  { k:'hseq',       t:'vista_direccion',  d:'adm_rol_dir_d',  abajo:true },
+  { k:'hseqPanel',  t:'vista_panel_hseq', d:'adm_rol_hseq_d', abajo:true }
 ];
 function admPintarRoles(){
   const c = document.getElementById('admRoles'); if (!c) return;
   c.innerHTML = ADM_ROLES.map(r =>
-    '<button type="button" class="adm-rol" onclick="simEntrar(\'' + r.k + '\')">' +
+    '<button type="button" class="adm-rol' + (r.abajo ? ' adm-rol--abajo' : '') + '" onclick="simEntrar(\'' + r.k + '\')">' +
       '<span class="adm-rol-t">' + esc(t(r.t)) + '</span>' +
       '<span class="adm-rol-d">' + esc(t(r.d)) + '</span></button>').join('');
 }
@@ -21526,7 +21581,28 @@ function admPintarRoles(){
 /* Entrar en simulación. Usa los datos de DEMOSTRACIÓN a propósito: así se ve cómo funciona cada
    rol sin mirar registros reales de nadie, que para revisar la app o mostrarla no hacen falta. */
 function simEntrar(vista){
-  SIMUL = { vista: vista, rol: (vista === 'empleado' ? 'empleado' : 'supervisor') };
+  /* ⚠️ A15 · POR SEXTA VEZ: LOS PARAMS SE ARMAN CON `dashAuth()`, NUNCA A MANO. Este `{action:'demo'}`
+     escrito a pulso viajaba sin usuario y sin token, y mientras la demostración fue abierta no se
+     notó. El 2026-09-09 se cargó `demo_pass` en `Config Empresa` y la simulación de rol del
+     administrador —Ajustes → Administrador → ver como…— dejó de abrir para todo el mundo, con un
+     "No se pudo abrir la simulación" que no dice nada. Con la credencial adentro, el servidor
+     reconoce la sesión y no le pide la clave de los de afuera (ver `accionDemo` en el `.gs`).
+     ⚠️ P387 · Y DESDE MÁS NO HAY `DASH`: `dashAuth()` sacaba la credencial de un panel cerrado y la mandaba en
+     `undefined`. Sin panel la arma `admAuth()`, su par; y si tampoco hay credencial, no sale ningún pedido: se
+     vuelve a pedir la contraseña ANTES de abrir nada (sin overlay, sin entrada de historial que deshacer).
+     `deAdm` y `conToken` (vuelta 2): con qué credencial salió el pedido, para saber qué olvidar si el servidor la
+     rechaza (`admCredencialVencida`). Se miran ANTES del pedido: la respuesta llega cuando ya pudo cambiar todo. */
+  const deAdm = !DASH, conToken = deAdm && !ADM_PASS;
+  const paramsSim = deAdm ? admAuth({ action:'demo', lang: idiomaActual() })
+                          : dashAuth({ action:'demo', lang: idiomaActual() });   // P197
+  if (!paramsSim){ admPedirClave(); return; }
+  /* ⚠️ P387 · LAS CLAVES DEL OJO (`hseq` = Dirección, `hseqPanel` = HSEQ), Y SUS DOS FUNCIONES, SIN COPIARLAS:
+     `demoVistaReal` da la vista que entiende el panel (las dos son `hseq`) y `demoPayloadDeVista` pone la marca
+     `panel` que las separa. Sin eso, «Dirección / HSEQ» abría la demo sin marca: rótulo «Dirección / HSEQ» y
+     nunca el panel nuevo de HSEQ. El ↻ conserva la marca (`dashRefresh` vuelve a pasar por `demoPayloadDeVista`).
+     `clave` (vuelta 2): el botón que se tocó, para que la barra diga «como HSEQ» o «como Dirección» mientras carga
+     y todavía no hay `DASH` del que `vistaLabel` lea la marca (`simRotulo`). */
+  SIMUL = { vista: demoVistaReal(vista), clave: vista, rol: (vista === 'empleado' ? 'empleado' : 'supervisor') };
   simPintarBarra();
   mostrarVista('inicio');
   document.getElementById('portalOverlay').classList.add('show');
@@ -21535,19 +21611,17 @@ function simEntrar(vista){
   document.getElementById('portalDash').style.display = '';
   dashSetMq('dashScope', t('cargando'));
   dashMostrarEsqueleto();
-  /* ⚠️ A15 · POR SEXTA VEZ: LOS PARAMS SE ARMAN CON `dashAuth()`, NUNCA A MANO. Este `{action:'demo'}`
-     escrito a pulso viajaba sin usuario y sin token, y mientras la demostración fue abierta no se
-     notó. El 2026-09-09 se cargó `demo_pass` en `Config Empresa` y la simulación de rol del
-     administrador —Ajustes → Administrador → ver como…— dejó de abrir para todo el mundo, con un
-     "No se pudo abrir la simulación" que no dice nada. Con la credencial adentro, el servidor
-     reconoce la sesión y no le pide la clave de los de afuera (ver `accionDemo` en el `.gs`). */
-  const paramsSim = dashAuth({ action:'demo', lang: idiomaActual() });   // P197
   dashRequest(paramsSim)
     .then(d => {
       /* Endpoint viejo, o sesión que el servidor no reconoce: se dice QUÉ pasó, no un aviso
-         genérico que manda a nadie a ningún lado. */
+         genérico que manda a nadie a ningún lado.
+         ⚠️ P387 · vuelta 2 · CON LA CREDENCIAL DEL ADMINISTRADOR SIN PANEL (`deAdm`), SE OLVIDA Y SE VUELVE A PEDIR
+         (`admCredencialVencida`): reintentar con la misma quemaba el freno de fuerza bruta. Y `simSalir` va PRIMERO:
+         cierra el panel con `closePortal`, que esconde el toast que haya (P189); con el aviso antes, no se veía. */
       if (d && !d.ok && (d.motivo === 'demo_pass' || d.motivo === 'demo_pass_mal')){
-        showToast(t('ts_sim_demo_pass')); simSalir(true); return;
+        simSalir(true);
+        if (deAdm) admCredencialVencida(conToken); else showToast(t('ts_sim_demo_pass'));
+        return;
       }
       if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(true); return; }
       /* ⚠️ S7 · SIN ESTO, QUIEN ENTRA POR ACÁ NO TIENE EL SELECTOR. Es la otra puerta al mismo
@@ -21564,7 +21638,7 @@ function simEntrar(vista){
         const quien = demoPersonaEjemplo(d) || '';
         onDashData(demoRecortarAPersona(d, quien), quien || 'Personal (ejemplo)', paramsSim, 'empleado');
       } else {
-        onDashData(d, 'Empresa Demo', paramsSim, vista);
+        onDashData(demoPayloadDeVista(d, vista), 'Empresa Demo', paramsSim, demoVistaReal(vista));   // P387 · como el ojo
       }
     })
     .catch(() => { showToast(t('sin_conexion')); simSalir(true); });
@@ -21586,8 +21660,37 @@ function simPintarBarra(){
   document.documentElement.classList.toggle('simulando', !!SIMUL);
   if (SIMUL){
     const el = document.getElementById('simRol');
-    if (el) el.textContent = t('sim_como', { rol: vistaLabel(SIMUL.vista) || SIMUL.vista });
+    if (el) el.textContent = t('sim_como', { rol: simRotulo() });
   }
+}
+/* P387 · vuelta 2 (hallazgo 4 del verificador) · el nombre del rol que se simula. Con el panel armado lo dice
+   `vistaLabel`, que lee la marca `panel` de `DASH`. Mientras carga todavía no hay `DASH`, y `vistaLabel('hseq')`
+   decía «Dirección / HSEQ» para los dos botones nuevos: se usa el botón que se tocó (`SIMUL.clave`), con los mismos
+   títulos del panel. `DASH` se mira adentro de un `try` (R16: es `let`, y en zona muerta `typeof` también lanza). */
+function simRotulo(){
+  if (!SIMUL) return '';
+  let hayPanel = false;
+  try { hayPanel = !!DASH; } catch(e){}
+  if (!hayPanel){
+    if (SIMUL.clave === 'hseqPanel') return t('vista_panel_hseq');
+    if (SIMUL.clave === 'hseq') return t('vista_direccion');
+  }
+  return vistaLabel(SIMUL.vista) || SIMUL.vista;
+}
+/* P387 · vuelta 2 (hallazgo 1 del verificador) · «Ver como…» con una credencial de administrador que el servidor ya
+   no acepta: un `ADM_PASS` de antes de un cambio de contraseña, o el token de una sesión cerrada (después de
+   recargar). Sin esto, cada toque volvía a mandar la misma credencial vencida y le sumaba un fallo al freno de fuerza
+   bruta de este dispositivo: medido por el verificador, a los 6 toques el login de administrador desde ese
+   dispositivo daba «Usuario o contraseña incorrecta». Se olvida la que se usó y se vuelve a pedir la contraseña: el
+   toque siguiente ya no sale. Con el token, la ranura queda con el usuario y sin el token, como cuando vence la
+   sesión del auto-login (`portalAutoLoginSupervisor`). */
+function admCredencialVencida(conToken){
+  ADM_PASS = '';
+  if (conToken){
+    try { localStorage.setItem(K_DASH_CREDS_ADM, JSON.stringify({ usuario: '*' })); }
+    catch(e){ try { localStorage.removeItem(K_DASH_CREDS_ADM); } catch(e2){} }
+  }
+  admPedirClave();
 }
 
 /* ══════════ DOCUMENTACIÓN INTERNA ══════════
@@ -22082,7 +22185,7 @@ function demoVerVista(vista){
   /* Si se está simulando un rol, el rol simulado ES la vista elegida. Sin esto `SIMUL.vista`
      quedaba con lo que fijó `simEntrar` una sola vez: la barra diría "como Servicio médico" con el
      panel de Supervisor en pantalla. */
-  if (SIMUL){ SIMUL.vista = demoVistaReal(vista); SIMUL.rol = (vista === 'empleado' ? 'empleado' : 'supervisor'); }
+  if (SIMUL){ SIMUL.vista = demoVistaReal(vista); SIMUL.clave = vista; SIMUL.rol = (vista === 'empleado' ? 'empleado' : 'supervisor'); }   // P387 · `clave`: ver `simRotulo`
   if (vista === 'empleado'){
     const uno = demoPersonaEjemplo(g.d);
     if (!uno) return false;
@@ -22869,6 +22972,9 @@ function dashCamposDelServidor(d){
        quedaba en «Cargando la actividad…» para siempre. Lo cazó `p197-demo-en.js`, que cuenta los
        pedidos al cambiar de idioma y encontró el mío de más. */
     demo: !!d.demo,
+    /* P387 · D3 · la cuenta Empresa Demo: el servidor dice que su nómina es la de la demostración (`esCuentaDemo`), y
+       la nómina sale de `nominaDemo()`, como en la demostración. Ver `demoNominaDeEjemplo`. */
+    nominaDeEjemplo: !!d.nominaDeEjemplo,
     nominaTotal: demoNominaTotal(d),
     nominaSinDato: demoNominaSinDato(d),
     /* ⚠️ EL CONTEO, aparte de la lista. El servidor vacía `nominaSinDato` para Dirección por
@@ -22877,9 +22983,7 @@ function dashCamposDelServidor(d){
        (20/20/0 contra el 20/17/3 real, medido contra el CH). Quien cuente usa ESTE número.
        El `??` no se usa a propósito: con un endpoint viejo que no manda el campo hay que caer a la
        longitud de la lista, que es lo que había antes, no a 0 — que afirmaría «están todos». */
-    nominaSinDatoN: (typeof d.nominaSinDatoN === 'number')
-      ? d.nominaSinDatoN
-      : (Array.isArray(demoNominaSinDato(d)) ? demoNominaSinDato(d).length : 0),
+    nominaSinDatoN: demoNominaSinDatoN(d),
     nominaError: d.nominaError || null,
     /* P308 · DE LOS TESTS, HSEQ RECIBE SÓLO ESTO: los totales de la empresa entera por período del
        calendario, ya con el piso aplicado (`totalesHseq_` en el `.gs`). La tarjeta los pinta y NO
@@ -25204,16 +25308,29 @@ function movBloque(){
    peor que no pedir.
    ⚠️ El `ts` sale de la FECHA del registro, que en la demo no trae hora: queda al mediodía, igual
    que `aptFechaMsServer`. En la demostración eso alcanza — lo que se muestra es la forma del
-   panel, no una hora real. */
+   panel, no una hora real.
+   ⚠️ P387 · vuelta 2 · YA NO ALCANZA: ver `movDemoInstante`. */
 function movDemoItems(){
   try {
     const regs = (DASH && Array.isArray(DASH.registros)) ? DASH.registros : [];
+    const ahora = Date.now();
     return regs.filter(r => r && r.persona && r.fecha)
-      .map(r => ({ ts: aptFechaMs(r.fecha), tipo: 'test', que: 'test',
+      .map(r => ({ ts: movDemoInstante(r, ahora), tipo: 'test', que: 'test',
                    persona: r.persona, empresa: r.empresa || '', dep: r.departamento || '' }))
       .filter(x => x.ts > 0)
       .sort((a, b) => b.ts - a.ts);
   } catch (e) { return []; }
+}
+/* P387 · vuelta 2 (hallazgo 2 del verificador) · EL INSTANTE DE UNA PRUEBA DE LA DEMOSTRACIÓN. Desde P387 lo más nuevo
+   de la demo cae HOY, y el mediodía de esa fecha queda en el futuro entre las 00:00 y las 12:00: «Último movimiento:
+   hoy 12:00» a las 9 de la mañana. Se usa el `ts` del servidor SÓLO si cae el mismo día que su `fecha` (el `.gs` de
+   P387 los corre juntos; el publicado antes manda un `ts` de agosto, y otro día no sirve); si no, el mediodía de la
+   fecha, sin pasar de ahora. */
+function movDemoInstante(r, ahora){
+  const ts = Number(r && r.ts) || 0;
+  if (ts > 0 && fechaOpDe(new Date(ts)) === r.fecha) return ts;
+  const m = aptFechaMs(r && r.fecha);
+  return m > 0 ? Math.min(m, ahora) : 0;
 }
 function movCargar(){
   if (!DASH || DASH.rol === 'empleado') return;
@@ -29035,13 +29152,38 @@ function dutyDemo(){
 /* ── P107 · la cobertura de la demostración ────────────────────────────────────────────────────
    Fuera de la demostración devuelven exactamente lo que mandó el servidor: son un envoltorio, no
    una regla nueva. Sólo cuando `d.demo` es cierto se usa la nómina de ejemplo, que es la nómina
-   REAL de esa empresa de mentira. */
+   REAL de esa empresa de mentira.
+   ⚠️ P387 · D3 · Y CON LA CUENTA EMPRESA DEMO (`d.nominaDeEjemplo`, que decide el servidor con `esCuentaDemo`). Muestra
+   los tests del mismo elenco de ejemplo, que en el CH no tiene nómina, y le llegaba «0 en la nómina»: el cartel de
+   estado del panel de HSEQ se atenuaba con «N medidos», mientras la demostración lo pintaba a color. La misma empresa
+   con dos coberturas. Ahora las dos usan `nominaDemo()`.
+   Una diferencia, y es a propósito: la cuenta con la vista `hseq` (Dirección y HSEQ) llega con seudónimos (P1, P2…),
+   así que no se cruza por nombre. No lista nombres, como el servidor (K1b), y cuenta cuántos faltan por cantidad: la
+   nómina de ejemplo menos las personas distintas que se midieron. Las dos cuentas dan lo mismo mientras todo el que se
+   mide esté en el elenco, que es el caso de la demostración (si no, ver D6 en `docs/specs/P387/`). */
+function demoNominaDeEjemplo(d){ return !!(d && (d.demo || d.nominaDeEjemplo)); }
 function demoNominaTotal(d){
-  if (!d || !d.demo) return Number(d && d.nominaTotal) || 0;
+  if (!demoNominaDeEjemplo(d)) return Number(d && d.nominaTotal) || 0;
   try { return nominaDemo().length; } catch(e){ return 0; }
 }
+/* P387 · el conteo de quienes no se midieron (`nominaSinDatoN`), que antes se armaba adentro de `dashCamposDelServidor`.
+   Fuera de la nómina de ejemplo, lo de siempre: el número del servidor y, con un endpoint viejo que no lo manda, el
+   largo de la lista (nunca 0, que afirmaría «están todos»). */
+function demoNominaSinDatoN(d){
+  if (!demoNominaDeEjemplo(d)){
+    if (d && typeof d.nominaSinDatoN === 'number') return d.nominaSinDatoN;
+    return Array.isArray(d && d.nominaSinDato) ? d.nominaSinDato.length : 0;
+  }
+  if (!d.demo && d.vista === 'hseq'){
+    const vistos = {};
+    (d.registros || []).forEach(r => { if (r && r.persona) vistos[dashNorm(r.persona)] = 1; });
+    return Math.max(0, demoNominaTotal(d) - Object.keys(vistos).length);
+  }
+  return demoNominaSinDato(d).length;
+}
 function demoNominaSinDato(d){
-  if (!d || !d.demo) return Array.isArray(d && d.nominaSinDato) ? d.nominaSinDato : [];
+  if (!demoNominaDeEjemplo(d)) return Array.isArray(d && d.nominaSinDato) ? d.nominaSinDato : [];
+  if (!d.demo && d.vista === 'hseq') return [];   // P387 · la cuenta con seudónimos: ni se cruza ni se listan nombres
   try {
     /* Quién tiene mediciones sale de los REGISTROS que acaban de llegar, no de una lista aparte:
        si mañana la demo trae datos de alguien más, la cuenta se corrige sola. */

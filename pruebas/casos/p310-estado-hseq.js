@@ -225,7 +225,10 @@ PRUEBAS.caso('🔴 P310 · el umbral es por empresa (`umbralEstado`, de 20 a 100
   PRUEBAS.igual(correr(null), { etapa: 'atencion', umbral: 25 }, 'por defecto, 25 %: 5 de 20 en amarillo sigue en «requiere atención»');
   PRUEBAS.igual(correr('20'), { etapa: 'levemente', umbral: 20 }, '🔴 con «umbralEstado = 20» en Config Empresa, 5 de 20 pasa a «LEVEMENTE SEGURO»');
   PRUEBAS.igual(correr('15'), { etapa: 'atencion', umbral: 25 }, '🔴 un umbral menor a 20 no vale: rige el 25');
-  const s = correr('20', [['cfgEmpresa.anonN, cfgEmpresa.umbralEstado) : null;', 'cfgEmpresa.anonN) : null;']]);
+  /* P387 · el ancla es la línea del camino sellado: desde P387 la sentencia tiene también el de la cuenta Empresa Demo
+     (`totalesHseqDemo_`), con los mismos dos argumentos. */
+  const s = correr('20', [['    : totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado);',
+                           '    : totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN);']]);
   PRUEBAS.igual(s.faltan || s.etapa, 'atencion', '⚠️ discriminador · si el panel no pasa el umbral de la empresa, rige el 25');
 });
 

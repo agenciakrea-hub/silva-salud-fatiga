@@ -143,52 +143,73 @@ PRUEBAS.caso('⚠️ P200d · el comentario viaja entero, y el candado del clien
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    #4 · LA DEMOSTRACIÓN DE LA VISTA DE DIRECCIÓN TIENE QUE SER LA VISTA DE DIRECCIÓN
+
+   ⚠️ P387 · ESTOS TRES CASOS PROBABAN LA RAMA `p.demo === "1"` de `accionSupervisor`, que se sacó: estaba
+   muerta desde el 2026-07-17 (el cliente dejó de mandarla) y era una tercera derivación de la demostración, sin
+   `demoAjustar` (D5 de `docs/specs/P387/avance.md`). Las mismas garantías pasan a la CUENTA Empresa Demo, que
+   desde P387 lleva los datos de la demostración, por sus dos puertas reales: la contraseña de la propia cuenta
+   y el visor del administrador («Empresa Demo · X», `accesoPanel_` con `verEmpresa`/`verVista`).
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
-function p200dDemo(clave){
+function p200dDemo(entrada){
   const hojas = p200dHojas();
-  /* La Empresa Demo, con sus propias personas: es lo que devuelve la rama `demo`. */
+  /* La cuenta Empresa Demo (combinada no: con contraseña médica propia) y el administrador del visor. */
+  hojas['Accesos'] = hojas['Accesos'].concat([['*', 'adm-200d', 'admin', '', '', ''],
+                                              ['demo', 'sup-200dd', 'supervisor', 'Empresa Demo', 'med-200dd', 'dir-200dd']]);
+  /* La Empresa Demo, con sus propias personas. */
   hojas['Respuestas de formulario 1'] = hojas['Respuestas de formulario 1'].concat([
     (function(){ const f = p200dFila('Ana Demo', 'Operaciones', 6); f[72] = 'Empresa Demo'; return f; })(),
     (function(){ const f = p200dFila('Beto Demo', 'Mantenimiento', 4); f[72] = 'Empresa Demo'; return f; })()
   ]);
   const env = GS.crearEntorno(hojas);
   const api = GS.cargarGs(CTX.gs, env, ['accionSupervisor']);
-  return JSON.parse(api.accionSupervisor({ usuario:'helitec', pass:clave, demo:'1', dispositivoId:'p200d' }).getContent());
+  const p = entrada.verVista
+    ? { usuario:'*', pass:'adm-200d', verEmpresa:'Empresa Demo', verVista:entrada.verVista, dispositivoId:'p200d' }
+    : { usuario:'demo', empresa:'demo', pass:entrada.clave, dispositivoId:'p200d' };
+  return JSON.parse(api.accionSupervisor(p).getContent());
 }
 
-PRUEBAS.caso('🔴 P200d · la demostración «vista como Dirección» llega anonimizada, igual que la vista real', () => {
+PRUEBAS.caso('🔴 P200d · la cuenta Empresa Demo «como Dirección» —contraseña y visor— llega anonimizada, igual que la vista real', () => {
   if (!CTX.hayGs){ PRUEBAS.cierto(false, 'se necesita el .gs'); return; }
-  const r = p200dDemo('dir-200d');
-  PRUEBAS.igual(r.ok, true, 'guarda: la rama demo responde');
-  PRUEBAS.igual(r.vista, 'hseq', 'guarda: con la clave de Dirección, la demo respeta la vista de la cuenta');
-  const personas = (r.registros || []).map(x => x.persona).sort();
-  PRUEBAS.alMenos(personas.length, 2, 'guarda: la demo trae registros · con cero, lo de abajo no probaría nada');
-  PRUEBAS.igual(personas.filter(p => /Demo/.test(String(p))), [],
-    '🔴 ningún nombre real en `registros` · antes venían «Ana Demo» y «Beto Demo», o sea que la demostración de la vista de Dirección no era la vista de Dirección — y es el camino que se usa para explicarle a un cliente qué ve cada rol');
-  PRUEBAS.cierto(personas.every(p => /^P\d+$/.test(String(p))),
-    'y todos son identificadores opacos (P1, P2…) · ' + personas.join(', '));
-  const enAptitud = (r.aptitud || []).map(a => a.nombre);
-  PRUEBAS.igual(enAptitud.filter(n => /Demo/.test(String(n))), [], 'tampoco en `aptitud`');
+  /* R19 · los seudónimos los pone el recorte por vista de `accionSupervisor` (`anonimizarHseq`, con su lista blanca),
+     que corre igual para cualquier cuenta con la vista `hseq`: con la contraseña de Dirección (`validarAcceso`) o con
+     el visor (`accesoPanel_`). */
+  [['contraseña de Dirección', { clave:'dir-200dd' }], ['visor «Empresa Demo · Dirección»', { verVista:'direccion' }]].forEach(([q, e]) => {
+    const r = p200dDemo(e);
+    PRUEBAS.igual(r.ok, true, 'guarda: ' + q + ' responde · ' + (r.error || ''));
+    PRUEBAS.igual(r.vista, 'hseq', 'guarda: ' + q + ' abre la vista de Dirección');
+    const personas = (r.registros || []).map(x => x.persona).sort();
+    PRUEBAS.alMenos(personas.length, 2, 'guarda: ' + q + ' trae registros · con cero, lo de abajo no probaría nada');
+    PRUEBAS.igual(personas.filter(p => /Demo/.test(String(p))), [],
+      '🔴 ' + q + ' · ningún nombre real en `registros` · la demostración de la vista de Dirección es la vista de Dirección, y es el camino que se usa para explicarle a un cliente qué ve cada rol');
+    PRUEBAS.cierto(personas.every(p => /^P\d+$/.test(String(p))),
+      q + ' · y todos son identificadores opacos (P1, P2…) · ' + personas.join(', '));
+    const enAptitud = (r.aptitud || []).map(a => a.nombre);
+    PRUEBAS.igual(enAptitud.filter(n => /Demo/.test(String(n))), [], q + ' · tampoco en `aptitud`');
+  });
 });
 
-PRUEBAS.caso('🔴 P200d · DISCRIMINADOR · la misma demo con la clave de SUPERVISOR sí trae nombres', () => {
+PRUEBAS.caso('🔴 P200d · DISCRIMINADOR · la misma cuenta con la clave de SUPERVISOR (y el visor «supervisor») sí trae nombres', () => {
   if (!CTX.hayGs){ PRUEBAS.cierto(false, 'se necesita el .gs'); return; }
-  const r = p200dDemo('sup-200d');
-  PRUEBAS.igual(r.vista, 'supervisor', 'guarda: la demo respeta la vista de la cuenta logueada');
-  const personas = (r.registros || []).map(x => x.persona);
-  PRUEBAS.alMenos(personas.filter(p => /Demo/.test(String(p))).length, 2,
-    '🔴 el supervisor SÍ ve los nombres · si el arreglo hubiera anonimizado todo, este caso estaría en rojo y el de arriba pasaría por la razón equivocada');
+  /* R19 · el supervisor ve nombres porque el recorte por vista sólo actúa con la vista `hseq`. */
+  [['contraseña de supervisor', { clave:'sup-200dd' }], ['visor «Empresa Demo · Supervisor»', { verVista:'supervisor' }]].forEach(([q, e]) => {
+    const r = p200dDemo(e);
+    PRUEBAS.igual(r.vista, 'supervisor', 'guarda: ' + q + ' abre Supervisor');
+    const personas = (r.registros || []).map(x => x.persona);
+    PRUEBAS.alMenos(personas.filter(p => /Demo/.test(String(p))).length, 2,
+      '🔴 ' + q + ' · el supervisor SÍ ve los nombres · si el arreglo hubiera anonimizado todo, este caso estaría en rojo y el de arriba pasaría por la razón equivocada');
+  });
 });
 
-PRUEBAS.caso('⚠️ P200d · las dos ramas llaman a la MISMA función de recorte, no a una copia', () => {
+PRUEBAS.caso('⚠️ P200d · una sola función de recorte, con un solo llamador: la rama de la demostración ya no existe', () => {
   if (!CTX.hayGs){ PRUEBAS.cierto(false, 'se necesita el .gs'); return; }
   /* Sin la DECLARACIÓN, que también empieza por `recortarParaVista_(acc,`: contarla daba 3 y el
      aserto fallaba por una razón que no era el defecto. */
   const soloLlamadas = (CTX.gs.match(/recortarParaVista_\(acc,/g) || []).length
     - (CTX.gs.match(/function recortarParaVista_\(acc,/g) || []).length;
-  PRUEBAS.igual(soloLlamadas, 2,
-    '⚠️ exactamente dos llamadores: la rama normal y la de la demostración · escribirlo dos veces es el modo de fallar de A13 y de P151, y es lo que dejó la demo sin anonimizar');
+  PRUEBAS.igual(soloLlamadas, 1,
+    '⚠️ exactamente UN llamador: la rama normal de `accionSupervisor` · hasta P387 eran dos (la rama `p.demo === "1"`, que se sacó); escribirlo dos veces es el modo de fallar de A13 y de P151, y es lo que dejó la demo sin anonimizar');
+  PRUEBAS.igual(CTX.gs.indexOf('if (p.demo === "1")'), -1, 'y la rama de la demostración no está');
   PRUEBAS.igual((CTX.gs.match(/function recortarParaVista_/g) || []).length, 1,
     'DISCRIMINADOR · y hay UNA sola declaración: el conteo de arriba mide llamadas, no definiciones');
   const anon = (CTX.gs.match(/anonimizarHseq\(/g) || []).length

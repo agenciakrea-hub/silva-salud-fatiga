@@ -54,13 +54,13 @@ function p201Refrescar(payload){
   return dashRefresh(false).finally(() => { window.dashRequest = o; });
 }
 
-function p201Entorno(fn){
+function p201Entorno(fn, primero){
   const prev = Object.assign({}, localStorage);
   const dashPrev = (typeof DASH !== 'undefined') ? DASH : null;
   return Promise.resolve()
     .then(() => {
       CTX.resetear();
-      onDashData(p201Payload(), 'Empresa Uno', P201_PARAMS, 'supervisor');
+      onDashData(primero || p201Payload(), 'Empresa Uno', P201_PARAMS, 'supervisor');   // P387 · `primero`: el primer pedido, si el caso necesita otro
       return fn();
     })
     .finally(() => {
@@ -88,6 +88,14 @@ function p201Contexto(){
 }
 
 PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no sólo los de la firma', () => {
+  /* ⚠️ P387 · D3 · EL PRIMER PEDIDO ES EL DE LA CUENTA EMPRESA DEMO (`nominaDeEjemplo`), y el refresco trae una empresa
+     con nómina propia. `nominaDeEjemplo` es contexto y no modo, como `combinada` y `panel`: el servidor lo deriva de
+     `Accesos` (`esCuentaDemo`, por `gestScope`), así que puede cambiar entre dos pedidos — `demo`, en cambio, lo decide
+     la acción que se llamó. Va en el PRIMER pedido y no en `v2` porque, con la marca, el cliente toma la nómina de
+     `nominaDemo()` e ignora `nominaTotal` y `nominaSinDato` del payload: puesta en `v2`, el 6 y «Beto, Caro» de abajo
+     dejarían de medirse. Y es la dirección que importa: un refresco que derivara la nómina con la marca del pedido
+     anterior le pintaría la nómina de ejemplo a una empresa que tiene la suya. */
+  const primero = p201Payload({ nominaDeEjemplo: true });
   return p201Entorno(() => {
     const antes = p201Contexto();
     PRUEBAS.alMenos(Object.keys(antes).length, 13,
@@ -112,7 +120,7 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
        cambie vale lo mismo en los dos pedidos y sale como congelado, igual que si el refresco
        estuviera roto. Los dos síntomas son idénticos y mandan a buscar a lugares opuestos.
        Esto falla ANTES y dice el nombre: lo que hay que tocar es el fixture, no el código. */
-    const base = dashCamposDelServidor(p201Payload()), nuevo = dashCamposDelServidor(v2);
+    const base = dashCamposDelServidor(primero), nuevo = dashCamposDelServidor(v2);
     const sinCambiar = Object.keys(nuevo).filter(k =>
       k !== 'atajosAdmin' && k !== 'demo' && JSON.stringify(base[k]) === JSON.stringify(nuevo[k]));
     PRUEBAS.igual(sinCambiar, [],
@@ -141,8 +149,11 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
       PRUEBAS.igual(DASH.nominaError, 'No se pudo leer la nómina',
         '🔴 y el aviso de que la nómina no se pudo leer LLEGA · era el peor: el panel mostraba una cobertura como si fuera contra la nómina entera, callando que el dato no estaba (R2)');
       PRUEBAS.igual(DASH.registros[0].kss, 9, 'DISCRIMINADOR · y los registros también se movieron: el refresco de verdad corrió');
+      /* P387 · D3 · y la nómina es la de la empresa que llegó, no la de ejemplo del pedido anterior */
+      PRUEBAS.igual([DASH.nominaDeEjemplo, DASH.nominaTotal, DASH.nominaSinDato], [false, 6, ['Beto', 'Caro']],
+        '🔴 la nómina de ejemplo NO queda pegada: después del refresco, la nómina es la que mandó el servidor');
     });
-  });
+  }, primero);
 });
 
 PRUEBAS.caso('🔴 P201 · UNA sola derivación: las dos funciones llaman a `dashCamposDelServidor`', () => {

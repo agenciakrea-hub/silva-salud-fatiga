@@ -163,9 +163,11 @@ const P308_SABOTAJES = {
   /* (3) «deja el color de un grupo chico» */
   colorChico: p308Extiende('    T.colores = { "Administración": "rojo" };'),
   /* períodos (1) «calcular sobre el rango pedido»: lo inyecta `accionSupervisor`, que es quien ve el rango */
+  /* P387 · el ancla es la última línea de la sentencia de los totales: desde P387 la cuenta Empresa Demo los arma en
+     el momento (`esCuentaDemo ? totalesHseqDemo_(…) : totalesHseqDeEmpresa_(…)`) y la sentencia ocupa tres líneas. */
   rangoPedido: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
-    ['  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado) : null;',
-     '  var totalesHseq = esPanelHseq_(acc) ? totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado) : null;\n' +
+    ['    : totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado);',
+     '    : totalesHseqDeEmpresa_(gestScope(acc, p.empresa), cfgEmpresa.anonN, cfgEmpresa.umbralEstado);\n' +
      '  if (totalesHseq && p.opDesde) totalesHseq.rango = p308Crudo_(p308Regs_(gestScope(acc, p.empresa)), "kss", function (x) { return x.fecha >= p.opDesde && x.fecha <= (p.opHasta || "9999"); });']],
   /* períodos (2) «semanas y meses de calendario, cada uno con su piso»: sin unidades (cada test es una), sin sellar */
   cadaUnoSuPiso: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
