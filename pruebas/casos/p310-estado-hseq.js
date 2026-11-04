@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    P310 · EL ESTADO GLOBAL DE HSEQ (servidor)                                          (2026-11-01)
    Decisiones de Franco: cuatro etapas (2026-10-13), el 25 % con «al menos dos» (2026-10-13), sólo
-   totales de 5 o más (2026-10-14), «Por persona, en grupos» (2026-11-01), y tras dos vueltas del
+   totales del piso o más (2026-10-14; el piso, 3 desde ADR 019), «Por persona, en grupos» (2026-11-01), y tras dos vueltas del
    verificador (2026-11-02) «cada test por su valor», «una vez por tanda» y el umbral de 20 a 100: los
    grupos «estado» son las unidades de las métricas que se sellaron juntas (misma corrida, mismo día),
    todos sus tests tienen color —por su propio valor—, cada persona cuenta una vez por grupo con su
@@ -35,6 +35,15 @@ function p310U(v, a, r, pref) {
   return { verdes: v, amarillos: a, rojos: r, ids: Array.from({ length: v + a + r }, (_, i) => (pref || 'p') + i) };
 }
 const P310_VERDES = ['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Nora Nueva'];
+/* P388 · los dos pisos se leen del `.gs` REAL (R19, R21): `PISO_MIN_HSEQ` (con el que se sella) y `PISO_LECTOR_HSEQ` (el menor
+   que acepta el lector y que la guarda del estado deja escribir). Hasta P388 este archivo daba por hecho el 5: grupos de
+   cinco verdes, «menos de 5 personas con color», `e.piso >= 5`. Con piso 3, los bancos de cinco personas cerraban una
+   unidad de 3 y dejaban 2 esperando, y los casos medían otra cosa. Ahora cada banco se arma con `P` personas. */
+function p310Piso() { const m = /\nvar PISO_MIN_HSEQ = (\d+);/.exec(String(CTX.gs || '')); return m ? Number(m[1]) : NaN; }
+function p310PisoLector() { const m = /\nvar PISO_LECTOR_HSEQ = (\d+);/.exec(String(CTX.gs || '')); return m ? Number(m[1]) : NaN; }
+/* las anclas de los sabotajes que sacan los pisos: la guarda del lector y la del estado usan el mínimo del LECTOR */
+const P310_GUARDA_LECTOR = '    if (info && (pisoF < PISO_LECTOR_HSEQ || pers < pisoF || (Number(v[i][5]) || 0) < pers)) info.invalida = true;';
+const P310_GUARDA_ESTADO = '        if (!(e.piso >= PISO_LECTOR_HSEQ) || e.personas < e.piso || coloreados < e.personas) { estadoNoEscritos++; return; }';
 const P310_REGLA = '(am >= 2 && 100 * am > U * medidos)';
 
 PRUEBAS.caso('🔴 P310 · las cuatro etapas, con el borde exacto del umbral y «al menos dos»', () => {
@@ -43,7 +52,8 @@ PRUEBAS.caso('🔴 P310 · las cuatro etapas, con el borde exacto del umbral y �
   const api = p310Api(null, ['estadoPeriodoHseq_', 'umbralEstadoHseq_']);
   PRUEBAS.cierto(!api.faltan && typeof api.estadoPeriodoHseq_ === 'function', 'guarda: las funciones del .gs real');
   if (api.faltan) return;
-  const et = (A, us, piso, U) => A.estadoPeriodoHseq_(us, piso == null ? 5 : piso, U);
+  const P = p310Piso();
+  const et = (A, us, piso, U) => A.estadoPeriodoHseq_(us, piso == null ? P : piso, U);
   PRUEBAS.igual(et(api, [p310U(15, 5, 0)]).etapa, 'atencion', '🔴 5 de 20 en amarillo: «SEGURO · requiere atención» (justo en el umbral, sigue)');
   PRUEBAS.igual(et(api, [p310U(14, 6, 0)]).etapa, 'levemente', '🔴 6 de 20: «LEVEMENTE SEGURO»');
   PRUEBAS.igual(et(api, [p310U(6, 2, 0)]).etapa, 'atencion', '🔴 2 de 8: sigue');
@@ -55,9 +65,9 @@ PRUEBAS.caso('🔴 P310 · las cuatro etapas, con el borde exacto del umbral y �
   PRUEBAS.igual([poco.etapa, 'rojos' in poco, poco.personas], ['poco', false, 20], '🔴 uno en rojo basta: «POCO SEGURO», con la cobertura y SIN cuántos en rojo');
   const seg = et(api, [p310U(20, 0, 0)]);
   PRUEBAS.igual([seg.etapa, 'rojos' in seg], ['seguro', false], '🔴 todos en verde: «SEGURO», sin rojos');
-  const vacio = et(api, []), pocos = et(api, [p310U(2, 1, 1)]);
+  const vacio = et(api, []), pocos = et(api, [p310U(Math.max(0, P - 3), 1, 1)]);   // piso − 1 con color, uno en rojo
   PRUEBAS.igual(vacio, { etapa: null, causa: 'bajo_piso' }, '🔴 sin grupos: nada, sólo la causa');
-  PRUEBAS.igual(pocos, { etapa: null, causa: 'bajo_piso' }, '🔴 con menos de 5 personas con color: ni la etapa ni cuántos en rojo, aunque haya uno');
+  PRUEBAS.igual(pocos, { etapa: null, causa: 'bajo_piso' }, '🔴 con menos del piso de personas con color: ni la etapa ni cuántos en rojo, aunque haya uno');
   const dos = et(api, [p310U(5, 0, 0, 'a'), p310U(4, 1, 0, 'a')]);
   PRUEBAS.igual([dos.etapa, dos.personas], ['atencion', 5], 'la misma gente en dos grupos: los colores se suman (1 de 10) y la cobertura cuenta personas distintas (5)');
   PRUEBAS.igual(['', '0', 'abc', '101', null, '10', '19', '20', ' 30 ', 25.4].map(x => api.umbralEstadoHseq_(x)), [25, 25, 25, 25, 25, 25, 25, 20, 30, 25],
@@ -78,19 +88,20 @@ PRUEBAS.caso('🔴 P310 · el estado del panel sale de grupos «estado» sellado
   /* R19 · lo manda `accionSupervisor` con el panel de HSEQ (`esPanelHseq_`), lo arma `totalesHseq_` con
      `estadoPeriodoHseq_` sobre lo que leyó `unidadesSelladasHseq_`; el color, `coloresTestsHseq_` */
   const hoy = r => r.totalesHseq && r.totalesHseq.periodos && r.totalesHseq.periodos.hoy && r.totalesHseq.periodos.hoy.estado;
-  const verdes = P310_VERDES.map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3));
+  const P = p310Piso();
+  const verdes = P310_VERDES.slice(0, P).map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3));
   const e1 = hoy(p308Pedir(verdes));
-  PRUEBAS.igual(e1, { etapa: 'seguro', personas: 5 }, '🔴 cinco en verde hoy: «SEGURO», 5 personas, nada más');
+  PRUEBAS.igual(e1, { etapa: 'seguro', personas: P }, '🔴 un grupo en verde hoy: «SEGURO», ' + P + ' personas, nada más');
   /* Oscar: 8 ayer y 8 hoy, los dos sobre el corte (6): rojo. Con un solo 8, amarillo (`casoNivelMetrica`). */
-  const conRojo = () => [p310T('Oscar Uno', '2026-11-02', '08:00', 8)].concat(['Oscar Uno'].concat(P310_VERDES.slice(0, 4))
+  const conRojo = () => [p310T('Oscar Uno', '2026-11-02', '08:00', 8)].concat(['Oscar Uno'].concat(P310_VERDES.slice(0, P - 1))
     .map((p, i) => p310T(p, '2026-11-03', '08:0' + i, p === 'Oscar Uno' ? 8 : 3)));
   const e2 = hoy(p308Pedir(conRojo()));
   PRUEBAS.igual([e2 && e2.etapa, !!e2 && 'rojos' in e2], ['poco', false], '🔴 sobre el corte: «POCO SEGURO», sin cuántos');
-  const unSolo = ['Oscar Uno'].concat(P310_VERDES.slice(0, 4)).map((p, i) => p310T(p, '2026-11-03', '08:0' + i, p === 'Oscar Uno' ? 8 : 3));
+  const unSolo = ['Oscar Uno'].concat(P310_VERDES.slice(0, P - 1)).map((p, i) => p310T(p, '2026-11-03', '08:0' + i, p === 'Oscar Uno' ? 8 : 3));
   PRUEBAS.igual((hoy(p308Pedir(unSolo)) || {}).etapa, 'poco', '🔴 un 8 suelto ya es rojo en el estado (cada test por su valor; el semáforo del supervisor espera dos seguidos)');
   /* La tolerancia de SU nivel: 6 dos veces es rojo con nivel 5 (corte 0,85 × 6 = 5,1) y amarillo con el 3 (corte 6, y el
      amarillo desde 5,1). El KSS es entero: un 5,5 llega como 5. */
-  const cincoCinco = () => [p310T('Oscar Uno', '2026-11-02', '08:00', 6)].concat(['Oscar Uno'].concat(P310_VERDES.slice(0, 4))
+  const cincoCinco = () => [p310T('Oscar Uno', '2026-11-02', '08:00', 6)].concat(['Oscar Uno'].concat(P310_VERDES.slice(0, P - 1))
     .map((p, i) => p310T(p, '2026-11-03', '08:0' + i, p === 'Oscar Uno' ? 6 : 3)));
   const conNivel = (sab) => {
     const w = p310Mundo(cincoCinco(), {}, sab);
@@ -111,35 +122,36 @@ PRUEBAS.caso('🔴 P310 · el estado del panel sale de grupos «estado» sellado
   PRUEBAS.cierto(!wd.pedir({}, 'dir-308').totalesHseq, '🔴 Dirección no recibe ni el estado ni los totales');
 });
 
-PRUEBAS.caso('🔴 P310 · un test nuevo no mueve el estado: avanza de a un grupo entero de 5', () => {
+PRUEBAS.caso('🔴 P310 · un test nuevo no mueve el estado: avanza de a un grupo entero del piso', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
   /* R19 · los grupos los forma `formarUnidadesHseq_` con el piso, y el panel lee sólo lo sellado */
+  const P = p310Piso();
   const correr = (sab) => {
-    const w = p310Mundo(P310_VERDES.map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3)), {}, sab);
+    const w = p310Mundo(P310_VERDES.slice(0, P).map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3)), {}, sab);
     if (w.faltan) return { faltan: w.faltan };
     const est = r => ((((r.totalesHseq || {}).periodos || {}).hoy || {}).estado || {});
     const a = est(w.sellarYPedir('2026-11-03T15:00:00-04:00'));
     w.agregar(p310T('Oscar Uno', '2026-11-03', '15:05', 8));
     const b = est(w.sellarYPedir('2026-11-03T15:30:00-04:00'));
-    ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco'].forEach((p, i) => w.agregar(p310T(p, '2026-11-03', '15:4' + i, 3)));
+    ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].slice(0, P - 1).forEach((p, i) => w.agregar(p310T(p, '2026-11-03', '15:4' + i, 3)));
     const c = est(w.sellarYPedir('2026-11-03T16:10:00-04:00'));
     return { a: a, b: b, c: c };
   };
   const m = correr();
   PRUEBAS.igual(m.faltan || [], [], 'guarda');
   if (m.faltan) return;
-  PRUEBAS.igual([m.a.etapa, m.a.personas], ['seguro', 5], 'antes: el primer grupo, todo verde');
-  PRUEBAS.igual([m.b.etapa, m.b.personas], ['seguro', 5], '🔴 con un solo test nuevo en amarillo, el estado no se mueve: ese test espera su grupo');
-  PRUEBAS.igual([m.c.etapa, m.c.personas], ['poco', 10], '🔴 cuando se completa el grupo de 5, entra entero (el 8 de Oscar ya es rojo), 10 personas');
+  PRUEBAS.igual([m.a.etapa, m.a.personas], ['seguro', P], 'antes: el primer grupo, todo verde');
+  PRUEBAS.igual([m.b.etapa, m.b.personas], ['seguro', P], '🔴 con un solo test nuevo en amarillo, el estado no se mueve: ese test espera su grupo');
+  PRUEBAS.igual([m.c.etapa, m.c.personas], ['poco', 2 * P], '🔴 cuando se completa el grupo de ' + P + ', entra entero (el 8 de Oscar ya es rojo), ' + (2 * P) + ' personas');
   /* Discriminador: sin piso en NINGUNA capa —unidades de una persona, grupos «estado» de una persona con color y sin las
      guardas del lector que rechazan filas por debajo de su piso— el test nuevo mueve el estado solo */
   const s = correr([['        formarUnidadesHseq_(tests, piso, claveDe).unidades.forEach(function (un) {',
                      '        formarUnidadesHseq_(tests, 1, claveDe).unidades.forEach(function (un) {'],
-                    ['    if (info && (pisoF < PISO_MIN_HSEQ || pers < pisoF || (Number(v[i][5]) || 0) < pers)) info.invalida = true;',
+                    [P310_GUARDA_LECTOR,
                      '    if (false) info.invalida = true;'],
                     ['      if (info && (ve + am + ro < pisoF || ve + am + ro < pers || ids.length !== pers)) info.invalida = true;',
                      '      if (false) info.invalida = true;'],
-                    ['        if (!(e.piso >= PISO_MIN_HSEQ) || e.personas < e.piso || coloreados < e.personas) { estadoNoEscritos++; return; }', '        void coloreados;']]);
+                    [P310_GUARDA_ESTADO, '        void coloreados;']]);
   PRUEBAS.igual(s.faltan || s.b.etapa, 'poco', '⚠️ discriminador · sin el piso en ninguna capa, un solo test (el 8 de Oscar) cambia el estado');
 });
 
@@ -190,14 +202,14 @@ PRUEBAS.caso('🔴 P310 · las filas que ya sellaba P308 no cambian de firma, y 
 PRUEBAS.caso('🔴 P310 · una fila «estado» editada a mano detiene la cuenta, aunque los números cuadren', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
   /* R19 · lo detiene la firma por cuenta (`firmasHseq_` al sellar, `totalesHseqDeEmpresa_` al leer), que cubre las
-     columnas nuevas con `hashFilaHseq_`. «Verdes 5 → 4, Rojos 0 → 1» deja la suma y las huellas como estaban: sólo la
+     columnas nuevas con `hashFilaHseq_`. «Verdes − 1, Rojos 0 → 1» deja la suma y las huellas como estaban: sólo la
      firma la ve. */
   const correr = (sab) => {
     const w = p310Mundo(P310_VERDES.map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3)), {}, sab);
     if (w.faltan) return { faltan: w.faltan };
     w.sellarYPedir('2026-11-03T15:00:00-04:00');
     const h = w.hoja('Totales HSEQ'), v = h.getDataRange().getValues();
-    for (let i = 1; i < v.length; i++) if (String(v[i][2]) === 'estado') { h.getRange(i + 1, 15).setValue(4); h.getRange(i + 1, 17).setValue(1); break; }
+    for (let i = 1; i < v.length; i++) if (String(v[i][2]) === 'estado') { h.getRange(i + 1, 15).setValue(Number(v[i][14]) - 1); h.getRange(i + 1, 17).setValue(1); break; }
     return w.pedir();
   };
   const r = correr();
@@ -211,9 +223,13 @@ PRUEBAS.caso('🔴 P310 · una fila «estado» editada a mano detiene la cuenta,
 PRUEBAS.caso('🔴 P310 · el umbral es por empresa (`umbralEstado`, de 20 a 100), y viaja para que la guía diga el que rige', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
   /* R19 · lo lee `accionSupervisor` de `cfgEmpresa` (clave canónica por `MANT_CONFIG_OK`) y lo aplica `estadoPeriodoHseq_`.
-     Dos tandas de 10 (lunes y martes), 2 y 3 en amarillo (KSS 6): la semana tiene 5 de 20. */
-  const diez = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis', 'Alma Única', 'Lara Legal', 'Leo Legal', 'Mario Mes'];
-  const tanda = (d, amarillos) => diez.map((p, i) => p310T(p, d, '08:' + String(10 + i), i < amarillos ? 6 : 3));
+     Dos tandas (lunes y martes), 2 y 3 en amarillo (KSS 6). P388 · cada tanda, el primer múltiplo del piso desde 10 (10
+     con piso 5, 12 con piso 3): así cada una cierra entera el mismo día. Con 10 y piso 3 quedaba una persona del lunes
+     esperando, entraba al martes, y la semana pasaba de 5 de 20 a 5 de 17. */
+  const P = p310Piso(), N = P * Math.ceil(10 / P);
+  const gente = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis', 'Alma Única', 'Lara Legal', 'Leo Legal', 'Mario Mes',
+                 'Marta Mes', 'Nora Nueva'].slice(0, N);
+  const tanda = (d, amarillos) => gente.map((p, i) => p310T(p, d, '08:' + String(10 + i), i < amarillos ? 6 : 3));
   const correr = (umbral, sab) => {
     const w = p310Mundo(tanda('2026-11-02', 2).concat(tanda('2026-11-03', 3)), {}, sab);
     if (w.faltan) return { faltan: w.faltan };
@@ -222,8 +238,8 @@ PRUEBAS.caso('🔴 P310 · el umbral es por empresa (`umbralEstado`, de 20 a 100
     const r = w.sellarYPedir('2026-11-03T15:00:00-04:00');
     return { etapa: ((r.totalesHseq.periodos.semana || {}).estado || {}).etapa, umbral: r.totalesHseq.umbralEstado };
   };
-  PRUEBAS.igual(correr(null), { etapa: 'atencion', umbral: 25 }, 'por defecto, 25 %: 5 de 20 en amarillo sigue en «requiere atención»');
-  PRUEBAS.igual(correr('20'), { etapa: 'levemente', umbral: 20 }, '🔴 con «umbralEstado = 20» en Config Empresa, 5 de 20 pasa a «LEVEMENTE SEGURO»');
+  PRUEBAS.igual(correr(null), { etapa: 'atencion', umbral: 25 }, 'por defecto, 25 %: 5 de ' + (2 * N) + ' en amarillo sigue en «requiere atención»');
+  PRUEBAS.igual(correr('20'), { etapa: 'levemente', umbral: 20 }, '🔴 con «umbralEstado = 20» en Config Empresa, 5 de ' + (2 * N) + ' pasa a «LEVEMENTE SEGURO»');
   PRUEBAS.igual(correr('15'), { etapa: 'atencion', umbral: 25 }, '🔴 un umbral menor a 20 no vale: rige el 25');
   /* P387 · el ancla es la línea del camino sellado: desde P387 la sentencia tiene también el de la cuenta Empresa Demo
      (`totalesHseqDemo_`), con los mismos dos argumentos. */
@@ -259,9 +275,10 @@ PRUEBAS.caso('🔴 P310 · B1 · un día poco confiable no saca a nadie del grup
   /* R19 · `coloresTestsHseq_` colorea TODOS los tests, también los de un día poco confiable, y `gruposEstadoHseq_` cuenta a
      todas las personas del grupo. El escenario del verificador (ronda 1): el martes cuatro con el día poco confiable y
      Oscar con 8. Si sólo Oscar tuviera color, el grupo diría el color de UNA persona. */
-  const lunes = [p310T('Oscar Uno', '2026-11-02', '08:00', 8)].concat(['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes']
+  const P = p310Piso();
+  const lunes = [p310T('Oscar Uno', '2026-11-02', '08:00', 8)].concat(['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Nora Nueva'].slice(0, P - 1)
     .map((p, i) => p310T(p, '2026-11-02', '08:0' + (i + 1), 3)));
-  const martesGente = ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco'];
+  const martesGente = ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].slice(0, P - 1);
   const martes = martesGente.map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 3)).concat([p310T('Oscar Uno', '2026-11-03', '08:04', 8)]);
   const correr = (pocoConfiables, sab) => {
     const w = p310Mundo(lunes.concat(martes), { confiabilidad: pocoConfiables ? martesGente.map(p => P310_CONF(p, '2026-11-03')) : [] }, sab);
@@ -274,12 +291,12 @@ PRUEBAS.caso('🔴 P310 · B1 · un día poco confiable no saca a nadie del grup
   const m = correr(true), c = correr(false);
   PRUEBAS.igual(m.faltan || [], [], 'guarda');
   if (m.faltan) return;
-  PRUEBAS.igual(m, [{ verdes: 4, amarillos: 0, rojos: 1, personas: 5 }], '🔴 con cuatro días poco confiables, el grupo del martes tiene a los cinco con color: el rojo es uno de cinco');
+  PRUEBAS.igual(m, [{ verdes: P - 1, amarillos: 0, rojos: 1, personas: P }], '🔴 con ' + (P - 1) + ' días poco confiables, el grupo del martes tiene a los ' + P + ' con color: el rojo es uno de ' + P);
   PRUEBAS.igual(c, m, 'CONTROL: con los cuatro confiables, el mismo grupo');
   const s = correr(true, [['      var r = x.r, col = {};', '      var r = x.r, col = {}; if (r.confiable === false) { r.__colorHseq = col; return; }'],
                           ['        var c = (x.r.__colorHseq && typeof x.r.__colorHseq[x.m] === "number") ? x.r.__colorHseq[x.m] : 0;\n        peor[quien]',
                            '        var c = (x.r.__colorHseq && typeof x.r.__colorHseq[x.m] === "number") ? x.r.__colorHseq[x.m] : -1;\n        if (c < 0) return;\n        peor[quien]'],
-                          ['        if (!(e.piso >= PISO_MIN_HSEQ) || e.personas < e.piso || coloreados < e.personas) { estadoNoEscritos++; return; }', '        void coloreados;']]);
+                          [P310_GUARDA_ESTADO, '        void coloreados;']]);
   PRUEBAS.igual(s.faltan || s.map(x => x.verdes + x.amarillos + x.rojos), [1], '⚠️ discriminador · si un día poco confiable deja sin color, el grupo del martes queda con el color de Oscar solo');
 });
 
@@ -311,13 +328,14 @@ PRUEBAS.caso('🔴 P310 · I2 · cada suma queda ENTERA dentro de un grupo de co
      (`u:` + el hash de sus huellas), nunca con tests sueltos. El escenario del verificador: el lunes Lara, Leo, Mario y
      Marta hacen KSS 5, Nora estrés y Oscar KSS 9. La unidad de KSS (los cuatro y Oscar) suma 29: si un grupo «estado»
      dijera que los cuatro están en verde (KSS ≤ 5), 29 − 4 × 5 despejaría el 9 de Oscar. */
-  const tests = ['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes'].map((p, i) => p310T(p, '2026-11-02', '08:0' + i, 5))
-    .concat([p310T('Nora Nueva', '2026-11-02', '08:04', 2, 'estres'), p310T('Oscar Uno', '2026-11-02', '09:00', 9)]);
+  const P = p310Piso();
+  const tests = ['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Alma Única'].slice(0, P - 1).map((p, i) => p310T(p, '2026-11-02', '08:0' + i, 5))
+    .concat([p310T('Nora Nueva', '2026-11-02', '08:05', 2, 'estres'), p310T('Oscar Uno', '2026-11-02', '09:00', 9)]);
   const w = p310Mundo(tests, { ahora: '2026-11-02T15:00:00-04:00' });
   if (w.faltan) { PRUEBAS.igual(w.faltan, [], 'guarda'); return; }
   const r = w.sellarYPedir('2026-11-02T15:00:00-04:00');
   const kss = r.totalesHseq.periodos.hoy.metricas.kss, est = r.totalesHseq.periodos.hoy.estado || {};
-  PRUEBAS.igual(kss && [kss.n, kss.suma], [5, 29], 'guarda: la unidad de KSS de los cuatro y Oscar');
+  PRUEBAS.igual(kss && [kss.n, kss.suma], [P, 5 * (P - 1) + 9], 'guarda: la unidad de KSS de los ' + (P - 1) + ' y Oscar');
   PRUEBAS.cierto(est.etapa !== 'seguro', '🔴 el grupo de colores es ESA unidad: no puede decir «todos en verde» (Oscar 9 es amarillo) · ' + JSON.stringify(est));
   /* y la forma, en la hoja: cada fila «estado» cubre unidades enteras de las métricas, cada una en un solo grupo */
   const v = w.hoja('Totales HSEQ').getDataRange().getValues().slice(1);
@@ -452,14 +470,14 @@ PRUEBAS.caso('🔴 P310 · A · la primera corrida no deja a HSEQ sin totales au
     PRUEBAS.igual(m.faltan || [], [], 'guarda · ' + c);
     if (m.faltan) return;
     PRUEBAS.igual([m.totales, m.causa], [true, ''], '🔴 ' + c + ': HSEQ sigue viendo sus totales (ningún falso «hoja tocada»)');
-    PRUEBAS.cierto(m.estados.every(e => e.piso >= 5 && e.personas >= e.piso && e.colores >= e.personas),
+    PRUEBAS.cierto(m.estados.every(e => e.piso >= p310PisoLector() && e.personas >= e.piso && e.colores >= e.personas),
       c + ': ningún grupo escrito que el lector rechazaría · ' + JSON.stringify(m.estados));
   });
   /* Discriminador: sin las cuatro guardas (unidad completa, participantes por la cédula del test, piso de sus unidades, no
      escribir lo inválido), cada cambio deja a HSEQ sin ningún total */
   const sab = [['!cubiertas[u.id] && u.completa && u.tanda > topeE', '!cubiertas[u.id] && u.tanda > topeE'],
                ['gruposEstadoHseq_(pendientes, claveE)', 'gruposEstadoHseq_(pendientes, claveDe)'],
-               ['        if (!(e.piso >= PISO_MIN_HSEQ) || e.personas < e.piso || coloreados < e.personas) { estadoNoEscritos++; return; }', '        void coloreados;'],
+               [P310_GUARDA_ESTADO, '        void coloreados;'],
                ['e.personas, e.piso, new Date(e.tanda).toISOString(),', 'e.personas, piso, new Date(e.tanda).toISOString(),']];
   ['salio', 'borrado', 'anonN'].forEach(c => {
     const s = correr(c, sab);
@@ -473,9 +491,10 @@ PRUEBAS.caso('🔴 P310 · B · una unidad que cierra tarde con tests viejos ent
   /* R19 · el tope de «estado» va por TANDA (`u.tanda > topeE`). El escenario del verificador: el lunes Pedro (todavía fuera
      de la nómina) mide KSS 8 con cuatro compañeros; la unidad no cierra (4 de 5). El martes otra tanda de estrés sube el
      tope. Pedro entra a la nómina y la unidad del lunes cierra con tests del lunes. */
-  const lunes = ['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes'].map((p, i) => p310T(p, '2026-11-02', '08:0' + i, 3))
-    .concat([p310T('Pedro Pendiente', '2026-11-02', '08:04', 8)]);
-  const martes = ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 6, 'estres'));
+  const P = p310Piso();
+  const lunes = ['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Nora Nueva'].slice(0, P - 1).map((p, i) => p310T(p, '2026-11-02', '08:0' + i, 3))
+    .concat([p310T('Pedro Pendiente', '2026-11-02', '08:05', 8)]);
+  const martes = ['Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].slice(0, P).map((p, i) => p310T(p, '2026-11-03', '08:0' + i, 6, 'estres'));
   const correr = (sab) => {
     const w = p310Mundo(lunes.concat(martes), {}, sab);
     if (w.faltan) return { faltan: w.faltan };
@@ -489,7 +508,7 @@ PRUEBAS.caso('🔴 P310 · B · una unidad que cierra tarde con tests viejos ent
   const m = correr();
   PRUEBAS.igual(m.faltan || [], [], 'guarda');
   if (m.faltan) return;
-  PRUEBAS.igual([m.kss, m.etapa], [5, 'poco'], '🔴 la tarjeta suma la unidad del lunes, y el estado también ve el 8 de Pedro');
+  PRUEBAS.igual([m.kss, m.etapa], [P, 'poco'], '🔴 la tarjeta suma la unidad del lunes, y el estado también ve el 8 de Pedro');
   const s = correr([['piso: Number(f[10]) || 0, num:', 'piso: Number(f[10]) || 0, hasta: Date.parse(String(f[11] || "")) || 0, num:'],
                     ['!cubiertas[u.id] && u.completa && u.tanda > topeE', '!cubiertas[u.id] && u.completa && u.hasta > topeE']]);
   PRUEBAS.igual(s.faltan || s.etapa, 'seguro', '⚠️ discriminador · con el tope por `hasta`, la unidad del lunes queda afuera y el estado dice SEGURO');
@@ -501,13 +520,17 @@ PRUEBAS.caso('🔴 P310 · la cobertura del cartel cuenta sólo a quien está HO
   /* R19 · `totalesHseqDeEmpresa_` filtra los `ids` de los grupos con la nómina vigente; el cliente divide por `nominaTotal`.
      El escenario del verificador: miden 8 de la nómina (12) y 3 de afuera, homónimos de la nómina de otra empresa (el
      resolutor les da su cédula por el nombre). La cobertura real es 8 de 12. */
-  const N = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis', 'Lara Legal', 'Leo Legal'];
+  /* P388 · KSS con `P` de la nómina y estrés con otros `P` que se solapan en dos: con piso 5 son los mismos ocho de antes
+     (8 de 12); con piso 3, cuatro. Con las listas fijas y piso 3 quedaban personas esperando y la cuenta no era la del
+     escenario. */
+  const P = p310Piso(), DIST = 2 * P - 2;
+  const N = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis', 'Lara Legal', 'Leo Legal', 'Alma Única', 'Mario Mes'];
   const X = ['Ximena Externa', 'Xavier Externo', 'Xiomara Externa'];
   const correr = (sab) => {
     const tests = [];
-    N.slice(0, 5).forEach((p, i) => tests.push(p310T(p, '2026-11-03', '07:0' + i, 3)));
+    N.slice(0, P).forEach((p, i) => tests.push(p310T(p, '2026-11-03', '07:0' + i, 3)));
     X.forEach((p, i) => tests.push(p310T(p, '2026-11-03', '06:5' + i, 3)));
-    N.slice(3, 8).forEach((p, i) => tests.push(p310T(p, '2026-11-03', '07:2' + i, 2, 'estres')));
+    N.slice(P - 2, 2 * P - 2).forEach((p, i) => tests.push(p310T(p, '2026-11-03', '07:2' + i, 2, 'estres')));
     const w = p310Mundo(tests, {}, sab);
     if (w.faltan) return { faltan: w.faltan };
     X.forEach((p, i) => w.hoja('Nómina').appendRow(['Cardón', p, 'V-99900' + i, 'Planta', 'Operario', '', '', '', '', 'No', '', 'empleado', '3']));
@@ -517,9 +540,9 @@ PRUEBAS.caso('🔴 P310 · la cobertura del cartel cuenta sólo a quien está HO
   const m = correr();
   PRUEBAS.igual(m.faltan || [], [], 'guarda');
   if (m.faltan) return;
-  PRUEBAS.igual([m.personas, m.nomina], [8, 12], '🔴 8 de 12 medidos: las 3 de afuera no cuentan (y el cartel se atenúa)');
+  PRUEBAS.igual([m.personas, m.nomina], [DIST, 12], '🔴 ' + DIST + ' de 12 medidos: las 3 de afuera no cuentan (y el cartel se atenúa)');
   const s = correr([['    (U[ESTADO_HSEQ] || []).forEach(function (g) { g.ids = g.ids.filter(function (h) { return vigentes[h]; }); });', '    void vigentes;']]);
-  PRUEBAS.igual(s.faltan || s.personas, 11, '⚠️ discriminador · sin el filtro, las de afuera suben la cobertura a 11 de 12 y el cartel no se atenúa');
+  PRUEBAS.igual(s.faltan || s.personas, DIST + 3, '⚠️ discriminador · sin el filtro, las de afuera suben la cobertura a ' + (DIST + 3) + ' de 12');
 });
 
 PRUEBAS.caso('🔴 P310 · una unidad con un test borrado no entra al estado: sus colores no pueden cubrir menos que su suma', () => {
@@ -527,8 +550,9 @@ PRUEBAS.caso('🔴 P310 · una unidad con un test borrado no entra al estado: su
   /* R19 · `sellarTotalesHseq_` agrupa sólo unidades completas (`u.completa`). El escenario del verificador: una unidad de 6
      tests (Oscar dos veces: 9 y 5) suma 34; si se borra el 9 y el grupo se arma con los 5 que quedan, todos verdes,
      «SEGURO» y la suma de la tarjeta dan 34 − 5 × 5 = 9: el test borrado, exacto. */
+  const P = p310Piso();
   const tests = [p310T('Oscar Uno', '2026-11-02', '08:00', 9), p310T('Oscar Uno', '2026-11-02', '08:01', 5)]
-    .concat(['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes'].map((p, i) => p310T(p, '2026-11-02', '08:0' + (i + 2), 5)));
+    .concat(['Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Nora Nueva'].slice(0, P - 1).map((p, i) => p310T(p, '2026-11-02', '08:0' + (i + 2), 5)));
   const correr = (sab) => {
     const w = p310Mundo(tests, {}, sab);
     if (w.faltan) return { faltan: w.faltan };
@@ -543,7 +567,7 @@ PRUEBAS.caso('🔴 P310 · una unidad con un test borrado no entra al estado: su
   const m = correr();
   PRUEBAS.igual(m.faltan || [], [], 'guarda');
   if (m.faltan) return;
-  PRUEBAS.igual(m.kss, [6, 34], 'guarda: la tarjeta sigue con la unidad sellada (6 tests, suma 34)');
+  PRUEBAS.igual(m.kss, [P + 1, 14 + 5 * (P - 1)], 'guarda: la tarjeta sigue con la unidad sellada (' + (P + 1) + ' tests, Oscar dos veces)');
   PRUEBAS.igual([m.etapa, m.incompletas], [null, 1], '🔴 el estado no la cubre (y el sellado lo informa)');
   const s = correr([['completa: hs.length > 0 && tests.length === hs.length, tests: tests });', 'completa: hs.length > 0, tests: tests });']]);
   PRUEBAS.igual(s.faltan || s.etapa, 'seguro', '⚠️ discriminador · sin la guarda, «SEGURO» con la suma 34 despeja el 9 borrado');

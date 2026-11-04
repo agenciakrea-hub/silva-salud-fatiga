@@ -100,15 +100,20 @@ PRUEBAS.caso('🔴 P310 · con menos del 70 % de la nómina medida se atenúa y 
 PRUEBAS.caso('🔴 P310 · debajo del piso no hay etapa, ni color, ni cuántos, ni porcentaje', () => {
   if (p310Saltea()) { PRUEBAS.cierto(true, 'se saltea (sin app o sin .gs)'); return; }
   const x = p310Payload({ etapa: null, causa: 'bajo_piso' });
-  Object.keys(x.totalesHseq.periodos.semana.metricas).forEach(m => { x.totalesHseq.periodos.semana.metricas[m] = null; });
-  const c = p310Pinta(x);
+  /* P388 · sin ningún total en NINGÚN período (la causa es «todavía nadie completó un grupo»), el cartel dice lo de
+     siempre; con totales en otro período o sin nómina dice la causa, y eso lo mide `p388-piso-3.js`. Hasta P388 este
+     caso vaciaba sólo la semana. El piso, el que mandó el servidor (era 5 escrito acá). */
+  Object.keys(x.totalesHseq.periodos).forEach(per => { const met = x.totalesHseq.periodos[per].metricas; Object.keys(met).forEach(m => { met[m] = null; }); });
+  /* y el reloj del cierre al día, como en producción: con el reloj parado no se afirma nada de los grupos (P388) */
+  x.totalesHseq.ultimaCorrida = new Date(Date.now() - 5 * 60000).toISOString();
+  const c = p310Pinta(x), n = x.totalesHseq.piso;
   PRUEBAS.igual([c.visible, c.etapa, c.color, c.signo, c.chip], [true, null, 'tenue', null, false], '🔴 sin grupo: escudo tenue, sin etapa, sin signo y sin chip');
-  PRUEBAS.igual(c.texto, t('kpi_bajo_piso', { n: 5 }), 'dice lo mismo que las tarjetas: «Todavía no hay un grupo de 5»');
+  PRUEBAS.igual(c.texto, t('kpi_bajo_piso', { n: n }), 'dice lo mismo que las tarjetas: «Todavía no hay un grupo de ' + n + '»');
   const conTarjetas = p310Pinta(p310Payload({ etapa: null, causa: 'bajo_piso' }));
-  PRUEBAS.igual(conTarjetas.texto, t('hse_sin_estado'), '🔴 con tarjetas con números y sin grupo «estado», no dice «todavía no hay un grupo de 5»');
+  PRUEBAS.igual(conTarjetas.texto, t('hse_sin_estado'), '🔴 con tarjetas con números y sin grupo «estado», no dice «todavía no hay un grupo de N»');
   const p = p310Pinta(p310Payload({ etapa: null, causa: 'sin_calcular' }));
-  PRUEBAS.igual([p.etapa, p.texto], [null, t('hse_sin_calcular')], '🔴 antes del primer cálculo (cuenta con grupos de métricas y sin grupos «estado»), lo dice: no «menos de 5»');
-  PRUEBAS.cierto(!/\d/.test(c.texto.replace(/5/g, '')), 'ningún número más que el piso');
+  PRUEBAS.igual([p.etapa, p.texto], [null, t('hse_sin_calcular')], '🔴 antes del primer cálculo (cuenta con grupos de métricas y sin grupos «estado»), lo dice: no «menos del piso»');
+  PRUEBAS.cierto(!/\d/.test(c.texto.split(String(n)).join('')), 'ningún número más que el piso');
 });
 
 PRUEBAS.caso('🔴 P310 · el chip es la confiabilidad de los tests evaluados del período, y sólo de las métricas que los traen', () => {

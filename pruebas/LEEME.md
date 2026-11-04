@@ -393,6 +393,24 @@ lo usan la pista y la credencial) y en `f001-f003-reportes-de-franco.js`. Ese mo
 contra este instrumento: dan los mismos números (pista: 1,02 · 2,09 · −10,5 y −18,2 px con las reglas
 de la 7.48; credencial: 2,09 con la regla de la 7.49, y 2,80 sin la columna fija con letra máxima).
 
+## Los casos de HSEQ leen el piso del `.gs` (P388 · 2026-11-04)
+
+Desde ADR 019 el piso de HSEQ es 3, y hay DOS constantes en el endpoint: `PISO_MIN_HSEQ` (con el que se sella) y
+`PISO_LECTOR_HSEQ` (el menor que acepta el lector y que la guarda del estado deja escribir; no se sube nunca). Hasta P388
+`p308`, `p309`, `p310` y `p051` daban por hecho el 5 (`const P308_PISO = 5`, grupos de cinco verdes, `t('kpi_bajo_piso',
+{ n: 5 })`), y con el servidor en 3 cayeron 17 casos y 8 discriminadores dejaron de discriminar.
+
+- **El piso nunca se escribe en un caso.** Se lee del `.gs` real: `p308Piso()`, `p310Piso()`, `p310PisoLector()`,
+  `p388Num('PISO_MIN_HSEQ')`. En el cliente, el que mandó el servidor (`payload.totalesHseq.piso`) o `hseqPiso()`.
+- **Los bancos se arman con `P` personas** (`.slice(0, P)`, `P − 1` para «debajo del piso»). Medido: `p308` y `p310` pasan
+  con el `.gs` en 3 y con el sellado vuelto a 5; con 4 (que nadie decidió) caen seis casos por escenario, no por defecto.
+- **Un discriminador de re-sellado tiene que dejar a alguien solo con CUALQUIER piso.** Con 3 caben dos unidades por día y
+  el átomo del test re-sellado se funde con la otra unidad del mismo día. El principio: que el sabotaje re-selle UN test
+  viejo junto con `P − 1` nuevos (o que la unidad nueva quede en otro día). Así lo hacen `p308Holding`, `p308Reasignada`,
+  `huellasVaciadas`, `filaBorrada` y `futuroYReconciliar`.
+- `p388-piso-3.js` tiene un mundo con el `.gs` intercambiable (`p388Mundo(...).usar(texto)`): sella con un código y lee con
+  otro sobre el MISMO libro, que es lo que pasa al publicar. Ahí viven la transición de 5 a 3 y la vuelta a 5.
+
 ## Cómo agregar un caso
 
 1. Crear el archivo en `casos/`. La convención del nombre es `cliente-*.js` o `servidor-*.js`.

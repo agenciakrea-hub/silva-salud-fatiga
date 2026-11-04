@@ -1,7 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
    P308 · DE LOS TESTS, HSEQ RECIBE SÓLO TOTALES                                       (2026-10-23)
    Decisión de Franco (2026-10-14, «Tests sólo en totales»): de los tests, HSEQ ve sólo totales de
-   grupos de 5 o más personas medidas —el piso, máx(5, anonN)—, y debajo nada, ni el color. El
+   grupos de `piso` o más personas medidas —máx(PISO_MIN_HSEQ, anonN): 5 hasta P388, 3 desde ADR 019—, y
+   debajo nada, ni el color. El
    servidor los arma en UNIDADES de al menos `piso` personas distintas POR CÉDULA, en el orden de
    llegada, y las SELLA en `Totales HSEQ`: una unidad sellada no se recalcula nunca (ADR 018).
 
@@ -34,7 +35,11 @@ PRUEBAS.grupo('P308 · de los tests, HSEQ recibe sólo totales');
 /* El «ahora» por defecto: martes 3 de noviembre de 2026, 15:00 en Caracas. La semana anterior (lunes
    26 de octubre a domingo 1 de noviembre) CORTA el mes: es la situación (b) del plan. */
 const P308_AHORA = '2026-11-03T15:00:00-04:00';
-const P308_PISO = 5;
+/* P388 · EL PISO SE LEE DEL `.gs` REAL (R19, R21), nunca escrito acá: `PISO_MIN_HSEQ`, el que usa `pisoHseq_` para
+   sellar. Hasta P388 era `const P308_PISO = 5`: con el servidor en 3, «despejable» seguía midiendo contra 5 y daba en
+   rojo átomos de 3 y 4 personas, que con piso 3 son totales legítimos; y al revés, los discriminadores que aislaban 3 o
+   4 personas seguían «discriminando» algo que ya no es una fuga. Sin `.gs`, NaN: esos casos se saltean (`CTX.hayGs`). */
+function p308Piso() { const m = /\nvar PISO_MIN_HSEQ = (\d+);/.exec(String(CTX.gs || '')); return m ? Number(m[1]) : NaN; }
 /* Doce personas ficticias, todas en la nómina con su cédula. Operaciones tiene seis; el resto, áreas
    chicas: una persona sola con su cargo, un área de dos, y un área de tres. */
 const P308_GENTE = {
@@ -145,7 +150,7 @@ const P308_AYUDA =
   '      .sort(function (a, b) { return ((+a.ts) - (+b.ts)) || (a.__orden - b.__orden); });\n' +
   '    out[m] = formarUnidadesHseq_(ts, piso, function (r) { return piso1 ? norm(r.persona) : cedulaNorm(r.cedula); }).unidades\n' +
   '      .map(function (u) { var a = agregarUnidadHseq_(u, m, null); a.sellada = a.hasta; return a; }); });\n' +
-  '  return totalesHseq_(out, piso1 ? 5 : piso, Date.now()); }\n';
+  '  return totalesHseq_(out, piso1 ? PISO_MIN_HSEQ : piso, Date.now()); }\n';
 const P308_FN_LEE = 'function totalesHseqDeEmpresa_(empresaCanon, anonN, umbral) {';
 const P308_LEE = '    var T = totalesHseq_(U, pisoHseq_(anonN), Date.now(), umbral);';
 /* Un sabotaje que EXTIENDE lo que lee el panel: `extra` es código que recibe `T` (los totales de verdad) y
@@ -157,9 +162,9 @@ function p308Extiende(extra) {
 const P308_SABOTAJES = {
   /* (1) «sólo tapa la pantalla»: el servidor manda los totales por área; el cliente no los pinta. */
   tapaPantalla: p308Extiende('    T.grupos = {}; regs.forEach(function (r) { var d = r.departamento || "—"; if (!T.grupos[d]) T.grupos[d] = p308Crudo_(regs, "kss", function (x) { return x.departamento === d; }); });'),
-  /* (2) «manda los dos totales con su conteo»: el día y el área grande, cada uno con su piso de 5 nombres. */
+  /* (2) «manda los dos totales con su conteo»: el día y el área grande, cada uno con su piso en nombres. */
   dosTotales: p308Extiende('    var dia = p308Crudo_(regs, "kss", function (x) { return x.fecha === hoy; }), area = p308Crudo_(regs, "kss", function (x) { return x.fecha === hoy && x.departamento === "Operaciones"; });\n' +
-                           '    T.porArea = { dia: dia.n >= 5 ? dia : null, operaciones: area.n >= 5 ? area : null };'),
+                           '    T.porArea = { dia: dia.n >= PISO_MIN_HSEQ ? dia : null, operaciones: area.n >= PISO_MIN_HSEQ ? area : null };'),
   /* (3) «deja el color de un grupo chico» */
   colorChico: p308Extiende('    T.colores = { "Administración": "rojo" };'),
   /* períodos (1) «calcular sobre el rango pedido»: lo inyecta `accionSupervisor`, que es quien ve el rango */
@@ -176,7 +181,7 @@ const P308_SABOTAJES = {
   diaOculto: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
     [P308_LEE, '    var T = p308SinSellar_(empresaCanon, anonN, true);'],
     ['  t.serie = claves.map(function (k) { return { k: k, n: porK[k].n, suma: redondo(porK[k].suma), __filas: porK[k].__filas }; });',
-     '  t.serie = claves.map(function (k) { return { k: k, n: porK[k].n, suma: redondo(porK[k].suma), __filas: porK[k].__filas }; }).filter(function (p) { return p.n >= 5; });']],
+     '  t.serie = claves.map(function (k) { return { k: k, n: porK[k].n, suma: redondo(porK[k].suma), __filas: porK[k].__filas }; }).filter(function (p) { return p.n >= PISO_MIN_HSEQ; });']],
   /* períodos (4) y los cambios en filas viejas: rearmar en cada pedido, como la 1.ª versión */
   sinSellar: [[P308_FN_LEE, P308_AYUDA + P308_FN_LEE],
     [P308_LEE, '    var T = p308SinSellar_(empresaCanon, anonN, false);']],
@@ -200,7 +205,7 @@ const P308_SABOTAJES = {
   sinBorrarTopeViejo: [['      if (!quedan) delete T["k:" + de];', '']],
   /* el panel sin comparar la firma: una fila agregada a mano a la hoja entra al total */
   sinFirmaAlLeer: [['    if ((conf && !mismo(info.firma, conf) && !mismo(info.firma, pend)) || info.invalida)', '    if (info.invalida)']],
-  /* el panel sin rechazar las filas que ningún sellado escribe (menos de 5 personas) */
+  /* el panel sin rechazar las filas que ningún sellado escribe (un piso menor que el mínimo del lector) */
   sinValidarFilas: [['    if ((conf && !mismo(info.firma, conf) && !mismo(info.firma, pend)) || info.invalida)', '    if (conf && !mismo(info.firma, conf) && !mismo(info.firma, pend))']],
   /* el tope sólo de la hoja, sin el guardado: borrar la última fila sellada lo baja y sus tests se re-sellan */
   sinTopeGuardado: [['        var T = topes[m], tope = Number(T["k:" + k]) || 0;\n        (cuentas.variantesDe[k] || []).forEach(function (x) { var n = norm(x); if (n) tope = Math.max(tope, Number(T["n:" + n]) || 0); });\n        if (!tope) tope = Math.min(hastaHoja[e0 + "|" + m] || 0, ahoraMs);',
@@ -350,7 +355,7 @@ function p308Medir(respuestas, tests, piso) {
   const conj = [], sinTraza = [];
   respuestas.forEach((r, i) => p308Conjuntos(r.totalesHseq, 'r' + i, conj, sinTraza));
   const personaDe = p308PersonaDe(tests);
-  const chicos = p308Atomos(conj, personaDe).filter(a => a.personas > 0 && a.personas < (piso || P308_PISO))
+  const chicos = p308Atomos(conj, personaDe).filter(a => a.personas > 0 && a.personas < (piso || p308Piso()))
     .map(a => a.nombres.join('+') + ' (' + a.filas.length + ' tests)');
   return { conj: conj, sinTraza: sinTraza, despejable: chicos };
 }
@@ -425,8 +430,9 @@ function p308Forma(T) {
 
 /* ── Situaciones ─────────────────────────────────────────────────────────────────────────────── */
 /* Las cuatro del plan: un cargo de una persona (Alma, Presidente), un área de dos (Legal), un cruce
-   de dos atributos que da menos de 5 (Operaciones × Técnico: 3) y un día —hoy— con 7 medidos, 6 de
-   ellos de Operaciones. */
+   de dos atributos que daba menos de 5 (Operaciones × Técnico: 3) y un día —hoy— con 7 medidos, 6 de
+   ellos de Operaciones. P388 · con el piso en 3, el cruce de 3 ya no es un grupo chico: `p308Chicos()` deja sólo los
+   de menos del piso del `.gs`. */
 function p308Cuatro() {
   return [
     { p: 'Lara Legal', d: '2026-11-02', h: '08:00', v: 4 }, { p: 'Leo Legal', d: '2026-11-02', h: '08:10', v: 6 },
@@ -440,16 +446,18 @@ const P308_CHICOS = [
   { que: 'Alma sola (cargo y área de una persona)', n: 1, suma: 9 },
   { que: 'Legal (área de dos)', n: 2, suma: 10 },
   { que: 'Operaciones × Técnico (tres)', n: 3, suma: 18 }];
+/* los grupos chicos ante el piso del `.gs`: una persona por test, así que `n` son personas */
+function p308Chicos() { return P308_CHICOS.filter(c => c.n < p308Piso()); }
 function p308MedirCuatro(sabotaje) {
   const tests = p308Cuatro();
   const r = p308Pedir(tests, { sabotaje: sabotaje });
   if (r.faltan) return { faltan: r.faltan };
   const m = p308Medir([r], tests);
   return { r: r, forma: p308Forma(r.totalesHseq), despejable: m.despejable, sinTraza: m.sinTraza, conj: m.conj,
-           restas: p308Restas([r], P308_CHICOS) };
+           restas: p308Restas([r], p308Chicos()) };
 }
 
-PRUEBAS.caso('🔴 P308 · las cuatro situaciones: ningún grupo de menos de 5 se lee ni se despeja, ni su color', () => {
+PRUEBAS.caso('🔴 P308 · las cuatro situaciones: ningún grupo de menos del piso se lee ni se despeja, ni su color', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const m = p308MedirCuatro();
   PRUEBAS.igual(m.faltan || [], [], 'guarda: el trazador se aplicó sobre el `.gs` real');
@@ -459,9 +467,9 @@ PRUEBAS.caso('🔴 P308 · las cuatro situaciones: ningún grupo de menos de 5 s
   PRUEBAS.igual(m.conj.filter(c => c.filas.length !== c.n).map(c => c.k), [], 'guarda: cada total trae la traza de todos sus tests');
   PRUEBAS.igual(m.sinTraza, [], '🔴 no hay ningún total sin traza (lo que no se puede medir no se publica)');
   const hoyK = ((m.r.totalesHseq.periodos || {}).hoy || {}).metricas || {};
-  PRUEBAS.cierto(!!hoyK.kss && hoyK.kss.n === 7, 'guarda: hoy cerró una unidad de 5 personas (7 tests) · ' + JSON.stringify(hoyK.kss && { n: hoyK.kss.n }));
+  PRUEBAS.cierto(!!hoyK.kss && hoyK.kss.n === 7, 'guarda: hoy cerró sus unidades enteras (7 tests: una unidad con piso 5, dos con piso 3) · ' + JSON.stringify(hoyK.kss && { n: hoyK.kss.n }));
   PRUEBAS.igual(m.forma, [], '🔴 el payload no trae grupos, etiquetas de área o cargo, ni colores');
-  PRUEBAS.igual(m.despejable, [], '🔴 ningún átomo de 1 a 4 personas: nada se despeja cruzando, restando ni comparando');
+  PRUEBAS.igual(m.despejable, [], '🔴 ningún átomo de 1 a ' + (p308Piso() - 1) + ' personas: nada se despeja cruzando, restando ni comparando');
   PRUEBAS.igual(m.restas, [], '🔴 la resta del plan («el día por su conteo menos el área grande por el suyo») no da a nadie');
 });
 
@@ -503,11 +511,13 @@ function p308Periodos() {
 }
 function p308MedirPeriodos(sabotaje) {
   const base = p308Periodos();
-  /* (a) dos pedidos cuyos rangos difieren en un día */
+  /* (a) dos pedidos cuyos rangos difieren en un día: el 29/10, con DOS medidos (Otto y Oriana). P388 · hasta P388 el
+     día que se caía era el 27/10, con tres: con el piso en 3, tres personas ya no son una fuga y el discriminador
+     «rango pedido» dejaba de discriminar. */
   const wa = p308Mundo(base, { sabotaje: sabotaje });
   if (wa.faltan) return { faltan: wa.faltan };
-  const a1 = wa.sellarYPedir(null, { opDesde: '2026-10-27', opHasta: '2026-11-02', opDias: 30 });
-  const a2 = wa.sellarYPedir(null, { opDesde: '2026-10-28', opHasta: '2026-11-02', opDias: 30 });
+  const a1 = wa.sellarYPedir(null, { opDesde: '2026-10-29', opHasta: '2026-11-02', opDias: 30 });
+  const a2 = wa.sellarYPedir(null, { opDesde: '2026-10-30', opHasta: '2026-11-02', opDias: 30 });
   /* (c) una semana con el DOMINGO de 1 medido, contra su serie diaria: la del 2 al 8 de noviembre, mirada el
      mismo domingo a la noche (la serie viaja con el período en curso). Nora mide sola el domingo. */
   const conDomingo = base.concat([
@@ -533,7 +543,7 @@ function p308MedirPeriodos(sabotaje) {
   };
 }
 
-PRUEBAS.caso('🔴 P308 · los períodos (a)–(d): ninguna resta entre lo que se puede pedir da de 1 a 4 personas', () => {
+PRUEBAS.caso('🔴 P308 · los períodos (a)–(d): ninguna resta entre lo que se puede pedir da de 1 a piso − 1 personas', () => {
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const m = p308MedirPeriodos();
   PRUEBAS.igual(m.faltan || [], [], 'guarda: el trazador se aplicó');
@@ -551,7 +561,9 @@ PRUEBAS.caso('🔴 P308 · los períodos (a)–(d): ninguna resta entre lo que s
   PRUEBAS.igual(m.d, [], '🔴 (d) la misma semana antes y después de un test atrasado: nada se despeja');
   PRUEBAS.igual(m.dMovidos, [], '🔴 (d) y ningún total ya publicado cambia sus números');
   const nov2 = ((P.semana.metricas.kss || {}).serie || []).find(x => x.k === '2026-11-02');
-  PRUEBAS.cierto(!!nov2 && nov2.n === 5, 'lo medido el domingo del borde cuenta el lunes, con su unidad · ' + JSON.stringify(nov2 ? { k: nov2.k, n: nov2.n } : null));
+  /* con piso 5, Orlando + Mario y Marta (el domingo) + Lara y Leo; con piso 3, Mario y Marta + Lara: una unidad de `piso`
+     tests que cierra el lunes, en los dos casos */
+  PRUEBAS.cierto(!!nov2 && nov2.n === p308Piso(), 'lo medido el domingo del borde cuenta el lunes, con su unidad · ' + JSON.stringify(nov2 ? { k: nov2.k, n: nov2.n } : null));
 });
 
 PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de los períodos: rango pedido, sin unidades, día oculto, sin sellar', () => {
@@ -603,7 +615,9 @@ function p308Viejas(cambio, sabotaje) {
   if (cambio === 'altaNueva') w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente'));
   if (cambio === 'borrado') w.borrarFilaDeId(base[7].id);
   if (cambio === 'confiabilidad') w.hoja('Confiabilidad').appendRow(['2026-11-02', 'conf_x', 'kss', 'Oriana Cinco', 'Helitec', 'Operaciones', 1, 'false', '', '', '']);
-  if (cambio === 'anonN') w.hoja('Config Empresa').appendRow(['Helitec', 'anonN', '8']);
+  /* P388 · el piso + 1 (era 8): con 8 y el piso en 3, la unidad nueva tragaba enteras las de 3 y «sin sellar» no
+     movía nada que se pudiera despejar; con uno más, la frontera nueva deja de 1 a 2 personas de cada lado */
+  if (cambio === 'anonN') w.hoja('Config Empresa').appendRow(['Helitec', 'anonN', String(p308Piso() + 1)]);
   if (cambio === 'renombre') { w.hoja('Accesos').getRange(2, 4).setValue('Helitec'); w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente')); }
   if (cambio === 'variante') w.hoja('Accesos').getRange(2, 4).setValue('Helitec, Helitec C.A.');
   if (cambio === 'borradaSellada') { const h = w.hoja('Totales HSEQ'); h.deleteRow(h.getLastRow()); w.borrarFilaDeId(base[7].id); }
@@ -693,11 +707,14 @@ PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de los cambios por detrás: sin sella
    · `cortarYPegar`: alguien corta las seis filas de la primera unidad (una corrida) y las vuelve a pegar un
      minuto antes (otra corrida): las seis quedan viejas y se excluyen.
    · `huellasVaciadas`: alguien vacía la celda «Huellas» de la primera unidad (y Pedro entra a la nómina): la
-     cuenta se detiene; reconciliar la destraba y esos tests quedan viejos.
-   · `filaBorrada`: alguien borra la última fila sellada (y el duplicado de Omar): se detiene; reconciliar la
-     destraba y los tests de esa fila quedan viejos (el tope guardado no baja).
+     cuenta se detiene; reconciliar la destraba y esos tests quedan viejos. P388 · y llega UN test nuevo (Alma, a las
+     15:30): sin la exclusión de los viejos, el último test de la primera unidad (el que no cabe en su re-sellado)
+     cierra un grupo con él y con lo que esperaba, y queda solo en una combinación de totales, con cualquier piso.
+   · `filaBorrada`: alguien borra la última fila sellada y uno de sus tests: se detiene; reconciliar la destraba y los
+     demás tests de esa fila quedan viejos (el tope guardado no baja). P388 · hasta P388 se borraba el duplicado de
+     Omar, que con piso 5 estaba en esa fila y con piso 3 está en otra: re-sellar daba la misma unidad.
    · `multimetrica`: dos tests de estrés esperan su grupo mientras KSS sella, y se borra un duplicado: nadie se
-     detiene, y cuando miden tres más, el grupo de estrés los lleva a los cinco.
+     detiene, y cuando miden tres más, los dos que esperaban entran en el primer grupo de estrés.
    · `filaAgregada`: alguien agrega a mano una fila a `Totales HSEQ`: la cuenta se detiene y el panel no muestra
      ningún total (antes la fila entraba al total hasta que alguien lo revisara).
    · `propiedadPerdida`: se pierde `hseq_firmas` con la hoja intacta: se detiene y reconciliar lo destraba.
@@ -730,18 +747,28 @@ function p308Claves(cambio, sabotaje) {
     base.slice(0, 6).forEach(x => w.borrarFilaDeId(x.id));
     w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente'));
   }
+  let vaciadas = 0, borradas = [];
   if (cambio === 'huellasVaciadas') {
     const h = w.hoja('Totales HSEQ'), v = h.getDataRange().getValues();
     /* P310 · el primer grupo de KSS, por lo que ES y no por su número: los grupos «estado» tienen sus propios casos en
        `p310-estado-hseq.js` */
-    for (let i = 1; i < v.length; i++) if (String(v[i][2]) === 'kss') { h.getRange(i + 1, 14).setValue(''); break; }
+    for (let i = 1; i < v.length; i++) if (String(v[i][2]) === 'kss') {
+      vaciadas = String(v[i][13] || '').split(',').filter(Boolean).length;
+      h.getRange(i + 1, 14).setValue(''); break;
+    }
     w.hoja('Nómina').appendRow(p308FilaNomina('Pedro Pendiente'));
+    const x = p308Test({ p: 'Alma Única', d: '2026-11-03', h: '15:30', v: 4 }); nuevos.push(x); w.agregar(x);
   }
   /* P310 · «la última fila sellada» es la última de una MÉTRICA: desde P310 una corrida también escribe grupos «estado»,
      que tienen sus propios casos en `p310-estado-hseq.js` */
   const ultimaDeMetrica = h => { const v = h.getDataRange().getValues();
     for (let i = v.length - 1; i >= 1; i--) if (P308_METRICAS_FILA.indexOf(String(v[i][2])) >= 0) return i + 1; return h.getLastRow(); };
-  if (cambio === 'filaBorrada') { const h = w.hoja('Totales HSEQ'); h.deleteRow(ultimaDeMetrica(h)); w.borrarFilaDeId(base[7].id); }
+  /* la última unidad de una métrica y uno de sus tests (el primero, leído de la traza de la fila): ver la cabecera */
+  if (cambio === 'filaBorrada') {
+    const h = w.hoja('Totales HSEQ'), fila = ultimaDeMetrica(h);
+    borradas = JSON.parse(String(h.getRange(fila, 19).getValue() || '[]'));
+    h.deleteRow(fila); w.borrarFilaDeId(borradas[0]);
+  }
   if (cambio === 'multimetrica') w.borrarFilaDeId(base[7].id);
   /* una fila con la forma de una unidad de verdad (5 personas, piso 5): sólo la firma la delata */
   if (cambio === 'filaAgregada') w.hoja('Totales HSEQ').appendRow(['helitec', 'Helitec', 'kss', '99', '2026-11-03', 5, 25, 0, 0, 5, 5,
@@ -809,10 +836,14 @@ function p308Claves(cambio, sabotaje) {
   if (cambio === 'futuroYReconciliar' || cambio === 'futuroLejano' || cambio === 'hastaFuturo') remedio = w.reconciliar('2026-11-03T16:15:00-04:00');
   /* después: llegan seis tests nuevos el 4/11 (para que un «Hasta» futuro se note), y se mira el 9/11 (para que las
      fechas corridas ya sean de hoy o de antes) */
-  /* (dos tests nuevos el 4/11: con los tres que se escaparan al futuro, completarían un grupo) */
-  if (cambio === 'futuroYReconciliar') ['Mario Mes', 'Marta Mes'].forEach((p, i) => {
-    const x = p308Test({ p: p, d: '2026-11-04', h: '10:0' + i, v: 4 }); nuevos.push(x); w.agregar(x);
-  });
+  /* (piso − 1 tests nuevos el 4/11 a las 6, ANTES de los tres que se escaparían al futuro —el primero, Alma, a las 7—:
+     con el primero de ellos completarían un grupo, y Alma quedaría sola en una combinación de totales, con cualquier
+     piso. P388 · eran dos tests a las 10, DESPUÉS: con piso 3 los tres escapados cerraban un grupo entre ellos, el mismo
+     día que sus unidades de origen, y no se despejaba a nadie) */
+  if (cambio === 'futuroYReconciliar') ['Mario Mes', 'Marta Mes', 'Nora Nueva', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis']
+    .slice(0, p308Piso() - 1).forEach((p, i) => {
+      const x = p308Test({ p: p, d: '2026-11-04', h: '06:0' + i, v: 4 }); nuevos.push(x); w.agregar(x);
+    });
   if (cambio === 'hastaFuturo') ['Alma Única', 'Lara Legal', 'Leo Legal', 'Mario Mes', 'Marta Mes', 'Nora Nueva'].forEach((p, i) => {
     const x = p308Test({ p: p, d: '2026-11-04', h: '09:0' + i, v: 5 }); nuevos.push(x); w.agregar(x);
   });
@@ -835,6 +866,7 @@ function p308Claves(cambio, sabotaje) {
   const m = p308Medir(todas, base.concat(extra, nuevos));
   const fin = r3 || paso || r2;
   return { r1: r1, r2: r2, paso: paso, r3: r3, otra: otra, remedio: remedio, heredado: heredado, despejable: m.despejable, sinTraza: m.sinTraza,
+           extra: extra.map(x => x.id), vaciadas: vaciadas, borradas: borradas,
            falta: ['filaBorrada', 'usuarioYBorradas', 'edicionDurante', 'futuroLejano', 'hastaFuturo', 'reclaveConAusentes'].indexOf(cambio) >= 0 ? [] : p308Falta(r1, fin),
            hoja: w.hoja('Totales HSEQ').getDataRange().getValues().slice(1) };
 }
@@ -891,18 +923,21 @@ PRUEBAS.caso('🔴 P308 · la clave que cambia, la fila reescrita y la hoja toca
   const hv = r.huellasVaciadas;
   if (hv && !hv.faltan) {
     PRUEBAS.igual((hv.r2.totalesHseq.detenido || {}).causa, 'hoja_tocada', '🔴 con una celda de «Huellas» vaciada, la cuenta se detiene y el panel lo recibe');
-    PRUEBAS.cierto(!!(hv.remedio && hv.remedio.ok && hv.remedio.excluidos >= 5 && hv.remedio.nuevas === 0), 'reconciliar la destraba, y los tests sin huella quedan viejos · ' + JSON.stringify(hv.remedio));
+    PRUEBAS.cierto(hv.vaciadas >= p308Piso(), 'guarda: la celda vaciada tenía las huellas de una unidad entera · ' + hv.vaciadas);
+    PRUEBAS.cierto(!!(hv.remedio && hv.remedio.ok && hv.remedio.excluidos >= hv.vaciadas && hv.remedio.nuevas === 0), 'reconciliar la destraba, y los tests sin huella quedan viejos · ' + JSON.stringify(hv.remedio));
   }
   const fb = r.filaBorrada;
   if (fb && !fb.faltan) {
     PRUEBAS.igual((fb.r2.totalesHseq.detenido || {}).causa, 'hoja_tocada', '🔴 con la última fila sellada borrada, la cuenta se detiene');
-    PRUEBAS.cierto(!!(fb.remedio && fb.remedio.ok && fb.remedio.nuevas === 0 && fb.remedio.excluidos >= 4), 'y al reconciliar, los tests de esa fila quedan viejos: el tope guardado no bajó · ' + JSON.stringify(fb.remedio));
+    PRUEBAS.cierto(fb.borradas.length >= p308Piso(), 'guarda: la fila borrada era una unidad entera · ' + fb.borradas.length);
+    PRUEBAS.cierto(!!(fb.remedio && fb.remedio.ok && fb.remedio.nuevas === 0 && fb.remedio.excluidos === fb.borradas.length - 1), 'y al reconciliar, los tests de esa fila que siguen en la hoja quedan viejos: el tope guardado no bajó · ' + JSON.stringify(fb.remedio));
   }
   const mm = r.multimetrica;
   if (mm && !mm.faltan) {
     PRUEBAS.igual([mm.r2.__sellado.trabadas, mm.r2.__sellado.excluidos], [[], 0], '🔴 un duplicado borrado no detiene a nadie ni excluye lo que espera en otra métrica');
     const es = (((mm.paso.totalesHseq.periodos || {}).todo || {}).metricas || {}).estres;
-    PRUEBAS.cierto(!!es && es.n === 5, '🔴 los dos tests de estrés que esperaban entran en su grupo cuando miden tres más · ' + JSON.stringify(es && { n: es.n }));
+    /* P388 · por la traza y no por el conteo: con piso 5 el grupo era de 5, con piso 3 es de 3 (los dos y Omar) */
+    PRUEBAS.cierto(!!es && mm.extra.every(id => (es.__filas || []).indexOf(id) >= 0), '🔴 los dos tests de estrés que esperaban entran en su grupo cuando miden más · ' + JSON.stringify(es && { n: es.n }));
   }
   const p = r.propiedadPerdida;
   if (p && !p.faltan) {
@@ -949,12 +984,12 @@ PRUEBAS.caso('🔴 P308 · la clave que cambia, la fila reescrita y la hoja toca
   const he = r.usuarioReusado;
   if (he && !he.faltan) {
     const k = ((((he.heredado || {}).totalesHseq || {}).periodos || {}).todo || {}).metricas;
-    PRUEBAS.cierto(!!(k && k.kss && k.kss.n === 5), '🔴 la empresa que recibe un `Usuario` ya traspasado no hereda su tope: sus tests de antes se sellan · ' + JSON.stringify(k && k.kss && { n: k.kss.n }));
+    PRUEBAS.cierto(!!(k && k.kss && k.kss.n >= p308Piso()), '🔴 la empresa que recibe un `Usuario` ya traspasado no hereda su tope: sus tests de antes se sellan · ' + JSON.stringify(k && k.kss && { n: k.kss.n }));
   }
 });
 
 /* Una cuenta que NUNCA selló (sin firma guardada contra qué comparar) y una fila de un test agregada a mano: la
-   rechaza la validación de filas (menos de 5 personas no la escribe ningún sellado). */
+   rechaza la validación de filas (una persona con piso 5: ningún sellado escribe menos personas que su piso). */
 function p308FilaSinFirma(sabotaje) {
   const w = p308Mundo(p308Cuatro(), { sabotaje: sabotaje });
   if (w.faltan) return { faltan: w.faltan };
@@ -975,12 +1010,18 @@ function p308FilaSinFirma(sabotaje) {
    `Accesos` con el usuario «helitec» pasa a ser de C.A. y Helitec estrena otra: el panel de C.A. no ve lo de
    Helitec. Las dos cuentas se miden juntas: los mismos tests en los totales de las dos despejarían a quien quede
    en la diferencia. */
+/* P388 · `piso − 1` personas de Helitec y `piso` de C.A.: la primera unidad junta a las de Helitec con UNA de C.A. (Oscar),
+   y las demás de C.A. esperan. Así, si la empresa nueva re-sellara, Oscar quedaría solo entre las dos cuentas con
+   cualquier piso. Con 5 son las mismas listas de antes de P388; con 3 y las listas fijas, las tres unidades cerraban el
+   mismo día y el re-sellado no despejaba a nadie (los dos discriminadores de abajo dejaban de discriminar). */
 function p308Holding(sabotaje, opc) {
   opc = opc || {};
-  const ca = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco'];
+  const P = p308Piso();
+  const ca = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].slice(0, P);
   const base = [
     { p: 'Lara Legal', d: '2026-11-02', h: '07:00', v: 4 }, { p: 'Leo Legal', d: '2026-11-02', h: '07:10', v: 6 },
-    { p: 'Mario Mes', d: '2026-11-02', h: '07:20', v: 5 }, { p: 'Marta Mes', d: '2026-11-02', h: '07:30', v: 3 }]
+    { p: 'Mario Mes', d: '2026-11-02', h: '07:20', v: 5 }, { p: 'Marta Mes', d: '2026-11-02', h: '07:30', v: 3 },
+    { p: 'Nora Nueva', d: '2026-11-02', h: '07:40', v: 5 }].slice(0, P - 1)
     .concat(ca.map((p, i) => ({ p: p, d: '2026-11-02', h: '08:0' + i, v: 2 + i, emp: 'Helitec C.A.' }))).map(p308Test);
   const w = p308Mundo(base, { sabotaje: sabotaje, empresas: 'Helitec, Helitec C.A.' });
   if (w.faltan) return { faltan: w.faltan };
@@ -1008,18 +1049,22 @@ function p308Holding(sabotaje, opc) {
    sellado con Helitec) a una empresa nueva, con su cuenta y su nómina. Ninguna fila sellada nombra a la empresa
    nueva, así que su tope es 0: lo único que impide volver a sellar el test ya sellado es su HUELLA, que no lleva
    la empresa. Es el discriminador de las huellas. */
+/* P388 · como `p308Holding`: `piso − 1` de Helitec y `piso` que después pasan a la otra empresa, así sólo Oscar quedó
+   sellado con Helitec y el re-sellado lo dejaría solo con cualquier piso. */
 function p308Reasignada(sabotaje) {
-  const otros = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco'];
+  const P = p308Piso();
+  const otros = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis'].slice(0, P);
   const base = [
     { p: 'Lara Legal', d: '2026-11-02', h: '07:00', v: 4 }, { p: 'Leo Legal', d: '2026-11-02', h: '07:10', v: 6 },
-    { p: 'Mario Mes', d: '2026-11-02', h: '07:20', v: 5 }, { p: 'Marta Mes', d: '2026-11-02', h: '07:30', v: 3 }]
+    { p: 'Mario Mes', d: '2026-11-02', h: '07:20', v: 5 }, { p: 'Marta Mes', d: '2026-11-02', h: '07:30', v: 3 },
+    { p: 'Nora Nueva', d: '2026-11-02', h: '07:40', v: 5 }].slice(0, P - 1)
     .concat(otros.map((p, i) => ({ p: p, d: '2026-11-02', h: '08:0' + i, v: 2 + i }))).map(p308Test);
   const w = p308Mundo(base, { sabotaje: sabotaje });
   if (w.faltan) return { faltan: w.faltan };
   const r1 = w.sellarYPedir('2026-11-03T15:00:00-04:00');
   w.hoja('Accesos').appendRow(['otra', 'sup-o', 'empresa', 'Otra SA', 'med-o', 'dir-o', 'hseq-o']);
   otros.forEach(p => w.hoja('Nómina').appendRow(p308FilaNomina(p, 'Otra SA')));
-  const h = w.hoja('Respuestas de formulario 1'), v = h.getDataRange().getValues(), ids = base.slice(4).map(x => x.id);
+  const h = w.hoja('Respuestas de formulario 1'), v = h.getDataRange().getValues(), ids = base.slice(P - 1).map(x => x.id);
   for (let i = 0; i < v.length; i++) if (ids.indexOf(v[i][P308_COL_ID]) >= 0) h.getRange(i + 1, 73).setValue('Otra SA');
   const r2 = w.sellarYPedir('2026-11-03T16:00:00-04:00');
   const nueva = w.pedir({ usuario: 'otra' }, 'hseq-o');
@@ -1082,7 +1127,7 @@ PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de la clave y las reescrituras: sin h
   const mz = p308Claves('multimetrica', 'topeMezclado');
   if (!mz.faltan) {
     const es = (((mz.paso.totalesHseq.periodos || {}).todo || {}).metricas || {}).estres;
-    PRUEBAS.cierto(!es || es.n !== 5, '⚠️ discriminador · mezclando métricas en el tope, los dos de estrés que esperaban quedan fuera · ' + JSON.stringify(es && { n: es.n }));
+    PRUEBAS.cierto(!es || !mz.extra.every(id => (es.__filas || []).indexOf(id) >= 0), '⚠️ discriminador · mezclando métricas en el tope, los dos de estrés que esperaban quedan fuera · ' + JSON.stringify(es && { n: es.n }));
   }
   const aj = p308Claves('usuarioReusado', 'sinAjenas');
   if (!aj.faltan) PRUEBAS.cierto(!!(aj.otra && aj.otra.totalesHseq && aj.otra.totalesHseq.periodos && aj.otra.totalesHseq.periodos.todo.metricas.kss),
@@ -1098,7 +1143,7 @@ PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de la clave y las reescrituras: sin h
   const bt = p308Claves('usuarioReusado', 'sinBorrarTopeViejo');
   if (!bt.faltan) {
     const k = ((((bt.heredado || {}).totalesHseq || {}).periodos || {}).todo || {}).metricas;
-    PRUEBAS.cierto(!(k && k.kss && k.kss.n === 5), '⚠️ discriminador · si el traspaso deja el tope en la clave vieja, la empresa que la recibe pierde sus tests de antes');
+    PRUEBAS.cierto(!(k && k.kss && k.kss.n >= p308Piso()), '⚠️ discriminador · si el traspaso deja el tope en la clave vieja, la empresa que la recibe pierde sus tests de antes');
   }
   const fz = p308Claves('futuroYReconciliar', 'forzadoConLimite');
   if (!fz.faltan) PRUEBAS.alMenos(fz.despejable.length, 1, '⚠️ discriminador · forzando sólo lo asentado, lo corrido al futuro se sella después y despeja · ' + fz.despejable.join(' / '));
@@ -1138,22 +1183,24 @@ PRUEBAS.caso('🔴 P308 · la huella de un test no cambia: con otra huella, cada
 
 /* ── Filas inventadas: no completan el piso ────────────────────────────────────────────────────── */
 function p308Relleno(sabotaje) {
-  /* Cinco personas reales cierran una unidad; Alma queda sola en el grupo abierto. Después llegan cuatro
-     tests a nombres que no existen —los webhooks de los tests no piden credencial—. */
+  /* `piso` personas reales cierran una unidad; Alma queda sola en el grupo abierto. Después llegan `piso − 1`
+     tests a nombres que no existen —los webhooks de los tests no piden credencial—. P388 · eran cinco y cuatro, fijos:
+     con el piso en 3, Alma cerraba un grupo con dos reales y el relleno no la dejaba sola. */
+  const P = p308Piso();
   const base = [
     { p: 'Oscar Uno', d: '2026-11-03', h: '07:00', v: 3 }, { p: 'Olga Dos', d: '2026-11-03', h: '07:10', v: 5 },
     { p: 'Omar Tres', d: '2026-11-03', h: '07:20', v: 4 }, { p: 'Otto Cuatro', d: '2026-11-03', h: '07:30', v: 6 },
-    { p: 'Oriana Cinco', d: '2026-11-03', h: '07:40', v: 7 }, { p: 'Alma Única', d: '2026-11-03', h: '08:00', v: 8 }].map(p308Test);
+    { p: 'Oriana Cinco', d: '2026-11-03', h: '07:40', v: 7 }, { p: 'Orlando Seis', d: '2026-11-03', h: '07:50', v: 2 }]
+    .slice(0, P).concat([{ p: 'Alma Única', d: '2026-11-03', h: '08:00', v: 8 }]).map(p308Test);
   const w = p308Mundo(base, { sabotaje: sabotaje });
   if (w.faltan) return { faltan: w.faltan };
   const r1 = w.sellarYPedir('2026-11-03T12:00:00-04:00');
-  const falsos = ['Relleno Uno', 'Relleno Dos', 'Relleno Tres', 'Relleno Cuatro'].map((p, i) =>
-    p308Test({ p: p, d: '2026-11-03', h: '12:0' + i, v: 1 }));
+  const falsos = Array.from({ length: P - 1 }, (_, i) => p308Test({ p: 'Relleno ' + (i + 1), d: '2026-11-03', h: '12:0' + i, v: 1 }));
   falsos.forEach(x => w.agregar(x));
   const r2 = w.sellarYPedir('2026-11-03T13:00:00-04:00');
   return { r1: r1, r2: r2, despejable: p308Medir([r1, r2], base.concat(falsos)).despejable };
 }
-PRUEBAS.caso('🔴 P308 · cuatro filas a nombres inventados no completan el piso ni dejan sola a Alma', () => {
+PRUEBAS.caso('🔴 P308 · piso − 1 filas a nombres inventados no completan el piso ni dejan sola a Alma', () => {
   /* R19 · el piso cuenta CÉDULAS: `formarUnidadesHseq_` con la clave `r.cedula` que pone `RES.aplicar`. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const m = p308Relleno();
@@ -1161,7 +1208,7 @@ PRUEBAS.caso('🔴 P308 · cuatro filas a nombres inventados no completan el pis
   if (m.faltan) return;
   PRUEBAS.igual(m.despejable, [], '🔴 nada se despeja: los nombres inventados no cuentan como personas');
   const n = r => { const k = r.totalesHseq.periodos.hoy.metricas.kss; return k ? k.n : null; };
-  PRUEBAS.igual(n(m.r2), n(m.r1), '🔴 «hoy» no cambia: el grupo abierto sigue sin cinco personas reales');
+  PRUEBAS.igual(n(m.r2), n(m.r1), '🔴 «hoy» no cambia: el grupo abierto sigue sin `piso` personas reales');
   const s = p308Relleno('pisoPorNombre');
   PRUEBAS.igual(s.faltan || [], [], 'guarda: el sabotaje «piso por nombre» se aplicó');
   if (!s.faltan) PRUEBAS.alMenos(s.despejable.length, 1, '⚠️ discriminador · contando nombres, el relleno deja sola a Alma · ' + s.despejable.join(' / '));
@@ -1205,8 +1252,8 @@ PRUEBAS.caso('🔴 P308 · lo de hoy: avanza de a una unidad entera, y el día q
   PRUEBAS.igual(m.faltan || [], [], 'guarda: el trazador se aplicó');
   if (m.faltan) return;
   const hoyTar = m.tar.totalesHseq.periodos.hoy.metricas.kss;
-  PRUEBAS.cierto(!!hoyTar && hoyTar.n === 10, 'guarda: a la tarde hoy tiene dos unidades · ' + JSON.stringify(hoyTar && { n: hoyTar.n }));
-  PRUEBAS.igual(m.i, [], '🔴 (i) entre dos pedidos de hoy, las 5 nuevas (una de Legal) no despejan a nadie');
+  PRUEBAS.cierto(!!hoyTar && hoyTar.n >= 2 * p308Piso(), 'guarda: a la tarde hoy tiene las unidades de la mañana y las de la tarde · ' + JSON.stringify(hoyTar && { n: hoyTar.n }));
+  PRUEBAS.igual(m.i, [], '🔴 (i) entre dos pedidos de hoy, las cinco nuevas (una de Legal) no despejan a nadie');
   const hoyNoche = m.noche.totalesHseq.periodos.hoy.metricas.kss;
   const ayerManana = m.manana.totalesHseq.periodos.hoy.previo.metricas.kss;
   PRUEBAS.igual(JSON.stringify({ n: ayerManana && ayerManana.n, suma: ayerManana && ayerManana.suma }),
@@ -1274,7 +1321,7 @@ PRUEBAS.caso('🔴 P308 · lo que viaja a HSEQ, por lista blanca: ningún campo 
   PRUEBAS.igual(m.deTest, [], '🔴 ninguna fila por persona trae un campo que salga de un test');
   PRUEBAS.cierto(m.act && m.act.ok, 'guarda: `accionActividad` contesta al panel de HSEQ');
   const tests = ((m.act && m.act.items) || []).filter(x => x.tipo === 'test');
-  PRUEBAS.alMenos((m.r.registros || []).length, 5, 'guarda: hay tests de 5 o más personas en el CH (si no, «ninguno» no mediría nada)');
+  PRUEBAS.alMenos((m.r.registros || []).length, p308Piso(), 'guarda: hay tests de `piso` o más personas en el CH (si no, «ninguno» no mediría nada)');
   PRUEBAS.igual(tests.map(x => JSON.stringify(x)), [], '🔴 P385 · la actividad no le trae al panel de HSEQ ningún test, ni con su instante y su área');
   PRUEBAS.igual(m.act && m.act.tests, null, '🔴 P385 · ni contados');
   PRUEBAS.igual(m.act && m.act.sinTests, true, '🔴 P385 · y lo dice (`sinTests`)');
@@ -1294,18 +1341,19 @@ PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de lo que viaja: la aptitud por perso
 });
 
 /* ── El piso de la empresa: anonN lo sube, nunca lo baja ─────────────────────────────────────── */
-PRUEBAS.caso('🔴 P308 · `anonN = 1` con 4 medidos: nada, tampoco el color; y `anonN = 8` sube el piso a 8', () => {
-  /* R19 · `pisoHseq_`: máx(5, anonN), leído AL SELLAR. `Config Empresa` acepta `0` como «sin umbral» y una
-     empresa puede escribir 1: ninguno de los dos baja el piso de HSEQ. */
+PRUEBAS.caso('🔴 P308 · `anonN = 1` con piso − 1 medidos: nada, tampoco el color; y `anonN = 8` sube el piso a 8', () => {
+  /* R19 · `pisoHseq_`: máx(PISO_MIN_HSEQ, anonN), leído AL SELLAR. `Config Empresa` acepta `0` como «sin umbral» y una
+     empresa puede escribir 1: ninguno de los dos baja el piso de HSEQ. P388 · el piso, del `.gs` (era 5 escrito acá). */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const cuatro = p308Cuatro().slice(0, 4);   // Lara, Leo, Oscar, Olga: 4 personas
+  const P = p308Piso();
+  const menos = p308Cuatro().slice(0, P - 1);   // Lara, Leo, Oscar, Olga…: piso − 1 personas
   ['1', '0'].forEach(n => {
-    const r = p308Pedir(cuatro, { anonN: n });
+    const r = p308Pedir(menos, { anonN: n });
     PRUEBAS.igual(r.faltan || [], [], 'guarda: se pidió');
     if (r.faltan) return;
     const T = r.totalesHseq || {};
-    PRUEBAS.igual(T.piso, 5, '🔴 con `anonN = ' + n + '` el piso sigue en 5');
-    PRUEBAS.igual(p308Conjuntos(T, '').map(c => c.k), [], '🔴 con 4 medidos y `anonN = ' + n + '`, ningún total en ningún período');
+    PRUEBAS.igual(T.piso, P, '🔴 con `anonN = ' + n + '` el piso sigue en ' + P);
+    PRUEBAS.igual(p308Conjuntos(T, '').map(c => c.k), [], '🔴 con ' + (P - 1) + ' medidos y `anonN = ' + n + '`, ningún total en ningún período');
   });
   /* Con `anonN = 8` y 9 personas: la unidad cierra al llegar a 8 personas distintas; la novena espera. */
   const nueve = p308Cuatro();
@@ -1373,11 +1421,12 @@ PRUEBAS.caso('🔴 P308 · la pestaña del panel de HSEQ pinta los totales, y de
   if (kss) PRUEBAS.igual((kss.querySelector('.kv') || {}).textContent, (T.suma / T.n).toFixed(1),
     '⚠️ el número es suma ÷ conteo del servidor: la tarjeta no recalcula');
   const bajos = Array.from(v.cont.querySelectorAll('.kpi-bajo-piso'));
-  PRUEBAS.igual(bajos.length, 6, '⚠️ las otras seis dicen «menos de 5 medidos»');
+  PRUEBAS.igual(bajos.length, 6, '⚠️ las otras seis dicen «todavía no hay un grupo»');
   PRUEBAS.igual(bajos.filter(b => b.classList.contains('over') || b.querySelector('.ktrend, .spark, .kconf') ||
       /\d+[.,]\d/.test((b.querySelector('.kv') || {}).textContent || '')).length, 0,
     '🔴 debajo del piso: ni número, ni color, ni flecha, ni tendencia, ni «poco confiables»');
-  PRUEBAS.cierto(bajos.every(b => (b.textContent || '').indexOf(t('kpi_bajo_piso', { n: 5 })) >= 0),
+  /* P388 · con el piso que mandó el servidor (R21), no con un 5 escrito acá */
+  PRUEBAS.cierto(bajos.every(b => (b.textContent || '').indexOf(t('kpi_bajo_piso', { n: r.totalesHseq.piso })) >= 0),
     '⚠️ y dice por qué · ' + (bajos[0] ? bajos[0].textContent : ''));
   PRUEBAS.igual(v.mapa.querySelectorAll('.hs-cell').length, 0, '🔴 el mapa de los tests por área no se pinta en HSEQ');
   PRUEBAS.cierto((v.mapa.textContent || '').indexOf(t('hst_sin_mapa').slice(0, 30)) >= 0, 'y la nota dice por qué');
@@ -1385,7 +1434,7 @@ PRUEBAS.caso('🔴 P308 · la pestaña del panel de HSEQ pinta los totales, y de
   const falso = p308Limpio(r);
   Object.keys(falso.totalesHseq.periodos.hoy.metricas).forEach(m => { falso.totalesHseq.periodos.hoy.metricas[m] = T; });
   const v2 = p308Pintar(falso, 'hseq', { period: 'dia' });
-  PRUEBAS.igual(v2.cont.querySelectorAll('.kpi-bajo-piso').length, 0, '⚠️ discriminador · con total, ninguna dice «menos de 5»');
+  PRUEBAS.igual(v2.cont.querySelectorAll('.kpi-bajo-piso').length, 0, '⚠️ discriminador · con total, ninguna dice «todavía no hay un grupo»');
 });
 
 PRUEBAS.caso('⚠️ P308 · con un filtro puesto la sección lo dice, y un rango a medida no tiene totales', () => {

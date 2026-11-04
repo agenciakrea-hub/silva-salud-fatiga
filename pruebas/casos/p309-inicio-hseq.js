@@ -11,30 +11,34 @@ PRUEBAS.grupo('P309 · El inicio de HSEQ como la foto');
 
 const P309_ORDEN = ['fatiga', 'kss', 'cansancio', 'estres', 'ansiedad', 'depresion', 'gastro'];
 let P309_DATOS;
-/* Un CH de prueba con la semana del 2 al 8 de noviembre de 2026 (P308_AHORA es el martes 3) y la anterior:
-   · KSS: los once de `p308Cuatro` esta semana, y cinco el 28/10 (la semana anterior, para la flecha);
-   · estrés: cinco personas esta semana y cinco el 29/10 → un grupo por semana (pilar 2, con su tendencia);
-   · ansiedad: tres → debajo del piso (pilar 2);
-   · gastro: cinco → un grupo (pilar 3);
+/* Un CH de prueba con la semana del 2 al 8 de noviembre de 2026 (P308_AHORA es el martes 3) y la anterior. P388 · con
+   `P` = el piso del `.gs` (`p308Piso`): hasta P388 las cantidades eran cinco y tres, escritas para el piso 5, y con el
+   servidor en 3 la ansiedad de tres personas dejaba de estar debajo del piso y el estrés cerraba grupos que cruzaban de
+   semana. Con 5 son las mismas listas de antes.
+   · KSS: los once de `p308Cuatro` esta semana, y `P` el 28/10 (la semana anterior, para la flecha);
+   · estrés: `P` personas esta semana y `P` el 29/10 → un grupo por semana (pilar 2, con su tendencia);
+   · ansiedad: `P − 1` → debajo del piso (pilar 2);
+   · gastro: `P` → un grupo (pilar 3);
    · fatiga, cansancio y depresión: nadie → debajo del piso (fatiga es la del arco, en el pilar 1). */
 function p309Datos() {
   if (P309_DATOS) return P309_DATOS;
+  const P = p308Piso();
   const tests = p308Cuatro().concat([
     { p: 'Lara Legal', d: '2026-10-28', h: '08:00', v: 3 }, { p: 'Leo Legal', d: '2026-10-28', h: '08:10', v: 3 },
     { p: 'Mario Mes', d: '2026-10-28', h: '08:20', v: 3 }, { p: 'Marta Mes', d: '2026-10-28', h: '08:30', v: 3 },
-    { p: 'Nora Nueva', d: '2026-10-28', h: '08:40', v: 3 },
+    { p: 'Nora Nueva', d: '2026-10-28', h: '08:40', v: 3 }].slice(0, P)).concat([
     { p: 'Otto Cuatro', d: '2026-10-29', h: '09:00', v: 6, m: 'estres' }, { p: 'Oriana Cinco', d: '2026-10-29', h: '09:10', v: 6, m: 'estres' },
     { p: 'Orlando Seis', d: '2026-10-29', h: '09:20', v: 6, m: 'estres' }, { p: 'Mario Mes', d: '2026-10-29', h: '09:30', v: 6, m: 'estres' },
-    { p: 'Marta Mes', d: '2026-10-29', h: '09:40', v: 6, m: 'estres' },
+    { p: 'Marta Mes', d: '2026-10-29', h: '09:40', v: 6, m: 'estres' }].slice(0, P)).concat([
     { p: 'Otto Cuatro', d: '2026-11-03', h: '09:00', v: 2, m: 'estres' }, { p: 'Oriana Cinco', d: '2026-11-03', h: '09:10', v: 3, m: 'estres' },
     { p: 'Orlando Seis', d: '2026-11-03', h: '09:20', v: 4, m: 'estres' }, { p: 'Mario Mes', d: '2026-11-03', h: '09:30', v: 5, m: 'estres' },
-    { p: 'Marta Mes', d: '2026-11-03', h: '09:40', v: 6, m: 'estres' },
+    { p: 'Marta Mes', d: '2026-11-03', h: '09:40', v: 6, m: 'estres' }].slice(0, P)).concat([
     { p: 'Lara Legal', d: '2026-11-03', h: '10:00', v: 2, m: 'ansiedad' }, { p: 'Leo Legal', d: '2026-11-03', h: '10:10', v: 3, m: 'ansiedad' },
-    { p: 'Nora Nueva', d: '2026-11-03', h: '10:20', v: 4, m: 'ansiedad' },
+    { p: 'Nora Nueva', d: '2026-11-03', h: '10:20', v: 4, m: 'ansiedad' }, { p: 'Mario Mes', d: '2026-11-03', h: '10:30', v: 3, m: 'ansiedad' }].slice(0, P - 1)).concat([
     { p: 'Oscar Uno', d: '2026-11-02', h: '11:00', v: 1, m: 'gastro' }, { p: 'Olga Dos', d: '2026-11-02', h: '11:10', v: 2, m: 'gastro' },
     { p: 'Omar Tres', d: '2026-11-03', h: '11:20', v: 3, m: 'gastro' }, { p: 'Otto Cuatro', d: '2026-11-03', h: '11:30', v: 1, m: 'gastro' },
-    { p: 'Alma Única', d: '2026-11-03', h: '11:40', v: 2, m: 'gastro' }
-  ].map(p308Test));
+    { p: 'Alma Única', d: '2026-11-03', h: '11:40', v: 2, m: 'gastro' }].slice(0, P)
+  ).map(p308Test);
   const w = p308Mundo(tests);
   if (w.faltan) return { faltan: w.faltan };
   P309_DATOS = { hseq: p308Limpio(w.sellarYPedir()), dir: p308Limpio(w.pedir({}, 'dir-308')) };
@@ -208,21 +212,22 @@ PRUEBAS.caso('🔴 P309 · cada número del inicio es el total del servidor, y e
 });
 
 /* ── 4 · Debajo del piso, nada de los tests ──────────────────────────────────────────────────────────────── */
-PRUEBAS.caso('🔴 P309 · debajo de 5 medidos la tarjeta del inicio no pinta nada de los tests, tampoco el color', () => {
+PRUEBAS.caso('🔴 P309 · debajo del piso la tarjeta del inicio no pinta nada de los tests, tampoco el color', () => {
   if (p309Saltea()) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const D = p309Datos(); if (D.faltan) { PRUEBAS.igual(D.faltan, [], 'guarda'); return; }
   const h = p309Pintar(D.hseq, { period: 'semana' });
   const P = D.hseq.totalesHseq.periodos.semana;
   const bajo = P309_ORDEN.filter(m => p309Media(P.metricas[m]) == null);
   PRUEBAS.cierto(bajo.indexOf('ansiedad') >= 0 && bajo.indexOf('fatiga') >= 0,
-    'guarda: ansiedad (tres personas) y fatiga (nadie) quedan debajo del piso · ' + bajo.join(','));
+    'guarda: ansiedad (piso − 1 personas) y fatiga (nadie) quedan debajo del piso · ' + bajo.join(','));
   bajo.forEach(m => {
     const c = h.tarjetas[m];
     PRUEBAS.cierto(c.bajo, '🔴 ' + m + ' · la tarjeta de debajo del piso');
     PRUEBAS.falso(c.over || c.arco || c.spark || !!c.ktrend || c.kconf,
       '🔴 ' + m + ' · sin color, sin arco, sin tendencia, sin flecha y sin «poco confiables»');
-    PRUEBAS.igual(c.kv, t('kpi_bajo_piso', { n: 5 }), m + ' · dice que todavía no hay un grupo');
-    PRUEBAS.igual(c.kref, t('hsi_bajo_piso_d', { n: 5 }), m + ' · con la razón corta (la larga, en la guía ⓘ)');
+    /* P388 · con el piso que mandó el servidor (R21), no con un 5 escrito acá */
+    PRUEBAS.igual(c.kv, t('kpi_bajo_piso', { n: D.hseq.totalesHseq.piso }), m + ' · dice que todavía no hay un grupo');
+    PRUEBAS.igual(c.kref, t('hsi_bajo_piso_d', { n: D.hseq.totalesHseq.piso }), m + ' · con la razón corta (la larga, en la guía ⓘ)');
   });
   /* ⚠️ discriminador · una métrica CON su grupo completo (estrés) sí muestra su número */
   PRUEBAS.cierto(h.tarjetas.estres && !h.tarjetas.estres.bajo, '⚠️ discriminador · estrés, con su grupo, sí pinta');

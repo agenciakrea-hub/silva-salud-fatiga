@@ -664,7 +664,7 @@ PRUEBAS.caso('🔒 Privacidad · HSEQ con P1 en «Empleado», por el visor y por
 PRUEBAS.caso('🔒 Privacidad · panel de HSEQ con totales POR ENCIMA del piso: con P1, las tarjetas no cambian y no aparece nada suyo', () => p385Correr(async () => {
   /* El banco de arriba tiene dos personas medidas por empresa: los totales quedan debajo del piso y las tarjetas
      no muestran ningún número, así que «P1 no cambia ninguna» se cumpliría sin medir nada. Acá se usa el mundo
-     de P308/P309 (`p309Datos`: grupos sellados de 5 o más, con la contraseña del panel de HSEQ y la de
+     de P308/P309 (`p309Datos`: grupos sellados del piso o más —3 desde P388—, con la contraseña del panel de HSEQ y la de
      Dirección), que corre antes en `casos.json`. */
   if (typeof p309Datos !== 'function' || typeof p308Mundo !== 'function') {
     PRUEBAS.cierto(false, '⚠️ no está `p309Datos` (p308/p309 no corrieron antes): esta medición queda SIN MEDIR'); return; }
@@ -688,7 +688,7 @@ PRUEBAS.caso('🔒 Privacidad · panel de HSEQ con totales POR ENCIMA del piso: 
 
 /* ── Privacidad de HSEQ en el SERVIDOR · «Actividad reciente» sin las pruebas ────────────────────────── */
 
-/* La lámina de HSEQ (`priv_hseq_1`) promete «de tus tests, sólo totales de 5 o más… con menos de 5 personas, nada»,
+/* La lámina de HSEQ (`priv_hseq_1`) promete «de tus tests, sólo totales de 3 o más… con menos de 3 personas, nada» (5 hasta P388),
    y cada movimiento `test` de la actividad era una prueba de UNA persona, con su hora y su departamento (con un
    departamento chico, el departamento es un seudónimo). La acción real, `accionActividad`, sobre el CH del banco con
    acciones de bitácora, con la credencial de cada panel, como llega el pedido del teléfono (R17: el punto de
@@ -791,7 +791,9 @@ PRUEBAS.caso('🔒 HSEQ · cliente · «Actividad reciente» sin pruebas: no dic
     PRUEBAS.igual(pzs.filter(e => e.getClientRects().length > 1).map(e => e.textContent), [],
       'V3-1 · ' + w + ' px · ningún pedazo partido en dos renglones');
   }));
-  PRUEBAS.cierto(ayuda.indexOf(t('mov_ayuda_fuente_hseq', { s: tabLabel('inicio') })) >= 0,
+  /* P388 · el texto dice el piso con `{n}`, y `movBloque` lo llena con `hseqPiso()`: el esperado se arma con la MISMA
+     función y la misma entrada (R21). Sin `n`, buscaba un «{n}» literal que la pantalla ya no muestra. */
+  PRUEBAS.cierto(ayuda.indexOf(t('mov_ayuda_fuente_hseq', { s: tabLabel('inicio'), n: hseqPiso() })) >= 0,
     '🔒 la ⓘ dice que en este panel las pruebas no se listan');
   PRUEBAS.falso(ayuda.indexOf(t('mov_ayuda_fuente')) >= 0, '🔒 y no la de los otros paneles, que promete «las pruebas que contesta cada persona»');
   /* con un departamento: las acciones no tienen persona ni departamento, así que no queda ninguna */

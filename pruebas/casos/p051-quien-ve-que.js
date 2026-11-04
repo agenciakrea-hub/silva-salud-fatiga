@@ -22,7 +22,7 @@
    HSEQ y Dirección reciben hoy EXACTAMENTE lo mismo (ADR 017; medido el 2026-10-21). Los textos los
    distinguen por lo que ANUNCIAN —HSEQ va a ver valores del grupo (`P308`) y su nombre en la forma 008
    (`P331`)—, que se puede decir antes de darlo. Lo que RESTRINGE —«de tus tests, HSEQ ve sólo totales
-   de 5 o más»— lo escribe `P308` en la misma versión en que el servidor lo cumple: el caso «LA
+   de 5 o más», de 3 o más desde P388— lo escribe `P308` en la misma versión en que el servidor lo cumple: el caso «LA
    RESTRICCIÓN DE P308 TODAVÍA NO SE ESCRIBE» de abajo se pone en rojo si alguien la adelanta.
 
    ── POR QUÉ LA FILA DE DIRECCIÓN NO PROMETÍA ANONIMATO (hasta A13) ─────────────────────────
@@ -307,9 +307,11 @@ PRUEBAS.caso('⚠️ FILA "HSEQ" · de los tests, sólo totales; el ciclo y la j
   PRUEBAS.cierto((((h.duty || {}).diario) || []).every(o => /^P\d+$/.test(o.persona || '') && !!o.fecha),
     '⚠️ y la jornada, por alias y con el día');
   /* `priv_hseq_1` · los totales, con el piso: este CH de prueba tiene DOS personas medidas, así que no hay
-     ningún total, en ningún período: «con menos de 5 personas, nada, ni el color». */
+     ningún total, en ningún período: «con menos de 3 personas, nada, ni el color». P388 · el piso, del `.gs`
+     (`PISO_MIN_HSEQ`; era `>= 5` escrito acá, y con el servidor en 3 este caso caía). */
   const T = h.totalesHseq || {};
-  PRUEBAS.cierto(T.piso >= 5 && !!T.periodos, '⚠️ llegan los totales, con el piso · ' + JSON.stringify(T).slice(0, 160));
+  const pisoGs = Number((/\nvar PISO_MIN_HSEQ = (\d+);/.exec(String(CTX.gs || '')) || [])[1]);
+  PRUEBAS.cierto(pisoGs >= 3 && T.piso >= pisoGs && !!T.periodos, '⚠️ llegan los totales, con el piso del `.gs` (' + pisoGs + ') · ' + JSON.stringify(T).slice(0, 160));
   const algo = Object.keys(T.periodos || {}).filter(per => Object.keys((T.periodos[per] || {}).metricas || {})
     .some(m => T.periodos[per].metricas[m] !== null));
   PRUEBAS.igual(algo, [], '🔴 con 2 personas medidas no hay NINGÚN total, en ningún período');
@@ -689,7 +691,7 @@ PRUEBAS.caso('🔴 P307 · los seis que reciben algo están en los cuatro lugare
 
 PRUEBAS.caso('🔴 P308 · LA RESTRICCIÓN DE LOS TESTS SE DICE donde la persona decide, sólo de HSEQ, y es cierta', () => {
   /* El plan (sección de P307, «Quién escribe esa parte»): lo que la lámina RESTRINGE —«de tus tests,
-     HSEQ ve sólo totales de 5 o más»— lo escribe y lo publica `P308`, en la misma versión que cambia el
+     HSEQ ve sólo totales de 5 o más» (3 desde P388)— lo escribe y lo publica `P308`, en la misma versión que cambia el
      payload. Hasta P307 este caso lo PROHIBÍA (escrito antes, quien se registraba en el medio leía algo
      falso donde decide si contesta la verdad, R4); desde P308 lo EXIGE, en los lugares donde se decide:
      la lámina, «Quién ve qué», el consentimiento, la guía del rol y la puerta. Y lo sigue prohibiendo
@@ -697,7 +699,13 @@ PRUEBAS.caso('🔴 P308 · LA RESTRICCIÓN DE LOS TESTS SE DICE donde la persona
   /* El verificador de P307 encontró que la primera versión no veía 8 de 10 redacciones equivalentes, y que
      miraba sólo una lista fija de claves. Ahora mira TODAS las del diccionario que nombran a HSEQ o a
      Dirección, en los dos idiomas. */
-  const RESTRICCION = /(s[oó]lo|[uú]nicamente) (como |los |sus )?(totales|promedios|agregados)|only (as )?(totals|averages|aggregates)|(5|cinco) (personas )?o m[aá]s|al menos (5|cinco)|menos de (5|cinco)|a partir de (5|cinco)|m[ií]nimo (de )?(5|cinco)|(five|5) (people )?or more|at least (5|five)|fewer than (5|five)|less than (5|five)|minimum of (5|five)/i;
+  /* P388 · el número del piso, CUALQUIERA de 2 a 9 (en cifra o en letra): hasta P388 sólo reconocía «5/cinco», y con la
+     lámina en «3 o más» la puerta, la descripción del panel y el consentimiento en español dejaban de verse como
+     restricción. Que el número sea el del `.gs` lo vigila `p388-piso-3.js`. */
+  const N_ = '([2-9]|dos|tres|cuatro|cinco|two|three|four|five)';
+  const RESTRICCION = new RegExp('(s[oó]lo|[uú]nicamente) (como |los |sus )?(totales|promedios|agregados)|only (as )?(totals|averages|aggregates)|' +
+    N_ + ' (personas )?o m[aá]s|al menos ' + N_ + '|menos de ' + N_ + '|a partir de ' + N_ + '|m[ií]nimo (de )?' + N_ + '|' +
+    N_ + ' (people )?or more|at least ' + N_ + '|fewer than ' + N_ + '|less than ' + N_ + '|minimum of ' + N_, 'i');
   const MENCIONA = /HSEQ|Direcci[oó]n|Management|seguridad|safety/i;
   const texto = (k, l) => { try { return String(_i18nBuscar(l, '', k) || ''); } catch (e) { return ''; } };
   PRUEBAS.cierto(texto('car4_tit', 'es').length > 3 && texto('car4_tit', 'en').length > 3,
@@ -739,7 +747,10 @@ PRUEBAS.caso('🔴 P308 · LA RESTRICCIÓN DE LOS TESTS SE DICE donde la persona
   PRUEBAS.igual(adelantadas, [], '🔴 a Dirección no se le promete «sólo totales» antes de P313 · ' + adelantadas.join(', '));
   ['De tus tests, HSEQ ve sólo totales de 5 o más', 'HSEQ ve cinco o más', 'al menos 5 personas', 'nunca grupos de menos de 5',
    'únicamente como totales', 'only totals of five or more', 'never groups of fewer than 5',
-   'grupos de 5 personas o más', 'groups of 5 people or more', 'sólo promedios', 'sólo agregados', 'a partir de 5', 'mínimo de 5'].forEach(x =>
+   'grupos de 5 personas o más', 'groups of 5 people or more', 'sólo promedios', 'sólo agregados', 'a partir de 5', 'mínimo de 5',
+   /* P388 · los mismos con 3, en cifra y en letra: el detector viejo no veía ninguno */
+   'accede a totales de grupos de 3 o más personas', 'HSEQ ve tres o más', 'al menos 3 personas', 'nunca grupos de menos de 3',
+   'the test totals, from 3 or more people', 'never groups of fewer than three'].forEach(x =>
     PRUEBAS.cierto(RESTRICCION.test(x), 'discriminador: el detector reconoce «' + x + '»'));
   PRUEBAS.cierto(!RESTRICCION.test('Semáforo, ciclo y jornada, sin nombres ni puntajes'),
     'discriminador: y no confunde la fila de Dirección de hoy con una restricción');
