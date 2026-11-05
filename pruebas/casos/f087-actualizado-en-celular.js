@@ -355,6 +355,11 @@ PRUEBAS.caso('F089 · el menú vuelve a abrir desde arriba, no donde quedó desp
   const D = p309Datos();
   if (D.faltan) { PRUEBAS.igual(D.faltan, [], 'guarda: el mundo de P308'); return; }
   f089ConDesplegable(D.dir, 3, 320, 568, () => {
+    /* ⚠️ P386 · con «Personalizado», por lo mismo que el caso de H3 de más abajo: desde D6 el menú de Dirección es más
+       corto y con DM Sans entraba entero, así que la guarda («se pudo desplazar») ya no medía. */
+    const pers = document.querySelector('#dashFilters .pchip[onclick*="dashSetPeriod(\'custom\')"]');
+    PRUEBAS.cierto(!!pers, 'guarda: Dirección ofrece «Personalizado»');
+    if (pers) pers.click();
     dfmToggle();
     const inner = document.querySelector('#dfmPanel .dfm-panel-inner');
     inner.scrollTop = inner.scrollHeight;
@@ -429,6 +434,14 @@ PRUEBAS.caso('🔴 F089 · «Menú y filtros» no pasa el borde: 320×568, letra
   const D = p309Datos();
   if (D.faltan) { PRUEBAS.igual(D.faltan, [], 'guarda: el mundo de P308'); return; }
   f089ConDesplegable(D.dir, 3, 320, 568, () => {
+    /* ⚠️ P386 · CON «PERSONALIZADO», QUE ES EL MENÚ MÁS LARGO DE DIRECCIÓN. Desde P386 (D6) la línea de rango de Dirección
+       es sólo el chip del período (sus filas no traen fecha), el menú quedó más corto y la guarda de abajo dejó de medir:
+       335 px entraban en 341 y el caso no podía probar que el menú se desplaza. Con «Personalizado» el menú suma los dos
+       campos de fecha, en un estado que la persona sí produce (el chip de verdad), y el último filtro sigue siendo
+       Empleado. */
+    const pers = document.querySelector('#dashFilters .pchip[onclick*="dashSetPeriod(\'custom\')"]');
+    PRUEBAS.cierto(!!pers, 'guarda: Dirección ofrece «Personalizado»');
+    if (pers) pers.click();
     dfmToggle();
     const panel = document.getElementById('dfmPanel'), inner = panel.querySelector('.dfm-panel-inner');
     const piso = f089Piso(panel), arriba = panel.getBoundingClientRect().top;

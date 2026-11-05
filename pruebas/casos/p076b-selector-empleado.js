@@ -46,7 +46,12 @@ PRUEBAS.caso('🔴 P076b · el selector «Empleado» lista a quien tiene tests, 
 });
 
 PRUEBAS.caso('🔴 P076b · elegir a alguien del ciclo sin tests y tocar las fechas NO suelta el filtro', () => {
-  const fin = p076bEntrar('supervisor');
+  /* ⚠️ P386 · CON LA VISTA DEL SERVICIO MÉDICO, NO LA DEL SUPERVISOR. Las fechas existen donde el período se aplica: en
+     Supervisor no hay chips de período (P232), así que «Personalizado» no se podía elegir y este caso lo ponía a mano con
+     `dashSetPeriod('custom')`, un estado que la pantalla no produce. Desde P386 (D10) un «Personalizado» elegido en otro
+     panel puede viajar hasta Supervisor, y ahí `buildDashFilters` ya no pinta sus fechas (no filtrarían nada:
+     `dashPeriodoAplica`). Lo que el caso afirma —que releer el `<select>` no suelta a la persona— no cambia. */
+  const fin = p076bEntrar('medico');
   try {
     dashGoPerson('Luis Ferrer');
     PRUEBAS.igual(DASH.f.per, 'Luis Ferrer', 'guarda: la persona quedó elegida');

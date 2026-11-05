@@ -18,6 +18,35 @@ function s6Con(f, extra, fn){
   } finally { DASH = prev; }
 }
 
+/* ⚠️ P386 · EL PERÍODO, POR LOS CHIPS Y LOS CAMPOS DE VERDAD. Las dos entradas del período armaban `DASH.f.desde` (y
+   `hasta`) a mano SIN «Personalizado», un estado que la pantalla no produce: las fechas sólo las escriben los campos de
+   «Personalizado» (`dashFilterChange`), y desde P386 (D7) dejar ese período las suelta (`dashSetPeriod`) y
+   `dashHayFiltro` las cuenta sólo como período vigente (`dashFechasVivas`). Con eso esas dos entradas se ponían en rojo
+   sin que nada estuviera mal. Ahora se entra por `onDashData` (vista del servicio médico, que tiene período) y se toca el
+   chip «Personalizado» y el campo, con sus `onchange` reales. La red queda cortada mientras dura (nada de este caso tiene
+   que llegar a ningún lado) y todo vuelve en el `.finally()` de la PROMESA (R18). */
+function s6ConPanel(fn){
+  const prevDash = (typeof DASH !== 'undefined') ? DASH : null, prevLS = Object.assign({}, localStorage);
+  const oFetch = window.fetch, oReloj = window.fetchConReloj;
+  const hoy = new Date().toISOString().slice(0, 10);
+  return Promise.resolve()
+    .then(() => {
+      window.fetch = () => new Promise(() => {}); window.fetchConReloj = () => new Promise(() => {});
+      onDashData({ ok:true, rol:'supervisor', vista:'medico', referencia:{ kss:5 }, metricas:['kss'],
+        registros:[{ persona:'Ana Suárez', empresa:'Empresa Uno', departamento:'Operaciones', cargo:'Piloto', fecha:hoy, kss:4 }],
+        aptitud:null, operacional:[], comentarios:[], pvt:[], turnos:[], duty:null, ausencias:{}, config:{}, marca:null,
+        visor:null, visorError:null, nominaTotal:1 }, 'Empresa Uno', { usuario:'Empresa Uno', empresa:'Empresa Uno' }, 'medico');
+      return fn();
+    })
+    .finally(() => {
+      window.fetch = oFetch; window.fetchConReloj = oReloj;
+      try { stopDashAutoRefresh(); } catch(e){}
+      DASH = prevDash;
+      try { localStorage.clear(); Object.keys(prevLS).forEach(k => localStorage.setItem(k, prevLS[k])); } catch(e){}
+    });
+}
+function s6Chip(p){ return document.querySelector('#dashFilters .pchip[onclick*="dashSetPeriod(\'' + p + '\')"]'); }
+
 PRUEBAS.caso('⚠️ TODOS los filtros cuentan como "algo que deshacer"', () => {
   /* Si `dashHayFiltro` no lo ve, `portalBackToGate` cierra la sesión. Cada uno de estos se pone
      desde una pantalla distinta del panel, así que cualquiera de los cuatro que faltaban dejaba el
@@ -26,8 +55,6 @@ PRUEBAS.caso('⚠️ TODOS los filtros cuentan como "algo que deshacer"', () => 
     ['persona',            { per:'Ana Suárez' }, null],
     ['departamento',       { dep:'Operaciones' }, null],
     ['nivel de riesgo',    { nivel:3 }, null],
-    ['período (desde)',    { desde:'2026-09-01' }, null],
-    ['período (hasta)',    { hasta:'2026-09-30' }, null],
     ['buscador de aptitud',{}, { _aptQ:'suárez' }],
     ['filtro de aptitud',  {}, { _aptFiltro:'alto' }],
     ['sólo con anotación', {}, { _aptSoloAnot:true }],
@@ -36,8 +63,22 @@ PRUEBAS.caso('⚠️ TODOS los filtros cuentan como "algo que deshacer"', () => 
   casos.forEach(([nombre, f, extra]) => {
     if (!s6Con(f, extra, () => dashHayFiltro())) ciegos.push(nombre);
   });
-  PRUEBAS.igual(ciegos, [],
-    '⚠️ con estos filtros puestos, "atrás" saca del panel en vez de deshacerlos: ' + ciegos.join(', '));
+  /* el período (ver `s6ConPanel`): «Personalizado» y una fecha en cada campo, por el chip y el `onchange` de verdad */
+  return s6ConPanel(() => {
+    [['período (desde)', 'dashDesde', '2026-09-01'], ['período (hasta)', 'dashHasta', '2026-09-30']].forEach(([nombre, id, valor]) => {
+      const todo = s6Chip('all'), pers = s6Chip('custom');
+      PRUEBAS.cierto(!!todo && !!pers, 'guarda: el panel tiene los chips «Todo» y «Personalizado»');
+      if (!todo || !pers) return;
+      todo.click(); pers.click();
+      const campo = document.getElementById(id);
+      PRUEBAS.cierto(!!campo, 'guarda: con «Personalizado» está el campo ' + id);
+      if (!campo) return;
+      campo.value = valor; campo.dispatchEvent(new Event('change'));
+      if (!dashHayFiltro()) ciegos.push(nombre);
+    });
+    PRUEBAS.igual(ciegos, [],
+      '⚠️ con estos filtros puestos, "atrás" saca del panel en vez de deshacerlos: ' + ciegos.join(', '));
+  });
 });
 
 PRUEBAS.caso('⚠️ y el caso discrimina: SIN ningún filtro, atrás sí puede salir', () => {

@@ -263,6 +263,37 @@ PRUEBAS.caso('🟡 el recordatorio de «no marcaste la salida» no lo pisa el to
   });
 });
 
+/* ⚠️ P386 · «EL TOAST DEL ERROR QUEDA» SE MIDE, NO SE CUENTA. Este caso contaba los `simSalir(true)` de la fuente de
+   `simEntrar` con `closePortalUI` cambiado por una función vacía, y afirmaba que el toast del error quedaba. Era justo al
+   revés: `closePortalUI` → `closePortal` esconde el toast que haya (`hideToast`, P189), así que con el aviso ANTES de
+   salir se mostraba y se escondía en el mismo instante. El espía tapaba lo único que lo escondía: el caso bendecía el
+   defecto (R17). Ahora se entra a «Ver como…» como desde Más —sin panel, con una credencial de administrador de relleno en
+   memoria—, el pedido de la demo contesta un error o la red falla, y se mira el `#toast` de verdad. */
+function p187SimConError(falla){
+  const prev = { dash: DASH, adm: ADM_PASS, reloj: window.fetchConReloj, ls: Object.assign({}, localStorage), vista: document.getElementById('viewMas').style.display !== 'none' ? 'mas' : 'inicio' };
+  let salio = false;
+  return Promise.resolve()
+    .then(async () => {
+      CTX.resetear();   // un perfil completo: sin él, cerrar el panel muestra el splash
+      DASH = null; ADM_PASS = 'clave-de-relleno-p187';
+      window.fetchConReloj = (u, o) => { let c = {}; try { c = JSON.parse(String((o && o.body) || '{}')); } catch (e) {}
+        return c.action === 'demo' ? falla() : new Promise(() => {}); };
+      hideToast();
+      simEntrar('supervisor');
+      salio = await PRUEBAS.esperarA(() => !SIMUL && !document.getElementById('portalOverlay').classList.contains('show'), 3000);
+      const el = document.getElementById('toast');
+      return { salio: salio, show: el.classList.contains('show'), msg: document.getElementById('toastMsg').textContent };
+    })
+    .finally(async () => {
+      window.fetchConReloj = prev.reloj; ADM_PASS = prev.adm; DASH = prev.dash;
+      try { if (SIMUL) simSalir(true); } catch (e) {}
+      try { hideToast(); } catch (e) {}
+      await PRUEBAS.historialQuieto(90, 1500);   // `simSalir` descarta la entrada de la simulación con un `history.back()`
+      try { mostrarVista(prev.vista); } catch (e) {}
+      try { localStorage.clear(); Object.keys(prev.ls).forEach(k => localStorage.setItem(k, prev.ls[k])); } catch (e) {}
+    });
+}
+
 PRUEBAS.caso('🟡 al salir de la simulación por un ERROR, el toast del error no lo pisa «saliste de la simulación»', () => {
   const oToast = window.showToast, oClose = window.closePortalUI, oVista = window.mostrarVista; const toasts = [];
   window.showToast = m => toasts.push(m); window.closePortalUI = () => {}; window.mostrarVista = () => {};
@@ -271,8 +302,19 @@ PRUEBAS.caso('🟡 al salir de la simulación por un ERROR, el toast del error n
     PRUEBAS.igual(toasts.length, 0, '🟡 salida silenciosa: ningún toast');
     simSalir();
     PRUEBAS.igual(toasts, [t('ts_sim_salida')], 'DISCRIMINADOR · el botón «Salir» sí avisa');
-    PRUEBAS.igual((simEntrar.toString().match(/simSalir\(true\)/g) || []).length, 3, 'los tres caminos de error de simEntrar salen en silencio (el toast del error queda)');
   } finally { window.showToast = oToast; window.closePortalUI = oClose; window.mostrarVista = oVista; }
+  /* y el toast del error QUEDA, medido en el `#toast` de verdad (ver `p187SimConError`). R19 · el orden lo concede
+     `simEntrar` (P386: sale primero, avisa después). */
+  return p187SimConError(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: false, error: 'algo falló' }) }))
+    .then(r => {
+      PRUEBAS.cierto(r.salio, 'guarda: el servidor contestó un error y la simulación se cerró');
+      PRUEBAS.igual([r.show, r.msg], [true, t('ts_sim_no_abre')], '🟡 el aviso del error queda a la vista después de salir (antes se escondía en el mismo instante)');
+      return p187SimConError(() => Promise.reject(new TypeError('Failed to fetch')));
+    })
+    .then(r => {
+      PRUEBAS.cierto(r.salio, 'guarda: la red falló y la simulación se cerró');
+      PRUEBAS.igual([r.show, r.msg], [true, t('sin_conexion')], '🟡 y el de la red caída, también');
+    });
 });
 
 PRUEBAS.caso('🟡 marcar una tarea hecha guarda la caché: el próximo arranque no muestra el contador viejo', async () => {

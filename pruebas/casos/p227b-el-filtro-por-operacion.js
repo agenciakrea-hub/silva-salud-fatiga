@@ -126,7 +126,13 @@ PRUEBAS.caso('🔴 P227b-3 · la tendencia «vs. período previo» respeta la op
      de memoización de `dashFilasPrevias` ENUMERABA las dimensiones a mano y no incluía `op`, así
      que al cambiar de operación devolvía las filas del período anterior sin filtrar. La flecha de
      los 7 indicadores comparaba una operación contra toda la empresa.
-     El derecho lo concede `dashFiltroClave()`, que deriva de `DASH_DIMS`. */
+     El derecho lo concede `dashFiltroClave()`, que deriva de `DASH_DIMS`.
+     ⚠️ P386 · CON LA VISTA DEL SERVICIO MÉDICO, NO LA DEL SUPERVISOR. Este caso entraba como Supervisor y ponía
+     `DASH.f.period = 'mes'` a mano, un estado que la pantalla no produce: Supervisor no tiene selector de período (P232)
+     y la tendencia vive en Resumen, que es del servicio médico (`renderResumen`). Desde P386 (D10) el período puede
+     llegar a Supervisor desde otro panel, y ahí `dashEffectiveRange` no lo aplica (`dashPeriodoAplica`): sin rango no
+     hay rango previo, y el caso quedaba «SIN MEDIR». Lo que afirma —la clave de la memoria incluye la operación— no
+     cambia. */
   p227bEntorno(() => {
     const hoy = todayStr();
     const atras = (n) => { const d = new Date(); d.setDate(d.getDate() - n);
@@ -137,8 +143,9 @@ PRUEBAS.caso('🔴 P227b-3 · la tendencia «vs. período previo» respeta la op
                   p227bReg('Beto Ruiz',  atras(45), 7)],
       operaciones: [
         { nombre:'Cardón IV',    tipo:'instalacion', estado:'activo', genteN:1, gente:[{persona:'Ana Suárez'}] },
-        { nombre:'Planta Norte', tipo:'instalacion', estado:'activo', genteN:1, gente:[{persona:'Beto Ruiz'}] }]
-    }), 'Empresa Uno', {}, 'supervisor');
+        { nombre:'Planta Norte', tipo:'instalacion', estado:'activo', genteN:1, gente:[{persona:'Beto Ruiz'}] }],
+      vista:'medico'
+    }), 'Empresa Uno', {}, 'medico');
     DASH.f.period = 'mes';
 
     if (typeof dashRangoPrevio === 'function' && !dashRangoPrevio()){

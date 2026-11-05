@@ -1459,6 +1459,8 @@
   .dfm-panel-inner .dash-tabs-wrap { border-top: 1px solid var(--linea); }
   .dfm-panel-inner .dash-rango { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
     padding: .9rem 1.2rem 0; }
+  /* P386 · D6 · sin período (Supervisor) la línea queda vacía: sin esto quedaba su relleno de arriba como un hueco */
+  .dfm-panel-inner .dash-rango:empty { display: none; }
   .dfm-panel-inner .dash-filters { padding: .7rem 1.2rem 1.1rem; margin-bottom: 0; }
   /* Botón de Glosario: cuadradito al lado de "Menú y filtros", mismo trato que el ⓘ de Gestiones. */
   .gloss-toggle { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -8234,7 +8236,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.63';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.64';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -9131,6 +9133,11 @@ const I18N = {
       jor_sin_umbral:'{n} jornadas quedaron sin comparar: son anteriores a que se guardara el límite vigente de cada día, y no se les aplica el actual.',
       jor_sin_umbral_1:'Sin límite guardado para ese día: no se compara.',
       jor_k_dias:'jornadas por encima', jor_k_total:'tiempo acumulado', jor_k_personas:'personas con registro',
+      /* P386 · D5 · con un filtro, Jornada lista sólo las filas del filtro y NO recalcula los totales (`renderJornada`) */
+      jor_total_empresa:'Estos totales son de toda la empresa: el filtro sólo cambia las listas de personas.',
+      jor_total_todas:'Estos totales son de todas las empresas: el filtro sólo cambia las listas de personas.',
+      jor_hist_empresa:'toda la empresa', jor_hist_todas:'todas las empresas',
+      jor_filtro_vacio:'Nadie del filtro tiene jornadas en este período.',
       jor_ahora:'{n} personas siguen en jornada y ya pasaron lo previsto',
       jor_ahora_1:'1 persona sigue en jornada y ya pasó lo previsto',
       jor_n_dias:'{n} días', jor_n_dias_1:'1 día',
@@ -9727,6 +9734,9 @@ const I18N = {
       // Corregidos a neutro al pasarlos al diccionario.
       hlp_sin_registros:'Sin registros para este filtro.',
       hlp_idc:'<b>Disponibilidad cognitiva</b>: qué proporción de la nómina está en condiciones de operar, según sus registros más recientes.<br><br>Se calcula <b>sólo sobre las personas que tienen datos</b>. Las que no hicieron tests se informan aparte, nunca se cuentan como disponibles: un indicador alto porque nadie se midió no es una buena noticia, es falta de información.<br><br>Son <b>cantidades de personas</b>: esta pestaña no muestra valores de tests ni datos clínicos de nadie.',
+      /* P386 · H2 · la misma ⓘ con un filtro de alcance puesto (`renderHseqIdc`, `hseqFiltroDeAlcance`): «se informan aparte»
+         era falso con un filtro, que no muestra la cobertura (P385 · D2). La última frase es una promesa: está en `P051_PROMESA_CLAVES`. */
+      hlp_idc_filtro:'<b>Disponibilidad cognitiva</b>: qué proporción de las personas del filtro está en condiciones de operar, según sus registros más recientes.<br><br>Se calcula <b>sólo sobre las personas que tienen datos</b>. Con un filtro puesto no se sabe cuánta gente del filtro falta medir: sin filtros, las que no hicieron tests se informan aparte.<br><br>Son <b>cantidades de personas</b>: esta pestaña no muestra valores de tests ni datos clínicos de nadie.',
       /* P308 · la guía de las dos pestañas en el panel de HSEQ, que desde acá muestran otra cosa que en Dirección (R5). */
       hlp_idc_hseq:'<b>Indicadores de toda la empresa</b>: el promedio de cada test, la flecha contra el período anterior y la tendencia.<br><br>De los tests, HSEQ ve <b>sólo totales de {n} o más personas medidas</b>, calculados en el servidor. Mientras no se completa un grupo, la tarjeta no muestra ni el número ni el color. Ningún resultado de una persona llega a esta pantalla, ni con un seudónimo.<br><br>Los totales se arman en grupos de {n} o más personas medidas que estén en la nómina, en el orden en que llegan los tests, y un grupo completo queda guardado tal como se cerró. Las últimas personas medidas esperan a completar el grupo siguiente, y un grupo cuenta el día de su último test, aunque traiga tests de días anteriores. Por eso un día con pocas mediciones puede no mostrar nada, y por eso los totales son siempre de toda la empresa. Los grupos se cierran cada 15 minutos. Un test que aparece con una hora anterior a lo ya cerrado no se suma, y si alguien modifica datos de grupos ya cerrados, el cierre se detiene y esta pantalla lo avisa.',
       hlp_mrfo_hseq:'<b>Señales del puesto y del turno</b>: los reportes rápidos <b>anónimos</b> del período (carga, entorno, turnos), contados por tipo y por área. Las áreas con menos de <b>{n} personas</b> no se desglosan. Son problemas del diseño del trabajo, no de una persona.<br><br>El <b>mapa de los tests por área</b> no se muestra en HSEQ: con tan poca gente por área, el número de un área es prácticamente el de una persona.',
@@ -10100,6 +10110,8 @@ const I18N = {
       mov_vacio_hseq:'Todavía no hay acciones del sistema registradas.',
       mov_vacio_emp_hseq:'{emp} todavía no registra acciones del sistema.',
       mov_sin_atribuir:'En este panel la actividad no se separa por persona ni por departamento.',
+      /* P386 · H3 · Dirección con un seudónimo: el servidor manda la actividad sin nombres (`sinNombres`) y sí con departamento */
+      mov_sin_atribuir_per:'En este panel la actividad no se separa por persona. Quita el filtro de persona para verla.',
       /* P385 · D1 · con persona o departamento, en lugar del bloque «Tu gente» */
       mov_cob_filtro:'Con un filtro no se ve cuánta gente falta medir.',
       mov_vacio_emp:'{emp} todavía no registra actividad.',
@@ -11467,6 +11479,10 @@ const I18N = {
       jor_sin_umbral:'{n} shifts were not compared: they predate the storing of each day\'s limit, and the current one is not applied to them.',
       jor_sin_umbral_1:'No stored limit for that day: not compared.',
       jor_k_dias:'shifts above plan', jor_k_total:'accumulated time', jor_k_personas:'people with records',
+      jor_total_empresa:'These totals are for the whole company: the filter only changes the lists of people.',
+      jor_total_todas:'These totals are for all companies: the filter only changes the lists of people.',
+      jor_hist_empresa:'whole company', jor_hist_todas:'all companies',
+      jor_filtro_vacio:'No one in the filter has shifts in this period.',
       jor_ahora:'{n} people are still on duty and already past plan',
       jor_ahora_1:'1 person is still on duty and already past plan',
       jor_n_dias:'{n} days', jor_n_dias_1:'1 day',
@@ -12041,6 +12057,7 @@ const I18N = {
       // ══════ F3 · Long help texts (the ⓘ panel on each block) ══════
       hlp_sin_registros:'No records for this filter.',
       hlp_idc:'<b>Cognitive availability</b>: what share of the workforce is fit to operate, based on their most recent records.<br><br>It is calculated <b>only over people who have data</b>. Those who have not taken any test are reported separately and are never counted as available: a high figure because nobody was measured is not good news, it is missing information.<br><br>These are <b>counts of people</b>: this tab shows no test values and no clinical data about anyone.',
+      hlp_idc_filtro:'<b>Cognitive availability</b>: what share of the people in the filter is fit to operate, based on their most recent records.<br><br>It is calculated <b>only over people who have data</b>. With a filter on, how many people in the filter are still unmeasured is not known: without filters, those who have not taken any test are reported separately.<br><br>These are <b>counts of people</b>: this tab shows no test values and no clinical data about anyone.',
       hlp_idc_hseq:'<b>Indicators for the whole company</b>: the average of each test, the arrow against the previous period and the trend.<br><br>Of the tests, HSEQ sees <b>only totals of {n} or more measured people</b>, calculated on the server. Until a group is complete, the card shows neither the number nor the color. No individual result reaches this screen, not even under a pseudonym.<br><br>Totals are built in groups of {n} or more measured people on the payroll, in the order the tests arrive, and a completed group is stored exactly as it closed. The last people measured wait for the next group to complete, and a group counts on the day of its last test, even if it carries tests from earlier days. That is why a day with few measurements may show nothing, and why totals are always for the whole company. Groups close every 15 minutes. A test that shows up with a time earlier than what is already closed is not added, and if someone changes data in already closed groups, closing stops and this screen says so.',
       hlp_mrfo_hseq:'<b>Job and shift signals</b>: the <b>anonymous</b> quick reports of the period (workload, environment, shifts), counted by type and by area. Areas with fewer than <b>{n} people</b> are not broken down. They are problems of how the work is designed, not of one person.<br><br>The <b>test map by area</b> is not shown in HSEQ: with so few people per area, an area’s figure is practically one person’s.',
       hlp_mrfo:'<b>Risk map by area</b>: what share of each department has indicators needing attention. It tells you <b>where to look first</b>, not how to assess any individual.<br><br>Departments with fewer than <b>{n} people</b> are not broken down: with so few, the area figure is practically one person\u2019s.<br><br><b>Job and shift signals</b>: the <b>anonymous</b> quick reports of the period (workload, environment, shifts), counted by type and by area under the same {n}-people rule. They are problems of how the work is designed, not of one person: the decision belongs to this console.',
@@ -12458,6 +12475,7 @@ const I18N = {
       mov_vacio_hseq:'No system actions recorded yet.',
       mov_vacio_emp_hseq:'{emp} has no recorded system actions yet.',
       mov_sin_atribuir:'In this panel, activity is not broken down by person or department.',
+      mov_sin_atribuir_per:'In this panel, activity is not broken down by person. Remove the person filter to see it.',
       mov_cob_filtro:'With a filter, how many people are still unmeasured is not shown.',
       mov_vacio_emp:'{emp} has no recorded activity yet.',
       mov_vacio_per:'No activity from {p} among the latest records.',
@@ -20807,6 +20825,7 @@ function closePortal(todo){
   const _panelAbierto = (document.getElementById('portalDash') || {}).style && document.getElementById('portalDash').style.display !== 'none';
   const _volverAlSelector = _eraDemo && !todo && !!DEMO_PAYLOAD && _panelAbierto;
   DASH = null;
+  cicloPedidosInvalidar();            // P386 · H7 · el pedido de período (7/30/90) era de este panel
   cargaCancelar();                    // lo que esté cargando ya no se aplica al volver
   stopDashAutoRefresh(); dashNivelesFrenar(); dismissRemember(); dashApplyMarca(null); cicloTickStop();   // P208 · el panel se cerró: el reintento de niveles no sigue pidiendo
   const gestOv = document.getElementById('gestionesOverlay'); if (gestOv) gestOv.classList.remove('show');
@@ -20887,7 +20906,11 @@ function dashHayFiltro(){
   if (dashFiltrosPuestos().length) return true;
   /* sólo quedan las fechas: `emp` ya la cubre `dashFiltrosPuestos` con la MISMA condición de rol, y
      dejarla repetida acá es cómo las dos copias terminan divergiendo. */
-  return !!(DASH.f.desde || DASH.f.hasta);
+  /* ⚠️ P386 · D7 · Y SÓLO SI SON EL PERÍODO VIGENTE (`dashFechasVivas`). Las contaba siempre: con «Mes» elegido después
+     de «Personalizado», las fechas viejas seguían puestas, aparecía la ← sin nada a la vista y el primer «atrás» se
+     gastaba en borrarlas sin cambiar la pantalla. (El comentario de arriba dice que se ponen «desde el ciclo operativo»:
+     hoy las pone sólo «Personalizado», `dashFilterChange`.) */
+  return dashFechasVivas();
 }
 
 /* "Atrás" dentro de Estadísticas (2026-08-26, pedido del usuario).
@@ -20902,8 +20925,17 @@ function dashHayFiltro(){
    flecha Y el del teléfono— hiciera lo mismo, porque es el que la gente usa por reflejo.
 
    Devuelve true si consumió el gesto (había algo que deshacer). */
+/* ⚠️ P386 · D9 · Y EL VISOR TAMBIÉN ES ALGO QUE EL ADMINISTRADOR ARMÓ (decisión de Franco: «atrás» desarma de a un
+   paso, y primero vuelve a «Todas»). Para «atrás», la empresa contaba sólo con `DASH.f.emp` y el rol `admin`; en el
+   visor el rol es el de la cuenta mirada y `f.emp` está vacío, así que no había nada «que deshacer» y `silvaAtras`
+   cerraba el panel entero: para volver había que entrar de nuevo y rearmar empresa y vista. Ahora, después de los
+   filtros, si la lente no está en «Todas las empresas · Servicio médico», el gesto vuelve ahí (lo mismo que
+   «← Todas las empresas», conservando el período, D10) y recién el siguiente cierra. Trabajando sobre una empresa no
+   cambia nada: la empresa ya era un filtro del administrador (`dashFiltrosPuestos`) y `dashClearOne` la suelta. */
 function dashAtras(){
   if (dashHayFiltro()){ dashClearOne(); return true; }
+  const L = adminLente();
+  if (L && !L.enCasa){ visorVolverTodas(); return true; }
   return false;
 }
 
@@ -20931,7 +20963,10 @@ function dashUpdateBackBtn(){
      servicio médico: si entró por "Mis estadísticas" y filtró algo, la flecha es lo que le
      deshace ese filtro. Antes, para esa persona, la flecha no existía y el único atrás posible
      cerraba todo. */
-  const ver = !!(p.esSupervisor || p.esServicioMedico || dashHayFiltro());
+  /* P386 · D9 · y fuera de «Todas · Servicio médico», que es otro paso que «atrás» deshace (`dashAtras`): el
+     administrador sin perfil no tenía ← en el visor. La misma lente que decide el gesto decide si se ofrece. */
+  const _lente = adminLente();
+  const ver = !!(p.esSupervisor || p.esServicioMedico || dashHayFiltro() || (_lente && !_lente.enCasa));
   /* P309 · en el panel de HSEQ el ← va ADENTRO del ☰ (la foto, fila 2, decidido por Franco): mismo destino
      (`portalBackToGate`) y misma regla, en otro lugar. Uno de los dos, nunca los dos. El «atrás» del teléfono no pasa
      por acá (`silvaAtras`): sigue igual. */
@@ -21648,7 +21683,10 @@ function simEntrar(vista){
         if (deAdm) admCredencialVencida(conToken); else showToast(t('ts_sim_demo_pass'));
         return;
       }
-      if (!d || !d.ok){ showToast(t('ts_sim_no_abre')); simSalir(true); return; }
+      /* ⚠️ P386 · G · EL MISMO ORDEN QUE LA RAMA DE LA CLAVE: primero se sale y DESPUÉS se avisa. `simSalir(true)` cierra el
+         panel con `closePortal`, que esconde el toast que haya (P189): con el aviso antes, se mostraba y se escondía en
+         el mismo tick, y la persona volvía a Más sin saber qué pasó. P387 lo había arreglado sólo en la rama de arriba. */
+      if (!d || !d.ok){ simSalir(true); showToast(t('ts_sim_no_abre')); return; }
       /* ⚠️ S7 · SIN ESTO, QUIEN ENTRA POR ACÁ NO TIENE EL SELECTOR. Es la otra puerta al mismo
          payload, y es la que usa la Dirección para revisar cómo se ve cada rol. Sin guardarlo,
          `demoPintarBarra()` calculaba que no hay demo y escondía la barra: la misma pantalla se
@@ -21665,8 +21703,15 @@ function simEntrar(vista){
       } else {
         onDashData(demoPayloadDeVista(d, vista), 'Empresa Demo', paramsSim, demoVistaReal(vista));   // P387 · como el ojo
       }
+    }, () => {
+      /* P386 · G · la RED: el pedido no salió o no volvió. Primero se sale, después se avisa (ver arriba). */
+      simSalir(true); showToast(t('sin_conexion'));
     })
-    .catch(() => { showToast(t('sin_conexion')); simSalir(true); });
+    /* ⚠️ P386 · Y LO QUE FALLA AL ABRIR LO QUE SÍ LLEGÓ NO ES LA CONEXIÓN. El `.catch` de una sola pieza atrapaba también
+       lo que lanzaba adentro del `.then`: con una respuesta `{ok:true}` incompleta, `onDashData` lanzaba y la pantalla
+       decía «No se pudo conectar» (medido en la investigación, `sim_payload_roto`). La red se atiende arriba, en el
+       segundo argumento del `.then`; acá llega sólo lo de abrir, y se dice eso. */
+    .catch(() => { simSalir(true); showToast(t('ts_sim_no_abre')); });
 }
 function simSalir(silencioso){
   /* P187 · `silencioso`: cuando se sale por un ERROR, el toast del error ya está en pantalla y éste
@@ -22471,6 +22516,33 @@ function visorPlegar(abierto){
   try { localStorage.setItem(K_VISOR_ABIERTO, abierto ? '1' : '0'); } catch(e){}
 }
 function visorToggle(){ const c = document.getElementById('visorCuerpo'); if (c) visorPlegar(!!c.hidden); }
+/* ⚠️ P386 · A · «QUÉ ESTÁ MIRANDO EL ADMINISTRADOR», EN UN SOLO LUGAR (R21).
+   El administrador mira una empresa por dos puertas (ADR 014): «Trabajar sobre» (`#dashEmpAdmin`, escribe, queda en
+   `DASH.f.emp` con el rol `admin`) y el visor (`#visorEmpresa` + `#visorVista`, sólo lectura, queda en `DASH.visor`).
+   Cada lugar que necesitaba saber qué se estaba mirando lo sacaba de una fuente distinta, y la investigación de P386
+   midió cuatro defectos de lo mismo:
+     · D4 · el `<select>` del visor marcaba sólo la empresa del visor: trabajando sobre HELITEC decía «Todas», y cambiar
+       sólo la vista mandaba el pedido sin empresa y soltaba HELITEC sin avisar;
+     · D11 · «← Todas las empresas» miraba sólo la del visor: trabajando sobre una empresa no aparecía, con la línea de al
+       lado nombrándola;
+     · D9 · «atrás» contaba la empresa sólo con `DASH.f.emp` y el rol `admin`: en el visor no había nada «que deshacer» y
+       cerraba el panel entero;
+     · D8 · la fila del mapa de calor no miraba la lista del selector (ver `dashEmpresaTieneCuenta`).
+   La línea plegada ya tenía razón desde F002 (`empAct || empTrab`); esto es esa misma derivación, para todos.
+   `modo`: `casa` es «Todas las empresas · Servicio médico», el administrador de siempre; `trabajo`, «Trabajar sobre»;
+   `visor`, el visor. `null` fuera de una sesión de administrador o en la demostración, igual que `visorPintar`. */
+function adminLente(){
+  if (!DASH || DASH.demoMode || !esAdminSesion()) return null;
+  const visor = (DASH.visor && typeof DASH.visor === 'object') ? DASH.visor : null;
+  const empresa = visor ? String(visor.empresa || '') : String((DASH.rol === 'admin' && DASH.f && DASH.f.emp) || '');
+  const vista = (visor && visor.vista) || DASH.vista || 'medico';
+  const modo = visor ? 'visor' : (empresa ? 'trabajo' : 'casa');
+  /* «En casa» es sin visor y sin empresa de trabajo, en cualquier vista. El visor siempre trae `DASH.visor`, también en
+     «Todas · Supervisor» (`out.visor` en el servidor). Con la vista en la condición, una fila de `Accesos` con rol admin
+     que entra con su contraseña de supervisor nunca estaba en casa: «atrás» volvía a pedir lo mismo y no cerraba
+     (verificador de P386). */
+  return { empresa: empresa, vista: vista, modo: modo, enCasa: modo === 'casa' };
+}
 /* «¿Cómo vuelvo al panel de todas las empresas?» (Franco): un toque, desde la cabecera, sin abrir nada.
    «Todas · Servicio médico» es el administrador de siempre, con sus gráficos sobre todas las empresas. */
 function visorVolverTodas(){
@@ -22490,8 +22562,12 @@ function visorPintar(){
   const info = $('visorInfoBtn'); info.textContent = 'ⓘ'; info.setAttribute('aria-label', t('que_es_esto'));
   $('visorGuia').innerHTML = t('visor_guia');
   const cuentas = Array.isArray(DASH.cuentas) ? DASH.cuentas : [];
-  const empAct = (DASH.visor && DASH.visor.empresa) || '';
-  const visAct = (DASH.visor && DASH.visor.vista) || DASH.vista || 'medico';
+  /* P386 · A · qué se mira, de `adminLente` (la línea plegada, el selector del visor y «← Todas las empresas» dicen lo
+     mismo). `empAct` es la del visor y `empTrab` la de trabajo: siguen haciendo falta para los dos textos de abajo, que
+     son distintos a propósito (con el visor se agrega «sin escribir nada»). */
+  const L = adminLente() || { empresa: '', vista: 'medico', modo: 'casa', enCasa: true };
+  const empAct = L.modo === 'visor' ? L.empresa : '';
+  const visAct = L.vista;
   /* ⚠️ P213 · la MISMA lista que el visor (`DASH.cuentas`, del servidor). El selector viejo la
      sacaba de los registros de tests, así que una empresa sin tests en el rango no aparecía. */
   const empTrab = (DASH.f && DASH.f.emp) || '';
@@ -22510,8 +22586,13 @@ function visorPintar(){
        de al lado (`visorViendo`) ya pasaba `esc()`; ésta no. */
     if (nota) nota.innerHTML = empTrab ? t('dash_emp_admin_si', { e: esc(empTrab) }) : t('dash_emp_admin_no');
   }
+  /* ⚠️ P386 · D4 · EL SELECTOR DEL VISOR MARCA LA EMPRESA QUE SE ESTÁ MIRANDO, también trabajando sobre una. Marcaba
+     sólo la del visor: trabajando sobre HELITEC decía «Todas las empresas» (con la línea plegada nombrando a HELITEC un
+     renglón más arriba), y como `visorCambiar` lee la empresa de este selector, cambiar sólo la VISTA mandaba el pedido
+     sin empresa y el panel pasaba a las tres empresas sin avisar. Desde ahí se mira con el visor (sólo lectura): es la
+     otra puerta, y la línea de adentro lo dice («…sin escribir nada»). */
   $('visorEmpresa').innerHTML = '<option value="">' + esc(t('visor_todas')) + '</option>' +
-    cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === empAct ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
+    cuentas.map(c => '<option value="' + esc(c.empresa) + '"' + (c.empresa === L.empresa ? ' selected' : '') + '>' + esc(c.empresa) + '</option>').join('');
   /* P306 · Dirección y HSEQ por separado: el servidor fabrica la misma vista `hseq`, con o sin la marca. */
   $('visorVista').innerHTML = ['supervisor', 'medico', 'direccion', 'hseq'].map(k =>
     '<option value="' + k + '"' + (k === visAct ? ' selected' : '') + '>' + esc(visorVistaTxt(k)) + '</option>').join('');
@@ -22525,7 +22606,7 @@ function visorPintar(){
      visor) y el mensaje lo dice: con el visor puesto agrega «sin escribir nada», que es su
      diferencia real; con el visor apagado y una empresa de trabajo, no lo dice, porque ahí SÍ se
      escribe. */
-  const empVista = empAct || empTrab;
+  const empVista = L.empresa;   // P386 · A · = `empAct || empTrab`, la derivación de F002, ahora de `adminLente`
   $('visorViendo').innerHTML = empAct
     ? t('visor_viendo', { empresa: esc(empAct), vista: esc(visorVistaTxt(visAct)) })
     : (empTrab
@@ -22534,8 +22615,11 @@ function visorPintar(){
   /* la línea plegada: «Consorcio HELITEC · Supervisor» o «Todas las empresas · Servicio médico» */
   $('visorResumen').innerHTML = '<b>' + esc(empVista || t('visor_todas')) + '</b> · ' + esc(visorVistaTxt(visAct));
   /* el camino de vuelta, sólo cuando hace falta: fuera de «Todas · Servicio médico» */
+  /* ⚠️ P386 · D11 · Y TAMBIÉN TRABAJANDO SOBRE UNA EMPRESA. Miraba sólo la del visor (`!empAct`), así que con «Trabajar
+     sobre» HELITEC la línea decía «Consorcio HELITEC · Servicio médico» y no ofrecía la vuelta que el HTML promete «siempre
+     a un toque». El botón ya hacía lo correcto (`visorVolverTodas` → `visorCambiar` borra `empresa`). */
   const volver = $('visorVolver');
-  const enCasa = !empAct && visAct === 'medico';
+  const enCasa = L.enCasa;
   volver.hidden = enCasa;
   volver.textContent = t('visor_volver');
   volver.setAttribute('aria-label', t('visor_volver_aria'));
@@ -22579,6 +22663,9 @@ function visorCambiar(){
      SÓLO esa empresa bajo el rótulo «todas». Y «Volver a todas las empresas» no volvía a todas. */
   ['opDias', 'opDesde', 'opHasta', 'fresh', 'verEmpresa', 'verVista', 'pedida', 'empresa'].forEach(k => { delete params[k]; });   // `pedida` también: la vista la elige el visor
   Object.assign(params, visorParams(emp, vis));
+  /* P386 · D10 · el período elegido sí se conserva (el 7/30/90 de arriba no: es otro control, P385 D3). Se decide ACÁ, con
+     el panel que se deja, y no al llegar la respuesta. En el visor no hay empresa de trabajo. */
+  const fIni = dashFiltrosDelPanelNuevo('');
   const dash = document.getElementById('portalDash');
   const carga = cargaIniciar({ gate: dash });
   /* Franco: «se pone una capa gris sobre todo y nada»: el panel que se deja se reemplaza por el
@@ -22597,7 +22684,7 @@ function visorCambiar(){
       if (d.visorError === 'empresa') showToast(t('ts_visor_empresa_no'));
       const label = (d.visor && d.visor.empresa) ? d.visor.empresa : dashScopeTodas();   // P191 · el canónico: es dato (ver dashScopeTodas)
       visorPlegar(false);   // la acción terminó: el visor vuelve a ocupar una línea
-      onDashData(d, label, params, d.vista || vis);
+      onDashData(d, label, params, d.vista || vis, fIni);
     })
     .catch(() => { if (!cargaVigente(carga)) return; showToast(t('sin_conexion') + '.'); volverAlDeAntes(); }));
 }
@@ -22626,6 +22713,9 @@ function dashEmpresaAdminCambiar(){
      reabierto por la puerta que P213 abrió. `visorCambiar` ya borraba la clave; esta copia la
      seteaba. Lo cazó el verificador. */
   if (emp) params.empresa = emp; else delete params.empresa;
+  /* P386 · D10 · lo que sobrevive al panel nuevo: el período elegido y la empresa de trabajo (`dashFiltrosDelPanelNuevo`),
+     decidido con el panel que se deja. */
+  const fIni = dashFiltrosDelPanelNuevo(emp);
   const carga = cargaIniciar({ gate: document.getElementById('portalDash') });
   const scopeAntes = (DASH && DASH.scope) || '';
   /* ⚠️ Y AL FALLAR TAMBIÉN, que es lo que `visorCambiar` ya hacía y esta copia se olvidó: sin el
@@ -22643,17 +22733,15 @@ function dashEmpresaAdminCambiar(){
       if (!cargaVigente(carga)) return;
       if (!d || !d.ok){ showToast(tError(d)); volverAlDeAntes(); return; }
       const label = emp || dashScopeTodas();
-      onDashData(d, label, params, d.vista || 'medico');
       /* ⚠️ `DASH.f.emp` TAMBIÉN, porque es de donde `gestEmpresaActual()` saca la empresa que viaja
-         en cada escritura. `onDashData` arma `DASH` desde el payload y no lo conoce. */
-      DASH.f.emp = emp; DASH.f.dep = ''; DASH.f.per = '';
-      /* ⚠️ `visorPintar()` OTRA VEZ, y acá está el punto. `onDashData` ya la llamó —es su último
-         paso— pero con `DASH.f.emp` recién reseteado a `''` por su propio literal, y `visorPintar`
-         es lo ÚNICO que pinta `#dashEmpAdmin` y su nota. Sin esta línea el selector quedaba sin
-         opción marcada (el navegador muestra la primera, «— Elige una empresa —») y la nota decía
-         «solo puedes mirar» mientras el admin SÍ estaba escribiendo sobre esa empresa. El defecto
-         que P213 vino a cerrar, invertido. Lo cazó el verificador. */
-      buildDashFilters(); renderDash(); visorPintar();
+         en cada escritura. `onDashData` arma `DASH` desde el payload y no lo conoce: por eso viaja en `fIni`.
+         ⚠️ P386 · B · Y VIAJA ADENTRO, NO EN UN PARCHE DESPUÉS. Hasta la 7.63 esto se escribía DESPUÉS de `onDashData`
+         (`DASH.f.emp = emp; DASH.f.dep = ''; DASH.f.per = ''`) y se volvía a pintar todo (`buildDashFilters(); renderDash();
+         visorPintar();`), porque la primera pintada —la de `onDashData`— había salido con `f.emp` en `''`: el selector
+         sin opción marcada y la nota diciendo «solo puedes mirar» mientras el admin escribía (el defecto que P213 vino a
+         cerrar, invertido; lo cazó el verificador). Con `fIni` la primera pintada ya es la final, y el período elegido no
+         se pierde (D10). Departamento y persona arrancan vacíos, como siempre, por el literal de `onDashData`. */
+      onDashData(d, label, params, d.vista || 'medico', fIni);
     })
     .catch(() => { if (!cargaVigente(carga)) return; showToast(t('sin_conexion') + '.'); volverAlDeAntes(); }));
 }
@@ -23058,7 +23146,10 @@ function dashLocalReaplicar(dash){
     if (!Object.keys(porCampo).length) delete loc[campo];
   });
 }
-function onDashData(d, scopeLabel, params, vista){
+/* P386 · `fInicial` (quinto parámetro): lo que sobrevive del panel anterior, y lo decide sólo `dashFiltrosDelPanelNuevo`
+   (el período elegido y la empresa de trabajo). Lo pasan las dos puertas de cambio de empresa; el resto de las entradas
+   no lo pasa y abre como siempre. */
+function onDashData(d, scopeLabel, params, vista, fInicial){
   if (!d || !d.ok){ showToast(tError(d)); return; }
   /* ⚠️ P208 · el reintento de niveles del panel ANTERIOR muere acá, que es donde de verdad hay un
      panel nuevo. Estaba en `startDashAutoRefresh()` y era el lugar equivocado: `dashGenerarInforme`
@@ -23072,8 +23163,7 @@ function onDashData(d, scopeLabel, params, vista){
      `dashRefresh` con `DASH !== mio`— `cicloPeriodoSet` creía que había fallado: le ponía al panel NUEVO los
      parámetros del viejo (otra empresa en el próximo ↻ o en el refresco del ciclo) y avisaba «no se pudo traer».
      Subir `CICLO_PIDE_N` es lo mismo que hace un segundo toque («llegó tarde»): su `.then` ya no decide nada. */
-  CICLO_PIDIENDO = 0;
-  CICLO_PIDE_N = (Number(CICLO_PIDE_N) || 0) + 1;
+  cicloPedidosInvalidar();   // P386 · la misma invalidación que `closePortal` (H7)
   /* ⚠️ R14 · SE MIDE ANTES DE PISAR `DASH`. `sectorActual()` mira `DASH._cfg.sector` PRIMERO, así
      que en cuanto este objeto se reemplaza el sector puede cambiar de golpe — y lo que ya estaba
      pintado afuera del panel (el inicio, sus botones operacionales) se queda con la terminología
@@ -23121,7 +23211,10 @@ function onDashData(d, scopeLabel, params, vista){
            /* P310 · el panel de HSEQ abre en la SEMANA en curso (decisión de Franco, 2026-11-02): el estado global del
               header sigue al período, y con «todo» un rojo de agosto dejaba «POCO SEGURO» fijo. Los demás paneles abren
               como siempre. El ↻ no pasa por acá (`dashRefresh` conserva el período elegido). */
-           f:{period: ctxServidor.panel === 'hseq' ? 'semana' : 'all',desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, tab:tabs[0], tabs:tabs,
+           /* P386 · D10 · y encima, lo que sobrevive del panel anterior (`fInicial`, de `dashFiltrosDelPanelNuevo`): el
+              período elegido y la empresa de trabajo. El de por defecto sale de `dashPeriodoPorDefecto`, el mismo que usa la
+              regla de «elegido». */
+           f:Object.assign({period: dashPeriodoPorDefecto(ctxServidor.panel),desde:'',hasta:'',emp:'',dep:'',per:'',nivel:''}, fInicial || {}), tab:tabs[0], tabs:tabs,
            _niveles:null, _reportes:null, _reportesPedidos:false,
            /* P166 · los atajos del administrador. Sólo llegan con rol admin, y acá se vuelve a
               exigir: si un payload los trajera con otro rol, no se guardan. */
@@ -23874,6 +23967,8 @@ function dfmUpdateLabel(){
   const lbl = document.getElementById('dfmToggleLabel');
   if (!lbl || !DASH) return;
   const tabLbl = tabLabel(_dashActiveTab || DASH.tab);
+  /* P386 · D6 · en Supervisor no hay período (P232): «Aptitud · Todo» nombraba uno que esa vista no tiene. */
+  if (!dashPeriodoAplica()){ lbl.textContent = tabLbl || ''; return; }
   const perLabel = periodoLabel(DASH.f.period);
   lbl.textContent = (tabLbl ? (tabLbl + ' · ') : '') + perLabel;
 }
@@ -23941,13 +24036,15 @@ function buildDashFilters(){
      —aptitud, reportes, ciclo y opiniones— devuelven exactamente el mismo HTML. El control no
      sirve en ninguna.
      ⚠️ SÓLO en esa vista: el médico sí recibe registros con fecha y ahí el período manda. */
-  const periodoSirve = (DASH.vista !== 'supervisor');
+  const periodoSirve = dashPeriodoAplica();   // P386 · la misma pregunta que `dashEffectiveRange` (antes, esta línea a mano)
   let html = periodoSirve
     ? '<div class="period-chips">' + dashPeriods().map(p =>
         '<button class="pchip ' + (DASH.f.period===p[0]?'active':'') + '" onclick="dashSetPeriod(\''+p[0]+'\')">' + p[1] + '</button>'
       ).join('') + '</div>'
     : '';
-  if (DASH.f.period === 'custom'){
+  /* P386 · D10 · las fechas, sólo donde el período sirve: un «Personalizado» que viaja hasta Supervisor no puede pintar
+     dos campos de fecha que no filtran nada. */
+  if (periodoSirve && DASH.f.period === 'custom'){
     html += '<div class="df-row">' +
       '<div class="df"><label>' + esc(t('flt_desde')) + '</label><input type="date" id="dashDesde" value="'+esc(DASH.f.desde)+'" onchange="dashFilterChange()"></div>' +
       '<div class="df"><label>' + esc(t('flt_hasta')) + '</label><input type="date" id="dashHasta" value="'+esc(DASH.f.hasta)+'" onchange="dashFilterChange()"></div></div>';
@@ -24086,9 +24183,66 @@ function depsDelCombo(rows){
     return Object.keys(vars).sort((a, b) => (vars[b] - vars[a]) || (a < b ? -1 : 1))[0];
   }).sort();
 }
-function dashSetPeriod(p){ DASH.f.period = p; buildDashFilters(); renderDash(); }
+/* ⚠️ P386 · B · EL PERÍODO ES UNA SOLA DIMENSIÓN, aunque viva en tres campos (`period`, `desde`, `hasta`).
+   Sólo `dashEffectiveRange` los leía juntos; `dashSetPeriod` cambiaba `period` y dejaba las fechas de «Personalizado»
+   vivas, y `dashHayFiltro`/`dashClearOne` las contaban siempre (D7): con «Mes» elegido aparecía la ← sin ningún filtro a
+   la vista, y el primer «atrás» se gastaba en borrar una fecha escondida sin cambiar nada de la pantalla.
+   Ahora las dos mitades: el escritor suelta las fechas al dejar «Personalizado» (el estado queda igual a lo que se ve),
+   y los lectores las cuentan sólo con «Personalizado» y donde el período se aplica (`dashFechasVivas`), así ninguna
+   puerta futura vuelve a dejarlas vivas. Volver a «Personalizado» pide las fechas de nuevo: es preferible a que vivan
+   escondidas, que era el defecto. */
+function dashSetPeriod(p){
+  DASH.f.period = p;
+  if (p !== 'custom'){ DASH.f.desde = ''; DASH.f.hasta = ''; }
+  buildDashFilters(); renderDash();
+}
+/* P386 · B · ¿El período filtra algo en este panel? En Supervisor no (P232: sus filas no traen fecha, no tiene selector
+   y `buildDashFilters` no lo pinta). Desde D10 el período elegido viaja de un panel a otro y puede llegar a Supervisor:
+   ahí se guarda, para cuando se salga, pero no filtra nada. Sin esta guarda, un «Mes» elegido en Dirección le escondía al
+   supervisor reportes de su bandeja sin ningún control a la vista para verlos (medido en la investigación: 4 con
+   «Todo», 3 con «Mes»). La usan `dashEffectiveRange`, `buildDashFilters`, `dashFechasVivas`, `dashContextRango` y
+   `dfmUpdateLabel`: una sola respuesta para «hay período acá». */
+function dashPeriodoAplica(){ return !!(DASH && DASH.vista !== 'supervisor'); }
+/* P386 · B · las fechas de «Personalizado» cuentan como filtro sólo si son el período vigente (ver `dashSetPeriod`). */
+function dashFechasVivas(){
+  return !!(DASH && DASH.f && dashPeriodoAplica() && DASH.f.period === 'custom' && (DASH.f.desde || DASH.f.hasta));
+}
+/* P386 · B · el período con que abre cada panel, en UN lugar (lo usan `onDashData` y `dashFiltrosDelPanelNuevo`).
+   P310: el panel de HSEQ abre en la semana en curso (con «todo», un rojo de agosto dejaba «POCO SEGURO» fijo en el
+   estado global); los demás, en «Todo». Si alguien cambia el de un panel, lo cambia acá y la regla de «elegido» lo sigue. */
+function dashPeriodoPorDefecto(panel){ return panel === 'hseq' ? 'semana' : 'all'; }
+/* ⚠️ P386 · B · D10 · QUÉ SOBREVIVE AL PANEL NUEVO, decidido en UN solo lugar (decisión de Franco: el período se conserva
+   al cambiar de empresa, y también al cambiar sólo la vista; departamento, persona, nivel y operación se limpian).
+   `onDashData` armaba `DASH.f` con un literal en cada panel nuevo, y las dos puertas de cambio de empresa
+   (`visorCambiar` y `dashEmpresaAdminCambiar`) pasan por ahí: el período se perdía siempre. Ahora las dos le pasan esto
+   como quinto parámetro (`fInicial`); todas las demás entradas (el ingreso, la demostración, «Ver como…») no pasan nada
+   y abren como siempre.
+     · el período viaja sólo si la persona lo ELIGIÓ, que es la opción (a) de Franco contra P310: si está en el de por
+       defecto de su panel, el panel nuevo abre en el suyo. Así «Todas · Servicio médico» (Todo) → «HELITEC · HSEQ» abre en
+       «Semana», como manda P310, y «Mes» elegido en Dirección llega a HSEQ en «Mes»;
+     · con «Personalizado», sus fechas viajan con él;
+     · `empTrabajo` es la empresa de «Trabajar sobre» del panel nuevo (`''` en el visor), y va acá y no en un parche
+       después de `onDashData`: el primer render de ese panel ya sale con ella (antes se pintaba dos veces, la primera
+       con un estado que todavía no era el final, que es la forma del defecto 1 de P213b).
+   Quien agregue una puerta nueva de cambio de empresa tiene que pasar esto; si no, D10 vuelve por esa puerta. */
+function dashFiltrosDelPanelNuevo(empTrabajo){
+  const f = (DASH && DASH.f) || {};
+  const out = { emp: String(empTrabajo || '') };
+  const porDefecto = dashPeriodoPorDefecto(DASH && DASH.panel);
+  if (f.period && f.period !== porDefecto){
+    out.period = f.period;
+    if (f.period === 'custom'){ out.desde = f.desde || ''; out.hasta = f.hasta || ''; }
+  }
+  return out;
+}
 function dashFilterChange(changed){
-  DASH.f.desde = fval('dashDesde'); DASH.f.hasta = fval('dashHasta');
+  /* P386 · las fechas se releen sólo si sus campos están en pantalla, como el nivel y la operación de abajo. Releerlas
+     siempre era lo que las limpiaba al tocar otro filtro (la mitad de D7 que sí andaba); desde que `dashSetPeriod` las
+     suelta al dejar «Personalizado», eso ya no hace falta, y releerlas sin los campos borraba las de un «Personalizado»
+     que viajó a Supervisor (D10, donde no se pintan): elegir ahí un departamento y volver a Dirección lo dejaba sin
+     fechas. */
+  if (document.getElementById('dashDesde')) DASH.f.desde = fval('dashDesde');
+  if (document.getElementById('dashHasta')) DASH.f.hasta = fval('dashHasta');
   if (document.getElementById('dashEmp')) DASH.f.emp = fval('dashEmp');
   DASH.f.dep = fval('dashDep'); DASH.f.per = fval('dashPer');
   if (document.getElementById('dashNivel')) DASH.f.nivel = fval('dashNivel');
@@ -24150,6 +24304,10 @@ function dashPeriodRange(period){
   return { desde: dashISO(s), hasta: dashISO(now) };
 }
 function dashEffectiveRange(){
+  /* P386 · D10 · en Supervisor el período no filtra nada, aunque haya llegado uno de otro panel (`dashPeriodoAplica`).
+     Es el único lector de las fechas del período: los demás (reportes, comentarios, PVT, la tendencia, el resumen del
+     informe) pasan por acá. */
+  if (!dashPeriodoAplica()) return { desde:'', hasta:'' };
   if (DASH.f.period === 'custom') return { desde:DASH.f.desde, hasta:DASH.f.hasta };
   return dashPeriodRange(DASH.f.period) || { desde:'', hasta:'' };
 }
@@ -25241,11 +25399,16 @@ function movBloque(){
        llega son los últimos movimientos del alcance, así que la suya puede existir y haber quedado
        fuera de esa ventana. Se dice sólo lo que se sabe. */
     const emp = (DASH && DASH.f && DASH.f.emp) || '';
-    if (A.sinTests && filtrado){
+    /* P386 · H3 · por qué está vacía, en UNA expresión, con lo que dijo el servidor: sin pruebas ni nombres (el panel de
+       HSEQ) no se separa por persona ni por departamento; sin nombres (Dirección) no se separa por persona, pero sí por
+       departamento. `null`: el vacío de siempre, de abajo. */
+    const sinAtribuir = (A.sinTests && filtrado) ? 'mov_sin_atribuir'
+                      : (A.sinNombres && _per) ? 'mov_sin_atribuir_per' : null;
+    if (sinAtribuir){
       /* P385 · en el panel de HSEQ la lista son sólo acciones del sistema, sin persona ni departamento: con
          un filtro no puede quedar ninguna, y «no hay movimientos de P1» o «todavía no hay actividad»
-         afirmarían algo que no se midió. Se dice por qué está vacía. */
-      cuerpo = '<p class="mov-nota">' + esc(t('mov_sin_atribuir')) + '</p>';
+         afirmarían algo que no se midió. Se dice por qué está vacía. (P386: Dirección, con un seudónimo, igual.) */
+      cuerpo = '<p class="mov-nota">' + esc(t(sinAtribuir)) + '</p>';
     } else {
       /* P385 · V2-1 · en el panel de HSEQ el vacío habla de ACCIONES DEL SISTEMA: «todavía no hay actividad» era falso
          en una empresa con pruebas contestadas, que no le llegan a este panel (verificador, vuelta 2). */
@@ -25365,8 +25528,16 @@ function movCargar(){
     /* P385 · igual que el servidor (`accionActividad`): al panel de HSEQ no le van las pruebas. La
        demostración no tiene acciones de bitácora, así que ahí la lista queda vacía, y lo dice. */
     const sinTests = hseqEsPanel();
-    const demo = sinTests ? [] : movDemoItems();
+    /* ⚠️ P386 · H3 · Y SIN NOMBRES PARA LA VISTA `hseq`, como el servidor (`accionActividad`: `sinNombres` con
+       `acc.vista === "hseq"`). La demostración armaba la actividad de Dirección desde sus registros, que traen el
+       seudónimo y la fecha: cada prueba salía con su P1, P2… y su hora, y con «Empleado = P1» decía «Último movimiento:
+       ayer · P1». El servidor real nunca le manda eso a Dirección (`persona: ""`, sí el departamento). Los datos son
+       ficticios, pero la demo mostraba una Dirección que no existe (R21): ahora deriva igual que el servidor, y sólo
+       restringe lo que muestra. */
+    const sinNombres = DASH.vista === 'hseq';
+    const demo = (sinTests ? [] : movDemoItems()).map(i => sinNombres ? Object.assign({}, i, { persona: '' }) : i);
     A.items = demo.slice(0, 10); A.total = demo.length; A.tests = sinTests ? null : demo.length; A.sinTests = sinTests;
+    A.sinNombres = sinNombres;
     A.ultima = demo.length ? demo[0].ts : 0; A.alcance = null; A.err = '';
     A.estado = 'listo'; movRepintar(); return;
   }
@@ -25384,6 +25555,10 @@ function movCargar(){
        que el servidor DICE haber hecho, no el panel que el cliente cree tener: con un `.gs` viejo, que sí las
        manda, `sinTests` no viene y la pantalla las cuenta como siempre. */
     A.sinTests = !!d.sinTests;
+    /* P386 · H3 · y `sinNombres`, por lo mismo: a Dirección los movimientos le llegan sin persona (sí con departamento), y
+       un filtro por seudónimo no puede encontrar ninguno. Sin leerlo, la pantalla decía «No hay movimientos de P1» con
+       movimientos del departamento de P1 en la ventana. Es lo que el servidor dice que hizo, no lo que el cliente supone. */
+    A.sinNombres = !!d.sinNombres;
     A.tests = A.sinTests ? null : (Number(d.tests) || 0);
     A.ultima = Number(d.ultima) || 0;
     A.alcance = (d.alcance === null) ? null : d.alcance;
@@ -25475,8 +25650,21 @@ function dashContext(){
   return '<div class="dash-context">' + back + '<div class="ctx-chips">' + chips + '</div></div>';
 }
 // Período + "viendo tal a tal fecha · N registros": se pinta DENTRO del panel desplegable.
+/* ⚠️ P386 · D6 · LA LÍNEA NO PUEDE AFIRMAR LO QUE LAS FILAS NO SABEN. En Supervisor, Dirección y HSEQ el servidor manda
+   una fila por PERSONA, sin fecha (`armarAptitudServer` → `registrosSeguro`), y esta línea las contaba como registros
+   de un período: «Todo · Viendo sin registros en este período · 2 registros», que se contradice sola, y en Dirección el
+   número no cambiaba con ningún período. P232 había ocultado los chips en Supervisor y la línea se seguía pintando.
+     · Donde el período no se aplica (Supervisor, `dashPeriodoAplica`), no hay línea (y el rótulo del menú no nombra
+       ningún período: `dfmUpdateLabel`).
+     · Con filas sin fecha, sólo el chip del período: no hay rango ni registros que contar. Se decide por los DATOS y no
+       por la vista, porque la Dirección de la demostración sí trae fechas y ahí la cuenta es cierta.
+     · Lo demás, igual que siempre. Ojo si algún día se quiere nombrar las fechas del período en el panel de HSEQ: ahí hay
+       dos «semanas» (la de los totales es la del calendario, `hseqTotalesMarco`; la de MRFO, los últimos 7 días). */
 function dashContextRango(){
+  if (!dashPeriodoAplica()) return '';
   const perLabel = periodoLabel(DASH.f.period);
+  const regs = Array.isArray(DASH.registros) ? DASH.registros : [];
+  if (regs.length && !regs.some(r => r && r.fecha)) return '<span class="ctx-chip ctx-period">' + perLabel + '</span>';
   const rows = dashFiltered();
   const n = rows.length;
   let texto;
@@ -25521,7 +25709,9 @@ function dashClearOne(){
   if (DASH.f.op) return dashClear('op');
   if (DASH.f.dep) return dashClear('dep');
   if (DASH.f.nivel){ DASH.f.nivel = ''; buildDashFilters(); renderDash(); return; }
-  if (DASH.f.desde || DASH.f.hasta){
+  /* P386 · D7 · las fechas, sólo si son el período vigente: es la misma pregunta que `dashHayFiltro` (`dashFechasVivas`),
+     o el toque se gastaba en algo que la pantalla no muestra. */
+  if (dashFechasVivas()){
     DASH.f.desde = ''; DASH.f.hasta = ''; buildDashFilters(); renderDash(); return;
   }
   return dashClear('emp');
@@ -25538,11 +25728,26 @@ function dashDrill(level, value){
     /* ⚠️ DEVUELVE la promesa: sin esto no hay forma de esperar el cambio de empresa, y un caso que
        haga `Promise.resolve(dashDrill(...)).then(...)` resuelve `undefined` al instante y acierta
        sólo por el orden de la cola de microtasks — con un `dashRequest` que tarde un tick, falla. */
-    if (sel){ sel.value = value || ''; return dashEmpresaAdminCambiar(); }
+    /* ⚠️ P386 · D8 · CONTRA LA LISTA DEL SELECTOR, NO CONTRA EL DOM. Las filas del mapa de calor salen de los
+       registros (`DASH.registros[].empresa`) y las opciones de «Trabajar sobre», de `DASH.cuentas`: una empresa con
+       tests y sin fila en `Accesos` no es una opción, `sel.value = value` dejaba el `<select>` en `''` y el pedido salía
+       como «volver a Todas», con el mismo panel y sin decir nada. Se avisa con el texto que ya existe para lo mismo
+       (el del visor) y no se pide nada. */
+    if (sel){
+      if (value && !dashEmpresaTieneCuenta(value)){ showToast(t('ts_visor_empresa_no')); return Promise.resolve(false); }
+      sel.value = value || ''; return dashEmpresaAdminCambiar();
+    }
   }
   if (level==='emp'){ DASH.f.emp=value; DASH.f.dep=''; DASH.f.per=''; DASH.f.nivel=''; DASH.f.op=''; }
   else if (level==='dep'){ DASH.f.dep=value; DASH.f.per=''; }
   DASH.tab='resumen'; buildDashTabs(); buildDashFilters(); renderDash(); document.getElementById('dashScroll').scrollTop = 0;
+}
+/* P386 · D8 · ¿Se puede trabajar sobre esa empresa? La MISMA lista que llena «Trabajar sobre» (`visorPintar`) y el
+   selector del visor: `DASH.cuentas`, que arma `cuentasPanel_` en el servidor. La usan `dashDrill` (si pide o avisa) y
+   `renderComparar` (si la fila promete «›»), para que la fila no prometa lo que el toque no hace. */
+function dashEmpresaTieneCuenta(emp){
+  const cuentas = (DASH && Array.isArray(DASH.cuentas)) ? DASH.cuentas : [];
+  return !!emp && cuentas.some(c => c && c.empresa === emp);
 }
 function dashDrillIdx(i){ const n = DASH._heatNames && DASH._heatNames[i]; if (n != null) dashDrill(DASH._heatLevel, n); }
 
@@ -27067,7 +27272,11 @@ function renderHseqIdc(rows){
   const cobAviso = DASH.nominaError
     ? '<div class="db-sub">' + esc(t('idc_cob_sin_nomina')) + '</div>' : '';
 
-  const ayuda = dashHelp(t('hlp_idc'));
+  /* P386 · H2 · la ⓘ también sigue al filtro, con la MISMA pregunta que la pantalla de abajo (`conFiltro`): con un
+     departamento, persona, nivel u operación decía «las que no hicieron tests se informan aparte», y con un filtro no se
+     informan (P385 · D2). */
+  const conFiltro = hseqFiltroDeAlcance();
+  const ayuda = dashHelp(t(conFiltro ? 'hlp_idc_filtro' : 'hlp_idc'));
 
   // Reparto por estado, sin nombres.
   const porEstado = {};
@@ -27116,8 +27325,7 @@ function renderHseqIdc(rows){
      La pregunta es `hseqFiltroDeAlcance()`, la que los totales de HSEQ ya usan para lo mismo («los tests se ven
      para toda la empresa»): una sola derivación de «hay un filtro de alcance», con las cuatro dimensiones que
      achican la gente, la operación incluida. La empresa no entra: la aplica el servidor y la nómina que manda
-     ya es la de esa empresa. Sin filtro, todo igual que antes. */
-  const conFiltro = hseqFiltroDeAlcance();
+     ya es la de esa empresa. Sin filtro, todo igual que antes. (P386 · `conFiltro` se calcula arriba, con la ⓘ.) */
   const cobFlaca = !conFiltro && cobertura < COBERTURA_MINIMA;
   const numFlojo = conFiltro || cobFlaca;   // la cobertura baja o desconocida: el número no es confiable
   return ayuda +
@@ -29559,6 +29767,16 @@ var CICLO_PERIODO;
    entero de ahí para abajo, que es lo que ya mordió tres veces en este archivo. */
 var CICLO_PIDIENDO;
 var CICLO_PIDE_N;
+/* ⚠️ P386 · H7 · UN PEDIDO DE PERÍODO ES DEL PANEL QUE LO HIZO, y lo invalidan los dos lugares donde ese panel deja de
+   existir: `onDashData` (un panel nuevo, desde P385) y `closePortal` (la ✕, que no lo hacía). Subir `CICLO_PIDE_N` es lo
+   mismo que un segundo toque: el `.then` de `cicloPeriodoSet` ya no decide nada. Con la ✕ y la respuesta todavía en
+   vuelo, ese `.then` hacía `DASH.params = …` sobre `DASH = null` y dejaba un `TypeError` sin atrapar. Los otros seis
+   `DASH = null` del archivo no pasan por acá: los cubre la otra mitad, la guarda `DASH !== mio` de `cicloPeriodoSet`.
+   Función declarada (R16): `closePortal` se alcanza desde el arranque. */
+function cicloPedidosInvalidar(){
+  CICLO_PIDIENDO = 0;
+  CICLO_PIDE_N = (Number(CICLO_PIDE_N) || 0) + 1;
+}
 
 /* ⚠️ P385 · D3 · EL PERÍODO QUE SE VE ELEGIDO SALE DE LO TRAÍDO, NO SÓLO DE LO QUE SE TOCÓ.
    `CICLO_PERIODO` es una global que sobrevive al panel: la escribe `cicloPeriodoSet` y nada la baja. Los datos
@@ -29647,6 +29865,9 @@ function cicloPeriodoSet(id, exacto){
   CICLO_PIDIENDO = dias;
   const pedido = (CICLO_PIDE_N = (Number(CICLO_PIDE_N) || 0) + 1);
   const paramsAntes = DASH.params;
+  /* P386 · H7 · y el panel que lo pidió: si cuando llega la respuesta `DASH` ya es otro (o `null`, por cualquiera de los
+     siete `DASH = null` del archivo), no se decide nada sobre él. Ver `cicloPedidosInvalidar`. */
+  const mio = DASH;
   DASH.params = Object.assign({}, DASH.params, { opDias: String(dias) });
   cicloRepintar();                    // el botón nuevo ya activo + el esqueleto donde van las tarjetas
   /* `inert` y no `pointer-events`: saca la zona del alcance del mouse, del teclado y del lector de
@@ -29661,6 +29882,7 @@ function cicloPeriodoSet(id, exacto){
   };
   Promise.resolve(dashRefresh(false)).then(ok => {
     if (pedido !== CICLO_PIDE_N) return;      // llegó tarde: ya se tocó otro botón
+    if (DASH !== mio){ CICLO_PIDIENDO = 0; soltar(); return; }   // P386 · H7 · su panel ya no está: no se le devuelve nada
     CICLO_PIDIENDO = 0;
     soltar();
     /* El servidor puede contestar bien y NO haber dado el rango: a un supervisor le ignora
@@ -29670,6 +29892,7 @@ function cicloPeriodoSet(id, exacto){
     cicloRepintar();                          // saca el esqueleto también si dashRefresh no repintó
   }).catch(() => {
     if (pedido !== CICLO_PIDE_N) return;
+    if (DASH !== mio){ CICLO_PIDIENDO = 0; soltar(); return; }   // P386 · H7 · ídem
     CICLO_PIDIENDO = 0;
     soltar();
     volverAtras();
@@ -29718,12 +29941,45 @@ function jorMin(m){
   const h = Math.floor(n / 60), r = n % 60;
   return h ? (h + ' h' + (r ? ' ' + r + ' min' : '')) : (r + ' min');
 }
+/* ⚠️ P386 · D · D5 · JORNADA SIGUE LOS FILTROS EN SUS FILAS, CON EL PREDICADO DE CICLO (decisión de Franco: «Que filtre
+   sus filas»). `renderJornada` no leía `DASH.f`: con «Luis Ferrer» puesto, los chips lo nombraban y Jornada seguía con
+   las filas de Ana; en HSEQ con P1, listaba a P2 mientras Ciclo bajaba a una persona.
+   Se filtran las FILAS (por persona, el detalle y «ahora por encima»), y NO se recalcula nada: los totales y «Día por día»
+   quedan como los manda el servidor (este número tiene consecuencias laborales, ver arriba), con una línea que dice que
+   son de toda la empresa.
+   ⚠️ CON LAS FILAS DE `Operacional` Y NO FILTRANDO `duty` DIRECTO. Las filas de `duty` no traen `cargo` (`leerDuty`):
+   con nivel u operación, `nivelRiesgoDe` y `opNombresDe` contestarían distinto que para Ciclo, y las dos pestañas del
+   mismo dato dirían cosas distintas (R21). `duty` se calcula sobre el mismo `operacional` que viaja, así que toda persona
+   de Jornada está en `DASH.operacional`; se arma el conjunto de quienes pasan `dashEnAlcanceDe(o, ALC_TODO)` —lo que
+   hace `cicloArmar`— y Jornada muestra las filas de esas personas. La clave es persona Y empresa: en «Todas» con un
+   nivel, dos personas con el mismo nombre en dos empresas no se mezclan.
+   Devuelve `null` sin un filtro de alcance (todas las filas, como siempre). */
+function jorAlcance(){
+  const f = DASH && DASH.f;
+  if (!f || !(f.dep || f.per || f.nivel || f.op)) return null;
+  const clave = x => dashNorm(x.persona || '') + '|' + dashNorm(x.empresa || '');
+  /* La persona se compara normalizada, como en `movItemsVisibles`: «Empleado» ofrece las grafías tal como se escribieron,
+     y quien está escrita distinto en los tests y en el ciclo («Rosa María» y «ROSA MARIA») no puede leer «nadie tiene
+     jornadas» con una jornada suya en los totales (verificador de P386). Lo demás, con el predicado de siempre. */
+  const kp = f.per ? dashNorm(f.per) : '';
+  const dentro = new Set();
+  (DASH.operacional || []).forEach(o => { if (o && (!kp || dashNorm(o.persona || '') === kp) && dashEnAlcanceDe(o, ALC_SIN_PER)) dentro.add(clave(o)); });
+  return { tiene: x => !!x && dentro.has(clave(x)) };
+}
 function renderJornada(){
   const d = DASH && DASH.duty;
   /* `null` es "no te corresponde ver esto" (el servidor lo recorta por rol); un objeto vacío sería
      "no hubo excesos". No se pueden confundir. */
   if (!d) return dashVacioTexto(t('jor_sin_permiso'), '', 'gente');   // P187 · visible, no dentro del ⓘ plegado
   const filas = d.diario || [], personas = d.personas || [], hist = d.historico || [];
+  /* P386 · D5 · las filas que se listan, con el predicado de Ciclo (`jorAlcance`); los totales salen de TODAS. */
+  const alc = jorAlcance();
+  const filasVis = alc ? filas.filter(alc.tiene) : filas;
+  const personasVis = alc ? personas.filter(alc.tiene) : personas;
+  /* «toda la empresa» o «todas las empresas»: la del administrador que mira «Todas» (la lente sin empresa); cualquier
+     otra sesión mira una sola. */
+  const _lente = adminLente();
+  const deTodas = !!(_lente && !_lente.empresa);
   /* P169 · EL PERÍODO SE ELIGE ACÁ TAMBIÉN. Los botones de 7/30/90 vivían sólo en la pestaña de
      ciclo, que el servicio médico NO tiene (`dashTabsFor`): el médico veía siempre 7 días y no
      había forma de pedir más. Franco: «era sobre todo para médico y HSEQ que vean el historial
@@ -29761,6 +30017,10 @@ function renderJornada(){
   }
 
   // ── Corte 1 · acumulado del período
+  /* P386 · D5 · con un filtro, los totales siguen siendo los de la empresa (no se recalculan): se dice, arriba de ellos.
+     Con la clase de las otras líneas de «qué hace el filtro» (`idc_cob_filtro`, `mov_cob_filtro`): discreta y legible,
+     12,8 px con la letra Normal y el gris más oscuro sobre `--chip-bg` (P385 · V2-2). */
+  if (alc) h += '<div class="hs-nota-filtro jor-total-alc">' + esc(t(deTodas ? 'jor_total_todas' : 'jor_total_empresa')) + '</div>';
   h += '<div class="jor-kpis">';
   h += '<div class="jor-kpi"><span class="jk-n">' + conExceso.length + '</span><span class="jk-l">' + esc(t('jor_k_dias')) + '</span></div>';
   h += '<div class="jor-kpi"><span class="jk-n">' + esc(jorMin(totalExceso)) + '</span><span class="jk-l">' + esc(t('jor_k_total')) + '</span></div>';
@@ -29769,7 +30029,7 @@ function renderJornada(){
 
   /* Quien está adentro AHORA y ya pasó su jornada. Va primero porque es lo único accionable hoy:
      el resto ya ocurrió. */
-  const ahoraExcedidos = abiertos.filter(f => f.excesoMin > 0);
+  const ahoraExcedidos = (alc ? abiertos.filter(alc.tiene) : abiertos).filter(f => f.excesoMin > 0);   // P386 · D5
   if (ahoraExcedidos.length){
     /* Plural con dos claves, que es como la app lo resuelve en otros seis lugares. Decía
        "1 persona(s) siguen en jornada": el "(s)" y el verbo en plural con uno solo. */
@@ -29781,31 +30041,39 @@ function renderJornada(){
   }
 
   // ── Cortes 2 y 3 · individual y promedio
-  h += '<h4 class="jor-h4">' + esc(t('jor_por_persona')) + '</h4>';
-  h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
-       '<th>' + esc(t('jor_c_persona')) + '</th><th>' + esc(t('jor_c_dias')) + '</th>' +
-       '<th>' + esc(t('jor_c_prom')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
-       '</tr></thead><tbody>';
-  personas.slice().sort((a,b) => b.excesoMin - a.excesoMin).forEach(pe => {
-    h += '<tr' + (pe.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
-         '<td>' + esc(pe.persona) + '</td>' +
-         /* ⚠️ A4 · EL CHIP SE MOVIÓ DE COLUMNA. Estaba acá, al lado de los días: la celda mostraba
-            "2 2" bajo un encabezado que dice "Días", y el segundo número no lo explicaba nada. Un
-            dato sin etiqueta en una tabla que el servicio médico lee para firmar es peor que no
-            mostrarlo. En "Por encima", al lado del total, se lee solo: "+2 h 20 min · 2 días". */
-         '<td>' + pe.dias + '</td>' +
-         '<td>' + esc(jorMin(pe.promedioJornadaMin)) + '</td>' +
-         '<td>' + (pe.excesoMin > 0
-             ? '<b>+' + esc(jorMin(pe.excesoMin)) + '</b>' +
-               (pe.diasConExceso ? '<span class="jor-chip">' + esc(t(pe.diasConExceso === 1 ? 'jor_n_dias_1' : 'jor_n_dias', { n: pe.diasConExceso })) + '</span>' : '')
-             : '—') + '</td></tr>';
-  });
-  h += '</tbody></table></div>';
+  /* P386 · D5 · si el filtro no deja ninguna jornada, se dice en una línea en vez de dos tablas vacías. «Día por día»
+     sigue: es un total de la empresa. */
+  const nadieDelFiltro = !!alc && !filasVis.length && !personasVis.length;
+  if (nadieDelFiltro) h += '<div class="hs-nota-filtro jor-filtro-vacio">' + esc(t('jor_filtro_vacio')) + '</div>';
+  if (!nadieDelFiltro){
+    h += '<h4 class="jor-h4">' + esc(t('jor_por_persona')) + '</h4>';
+    h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
+         '<th>' + esc(t('jor_c_persona')) + '</th><th>' + esc(t('jor_c_dias')) + '</th>' +
+         '<th>' + esc(t('jor_c_prom')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
+         '</tr></thead><tbody>';
+    personasVis.slice().sort((a,b) => b.excesoMin - a.excesoMin).forEach(pe => {
+      h += '<tr' + (pe.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
+           '<td>' + esc(pe.persona) + '</td>' +
+           /* ⚠️ A4 · EL CHIP SE MOVIÓ DE COLUMNA. Estaba acá, al lado de los días: la celda mostraba
+              "2 2" bajo un encabezado que dice "Días", y el segundo número no lo explicaba nada. Un
+              dato sin etiqueta en una tabla que el servicio médico lee para firmar es peor que no
+              mostrarlo. En "Por encima", al lado del total, se lee solo: "+2 h 20 min · 2 días". */
+           '<td>' + pe.dias + '</td>' +
+           '<td>' + esc(jorMin(pe.promedioJornadaMin)) + '</td>' +
+           '<td>' + (pe.excesoMin > 0
+               ? '<b>+' + esc(jorMin(pe.excesoMin)) + '</b>' +
+                 (pe.diasConExceso ? '<span class="jor-chip">' + esc(t(pe.diasConExceso === 1 ? 'jor_n_dias_1' : 'jor_n_dias', { n: pe.diasConExceso })) + '</span>' : '')
+               : '—') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
 
   // ── Corte 4 · histórico por día
   if (hist.length > 1){
     const tope = Math.max.apply(null, hist.map(x => x.excesoMin)) || 1;
-    h += '<h4 class="jor-h4">' + esc(t('jor_historico')) + '</h4><div class="jor-hist">';
+    /* P386 · D5 · es un total por día (no se filtra): con un filtro puesto, su título dice de quién es. */
+    const histTit = t('jor_historico') + (alc ? ' · ' + t(deTodas ? 'jor_hist_todas' : 'jor_hist_empresa') : '');
+    h += '<h4 class="jor-h4">' + esc(histTit) + '</h4><div class="jor-hist">';
     hist.forEach(dia => {
       const alto = Math.max(2, Math.round((dia.excesoMin / tope) * 100));
       h += '<div class="jor-barra" title="' + esc(dia.fecha + ' · ' + jorMin(dia.excesoMin)) + '">' +
@@ -29821,6 +30089,7 @@ function renderJornada(){
      fila que el servidor armó para medir esa jornada (`leerDuty` → `eventos`), en su orden, con
      el rótulo del sector (R14) y la hora en la zona de la operación. Las filas anteriores a este
      cambio del servidor no traen `eventos` y muestran un guion, no se inventan. */
+  if (nadieDelFiltro) return h + '</div>';   // P386 · D5 · sin el detalle vacío
   h += '<h4 class="jor-h4">' + esc(t('jor_diario')) + '</h4>';
   h += '<div class="db-sub">' + esc(t('jor_diario_lead')) + '</div>';
   h += '<div class="jor-tabla-wrap"><table class="jor-tabla"><thead><tr>' +
@@ -29828,7 +30097,7 @@ function renderJornada(){
        '<th>' + esc(t('jor_c_botones')) + '</th>' +
        '<th>' + esc(t('jor_c_jornada')) + '</th><th>' + esc(t('jor_c_exceso')) + '</th>' +
        '</tr></thead><tbody>';
-  filas.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).forEach(f => {
+  filasVis.slice().sort((a,b) => (a.fecha < b.fecha ? 1 : -1)).forEach(f => {
     h += '<tr' + (f.excesoMin > 0 ? ' class="jor-mal"' : '') + '>' +
          '<td>' + esc(f.fecha) + '</td><td>' + esc(f.persona) + '</td>' +
          '<td class="jor-evs">' + jorEventosHtml(f.eventos) + '</td>' +
@@ -31495,7 +31764,10 @@ function renderComparar(rows){
     '<div class="heat-scroll"><table class="heat"><thead><tr><th class="hname"></th>' +
     DASH.metrics.map(m=>'<th>'+(METRIC_LABELS[m]||m)+'</th>').join('') + '</tr></thead><tbody>';
   names.forEach((n,i) => {
-    heat += '<tr class="heat-row" onclick="dashDrillIdx(' + i + ')"><td class="hname">' + esc(n) + ' ›</td>' + DASH.metrics.map(m => {
+    /* P386 · D8 · el «›» promete entrar: una empresa sin cuenta no se puede abrir, así que su fila va sin él (se puede
+       tocar igual, para que diga por qué: `dashDrill` avisa). Por departamento, siempre entra. */
+    const entra = (groupKey !== 'empresa') || dashEmpresaTieneCuenta(n);
+    heat += '<tr class="heat-row" onclick="dashDrillIdx(' + i + ')"><td class="hname">' + esc(n) + (entra ? ' ›' : '') + '</td>' + DASH.metrics.map(m => {
       const a = dashAvg(g[n], m), ref = DASH.ref[m];
       return '<td class="cell" style="background:' + heatColor(a, ref) + '">' + (a==null?'—':a.toFixed(0)) + '</td>';
     }).join('') + '</tr>';
