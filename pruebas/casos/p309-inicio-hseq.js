@@ -85,13 +85,20 @@ function p309Foto() {
   };
 }
 /* Pinta un payload por `onDashData` (que llama a `renderDash`), corre `extra` con el panel en pantalla y devuelve lo
-   que se vio. R18: `DASH`, la marca y lo de afuera de `#dashBody` vuelven a como estaban en el `finally`. */
+   que se vio. R18: `DASH`, la marca y lo de afuera de `#dashBody` vuelven a como estaban en el `finally`.
+   `f` se pone a mano en `DASH.f`, salvo `f.chip`: ese período se ELIGE tocando su chip de verdad (`dashSetPeriod`), que es
+   lo que pone la marca `periodoElegido` y lo que necesita un caso que quiere un período que el panel no abriría solo
+   (F096: el panel de HSEQ abre en el primero con totales). */
 function p309Pintar(payload, f, extra) {
   const prev = DASH;
   try {
     CTX.resetear(); localStorage.clear();
     onDashData(JSON.parse(JSON.stringify(payload)), 'Helitec', { usuario: 'helitec' }, 'hseq');
-    if (f) { Object.assign(DASH.f, f); renderDash(); }
+    if (f && f.chip) {
+      const chip = document.querySelector('#dashFilters .pchip[onclick*="dashSetPeriod(\'' + f.chip + '\')"]');
+      if (!chip) throw new Error('p309Pintar: no está el chip del período ' + f.chip);
+      chip.click();
+    } else if (f) { Object.assign(DASH.f, f); renderDash(); }
     const foto = p309Foto();
     if (extra) foto.extra = extra();
     return foto;

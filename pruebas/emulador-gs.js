@@ -519,6 +519,9 @@ var ZONA_DEL_LIBRO = 'America/Caracas';
             get: k => (k in cache ? cache[k] : null),
             put: (k, v) => { cache[k] = String(v); },
             remove: k => { delete cache[k]; },
+            /* P393 · `cacheClear` del `.gs` usa ésta, y sin ella tiraba un TypeError que su `try/catch` se tragaba: en el
+               emulador la caché de `leerDatos` no se vaciaba nunca, y un lector leía lo de antes de una escritura. */
+            removeAll: ks => { (ks || []).forEach(k => { delete cache[k]; }); },
             getAll: ks => { const o = {}; (ks || []).forEach(k => { if (k in cache) o[k] = cache[k]; }); return o; },
             putAll: o => { Object.keys(o || {}).forEach(k => { cache[k] = String(o[k]); }); }
           };

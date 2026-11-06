@@ -50,7 +50,7 @@ const P051_PROMESA_CLAVES = P051_CLAVES.concat([
   'priv_dir_t', 'priv_dir_1', 'priv_dir_2', 'priv_dir_3', 'priv_dir_4',
   'priv_hseq_t', 'priv_hseq_1', 'priv_hseq_2', 'priv_hseq_3', 'priv_adm_t', 'priv_adm_1', 'priv_pie',
   'consent_roles_html', 'pg_hint_hseq', 'pg_desc_hseq', 'pg_desc_med', 'rol_of_guia_hseq', 'hlp_idc',
-  'cic_hseq_d', 'cic_hseq_exc',
+  'cic_hseq_d', 'cic_hseq_d_per', 'cic_hseq_exc',
   'doc_2_p', 'doc_2_p2', 'doc_2_f2d', 'doc_2_f6', 'doc_2_f6a', 'doc_2_f6b', 'doc_2_f7', 'doc_2_f7b', 'doc_2_f8',
   'doc_c_hseq', 'doc_c_admin',
   /* P308 · lo que el panel de HSEQ dice de sus totales, en la pantalla y en su guía */

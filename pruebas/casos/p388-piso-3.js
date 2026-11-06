@@ -465,7 +465,9 @@ PRUEBAS.caso('🔴 P388 · nómina con filas y sin cédulas: dice «Nómina sin 
 PRUEBAS.caso('🔴 P388 · semana sin grupos y mes con totales: lo dice, nombra el mes, y el botón lo abre', () => {
   /* R19 · `hseqCausaVacio` busca, entre los períodos MÁS largos que el elegido, el primero con algún total; el botón llama a
      `dashSetPeriod` con su clave. El escenario: la persona que completa el grupo de la semana se mide el fin de semana, y
-     el lunes la semana abre vacía con el mes lleno. */
+     el lunes la semana está vacía con el mes lleno.
+     F096 · desde ahí el panel ya no ABRE en esa semana (`hseqPeriodoDeApertura`, en `p393-segunda-vuelta.js`): acá la persona
+     la ELIGE por su chip, que es cuando este aviso hace falta. */
   if (p388SinApp()) { PRUEBAS.cierto(true, 'se saltea (sin app o sin .gs)'); return; }
   if (p388SinP309()) return;
   const P = p388Num('PISO_MIN_HSEQ');
@@ -473,8 +475,8 @@ PRUEBAS.caso('🔴 P388 · semana sin grupos y mes con totales: lo dice, nombra 
   const r = w.sellarYPedir('2026-11-03T15:00:00-04:00');
   const per = r.totalesHseq.periodos;
   PRUEBAS.cierto(!p388AlgunTotal({ x: per.semana.metricas }) && p388AlgunTotal({ x: per.mes.metricas }), 'guarda: la semana sin totales y el mes con');
-  const v = p388Ver(r, null, () => { const b = document.querySelector('#dsec-inicio .hst-causa-ver'); if (b) b.click(); });
-  PRUEBAS.igual(v.periodo, 'semana', 'guarda: el panel de HSEQ abre en la semana');
+  const v = p388Ver(r, { chip: 'semana' }, () => { const b = document.querySelector('#dsec-inicio .hst-causa-ver'); if (b) b.click(); });
+  PRUEBAS.igual(v.periodo, 'semana', 'guarda: la persona eligió la semana por su chip');
   PRUEBAS.igual(v.cartel, t('hst_causa_otro_t'), '🔴 el cartel dice «' + t('hst_causa_otro_t') + '»');
   PRUEBAS.igual([v.causa, v.aviso], ['otro_periodo', t('hst_causa_otro', { n: P, p: periodoLabel('mes') })], '🔴 y el inicio nombra el período que sí tiene totales');
   PRUEBAS.igual(v.boton, t('hst_causa_ver', { p: periodoLabel('mes') }), '🔴 con un botón para abrirlo');
@@ -485,7 +487,7 @@ PRUEBAS.caso('🔴 P388 · semana sin grupos y mes con totales: lo dice, nombra 
   const todo = p388Ver(r, { period: 'all' });
   PRUEBAS.igual([todo.causa, todo.cartel === t('hst_causa_otro_t')], [null, false], 'CONTROL · con totales en el período, ningún aviso');
   /* DISCRIMINADOR · una derivación que no mira los otros períodos diría «todavía no hay un grupo» */
-  const s = p388ConCausa(real => (T, p) => { const c = real(T, p); return c && c.c === 'otro_periodo' ? { c: 'sin_grupos' } : c; }, () => p388Ver(r));
+  const s = p388ConCausa(real => (T, p) => { const c = real(T, p); return c && c.c === 'otro_periodo' ? { c: 'sin_grupos' } : c; }, () => p388Ver(r, { chip: 'semana' }));
   PRUEBAS.igual([s.causa, s.boton], ['sin_grupos', null], '⚠️ discriminador · sin mirar los otros períodos, no nombra el mes ni ofrece abrirlo');
 });
 
@@ -499,22 +501,24 @@ PRUEBAS.caso('🔴 P388 · con el cierre detenido o el reloj sin correr, el pane
   const P = p388Num('PISO_MIN_HSEQ');
   const r = p388Mundo(p388Tests(P388_GENTE.slice(0, P), '2026-11-01', '09')).sellarYPedir('2026-11-03T15:00:00-04:00');
   const hace3h = new Date(Date.now() - 3 * 3600e3).toISOString();
-  PRUEBAS.igual(p388Ver(r).causa, 'otro_periodo', 'CONTROL · con el reloj al día, la semana vacía tiene su causa');
-  const parado = p388Ver(r, null, null, hace3h), nunca = p388Ver(r, null, null, null);
+  /* F096 · la semana vacía se elige por su chip: el panel, solo, ya abriría en el mes (`hseqPeriodoDeApertura`) */
+  const SEM = { chip: 'semana' };
+  PRUEBAS.igual(p388Ver(r, SEM).causa, 'otro_periodo', 'CONTROL · con el reloj al día, la semana vacía tiene su causa');
+  const parado = p388Ver(r, SEM, null, hace3h), nunca = p388Ver(r, SEM, null, null);
   const avisoParado = t('hst_reloj_parado', { d: '§', h: '§' }).split('§')[0];
   PRUEBAS.igual([parado.causa, parado.cartel, parado.corte.indexOf(avisoParado) >= 0], [null, t('hse_sin_estado'), true],
     '🔴 con el reloj parado hace tres horas, ningún «nadie completó»: el cartel dice «' + t('hse_sin_estado') + '» y el corte, que no se actualiza · «' + parado.corte + '»');
   PRUEBAS.igual([nunca.causa, nunca.corte.indexOf(t('hst_sin_corrida')) >= 0], [null, true], '🔴 sin ninguna corrida, tampoco; el corte dice que no se calcularon');
   const conDet = JSON.parse(JSON.stringify(r));
   conDet.totalesHseq.detenido = { causa: 'hoja_tocada', desde: new Date(Date.now() - 2 * 3600e3).toISOString() };
-  const det = p388Ver(conDet);
+  const det = p388Ver(conDet, SEM);
   PRUEBAS.igual([det.causa, det.detenido], [null, true], '🔴 con el cierre detenido, sin causa propia: lo dice el aviso de «detenido»');
   const sinNom = p388Ver(p388Nomina('ninguna').r, null, null, hace3h);
   PRUEBAS.igual(sinNom.causa, 'sin_nomina', '🔴 «sin nómina» se dice igual con el reloj parado: es cierto con o sin reloj');
   /* DISCRIMINADOR · si la causa no mirara el reloj, con el reloj parado afirmaría que nadie completó un grupo */
   const real = window.hseqRelojAlDia;
   let s;
-  try { window.hseqRelojAlDia = () => true; s = p388Ver(r, null, null, hace3h); }
+  try { window.hseqRelojAlDia = () => true; s = p388Ver(r, SEM, null, hace3h); }
   finally { window.hseqRelojAlDia = real; }
   PRUEBAS.igual(s.causa, 'otro_periodo', '⚠️ discriminador · sin mirar el reloj, el aviso afirma «nadie completó un grupo» con el reloj parado');
 });

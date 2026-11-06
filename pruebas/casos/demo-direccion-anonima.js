@@ -81,14 +81,22 @@ PRUEBAS.caso('🔴 Demo · DISCRIMINADOR · el supervisor SÍ ve nombres, y los 
 });
 
 PRUEBAS.caso('⚠️ Demo · sólo se anonimiza en la demostración, nunca en un panel real', () => {
-  return fetch('/index.html?v=' + Date.now()).then(r => r.text()).then(src => {
-    const i = src.indexOf("if (vista === 'hseq') demoAnonimizarHseq();");
-    PRUEBAS.cierto(i > 0, '⚠️ la llamada existe');
-    /* Tiene que estar DENTRO del bloque `if (DASH.demoMode)`: fuera de él le borraría los nombres a
-       la Dirección de una empresa real, que los recibe ya recortados del servidor y no necesita esto. */
-    const bloque = src.lastIndexOf('if (DASH.demoMode){', i);
-    const cierre = src.indexOf("\n  }\n", bloque);
-    PRUEBAS.cierto(bloque > 0 && i < cierre,
-      '⚠️ y está dentro del bloque de la demostración · fuera de él tocaría paneles reales');
-  });
+  /* R19 · `demoSembrarVivo` (que llama a `demoAnonimizarHseq`) corre sólo con `DASH.demoMode`: en `onDashData` y en
+     `cicloRepintar`. P393 · este caso leía el texto del `index.html` buscando la llamada, y se puso en rojo al moverla a
+     `demoSembrarVivo` sin que cambiara nada: ahora entra por `onDashData` y mira lo que queda (LEEME, error 1). */
+  const prev = DASH;
+  try {
+    CTX.resetear();
+    localStorage.removeItem('silva_fatiga_bitacora_v1');
+    /* un panel real con la vista `hseq`, con un payload con nombres: si anonimizara, se notaría */
+    onDashData(Object.assign(demoAnonPayload(), { demo: false }), 'Helitec', { usuario:'helitec' }, 'hseq');
+    PRUEBAS.igual([DASH.demoMode, DASH.vista], [false, 'hseq'], 'guarda: un panel real, con la vista de Dirección');
+    PRUEBAS.cierto((DASH.registros || []).some(r => /Suárez/.test(String(r.persona))),
+      '⚠️ queda como lo mandó el servidor · anonimizar acá le borraría los nombres a un panel real, que los recibe ya recortados');
+    cicloRepintar();
+    PRUEBAS.cierto((DASH.registros || []).some(r => /Suárez/.test(String(r.persona))), '⚠️ y el repintado de cada minuto tampoco lo toca');
+    /* CONTROL · el mismo payload, en la demostración */
+    onDashData(demoAnonPayload(), 'Empresa Demo', { usuario:'demo' }, 'hseq');
+    PRUEBAS.cierto((DASH.registros || []).every(r => /^P\d+$/.test(String(r.persona))), 'CONTROL · en la demostración, sí');
+  } finally { try { DASH = prev; localStorage.clear(); } catch(e){} }
 });

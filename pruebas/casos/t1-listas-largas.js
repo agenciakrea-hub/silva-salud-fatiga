@@ -12,7 +12,9 @@ function t1Montar(activos, grises, fn){
   if (!DASH) DASH = { f:{}, _cfg:{} };
   const antes = { op: DASH.operacional, per: DASH.operacionalPeriodo, v: DASH.vista,
                   q: DASH._cicQ, todos: DASH._cicTodos, gr: DASH._cicGrises };
-  const base = cicloDemo(), ops = [];
+  /* P393 · cada «Activo» se arma con los eventos de ejemplo mezclados, y lo que decide su estado es el último: sin Martín
+     Ibáñez, cuyo ciclo completo de hoy lo dejaría «en descanso» (el que marca «en curso» es el de Nicolás Herrera). */
+  const base = cicloDemo().filter(o => o.persona !== 'Martín Ibáñez'), ops = [];
   for (let i = 0; i < activos; i++) base.forEach(o => ops.push(Object.assign({}, o, { persona: 'Activo ' + i })));
   for (let i = 0; i < grises; i++) ops.push(Object.assign({}, base[0], { persona: 'Gris ' + i, evento: '__ninguno__' }));
   DASH.operacional = ops;

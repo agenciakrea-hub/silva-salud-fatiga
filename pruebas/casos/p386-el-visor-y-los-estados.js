@@ -448,7 +448,7 @@ PRUEBAS.caso('🔴 P386-6 · D9 · en el panel de HSEQ la ← del visor vive ade
 }));
 
 PRUEBAS.caso('⚠️ P386-6 · DISCRIMINADOR · sin el paso de la lente en `dashAtras` (la 7.63), «atrás» en el visor cierra el panel', () => p386Correr(async () => {
-  p386Sabotear('dashAtras', [['if (L && !L.enCasa){ visorVolverTodas(); return true; }', '']]);
+  p386Sabotear('dashAtras', [['if (L && !L.enCasa && !fallo){ visorVolverTodas(); return true; }', '']]);
   PRUEBAS.cierto(await p385EntrarAdmin(), 'guarda: entró como administrador');
   PRUEBAS.cierto(await p385Visor('Consorcio HELITEC', 'supervisor'), 'guarda: visor «Consorcio HELITEC · Supervisor»');
   const a = await p386Atras();
@@ -460,8 +460,8 @@ PRUEBAS.caso('⚠️ P386-6 · DISCRIMINADOR · sin el paso de la lente en `dash
 function p386SinAlcance() { return ['dep', 'per', 'nivel', 'op'].filter(k => !!(DASH.f && DASH.f[k])); }
 
 PRUEBAS.caso('🔴 P386-7 · D10 · el período elegido sobrevive a las dos puertas (con sus fechas si es «Personalizado») y lo demás se limpia', () => p386Correr(async () => {
-  /* R19 · qué sobrevive lo concede `dashFiltrosDelPanelNuevo` (el período sólo si difiere del de por defecto del panel que
-     se deja, `dashPeriodoPorDefecto`); lo aplica el quinto parámetro de `onDashData` (`fInicial`), que le pasan las dos
+  /* R19 · qué sobrevive lo concede `dashFiltrosDelPanelNuevo` (el período sólo si la persona lo tocó, la marca `periodoElegido`
+     de `dashSetPeriod`: P393); lo aplica el quinto parámetro de `onDashData` (`fInicial`), que le pasan las dos
      puertas: `dashEmpresaAdminCambiar` («Trabajar sobre») y `visorCambiar` (el visor). */
   PRUEBAS.cierto(await p385EntrarAdmin(), 'guarda: entró como administrador');
   /* puerta 1 · «Trabajar sobre» */
@@ -493,8 +493,9 @@ PRUEBAS.caso('🔴 P386-7 · D10 · el período elegido sobrevive a las dos puer
 }));
 
 PRUEBAS.caso('🔴 P386-7 · D10 · sin tocar el período cada panel abre en el suyo (HSEQ en «Semana», P310); Supervisor lo guarda sin aplicarlo', () => p386Correr(async () => {
-  /* R19 · `dashPeriodoPorDefecto` (el de cada panel) y `dashEffectiveRange` con `dashPeriodoAplica` (en Supervisor el
-     período no filtra: no tiene selector, P232). La bandeja de reportes del supervisor la manda el servidor (`reportes`). */
+  /* R19 · `dashPeriodoPorDefecto` (el de cada panel; HSEQ, `hseqPeriodoDeApertura`: este banco no sella nada, así que no tiene
+     ningún total y cae a «Semana») y `dashEffectiveRange` con `dashPeriodoAplica` (en Supervisor el período no filtra: no tiene
+     selector, P232). La bandeja de reportes del supervisor la manda el servidor (`reportes`). */
   PRUEBAS.cierto(await p385EntrarAdmin(), 'guarda: entró como administrador («Todo», sin tocar)');
   PRUEBAS.cierto(await p385Visor('Consorcio HELITEC', 'hseq'), 'guarda: visor «Consorcio HELITEC · HSEQ»');
   PRUEBAS.igual(DASH.f.period, 'semana', 'CONTROL · sin tocar el período, el panel de HSEQ abre en «Semana» (P310)');

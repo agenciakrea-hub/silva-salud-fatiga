@@ -6,7 +6,8 @@ PRUEBAS.grupo('P391 · la demostración, sólo con su elenco');
    La demostración pública (`accionDemo`), el «Ver como…» del administrador y la cuenta Empresa Demo
    (`esCuentaDemo_` en `accionSupervisor` y en `accionActividad`) mostraban a cualquiera cuyas filas cayeran en
    «Empresa Demo». Ahora muestran sólo el elenco de la demostración. Decisiones de Franco (2026-11-04):
-   · D1 · el nombre Y un corte por fecha (`DEMO_ELENCO_HASTA`): una fila sin día válido no pasa;
+   · D1 · el nombre Y un corte por fecha (`DEMO_ELENCO_HASTA`): una fila sin día válido no pasa. P393 · el corte queda para los
+     tests, el PVT y los comentarios; el ciclo y los turnos de la cuenta van sólo por nombre, para mostrar un ciclo en vivo;
    · D2 · la fila que pasa sale con la grafía del elenco y sin `cedula`;
    · D4 · las otras hojas de la cuenta (bitácora, reportes, nómina, ausencias, gestiones…) quedan fuera;
    · D5 · el panel no avisa: lo descartado se cuenta sólo en `demo_inventario`, sin nombres.
@@ -176,8 +177,15 @@ function p391Sabotajes() {
     sinFiltroComentarios: [['  var comD = demoSoloElenco_(datos.comentarios.filter(function(c){ return setD[norm(c.empresa)]; }));',
                             '  var comD = datos.comentarios.filter(function(c){ return setD[norm(c.empresa)]; });']],
     /* #1, #3 · los comentarios, el ciclo y los turnos de la cuenta sin filtrar */
-    sinFiltroCuenta: [['    comentarios = demoSoloElenco_(comentarios);\n    operacional = demoSoloElenco_(operacional);\n    turnos = demoSoloElenco_(turnos);\n',
+    sinFiltroCuenta: [['    comentarios = demoSoloElenco_(comentarios);\n    operacional = demoSoloElencoPorNombre_(operacional);\n    turnos = demoSoloElencoPorNombre_(turnos);\n',
                        '    void 0;\n']],
+    /* #7 · P393 · el ciclo y los turnos de la cuenta con el corte (lo de P391, que no dejaba mostrar un ciclo en vivo) */
+    cicloConCorte: [['    operacional = demoSoloElencoPorNombre_(operacional);\n    turnos = demoSoloElencoPorNombre_(turnos);\n',
+                     '    operacional = demoSoloElenco_(operacional);\n    turnos = demoSoloElenco_(turnos);\n']],
+    /* #5 · H1 · `RES` toca también a la persona de la cuenta (lo de P391) */
+    resEnLaCuenta: [['  var aplicarRES = esCuentaDemo ? RES.aplicarSoloEmpresa : RES.aplicar;', '  var aplicarRES = RES.aplicar;']],
+    /* #5 · H1 · lo mismo en el corrimiento de «Actividad reciente» */
+    resEnElCorrimiento: [['  RES.aplicarSoloEmpresa(datos.registros); RES.aplicarSoloEmpresa(datos.pvt);', '  RES.aplicar(datos.registros); RES.aplicar(datos.pvt);']],
     /* #2 · el MISMO filtro, pero DESPUÉS de `demoAjustar` (como en `m5-orden.js`), y sin el corte: así lo único que
        cambia es el orden, y el ancla ya se calculó con los de fuera */
     filtroTarde: [[P391_PASO0, '  void 0;\n'], [hasta, 'var DEMO_ELENCO_HASTA = "";'],
@@ -201,7 +209,9 @@ function p391Sabotajes() {
     corteDespues: [[P391_PASO0, '  void 0;\n'], [P391_AJ_DEMO, P391_AJ_DEMO_TARDE], [P391_AJ_CUENTA, P391_AJ_CUENTA_TARDE]],
     /* #9 · `demo_inventario` sin contar lo descartado, y sin nombrar al personaje sin filas */
     inventarioSinCuenta: [['      fuera[h[0]]++;\n', '      void 0;\n']],
-    inventarioSinElenco: [['    elencoSinFilas: DEMO_ELENCO.filter(function (n) { return !conFilas[n]; }) };', '    elencoSinFilas: [] };']]
+    inventarioSinElenco: [['    elencoSinFilas: DEMO_ELENCO.filter(function (n) { return !conFilas[n]; }) };', '    elencoSinFilas: [] };']],
+    /* #9 · P393 · H5 · sin decir quién tiene filas y no se muestra */
+    inventarioSinMostrar: [['    elencoSinMostrar: DEMO_ELENCO.filter(function (n) { return conFilas[n] && !mostrados[n]; }),\n', '    elencoSinMostrar: [],\n']]
   };
 }
 function p391Parchar(gs, cambios) {
@@ -227,7 +237,7 @@ function p391Mundo(opc) {
   opc = opc || {};
   const g = p391Gs(opc.sabotaje);
   if (g.faltan.length) return { faltan: g.faltan };
-  const env = GS.crearEntorno(p391Hojas(opc));
+  const env = GS.crearEntorno(Object.assign(p391Hojas(opc), opc.hojas || {}));   // `opc.hojas`: hojas que reemplazan a las del CH de prueba
   env.Date = GS.relojFijo(opc.reloj || P391_RELOJ);
   const api = GS.cargarGs(g.gs, env, ['doPost']);
   const w = { env: env };
@@ -473,9 +483,10 @@ PRUEBAS.caso('🔒 P391 · #4 · «Actividad reciente» de la cuenta: sin las pr
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
 PRUEBAS.caso('🔒 P391 · #5 · D2 · con un homónimo de Ana Suárez en la nómina de OTRA empresa, la cuenta trae a Ana con la grafía del elenco y SIN cédula, y sus totales de HSEQ siguen siendo los de la demostración', () => {
-  /* R19 · `demoSoloElenco_` (D2): la fila que pasa sale con la grafía de `DEMO_ELENCO` y sin `cedula`, DESPUÉS de que
-     `RES.aplicar` (el padrón es global: `construirPadron`) le pegara la del homónimo y, escrito «ANA SUAREZ», su nombre.
-     La pertenencia, por `norm` (`demoElencoDe_`). Los totales de la cuenta, `totalesHseqDemo_` (ADR 020). */
+  /* R19 · `demoSoloElenco_` (D2): la fila que pasa sale con la grafía de `DEMO_ELENCO` y sin `cedula`. La pertenencia, por `norm`
+     (`demoElencoDe_`), con el nombre tal como vino del CH: P393 · H1 · en la cuenta, `RES` toca sólo la empresa
+     (`RES.aplicarSoloEmpresa`), porque el padrón es global (`construirPadron`) y le cambiaba el nombre por el del homónimo.
+     Los totales de la cuenta, `totalesHseqDemo_` (ADR 020). */
   if (!CTX.hayGs) { PRUEBAS.cierto(false, 'se necesita el .gs servido (servir-gs.py)'); return; }
   const NOM = g => [['Helitec', g, P391_CEDULA_HOMONIMO, 'Operaciones', 'Piloto', '', '', '', '', 'No', '', 'empleado', '3']];
   const medir = (sab, grafia) => {
@@ -502,8 +513,54 @@ PRUEBAS.caso('🔒 P391 · #5 · D2 · con un homónimo de Ana Suárez en la nó
       '🔴 R21 · homónimo «' + g + '» · los totales de HSEQ de la cuenta son los de la demostración');
     PRUEBAS.igual(p391Dif(ok.demo, base.demo), [], 'CONTROL · homónimo «' + g + '» · la demostración pública (no pasa por `RES`) no cambia');
   });
-  /* DISCRIMINADORES */
-  const ced = medir('conCedula', 'Ana Suárez'), gra = medir('sinGrafia', 'ANA SUAREZ'), exa = medir('exacta', 'ANA SUAREZ');
+  /* P393 · H1 · EL HOMÓNIMO CON OTRA GRAFÍA Y LA MISMA CÉDULA: se registró como «Ana Suárez» y su empresa la cargó como «Ana
+     Suárez Gómez». `construirPadron` guarda UN nombre por cédula (la nómina pisa a `Registrados`) y todas las variantes en
+     `porNombre`: `RES` encontraba la cédula por «ana suarez» y le ponía «Ana Suárez Gómez», ese `norm` no está en el elenco y
+     la fila de la personaje se descartaba. */
+  const REG = [['Fecha de registro', 'Fecha y hora', 'Nombre', 'Email', 'Cédula', 'ID Piloto', 'Es piloto', 'Es supervisor', 'Empresa', 'Departamento', 'Cargo', 'Sexo'],
+               ['', '', 'Ana Suárez', '', P391_CEDULA_HOMONIMO, '', 'No', 'No', 'Helitec', 'Operaciones', 'Piloto', '']];
+  const OPC_H1 = { nomina: NOM('Ana Suárez Gómez'), hojas: { 'Registrados Fatiga': REG } };
+  const h1 = sab => {
+    const w = p391Mundo(Object.assign({ sabotaje: sab }, OPC_H1));
+    if (w.faltan) return { faltan: w.faltan };
+    return { med: w.visor('medico'), sup: w.visor('supervisor'), hseq: w.visor('hseq'), demo: w.demo(), act: w.actividad(P391_DEMO.sup), todas: w.todas() };
+  };
+  const conH1 = h1(null), sinH = p391Mundo({});
+  PRUEBAS.igual(conH1.faltan, undefined, 'guarda: el mundo del homónimo se armó');
+  if (conH1.faltan) return;
+  PRUEBAS.cierto((conH1.todas.registros || []).some(x => String(x.persona) === 'Ana Suárez Gómez'),
+    'guarda: `RES` funciona en este mundo: «Todas las empresas» le cambia el nombre a la fila de Ana (si no, el caso no mide nada)');
+  PRUEBAS.igual(p391Dif(conH1.med, sinH.visor('medico')), [], '🔒 H1 · el visor médico es idéntico, clave por clave, al mundo sin el homónimo');
+  PRUEBAS.igual(p391Dif(conH1.sup, sinH.visor('supervisor')), [], '🔒 H1 · el supervisor también');
+  PRUEBAS.igual(ana(conH1.med).length, nAna, '🔒 H1 · la cuenta trae a Ana entera');
+  PRUEBAS.igual(p391DeFuera(conH1.med).concat(p391DeFuera(conH1.sup)), [], '🔒 H1 · sin la cédula del homónimo');
+  PRUEBAS.falso(/gomez|gómez/i.test(p391J(conH1.med) + p391J(conH1.sup)), '🔒 H1 · y sin su apellido en ninguna parte');
+  PRUEBAS.igual(p391J(p391SinCorrida(conH1.hseq.totalesHseq)), p391J(p391SinCorrida(conH1.demo.totalesHseq)), '🔴 R21 · H1 · los totales de HSEQ de la cuenta son los de la demostración');
+  PRUEBAS.igual(ana(conH1.demo).length, ana(sinH.demo()).length, 'CONTROL · la demostración pública no cambia');
+  PRUEBAS.igual(p391Tests(conH1.act).filter(i => i.persona === 'Ana Suárez').length, p391Tests(sinH.actividad(P391_DEMO.sup)).filter(i => i.persona === 'Ana Suárez').length,
+    '🔴 R21 · H1 · «Actividad reciente» de la cuenta también la muestra');
+  /* El corrimiento de «Actividad reciente»: Ana no es del día ancla; quien mueve el ancla, si desaparece, es Carlos Méndez */
+  const NOM_C = g => [['Helitec', g, P391_CEDULA_HOMONIMO, 'Operaciones', 'Piloto', '', '', '', '', 'No', '', 'empleado', '3']];
+  const REG_C = [REG[0], ['', '', 'Carlos Méndez', '', P391_CEDULA_HOMONIMO, '', 'No', 'No', 'Helitec', 'Operaciones', 'Piloto', '']];
+  const actDe = sab => { const w = p391Mundo({ sabotaje: sab, nomina: NOM_C('Carlos Méndez Rojas'), hojas: { 'Registrados Fatiga': REG_C } }); return w.faltan ? { faltan: w.faltan } : { act: w.actividad(P391_DEMO.sup), panel: p391Foto(w.visor('medico')) }; };
+  const aOk = actDe(null);
+  PRUEBAS.igual(aOk.faltan, undefined, 'guarda: el mundo del corrimiento se armó');
+  if (aOk.faltan) return;
+  PRUEBAS.igual(Array.from(new Set(p391Tests(aOk.act).map(i => i.ts))).sort((x, y) => x - y), aOk.panel.ts,
+    '🔴 R21 · H1 · con el homónimo de Carlos Méndez (el ancla), «Actividad reciente» tiene los MISMOS instantes que el panel');
+  /* DISCRIMINADORES de H1 */
+  const res = h1('resEnLaCuenta'), aMal = actDe('resEnElCorrimiento');
+  PRUEBAS.igual([res.faltan, aMal.faltan], [undefined, undefined], 'guarda: los dos sabotajes de H1 entraron');
+  if (!res.faltan) {
+    PRUEBAS.igual(ana(res.med).length, 0, 'DISCRIMINADOR · con `RES` sobre la persona (lo de P391), Ana desaparece del visor médico');
+    PRUEBAS.cierto(p391J(p391SinCorrida(res.hseq.totalesHseq)) !== p391J(p391SinCorrida(res.demo.totalesHseq)),
+      'DISCRIMINADOR · y los totales de HSEQ de la cuenta dejan de ser los de la demostración (R21)');
+  }
+  if (!aMal.faltan) PRUEBAS.cierto(p391J(Array.from(new Set(p391Tests(aMal.act).map(i => i.ts))).sort((x, y) => x - y)) !== p391J(aMal.panel.ts),
+    'DISCRIMINADOR · con `RES` sobre la persona en el corrimiento, el ancla sale de otras filas y los instantes difieren');
+  /* DISCRIMINADORES · D2, con `RES` tocando a la persona como antes de H1 (P393): la grafía y el borrado de la cédula siguen
+     siendo la segunda defensa, y sin `resEnLaCuenta` no habría nada que medir (la cuenta ya no recibe la cédula de `RES`). */
+  const ced = medir(['conCedula', 'resEnLaCuenta'], 'Ana Suárez'), gra = medir(['sinGrafia', 'resEnLaCuenta'], 'ANA SUAREZ'), exa = medir(['exacta', 'resEnLaCuenta'], 'ANA SUAREZ');
   PRUEBAS.igual([ced.faltan, gra.faltan, exa.faltan], [undefined, undefined, undefined], 'guarda: los sabotajes entraron');
   if (ced.faltan || gra.faltan || exa.faltan) return;
   PRUEBAS.cierto(ana(ced.med).some(x => String(x.cedula || '').replace(/\D/g, '') === P391_CEDULA_DIGITOS) && p391DeFuera(ced.med).indexOf(P391_CEDULA_DIGITOS) >= 0,
@@ -512,6 +569,10 @@ PRUEBAS.caso('🔒 P391 · #5 · D2 · con un homónimo de Ana Suárez en la nó
   PRUEBAS.igual(ana(exa.med).length, 0, 'DISCRIMINADOR · con la comparación exacta, Ana desaparece de la cuenta');
   PRUEBAS.cierto(p391J(p391SinCorrida(exa.hseq.totalesHseq)) !== p391J(p391SinCorrida(exa.demo.totalesHseq)),
     'DISCRIMINADOR · y los totales de HSEQ de la cuenta dejan de ser los de la demostración (R21)');
+  const soloRes = medir('resEnLaCuenta', 'Ana Suárez');
+  PRUEBAS.igual(soloRes.faltan, undefined, 'guarda: el sabotaje entró');
+  if (soloRes.faltan) return;
+  PRUEBAS.igual(p391DeFuera(soloRes.med), [], 'CONTROL · aunque `RES` volviera a tocar a la persona, D2 no deja viajar la cédula');
 });
 
 /* ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -546,16 +607,16 @@ PRUEBAS.caso('🔴 P391 · #6 · «carlos mendez» (sin mayúsculas ni tildes) c
    #7 · D1 · EL CORTE POR FECHA
    ══════════════════════════════════════════════════════════════════════════════════════════════ */
 
-PRUEBAS.caso('🔒 P391 · #7 · D1 · el corte: dos nombres DEL ELENCO hoy no cambian nada, una fila del elenco sin día válido no pasa, y el corte mira la fecha del CH, no la corrida', () => {
+PRUEBAS.caso('🔒 P391 · #7 · D1 · el corte: dos nombres DEL ELENCO hoy no cambian nada, una fila del elenco sin día válido no pasa, y el corte mira la fecha del CH, no la corrida; P393 · el ciclo y los turnos de un personaje, en vivo, sí llegan a la cuenta', () => {
   /* R19 · `demoEsDelElenco_` con `DEMO_ELENCO_HASTA` (D1, decisión de Franco del 2026-11-04), desde el paso 0 de
-     `demoAjustar`: ANTES de correr las fechas. Una fila sin día válido no pasa (falla cerrado). Lo mismo vale para el ciclo
-     y los turnos de la cuenta (`demoSoloElenco_` en el bloque `esCuentaDemo`): ése es el costo aceptado de D1. */
+     `demoAjustar`: ANTES de correr las fechas. Una fila sin día válido no pasa (falla cerrado). P393 · el corte es de los
+     tests, el PVT y los comentarios: el ciclo y los turnos de la cuenta pasan por `demoSoloElencoPorNombre_`, sólo por nombre. */
   if (!CTX.hayGs) { PRUEBAS.cierto(false, 'se necesita el .gs servido (servir-gs.py)'); return; }
   const h = p391Hasta();
   const ultimoSembrado = P391_SEMBRADO.map(x => x[0]).sort().pop();
   PRUEBAS.cierto(/^\d{4}-\d{2}-\d{2}$/.test(String(h)) && h >= ultimoSembrado && h < P391_HOY,
     'guarda: el corte del .gs (' + h + ') cubre el sembrado (' + ultimoSembrado + ') y deja fuera hoy: si no, este caso no mide el corte');
-  const MUNDO = { tests: P391_I5.concat([P391_SIN_DIA]), operacional: [P391_OP_ELENCO_HOY] };
+  const MUNDO = { tests: P391_I5.concat([P391_SIN_DIA]) };
   const medir = (sab, conFilas) => {
     const w = p391Mundo(Object.assign({ sabotaje: sab }, conFilas ? MUNDO : {}));
     if (w.faltan) return { faltan: w.faltan };
@@ -570,8 +631,26 @@ PRUEBAS.caso('🔒 P391 · #7 · D1 · el corte: dos nombres DEL ELENCO hoy no c
   });
   PRUEBAS.igual(ok.foto.sinDia, 0, '🔒 ninguna fila sin día válido en la demostración');
   PRUEBAS.igual(p391Ultimo(ok.demo, 'Carlos Méndez').kss, 8, '🔒 el «requiere atención» del guion conserva su último test del sembrado (KSS 8), no el de hoy (9)');
-  PRUEBAS.igual((ok.med.operacional || []).filter(o => o.fecha === P391_HOY).map(o => o.persona), [],
-    '⚠️ costo de D1 · un evento de HOY de un personaje en `Operacional` tampoco llega a la cuenta');
+  /* P393 · el ciclo y los turnos de un personaje, de HOY, SÍ llegan a la cuenta: se tiene que poder mostrar un ciclo en vivo */
+  const TURNO_HOY = [P391_HOY, '08:40', 'tu-391-2', 'checkin', 'Martín Ibáñez', 'Empresa Demo', 'Operaciones', 'Supervisor', 4, ''];
+  const vivo = sab => {
+    const w = p391Mundo({ sabotaje: sab, operacional: [[P391_HOY, '08:10', 'ev-391-3', 'martin ibanez', 'salida_casa', '', ''], P391_OP_ELENCO_HOY], turnos: [TURNO_HOY] });
+    if (w.faltan) return { faltan: w.faltan };
+    return { med: w.visor('medico', { opDias: '120' }), demo: w.demo(), sinVivo: p391Mundo({}).demo() };
+  };
+  const v = vivo(null);
+  PRUEBAS.igual(v.faltan, undefined, 'guarda: el mundo del ciclo en vivo se armó');
+  if (v.faltan) return;
+  const deHoy = r => ((r && r.operacional) || []).filter(o => o.fecha === P391_HOY).map(o => o.persona);
+  PRUEBAS.igual(deHoy(v.med), ['Martín Ibáñez', 'Martín Ibáñez'], '🔴 P393 · los eventos de HOY de un personaje llegan a la cuenta, con la grafía del elenco («martin ibanez» también)');
+  PRUEBAS.igual(((v.med.turnos) || []).filter(o => o.fecha === P391_HOY).map(o => o.persona), ['Martín Ibáñez'], '🔴 P393 · y su turno');
+  PRUEBAS.cierto(((v.med.duty || {}).diario || []).some(o => o.persona === 'Martín Ibáñez' && o.fecha === P391_HOY), '🔴 P393 · y su jornada (`leerDuty`, sobre el mismo `operacional`)');
+  PRUEBAS.igual(p391Dif(v.demo, v.sinVivo), [], 'CONTROL · la demostración pública no lee esas hojas: no cambia');
+  const vCorte = vivo('cicloConCorte');
+  PRUEBAS.igual(vCorte.faltan, undefined, 'guarda: el sabotaje entró');
+  if (vCorte.faltan) return;
+  PRUEBAS.igual(deHoy(vCorte.med), [], 'DISCRIMINADOR · con el corte en el ciclo (lo de P391), el evento de hoy no llega');
+  PRUEBAS.igual(((vCorte.med.turnos) || []).filter(o => o.fecha === P391_HOY).length, 0, 'DISCRIMINADOR · ni el turno');
   /* CONTROL · lo sembrado pasa: los tests y, en el ciclo, los dos eventos de Rodolfo del último día del corte (inclusive) */
   PRUEBAS.igual([base.foto.n, base.foto.personas.length, base.foto.max], [18, 18, P391_HOY], 'CONTROL · las filas del sembrado pasan: 18 tests de 18 personas, al día');
   PRUEBAS.igual((base.med.operacional || []).filter(o => o.persona === 'Rodolfo Ruiz').length, 2,
@@ -584,7 +663,6 @@ PRUEBAS.caso('🔒 P391 · #7 · D1 · el corte: dos nombres DEL ELENCO hoy no c
     'DISCRIMINADOR · sin el corte (sólo el nombre), los dos nombres del elenco de hoy se vuelven el ancla y cambian la demostración');
   PRUEBAS.igual(p391Ultimo(sc.demo, 'Carlos Méndez').kss, 9, 'DISCRIMINADOR · y Carlos Méndez sale con el KSS de hoy (9)');
   PRUEBAS.alMenos(sc.foto.sinDia, 1, 'DISCRIMINADOR · y la fila sin día entra');
-  PRUEBAS.alMenos((sc.med.operacional || []).filter(o => o.fecha === P391_HOY).length, 1, 'DISCRIMINADOR · y el evento de hoy llega a la cuenta');
   PRUEBAS.igual(cd.foto.n, 0, 'DISCRIMINADOR · el corte aplicado sobre lo YA corrido deja la demostración vacía');
 });
 
@@ -664,6 +742,15 @@ PRUEBAS.caso('🔒 P391 · #9 · D5 · `demo_inventario` cuenta lo que la demost
   PRUEBAS.cierto(!!inv.fueraDelElenco, 'guarda: la tarea manda `fueraDelElenco`');
   PRUEBAS.igual(P391_ELENCO.filter(n => String(p391J(inv.fueraDelElenco || null)).indexOf(n) >= 0), [], '🔒 ni uno del elenco: lo descartado no lleva nombres');
   PRUEBAS.igual(inv.elencoSinFilas, [], 'con el sembrado entero, ningún personaje sin filas');
+  /* P393 · H5 · pero la demostración muestra 18: Rodolfo Ruiz tiene filas y el ancla las deja fuera. R19 · `demoInventario_`
+     llama a `demoAjustar`, el lector real. */
+  const demoP = p391Mundo({}).demo();
+  PRUEBAS.igual(P391_ELENCO.filter(n => (demoP.registros || []).every(r => r.persona !== n)), ['Rodolfo Ruiz'], 'guarda: la demostración no muestra a Rodolfo Ruiz');
+  PRUEBAS.igual([(limpio.r || {}).elencoSinFilas, (limpio.r || {}).elencoSinMostrar], [[], ['Rodolfo Ruiz']], '🔒 H5 · lo dice: tiene filas y la demostración no lo muestra');
+  PRUEBAS.igual(inv.elencoSinMostrar, ['Rodolfo Ruiz'], '🔒 H5 · también con filas de fuera: ninguna entra en esa lista');
+  const sinRodolfo = medir(null, { sin: ['Rodolfo Ruiz'] });
+  PRUEBAS.igual([(sinRodolfo.r || {}).elencoSinFilas, (sinRodolfo.r || {}).elencoSinMostrar], [['Rodolfo Ruiz'], []],
+    'CONTROL · sin ninguna fila, es `elencoSinFilas` y no `elencoSinMostrar`: son dos cosas distintas');
   PRUEBAS.igual((sinVale.r || {}).elencoSinFilas, ['Valentina Ríos'], '🔒 un personaje sin filas que pasen el filtro (ni test ni PVT del sembrado) se nombra');
   PRUEBAS.igual([((sinVale.r || {}).fueraDelElenco || {}).porFecha, ((sinVale.r || {}).fueraDelElenco || {}).porNombre], [1, 0],
     'y su fila de hoy se cuenta como descartada por la fecha');
@@ -676,4 +763,7 @@ PRUEBAS.caso('🔒 P391 · #9 · D5 · `demo_inventario` cuenta lo que la demost
   const fs = (sinCuenta.r || {}).fueraDelElenco || {};
   PRUEBAS.igual([fs.tests, fs.pvt, fs.comentarios], [0, 0, 0], 'DISCRIMINADOR · sin la cuenta, da cero con las filas de fuera puestas');
   PRUEBAS.igual((sinElenco.r || {}).elencoSinFilas, [], 'DISCRIMINADOR · sin `elencoSinFilas`, el personaje sin filas no se nombra');
+  const sinMostrar = medir('inventarioSinMostrar', {});
+  PRUEBAS.igual(sinMostrar.faltan, undefined, 'guarda: el sabotaje entró');
+  PRUEBAS.igual((sinMostrar.r || {}).elencoSinMostrar, [], 'DISCRIMINADOR · sin `elencoSinMostrar`, Rodolfo no se nombra: el aserto de arriba lo ve');
 });
