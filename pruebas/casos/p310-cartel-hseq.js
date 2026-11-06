@@ -69,7 +69,7 @@ PRUEBAS.caso('🔴 P310 · el cartel pinta la etapa del servidor con su color y 
   });
 });
 
-PRUEBAS.caso('🔴 P310 · con menos del 70 % de la nómina medida se atenúa y dice «N de M medidos» del mismo tamaño; «POCO SEGURO» nunca', () => {
+PRUEBAS.caso('🔴 P310 · con menos del 70 % de la nómina medida se atenúa y dice «N de M personas» del mismo tamaño; «POCO SEGURO» nunca', () => {
   if (p310Saltea()) { PRUEBAS.cierto(true, 'se saltea (sin app o sin .gs)'); return; }
   /* Los bordes del plan: 14 de 20 queda como la foto, 13 de 20 se atenúa; con 13 de 20 y un rojo, «POCO SEGURO» sin
      atenuar. Y el redondeo del IDC: 139 de 200 es 69,5 % → 70 → como la foto. */
@@ -79,13 +79,13 @@ PRUEBAS.caso('🔴 P310 · con menos del 70 % de la nómina medida se atenúa y 
   const c139 = p310Pinta(p310Payload({ etapa: 'atencion', personas: 139 }, 200));
   const lev = p310Pinta(p310Payload({ etapa: 'levemente', personas: 13 }, 20));
   PRUEBAS.igual([c14.color, c14.cob], ['verde', ''], '🔴 14 de 20 (70 %): como la foto');
-  PRUEBAS.igual([c13.color, c13.escudo, c13.cob], ['tenue', 'tenue', '13 de 20 medidos'], '🔴 13 de 20 (65 %): atenuado, con «13 de 20 medidos»');
-  PRUEBAS.igual(c13.tamCob, c13.tamPalabra, '🔴 «N de M medidos» del mismo tamaño que la palabra');
-  PRUEBAS.igual([lev.color, lev.cob], ['tenue', '13 de 20 medidos'], 'LEVEMENTE SEGURO también se atenúa');
+  PRUEBAS.igual([c13.color, c13.escudo, c13.cob], ['tenue', 'tenue', '13 de 20 personas'], '🔴 13 de 20 (65 %): atenuado, con «13 de 20 personas»');
+  PRUEBAS.igual(c13.tamCob, c13.tamPalabra, '🔴 «N de M personas» del mismo tamaño que la palabra');
+  PRUEBAS.igual([lev.color, lev.cob], ['tenue', '13 de 20 personas'], 'LEVEMENTE SEGURO también se atenúa');
   PRUEBAS.igual([c13r.color, c13r.cob], ['rojo', ''], '🔴 «POCO SEGURO» con 13 de 20: sin atenuar, un rojo es un hecho');
   PRUEBAS.igual([c139.color, c139.cob], ['verde', ''], '🔴 69,5 % redondea a 70, como el IDC');
   const sinNom = p310Pinta(p310Payload({ etapa: 'seguro', personas: 12 }, 0));
-  PRUEBAS.igual([sinNom.color, sinNom.cob], ['tenue', '12 medidos'], '🔴 sin nómina legible no se sabe la cobertura: atenuado, con cuántos se midieron (falla cerrado)');
+  PRUEBAS.igual([sinNom.color, sinNom.cob], ['tenue', '12 personas'], '🔴 sin nómina legible no se sabe la cobertura: atenuado, con cuántos se midieron (falla cerrado)');
   /* Franco, 2026-11-02: sin cuántos en rojo; aunque un payload viejo los trajera, el cartel no pinta ningún número */
   const conNum = p310Pinta(p310Payload({ etapa: 'poco', personas: 9, rojos: 3 }, 9));
   PRUEBAS.igual([conNum.sub, /\d/.test(conNum.texto)], ['requiere acción', false], '🔴 POCO SEGURO no dice cuántos en rojo');

@@ -298,12 +298,12 @@ PRUEBAS.caso('⚠️ FILA "HSEQ" · de los tests, sólo totales; el ciclo y la j
     '🔴 ni el color del test del ciclo (`nivel`) pegado al alias');
   PRUEBAS.igual((h.turnos || []).filter(o => 'kssNivel' in o || 'nivel' in o || 'kss' in o).map(o => o.persona), [],
     '🔴 ni el color del KSS del turno (`kssNivel`)');
-  /* `priv_hseq_2` · el ciclo, la jornada y la carga, por alias, con el día, y la marca de que hubo un test */
+  /* `priv_hseq_2` · el ciclo, la jornada y la carga, por alias, con el día. Sin qué test tocó cada uno (F099, `p311-auditoria-hseq.js`). */
   const ciclo = h.operacional || [];
   PRUEBAS.alMenos(ciclo.length, 2, 'guarda: el ciclo trae a las dos personas del CH de prueba');
   PRUEBAS.cierto(ciclo.every(o => /^P\d+$/.test(o.persona || '') && !!o.fecha && !!o.departamento),
     '⚠️ el ciclo llega por alias, con el día y con su departamento · ' + JSON.stringify(ciclo[0] || {}));
-  PRUEBAS.cierto(ciclo.some(o => o.test === 'kss'), 'y la marca de que hubo un test queda, sin su resultado (P347)');
+  PRUEBAS.igual(ciclo.filter(o => 'test' in o).length, 0, '🔒 F099 · y sin decir qué test tocó cada alias');
   PRUEBAS.cierto((h.turnos || []).length > 0 && (h.turnos || []).every(o => /^P\d+$/.test(o.persona || '') && o.carga != null),
     '⚠️ la carga que declara cada persona, por alias');
   PRUEBAS.cierto((((h.duty || {}).diario) || []).every(o => /^P\d+$/.test(o.persona || '') && !!o.fecha),

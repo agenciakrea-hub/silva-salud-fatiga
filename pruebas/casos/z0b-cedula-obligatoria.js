@@ -88,14 +88,14 @@ PRUEBAS.caso('⚠️ el interruptor de emergencia existe y funciona', () => {
   PRUEBAS.falso(r2.ok, '⚠️ y por defecto tiene que estar CERRADO: el interruptor es la excepción, no la regla');
 });
 
-PRUEBAS.caso('⚠️ quien no tiene cédula en el padrón no queda afuera', () => {
-  /* Caso borde que importa: hay registros viejos sin cédula. Si exigiéramos que COINCIDA con el
-     padrón cuando el padrón no la tiene, esa gente perdería sus propios datos — lo contrario de lo
-     que esto viene a proteger. Se exige que la persona MANDE una; si el padrón no la conoce, no se
-     puede verificar y se deja pasar. */
+PRUEBAS.caso('🔒 F098 · quien no tiene cédula en el padrón no recibe un error, pero tampoco datos: no hay contra qué verificar', () => {
+  /* Hasta el 2026-11-06 decía «se deja pasar», para que los registros viejos sin cédula no perdieran sus datos, y con eso cualquiera los
+     leía con un nombre y un número inventado (verificador de P311, H1). Franco: «Cerrar lo del nombre ya (Recomendado)». Lo que esa persona
+     tiene en su teléfono sigue ahí. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = z0bEndpoint([], [['2026-09-01','Carlos Viejo','Helitec','6']]);   // sin nómina
   const r = JSON.parse(api.accionEmpleado({ persona:'Carlos Viejo', empresa:'Helitec',
                                             cedula:'V-777', dispositivoId:'d2' }).getContent());
-  PRUEBAS.cierto(r.ok, 'sin cédula en el padrón, mandar la suya alcanza: no se lo deja sin sus datos');
+  PRUEBAS.cierto(r.ok, 'contesta sin error: la app no se traba');
+  /* Que no salga ningún dato lo mide `p311-auditoria-hseq.js`, con las columnas reales: en esta hoja `registros` da 0 también sin el cierre. */
 });

@@ -254,7 +254,7 @@ const P308_SABOTAJES = {
   /* lo que viaja (1) la aptitud por persona, como hasta P307 */
   conAptitud: [['    aptitudPayload = esPanelHseq_(acc) ? null : armado.aptitud;', '    aptitudPayload = armado.aptitud;']],
   /* lo que viaja (2) el color del test del ciclo */
-  conNivel: [['                  "test", "resultado", "plan"],', '                  "test", "resultado", "nivel", "plan"],']],
+  conNivel: [['                  "resultado", "plan"],', '                  "resultado", "nivel", "plan"],']],
   /* lo que viaja (3) el color del KSS del turno */
   conKssNivel: [['    turnos:      ["persona", "empresa", "departamento", "cargo", "fecha", "hora", "tipo", "carga"]',
                  '    turnos:      ["persona", "empresa", "departamento", "cargo", "fecha", "hora", "tipo", "carga", "kssNivel"]']]
@@ -1275,7 +1275,7 @@ PRUEBAS.caso('🔴 P308 · DISCRIMINADORES de lo de hoy: contar en la empresa en
 /* ── Lo que viaja, por lista blanca ─────────────────────────────────────────────────────────────── */
 const P308_VIAJA = {
   registros:   ['persona', 'empresa', 'departamento', 'cargo'],
-  operacional: ['persona', 'empresa', 'departamento', 'cargo', 'fecha', 'hora', 'iso', 'evento', 'test', 'resultado', 'plan'],
+  operacional: ['persona', 'empresa', 'departamento', 'cargo', 'fecha', 'hora', 'iso', 'evento', 'resultado', 'plan'],
   turnos:      ['persona', 'empresa', 'departamento', 'cargo', 'fecha', 'hora', 'tipo', 'carga']
 };
 const P308_DE_UN_TEST = ['nivel', 'kssNivel', 'kss', 'metricas', 'pvt', 'auto', 'empeoro', 'persist', 'pocoConfiable',
@@ -1313,7 +1313,7 @@ PRUEBAS.caso('🔴 P308 · lo que viaja a HSEQ, por lista blanca: ningún campo 
   const m = p308LoQueViaja();
   PRUEBAS.igual(m.faltan || [], [], 'guarda: el trazador se aplicó');
   if (m.faltan) return;
-  PRUEBAS.alMenos((m.r.operacional || []).length, 1, 'guarda: el ciclo trae una fila con la marca de un test');
+  PRUEBAS.alMenos((m.r.operacional || []).length, 1, 'guarda: el ciclo trae una fila');
   PRUEBAS.alMenos((m.r.turnos || []).length, 1, 'guarda: el turno trae una fila');
   PRUEBAS.alMenos((m.r.registros || []).length, 5, 'guarda: llegan las filas de identidad');
   PRUEBAS.igual(m.aptitud, null, '🔴 la aptitud NO llega por persona');

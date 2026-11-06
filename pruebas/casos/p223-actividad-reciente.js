@@ -265,8 +265,10 @@ PRUEBAS.caso('🔴 DIRECCIÓN no ve NOMBRES, y el administrador maestro sí', ()
      entraría a Dirección y se llevaría los nombres — la fuga exacta que A8/P091 ya pagó. */
   const falsoAdmin = api.validarAcceso('Gamma', 'k-gamma-hseq', 'd');
   PRUEBAS.igual(falsoAdmin && falsoAdmin.vista, 'hseq', 'guarda: entra como Dirección');
-  PRUEBAS.igual(falsoAdmin && String(falsoAdmin.rol), 'admin',
-    'guarda: y su columna C dice «admin» — el escenario del ataque, no una hipótesis');
+  /* P311 · H4 · desde el 2026-11-06, la contraseña de Dirección o de HSEQ de esa fila ya no da el rol de la columna C: son dos frenos, éste y
+     `esAdminMaestro_`. El escenario del ataque sigue en el fixture; lo que cambia es que el rol de la fila ya no llega hasta acá. */
+  PRUEBAS.igual(falsoAdmin && String(falsoAdmin.rol), 'supervisor',
+    '🔒 H4 · y aunque su columna C diga «admin», esa contraseña no da ese rol');
   PRUEBAS.falso(api.esAdminMaestro_(falsoAdmin),
     'guarda: pero NO es el maestro, y eso es lo único que vale');
   const g = P223_J(api.accionActividad({ usuario:'Gamma', pass:'k-gamma-hseq', dispositivoId:'d' }));

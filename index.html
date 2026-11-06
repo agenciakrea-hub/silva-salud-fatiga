@@ -2127,7 +2127,9 @@
      primera fila del grid y `quien | emp` en la segunda, cada ítem ocupaba 66 px y diez de ellos
      daban 777 px. Así «cuándo» y «qué» comparten la primera línea y «quién · empresa» la segunda:
      ~44 px por ítem. */
-  .mov-it { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr);
+  /* P311 · 7.1REM Y NO 5.6: «20 Oct 2026 09:01» mide 107 px y la columna daba 90, así que la acción le tapaba el último dígito y se
+     leía «09:0» (medido en producción a 390 px). La columna era de antes de que la fecha llevara el año. */
+  .mov-it { display: grid; grid-template-columns: 7.1rem minmax(0, 1fr);
             gap: 0 .7rem; padding: .42rem 0; border-top: 1px solid var(--linea-2); }
   /* ⚠️ `quien` y `emp` van JUNTOS en la segunda línea, dentro de `.mov-who`. Mi primera versión
      les puso `grid-column: 1/-1` a cada uno por separado y cada uno se llevó su propia fila del
@@ -6018,6 +6020,10 @@
   .kpi-desc { font-size: .62rem; line-height: 1.35; color: var(--text-soft); margin-top: .2rem; }
   .kpi-div { height: 1px; background: var(--linea-2); margin: .4rem .2rem .3rem; }
   .spark.spark-alta { height: 49px; }
+  /* P311 · CON POCOS DÍAS DE DATOS NO HAY LÍNEA QUE DIBUJAR, y cada tarjeta reservaba su alto: un hueco en blanco en el medio de
+     cada una, 49 px en la grande (medido en producción). El hueco sirve para alinear con la de al lado cuando ésa sí tiene línea: si
+     nadie en el pilar la tiene, no alinea nada. */
+  .hsi-pilar:not(:has(svg.spark)) .spark-vacia { display: none; }
   /* En el panel de HSEQ la fila naranja del menú no se ve (el ☰ está en el header): la caja queda sin alto, y sus dos
      desplegables cuelgan justo debajo del header. Sin fondo ni sombra, para que no quede una rayita naranja. */
   #portalDash.dash-hseq .dfm-wrap { margin-top: 0; background: transparent; box-shadow: none; }
@@ -6088,6 +6094,11 @@
   .hse-c-rojo { color: var(--est-rojo); }
   .hse-c-tenue { color: var(--est-tenue); }
   .hseq-estado-sep { align-self: stretch; width: 1px; margin: .3rem 0; background: var(--est-sep); }
+  /* P311 · LA FOTO, FILA 9: EL LIBRO CON «GLOSARIO» DEBAJO. `.dash-ir-lbl` va oculta en el celular porque la barra de arriba no
+     tiene lugar, pero este botón ya no está en esa barra: a 390 px quedaba un libro solo, sin decir qué es. Por id, para ganarles a
+     las reglas de `.dash-refresh` y `.dash-top .dash-ir`, que dependen del ancho. */
+  #hseqGlosBtn { width: auto; height: auto; min-width: 44px; min-height: 44px; flex-direction: column; gap: .12rem; padding: .3rem .4rem; }
+  #hseqGlosBtn .dash-ir-lbl { display: block; font-size: .75rem; font-weight: 700; line-height: 1.1; letter-spacing: .01em; white-space: nowrap; }
   .hseq-chip { position: absolute; right: 1.1rem; bottom: 0; transform: translateY(58%); display: flex; align-items: center;
     gap: .5rem; padding: .35rem .8rem .35rem .5rem; border-radius: 12px; background: var(--navy); color: var(--sobre-marca);
     border: 1.5px solid var(--est-borde-chip); box-shadow: var(--shadow-md); }
@@ -7536,8 +7547,8 @@
       <h3 data-i18n="priv_sup_t">Tu supervisor</h3>
       <ul>
         <li data-i18n="priv_sup_1">Si cada indicador está en verde, amarillo o rojo. Incluye ansiedad y ánimo.</li>
-        <li data-i18n="priv_sup_2">Tu nombre, departamento y cargo.</li>
-        <li data-i18n-html="priv_sup_3"><b>No recibe</b> los puntajes de tus tests ni tu test de reacción.</li>
+        <li data-i18n="priv_sup_2">Tu nombre, tu cédula, tu departamento, tu cargo y tu nivel de riesgo; cuántas pruebas hiciste, cuándo, y qué test te tocó a qué hora; y las acciones registradas sobre ti, incluida una determinación de aptitud con quién la firmó, sin la nota clínica. También los reportes que envías, con tu nombre si los firmas, las opiniones anónimas y el motivo de tus ausencias.</li>
+        <li data-i18n-html="priv_sup_3"><b>No recibe</b> los puntajes de tus tests ni el tiempo de tu test de reacción: de ese test, sólo el color.</li>
         <li data-i18n-html="priv_sup_4"><b>No recibe</b> lo que escribes en los comentarios: el servidor ni se los envía.</li>
         <li data-i18n="priv_sup_5">Tu ciclo y la carga de trabajo que declaras.</li>
         <li data-i18n-html="priv_sup_6"><b>Ojo:</b> si tu empresa usa una sola contraseña para supervisión y servicio médico, quien entra con ella ve también todo lo del servicio médico.</li>
@@ -7562,19 +7573,19 @@
     <div class="priv-bloque">
       <h3 data-i18n="priv_dir_t">Dirección</h3>
       <ul>
-        <li data-i18n-html="priv_dir_1">El nivel de cada indicador, tu ciclo, tu jornada y la carga de trabajo que declaras, pero <b>sin tu nombre</b>: cada persona aparece como P1, P2, P3…, con su departamento y su cargo.</li>
-        <li data-i18n="priv_dir_2">Las acciones registradas sobre ti —por ejemplo, una restricción o una telemedicina—, con un seudónimo y con su hora, sin su contenido clínico.</li>
-        <li data-i18n-html="priv_dir_3"><b>No recibe</b> los puntajes de tus tests, ni tu test de reacción, ni lo que escribes en los comentarios.</li>
-        <li data-i18n="priv_dir_4">Mira cómo está la organización, no quién es quién.</li>
+        <li data-i18n-html="priv_dir_1">El nivel de cada indicador (también el de tu test de reacción), cuántas pruebas hiciste y cuándo, tu ciclo, tu jornada y la carga de trabajo que declaras, pero <b>sin tu nombre</b>: cada persona aparece como P1, P2, P3…, con su departamento y su cargo.</li>
+        <li data-i18n="priv_dir_2">Las acciones registradas sobre ti —por ejemplo, una restricción o una telemedicina—, con un seudónimo y con su hora, sin su contenido clínico. También los reportes y las opiniones que envías de forma anónima, con su texto.</li>
+        <li data-i18n-html="priv_dir_3"><b>No recibe</b> los puntajes de tus tests, ni el tiempo de tu test de reacción, ni lo que escribes en los comentarios.</li>
+        <li data-i18n="priv_dir_4">Mira cómo está la organización, no a las personas. Si tu cargo es único en la empresa, ese seudónimo puede dejar saber quién eres.</li>
       </ul>
     </div>
 
     <div class="priv-bloque">
       <h3 data-i18n="priv_hseq_t">Seguridad (HSEQ)</h3>
       <ul>
-        <li data-i18n-html="priv_hseq_1">De tus tests, <b>sólo totales de 3 o más personas medidas</b>: cómo está la organización en cada indicador. Nunca tu resultado, ni con un seudónimo; con menos de 3 personas, nada, ni el color.</li>
-        <li data-i18n-html="priv_hseq_2">Tu ciclo, tu jornada, la carga de trabajo que declaras y las acciones registradas sobre ti, como P1, P2, P3…, <b>sin tu nombre</b>, con tu departamento y tu cargo, y sin ningún resultado de tus tests.</li>
-        <li data-i18n="priv_hseq_3">Tu nombre aparece en un solo lugar: el formato de horas de sueño (forma 008), que arma HSEQ y se entrega al cliente de la operación. Con ese formato, HSEQ puede llegar a saber de quién es cada ciclo.</li>
+        <li data-i18n-html="priv_hseq_1">De tus tests, <b>sólo totales de 3 o más personas medidas</b>: cómo está la organización en cada indicador. Nunca tu resultado, ni con un seudónimo; de un grupo de menos de 3 personas, ningún número ni color. Ten en cuenta que, en un grupo tan pequeño, el total y el color del grupo pueden dar una idea del tuyo: si todo el grupo sale en verde, tú también.</li>
+        <li data-i18n-html="priv_hseq_2">Tu ciclo, tu jornada, la carga de trabajo que declaras y las acciones registradas sobre ti, como P1, P2, P3…, <b>sin tu nombre</b>, con tu departamento y tu cargo, y sin ningún resultado de tus tests. También ve si estás entre quienes se midieron, no qué contestaste, y los reportes y las opiniones que envías de forma anónima, con su texto.</li>
+        <li data-i18n="priv_hseq_3">Tu nombre aparece en un solo lugar: el formato de horas de sueño (forma 008), que arma HSEQ y se entrega al cliente de la operación. Con ese formato, HSEQ puede llegar a saber de quién es cada ciclo, nunca un resultado de tus tests.</li>
       </ul>
     </div>
 
@@ -7585,7 +7596,7 @@
       </ul>
     </div>
 
-    <p class="priv-pie" data-i18n="priv_pie">Esto no depende de una promesa: el recorte lo hace el servidor antes de enviar los datos, así que lo que no aparece en esta lista no le llega a esa persona aunque quiera buscarlo.</p>
+    <p class="priv-pie" data-i18n="priv_pie">El recorte lo hace el servidor antes de enviar los datos a cada panel. Crea tu contraseña: mientras no la tengas, quien conozca tu nombre y tu cédula, también tu supervisor, puede ver tus resultados.</p>
     <button class="save-btn" onclick="privCerrarUI()" data-i18n="entendido">Entendido</button>
   </div>
 </div>
@@ -8236,7 +8247,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.65';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.66';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8580,11 +8591,11 @@ const I18N = {
       priv_corta:'Tu supervisor ve el nivel de cada indicador, no tus respuestas; el servicio médico, los resultados completos. Si tu empresa usa una sola contraseña para los dos, quien la tiene ve las dos cosas.',
       priv_mas:'Ver quién ve qué',
       priv_t:'Quién ve qué',
-      priv_intro:'Tus respuestas no las ve todo el mundo igual. Esto es exactamente lo que recibe cada uno.',
+      priv_intro:'Tus respuestas no las ve todo el mundo igual. Esto es lo que recibe cada uno.',
       priv_sup_t:'Tu supervisor',
       priv_sup_1:'Si cada indicador está en verde, amarillo o rojo. Incluye ansiedad y ánimo.',
-      priv_sup_2:'Tu nombre, departamento y cargo.',
-      priv_sup_3:'<b>No recibe</b> los puntajes de tus tests ni tu test de reacción.',
+      priv_sup_2:'Tu nombre, tu cédula, tu departamento, tu cargo y tu nivel de riesgo; cuántas pruebas hiciste, cuándo, y qué test te tocó a qué hora; y las acciones registradas sobre ti, incluida una determinación de aptitud con quién la firmó, sin la nota clínica. También los reportes que envías, con tu nombre si los firmas, las opiniones anónimas y el motivo de tus ausencias.',
+      priv_sup_3:'<b>No recibe</b> los puntajes de tus tests ni el tiempo de tu test de reacción: de ese test, sólo el color.',
       priv_sup_4:'<b>No recibe</b> lo que escribes en los comentarios: el servidor ni se los envía.',
       priv_sup_5:'Tu ciclo y la carga de trabajo que declaras.',
       priv_sup_6:'<b>Ojo:</b> si tu empresa usa una sola contraseña para supervisión y servicio médico, quien entra con ella ve también todo lo del servicio médico.',
@@ -8594,17 +8605,17 @@ const I18N = {
       priv_med_3:'Es el único que puede firmar una determinación de aptitud.',
       priv_med_4:'Para redactar sus informes puede usar un asistente de inteligencia artificial de Google (Gemini), al que se le envían valores y comentarios con el nombre de cada persona.',
       priv_dir_t:'Dirección',
-      priv_dir_1:'El nivel de cada indicador, tu ciclo, tu jornada y la carga de trabajo que declaras, pero <b>sin tu nombre</b>: cada persona aparece como P1, P2, P3…, con su departamento y su cargo.',
-      priv_dir_2:'Las acciones registradas sobre ti —por ejemplo, una restricción o una telemedicina—, con un seudónimo y con su hora, sin su contenido clínico.',
-      priv_dir_3:'<b>No recibe</b> los puntajes de tus tests, ni tu test de reacción, ni lo que escribes en los comentarios.',
-      priv_dir_4:'Mira cómo está la organización, no quién es quién.',
+      priv_dir_1:'El nivel de cada indicador (también el de tu test de reacción), cuántas pruebas hiciste y cuándo, tu ciclo, tu jornada y la carga de trabajo que declaras, pero <b>sin tu nombre</b>: cada persona aparece como P1, P2, P3…, con su departamento y su cargo.',
+      priv_dir_2:'Las acciones registradas sobre ti —por ejemplo, una restricción o una telemedicina—, con un seudónimo y con su hora, sin su contenido clínico. También los reportes y las opiniones que envías de forma anónima, con su texto.',
+      priv_dir_3:'<b>No recibe</b> los puntajes de tus tests, ni el tiempo de tu test de reacción, ni lo que escribes en los comentarios.',
+      priv_dir_4:'Mira cómo está la organización, no a las personas. Si tu cargo es único en la empresa, ese seudónimo puede dejar saber quién eres.',
       priv_hseq_t:'Seguridad (HSEQ)',
-      priv_hseq_1:'De tus tests, <b>sólo totales de 3 o más personas medidas</b>: cómo está la organización en cada indicador. Nunca tu resultado, ni con un seudónimo; con menos de 3 personas, nada, ni el color.',
-      priv_hseq_2:'Tu ciclo, tu jornada, la carga de trabajo que declaras y las acciones registradas sobre ti, como P1, P2, P3…, <b>sin tu nombre</b>, con tu departamento y tu cargo, y sin ningún resultado de tus tests.',
+      priv_hseq_1:'De tus tests, <b>sólo totales de 3 o más personas medidas</b>: cómo está la organización en cada indicador. Nunca tu resultado, ni con un seudónimo; de un grupo de menos de 3 personas, ningún número ni color. Ten en cuenta que, en un grupo tan pequeño, el total y el color del grupo pueden dar una idea del tuyo: si todo el grupo sale en verde, tú también.',
+      priv_hseq_2:'Tu ciclo, tu jornada, la carga de trabajo que declaras y las acciones registradas sobre ti, como P1, P2, P3…, <b>sin tu nombre</b>, con tu departamento y tu cargo, y sin ningún resultado de tus tests. También ve si estás entre quienes se midieron, no qué contestaste, y los reportes y las opiniones que envías de forma anónima, con su texto.',
       priv_hseq_3:'Tu nombre aparece en un solo lugar: el formato de horas de sueño (forma 008), que arma HSEQ y se entrega al cliente de la operación. Con ese formato, HSEQ puede llegar a saber de quién es cada ciclo, nunca un resultado de tus tests.',
       priv_adm_t:'La administración de la plataforma',
       priv_adm_1:'Quien presta el servicio y guarda los datos, y el equipo que desarrolla y mantiene la aplicación, ven todo, con nombre.',
-      priv_pie:'Esto no depende de una promesa: el recorte lo hace el servidor antes de enviar los datos, así que lo que no aparece en esta lista no le llega a esa persona aunque quiera buscarlo.',
+      priv_pie:'El recorte lo hace el servidor antes de enviar los datos a cada panel. Crea tu contraseña: mientras no la tengas, quien conozca tu nombre y tu cédula, también tu supervisor, puede ver tus resultados.',
       nom_soy_gestor:'Vengo a ver el panel de mi empresa',
       car_saltar:'Saltar',
       nom_cedula_lbl:'Confirma tu número de cédula',
@@ -8744,10 +8755,10 @@ const I18N = {
         '<p class="consent-text"><strong>Carácter voluntario.</strong> Tu participación es voluntaria. Puedes retirar este consentimiento en cualquier momento, comunicándolo al servicio médico, sin que ello implique consecuencia alguna en tu relación laboral.</p>',
       consent_roles_t:'Acceso a la información',
       consent_roles_html:'<p class="consent-text">El acceso está segmentado según la función de cada rol:</p>' +
-        '<p class="consent-text"><strong>Supervisión.</strong> Accede a tu nombre y al nivel de cada indicador (verde, amarillo o rojo), a tu ciclo y a la carga de trabajo que declaras, para la asignación de tareas. <strong>No accede a los valores de tus evaluaciones</strong> ni al contenido de la información clínica. Si tu empresa usa una sola contraseña para supervisión y servicio médico, quien la tiene accede también a lo que se detalla para el servicio médico.</p>' +
+        '<p class="consent-text"><strong>Supervisión.</strong> Accede a tu nombre, a tu cédula y al nivel de cada indicador (verde, amarillo o rojo), a cuántas pruebas hiciste y cuándo, a tu ciclo, a la carga de trabajo que declaras, a tus reportes y al motivo de tus ausencias, para la asignación de tareas. <strong>No accede a los valores de tus evaluaciones</strong> ni al contenido de la información clínica. Si tu empresa usa una sola contraseña para supervisión y servicio médico, quien la tiene accede también a lo que se detalla para el servicio médico.</p>' +
         '<p class="consent-text"><strong>Servicio médico.</strong> Accede a los resultados completos, por ser el único responsable de su interpretación clínica. Para redactar sus informes puede usar un asistente de inteligencia artificial de Google (Gemini), al que se le envían valores y comentarios con el nombre de cada persona.</p>' +
-        '<p class="consent-text"><strong>Dirección de la empresa.</strong> Accede a la información del conjunto del personal: el nivel de cada indicador, el ciclo, la jornada, la carga declarada y las acciones registradas, de cada persona bajo un seudónimo (P1, P2…). <strong>En ningún caso a tu nombre ni a los valores de tus evaluaciones.</strong></p>' +
-        '<p class="consent-text"><strong>Seguridad (HSEQ).</strong> De tus evaluaciones accede <strong>sólo a totales de grupos de 3 o más personas medidas</strong>: nunca a tu resultado ni a tu color, tampoco bajo un seudónimo. De cada persona bajo un seudónimo (P1, P2…) accede al ciclo, la jornada, la carga declarada y las acciones registradas, sin ningún resultado de sus evaluaciones. Tu nombre aparece sólo en el formato de horas de sueño (forma 008), que se entrega al cliente de la operación: con él puede llegar a saber de quién es cada ciclo, nunca un resultado de tus evaluaciones. No accede al contenido de la información clínica.</p>' +
+        '<p class="consent-text"><strong>Dirección de la empresa.</strong> Accede a la información del conjunto del personal: el nivel de cada indicador, cuántas pruebas hizo y cuándo, el ciclo, la jornada, la carga declarada y las acciones registradas, de cada persona bajo un seudónimo (P1, P2…), y a los reportes y opiniones anónimos. <strong>En ningún caso a tu nombre ni a los valores de tus evaluaciones.</strong> Si tu cargo es único en la empresa, ese seudónimo puede dejar saber quién eres.</p>' +
+        '<p class="consent-text"><strong>Seguridad (HSEQ).</strong> De tus evaluaciones accede <strong>sólo a totales de grupos de 3 o más personas medidas</strong>: nunca a tu resultado, tampoco bajo un seudónimo. En un grupo tan pequeño, el total y el color del grupo pueden dar una idea del tuyo. De cada persona bajo un seudónimo (P1, P2…) accede a si se midió, al ciclo, la jornada, la carga declarada y las acciones registradas, sin ningún resultado de sus evaluaciones, y a los reportes y opiniones anónimos. Tu nombre aparece sólo en el formato de horas de sueño (forma 008), que se entrega al cliente de la operación: con él puede llegar a saber de quién es cada ciclo, nunca un resultado de tus evaluaciones. No accede al contenido de la información clínica.</p>' +
         '<p class="consent-text"><strong>Administración de la plataforma.</strong> Quien presta el servicio y guarda los datos, y el equipo que desarrolla y mantiene la aplicación, acceden a toda la información, con nombre, para mantenerla y resolver incidencias.</p>',
       consent_justa_t:'Finalidad preventiva, no sancionatoria',
       consent_justa_html:'<p class="consent-text">Cuando se detectan indicadores compatibles con fatiga, <strong>la aplicación no emite una determinación de aptitud</strong>. Únicamente señala la necesidad de una revisión por parte del servicio médico, que es quien la determina.</p>' +
@@ -9411,6 +9422,8 @@ const I18N = {
       // ══════ G3 · Los cuatro estados ══════
       // Cada vacío dice DOS cosas: qué va a aparecer ahí y cómo se llena. Un "Sin datos." no
       // distingue entre "está roto", "todavía nadie cargó nada" y "tus filtros dejaron todo fuera".
+      vac_sin_padron_t:'Tu historial no está disponible aquí',
+      vac_sin_padron_d:'Tus tests de este teléfono siguen en Inicio. Para ver aquí tu historial, tu empresa tiene que agregarte a la nómina con tu cédula.',
       vac_tests_t:'Todavía no hay tests',
       vac_tests_d:'Aquí van los promedios de cada indicador. Aparecen en cuanto alguien del equipo completa su primer test.',
       vac_idc_t:'Todavía no hay a quién medir',
@@ -9532,7 +9545,7 @@ const I18N = {
       hsi_guia:'<b>El inicio de HSEQ</b> reúne los siete indicadores de los tests en tres grupos: el riesgo para la seguridad de la operación (fatiga, somnolencia y cansancio), la salud mental (estrés, ansiedad y depresión) y la somatización (síntomas gastrointestinales).<br><br><b>El estado de arriba</b> mira a las personas, no al promedio: en cada tanda de tests (grupos de {n} o más personas medidas que se cerraron juntos), cada una cuenta con su peor test. <b>SEGURO</b>: todos en verde. <b>SEGURO · requiere atención</b>: alguien en amarillo. <b>LEVEMENTE SEGURO</b>: más del {u} % en amarillo, y al menos dos. <b>POCO SEGURO</b>: algún test en rojo; nunca se atenúa, porque un test en rojo es un hecho aunque se haya medido a pocos. Cada test se mira por su valor, contra el límite de su puesto: el semáforo de cada persona espera dos resultados seguidos para ponerse en rojo; el estado, no. Si se midió menos del {c} % de la nómina (redondeado), se ve atenuado y dice cuántos se midieron. La <b>confiabilidad</b> es la parte de los tests evaluados que no se respondieron apurados.<br><br>El <b>arco</b> muestra qué tan cerca está el promedio de su referencia: se llena al llegar a ella y se pone rojo si la supera. La <b>tendencia</b> es verde mientras el promedio está por debajo de la referencia y roja si la supera, y la flecha compara con el período anterior.<br><br>De los tests, HSEQ ve <b>sólo totales de {n} o más personas medidas</b>, calculados en el servidor: mientras no se completa un grupo, la tarjeta no muestra ni el número ni el color, y ningún resultado llega con el nombre de una persona. Si todo un grupo está igual (por ejemplo, todos en verde con el promedio justo en el límite), lo que dice el grupo vale para cada uno.<br><br><b>☰</b> abre las demás secciones y los filtros, <b>⌂</b> vuelve aquí y <b>Ver reporte semanal</b> resume la semana contra la anterior.',
       hse_seguro:'SEGURO', hse_atencion:'SEGURO', hse_levemente:'LEVEMENTE SEGURO', hse_poco:'POCO SEGURO',
       hse_sub_atencion:'requiere atención', hse_sub_poco:'requiere acción',
-      hse_n_de_m:'{n} de {m} medidos', hse_n_medidos:'{n} medidos', hse_sin_calcular:'Todavía no se calculó el estado', hse_sin_estado:'Sin estado para este período', hse_conf:'Confiabilidad de los datos',
+      hse_n_de_m:'{n} de {m} personas', hse_n_medidos:'{n} personas', hse_sin_calcular:'Todavía no se calculó el estado', hse_sin_estado:'Sin estado para este período', hse_conf:'Confiabilidad de los datos',
       hse_aria:'Estado global: {e}',
       hst_error:'No llegaron los totales de los tests. Toca ↻ para intentar de nuevo; si sigue igual, avísale al administrador.',
       hst_sin_mapa:'El mapa de los tests por área no se muestra: por área, un grupo chico dejaría ver el resultado de una persona. Los tests se ven como totales de toda la empresa, en «{s}».',
@@ -10914,11 +10927,11 @@ const I18N = {
       priv_corta:'Your supervisor sees the level of each indicator, not your answers; the medical service sees the full results. If your company uses a single password for both, whoever has it sees both.',
       priv_mas:'See who sees what',
       priv_t:'Who sees what',
-      priv_intro:'Not everyone sees your answers the same way. This is exactly what each one receives.',
+      priv_intro:'Not everyone sees your answers the same way. This is what each one receives.',
       priv_sup_t:'Your supervisor',
       priv_sup_1:'Whether each indicator is green, amber or red. That includes anxiety and mood.',
-      priv_sup_2:'Your name, department and role.',
-      priv_sup_3:'<b>Does not receive</b> your test scores or your reaction test.',
+      priv_sup_2:'Your name, ID number, department, job title and risk level; how many tests you took, when, and which test was due at what time; and the actions recorded about you, including a fitness determination and who signed it, without the clinical note. Also the reports you send, with your name if you sign them, anonymous opinions, and the reason for your absences.',
+      priv_sup_3:'<b>Does not receive</b> your test scores or your reaction test times: of that test, only the color.',
       priv_sup_4:'<b>Does not receive</b> what you write in the comments: the server does not even send them.',
       priv_sup_5:'Your cycle and the workload you report.',
       priv_sup_6:'<b>Note:</b> if your company uses a single password for supervision and the medical service, whoever signs in with it also sees everything the medical service sees.',
@@ -10928,17 +10941,17 @@ const I18N = {
       priv_med_3:'The only one who can sign a fitness determination.',
       priv_med_4:'To write its reports it may use an artificial intelligence assistant from Google (Gemini), which receives values and comments with each person\u2019s name.',
       priv_dir_t:'Management',
-      priv_dir_1:'The level of each indicator, your cycle, your shift and the workload you report, but <b>without your name</b>: each person appears as P1, P2, P3…, with their department and job title.',
-      priv_dir_2:'The actions recorded about you \u2014for example, a restriction or a telemedicine consultation\u2014, under a pseudonym and with their time, without their clinical content.',
-      priv_dir_3:'<b>Does not receive</b> your test scores, your reaction test or what you write in the comments.',
-      priv_dir_4:'They look at how the organization is doing, not at who is who.',
+      priv_dir_1:'The level of each indicator (including your reaction test), how many tests you took and when, your cycle, your shift and the workload you report, but <b>without your name</b>: each person appears as P1, P2, P3…, with their department and job title.',
+      priv_dir_2:'The actions recorded about you \u2014for example, a restriction or a telemedicine consultation\u2014, under a pseudonym and with their time, without their clinical content. Also the reports and opinions you send anonymously, with their text.',
+      priv_dir_3:'<b>Does not receive</b> your test scores, your reaction test times or what you write in the comments.',
+      priv_dir_4:'They look at how the organization is doing, not at individuals. If your job title is unique in the company, that pseudonym may give away who you are.',
       priv_hseq_t:'Safety (HSEQ)',
-      priv_hseq_1:'Of your tests, <b>only totals of 3 or more measured people</b>: how the organization is doing on each indicator. Never your own result, not even under a pseudonym; with fewer than 3 people, nothing, not even the color.',
-      priv_hseq_2:'Your cycle, your shift, the workload you report and the actions recorded about you, as P1, P2, P3…, <b>without your name</b>, with your department and job title, and with none of your test results.',
+      priv_hseq_1:'Of your tests, <b>only totals of 3 or more measured people</b>: how the organization is doing on each indicator. Never your own result, not even under a pseudonym; from a group of fewer than 3 people, no number and no color. Keep in mind that, in a group that small, the group total and color can give an idea of yours: if the whole group is green, so are you.',
+      priv_hseq_2:'Your cycle, your shift, the workload you report and the actions recorded about you, as P1, P2, P3…, <b>without your name</b>, with your department and job title, and with none of your test results. It also sees whether you are among those who took a test, not what you answered, and the reports and opinions you send anonymously, with their text.',
       priv_hseq_3:'Your name appears in one place only: the sleep-hours form (form 008), which HSEQ prepares and which is handed to the client of the operation. With that form, HSEQ may be able to tell whose cycle is whose, never a result of your tests.',
       priv_adm_t:'Platform administration',
       priv_adm_1:'Whoever provides the service and keeps the data, and the team that develops and maintains the app, see everything, with names.',
-      priv_pie:'This is not a promise: the server trims the data before sending it, so whatever is not on this list never reaches that person, even if they go looking for it.',
+      priv_pie:'The server trims the data before sending it to each panel. Create your password: until you have one, anyone who knows your name and ID number, including your supervisor, can see your results.',
       nom_soy_gestor:'I am here for my company dashboard',
       car_saltar:'Skip',
       nom_cedula_lbl:'Confirm your ID number',
@@ -11068,10 +11081,10 @@ const I18N = {
         '<p class="consent-text"><strong>Voluntary participation.</strong> Your participation is voluntary. You may withdraw this consent at any time by notifying the medical service, with no consequence whatsoever for your employment.</p>',
       consent_roles_t:'Access to information',
       consent_roles_html:'<p class="consent-text">Access is segmented according to the function of each role:</p>' +
-        '<p class="consent-text"><strong>Supervision.</strong> Sees your name and the level of each indicator (green, amber or red), your cycle and the workload you report, for the purpose of assigning tasks. <strong>It does not see the values of your assessments</strong> or the content of any clinical information. If your company uses a single password for supervision and the medical service, whoever has it also sees what is described for the medical service.</p>' +
+        '<p class="consent-text"><strong>Supervision.</strong> Sees your name, your ID number and the level of each indicator (green, amber or red), how many tests you took and when, your cycle, the workload you report, your reports and the reason for your absences, for the purpose of assigning tasks. <strong>It does not see the values of your assessments</strong> or the content of any clinical information. If your company uses a single password for supervision and the medical service, whoever has it also sees what is described for the medical service.</p>' +
         '<p class="consent-text"><strong>Medical service.</strong> Sees the complete results, being solely responsible for their clinical interpretation. To write its reports it may use an artificial intelligence assistant from Google (Gemini), which receives values and comments with each person\u2019s name.</p>' +
-        '<p class="consent-text"><strong>Company management.</strong> Sees information about the workforce as a whole: the level of each indicator, the cycle, the shift, the reported workload and the recorded actions, for each person under a pseudonym (P1, P2…). <strong>Never your name or the values of your assessments.</strong></p>' +
-        '<p class="consent-text"><strong>Safety (HSEQ).</strong> Of your assessments it sees <strong>only totals of groups of 3 or more measured people</strong>: never your own result or your color, not even under a pseudonym. For each person under a pseudonym (P1, P2…) it sees the cycle, the shift, the reported workload and the recorded actions, with none of their assessment results. Your name appears only on the sleep-hours form (form 008), which is handed to the client of the operation: with it, HSEQ may be able to tell whose cycle is whose, never a result of your assessments. It does not see the content of any clinical information.</p>' +
+        '<p class="consent-text"><strong>Company management.</strong> Sees information about the workforce as a whole: the level of each indicator, how many tests each person took and when, the cycle, the shift, the reported workload and the recorded actions, for each person under a pseudonym (P1, P2…), and anonymous reports and opinions. <strong>Never your name or the values of your assessments.</strong> If your job title is unique in the company, that pseudonym may give away who you are.</p>' +
+        '<p class="consent-text"><strong>Safety (HSEQ).</strong> Of your assessments it sees <strong>only totals of groups of 3 or more measured people</strong>: never your own result, not even under a pseudonym. In a group that small, the group total and color can give an idea of yours. For each person under a pseudonym (P1, P2…) it sees whether they took a test, the cycle, the shift, the reported workload and the recorded actions, with none of their assessment results, and anonymous reports and opinions. Your name appears only on the sleep-hours form (form 008), which is handed to the client of the operation: with it, HSEQ may be able to tell whose cycle is whose, never a result of your assessments. It does not see the content of any clinical information.</p>' +
         '<p class="consent-text"><strong>Platform administration.</strong> Whoever provides the service and keeps the data, and the team that develops and maintains the app, see all the information, with names, to maintain it and resolve incidents.</p>',
       consent_justa_t:'Preventive purpose, not punitive',
       consent_justa_html:'<p class="consent-text">When indicators consistent with fatigue are detected, <strong>the application does not issue a fitness determination</strong>. It only signals the need for a review by the medical service, which is what determines it.</p>' +
@@ -11740,6 +11753,8 @@ const I18N = {
       vac_tareas_t:'You have not asked for anything yet',
       vac_tareas_d:'This is where the things you ask of this person appear. They see them in their app, with a counter, and can mark them as done.',
       // ══════ G3 · The four states ══════
+      vac_sin_padron_t:'Your history is not available here',
+      vac_sin_padron_d:'Your tests on this phone are still on Home. To see your history here, your company has to add you to its roster with your ID number.',
       vac_tests_t:'No tests yet',
       vac_tests_d:'This is where the average of each indicator goes. It appears as soon as someone on the team completes their first test.',
       vac_idc_t:'Nobody to measure yet',
@@ -11859,7 +11874,7 @@ const I18N = {
       hsi_guia:'<b>The HSEQ home</b> brings together the seven test indicators in three groups: the risk to operational safety (fatigue, sleepiness and tiredness), mental health (stress, anxiety and depression) and somatization (gastrointestinal symptoms).<br><br><b>The status at the top</b> looks at people, not at the average: in each batch of tests (groups of {n} or more measured people closed together), each person counts with their worst test. <b>SAFE</b>: everyone in green. <b>SAFE · needs attention</b>: someone in yellow. <b>SLIGHTLY SAFE</b>: more than {u}% in yellow, and at least two. <b>LOW SAFETY</b>: some test in red; it is never dimmed, because a test in red is a fact even if few were measured. Each test is judged by its own value, against the limit of the person’s role: each person’s light waits for two results in a row to turn red; the status does not. If less than {c}% of the payroll was measured (rounded), it is dimmed and says how many were measured. <b>Reliability</b> is the share of evaluated tests that were not answered in a rush.<br><br>The <b>arc</b> shows how close the average is to its reference: it fills up when it reaches it and turns red if it goes over. The <b>trend</b> is green while the average is below the reference and red if it goes over, and the arrow compares with the previous period.<br><br>Of the tests, HSEQ sees <b>only totals of {n} or more measured people</b>, calculated on the server: until a group is complete, the card shows neither the number nor the color, and no result arrives with a person’s name. If a whole group is the same (for example, everyone in green with the average right at the limit), what the group says holds for each one.<br><br><b>☰</b> opens the other sections and the filters, <b>⌂</b> comes back here and <b>See weekly report</b> sums up the week against the previous one.',
       hse_seguro:'SAFE', hse_atencion:'SAFE', hse_levemente:'SLIGHTLY SAFE', hse_poco:'LOW SAFETY',
       hse_sub_atencion:'needs attention', hse_sub_poco:'action needed',
-      hse_n_de_m:'{n} of {m} measured', hse_n_medidos:'{n} measured', hse_sin_calcular:'Status not calculated yet', hse_sin_estado:'No status for this period', hse_conf:'Data reliability',
+      hse_n_de_m:'{n} of {m} people', hse_n_medidos:'{n} people', hse_sin_calcular:'Status not calculated yet', hse_sin_estado:'No status for this period', hse_conf:'Data reliability',
       hse_aria:'Overall status: {e}',
       hst_error:'The test totals did not arrive. Tap ↻ to try again; if it keeps happening, let the administrator know.',
       hst_sin_mapa:'The test map by area is not shown: by area, a small group would expose one person’s result. Tests are shown as whole-company totals, under «{s}».',
@@ -23065,6 +23080,7 @@ function dashCamposDelServidor(d){
     /* P075 · `combinada` (la clave única de la empresa abre las dos secciones): dos guardas del
        cliente la leían y nunca estaba — el médico combinado veía menos de lo que el servidor manda. */
     combinada: !!d.combinada,
+    sinPadron: !!d.sinPadron,   // P311 · V7 · `empleado` no le entrega nada a quien no está en el padrón: «Mis estadísticas» lo dice
     /* P306 · DENTRO DE LA VISTA `hseq`, QUÉ PANEL ES: «direccion» o «hseq». Lo decide el servidor
        por la contraseña con que se entró (ADR 017); la app sólo lo nombra. Un servidor viejo no lo
        manda y queda `null`: el nombre de siempre, «Dirección / HSEQ». */
@@ -24581,7 +24597,11 @@ function dashSpark(vals, ref, op){
   return '<svg class="spark' + (op.alto ? ' spark-alta' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
     '<path d="' + area + '" fill="' + col + '" opacity=".12"/>' + refLn +
     '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>' +
-    '<circle cx="' + x(n-1).toFixed(1) + '" cy="' + y(vals[n-1]).toFixed(1) + '" r="2" fill="' + col + '"/></svg>';
+    /* P311 · CON `preserveAspectRatio="none"` UN `<circle>` SE ESTIRA CON EL ANCHO: en el gráfico grande de HSEQ, tres veces más ancho
+       que alto, el punto final de la foto era un óvalo. Una línea de largo cero con punta redonda y trazo que no escala es un círculo
+       a cualquier ancho. */
+    '<line class="spark-fin" x1="' + x(n-1).toFixed(1) + '" y1="' + y(vals[n-1]).toFixed(1) + '" x2="' + x(n-1).toFixed(1) + '" y2="' + y(vals[n-1]).toFixed(1) +
+    '" stroke="' + col + '" stroke-width="4.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
 }
 
 
@@ -24787,7 +24807,7 @@ function renderDash(){
     // P097: 'predictivo' ya no es una pestaña (ver dashOrderedTabs) — nunca va a llegar acá. El
     // contenido de renderHseqPredictivo() ahora se cuelga aparte, al final de la vista hseq (ver
     // más abajo, `queViene`), como bloque plegable fuera del sistema de pestañas.
-    else if (!rows.length) html = dashVacio('tests', 'tests');
+    else if (!rows.length) html = dashVacio(DASH.sinPadron ? 'sin_padron' : 'tests', 'tests');
     else if (tb === 'comparar') html = renderComparar(rows);
     else if (tb === 'individual') html = renderIndividual(rows);
     else if (tb === 'evolucion') html = renderEvolucion(rows);
@@ -27195,12 +27215,14 @@ function hseqEstadoPintar(){
     /* M2 (verificador): sin la nómina (no se pudo leer) no se sabe la cobertura: falla CERRADO —se atenúa y dice cuántos
        se midieron, sin el total—, en vez de mostrarse como la foto sin decir nada. */
     const sinNomina = !(nom > 0), cob = sinNomina ? null : Math.round(pers / nom * 100);
-    const tenue = etapa !== 'poco' && (sinNomina || cob < dashCoberturaMinima());
+    /* P311 · H10 · si el grupo quedó bajo el piso (gente dada de baja de la nómina), el servidor no manda cuántas personas: se atenúa, sin el número. */
+    const sinPersonas = E.personas == null;
+    const tenue = etapa !== 'poco' && (sinNomina || sinPersonas || cob < dashCoberturaMinima());
     const clase = 'hse-c-' + (tenue ? 'tenue' : color);
     const palabra = t('hse_' + etapa);
     /* Sin cuántos en rojo (Franco, 2026-11-02): con un grupo todo en rojo, el número decía el color de cada uno. */
     const sub = etapa === 'atencion' ? t('hse_sub_atencion') : etapa === 'poco' ? t('hse_sub_poco') : '';
-    const cobTxt = !tenue ? '' : sinNomina ? t('hse_n_medidos', { n: pers }) : t('hse_n_de_m', { n: pers, m: nom });
+    const cobTxt = (!tenue || sinPersonas) ? '' : sinNomina ? t('hse_n_medidos', { n: pers }) : t('hse_n_de_m', { n: pers, m: nom });
     html = hseqEscudoSvg(clase, signo) + '<div class="hse-txt"><div class="hse-palabra ' + clase + '" data-etapa="' + esc(etapa) + '">' +
       '<span>' + esc(palabra) + '</span>' + hseqCirculoSvg(clase, signo) +
       (cobTxt ? '<span class="hse-cob">' + esc(cobTxt) + '</span>' : '') + '</div>' +

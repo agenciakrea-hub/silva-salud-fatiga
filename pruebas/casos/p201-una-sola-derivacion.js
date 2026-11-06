@@ -105,7 +105,7 @@ PRUEBAS.caso('🔴 P201 · el refresco mueve TODOS los campos de contexto, no s�
     /* TODO cambiado, incluido lo que el panel usa para decir la verdad sobre la cobertura. */
     const v2 = p201Payload({
       registros: [p201Reg('Ana Uno', 9)],
-      config: { sector: 'campo' }, marca: { nombre: 'Marca Nueva' }, combinada: true, panel: 'hseq',
+      config: { sector: 'campo' }, marca: { nombre: 'Marca Nueva' }, combinada: true, sinPadron: true, panel: 'hseq',
       zonaOp: 'America/Bogota', nominaTotal: 6, nominaSinDato: ['Beto', 'Caro'],
       nominaError: 'No se pudo leer la nómina',
       cicloPlanPersona: { ana: { jornada: 720 } }, cicloPlanPersonaError: 'plan ilegible',

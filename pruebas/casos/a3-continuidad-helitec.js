@@ -36,15 +36,18 @@ function a3Endpoint(nomina, identidades){
 }
 const a3r = resp => JSON.parse(resp.getContent());
 
-PRUEBAS.caso('⚠️ la app VIEJA (sin cédula) sigue viendo sus estadísticas', () => {
+PRUEBAS.caso('⚠️ la app VIEJA (sin cédula) no recibe un error, y no recibe datos de nadie', () => {
   /* EL CASO DEL HALLAZGO. Una persona que no está en la nómina con cédula: no hay nada que
-     verificar, así que exigirla no protegía — sólo la dejaba afuera. */
+     verificar, así que exigirla no protegía — sólo la dejaba afuera.
+     🔒 P311 · F098 · desde el 2026-11-06 contesta `ok` y VACÍO. Este caso afirmaba que veía sus estadísticas: con el nombre solo, las de
+     cualquiera. La app sigue andando y funde con lo que tiene en el teléfono (`p311-auditoria-hseq.js`). */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el .gs servido se saltea'); return; }
   const api = a3Endpoint([['Helitec','Ana Suárez','','Op','Piloto']]);   // nómina SIN cédula
   const r = a3r(api.accionEmpleado({ empresa:'Helitec', persona:'Ana Suárez' }));
   PRUEBAS.cierto(r.ok,
-    '⚠️ sin cédula en el padrón, exigirla no verifica nada y deja a la persona sin sus datos ' +
+    '⚠️ sin cédula en el padrón, exigirla no verifica nada: contesta sin error para no trabar a la app vieja ' +
     '(respondió: ' + (r.motivo || r.error || 'ok') + ')');
+  /* Que no salga ningún dato lo mide `p311-auditoria-hseq.js`, con las columnas reales: en esta hoja `registros` da 0 también sin el cierre. */
 });
 
 PRUEBAS.caso('⚠️ pero donde el padrón SÍ conoce la cédula, se sigue exigiendo (Z0b intacto)', () => {
