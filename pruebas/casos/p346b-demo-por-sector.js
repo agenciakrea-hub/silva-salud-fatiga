@@ -206,3 +206,32 @@ PRUEBAS.caso('🔴 P346b · con la demostración abierta, ningún toast tapa «S
     PRUEBAS.falso(b.libre, 'DISCRIMINADOR · en su lugar de siempre el toast tapa «Salir»: la medida lo ve (encima: ' + b.quien + ')');
   } finally { estilo.remove(); try { hideToast(); } catch (e) {} quieto.remove(); try { demoAppCerrar(); } catch (e) {} }
 });
+
+PRUEBAS.caso('🔴 P346b · en el panel de HSEQ, el botón de personas se llama por lo que abre: la demostración, haya o no atajos (F117)', () => {
+  if (typeof dashUpdateHseqUI !== 'function' || typeof demoAppPintarEntrada !== 'function') { PRUEBAS.cierto(false, '🔴 se necesita la app (7.69)'); return; }
+  /* R19 · el nombre lo pone `dashUpdateHseqUI` cuando `hseqEsPanel()` (vista y panel de HSEQ: ahí el flotante lleva el ícono
+     de personas para no ser otra casa al lado del ⌂ de la botonera, P309). La hoja la pinta `admAtajosPintar`. P346b le
+     sumó la demostración a esa hoja, y a un administrador sin atajos es lo ÚNICO que le muestra: el nombre viejo,
+     «Entrar como otra persona», prometía algo que no estaba. */
+  const prevD = DASH, fab = document.getElementById('admFab');
+  try {
+    DASH = Object.assign(p346bDash(), { vista: 'hseq', panel: 'hseq', atajosAdmin: [] });
+    dashUpdateHseqUI(); dashUpdateAdmFab();
+    const nombre = fab.getAttribute('aria-label') || '';
+    p346bSinHistorial(() => admAtajosAbrir());
+    PRUEBAS.igual(document.querySelectorAll('#admAtajosLista .adm-atajo').length, 0, 'guarda: sin atajos de personas');
+    PRUEBAS.igual(document.querySelectorAll('#admAtajosDemo .adm-demo-sec').length, demoAppSectores().length, 'guarda: la hoja tiene la demostración');
+    const entrar = t('adm_entrar_como', { nombre: '' }).trim();   // «Entrar como», lo que dice cada atajo
+    PRUEBAS.falso(nombre.toLowerCase().indexOf(entrar.toLowerCase()) >= 0,
+      '🔴 el nombre no promete «' + entrar + '» cuando la hoja no lo tiene · «' + nombre + '»');
+    PRUEBAS.falso(/inicio/i.test(nombre), 'y sigue sin ser otro «inicio» al lado del ⌂ de la botonera (P309) · «' + nombre + '»');
+    PRUEBAS.igual(nombre, t('adm_fab_personas'), 'es el nombre del flotante con la botonera');
+    /* y la hoja se llama por lo mismo: el título no promete una navegación («Ir al inicio») ni a alguien («Entrar como»),
+       y el nombre del botón lo contiene (verificador de 7.69: el botón y la hoja se llamaban distinto) */
+    const titulo = ((document.querySelector('#admAtajosOv h2') || {}).textContent || '').trim();
+    PRUEBAS.cierto(!!titulo && nombre.toLowerCase().indexOf(titulo.toLowerCase()) >= 0,
+      '🔴 el botón («' + nombre + '») se llama por la hoja que abre («' + titulo + '»)');
+    PRUEBAS.falso(titulo.toLowerCase().indexOf(entrar.toLowerCase()) >= 0 || /inicio/i.test(titulo),
+      'el título de la hoja es cierto sin atajos: no dice «' + entrar + '» ni «inicio» · «' + titulo + '»');
+  } finally { try { admAtajosCerrar(); } catch (e) {} DASH = prevD; try { dashUpdateHseqUI(); dashUpdateAdmFab(); } catch (e) {} }
+});
