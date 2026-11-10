@@ -96,14 +96,22 @@ PRUEBAS.caso('🔴 P311 · fila 9 · el libro dice «Glosario» a 375, 768 y 136
     const fila = document.getElementById('hseqEstadoFila');
     [320, 375, 390, 768, 1366].forEach(w => PRUEBAS.enVentana(w, 800, () => {
       const rb = b.getBoundingClientRect(), ancho = document.documentElement.clientWidth;
-      PRUEBAS.alMenos(Math.floor(rb.width), 44, 'a ' + w + ' px, 44 de ancho para tocar');
-      PRUEBAS.alMenos(Math.floor(rb.height), 44, 'a ' + w + ' px, 44 de alto para tocar');
+      /* F112 (2026-11-10) · el área de toque se mide con el tamaño de la CAJA (`offsetWidth`/`offsetHeight`), no con
+         `getBoundingClientRect`: en 3 de 5 corridas enteras, con la hoja a mitad de su transición de apertura
+         (`translateY` fraccionario), la primera lectura del rectángulo dio menos de 44 mientras la caja medía 44
+         (`offsetHeight` 44 y alto calculado 44 en el mismo instante). La transición es pasajera; el dedo toca la caja. */
+      PRUEBAS.alMenos(b.offsetWidth, 44, 'a ' + w + ' px, 44 de ancho para tocar');
+      PRUEBAS.alMenos(b.offsetHeight, 44, 'a ' + w + ' px, 44 de alto para tocar');
       PRUEBAS.cierto(rb.right <= ancho + 1, 'a ' + w + ' px, el botón entra');
       PRUEBAS.cierto(fila.scrollWidth <= fila.clientWidth + 1, 'a ' + w + ' px, el cartel no se sale de su fila');
     }));
     /* DISCRIMINADOR · oculto, como estaba */
     p311ConEstilo('#hseqGlosBtn .dash-ir-lbl { display: none !important; }', () => {
       PRUEBAS.alMenos(defectos().length, 1, '⚠️ discriminador · oculto, el aserto de arriba lo ve');
+    });
+    /* DISCRIMINADOR · F112 · la medida por la caja sigue viendo un botón chico de verdad */
+    p311ConEstilo('#hseqGlosBtn { min-height: 40px !important; height: 40px !important; }', () => {
+      PRUEBAS.enVentana(375, 800, () => PRUEBAS.cierto(b.offsetHeight < 44, '⚠️ discriminador · con 40 px de alto, la medida lo ve (' + b.offsetHeight + ')'));
     });
   });
 });
