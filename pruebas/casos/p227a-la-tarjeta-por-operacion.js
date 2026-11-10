@@ -524,7 +524,11 @@ PRUEBAS.caso('🔴 P227a-8 · ninguna clave `op_`/`ope_` queda SIN USUARIOS (tri
     /* ⚠️ EL DISCRIMINADOR ES EL DEFECTO REAL, no uno inventado: se reintroduce exactamente el
        renombre que ocurrió y el conteo tiene que subir Y nombrar la clave. Sin esto, el caso daría
        verde igual si el barrido dejara de encontrar referencias. */
-    const roto = src.replace("title:t('op_titulo')", "title:t('ope_titulo')");
+    /* P346a (2026-11-10) · `op_titulo` tiene desde la 7.67 un SEGUNDO usuario legítimo: la vista previa del sector
+       (`cfgSectorPreviaHtml`). Pisar sólo la primera referencia ya no la deja huérfana, y el barrido tiene razón en
+       no contarla. El sabotaje pasa a ser el renombre que se lleva TODAS las referencias: sigue siendo el defecto
+       real (una clave definida sin usuarios) y sigue obligando al barrido a encontrarla. */
+    const roto = src.split("'op_titulo'").join("'ope_titulo'");
     PRUEBAS.falso(roto === src, 'guarda: la referencia que se sabotea tiene que existir en el fuente');
     const conElBug = huerfanas(roto);
     PRUEBAS.igual(conElBug.length, hoy.length + 1,

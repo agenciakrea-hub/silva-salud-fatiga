@@ -536,3 +536,166 @@ PRUEBAS.caso('🔴 un logo «http://» cargado a mano no traba un cambio de nomb
   }).finally(() => { window.dashRequest = oReq; window.dashRefresh = oRef; DASH = prevD; CFG = undefined;
                      const b = document.getElementById('cfgBody'); if (b) b.innerHTML = ''; });
 });
+
+/* ══ P346a · F109 · LA VISTA PREVIA DEL SECTOR (2026-11-10) ══════════════════════════════════════════
+   Rafael quería ver cómo cambian los botones sin cambiarle el sector a una empresa con gente adentro.
+   La previa vive en «Configurar esta empresa» y la arma `cicloItemsDe(sector)`, la MISMA función que
+   dibuja el inicio (R21). Estos casos prueban el contrato de punta a punta: lo que se guarda por el `.gs`
+   real, lo que el teléfono lee por `empresa_perfil` y lo que dibuja el inicio, contra lo que mostró la
+   previa. Y que en «campo» la descripción diga el test que el botón abre de verdad. */
+const P346A_SECTORES = ['aviacion', 'planta', 'campo', 'generico'];
+function p346aPrevia() {
+  return Array.from(document.querySelectorAll('#cfgSectorPrevia li.cfg-previa-it')).map(li => ({
+    label: (li.querySelector('b') || {}).textContent || '',
+    desc: (li.querySelector('.cfg-previa-tx > span') || {}).textContent || '',
+    icon: ((li.querySelector('.cfg-previa-ic svg') || {}).innerHTML || '').replace(/\s+/g, ' ').trim()
+  }));
+}
+function p346aInicio() {
+  const sec = document.querySelector('#sections section');
+  if (!sec) return [];
+  return Array.from(sec.querySelectorAll('.item')).map(it => ({
+    label: (it.querySelector('.tt') || {}).textContent || '',
+    desc: (it.querySelector('.ds') || {}).textContent || '',
+    icon: ((it.querySelector('.ic svg') || {}).innerHTML || '').replace(/\s+/g, ' ').trim()
+  }));
+}
+
+PRUEBAS.caso('🔴 P346a · la vista previa muestra los MISMOS botones que va a dibujar el teléfono, en los cuatro sectores', async () => {
+  if (typeof cfgSectorPreviaHtml !== 'function' || !CTX.hayGs) { PRUEBAS.cierto(false, '🔴 se necesita la app (7.67) y el .gs'); return; }
+  /* R21 · la previa predice una escritura: se guarda con el ESCRITOR real (`accionEmpresaConfigGuardar`), el teléfono
+     lo lee con el LECTOR real (`accionEmpresaPerfil` → `sectorRefrescar` → `renderSections`), y las dos pantallas se
+     comparan. R19 · el derecho a ver la pantalla sale de `cfgPuede()` (admin, empresa de trabajo, fuera del visor). */
+  const api = p312Api(['accionEmpresaPerfil', 'perfilPublicoEmpresa', 'algunaAltaCerrada']);
+  const g = { perfil: getProfile(), sec: localStorage.getItem(K_SECTOR), emp: localStorage.getItem(K_EMPRESA_PERFIL),
+              fcr: window.fetchConReloj, dash: DASH, cfg: CFG };
+  try {
+    for (const s of P346A_SECTORES) {
+      p312Guardar(api, { que: 'sector', sector: s });
+      DASH = p312Dash();
+      CFG = p312Leer(api);
+      cfgPintar();
+      const previa = p346aPrevia();
+      PRUEBAS.igual(previa.length, 4, s + ' · la previa dibuja los cuatro botones');
+      /* el teléfono: alguien que registra su ciclo, con la app en otro sector, abre la app */
+      setProfile({ nombre: 'Prueba P346a', empresa: 'Consorcio HELITEC', esPiloto: true, sector: 'xx' });
+      localStorage.setItem(K_SECTOR, 'xx');
+      const resp = p312J(api.accionEmpresaPerfil({ empresa: 'Consorcio HELITEC' }));
+      PRUEBAS.igual(resp.perfil && resp.perfil.sector, s, s + ' · el .gs real le contesta al teléfono el sector que se guardó');
+      window.fetchConReloj = () => Promise.resolve({ json: () => Promise.resolve(resp) });
+      sectorRefrescar();
+      for (let i = 0; i < 24; i++) await Promise.resolve();
+      renderSections();
+      PRUEBAS.igual(sectorActual(), s, s + ' · el teléfono quedó en ese sector');
+      PRUEBAS.igual(p346aInicio(), previa, '🔴 ' + s + ' · el inicio del teléfono es exactamente lo que mostró la previa (texto, descripción e ícono)');
+    }
+  } finally {
+    window.fetchConReloj = g.fcr; DASH = g.dash; CFG = g.cfg;
+    if (g.perfil) setProfile(g.perfil); else localStorage.removeItem(K_PROFILE);
+    if (g.sec == null) localStorage.removeItem(K_SECTOR); else localStorage.setItem(K_SECTOR, g.sec);
+    if (g.emp == null) localStorage.removeItem(K_EMPRESA_PERFIL); else localStorage.setItem(K_EMPRESA_PERFIL, g.emp);
+    const b = document.getElementById('cfgBody'); if (b) b.innerHTML = '';
+    try { aplicarIdioma(); } catch (e) {}
+  }
+});
+
+PRUEBAS.caso('🔴 P346a · la descripción dice el test que el botón abre de verdad, también en «campo»', () => {
+  if (typeof cicloItemsDe !== 'function') { PRUEBAS.cierto(false, '🔴 se necesita la app (7.67)'); return; }
+  P346A_SECTORES.forEach(s => {
+    cicloItemsDe(s).forEach(it => {
+      PRUEBAS.igual(/KSS/.test(it.desc), it.testFlow === 'kss', s + ' · «' + it.label + '» nombra el KSS sólo si lo abre (dice «' + it.desc + '»)');
+      PRUEBAS.igual(/Perelli/.test(it.desc), it.testFlow === 'perelli', s + ' · «' + it.label + '» nombra el Perelli sólo si lo abre');
+    });
+  });
+  /* el discriminador: el defecto de la 7.66, por su nombre */
+  const campo = cicloItemsDe('campo');
+  const llega = campo.filter(it => it.operacionalCampo === 'llegada_aero')[0] || {};
+  const sale = campo.filter(it => it.operacionalCampo === 'salida_casa')[0] || {};
+  PRUEBAS.falso(/KSS/.test(llega.desc || ''), '🔴 en campo, «llegar al sitio» no abre test y ya no dice «Test KSS» (7.66 lo decía)');
+  PRUEBAS.igual(sale.testFlow, 'kss', 'guarda: en campo el KSS es al salir de casa (la forma no cambió)');
+  PRUEBAS.cierto(/KSS/.test(sale.desc || ''), '🔴 y «salir de casa» lo dice');
+});
+
+PRUEBAS.caso('P346a · el ícono del sitio sigue al sector, y aviación queda exactamente como estaba', () => {
+  if (typeof cicloItemIcono !== 'function') { PRUEBAS.cierto(false, '🔴 se necesita la app (7.67)'); return; }
+  PRUEBAS.igual([cicloItemIcono('aviacion', 'llegada_aero'), cicloItemIcono('aviacion', 'salida_aero')], [I.planeIn, I.planeOut],
+    '🔴 aviación: los mismos aviones de siempre (es el padrón instalado: no puede cambiarle nada)');
+  const sitio = s => cicloItemIcono(s, 'llegada_aero') + '|' + cicloItemIcono(s, 'salida_aero');
+  const distintos = new Set(P346A_SECTORES.map(sitio));
+  PRUEBAS.igual(distintos.size, 4, '🔴 cada sector dibuja su propio sitio: ninguno repite el avión de otro');
+  PRUEBAS.cierto(['planta', 'campo', 'generico'].every(s => sitio(s).indexOf(I.planeIn) < 0 && sitio(s).indexOf(I.planeOut) < 0),
+    '🔴 fuera de aviación no queda ningún avión');
+  PRUEBAS.igual(sitio('industria-nueva'), sitio('generico'), 'un sector desconocido cae al genérico, como el motor de textos');
+  PRUEBAS.cierto(P346A_SECTORES.every(s => cicloItemIcono(s, 'salida_casa') === I.homeOut && cicloItemIcono(s, 'llegada_casa') === I.homeIn),
+    'la casa es la misma en todos los sectores');
+});
+
+PRUEBAS.caso('🔴 P346a · la vista previa sólo lee: sigue al selector, no le pide nada al servidor y no cambia el sector de nadie', () => {
+  if (typeof cfgSectorPreviaPintar !== 'function' || !CTX.hayGs) { PRUEBAS.cierto(false, '🔴 se necesita la app (7.67) y el .gs'); return; }
+  const api = p312Api();
+  const oReq = window.dashRequest, prevD = DASH, prevC = CFG;
+  const antes = { sec: sectorActual(), k: localStorage.getItem(K_SECTOR), perfil: JSON.stringify(getProfile()) };
+  let pedidos = 0;
+  window.dashRequest = () => { pedidos++; return Promise.resolve({ ok: true }); };
+  try {
+    DASH = p312Dash();
+    CFG = p312Leer(api);   // la empresa todavía sin sector
+    PRUEBAS.igual(CFG.sector || '', '', 'guarda: la empresa empieza sin sector, como todas en producción hoy');
+    cfgPintar();
+    const box = document.getElementById('cfgSectorPrevia');
+    PRUEBAS.cierto(!!box && /Sin sector configurado/.test(box.textContent), 'sin sector, la previa dice que hoy se usa el de fábrica');
+    const sinSector = p346aPrevia().map(f => f.label);
+    PRUEBAS.igual(sinSector, cicloItemsDe(SECTOR_DEFAULT).map(it => it.label), 'y muestra lo que ven hoy: el sector de fábrica');
+    const sel = document.getElementById('cfgSector');
+    sel.value = 'planta'; sel.dispatchEvent(new Event('change'));
+    PRUEBAS.cierto(p346aPrevia().some(f => /planta/i.test(f.label)), '🔴 al elegir «planta», la previa pasa a la planta sin guardar');
+    PRUEBAS.falso(/Sin sector configurado/.test(box.textContent), 'y deja de decir «sin sector»');
+    sel.value = 'campo'; sel.dispatchEvent(new Event('change'));
+    PRUEBAS.cierto(p346aPrevia().some(f => /sitio de trabajo/i.test(f.label)), 'al elegir «campo», el sitio de trabajo');
+    PRUEBAS.igual(pedidos, 0, '🔴 mirar la previa no le pide nada al servidor');
+    PRUEBAS.igual([sectorActual(), localStorage.getItem(K_SECTOR), JSON.stringify(getProfile())], [antes.sec, antes.k, antes.perfil],
+      '🔴 ni cambia el sector de esta app, ni el guardado, ni el perfil');
+    PRUEBAS.igual(document.querySelectorAll('#cfgBody .cfg-guardar').length, 2, 'la previa no agrega botones de guardar: siguen el del sector y el de la marca');
+  } finally { window.dashRequest = oReq; DASH = prevD; CFG = prevC; const b = document.getElementById('cfgBody'); if (b) b.innerHTML = ''; }
+});
+
+PRUEBAS.caso('R1 · R14 · R5 · los textos nuevos de P346a: en los dos idiomas, neutros, sin términos de sector, y la guía lo cuenta', () => {
+  const claves = ['cfg_sector_previa_t', 'cfg_sector_previa_d', 'cfg_sector_previa_sin', 'cfg_sector_previa_rol',
+                  'op_test_kss_d', 'op_test_perelli_d', 'op_lleg_sitio_sin_test_d', 'op_salir_sitio_sin_test_d'];
+  claves.forEach(k => {
+    const es = _i18nBuscar('es', '', k), en = _i18nBuscar('en', '', k);
+    PRUEBAS.cierto(es != null && en != null, k + ' existe en español y en inglés');
+    PRUEBAS.falso(/\b(tocá|elegí|guardá|mirá|podés|tenés|querés|sabés)\b/i.test(es || ''), k + ' · R1 · sin voseo');
+    PRUEBAS.falso(/aeropuerto|piloto|vuelo|tripulaci/i.test(es || ''), k + ' · R14 · sin términos de sector escritos a mano');
+  });
+  PRUEBAS.cierto(/cómo quedarán los botones/.test(_i18nBuscar('es', '', 'hlp_cfg') || ''), 'R5 · la guía ⓘ de la pantalla cuenta la previa');
+  PRUEBAS.igual(_i18nBuscar('es', '', 'op_lleg_sitio_d'), null, 'las claves viejas, por evento, ya no existen (nadie puede volver a usarlas)');
+});
+
+PRUEBAS.caso('🔴 P346a · cancelar la confirmación devuelve el selector Y la vista previa al sector guardado (verificador, 2026-11-10)', () => {
+  if (typeof cfgSectorPreviaPintar !== 'function' || !CTX.hayGs) { PRUEBAS.cierto(false, '🔴 se necesita la app (7.67) y el .gs'); return; }
+  /* El defecto: `sel.value = antes` por código no dispara `change`, así que la previa quedaba mostrando el sector que se
+     acababa de descartar. Se entra como Rafael: un `change` de verdad, «Guardar», y cancelar la confirmación (R8). */
+  const api = p312Api();
+  p312Guardar(api, { que: 'sector', sector: 'aviacion' });
+  const oReq = window.dashRequest, oConf = window.confirm, prevD = DASH, prevC = CFG;
+  let pedidos = 0;
+  window.dashRequest = () => { pedidos++; return Promise.resolve({ ok: true }); };
+  window.confirm = () => false;   // cancela
+  try {
+    DASH = p312Dash();
+    CFG = p312Leer(api);
+    cfgPintar();
+    const sel = document.getElementById('cfgSector');
+    const vacia = sel.querySelector('option[value=""]');
+    PRUEBAS.cierto(!!vacia && vacia.textContent.indexOf(t('cfg_sector_' + SECTOR_DEFAULT)) >= 0 && !/generales/.test(vacia.textContent),
+      'la opción vacía dice qué rige sin sector (el de fábrica), como la previa: «' + (vacia && vacia.textContent) + '»');
+    sel.value = 'planta'; sel.dispatchEvent(new Event('change'));
+    PRUEBAS.cierto(p346aPrevia().some(f => /planta/i.test(f.label)), 'guarda: la previa pasó a la planta');
+    cfgGuardarSector(document.querySelectorAll('#cfgBody .cfg-guardar')[0]);
+    PRUEBAS.igual(sel.value, 'aviacion', 'al cancelar, el selector vuelve al sector guardado');
+    PRUEBAS.igual(p346aPrevia().map(f => f.label), cicloItemsDe('aviacion').map(it => it.label),
+      '🔴 y la previa también: no queda mostrando el sector que se descartó');
+    PRUEBAS.igual(pedidos, 0, 'cancelar no le pide nada al servidor');
+  } finally { window.dashRequest = oReq; window.confirm = oConf; DASH = prevD; CFG = prevC; const b = document.getElementById('cfgBody'); if (b) b.innerHTML = ''; }
+});

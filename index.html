@@ -1277,6 +1277,18 @@
   .cfg-sec { margin: 0 0 .9rem; padding: .85rem .9rem; border: 1px solid var(--linea); border-radius: var(--radius-sm); background: var(--card); }
   .cfg-sec h3 { margin: 0 0 .2rem; font-size: .95rem; color: var(--text); }
   .cfg-nota { margin: 0 0 .6rem; font-size: .78rem; line-height: 1.45; color: var(--text-muted); }
+  /* P346a · la vista previa del sector: los botones como los verá la gente, antes de guardar */
+  .cfg-previa { margin: 0 0 .7rem; padding: .75rem .8rem; border: 1px solid var(--linea); border-radius: var(--radius-sm); background: var(--chip-bg); }
+  .cfg-previa-t { margin: 0 0 .3rem; font-size: .85rem; font-weight: 800; color: var(--text); }
+  .cfg-previa-l { list-style: none; margin: .2rem 0 .6rem; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+  .cfg-previa-it { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+  /* el color va en línea, desde `ic`/`icc` de cada botón, igual que en `buildItem`: la previa no elige otro (R21) */
+  .cfg-previa-ic { flex: 0 0 2.25rem; width: 2.25rem; height: 2.25rem; border-radius: 10px; display: grid; place-items: center; }
+  .cfg-previa-ic svg { width: 1.25rem; height: 1.25rem; }
+  .cfg-previa-tx { display: flex; flex-direction: column; min-width: 0; font-size: .82rem; line-height: 1.3; color: var(--text); overflow-wrap: anywhere; }
+  .cfg-previa-tx span { font-size: .76rem; color: var(--text-muted); }
+  .cfg-previa-rol { display: flex; align-items: center; gap: .6rem; margin: 0; font-size: .8rem; font-weight: 700; color: var(--text-soft); }
+  @media (max-width: 420px) { .cfg-previa-l { grid-template-columns: 1fr; } }
   .cfg-campo { display: flex; flex-direction: column; gap: .3rem; margin: 0 0 .6rem; font-size: .8rem; font-weight: 700; color: var(--text-soft); }
   .cfg-color { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
   .cfg-color input[type="color"] { width: 3rem; height: 44px; padding: 0; border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); background: var(--card); cursor: pointer; }
@@ -8247,7 +8259,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.66';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.67';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8795,8 +8807,11 @@ const I18N = {
       op_sub:'Registra el evento y avisa por WhatsApp',
       op_salir_casa:'Saliendo de casa',      op_salir_casa_d:'Inicio de traslado',
       op_lleg_casa:'Llegando a casa',        op_lleg_casa_d:'Fin de la jornada',
-      op_lleg_sitio_d:'Test KSS · luego a WhatsApp',
-      op_salir_sitio_d:'Test Perelli · luego a WhatsApp',
+      /* P346a · la descripción sigue al test que declara la forma del sector, no al evento (`cicloItemDescClave`) */
+      op_test_kss_d:'Test KSS · luego a WhatsApp',
+      op_test_perelli_d:'Test Perelli · luego a WhatsApp',
+      op_lleg_sitio_sin_test_d:'Inicio de la jornada',
+      op_salir_sitio_sin_test_d:'Inicio del regreso',
       // ── Meses (arreglo, ver mesesAbr) ──
       meses_abr:'Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic',
       /* ── P090 · Calendario de jornadas ──────────────────────────────────────────────────────
@@ -10318,9 +10333,11 @@ const I18N = {
       dep_titulo:'Departamentos', dep_abrir:'Departamentos',
       cfg_abrir:'Configurar esta empresa', cfg_abrir_emp:'Configurar {empresa}', cfg_titulo:'Configuración de la empresa',
       cfg_cargando:'Cargando la configuración…', cfg_guardar:'Guardar',
-      hlp_cfg:'Lo que la empresa <b>carga sobre sí misma</b>, sin abrir la planilla: el <b>sector</b> (cambia cómo se llaman las cosas para toda la empresa), la <b>marca</b> (el nombre, el color y el logo de su panel) y la <b>escala de riesgo por cargo</b> (a qué distancia del límite se actúa con cada cargo; la referencia clínica no se mueve). Sólo la ve el administrador, sobre la empresa elegida arriba, y cada cambio queda en la bitácora.',
+      hlp_cfg:'Lo que la empresa <b>carga sobre sí misma</b>, sin abrir la planilla: el <b>sector</b> (cambia cómo se llaman las cosas para toda la empresa), la <b>marca</b> (el nombre, el color y el logo de su panel) y la <b>escala de riesgo por cargo</b> (a qué distancia del límite se actúa con cada cargo; la referencia clínica no se mueve). Al elegir un sector, ves debajo cómo quedarán los botones antes de guardar. Sólo la ve el administrador, sobre la empresa elegida arriba, y cada cambio queda en la bitácora.',
+      cfg_sector_previa_t:'Así se verá', cfg_sector_previa_d:'Los botones de «{modulo}» que verá quien registra su ciclo en {empresa}, con el sector elegido. Nada se guarda hasta que toques «{guardar}».',
+      cfg_sector_previa_sin:'Sin sector configurado: hoy se usa {sector}, el de fábrica.', cfg_sector_previa_rol:'Así se nombra a su gente: {rol}.',
       cfg_sector_t:'Sector', cfg_sector_d:'Define cómo se llaman las cosas en la app para toda la empresa: el ciclo, los turnos y el personal.',
-      cfg_sector_ninguno:'Sin sector (nombres generales)', cfg_sector_aviacion:'Aviación', cfg_sector_planta:'Planta industrial',
+      cfg_sector_ninguno:'Sin configurar · se usa {sector}', cfg_sector_aviacion:'Aviación', cfg_sector_planta:'Planta industrial',
       cfg_sector_campo:'Campo', cfg_sector_generico:'General', cfg_sector_elegi:'Elige un sector.',
       cfg_sector_conf:'¿Cambiar el sector de {empresa} de «{antes}» a «{despues}»? Cambia los nombres que ve toda la empresa.',
       cfg_marca_t:'Marca', cfg_marca_d:'El nombre y el logo se ven en el panel de la empresa. El color se usa sólo si es lo bastante oscuro para leer texto blanco encima.',
@@ -11156,8 +11173,10 @@ const I18N = {
       op_sub:'Logs the event and notifies via WhatsApp',
       op_salir_casa:'Leaving home',          op_salir_casa_d:'Commute starts',
       op_lleg_casa:'Arriving home',          op_lleg_casa_d:'End of the working day',
-      op_lleg_sitio_d:'KSS test · then to WhatsApp',
-      op_salir_sitio_d:'Perelli test · then to WhatsApp',
+      op_test_kss_d:'KSS test · then to WhatsApp',
+      op_test_perelli_d:'Perelli test · then to WhatsApp',
+      op_lleg_sitio_sin_test_d:'Start of the working day',
+      op_salir_sitio_sin_test_d:'Return trip starts',
       meses_abr:'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
       /* ── P090 · Duty calendar ───────────────────────────────────────────────────────────── */
       meses:'January February March April May June July August September October November December',
@@ -12667,9 +12686,11 @@ const I18N = {
       dep_titulo:'Departments', dep_abrir:'Departments',
       cfg_abrir:'Set up this company', cfg_abrir_emp:'Set up {empresa}', cfg_titulo:'Company settings',
       cfg_cargando:'Loading the settings…', cfg_guardar:'Save',
-      hlp_cfg:'What the company <b>sets about itself</b>, without opening the spreadsheet: the <b>sector</b> (changes what things are called for the whole company), the <b>brand</b> (the name, color and logo of its dashboard) and the <b>risk scale by job title</b> (how far from the limit to act for each title; the clinical reference does not move). Only the administrator sees it, for the company chosen above, and every change is logged.',
+      hlp_cfg:'What the company <b>sets about itself</b>, without opening the spreadsheet: the <b>sector</b> (changes what things are called for the whole company), the <b>brand</b> (the name, color and logo of its dashboard) and the <b>risk scale by job title</b> (how far from the limit to act for each title; the clinical reference does not move). When you pick a sector, you see below how the buttons will look before saving. Only the administrator sees it, for the company chosen above, and every change is logged.',
+      cfg_sector_previa_t:'How it will look', cfg_sector_previa_d:'The «{modulo}» buttons that people who log their cycle at {empresa} will see, with the chosen sector. Nothing is saved until you tap «{guardar}».',
+      cfg_sector_previa_sin:'No sector set: {sector}, the default, is used today.', cfg_sector_previa_rol:'This is what its people are called: {rol}.',
       cfg_sector_t:'Sector', cfg_sector_d:'Defines what things are called in the app for the whole company: the cycle, the shifts and the staff.',
-      cfg_sector_ninguno:'No sector (general names)', cfg_sector_aviacion:'Aviation', cfg_sector_planta:'Industrial plant',
+      cfg_sector_ninguno:'Not set · {sector} is used', cfg_sector_aviacion:'Aviation', cfg_sector_planta:'Industrial plant',
       cfg_sector_campo:'Field', cfg_sector_generico:'General', cfg_sector_elegi:'Pick a sector.',
       cfg_sector_conf:'Change the sector of {empresa} from “{antes}” to “{despues}”? It changes the names the whole company sees.',
       cfg_marca_t:'Brand', cfg_marca_d:'The name and the logo show on the company dashboard. The color is used only if it is dark enough to read white text on top.',
@@ -13041,8 +13062,12 @@ function _i18nBuscar(lang, sector, clave){
 }
 /* Devuelve el texto de `clave`, interpolando {variables}. Nunca devuelve vacío: si no encuentra
    nada, devuelve la clave — visible y arreglable, en vez de un hueco que nadie nota. */
-function t(clave, vars){
-  const lang = idiomaActual(), sector = sectorActual();
+function t(clave, vars){ return tSector(sectorActual(), clave, vars); }
+/* P346a · `t()` con el sector EXPLÍCITO. Existe para la vista previa del sector, que tiene que
+   resolver los textos de un sector que todavía no rige. `t()` la llama con el vigente, así que las
+   dos resuelven por el mismo camino y no pueden derivar distinto (R21). */
+function tSector(sector, clave, vars){
+  const lang = idiomaActual();
   let s = _i18nBuscar(lang, sector, clave);
   if (s == null && lang !== 'es') s = _i18nBuscar('es', sector, clave);
   if (s == null) s = String(clave);
@@ -13286,7 +13311,7 @@ function idiomaPintarControl(){
 
    El mapa es local a la función a propósito (R16): así no hay un `const` de nivel superior que el
    arranque pueda leer en zona muerta. */
-function rolIconoHtml(){
+function rolIconoHtml(sector){
   const SVG = (d) => '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
                      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
   const POR_SECTOR = {
@@ -13299,7 +13324,7 @@ function rolIconoHtml(){
     generico: SVG('<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M9.5 2.5h5v3.5h-5z"/>' +
                   '<circle cx="12" cy="12" r="2.1"/><path d="M8.6 17.2a3.6 3.6 0 0 1 6.8 0"/>')
   };
-  return POR_SECTOR[sectorActual()] || POR_SECTOR.generico;
+  return POR_SECTOR[sector || sectorActual()] || POR_SECTOR.generico;
 }
 function rolIconoPintar(){
   const e = document.getElementById('rolIcono');
@@ -13424,28 +13449,67 @@ const I = {
    del alta a medio completar. Como función, se rearma en cada `renderSections()` y sale siempre en
    el idioma y el sector vigentes.
    La sección operacional ya pasa por `t()` (R14). Las demás siguen en español hasta la fase F. */
-/* Icono y claves de texto por evento canónico. Van aparte de CICLO_FORMAS porque son cosméticos
-   y comunes a todos los sectores: la forma dice QUÉ eventos hay y qué test dispara cada uno; esto
-   dice cómo se dibuja cada uno. La descripción de la ranura "llegada"/"salida" cambia según qué
-   test tenga la forma, así que se resuelve abajo, no acá. */
-const CICLO_ITEM_ICONO = {
-  salida_casa:  I.homeOut,
-  llegada_aero: I.planeIn,
-  salida_aero:  I.planeOut,
-  llegada_casa: I.homeIn
-};
+/* Claves de texto por evento canónico. Van aparte de CICLO_FORMAS porque son cosméticas: la forma
+   dice QUÉ eventos hay y qué test dispara cada uno; esto dice cómo se nombra cada uno. */
 const CICLO_ITEM_MSG = {
   salida_casa:  'op_msg_salir_casa',
   llegada_aero: 'op_msg_lleg_sitio',
   salida_aero:  'op_msg_salir_sitio',
   llegada_casa: 'op_msg_lleg_casa'
 };
-const CICLO_ITEM_DESC = {
-  salida_casa:  'op_salir_casa_d',
-  llegada_aero: 'op_lleg_sitio_d',
-  salida_aero:  'op_salir_sitio_d',
-  llegada_casa: 'op_lleg_casa_d'
-};
+/* P346a · F109 · EL ÍCONO TAMBIÉN ES DEL SECTOR (R14), como el del banner de rol (`rolIconoHtml`).
+   Hasta la 7.66 los dos botones del medio eran un avión en todos los sectores: una planta leía
+   «Llegando a la planta» al lado de un avión aterrizando. La casa es de todos; el sitio, no.
+   El mapa es local a la función a propósito (R16): el arranque dibuja el inicio, y un `const` de
+   nivel superior declarado más abajo estaría en zona muerta. Sector desconocido → el genérico,
+   la misma degradación que el motor de textos. */
+function cicloItemIcono(sector, k){
+  const SALE = '<path d="M16 6h5M18.5 3.5 21 6l-2.5 2.5"/>';
+  const PLANTA = '<path d="M2 21h20"/><path d="M4 21V11l5 3.2V11l5 3.2V11l5 3.2V21"/><path d="M7.5 17.5h2M12.5 17.5h2"/>';
+  const SITIO = {
+    aviacion: { llega: I.planeIn, sale: I.planeOut },
+    planta:   { llega: PLANTA, sale: PLANTA + SALE },
+    // campo: un punto en el mapa; corrido a la izquierda cuando lleva la flecha, para que no se toquen
+    campo:    { llega: '<path d="M2 21h20"/><path d="M12 18s-5.5-4.6-5.5-9a5.5 5.5 0 0 1 11 0c0 4.4-5.5 9-5.5 9z"/><circle cx="12" cy="9" r="2"/>',
+                sale:  '<path d="M2 21h20"/><path d="M10 18s-5.5-4.6-5.5-9a5.5 5.5 0 0 1 11 0c0 4.4-5.5 9-5.5 9z"/><circle cx="10" cy="9" r="2"/>' + SALE },
+    // genérico: el maletín sirve para una oficina igual que para un taller
+    generico: { llega: '<rect x="4" y="8.5" width="16" height="11.5" rx="2"/><path d="M9.5 8.5V6.5a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2"/><path d="M4 13.5h16"/>',
+                sale:  '<rect x="2.5" y="8.5" width="14" height="11.5" rx="2"/><path d="M7 8.5V6.5a2 2 0 0 1 2-2h1a2 2 0 0 1 2 2v2"/><path d="M2.5 13.5h14"/>' + SALE }
+  };
+  if (k === 'salida_casa') return I.homeOut;
+  if (k === 'llegada_casa') return I.homeIn;
+  const s = SITIO[sector] || SITIO.generico;
+  if (k === 'llegada_aero') return s.llega;
+  if (k === 'salida_aero') return s.sale;
+  return I.homeOut;
+}
+/* P346a · F109 · LA DESCRIPCIÓN DICE LO QUE EL BOTÓN HACE EN ESTA FORMA. Hasta la 7.66 salía de una
+   tabla por evento (`CICLO_ITEM_DESC`), escrita para aviación: en «campo», donde el KSS se toma al
+   salir de casa, «Llegando al sitio de trabajo» decía «Test KSS» y no abría ninguno, y «Saliendo de
+   casa» decía «Inicio de traslado» y abría el KSS. Ahora la decide el test que declara la forma. */
+function cicloItemDescClave(ev){
+  const CON_TEST = { KSS:'op_test_kss_d', Perelli:'op_test_perelli_d' };
+  if (ev.test && CON_TEST[ev.test]) return CON_TEST[ev.test];
+  const SIN_TEST = { salida_casa:'op_salir_casa_d', llegada_aero:'op_lleg_sitio_sin_test_d',
+                     salida_aero:'op_salir_sitio_sin_test_d', llegada_casa:'op_lleg_casa_d' };
+  return SIN_TEST[ev.k] || (ev.lbl + '_d');
+}
+/* P346a · Las tarjetas de «Data Operacional» para un sector dado. Las usa el inicio, con el sector
+   vigente, y la vista previa de «Configurar esta empresa», con el elegido (R21: el mismo lector).
+   Salen de la FORMA del sector (C1): un sector con otra cantidad de eventos, o con el test en otro
+   momento, se dibuja solo. `operacionalCampo` es la CLAVE CANÓNICA que viaja al CH y nunca se
+   traduce (ver la nota grande de CICLO_FORMAS); lo que se traduce es `label`/`desc`, y `msg` va
+   siempre en español porque lo lee EVA por WhatsApp. */
+function cicloItemsDe(sector){
+  return cicloFormaDe(sector).eventos.map(ev => Object.assign(
+    { id:CICLO_ITEM_ID[ev.k] || ('op_' + ev.k), label:tSector(sector, ev.lbl), desc:tSector(sector, cicloItemDescClave(ev)),
+      icon:cicloItemIcono(sector, ev.k), ic:'var(--orange-bg)', icc:'var(--orange)',
+      msg:tSector(sector, CICLO_ITEM_MSG[ev.k] || ''), operacionalCampo:ev.k },
+    // El test lo declara la forma del sector: en aviación el KSS va al llegar; en campo, donde
+    // el riesgo es el traslado largo, va al salir de casa.
+    ev.test ? { testFlow:(ev.test === 'KSS' ? 'kss' : 'perelli'), baseNotification:tSector(sector, CICLO_ITEM_MSG[ev.k] || '') } : {}
+  ));
+}
 /* ⚠️ EL ID DE LA TARJETA NO SE DERIVA DE LA CLAVE DEL EVENTO, y esto no es un capricho: el id es
    la clave con la que se guarda en el dispositivo el "Hecho · hh:mm" de cada botón (ver mark() /
    K_REPORTS). Si al armar las tarjetas desde la forma se generara `'op_' + ev.k`, los ids
@@ -13471,14 +13535,10 @@ function seccionesApp(){ return [
        `operacionalCampo` es la CLAVE CANÓNICA que viaja al CH — nunca se traduce (ver la nota
        grande de CICLO_FORMAS). Lo que se traduce es `label`/`desc`, y `msg` va siempre en
        español porque lo lee EVA por WhatsApp. */
-    items: cicloEventos().map(ev => Object.assign(
-      { id:CICLO_ITEM_ID[ev.k] || ('op_' + ev.k), label:t(ev.lbl), desc:t(CICLO_ITEM_DESC[ev.k] || ev.lbl + '_d'),
-        icon:CICLO_ITEM_ICONO[ev.k] || I.homeOut, ic:'var(--orange-bg)', icc:'var(--orange)',
-        msg:t(CICLO_ITEM_MSG[ev.k] || ''), operacionalCampo:ev.k },
-      // El test lo declara la forma del sector: en aviación el KSS va al llegar; en campo, donde
-      // el riesgo es el traslado largo, va al salir de casa.
-      ev.test ? { testFlow:(ev.test === 'KSS' ? 'kss' : 'perelli'), baseNotification:t(CICLO_ITEM_MSG[ev.k] || '') } : {}
-    ))
+    /* P346a · las arma `cicloItemsDe`, que es también lo que muestra la vista previa del sector en
+       «Configurar esta empresa» (R21): una sola función, así la previa no puede decir una cosa
+       mientras los teléfonos muestran otra. */
+    items: cicloItemsDe(sectorActual())
   },
   /* ⚠️ VA ANTES DE SENSACIONES (W2, 2026-08-29). Es la única medición del inicio que no depende de
      lo que la persona responda: mide una reacción real, en milisegundos. Puesta primero, se hace
@@ -28053,8 +28113,10 @@ const CICLO_FORMA_DE_SECTOR = { aviacion:'estandar', planta:'estandar', generico
 
 /* La forma vigente. Un sector desconocido (typo en el CH, industria nueva) cae a `estandar`: es
    lo mismo que hace el motor de textos con una traducción que falta — se degrada, no se rompe. */
-function cicloForma(){
-  const f = CICLO_FORMA_DE_SECTOR[sectorActual()];
+function cicloForma(){ return cicloFormaDe(sectorActual()); }
+// P346a · la forma de un sector dado: la vista previa la pide para el sector elegido, no el vigente.
+function cicloFormaDe(sector){
+  const f = CICLO_FORMA_DE_SECTOR[sector];
   return CICLO_FORMAS[f] || CICLO_FORMAS.estandar;
 }
 function cicloTramos(){ return cicloForma().tramos; }
@@ -39105,7 +39167,32 @@ function cfgColorParaSelector(c){
   if (/^#[0-9a-fA-F]{8}$/.test(v)) return v.slice(0, 7).toLowerCase();
   return '';
 }
-function cfgSectorNombre(s){ return s ? t('cfg_sector_' + s) : t('cfg_sector_ninguno'); }
+/* P346a · sin sector configurado, los teléfonos usan `SECTOR_DEFAULT` (ver `perfilPublicoEmpresa` en el .gs): la opción
+   vacía lo dice, en vez de «nombres generales», que contradecía a la vista previa en la misma pantalla. */
+function cfgSectorNombre(s){ return s ? t('cfg_sector_' + s) : t('cfg_sector_ninguno', { sector: t('cfg_sector_' + SECTOR_DEFAULT) }); }
+/* P346a · F109 · LA VISTA PREVIA DEL SECTOR. Rafael quería ver cómo cambian los botones sin cambiarle el sector a
+   una empresa con gente adentro. La previa NO arma los botones por su cuenta: pide `cicloItemsDe(sector)`, la MISMA
+   función que dibuja el inicio de cada teléfono, con el sector elegido en lugar del vigente (R21). Si mañana
+   cambian los botones del inicio, la previa cambia sola. No escribe nada ni cambia el sector de nadie: sólo lee.
+   Sin sector elegido muestra el de fábrica, que es lo que ven hoy los teléfonos de una empresa sin configurar. */
+function cfgSectorPreviaHtml(sector){
+  const sec = sector || SECTOR_DEFAULT;
+  const svg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  const filas = cicloItemsDe(sec).map(it =>
+    '<li class="cfg-previa-it"><span class="cfg-previa-ic" aria-hidden="true" style="background:' + it.ic + ';color:' + it.icc + '">' + svg(it.icon) + '</span>' +
+    '<span class="cfg-previa-tx"><b>' + esc(it.label) + '</b><span>' + esc(it.desc) + '</span></span></li>').join('');
+  const empresa = (typeof DASH !== 'undefined' && DASH && DASH.f) ? dashScopeVisible(DASH.f.emp) : '';
+  return '<p class="cfg-previa-t">' + esc(t('cfg_sector_previa_t')) + '</p>' +
+    (sector ? '' : '<p class="cfg-nota">' + esc(t('cfg_sector_previa_sin', { sector: cfgSectorNombre(SECTOR_DEFAULT) })) + '</p>') +
+    '<p class="cfg-nota">' + esc(t('cfg_sector_previa_d', { modulo: tSector(sec, 'op_titulo'), empresa: empresa, guardar: t('cfg_guardar') })) + '</p>' +
+    '<ul class="cfg-previa-l">' + filas + '</ul>' +
+    '<p class="cfg-previa-rol"><span class="cfg-previa-ic" aria-hidden="true" style="background:var(--orange-bg);color:var(--orange)">' + rolIconoHtml(sec) + '</span>' +
+    '<span>' + esc(t('cfg_sector_previa_rol', { rol: tSector(sec, 'rol_aviacion') })) + '</span></p>';
+}
+function cfgSectorPreviaPintar(){
+  const sel = document.getElementById('cfgSector'), box = document.getElementById('cfgSectorPrevia');
+  if (sel && box) box.innerHTML = cfgSectorPreviaHtml(sel.value);
+}
 function cfgPintar(){
   const body = document.getElementById('cfgBody'); if (!body || !CFG) return;
   const d = CFG, m = d.marca || {};
@@ -39124,7 +39211,9 @@ function cfgPintar(){
     '</select></td></tr>').join('');
   body.innerHTML =
     '<section class="cfg-sec"><h3>' + esc(t('cfg_sector_t')) + '</h3><p class="cfg-nota">' + esc(t('cfg_sector_d')) + '</p>' +
-      '<label class="cfg-campo"><span>' + esc(t('cfg_sector_t')) + '</span><select class="gest-search" id="cfgSector">' + opSec + '</select></label>' +
+      '<label class="cfg-campo"><span>' + esc(t('cfg_sector_t')) + '</span><select class="gest-search" id="cfgSector" onchange="cfgSectorPreviaPintar()">' + opSec + '</select></label>' +
+      /* P346a · F109 · lo que van a ver, antes de guardar (R21: `cicloItemsDe`, el mismo lector que el inicio) */
+      '<div class="cfg-previa" id="cfgSectorPrevia" aria-live="polite">' + cfgSectorPreviaHtml(d.sector) + '</div>' +
       '<button type="button" class="cfg-guardar" onclick="cfgGuardarSector(this)">' + esc(t('cfg_guardar')) + '</button>' +
       '<div class="cfg-err" id="cfgErrSector" role="alert"></div></section>' +
     '<section class="cfg-sec"><h3>' + esc(t('cfg_marca_t')) + '</h3><p class="cfg-nota">' + esc(t('cfg_marca_d')) + '</p>' +
@@ -39159,7 +39248,7 @@ function cfgGuardarSector(btn){
   const err = document.getElementById('cfgErrSector');
   if (!nuevo){ if (err) err.textContent = t('cfg_sector_elegi'); return; }
   if (nuevo === antes){ showToast(t('cfg_sin_cambio')); return; }
-  if (!confirm(t('cfg_sector_conf', { empresa: dashScopeVisible(DASH.f.emp), antes: cfgSectorNombre(antes), despues: cfgSectorNombre(nuevo) }))){ sel.value = antes; return; }
+  if (!confirm(t('cfg_sector_conf', { empresa: dashScopeVisible(DASH.f.emp), antes: cfgSectorNombre(antes), despues: cfgSectorNombre(nuevo) }))){ sel.value = antes; cfgSectorPreviaPintar(); return; }   // P346a · cambiar `value` por código no dispara `change`
   try { haptic(16); } catch(e){}
   const mio = CFG;
   cfgEnviar({ que:'sector', sector:nuevo }, btn, 'cfgErrSector').then(d => { if (d){ if (CFG === mio) CFG.sector = d.sector || nuevo; dashRefresh(); } });

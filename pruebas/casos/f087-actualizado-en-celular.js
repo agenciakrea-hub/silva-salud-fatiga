@@ -401,17 +401,28 @@ PRUEBAS.caso('🔴 F088 · el logo que carga tarde vuelve a medir el nombre de l
     ovl.classList.add('show');
     const hoy = new Date().toISOString().slice(0, 10);
     onDashData({ ok: true, rol: 'supervisor', vista: 'supervisor', combinada: false, referencia: { kss: 5 }, metricas: ['kss'],
-      registros: [{ persona: 'Persona De Prueba', empresa: 'Helitec Air', departamento: 'Operaciones', cargo: 'Piloto', fecha: hoy, kss: 3 }],
+      registros: [{ persona: 'Persona De Prueba', empresa: 'Helitec', departamento: 'Operaciones', cargo: 'Piloto', fecha: hoy, kss: 3 }],
       aptitud: [], operacional: [], comentarios: [], pvt: [], turnos: [], duty: null, ausencias: {}, config: {}, visor: null, visorError: null, nominaTotal: 1,
       marca: { logo: location.origin + '/icon-192.png?f088=' + Date.now() } },
-      'Helitec Air', { action: 'supervisor', usuario: 'usuario-f088', empresa: 'Helitec Air', pass: 'x', dispositivoId: 'f088' }, 'supervisor');
+      'Helitec', { action: 'supervisor', usuario: 'usuario-f088', empresa: 'Helitec', pass: 'x', dispositivoId: 'f088' }, 'supervisor');
     const sc = document.getElementById('dashScope'), img = document.getElementById('dashBrandLogo');
-    PRUEBAS.falso(sc.classList.contains('marquee'), 'guarda: sin el logo todavía, «Helitec Air» entra');
+    /* F111 (2026-11-10) · LA GUARDA MEDÍA SU PROPIO NO-OP. Dentro de `onDashData`, `dashPintarNombre` mide con el panel
+       todavía oculto (0 de 0 px) o con lo que dejó el caso anterior: corrida sola daba verde porque nadie medía, y
+       después de `p040` daba rojo porque el panel quedaba armado. Y la premisa era falsa: a 375 px, al lado de
+       «Supervisor», la caja mide 73 px y «Helitec Air» 86, así que NO entraba ni sin logo. Ahora se fuerza la medición
+       que en una pestaña visible hace el primer cuadro (`dashWireMarquees`), y el nombre es «Helitec» (58 px): entra sin
+       el logo con 15 px de margen y no entra con él (caja de 47) por 11. Después, `requestAnimationFrame` sigue apagado:
+       lo único que puede volver a medir al cargar el logo es su `onload`, que es lo que este caso prueba. */
+    dashWireMarquees();
+    const inner0 = sc.querySelector('.mq-in');
+    PRUEBAS.cierto(!!inner0 && sc.clientWidth > 0 && inner0.scrollWidth <= sc.clientWidth + 2,
+      'guarda: sin el logo todavía, «Helitec» entra, medido de verdad (' + (inner0 && inner0.scrollWidth) + ' de ' + sc.clientWidth + ' px)');
+    PRUEBAS.falso(sc.classList.contains('marquee'), 'guarda: y por eso no está marcado para deslizarse');
     /* El cartel de abajo lo puede poner también una medición de rebote (una respuesta tardía de otro caso que pasa por
        `dashRepintarInforme`, que mide todo): corriendo la suite entera, sin el `onload` quedaba en verde igual. Esto
        es lo que no depende de que llegue nada: el logo trae quien lo mida al cargar. */
     PRUEBAS.cierto(typeof img.onload === 'function', 'el logo trae quien vuelva a medir el nombre al cargar (`onload`)');
-    await new Promise(res => { if (img.complete && img.naturalWidth) res(); else { img.addEventListener('load', res, { once: true }); img.addEventListener('error', res, { once: true }); setTimeout(res, 4000); } });
+    await new Promise(res => { if (img.complete && img.naturalWidth) res(); else { img.addEventListener('load', res, { once: true }); img.addEventListener('error', res, { once: true }); setTimeout(res, 15000 /* F111 · 4 s no alcanzaba con la máquina paginando (2026-11-10); si falla, `error` resuelve enseguida */); } });
     await null;
     PRUEBAS.cierto(img.naturalWidth > 0 && img.getBoundingClientRect().width > 0, 'guarda: el logo cargó y se ve');
     const inner = sc.querySelector('.mq-in');

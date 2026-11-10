@@ -62,6 +62,9 @@ function p040Guardar(){
   return {
     lang: localStorage.getItem(K_LANG),
     sec: localStorage.getItem(K_SECTOR),
+    /* P346a · R18 · `sectorRefrescar` guarda el perfil de la empresa (`empresaPerfilGuardar`) y antes no se
+       restauraba: el archivo siguiente arrancaba con la empresa de esta prueba guardada. */
+    emp: localStorage.getItem(K_EMPRESA_PERFIL),
     perfil: getProfile(),
     dash: (typeof DASH !== 'undefined') ? DASH : null,
     cfgSector: (typeof DASH !== 'undefined' && DASH && DASH._cfg) ? DASH._cfg.sector : undefined,
@@ -72,7 +75,10 @@ function p040Guardar(){
 function p040Restaurar(g){
   if (g.lang == null) localStorage.removeItem(K_LANG); else localStorage.setItem(K_LANG, g.lang);
   if (g.sec == null) localStorage.removeItem(K_SECTOR); else localStorage.setItem(K_SECTOR, g.sec);
-  if (g.perfil) setProfile(g.perfil);
+  if (g.emp == null) localStorage.removeItem(K_EMPRESA_PERFIL); else localStorage.setItem(K_EMPRESA_PERFIL, g.emp);
+  /* F111 · R18 · si la corrida arrancó SIN perfil, el de la prueba (Helitec, piloto) se quedaba puesto para el archivo
+     siguiente: `if (g.perfil)` restauraba sólo cuando había uno. */
+  if (g.perfil) setProfile(g.perfil); else localStorage.removeItem(K_PROFILE);
   window.fetchConReloj = g.fetchConReloj;
   window.fetch = g.fetch;
   try { if (typeof DASH !== 'undefined') DASH = g.dash; } catch(e){}
@@ -103,7 +109,10 @@ PRUEBAS.caso('⚠️ cambiar el sector en el CH cambia lo que se LEE, sin reinst
      contestando lo que contestaría el endpoint, y se mira el TEXTO DE LA PANTALLA. */
   const g = p040Guardar();
   try {
-    setProfile(Object.assign({}, g.perfil || {}, { empresa:'Helitec', sector:'aviacion' }));
+    /* P346a · R18 · `esPiloto:true` a la vista: «Data Operacional» sólo se dibuja para quien registra su ciclo
+       (`renderSections`). Sin esto el caso dependía del perfil que dejaba el archivo anterior, y corrido solo
+       daba rojo con la app funcionando (2026-11-09). */
+    setProfile(Object.assign({}, g.perfil || {}, { empresa:'Helitec', sector:'aviacion', esPiloto:true }));
     sectorRecordar('aviacion');
     try { if (typeof DASH !== 'undefined' && DASH && DASH._cfg) delete DASH._cfg.sector; } catch(e){}
     fijarIdioma('es');
@@ -145,7 +154,10 @@ PRUEBAS.caso('el DISCRIMINADOR: si el CH NO tiene sector cargado, no se pisa nad
      pasaban a leer "Llegando al trabajo". Este caso es el que se pondría rojo si volviera. */
   const g = p040Guardar();
   try {
-    setProfile(Object.assign({}, g.perfil || {}, { empresa:'Helitec', sector:'aviacion' }));
+    /* P346a · R18 · `esPiloto:true` a la vista: «Data Operacional» sólo se dibuja para quien registra su ciclo
+       (`renderSections`). Sin esto el caso dependía del perfil que dejaba el archivo anterior, y corrido solo
+       daba rojo con la app funcionando (2026-11-09). */
+    setProfile(Object.assign({}, g.perfil || {}, { empresa:'Helitec', sector:'aviacion', esPiloto:true }));
     sectorRecordar('aviacion');
     try { if (typeof DASH !== 'undefined' && DASH && DASH._cfg) delete DASH._cfg.sector; } catch(e){}
     fijarIdioma('es');
