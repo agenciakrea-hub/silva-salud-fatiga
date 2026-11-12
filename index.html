@@ -665,7 +665,10 @@
        El `max-width` no llegaba a aplicarse nunca. `.dash-remember` ya tenía la fórmula correcta.
      · A `bottom:5.2rem` se montaba sobre el cartel de "recordar dispositivo" (5rem) y le tapaba los
        botones — el MISMO choque que ya se pagó con `.gest-fab` y por el que ese cartel está a 5rem.
-       Va arriba de esa franja, que está reservada. */
+       Va arriba de esa franja, que está reservada.
+       ⚠️ P392 · 9,2rem TAMPOCO ALCANZA con el cartel a la vista: el cartel arranca a 5rem pero mide
+       ~154 px, y la barra le quedaba en el medio. Con el cartel abierto, `versionBarraUbicar()` le
+       pone un `bottom` propio, encima de él; este 9,2rem es la posición del resto del tiempo. */
   .ver-nueva { position: fixed; left: 50%; transform: translateX(-50%); bottom: 9.2rem; z-index: 1100;   /* P187 · era 60: se muestra sólo con un overlay (1000) abierto y nacía tapada; 1100 = el toast */
     display: flex; align-items: center; gap: .5rem;
     width: calc(100% - 2rem); max-width: 460px; box-sizing: border-box;
@@ -8341,7 +8344,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.69';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.70';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -37563,7 +37566,48 @@ function versionAvisoPintar(){
   const tx = document.getElementById('verNuevaTx'); if (!tx) return;
   const n = enviosEnVuelo();
   tx.textContent = n ? t(n === 1 ? 'ver_nueva_enviando_1' : 'ver_nueva_enviando_n', { n: n }) : t('ver_nueva');
+  versionBarraUbicar();   // P392 · después del texto: el alto de la barra cambia con él
 }
+/* P392 · LA BARRA VA ENCIMA DEL CARTEL DE «RECORDAR», NO EN EL MEDIO.
+   El cartel (`.dash-remember`) está a 5rem del fondo de la hoja del portal y mide ~154 px a 390 de ancho: llega hasta
+   ~14,6rem. La barra estaba a 9,2rem —el arreglo del 2026-09-03 la subió «arriba de esa franja», contando sólo dónde
+   ARRANCA el cartel— y le tapaba la pregunta y la bajada: se veían «Sí, recordar» y «Ahora no» sin lo que preguntan, y
+   es la decisión de dejar este dispositivo con la sesión abierta. Medido a 390×844: barra 637-697, cartel 610-764.
+   El alto del cartel cambia con el ancho y con el idioma, así que ningún `bottom` fijo sirve: con el cartel a la vista se
+   mide dónde empieza y la barra va justo encima; sin él, vuelve a la posición del CSS.
+   ⚠️ Se mide con `offsetTop` y no con `getBoundingClientRect`: la hoja y el cartel ENTRAN deslizándose con un `transform`,
+   y el rectángulo a mitad de camino no es el final (en la suite se midió el cartel 231 px más abajo, en el primer cuadro).
+   ⚠️ La referencia es el alto del overlay del portal, que es `fixed` como la barra: las dos se miden contra la misma caja,
+   también cuando la barra del navegador del teléfono aparece o se esconde. */
+function versionBarraUbicar(){
+  const b = document.getElementById('verNuevaBar');
+  if (!b) return;
+  const ov = document.getElementById('portalOverlay');
+  const c = document.getElementById('dashRemember');
+  let arriba = 0, el = c;
+  if (ov && c && ov.classList.contains('show') && c.classList.contains('show')){
+    while (el && el !== ov){
+      arriba += el.offsetTop;
+      el = el.offsetParent;
+      if (el && el !== ov) arriba += el.clientTop;
+    }
+  }
+  const alto = ov ? ov.offsetHeight : 0;
+  if (el !== ov || !alto || !c.offsetHeight){ b.style.bottom = ''; return; }
+  /* Si no entra entera arriba del cartel (una pantalla muy baja, acostada), queda entera en la pantalla aunque lo roce:
+     cortada por arriba escondería el botón de actualizar. */
+  const abajo = Math.min(alto - arriba + 10, alto - b.offsetHeight - 8);
+  b.style.bottom = Math.max(0, Math.round(abajo)) + 'px';
+}
+/* P392 · El cartel aparece y se va por varios caminos (`offerRemember`, `dismissRemember`, el guardado, y el portal que
+   se cierra con el cartel puesto): se escucha la CLASE del cartel y la del portal, no a cada camino, así uno nuevo queda
+   cubierto el día que se agregue. Y el cambio de tamaño, porque el alto del cartel depende del ancho. */
+const _versionBarraObs = new MutationObserver(versionBarraUbicar);
+['dashRemember', 'portalOverlay'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) _versionBarraObs.observe(el, { attributes:true, attributeFilter:['class'] });
+});
+window.addEventListener('resize', versionBarraUbicar);
 /* El botón de la barra: con envíos en vuelo, el cargador y la espera; sin envíos, recarga en el acto.
    ⚠️ La espera vuelve a preguntar `appOcupada()` antes de recargar (verificador): en los segundos que tarda el envío la
    persona pudo abrir la opinión anónima y escribir, y una recarga «pedida hace 40 s» se lo llevaría puesto. Y no hay

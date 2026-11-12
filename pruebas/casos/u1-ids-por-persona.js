@@ -405,23 +405,108 @@ PRUEBAS.caso('⚠️ ocupa el ancho de la pantalla, no 207 px', () => {
   PRUEBAS.igual(malos, [], 'el ancho tiene que seguir a la pantalla — ' + malos.join(' | '));
 });
 
-PRUEBAS.caso('⚠️ no se monta sobre el cartel de "recordar dispositivo"', () => {
+PRUEBAS.caso('⚠️ no se monta sobre el cartel de "recordar dispositivo"', async () => {
   /* Estaba a `bottom:5.2rem` con z-index 60, y el cartel de recordar está a 5rem con z-index 5:
      le tapaba los botones. Es el MISMO choque que ya se pagó con `.gest-fab`, y por el que ese
-     cartel está justamente a 5rem — esa franja está reservada. */
-  const b = u2cAbrir();
+     cartel está justamente a 5rem — esa franja está reservada.
+     ⚠️ P392 · Y A 9,2rem TAMPOCO ALCANZABA. El cartel no es una franja: mide ~154 px desde esos 5rem, así que la barra
+     quedaba en el medio y le tapaba la pregunta y la bajada. Se veían «Sí, recordar» y «Ahora no» sin lo que preguntan.
+     Este caso no lo veía porque casi nunca medía: el cartel vive DENTRO de `#portalOverlay`, y con el portal cerrado
+     mide 0×0 (el mismo agujero que documenta `s4b`). Medía sólo cuando otro caso dejaba el portal abierto, y entonces
+     el resultado dependía de si la entrada del cartel había terminado: rojo en 2 de 4 corridas el 2026-11-04, y verde
+     el 2026-11-12 con el cartel congelado 231 px más abajo, en el primer cuadro de su deslizamiento.
+     Ahora abre el portal como `s4b`, muestra el cartel por el camino real (`offerRemember`) y la barra por el suyo
+     (`versionNuevaAvisar`), en los DOS órdenes —en el segundo, la barra se entera por el observador, que es
+     asíncrono—, mide cada ancho con su cambio de tamaño y dentro de `sinAnimaciones`, y si algo mide cero, FALLA. */
+  const ov = document.getElementById('portalOverlay');
+  const dash = document.getElementById('portalDash');
   const cartel = document.getElementById('dashRemember');
-  const teniaC = cartel && cartel.classList.contains('show');
-  if (cartel) cartel.classList.add('show');
+  PRUEBAS.cierto(!!(ov && cartel), 'tienen que existir el portal y el cartel para comparar');
+  if (!ov || !cartel) return;
+  const ovTenia = ov.classList.contains('show'), cartelTenia = cartel.classList.contains('show');
+  const dashTenia = dash ? dash.style.display : null;
+  const pendientesTenia = DASH_PENDING_CREDS;
+  const previa = document.getElementById('verNuevaBar');
+  if (previa) previa.remove();
+  /* Los tamaños de R12, un teléfono chico (donde el cartel es más alto) y tres acostados: 640×360 y 667×375 caen en la rama
+     de 600 a 760 px, donde la hoja es de 88vh y está centrada, y que ningún otro tamaño de acá tocaba (verificador de P392).
+     Acostado no entran la barra, el cartel y el encabezado: la barra queda sobre la mitad de abajo de «Nómina» y
+     «Actualizar» mientras el cartel está a la vista (medido el 2026-11-12; la ✕ sigue libre). Lo que este caso exige ahí
+     es lo de siempre: que no tape el cartel y que no se salga de la pantalla. */
+  const tamanos = PRUEBAS.VENTANAS.concat([{ w: 320, h: 568, q: 'teléfono chico' },
+    { w: 640, h: 360, q: 'acostado, rama 600-760' }, { w: 667, h: 375, q: 'acostado, rama 600-760' },
+    { w: 568, h: 320, q: 'acostado, chico' }]);
+  const malos = [];
+  function medirAhora(que){
+    PRUEBAS.sinAnimaciones(() => {
+      const b = document.getElementById('verNuevaBar');
+      if (!b){ malos.push(que + ': no hay barra'); return; }
+      const rb = b.getBoundingClientRect(), rc = cartel.getBoundingClientRect();
+      if (rb.height < 20 || rc.height < 40){
+        malos.push(que + ': no se pudo medir (barra ' + Math.round(rb.height) + ' px, cartel ' + Math.round(rc.height) + ' px)');
+        return;
+      }
+      if (rb.bottom > rc.top && rb.top < rc.bottom) malos.push(que + ': se pisan · barra ' +
+        Math.round(rb.top) + '-' + Math.round(rb.bottom) + ', cartel ' + Math.round(rc.top) + '-' + Math.round(rc.bottom));
+      if (rb.top < 0) malos.push(que + ': la barra se sale por arriba (' + Math.round(rb.top) + ')');
+    });
+  }
+  function medirTamanos(orden){
+    tamanos.forEach(v => PRUEBAS.enVentana(v.w, v.h, () => {
+      /* La pestaña oculta no entrega en el acto el `resize` del cambio de tamaño: se entrega acá, el mismo evento que
+         escucha la app. Si nadie lo escucha, la barra queda donde la dejó el tamaño anterior, y esto lo ve. */
+      window.dispatchEvent(new Event('resize'));
+      medirAhora(orden + ' ' + v.w + 'x' + v.h);
+    }));
+  }
+  /* Cada mecanismo tiene una medición que depende SÓLO de él. Si las tres se tomaran después de un `resize`, el oyente
+     de tamaño taparía a los otros dos: el caso daría verde sin la llamada directa y sin el observador. */
   try {
-    PRUEBAS.cierto(!!cartel, 'tiene que existir el cartel para comparar');
-    if (!cartel) return;
-    const rb = b.getBoundingClientRect(), rc = cartel.getBoundingClientRect();
-    const seSolapan = !(rb.bottom <= rc.top || rb.top >= rc.bottom);
-    PRUEBAS.falso(seSolapan,
-      '⚠️ se solapan: barra ' + Math.round(rb.top) + '-' + Math.round(rb.bottom) +
-      ', cartel ' + Math.round(rc.top) + '-' + Math.round(rc.bottom));
-  } finally { b.remove(); if (cartel && !teniaC) cartel.classList.remove('show'); }
+    ov.classList.add('show');
+    if (dash) dash.style.display = '';
+    /* 1 · El cartel primero y la barra después, en momentos distintos: el cartel aparece al entrar al panel y la barra
+       llega cuando cambia el service worker. El `await` deja pasar al observador ANTES de que exista la barra, así
+       que lo que se mide en el acto es la llamada directa de `versionAvisoPintar`. */
+    offerRemember('u2c-prueba', 'x');
+    await Promise.resolve();
+    versionNuevaAvisar();
+    medirAhora('cartel→barra, en el acto');
+    medirTamanos('cartel→barra');
+    /* 2 · La barra primero y el cartel después: la barra puede estar desde antes de entrar al panel. Lo que se mide
+       antes de cualquier `resize` es el observador de la clase del cartel. */
+    dismissRemember();
+    const b1 = document.getElementById('verNuevaBar');
+    if (b1) b1.remove();
+    versionNuevaAvisar();
+    await Promise.resolve();
+    offerRemember('u2c-prueba', 'x');
+    await Promise.resolve();
+    medirAhora('barra→cartel, en el acto');
+    medirTamanos('barra→cartel');
+    /* 3 · Cuando el cartel se va, la barra vuelve a su lugar de siempre. */
+    dismissRemember();
+    await Promise.resolve();
+    const b2 = document.getElementById('verNuevaBar');
+    PRUEBAS.igual(b2 ? b2.style.bottom : '(sin barra)', '',
+      'sin el cartel, la barra vuelve a la posición del CSS (sin `bottom` propio)');
+    /* 4 · Y también cuando se cierra el portal con el cartel puesto: el cartel queda con su clase, pero ya no se ve. */
+    offerRemember('u2c-prueba', 'x');
+    await Promise.resolve();
+    const b3 = document.getElementById('verNuevaBar');
+    PRUEBAS.cierto(!!(b3 && b3.style.bottom), 'con el cartel de vuelta, la barra vuelve a subir');
+    ov.classList.remove('show');
+    await Promise.resolve();
+    PRUEBAS.igual(b3 ? b3.style.bottom : '(sin barra)', '',
+      'con el portal cerrado, la barra vuelve a la posición del CSS aunque el cartel conserve su clase');
+  } finally {
+    const b = document.getElementById('verNuevaBar');
+    if (b) b.remove();
+    DASH_PENDING_CREDS = pendientesTenia;
+    cartel.classList.toggle('show', cartelTenia);
+    ov.classList.toggle('show', ovTenia);
+    if (dash) dash.style.display = dashTenia;
+  }
+  PRUEBAS.igual(malos, [], 'la barra y el cartel no se pueden pisar, en ningún ancho ni en ningún orden — ' + malos.join(' | '));
 });
 
 PRUEBAS.caso('⚠️ el seguro del pre-arranque NO puede ser una animación', () => {

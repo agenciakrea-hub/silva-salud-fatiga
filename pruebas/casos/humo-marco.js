@@ -145,3 +145,45 @@ PRUEBAS.caso('⚠️ P184 · enTema() pone el tema, lo COMPRUEBA en la resoluci�
   PRUEBAS.falso(corrio, 'y no corre la medición: medir ahí sería comparar un tema consigo mismo');
   PRUEBAS.igual(html.getAttribute('data-tema'), previo, 'y aun lanzando, restaura el tema');
 });
+
+/* ⚠️ P392 · UN OVERLAY QUE UN CASO CIERRA NO PUEDE QUEDAR PINTADO PARA EL SIGUIENTE. Son DOS casos seguidos a propósito:
+   lo que se prueba es lo que hace el marco ENTRE caso y caso. `.overlay` cierra con una transición de `display` con
+   `allow-discrete`, y con la pestaña sin pintar esa transición no termina nunca: el overlay cerrado seguía en
+   `display:flex`, y lo de adentro medía como visible varios casos después. Así U2c midió el cartel de recordar dentro
+   de un portal que `s4b` ya había cerrado. El primero deja constancia de que, recién cerrado, sigue pintado: si algún
+   día no lo está, este par deja de probar algo, y lo dice en vez de pasar en verde.
+   ⚠️ LA CLASE `sin-animaciones` (verificador de P392). La app la pone al cargar con la pestaña oculta (`index.html:16`), y con
+   ella no hay transición: el overlay cierra en el acto, el 1 daba rojo y el 2 pasaba sin probar nada. En la suite la saca
+   recién `l3` (archivo 17), con un `visibilitychange` que nadie deshace: desde ahí corre todo con transiciones, que es
+   donde vive la trampa. Por eso el 1 la saca y el 2 la repone DESPUÉS de mirar: si el 1 la repusiera al terminar,
+   `transition:none` cancelaría el cierre y el 2 volvería a pasar sin probar. Es el único estado que este par comparte. */
+PRUEBAS.caso('⚠️ P392 · un overlay recién cerrado sigue pintado mientras dura su transición (1 de 2)', () => {
+  const html = document.documentElement;
+  PRUEBAS._p392 = { sinAnimaciones: html.classList.contains('sin-animaciones') };   // la repone el 2
+  html.classList.remove('sin-animaciones');
+  const ov = document.getElementById('portalOverlay');
+  PRUEBAS.cierto(!!ov, 'tiene que existir el portal para probarlo');
+  if (!ov) return;
+  const tenia = ov.classList.contains('show');
+  ov.classList.add('show');
+  void document.body.offsetWidth;
+  ov.classList.remove('show');
+  void document.body.offsetWidth;
+  PRUEBAS.igual(getComputedStyle(ov).display, 'flex',
+    'recién cerrado, la transición de `display` lo mantiene pintado; si no, el caso siguiente no prueba nada');
+  if (tenia) ov.classList.add('show');
+});
+
+PRUEBAS.caso('⚠️ P392 · y el caso siguiente lo encuentra apagado: el marco termina el cierre entre caso y caso (2 de 2)', () => {
+  const ov = document.getElementById('portalOverlay');
+  try {
+    PRUEBAS.cierto(!!ov, 'tiene que existir el portal para probarlo');
+    if (!ov || ov.classList.contains('show')) return;
+    PRUEBAS.igual(getComputedStyle(ov).display, 'none',
+      '⚠️ el overlay que cerró el caso anterior sigue pintado: lo que vive adentro va a medir como visible');
+  } finally {
+    const p = PRUEBAS._p392;
+    if (p && p.sinAnimaciones) document.documentElement.classList.add('sin-animaciones');
+    delete PRUEBAS._p392;
+  }
+});

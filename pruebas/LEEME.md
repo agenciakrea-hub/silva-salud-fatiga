@@ -33,7 +33,7 @@ restaurando en el `finally`:
 | `PRUEBAS.sinAnimaciones(fn)` | Medir un estado FINAL sin que una transición a mitad de camino conteste por él |
 | `PRUEBAS.conOculto(oculto, fn)` | Probar los dos lados de una guarda de visibilidad, sin depender de cómo esté la pestaña |
 
-### Dos trampas medidas que ningún `await` arregla
+### Tres trampas medidas que ningún `await` arregla
 
 **1 · `getComputedStyle` sirve valores VIEJOS para lo que resuelve un `var()`.** Con
 `data-tema="oscuro"` puesto, `--flecha-select` computaba el color oscuro en el elemento y en todos
@@ -48,6 +48,24 @@ que están en verde pueden estar comparando un tema consigo mismo.
 **2 · Una transición puede no terminar NUNCA.** El puntito activo del splash se ensancha con
 `transition:width .28s`. Medido con la pestaña sin pintar: a los 600 ms seguía en el ancho de
 partida. Esperar más no sirve — no avanza. Se mide dentro de `PRUEBAS.sinAnimaciones`.
+
+**3 · Un overlay CERRADO sigue pintado mientras dura su transición de cierre (P392, 2026-11-12).**
+`.overlay` cierra con `display .22s allow-discrete`: al sacarle `.show` queda en `display:flex`
+hasta que la transición termina, y por la trampa 2 puede no terminar nunca. Lo de adentro mide como
+visible. Así U2c midió el cartel de «recordar» 33 casos después de que `s4b` cerrara el portal, y
+daba rojo o verde según cuánto había avanzado el deslizamiento del cartel. Se buscó «el caso que deja
+el portal abierto» con la pila de cada cambio de clase: **no había ninguno**. Desde P392 el marco
+termina esas transiciones entre caso y caso (lo vigila el par «P392» de `humo-marco.js`). Dentro de
+un mismo caso sigue valiendo: **para medir algo de un overlay, abrirlo vos y medir dentro de
+`sinAnimaciones`; un overlay que no abriste puede estar cerrándose.**
+⚠️ La trampa depende de `html.sin-animaciones`. La app la pone al cargar si la pestaña está oculta
+(`index.html:16`), y con ella no hay transición: el overlay cierra en el acto. En la suite la saca
+`l3-rendimiento-panel.js` (archivo 17) con un `visibilitychange` «visible» que nadie deshace, así que
+desde ahí todo corre con transiciones. Los casos anteriores al 17 ven una app u otra según cómo cargó
+la pestaña. Dos cosas que lo cubren:
+- Lo que dependa de que haya transición saca la clase y la repone, como el par de `humo-marco.js`.
+- La hoja, el cartel y cualquier otro `transform` siguen sujetos a la trampa 2: el marco termina
+  sólo las transiciones de los `.overlay`.
 
 ### Cómo distinguir un rojo tuyo de uno del entorno
 

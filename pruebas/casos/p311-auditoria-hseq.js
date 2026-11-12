@@ -29,11 +29,30 @@ PRUEBAS.grupo('P311 · la auditoría de HSEQ: la foto contra la pantalla');
 
 /* La gente de la nómina del mundo de P308 (`P393_GENTE` es `const` de otro archivo). */
 const P311_GENTE = ['Oscar Uno', 'Olga Dos', 'Omar Tres', 'Otto Cuatro', 'Oriana Cinco', 'Orlando Seis', 'Alma Única'];
-/* Pinta el payload por `onDashData`, con el cierre de grupos al día, y devuelve lo que mide `fn` antes de limpiar. */
+/* Pinta el payload por `onDashData`, con el cierre de grupos al día, y devuelve lo que mide `fn` antes de limpiar.
+   ⚠️ P392 · `fn` CORRE CON EL PORTAL ABIERTO. `p309Pintar` pinta en `#dashBody` pero no abre `#portalOverlay`, y con el
+   overlay en `display:none` todo lo de adentro mide 0. Las alturas de las filas 17, 25 y 32 se medían porque el portal que
+   otro caso había cerrado seguía pintado mientras duraba su transición de cierre; desde que el marco la termina entre
+   caso y caso, su discriminador lo dijo (alturas en 0).
+   Se abre ADENTRO de `fn`, no antes de `p309Pintar`: éste llama primero a `CTX.resetear()`, que cierra todos los overlays
+   (`correr.js`), y abrirlo antes no sirve (medido: las tres alturas en 0, con el portal cerrado). */
 function p311Ver(payload, fn) {
   const x = p308Limpio(payload);
   if (x.totalesHseq && !x.totalesHseq.error) x.totalesHseq.ultimaCorrida = new Date(Date.now() - 5 * 60000).toISOString();
-  return p309Pintar(x, null, fn).extra;
+  return p309Pintar(x, null, () => p311ConPortal(fn)).extra;
+}
+/* Abre el portal mientras corre `fn`, como `s4b`, y lo deja como estaba. */
+function p311ConPortal(fn) {
+  const ov = document.getElementById('portalOverlay'), dash = document.getElementById('portalDash');
+  const ovTenia = !!(ov && ov.classList.contains('show')), dashTenia = dash ? dash.style.display : null;
+  try {
+    if (ov) ov.classList.add('show');
+    if (dash) dash.style.display = '';
+    return fn();
+  } finally {
+    if (ov) ov.classList.toggle('show', ovTenia);
+    if (dash) dash.style.display = dashTenia;
+  }
 }
 function p311EnIngles(clave, vars) {
   const prev = idiomaActual();

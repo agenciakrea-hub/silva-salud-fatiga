@@ -385,6 +385,20 @@
       try { if (typeof app !== 'undefined' && app.sincronizarInert) app.sincronizarInert(); } catch(e){}
       try { if (window.sincronizarInert) window.sincronizarInert(); } catch(e){}
 
+      /* ⚠️ P392 · Y LOS OVERLAYS CERRADOS TERMINAN DE CERRARSE. `.overlay` cierra con una transición de `display` con
+         `allow-discrete` (P048): al sacarle `.show` sigue en `display:flex` hasta que la transición termina, y con la
+         pestaña sin pintar no termina nunca. El overlay «cerrado» quedaba pintado, y lo que vive adentro medía como
+         visible en los casos siguientes. Así se explicó U2c: midió el cartel de recordar 33 casos después de que `s4b`
+         cerrara el portal —ningún caso lo dejaba abierto, medido con la pila de cada cambio de clase—, y daba rojo o
+         verde según cuánto había avanzado el deslizamiento del cartel (2 de 4 corridas en rojo el 2026-11-04).
+         Con la pestaña a la vista eso pasa solo, en 0,22 s; acá se adelanta entre caso y caso. Sólo las transiciones
+         del overlay mismo: al quedar en `display:none`, lo de adentro se apaga solo. */
+      try {
+        document.querySelectorAll('.overlay:not(.show)').forEach(o => {
+          o.getAnimations().forEach(a => { try { if (a instanceof CSSTransition) a.finish(); } catch(e){} });
+        });
+      } catch(e){}
+
       /* P234 · y los stubs vuelven a lo que eran. Si el caso PASÓ y dejó algo puesto, es un defecto
          del caso (R18) y se dice; si ya falló, se restaura callado — el error que importa es el otro. */
       const sucios = stubsRestaurar(limpio);

@@ -113,9 +113,16 @@ PRUEBAS.caso('🔴 el número que ESCRIBE la app es el que la fórmula espera', 
   if (!linea) { PRUEBAS.cierto(false, '⚠️ no está `.spl-l-viva`: este contrato queda SIN MEDIR'); return; }
   const svg = linea.ownerSVGElement;
   /* ⚠️ `splMedirTrazo` corta si el rect da 0, y en esta pestaña oculta puede pasar (R11). Se le da
-     un tamaño explícito al contenedor, y si aun así no mide, el caso lo DICE en vez de pasar. */
+     un tamaño explícito al contenedor, y si aun así no mide, el caso lo DICE en vez de pasar.
+     ⚠️ P392 · Y SE ABRE EL SPLASH, como los dos casos de abajo. El `position:fixed` del contenedor no alcanza: con
+     `#splashOv` en `display:none`, nada de adentro se pinta. Este caso medía porque el splash que otro caso había
+     cerrado seguía pintado mientras duraba su transición de cierre; desde que el marco la termina entre caso y caso,
+     su guarda lo dijo («el SVG no tiene tamaño»). */
   const cont = svg && svg.parentElement;
   const prev = cont ? cont.getAttribute('style') : null;
+  const ov = document.getElementById('splashOv');
+  const ovTenia = !!(ov && ov.classList.contains('show'));
+  if (ov && !ovTenia) ov.classList.add('show');
   try {
     if (cont) cont.setAttribute('style',
       (prev ? prev + ';' : '') + 'position:fixed;left:0;top:0;width:600px;height:160px;z-index:-1');
@@ -141,6 +148,7 @@ PRUEBAS.caso('🔴 el número que ESCRIBE la app es el que la fórmula espera', 
   } finally {
     if (cont) { if (prev === null) cont.removeAttribute('style'); else cont.setAttribute('style', prev); }
     try { splMedirTrazo(); } catch (e) {}
+    if (ov && !ovTenia) ov.classList.remove('show');
   }
 });
 

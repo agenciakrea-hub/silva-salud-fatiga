@@ -84,8 +84,11 @@ function p309Foto() {
     queVieneCerrado: !!(q('#dashBody .hseq-que-viene') && !q('#dashBody .hseq-que-viene').open)
   };
 }
-/* Pinta un payload por `onDashData` (que llama a `renderDash`), corre `extra` con el panel en pantalla y devuelve lo
+/* Pinta un payload por `onDashData` (que llama a `renderDash`), corre `extra` con el panel pintado en el DOM y devuelve lo
    que se vio. R18: `DASH`, la marca y lo de afuera de `#dashBody` vuelven a como estaban en el `finally`.
+   ⚠️ P392 · NO ABRE `#portalOverlay`: con el overlay en `display:none`, la geometría de adentro mide 0. Sirve para texto y
+   atributos; quien mida tamaños abre el portal (`p311Ver` lo hace). Antes parecía andar porque el portal cerrado por otro
+   caso seguía pintado mientras duraba su transición de cierre (`pruebas/LEEME.md`, trampa 3).
    `f` se pone a mano en `DASH.f`, salvo `f.chip`: ese período se ELIGE tocando su chip de verdad (`dashSetPeriod`), que es
    lo que pone la marca `periodoElegido` y lo que necesita un caso que quiere un período que el panel no abriría solo
    (F096: el panel de HSEQ abre en el primero con totales). */
