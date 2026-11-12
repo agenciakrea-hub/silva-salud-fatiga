@@ -34,7 +34,7 @@ PRUEBAS.caso('🔴 L1 · nadie se fabrica una credencial de ADMINISTRADOR regist
      hacía administrador y veía todas las empresas. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'sin el emulador del endpoint no se puede medir'); return; }
   const env = lEnv();
-  const api = GS.cargarGs(CTX.gs, env, ['accionCredencialCrear', 'credRolValido']);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear', 'credRolValido']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
 
   const r = JSON.parse(api.accionCredencialCrear({
     empresa: 'Helitec', cedula: 'V-1', pass: 'unaClaveLarga1', usuario: 'Ana Suárez',
@@ -57,7 +57,7 @@ PRUEBAS.caso('🔴 L1b · el rol sale de la NÓMINA, no de lo que manda el clien
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const filaRol = (rolNomina, rolPost) => {
     const env = lEnv([['Helitec','Ana Suárez','V-1','Operaciones','Piloto','F',35,'+58123','a@e.com','Sí','',rolNomina,'2']]);
-    const api = GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+    const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
     const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-1', pass:'unaClaveLarga1', usuario:'Ana Suárez', dispositivoId:'d', rol: rolPost }).getContent());
     PRUEBAS.cierto(!!r.ok, 'guarda: la credencial se creó (' + (r.error || 'ok') + ')');
     const filas = env.__libro.getSheetByName('Credenciales').__volcado();

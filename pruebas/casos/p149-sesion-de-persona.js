@@ -43,7 +43,7 @@ function p149Env(fns){
     'Config Empresa': [['Empresa','Clave','Valor']],
     'Respuestas de formulario 1': [new Array(90).fill('bloque'), new Array(90).fill('pregunta')]
   });
-  const api = GS.cargarGs(CTX.gs, env, fns);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, fns), ['Consorcio HELITEC']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   api.__env = env;
   return api;
 }

@@ -55,7 +55,7 @@ function a11bEnv(fns, extra) {
     'Credenciales': [A11B_CRED_CAB.slice()],
     'Config Empresa': [['Empresa', 'Clave', 'Valor']]
   }, extra || {}));
-  const api = GS.cargarGs(CTX.gs, env, fns);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, fns), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   api.__env = env;
   api.__hoja = n => {
     const sh = env.__libro.getSheetByName(n);

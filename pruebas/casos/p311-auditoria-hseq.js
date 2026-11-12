@@ -374,17 +374,18 @@ PRUEBAS.caso('🔒 F098 · `tareas_mias`: en una empresa sin nómina, la determi
   PRUEBAS.igual(JSON.stringify(con).indexOf('NOTA-CLINICA'), -1, 'CONTROL · y sin la nota clínica');
   const mal = w.tareas({ persona: 'Ana Registrada', empresa: 'Sin Nomina SA', cedula: '99887766' });
   PRUEBAS.igual(det(mal), null, '🔒 con otra cédula, tampoco');
-  /* V5 · las tareas del médico, sólo con la identidad verificada; las demás siguen saliendo por nombre (`P394`) */
+  /* V5 · las tareas del médico, sólo con la identidad verificada. Hasta P394a las demás seguían saliendo por nombre; desde P394a
+     (2026-11-12) tampoco: sin identidad verificada no sale ninguna (`accionTareasMias`, `if (!verificada) continue`). */
   const hojaT = w.env.SpreadsheetApp.openById('maestro').getSheetByName('Tareas');
   hojaT.appendRow(['Sin Nomina SA', 't1', '', 'Fuera Delpadron', 'medico', 'Control', 'DETALLE-CLINICO', '', 'pendiente', '2026-11-01', '', 'Doctora Prueba']);
   hojaT.appendRow(['Sin Nomina SA', 't2', '', 'Fuera Delpadron', 'supervisor', 'Traer casco', 'detalle-comun', '', 'pendiente', '2026-11-01', '', 'Jefa']);
   hojaT.appendRow(['Sin Nomina SA', 't3', P311_CED, 'Ana Registrada', 'medico', 'Control', 'DETALLE-DE-ANA', '', 'pendiente', '2026-11-01', '', 'Doctora Prueba']);
   const delNombre = w.tareas({ persona: 'Fuera Delpadron', empresa: 'Sin Nomina SA' });
-  PRUEBAS.igual((delNombre.tareas || []).map(x => x.id), ['t2'], '🔒 V5 · con el nombre solo, la tarea del médico no sale; la otra, sí (`P394`)');
+  PRUEBAS.igual((delNombre.tareas || []).map(x => x.id), [], '🔒 V5 · con el nombre solo, ninguna: ni la del médico ni, desde P394a, la otra');
   PRUEBAS.igual(JSON.stringify(delNombre).indexOf('DETALLE-CLINICO'), -1, '🔒 V5 · ni su texto');
   PRUEBAS.igual((w.tareas({ persona: 'Ana Registrada', empresa: 'Sin Nomina SA', cedula: P311_CED }).tareas || []).map(x => x.id), ['t3'], 'CONTROL · con la cédula que el padrón conoce, la ve');
-  /* DISCRIMINADOR · como estaba */
-  const sV5 = p311Api(OPC, [['    if (!verificada && filaTarea.origen === "medico") continue;\n', '']]);
+  /* DISCRIMINADOR · como estaba antes de P311: sin la guarda, todas salían por nombre (P394a cambió la línea; se saca entera) */
+  const sV5 = p311Api(OPC, [['    if (!verificada) continue;\n', '']]);
   PRUEBAS.igual(sV5.faltan, undefined, 'guarda: el sabotaje entró');
   if (!sV5.faltan) {
     sV5.tareas({ persona: 'Fuera Delpadron', empresa: 'Sin Nomina SA' });   // la hoja se crea al primer pedido

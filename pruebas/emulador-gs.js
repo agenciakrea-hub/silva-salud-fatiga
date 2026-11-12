@@ -866,7 +866,38 @@ var ZONA_DEL_LIBRO = 'America/Caracas';
     return Fija;
   }
 
+  /* P394a · DESDE LA 2026-11-12.1, `credencial_crear` Y `tiene_clave` CONTESTAN `sin_codigo` EN UNA EMPRESA SIN CÓDIGO DE REGISTRO (ADR 021,
+     actualización de P394a): hasta ahí, el primero que conociera una cédula se quedaba con la cuenta. Los archivos que crean contraseñas para
+     probar OTRA cosa (el robo de cuenta, el reinicio, el login, la bitácora…) le cargan su código a sus empresas con esto, y sus pedidos lo
+     mandan como lo manda la app: la pantalla de la contraseña manda el código del alta o el que la persona escribe.
+     · Las empresas van explícitas: un caso que prueba «sin nómina» o una empresa ajena no recibe código por estar en el mismo archivo.
+     · Un pedido que ya trae `codigo` (uno malo, o ninguno con `codigo: ''`) no se toca: así se sigue probando el código mismo.
+     · Envuelve las `accion*` y `manejar`, que reciben el pedido como primer argumento; las demás funciones quedan igual. */
+  const CODIGO_ALTA = 'COD-ALTA-PRUEBA';
+  function conCodigoDeAlta(env, api, empresas, codigo) {
+    const cod = codigo || CODIGO_ALTA;
+    let hoja = env.__libro.getSheetByName('Config Empresa');
+    if (!hoja) { hoja = env.__libro.insertSheet('Config Empresa'); hoja.appendRow(['Empresa', 'Clave', 'Valor']); }
+    /* Una empresa a la que el caso ya le cargó SU código no recibe otro: dos filas `codigoRegistro` se pisarían. */
+    const yaTiene = new Set(hoja.getDataRange().getValues().slice(1)
+      .filter(f => String(f[1]) === 'codigoRegistro').map(f => String(f[0]).trim().toLowerCase()));
+    (empresas || []).filter(e => !yaTiene.has(String(e).trim().toLowerCase()))
+      .forEach(e => hoja.appendRow([e, 'codigoRegistro', cod]));
+    Object.keys(api).forEach(k => {
+      const f = api[k];
+      if (typeof f !== 'function' || !(/^accion/.test(k) || k === 'manejar')) return;
+      api[k] = function (p) {
+        const args = [].slice.call(arguments);
+        if (p && typeof p === 'object' && !('codigo' in p)) args[0] = Object.assign({ codigo: cod }, p);
+        return f.apply(this, args);
+      };
+    });
+    return api;
+  }
+
   global.GS = {
+    CODIGO_ALTA: CODIGO_ALTA,
+    conCodigoDeAlta: conCodigoDeAlta,
     /* P234 · «la celda quedó como Date», sin depender del huso del host (ver la función arriba) */
     fechaDeCelda: fechaDeCelda_,
     relojFijo: relojFijo_,

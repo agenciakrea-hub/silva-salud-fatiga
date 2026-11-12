@@ -76,7 +76,7 @@ function p118Env(fns, opciones) {
     'Config Empresa': [['Empresa','Clave','Valor']],
     'Consentimientos': o.consent || [['Fecha','IdConsentimiento','Persona','Empresa','Cedula','Versiones','AppVersion']]
   }, o.hojas || {}));
-  const api = GS.cargarGs(CTX.gs, env, fns);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, fns), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   api.__env = env;
   return api;
 }

@@ -130,7 +130,7 @@ PRUEBAS.caso('🔴 a la persona se le avisa si alguien le crea la contraseña', 
                  ['Helitec','Ana Suárez','V-1','Operaciones','Piloto','F',35,'+58123','ana.real@empresa.com','Sí','','empleado','2']],
     });
     env.MailApp = mail;
-    return GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+    return GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   };
   const enviados = [];
   const api = armar({ sendEmail: function (a, asunto, cuerpo) { enviados.push({ a: a, asunto: asunto, cuerpo: cuerpo }); } });

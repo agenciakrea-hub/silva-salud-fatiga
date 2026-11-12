@@ -72,7 +72,7 @@ PRUEBAS.caso('⚠️ el alta de una contraseña queda registrada y se puede ver'
     'Nómina': [['Empresa','Nombre y apellido','Cédula','Departamento','Cargo','Sexo','Edad','Teléfono','Email','¿Es piloto?','ID de piloto','Rol en la app','Nivel de riesgo'],
                ['Helitec','Ana Suárez','V-1','Operaciones','Piloto','F',35,'+58123','a@e.com','Sí','','empleado','2']],
   });
-  const api = GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-1', pass:'unaClaveLarga1', usuario:'Ana Suárez', dispositivoId:'d' }).getContent());
   PRUEBAS.cierto(!!r.ok, 'guarda: la credencial se creó (' + (r.error || r.motivo || 'ok') + ')');
   const bit = env.__libro.getSheetByName('Bitácora');

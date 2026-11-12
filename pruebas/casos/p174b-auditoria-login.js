@@ -39,9 +39,9 @@ function p174bEnv(fns, hojas){
     'Tareas': [['Empresa','Id','Persona','Titulo','Detalle','Vence','Estado','Creada','Autor','Cerrada','Rol']],
     'Consentimientos': [['Fecha','IdConsentimiento','Persona','Empresa','Cedula','Versiones','AppVersion']]
   }, hojas || {}));
-  const api = GS.cargarGs(CTX.gs, env, ['manejar','accionEmpleado','accionCredencialCrear','accionCredencialReiniciar',
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['manejar','accionEmpleado','accionCredencialCrear','accionCredencialReiniciar',
     'accionLogin','accionAusencias','accionGestiones','accionTareasPersona','accionPvt',
-    'leerConfigEmpresa','accFrenado','accAnotarFallo','accLimpiar','credBuscar','ausScope','construirAlias'].concat(fns || []));
+    'leerConfigEmpresa','accFrenado','accAnotarFallo','accLimpiar','credBuscar','ausScope','construirAlias'].concat(fns || [])), ['Consorcio HELITEC']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   api.__env = env;
   api.__json = r => JSON.parse(r.getContent ? r.getContent() : r);
   api.__hoja = n => env.__libro.getSheetByName(n).__volcado();

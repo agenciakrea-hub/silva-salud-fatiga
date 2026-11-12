@@ -42,8 +42,8 @@ function p174Env(fns){
     'Config Empresa': [['Empresa','Clave','Valor']],
     'Consentimientos': [['Fecha','IdConsentimiento','Persona','Empresa','Cedula','Versiones','AppVersion']]
   });
-  const api = GS.cargarGs(CTX.gs, env, ['manejar','accionCredencialReiniciar','accionCredencialCrear',
-    'accionLogin','credBuscar'].concat(fns || []));
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['manejar','accionCredencialReiniciar','accionCredencialCrear',
+    'accionLogin','credBuscar'].concat(fns || [])), ['Consorcio HELITEC', 'Otra Empresa SA']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   api.__env = env;
   api.__cred = () => env.__libro.getSheetByName('Credenciales').__volcado();
   api.__ses = () => env.__libro.getSheetByName('Sesiones').__volcado();

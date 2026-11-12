@@ -18,8 +18,10 @@ function z2Endpoint(credenciales, config){
     'Config Empresa': [['Empresa','Clave','Valor']].concat(config || []),
     'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
   });
-  return GS.cargarGs(CTX.gs, env,
-    ['accionLogin','accionTieneClave','accionEmpleado','credHash','credSalNueva','credIguales','credBuscar']);
+  /* P394a · sin código de empresa, `tiene_clave` contesta `sin_codigo` a cualquier cédula, y dos casos de acá («MIGRACIÓN» y «no filtra
+     si esa persona existe») pasaban sin llegar a lo que miden (verificador de P394a, 7): la empresa tiene código y los pedidos lo mandan. */
+  return GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env,
+    ['accionLogin','accionTieneClave','accionEmpleado','credHash','credSalNueva','credIguales','credBuscar']), ['Helitec']);
 }
 
 /* Arma una fila de credenciales con el hash BIEN calculado, usando las mismas funciones del `.gs`.

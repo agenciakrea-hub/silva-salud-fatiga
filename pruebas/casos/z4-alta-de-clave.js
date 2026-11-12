@@ -15,8 +15,8 @@ function z4Endpoint(nomina, credenciales, config){
     'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
     'Respuestas de formulario 1': [['Marca temporal','Nombre','Empresa','KSS']],
   });
-  return GS.cargarGs(CTX.gs, env,
-    ['accionCredencialCrear','accionCredencialCambiar','accionLogin','credBuscar','credHash','credSalNueva']);
+  return GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env,
+    ['accionCredencialCrear','accionCredencialCambiar','accionLogin','credBuscar','credHash','credSalNueva']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
 }
 const Z4_NOMINA = [['Helitec','Ana Suárez','V-111','Op','Piloto'],
                    ['Helitec','Beto Pérez','V-222','Op','Piloto']];
@@ -138,7 +138,7 @@ PRUEBAS.caso('⚠️ crear la credencial queda registrado en la bitácora', () =
     'Identidades': [['Variante','Empresa','Cedula','NombreCanonico','Como','Registros','PrimeraVez','UltimaVez']],
     'Respuestas de formulario 1': [['Marca temporal','Nombre','Empresa','KSS']],
   });
-  const api = GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   const antes = env.SpreadsheetApp.openById('x').getSheetByName('Bitácora').getDataRange().getValues().length;
   api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'ClaveDeAna2026', dispositivoId:'d' });
   const despues = env.SpreadsheetApp.openById('x').getSheetByName('Bitácora').getDataRange().getValues();

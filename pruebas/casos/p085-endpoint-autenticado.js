@@ -52,15 +52,17 @@ function p085EntornoClave(config) {
                       'Rol', 'Estado', 'Creada', 'UltimoAcceso']],
     'Config Empresa': [['Empresa', 'Clave', 'Valor']].concat(config || [])
   });
-  const api = GS.cargarGs(CTX.gs, env,
-    ['accionTieneClave', 'accionCredencialCrear', 'credPersonaMigrada', 'credBuscar']);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env,
+    ['accionTieneClave', 'accionCredencialCrear', 'credPersonaMigrada', 'credBuscar']), ['Helitec', 'Cardón']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   /* La credencial de Ana se crea por el CAMINO REAL (R17), no escribiendo la fila a mano: si el
-     alta cambiara de forma, esta prueba tiene que enterarse. Se crea ANTES de que exista el
-     código de empresa en la config, para que ese paso no dependa de él. */
+     alta cambiara de forma, esta prueba tiene que enterarse.
+     ⚠️ P394a · Antes se creaba «antes de que exista el código», con `codigo: ''`. Desde la 2026-11-12.1 sin código de empresa no se
+     crea ninguna contraseña, así que va con el código de la empresa: el del caso, si el caso carga el suyo, o el que le cargó
+     `GS.conCodigoDeAlta`. */
   api.__crearLaDeAna = function () {
     return JSON.parse(api.accionCredencialCrear({
       empresa: 'Helitec', cedula: 'V-111', pass: 'LaDeAna2026',
-      dispositivoId: 'alta', codigo: (config || []).length ? 'HELI-2026' : ''
+      dispositivoId: 'alta', codigo: (config || []).length ? 'HELI-2026' : GS.CODIGO_ALTA
     }).getContent());
   };
   api.__preguntar = function (p) { return JSON.parse(api.accionTieneClave(p).getContent()); };
@@ -126,7 +128,7 @@ PRUEBAS.caso('⚠️ y la respuesta NO distingue "no existe" de "todavía no mig
                       'Rol', 'Estado', 'Creada', 'UltimoAcceso']],
     'Config Empresa': [['Empresa', 'Clave', 'Valor']]
   });
-  const api = GS.cargarGs(CTX.gs, env, ['accionTieneClave']);
+  const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionTieneClave']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   const enNomina  = JSON.parse(api.accionTieneClave({ empresa: 'Helitec', cedula: 'V-333', dispositivoId: 'd1' }).getContent());
   const inventada = JSON.parse(api.accionTieneClave({ empresa: 'Helitec', cedula: 'V-999', dispositivoId: 'd2' }).getContent());
   PRUEBAS.igual(JSON.stringify(enNomina), JSON.stringify(inventada),
@@ -142,7 +144,9 @@ PRUEBAS.caso('⚠️ el CÓDIGO DE EMPRESA cierra la puerta, igual que en `nomin
   const api = p085EntornoClave([['Helitec', 'codigoRegistro', 'HELI-2026']]);
   PRUEBAS.cierto(api.__crearLaDeAna().ok, 'guarda: con el código, el alta funciona');
 
-  const sinCodigo = api.__preguntar({ empresa: 'Helitec', cedula: 'V-111', dispositivoId: 'd1' });
+  /* P394a · `codigo: ''` explícito: sin la clave, `GS.conCodigoDeAlta` le pondría el código de prueba y esto probaría un código
+     EQUIVOCADO, no la falta de código (y le sumaría un fallo al freno). Lo encontró el verificador de P394a. */
+  const sinCodigo = api.__preguntar({ empresa: 'Helitec', cedula: 'V-111', codigo: '', dispositivoId: 'd1' });
   PRUEBAS.falso(sinCodigo.ok, '⚠️ sin el código de la empresa, no se contesta');
   PRUEBAS.igual(sinCodigo.motivo, 'codigo_invalido', 'y se dice por qué, como en el resto del alta');
 
