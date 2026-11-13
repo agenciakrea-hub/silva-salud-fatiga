@@ -719,7 +719,17 @@
        El rebote elástico sigue apagado por la regla de `html` (arriba), que SÍ se propaga. */
   }
 
-  .wrap { width: 100%; max-width: 560px; margin: 0 auto; padding: 1.1rem 1.05rem 6rem; }
+  /* ⚠️ F121a · EL HUECO DE ABAJO ERA OTRO NÚMERO A MANO (`6rem`), el mismo defecto que P045 le sacó al cartel de
+     envíos. La barra inferior mide 81 px más el área segura de abajo, y el disco de estadísticas sobresale ~10 px: en un
+     iPhone con barra de inicio ocupa 124 px, y el hueco era de 96. Lo último de cada vista no llegaba nunca a salir de
+     abajo de la barra: Rafael no podía leer la versión, que va centrada al pie de «Más», justo debajo del disco, salvo
+     con el teléfono acostado (desde 900 px la barra pasa a riel y este hueco no se usa). Ahora sale del alto REAL que
+     publica `navAltoSincronizar` (`--nav-alto`, que ya incluye el área segura y el disco) más un respiro; el respaldo,
+     para antes de la primera medición, suma el área segura a los 6rem de siempre. */
+  /* `--off-alto` es el cartel de envíos cuando está a la vista (sin señal, enviando): también tapa. Lo publica
+     `offAltoPublicar`; oculto vale 0. */
+  .wrap { width: 100%; max-width: 560px; margin: 0 auto;
+    padding: 1.1rem 1.05rem calc(var(--nav-alto, calc(6rem + env(safe-area-inset-bottom))) + var(--off-alto, 0px) + 1.25rem); }
 
   /* ── Hero ── */
   .hero { text-align: center; padding: 0.6rem 0 1.4rem; animation: fadeUp .4s ease both; }
@@ -2562,12 +2572,22 @@
   /* P190 · z 1005: por encima de los overlays (1000) y por debajo de las pantallas de contraseña (1010) y el toast
      (1100). Con 901 el cartel «Enviando N registros…» quedaba DEBAJO del panel y de las hojas, que es justo donde la
      persona escribe lo que se está enviando (auditoría de uso real #17). */
+  /* F121 · el área segura va UNA vez. `--nav-alto` se mide desde el pie de la pantalla, así que ya la incluye; sumarla
+     otra vez dejaba el cartel flotando 41 px sobre el disco en un iPhone con barra de inicio (7 en uno sin ella). Sólo
+     el respaldo, que es un número fijo, la necesita. */
   .off-bar { position: fixed; left: 0; right: 0; z-index: 1005;
-    bottom: calc(var(--nav-alto, 64px) + .45rem + env(safe-area-inset-bottom));
+    bottom: calc(var(--nav-alto, calc(64px + env(safe-area-inset-bottom))) + .45rem);
     max-width: 560px; margin: 0 auto;
     background: var(--sem-ambar-bg); color: var(--sem-ambar-txt);
     border-top: 1px solid var(--sem-ambar); text-align: center;
     padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
+  /* ⚠️ F121 · CON UNA VENTANA ABIERTA, LA POSICIÓN DE ANTES. Desde P190 el cartel va por ENCIMA de las ventanas, pero
+     se sigue ubicando contra la barra inferior, que la ventana tapa. Ahí el área segura sumada dos veces lo subía 34 px
+     en el iPhone por accidente, y sacarla lo bajaba sobre los botones de abajo de la hoja: «Sí, recordar» quedaba
+     tapado 5 px con letra Normal y 30 con Muy grande (lo midió el verificador de F121 con el área segura por CDP; en
+     7.71, 0). Acá se conserva la fórmula de 7.71 hasta decidir dónde va el cartel sobre una ventana: en un teléfono sin
+     barra de inicio ya tapaba 32 de los 44 px de esos botones, en las dos versiones. */
+  body.modal-open .off-bar { bottom: calc(var(--nav-alto, 64px) + .45rem + env(safe-area-inset-bottom)); }
   .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
   /* P190 · durante un test o el PVT no hay nada que enviar y el cartel taparía las respuestas de abajo */
   body:has(#testOverlay.show) .off-bar, body:has(#pvtOverlay.show) .off-bar { display: none !important; }
@@ -2951,12 +2971,18 @@
   .mas-desplegable.open .tc-head .chev { transform: rotate(90deg); }
   .tc-slider-wrap, .tc-body { max-height: 0; overflow: hidden;
     transition: max-height .22s ease, opacity .18s ease; opacity: 0; }
-  .mas-desplegable.open .tc-slider-wrap { max-height: 90px; opacity: 1; }
-  /* Idioma (2 botones + nota) y Apariencia (3 botones + nota de dos líneas): contenido FIJO, no
-     depende de los datos de la persona como el bloque del inicio. Medido en el caso más largo
-     (Apariencia en inglés, 375 px): entra con margen. */
-  .mas-desplegable.open .tc-body { max-height: 260px; opacity: 1; }
-  .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin: 0 1.1rem 0.95rem; }
+  /* ⚠️ F121b · LOS TOPES IBAN EN PÍXELES, Y EL CONTENIDO CRECE CON LA LETRA. El de abajo se midió con la letra
+     Normal; el bloque de Avisos (P194) llegó después y es el más alto. Con letra Grande o Muy grande se pasaba del
+     tope y «Activar avisos» quedaba cortado: 40 px a 375 y 17 a 393/430 con Muy grande (barrido de F121, iPhones
+     emulados). En `rem` el tope crece con la letra elegida. */
+  .mas-desplegable.open .tc-slider-wrap { max-height: 7rem; opacity: 1; }
+  /* Idioma (2 botones + nota), Apariencia (3 botones + nota de dos líneas) y Avisos (nota + botón): contenido FIJO,
+     no depende de los datos de la persona como el bloque del inicio. 30rem deja margen al más alto con Muy grande a
+     375 px (medía ~332 px de 648 disponibles). */
+  .mas-desplegable.open .tc-body { max-height: 30rem; opacity: 1; }
+  /* F121b · `.2rem` arriba: la «A» grande va con `line-height: 1` y su tinta asoma ~2 px sobre su renglón; pegada
+     al borde de arriba de `.tc-slider-wrap` (que recorta), con letra Muy grande se le cortaba la punta. */
+  .tc-slider { display: flex; align-items: center; gap: 0.8rem; margin: .2rem 1.1rem 0.95rem; }
   .tc-slider .tc-a { font-weight: 800; color: var(--text-muted); flex-shrink: 0; line-height: 1; }
   .tc-slider .tc-a.chico { font-size: 0.95rem; }
   .tc-slider .tc-a.grande { font-size: 1.7rem; }
@@ -8344,7 +8370,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.71';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.72';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14660,7 +14686,22 @@ function offPendientes(){
   return n;
 }
 function offHayConexion(){ return navigator.onLine !== false; }
+/* F121a · el cartel también tapa: cuando está a la vista (sin señal, o enviando), lo último de cada vista quedaba debajo
+   de él, a 20 px del disco. `offPintarEstado_` tiene siete salidas; publicar el alto en el `finally` las cubre todas sin
+   tocar ninguna. `.wrap` lo suma a su hueco al pie. */
 function offPintar(){
+  try { offPintarEstado_(); } finally { offAltoPublicar(); }
+}
+function offAltoPublicar(){
+  try {
+    const el = document.getElementById('offBar');
+    const r = el ? el.getBoundingClientRect() : null;
+    /* + 8 px: el cartel va a `.45rem` del disco (ver `.off-bar`). Oculto mide 0 y no suma nada. */
+    const alto = (r && r.height) ? Math.round(r.height) + 8 : 0;
+    document.documentElement.style.setProperty('--off-alto', alto + 'px');
+  } catch(e){}
+}
+function offPintarEstado_(){
   const el = document.getElementById('offBar'); if (!el) return;
   navAltoSincronizar();   // P045 · el cartel se posiciona contra el alto REAL de la barra
   // La demo siembra anotaciones/casos de EJEMPLO local solo (gestCanSync() ya los bloquea de
@@ -14768,6 +14809,9 @@ function navAltoSincronizar(){
     if (!nav) return;
     const r = nav.getBoundingClientRect();
     if (!r.height) return;                       // oculta: no se mide, se deja el respaldo
+    /* F121 · desde 900 px la barra es un RIEL lateral de alto completo: no ocupa el pie, y medirla daba el alto de la
+       ventana entera (que se publicaba si era menor que 400). El hueco de abajo de `.wrap` en ese modo lo fija el CSS. */
+    if (r.height > r.width) return;
     let arriba = r.top;
     const fab = nav.querySelector('.bn-fab');
     if (fab){ const rf = fab.getBoundingClientRect(); if (rf.height) arriba = Math.min(arriba, rf.top); }
@@ -14776,6 +14820,7 @@ function navAltoSincronizar(){
   } catch(e){}
 }
 window.addEventListener('resize', navAltoSincronizar);
+window.addEventListener('resize', offAltoPublicar);   // F121a · al girar el teléfono el texto del cartel cambia de renglones
 /* Con `role="button"` el lector de pantalla lo anuncia como botón; sin esto, Enter y Espacio no
    harían nada y la promesa sería falsa para quien no usa el dedo. */
 document.addEventListener('keydown', function(e){
@@ -18526,6 +18571,7 @@ function aplicarTamanoTexto(){
      correcto es sacarlas, no encogerlas. Quien elige la letra más grande está pidiendo lugar para
      LEER; lo decorativo estorba. Hoy lo usa la tira del splash. */
   document.documentElement.classList.toggle('texto-maximo', n >= TEXTO_NIVELES.length - 1);
+  navAltoSincronizar(); offAltoPublicar();   // F121a · la barra y el cartel crecen con la letra, y el hueco al pie sale de su alto real
   const lbl = document.getElementById('txtTamanoLbl');
   if (lbl) lbl.textContent = tamLabel(n);
   ['sldTexto', 'sldTextoInicio'].forEach(id => { const s = document.getElementById(id); if (s) s.value = String(n); });
@@ -37636,6 +37682,9 @@ function appRevelar(ver){
   const nav = document.getElementById('bottomNav');
   if (app) app.style.display = ver ? '' : 'none';
   if (nav) nav.style.display = ver ? 'flex' : 'none';
+  /* F121a · el hueco al pie de cada vista (`.wrap`) sale de `--nav-alto`, y con la barra oculta no se puede medir: se
+     mide en cuanto aparece, no a los 15 s del próximo `offPintar`. */
+  if (ver) navAltoSincronizar();
 }
 
 /* ════════════════ N8 · Tira de presentación del splash (2026-08-28) ══════════════════════════
