@@ -173,39 +173,47 @@ function f088ConAnimaciones(si, fn) {
   try { return fn(); } finally { h.classList.toggle('sin-animaciones', tenia); }
 }
 
-PRUEBAS.caso('🔴 F088 · sin animaciones lo que se desliza termina en «…»; con animaciones se desliza como en T3', () => {
+PRUEBAS.caso('🔴 P418 · el nombre de la empresa no se desliza ni termina en «…»: baja de renglón, en su fila del celular (375)', () => {
+  /* Hasta la 7.73 este caso afirmaba F088: sin animaciones, el nombre que se deslizaba terminaba en «…». P418 (Franco, F121b:
+     nada con «…» ni deslizándose, para gente de 40 para arriba) lo sacó del deslizamiento. El derecho lo dan el CSS de
+     `.dash-scope` (`white-space: normal`, `.dash-scope .mq-in` en línea) y, en el celular, el bloque `max-width: 899.98px`
+     (`.dash-scope-top { order: 1; flex: 1 1 100% }` y el resorte `.dash-top::before`): fila propia, debajo de los botones. */
   const el = document.getElementById('dashScope');
   const antes = { html: el.innerHTML, cls: el.className, st: el.getAttribute('style') };
   const volver = (x, v) => { if (v === null) x.removeAttribute('style'); else x.setAttribute('style', v); };
   try {
     f089ConPanel(() => PRUEBAS.enVentana(375, 812, () => {
-      dashSetMq('dashScope', 'Aeroambulancias Silva, C.A.');
+      dashSetMq('dashScope', 'Aeroambulancias Silva, C.A. · ejemplo');
       dashWireMarquees();
-      const inner = el.querySelector('.mq-in');
-      PRUEBAS.cierto(el.classList.contains('marquee'), 'guarda: a 375 px el nombre no entra y se marca para deslizar');
-      const sin = f088ConAnimaciones(false, () => {
-        const cs = getComputedStyle(inner);
-        return { te: cs.textOverflow, ov: cs.overflowX, ancho: inner.clientWidth, todo: inner.scrollWidth, caja: el.clientWidth,
-                 alto: el.getBoundingClientRect().height };
+      const foto = () => { const cs = getComputedStyle(el.querySelector('.mq-in') || el);
+        return { marca: el.classList.contains('marquee'), te: cs.textOverflow, sobra: el.scrollWidth - el.clientWidth,
+                 alto: el.getBoundingClientRect().height }; };
+      const con = f088ConAnimaciones(true, foto), sin = f088ConAnimaciones(false, foto);
+      [['con animaciones', con], ['sin animaciones', sin]].forEach(([q, f]) => {
+        PRUEBAS.falso(f.marca, '🔴 ' + q + ': no se marca para deslizar');
+        PRUEBAS.cierto(f.te !== 'ellipsis', '🔴 ' + q + ': sin «…»');
+        PRUEBAS.comoMucho(f.sobra, 1, q + ': entra entero a lo ancho · sobran ' + f.sobra + ' px');
       });
-      PRUEBAS.igual(sin.te, 'ellipsis', 'sin animaciones, termina en «…»');
-      PRUEBAS.igual(sin.ov, 'hidden', 'y el «…» lo pinta el texto que se iba a mover');
-      PRUEBAS.cierto(sin.ancho <= sin.caja + 1, 'topado al ancho de la caja: ' + sin.ancho + ' de ' + sin.caja);
-      PRUEBAS.cierto(sin.todo > sin.ancho + 2, 'guarda: hay texto de sobra que el «…» reemplaza');
-      const con = f088ConAnimaciones(true, () => {
-        const cs = getComputedStyle(inner);
-        return { te: cs.textOverflow, anim: cs.animationName, alto: el.getBoundingClientRect().height };
-      });
-      PRUEBAS.cierto(con.te !== 'ellipsis', 'con animaciones no hay «…»: compite con el deslizamiento (T3)');
-      PRUEBAS.igual(con.anim, 'anResMarquee', 'y se desliza como siempre');
-      /* Verificador de F089 (T1): sin `vertical-align: top`, el inline-block con `overflow` toma su borde de abajo
-         como línea de base y la caja crece 22 → 27 px. */
-      PRUEBAS.cierto(Math.abs(sin.alto - con.alto) <= 0.5, 'el «…» no cambia el alto de la caja: ' + sin.alto + ' contra ' + con.alto);
+      const btn = document.getElementById('dashRefreshBtn').getBoundingClientRect(), r = el.getBoundingClientRect();
+      const top = document.querySelector('#portalDash .dash-top').getBoundingClientRect();
+      PRUEBAS.cierto(btn.width > 0 && r.width > 0, 'guarda: el botón de actualizar y el nombre se ven');
+      PRUEBAS.cierto(r.top >= btn.bottom - 1, '🔴 el nombre va en su fila, debajo de los botones (' + Math.round(r.top) + ' contra ' + Math.round(btn.bottom) + ')');
+      PRUEBAS.cierto(btn.left > top.left + top.width / 2, 'y los botones siguen a la derecha');
+      /* La FILA del nombre, no el nombre: lo comparte con la insignia del rol (`#dashVista`), que corrida sola queda vacía. */
+      const fila = document.querySelector('#portalDash .dash-scope-top').getBoundingClientRect();
+      PRUEBAS.cierto(fila.width > top.width * 0.7, 'la fila del nombre va a todo el ancho (' + Math.round(fila.width) + ' de ' + Math.round(top.width) + ')');
+      /* DISCRIMINADOR: con 90 px de caja sigue sin deslizarse; baja a más renglones. */
+      el.style.width = '90px';
+      dashMedirMq(el);
+      const angosta = foto();
+      PRUEBAS.falso(angosta.marca, 'DISCRIMINADOR · con 90 px tampoco se desliza');
+      PRUEBAS.cierto(angosta.alto > con.alto + 5, 'y baja de renglón · ' + Math.round(con.alto) + ' → ' + Math.round(angosta.alto) + ' px');
     }));
   } finally { el.innerHTML = antes.html; el.className = antes.cls; volver(el, antes.st); }
 });
 
-PRUEBAS.caso('🔴 F088 · el título del informe que llega tarde se mide: se desliza, y sin animaciones termina en «…» (H1)', async () => {
+PRUEBAS.caso('🔴 F088 · P418 · el título del informe que llega tarde va entero: baja de renglón, sin deslizarse ni «…» (H1)', async () => {
+  /* Hasta la 7.73 afirmaba que se deslizaba y que sin animaciones terminaba en «…». Desde P418 envuelve (CSS de `.inf-prev`). */
   /* Verificador de F089 (H1): el historial de informes llega DESPUÉS del primer pintado, y `dashRepintarInforme`
      dibujaba las tarjetas sin medir; sin `.marquee` el título quedaba cortado en seco (y la regla de F088 no aplica).
      Camino real, con la red controlada como en P190: el médico por `onDashData`, la sección pide el historial y la
@@ -237,9 +245,11 @@ PRUEBAS.caso('🔴 F088 · el título del informe que llega tarde se mide: se de
     const prev = document.querySelector('#dsec-informe .inf-prev'), inner = prev && prev.querySelector('.mq-in');
     PRUEBAS.cierto(!!inner, 'guarda: llegó la tarjeta con su título');
     if (!inner) return;
-    PRUEBAS.cierto(inner.scrollWidth > prev.clientWidth + 2, 'guarda: a 375 px el título no entra (' + inner.scrollWidth + ' de ' + prev.clientWidth + ')');
-    PRUEBAS.cierto(prev.classList.contains('marquee'), 'al llegar se mide: queda marcado para deslizarse');
-    PRUEBAS.igual(f088ConAnimaciones(false, () => getComputedStyle(inner).textOverflow), 'ellipsis', 'y sin animaciones termina en «…»');
+    const lh = parseFloat(getComputedStyle(prev).lineHeight) || 16;
+    PRUEBAS.cierto(prev.getBoundingClientRect().height > lh * 1.5, 'guarda: a 375 px el título largo ocupa más de un renglón (' + Math.round(prev.getBoundingClientRect().height) + ' px)');
+    PRUEBAS.falso(prev.classList.contains('marquee'), '🔴 al llegar no se marca para deslizar');
+    PRUEBAS.comoMucho(prev.scrollWidth - prev.clientWidth, 1, '🔴 entra entero a lo ancho');
+    PRUEBAS.cierto(f088ConAnimaciones(false, () => getComputedStyle(inner).textOverflow) !== 'ellipsis', '🔴 y sin animaciones tampoco termina en «…»');
   } finally {
     window.fetch = oFetch; window.fetchConReloj = oReloj; window.gestPost = oPost;
     if (marco) { marco.style.width = tam.w; marco.style.height = tam.h; void document.body.offsetWidth; }
@@ -382,7 +392,9 @@ PRUEBAS.caso('F089 · el ↻ sin datos nuevos vuelve a medir: updateDashUpdated 
   } finally { window.requestAnimationFrame = raf; el.textContent = antes; DASH = prev; }
 });
 
-PRUEBAS.caso('🔴 F088 · el logo que carga tarde vuelve a medir el nombre de la empresa (H2)', async () => {
+PRUEBAS.caso('🔴 F088 · P418 · el logo que carga tarde no le corta el nombre a la empresa (H2)', async () => {
+  /* Hasta la 7.73 afirmaba que, al llegar el logo, el nombre dejaba de entrar y se marcaba para deslizar. Desde P418 el nombre
+     tiene su propia fila en el celular, debajo del logo: el logo no le come ancho, y aunque se lo comiera, envuelve. */
   /* Camino real: el logo viaja en la `marca` del payload, `onDashData` → `dashApplyMarca`. El nombre se mide con la caja
      sin logo; cuando el logo llega, la caja se achica y sólo su `onload` vuelve a medir. El `?f088=` evita la caché,
      para que llegue DESPUÉS de la medición, como en la red. */
@@ -425,9 +437,9 @@ PRUEBAS.caso('🔴 F088 · el logo que carga tarde vuelve a medir el nombre de l
     await new Promise(res => { if (img.complete && img.naturalWidth) res(); else { img.addEventListener('load', res, { once: true }); img.addEventListener('error', res, { once: true }); setTimeout(res, 15000 /* F111 · 4 s no alcanzaba con la máquina paginando (2026-11-10); si falla, `error` resuelve enseguida */); } });
     await null;
     PRUEBAS.cierto(img.naturalWidth > 0 && img.getBoundingClientRect().width > 0, 'guarda: el logo cargó y se ve');
-    const inner = sc.querySelector('.mq-in');
-    PRUEBAS.cierto(!!inner && inner.scrollWidth > sc.clientWidth + 2, 'guarda: con el logo, el nombre ya no entra (' + (inner && inner.scrollWidth) + ' de ' + sc.clientWidth + ')');
-    PRUEBAS.cierto(sc.classList.contains('marquee'), 'al cargar el logo se vuelve a medir: el nombre queda marcado para deslizarse');
+    PRUEBAS.falso(sc.classList.contains('marquee'), '🔴 con el logo, el nombre sigue sin deslizarse');
+    PRUEBAS.comoMucho(sc.scrollWidth - sc.clientWidth, 1, '🔴 y entra entero (' + sc.scrollWidth + ' de ' + sc.clientWidth + ' px)');
+    PRUEBAS.cierto(sc.getBoundingClientRect().top >= img.getBoundingClientRect().bottom - 1, 'porque va en su fila, debajo del logo');
   } finally {
     window.fetch = oFetch; window.fetchConReloj = oReloj; window.gestPost = oPost; window.requestAnimationFrame = raf;
     try { dashApplyMarca(null); } catch (e) {}
@@ -528,17 +540,17 @@ PRUEBAS.caso('F088 · la regla del «…», dado el `.marquee`: el título del i
 
 PRUEBAS.caso('⚠️ F088 · el «…» no cambia la medición: dashMedirMq da la misma distancia con y sin animaciones', () => {
   /* El «…» va en el hijo que se mueve, con su ancho topado: su `scrollWidth` tiene que seguir midiendo el texto
-     ENTERO. Si midiera lo topado, `dashMedirMq` le sacaría el `.marquee` y con animaciones dejaría de deslizarse. */
-  const el = document.getElementById('dashScope');
-  const antes = { html: el.innerHTML, cls: el.className, st: el.getAttribute('style') };
-  const volver = (x, v) => { if (v === null) x.removeAttribute('style'); else x.setAttribute('style', v); };
+     ENTERO. Si midiera lo topado, `dashMedirMq` le sacaría el `.marquee` y con animaciones dejaría de deslizarse.
+     P418 · se mide en una caja neutra: `#dashScope` ya no se desliza (baja de renglón), pero el mecanismo sigue para
+     cualquier `.mq-in`, y es él lo que este caso cuida. */
+  const el = document.createElement('div');
+  el.id = 'f088Host'; el.style.cssText = 'position:absolute;left:0;top:0;width:120px;max-width:120px;overflow:hidden;font-size:.8rem';
+  document.body.appendChild(el);
   try {
-    f089ConPanel(() => PRUEBAS.enVentana(375, 812, () => {
-      dashSetMq('dashScope', 'Aeroambulancias Silva, C.A.');
-      const mide = () => { dashMedirMq(el); dashMedirMq(el); return { marca: el.classList.contains('marquee'), dist: el.style.getPropertyValue('--marquee-dist') }; };
-      const con = f088ConAnimaciones(true, mide), sin = f088ConAnimaciones(false, mide);
-      PRUEBAS.cierto(con.marca && sin.marca, 'se marca para deslizar en los dos casos, también al volver a medir');
-      PRUEBAS.igual(sin.dist, con.dist, 'la misma distancia');
-    }));
-  } finally { el.innerHTML = antes.html; el.className = antes.cls; volver(el, antes.st); }
+    dashSetMq('f088Host', 'Aeroambulancias Silva, C.A.');
+    const mide = () => { dashMedirMq(el); dashMedirMq(el); return { marca: el.classList.contains('marquee'), dist: el.style.getPropertyValue('--marquee-dist') }; };
+    const con = f088ConAnimaciones(true, mide), sin = f088ConAnimaciones(false, mide);
+    PRUEBAS.cierto(con.marca && sin.marca, 'se marca para deslizar en los dos casos, también al volver a medir');
+    PRUEBAS.igual(sin.dist, con.dist, 'la misma distancia');
+  } finally { el.remove(); }
 });

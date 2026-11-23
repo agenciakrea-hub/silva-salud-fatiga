@@ -17,7 +17,8 @@ PRUEBAS.caso('🔴 F001 · un texto corto NO hereda la marquesina del texto larg
      `display:none` sin sesión, y ahí `clientWidth` es 0 y la medición no mide nada. */
   const host = document.createElement('div');
   host.id = 'f001Host';
-  host.className = 'dash-scope';
+  /* P418 · sin `.dash-scope`: desde ahí el nombre ya no se desliza (baja de renglón) y su `.mq-in` va en línea. El contrato
+     de F001 es del MECANISMO (`dashSetMq` vuelve a medir), que sigue para cualquier `.mq-in`: se mide en una caja neutra. */
   host.style.cssText = 'width:120px;max-width:120px;overflow:hidden;font-size:.8rem';
   document.body.appendChild(host);
   try {

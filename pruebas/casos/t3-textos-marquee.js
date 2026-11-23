@@ -52,7 +52,11 @@ function t3ConPanelVisible(fn){
   }
 }
 
-PRUEBAS.caso('⚠️ #dashScope se desliza cuando el nombre no entra, y deja de hacerlo si entra', () => {
+PRUEBAS.caso('⚠️ #dashScope SALIÓ del deslizamiento (P418): en una caja de 90 px baja de renglón, sin `.marquee`', () => {
+  /* Hasta la 7.73 este caso afirmaba lo contrario: que el nombre se deslizaba cuando no entraba. P418 (Franco, F121b: nada
+     con «…» ni deslizándose, para gente de 40 para arriba) lo hizo envolver: el derecho lo da el CSS de `.dash-scope`
+     (`white-space: normal`) y `.dash-scope .mq-in` en línea, que deja a `dashMedirMq` midiendo que entra. Lo que se ve
+     en el teléfono (su propia fila) está en `f087-actualizado-en-celular.js`. */
   /* Usa el elemento REAL (es único en toda la página, vive siempre en el shell de #portalDash,
      esté o no abierto el panel) en vez de duplicar el id: un `#dashScope` repetido rompería
      cualquier otra prueba que corra después y consulte `document.getElementById('dashScope')`. */
@@ -62,20 +66,18 @@ PRUEBAS.caso('⚠️ #dashScope se desliza cuando el nombre no entra, y deja de 
   try {
     t3ConPanelVisible(() => {
       dashSetMq('dashScope', 'Empresa con un nombre bastante largo · ejemplo');
-      el.style.width = '90px';                 // fuerza el corte, sin depender del ancho de la ventana
+      el.style.width = '90px';                 // la caja angosta, sin depender del ancho de la ventana
       dashWireMarquees();
-      PRUEBAS.cierto(el.classList.contains('marquee'), 'con la caja angosta tiene que activarse el desplazamiento');
-      const dist = parseFloat(el.style.getPropertyValue('--marquee-dist'));
-      PRUEBAS.cierto(dist < 0, 'la distancia tiene que ser negativa (desliza hacia la izquierda): ' + dist);
-
-      /* No se prueba "agrandar la caja a 600px": `.dash-scope` es un ítem flex sin flex-shrink:0,
-         así que el propio contenedor lo puede volver a apretar y el ancho forzado no se sostiene
-         —confundiría la prueba, no el mecanismo—. Se prueba lo mismo por el otro lado: un texto
-         corto en la MISMA caja angosta tiene que entrar solo, sin necesitar más espacio. */
-      el.style.width = '90px';
-      dashSetMq('dashScope', 'Y');
-      dashWireMarquees();
-      PRUEBAS.falso(el.classList.contains('marquee'), 'un texto de una letra entra en 90px sin desplazarse');
+      PRUEBAS.cierto(el.clientWidth > 0 && el.clientWidth <= 95, 'guarda: la caja mide de verdad unos 90 px (' + el.clientWidth + ')');
+      PRUEBAS.falso(el.classList.contains('marquee'), '🔴 con la caja angosta NO se activa el desplazamiento');
+      PRUEBAS.comoMucho(el.scrollWidth - el.clientWidth, 1, '🔴 y el texto entra a lo ancho: baja de renglón');
+      PRUEBAS.cierto(el.getBoundingClientRect().height > 40, 'en varios renglones (' + Math.round(el.getBoundingClientRect().height) + ' px de alto)');
+      /* DISCRIMINADOR: el mismo texto en una caja neutra (sin `.dash-scope`) sí se marca: el mecanismo sigue vivo. */
+      const neutra = document.createElement('div'); neutra.id = '__t3_neutra__'; neutra.style.cssText = 'width:90px;overflow:hidden';
+      document.body.appendChild(neutra);
+      try { dashSetMq('__t3_neutra__', 'Empresa con un nombre bastante largo · ejemplo');
+            PRUEBAS.cierto(neutra.classList.contains('marquee'), 'DISCRIMINADOR · en una caja neutra el mismo texto se desliza'); }
+      finally { neutra.remove(); }
     });
   } finally {
     el.innerHTML = antes.html; el.className = antes.cls; el.style.width = antes.w;
@@ -110,7 +112,8 @@ PRUEBAS.caso('⚠️ #dashUpdated SALIÓ del deslizamiento (F089): ni con una ca
   }
 });
 
-PRUEBAS.caso('⚠️ el informe ejecutivo colapsado se desliza si su título no entra en la columna', () => {
+PRUEBAS.caso('⚠️ el informe ejecutivo plegado SALIÓ del deslizamiento (P418): en una columna de 150 px baja de renglón', () => {
+  /* El derecho lo da el CSS de `.inf-prev` (`white-space: normal`) y `.inf-prev .mq-in` en línea. Hasta la 7.73 se deslizaba. */
   /* `.inf-prev` sí se puede duplicar sin riesgo (es una clase, no un id): se arma un fixture propio,
      como en Y6/T1, montado en el documento de verdad (clientWidth da 0 en un nodo desconectado). */
   const caja = document.createElement('div');
@@ -120,7 +123,9 @@ PRUEBAS.caso('⚠️ el informe ejecutivo colapsado se desliza si su título no 
   try {
     const el = caja.querySelector('.inf-prev');
     dashWireMarquees();
-    PRUEBAS.cierto(el.classList.contains('marquee'), 'el título del informe es más largo que 150px, tiene que deslizarse');
+    PRUEBAS.falso(el.classList.contains('marquee'), '🔴 el título, más largo que 150 px, ya no se desliza');
+    PRUEBAS.comoMucho(el.scrollWidth - el.clientWidth, 1, '🔴 entra a lo ancho');
+    PRUEBAS.cierto(el.getBoundingClientRect().height > 30, 'porque baja de renglón (' + Math.round(el.getBoundingClientRect().height) + ' px de alto)');
   } finally { caja.remove(); }
 });
 

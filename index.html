@@ -54,6 +54,10 @@
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* P418 · el `<small>` sin regla propia achica al 83 % de lo que lo rodea: adentro de un texto de .78rem
+     daba 10,3 px (el rol entre paréntesis de la bitácora del panel). Piso de 12 px con la letra Normal;
+     las reglas con clase (`.hsem-m small`…) tienen más especificidad y siguen mandando. */
+  small { font-size: max(.75rem, .83em); }
   /* G4: un solo anillo de foco, consistente en toda la app. `:focus-visible` (no `:focus` a
      secas) hace que sólo aparezca navegando con teclado — un tap en celular no dispara esto en
      los navegadores que lo soportan, así que no hay un anillo naranja saltando en cada toque. */
@@ -1019,7 +1023,7 @@
      distintos: con --sem-verde-solid daba 2,55:1 en oscuro (ese token es un RELLENO, no un color
      de texto), y con --sem-verde daba 2,81:1 en claro (el par texto+fondo-pálido es justamente el
      que viene flojo en tema claro). El relleno sólido da 5,37:1 en ambos. */
-  .nom-op-ya { flex-shrink: 0; font-size: .66rem; font-weight: 800; text-transform: uppercase;
+  .nom-op-ya { flex-shrink: 0; font-size: .75rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: var(--sem-verde-solid);
     border-radius: 999px; padding: .1rem .45rem; }
   .nom-cargando, .nom-vacio { font-size: .84rem; color: var(--text-muted); padding: .8rem .2rem; line-height: 1.5; }
@@ -1116,7 +1120,16 @@
   .rtable { display: flex; flex-direction: column; flex: 1; }
   .rtable-head, .rtable-row { display: grid; grid-template-columns: 1fr repeat(5, 32px); gap: 4px; align-items: center; }
   .rtable-head { padding-bottom: 0.45rem; border-bottom: 2px solid var(--linea); margin-bottom: 0.15rem; }
-  .rtable-hcell { font-size: 0.58rem; font-weight: 700; text-align: center; line-height: 1.2; word-break: break-word; }
+  /* P418 · LOS RÓTULOS DE LA ESCALA, A 12 PX Y DERECHOS. Iban a .58rem (9,3 px) partidos adentro de columnas de 32 px:
+     «Moderado» mide ~55 px y no entra. Ahora cada rótulo va entero, centrado sobre su columna, y los que se pisarían con
+     el de al lado suben a otro renglón (`perelliEscalonarRotulos` mide y elige el renglón; con letra grande pueden ser
+     tres). El último se alinea al borde derecho de su columna para no salirse de la tarjeta; el primero puede ocupar
+     el hueco vacío de la columna de los ítems. Sin girar la letra: para gente de 40 para arriba, derecha se lee mejor. */
+  .rtable-hcell { position: relative; align-self: stretch; min-height: var(--rt-alto, 2.5em); font-size: .75rem;
+    font-weight: 700; line-height: 1.2; }
+  .rtable-hcell > span { position: absolute; left: 50%; bottom: var(--rt-abajo, 0px); transform: translateX(-50%);
+    white-space: nowrap; text-align: center; }
+  .rtable-hcell:last-child > span { left: auto; right: 0; transform: none; text-align: right; }
   .rtable-lbl { font-size: 0.8rem; font-weight: 600; color: var(--text); }
   .rtable-row { padding: 0.4rem 0; border-bottom: 1px solid var(--linea); }
   .rtable-row:last-child { border-bottom: none; }
@@ -1245,16 +1258,15 @@
     display: inline-flex; align-items: center; justify-content: center; }
   .dash-scope-wrap { flex: 1; min-width: 0; }
   .dash-scope-top { display: flex; align-items: center; gap: .45rem; min-width: 0; }
-  /* T3: SIN text-overflow:ellipsis a propósito — con el desplazamiento (más abajo) el texto entero
-     tiene que poder pintarse para deslizarse; la elipsis y la animación se pisan entre sí. */
-  /* ⚠️ SIN `text-overflow`, Y ES DELIBERADO. Se intentó agregarle `ellipsis` viendo que a 375 px
-     «Empresa Demo · ejemplo» entra a la mitad — pero T3 ya resolvió esto MEJOR: `dashWireMarquees`
-     le pone `.marquee` cuando el texto no entra y lo desplaza, así se lee ENTERO. La elipsis
-     compite con esa animación: recorta antes de que el deslizamiento pueda mostrar el final.
-     Hay un caso que se pone en rojo si alguien se la vuelve a agregar (`t3-textos-marquee.js`).
-     La única excepción es F088: sin animaciones («reducir movimiento») no hay nada que deslizar, y
-     ahí el `.mq-in` de adentro sí termina en «…» (ver `html.sin-animaciones .marquee .mq-in`). */
-  .dash-scope { font-weight: 800; font-size: 1.05rem; color: #fff; white-space: nowrap; overflow: hidden; }
+  /* ⚠️ P418 · EL NOMBRE NO SE CORTA NI SE DESLIZA: BAJA DE RENGLÓN. Historia, para no volver atrás: primero se
+     cortaba a la mitad; alguien le puso «…» y T3 lo cambió por deslizarlo (`dashWireMarquees`), que se lee entero
+     pero en movimiento; F088 le devolvió la «…» con «reducir movimiento». Franco (F121b, 2026-11-19): para gente de
+     40 para arriba, nada con «…» ni deslizándose. Ahora el nombre envuelve (en el celular tiene su propia fila, ver
+     el bloque de `max-width: 899.98px`); el `.mq-in` que le pone `dashSetMq` va en línea, así que `dashMedirMq` mide
+     que entra y nunca le pone `.marquee`. Lo mismo para el título del informe plegado (`.inf-prev`). El mecanismo
+     queda como último recurso, sin nadie que lo use; `t3-textos-marquee.js` cuida que estos dos no vuelvan a él. */
+  .dash-scope { font-weight: 800; font-size: 1.05rem; line-height: 1.25; color: #fff; white-space: normal; overflow-wrap: break-word; min-width: 0; }
+  .dash-scope .mq-in, .inf-prev .mq-in { display: inline; white-space: normal; }
   /* Insignia de "dónde estoy parado" (P9-post, pedido explícito 2026-08-08): qué panel se está
      viendo — Personal / Supervisor / Servicio médico / Dirección — pegada al nombre de la empresa,
      arriba de todo. Antes no había forma de saberlo salvo mirando qué pestañas aparecen abajo. */
@@ -1263,20 +1275,26 @@
      marca para que se lea de un vistazo como quién se está mirando. */
   .visor { margin: .55rem .9rem 0; padding: .15rem .45rem .15rem .3rem; background: var(--card);
     border: 1.5px solid var(--sup-borde); border-radius: var(--radius-sm); }
-  .visor-cab { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+  .visor-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem; }
   /* la cabecera es un botón: una línea, 44 px de alto, y abre/cierra el resto */
-  .visor-cab-btn { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .45rem; min-height: 44px;
+  /* ⚠️ P418 · CON LETRA GRANDE LA CABECERA ENVUELVE, EN DOS NIVELES. El resumen («Empresa Demo · Servicio médico») iba en
+     un renglón con «…» y, al lado del título y de «← Todas las empresas», le quedaban 0 px: era invisible. Al dejarlo
+     envolver sin más se apiló LETRA POR LETRA (598 px de alto a 430 con «Muy grande», medido). Ahora: si el botón no
+     tiene 8rem, «← Todas las empresas» baja a otro renglón; y si el resumen no tiene 6rem al lado del título, va debajo.
+     Con 8rem, a 375 y letra Normal el botón sigue en la línea y el resumen envuelve en dos renglones a su lado: el
+     visor plegado mide ~52 px, como antes, pero se lee entero (antes quedaba «Empre…» o nada). */
+  .visor-cab-btn { flex: 1 1 8rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .1rem .45rem; min-height: 44px;
     padding: .3rem .35rem; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
     border-radius: var(--radius-sm); }
   .visor-cab-btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
   .visor-chev { flex-shrink: 0; width: .55rem; height: .55rem; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
     transform: rotate(-45deg); transition: transform .18s; margin: 0 .1rem 0 .15rem; }
   .visor-cab-btn[aria-expanded="true"] .visor-chev { transform: rotate(45deg); }
-  .visor-t { flex-shrink: 0; font-size: .7rem; font-weight: 800; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
-  .visor-resumen { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; font-weight: 800; color: var(--text-soft); }
+  .visor-t { flex-shrink: 0; font-size: .75rem; font-weight: 800; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+  .visor-resumen { flex: 1 1 6rem; min-width: 0; white-space: normal; overflow-wrap: break-word; font-size: .82rem; font-weight: 800; color: var(--text-soft); }
   .visor-resumen b { color: var(--orange-legible); font-weight: 800; }
   .visor-volver { flex-shrink: 0; min-height: 44px; padding: .3rem .65rem; border-radius: 999px; border: 1.5px solid var(--sup-borde);
-    background: var(--sup-campo); color: var(--text); font: inherit; font-size: .74rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+    background: var(--sup-campo); color: var(--text); font: inherit; font-size: .75rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
   .visor-volver:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
   .visor-cuerpo { padding: .35rem .4rem .6rem; border-top: 1px solid var(--linea); }
   .visor-salir { display: block; width: 100%; margin-top: .6rem; min-height: 44px; padding: .5rem .8rem; border-radius: var(--radius-sm);
@@ -1324,7 +1342,7 @@
     padding: .55rem .7rem; background: var(--chip-bg); border-radius: var(--radius-sm); }
   .visor-guia p { margin: 0 0 .4rem; } .visor-guia p:last-child { margin: 0; }
   .visor-sels { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
-  .visor-sel { display: flex; flex-direction: column; gap: .25rem; font-size: .7rem; font-weight: 700;
+  .visor-sel { display: flex; flex-direction: column; gap: .25rem; font-size: .75rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
   .visor-sel select { width: 100%; min-height: 2.6rem; padding: .5rem .7rem; font: inherit; font-size: .92rem; font-weight: 700;
     text-transform: none; letter-spacing: 0; color: var(--text); background: var(--sup-campo);
@@ -1348,12 +1366,12 @@
   /* el acceso de administración: uso interno, con la marca y los datos técnicos a la vista */
   .adm-gate-cab { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: .2rem 0 .45rem; }
   .adm-gate-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .22rem .6rem; border-radius: 999px;
-    font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--sem-azul-int); background: var(--sem-azul-bg); }
-  .adm-gate-ver { font-size: .7rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--sem-azul-int); background: var(--sem-azul-bg); }
+  .adm-gate-ver { font-size: .75rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .adm-gate-nota { margin: 0 0 .7rem; font-size: .8rem; line-height: 1.45; color: var(--text-soft); }
-  .adm-gate-tec { margin: .6rem 0 0; font-size: .68rem; line-height: 1.4; color: var(--text-muted); }
-  .adm-gate-tec code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .68rem; }
-  .dash-vista { flex-shrink: 0; font-size: .64rem; font-weight: 800; text-transform: uppercase;
+  .adm-gate-tec { margin: .6rem 0 0; font-size: .75rem; line-height: 1.4; color: var(--text-muted); }
+  .adm-gate-tec code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .75rem; }
+  .dash-vista { flex-shrink: 0; font-size: .75rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; color: #fff; background: rgba(255,255,255,.18); border-radius: 999px;
     padding: .12rem .5rem; white-space: nowrap; }
   .dash-updated { font-size: .78rem; font-weight: 600; line-height: 1.35; color: var(--sobre-marca-2); margin-top: 1px; }   /* F089: entera, quieta y legible; si no entra, baja de renglón */
@@ -1379,7 +1397,16 @@
   @media (max-width: 899.98px) {
     .dash-top { flex-wrap: wrap; row-gap: .35rem; }
     .dash-scope-wrap { display: contents; }
-    .dash-scope-top { flex: 1; min-width: 0; }
+    /* P418 · EL NOMBRE VA EN SU PROPIA FILA, A TODO EL ANCHO, DEBAJO DE LOS BOTONES (como el título grande de iOS).
+       Compartía la fila con atrás, el logo y tres botones: a 375 px le quedaban ~90 px y «Empresa Demo · ejemplo» se
+       deslizaba (T3). Franco (F121b): nada deslizándose. El `::before` es el resorte que deja los botones a la derecha;
+       lo de la izquierda va antes que él (`order: -1`) y el nombre, la hora y el estado de HSEQ, después (1 y 2). */
+    .dash-top::before { content: ''; order: 0; flex: 1 1 0; min-width: 0; }
+    .dash-top > .portal-back, .dash-top > .dash-brand-logo, .dash-top > .dash-ini { order: -1; }
+    /* La fila del nombre ENVUELVE (verificador de P418): la insignia del rol («SERVICIO MÉDICO», 171 px con «Muy grande»)
+       no se achica y, al lado, dejaba 88 a 143 px al nombre, que se partía a mitad de palabra («Aeroambulanc/ias»). Si
+       el nombre y la insignia no entran juntos, la insignia baja y el nombre tiene la fila entera. */
+    .dash-scope-top { order: 1; flex: 1 1 100%; min-width: 0; flex-wrap: wrap; row-gap: .25rem; }
     .dash-updated { order: 1; flex: 1 1 100%; margin-top: 0; }
     .dash-updated:empty::before { content: attr(data-reserva); visibility: hidden; }
     .hseq-estado-fila { order: 2; }
@@ -1387,7 +1414,7 @@
   .dash-brand-logo { height: 30px; max-width: 96px; object-fit: contain; flex-shrink: 0; border-radius: 6px;
     background: var(--card); padding: 2px; }
   .dash-demo { flex-shrink: 0; border: 1.5px solid var(--orange); background: var(--orange-bg); color: var(--orange-legible); border-radius: 999px;
-    padding: .34rem .7rem; font-family: inherit; font-weight: 700; font-size: .74rem; cursor: pointer; white-space: nowrap; }
+    padding: .34rem .7rem; font-family: inherit; font-weight: 700; font-size: .75rem; cursor: pointer; white-space: nowrap; }
   .dash-demo.on { background: var(--orange); color: #fff; }
   .dash-refresh { width: 44px; height: 44px; border: 1.5px solid rgba(255,255,255,.22); background: rgba(255,255,255,.1);
     border-radius: 10px; color: #fff; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
@@ -1466,8 +1493,8 @@
   .dfm-toggle-ic svg:first-child { width: 17px; height: 17px; }
   .dfm-toggle-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
   .dfm-toggle-title { font-size: .86rem; font-weight: 800; color: #fff; }
-  .dfm-toggle-sub { font-size: .74rem; font-weight: 700; color: #fff; opacity: .88; overflow: hidden;
-    text-overflow: ellipsis; white-space: nowrap; }
+  .dfm-toggle-sub { font-size: .75rem; font-weight: 700; color: #fff; opacity: .88;
+    white-space: normal; overflow-wrap: break-word; }   /* P418: sin «…»; si no entra, otro renglón */
   /* Insignia circular con la flechita, sobre la esquina del icono: ahí se nota que ESE cuadradito
      es el que despliega/repliega, en vez de una flecha suelta del otro lado del botón. */
   .dfm-toggle-chevron { position: absolute; right: -5px; bottom: -5px; width: 16px; height: 16px;
@@ -1498,7 +1525,7 @@
   .gloss-toggle-ic-close { display: none; }
   .gloss-toggle.open .gloss-toggle-ic-book { display: none; }
   .gloss-toggle.open .gloss-toggle-ic-close { display: block; }
-  .gloss-toggle-label { font-size: .64rem; font-weight: 800; }
+  .gloss-toggle-label { font-size: .75rem; font-weight: 800; }
   .gloss-toggle.open { background: rgba(255,255,255,.16); }
   /* El título queda FIJO arriba (no se mueve) y sólo la lista de abajo scrollea: por eso el
      título vive AFUERA de la parte con overflow. Al alto quedar acotado (no "el alto de todo el
@@ -1535,17 +1562,17 @@
   .dash-filters { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.1rem; }
   .df-row { display: flex; gap: .5rem; }
   .df { flex: 1; min-width: 0; }
-  .df label { display: block; font-size: .74rem; font-weight: 700; color: var(--text-muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .03em; }
+  .df label { display: block; font-size: .75rem; font-weight: 700; color: var(--text-muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .03em; }
   .df input, .df select { width: 100%; padding: .62rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; color: var(--text); background: var(--sup-campo); }
 
   .dash-count { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin-bottom: .8rem; }
   .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-bottom: 1.3rem; }
   .kpi { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 13px; padding: .75rem .5rem; text-align: center; }
   .kpi.over { background: var(--sem-rojo-bg); border-color: var(--sem-rojo-alt); }
-  .kpi .km { font-size: .74rem; font-weight: 700; color: var(--text-soft); text-transform: uppercase; letter-spacing: .02em; }
+  .kpi .km { font-size: .75rem; font-weight: 700; color: var(--text-soft); text-transform: uppercase; letter-spacing: .02em; }
   .kpi .kv { font-size: 1.6rem; font-weight: 800; color: var(--text); margin: .14rem 0; }
   .kpi.over .kv { color: var(--sem-rojo-txt); }
-  .kpi .kref { font-size: .68rem; font-weight: 600; color: var(--text-soft); line-height: 1.3; }
+  .kpi .kref { font-size: .75rem; font-weight: 600; color: var(--text-soft); line-height: 1.3; }
 
   /* ══════════ G2 · Informe imprimible ══════════
      No se genera un documento aparte: se IMPRIME el panel tal como está, con los filtros que la
@@ -1606,14 +1633,14 @@
      a tres columnas cada tarjeta queda de 110 px y el texto se parte en cuatro renglones. */
   .kpi { display: flex; flex-direction: column; gap: .1rem; }
   .kpi .kv { margin: .1rem 0 .05rem; font-variant-numeric: tabular-nums; }
-  .ktrend { font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .ktrend { font-size: .75rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .ktrend-mal { color: var(--sem-rojo-txt); }
   .ktrend-bien { color: var(--sem-verde-txt); }
   .ktrend-igual { color: var(--text-muted); }
   .spark { display: block; width: 100%; height: 26px; margin: .18rem 0 .1rem; }
   .spark-vacia { height: 26px; }
-  .kconf { font-size: .64rem; font-weight: 700; color: var(--sem-ambar-txt); line-height: 1.25; margin-top: .15rem; }
-  .kfresco { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: -.9rem; margin-bottom: 1.1rem; }
+  .kconf { font-size: .75rem; font-weight: 700; color: var(--sem-ambar-txt); line-height: 1.25; margin-top: .15rem; }
+  .kfresco { font-size: .75rem; font-weight: 600; color: var(--text-muted); margin-top: -.9rem; margin-bottom: 1.1rem; }
   .kfresco-viejo { color: var(--sem-ambar-txt); font-weight: 700; }
   .kpi.over .kref { color: var(--sem-rojo-txt); }
   /* P308 · debajo del piso de personas medidas la tarjeta no pinta nada que salga de los tests, ni el
@@ -1640,7 +1667,7 @@
   .db-sub { font-size: .82rem; font-weight: 600; color: var(--text-muted); margin: -.5rem 0 .75rem; line-height: 1.4; }
   .bars { display: flex; flex-direction: column; gap: .5rem; }
   .bar-row { display: grid; grid-template-columns: 90px 1fr 46px; gap: .55rem; align-items: center; }
-  .bar-lbl { font-size: .84rem; font-weight: 600; color: var(--text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-lbl { font-size: .84rem; font-weight: 600; color: var(--text-soft); white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
   .bar-track { position: relative; height: 20px; background: var(--linea); border-radius: 6px; overflow: hidden; }
   /* OJO: la barra es un <i>, que por defecto es inline y IGNORA width/height (por eso las barras
      salían vacías). Tiene que ser block para que el ancho en % se aplique. */
@@ -1648,7 +1675,7 @@
   .bar-fill.over { background: var(--sem-rojo); }
   .bar-ref { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ch-ref); opacity: .55; }
   .bar-val { font-size: .84rem; font-weight: 700; color: var(--text); text-align: right; }
-  .ref-note { font-size: .74rem; color: var(--text-muted); margin-top: .5rem; display: flex; align-items: center; gap: .35rem; }
+  .ref-note { font-size: .75rem; color: var(--text-muted); margin-top: .5rem; display: flex; align-items: center; gap: .35rem; }
   .ref-note i { width: 12px; height: 2px; background: var(--ch-ref); opacity: .55; display: inline-block; }
 
   /* Radar */
@@ -1681,25 +1708,36 @@
      Lo que esa unidad NO dice es cuánto vale el indicador: un 1,50 no distingue un KSS de 4 de uno
      de 7, y el número crudo es justo lo que mira el médico. Estas filas son el otro lado del mismo
      dato — cada instrumento en su propia escala, con su referencia marcada y el valor escrito. */
-  .mini-esc { width: 100%; margin-top: 1rem; }
+  .mini-esc { width: 100%; margin-top: 1rem; container-type: inline-size; }
   .me-tit { font-size: .88rem; font-weight: 800; color: var(--text); margin-bottom: .15rem; }
   .me-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); margin-bottom: .55rem; line-height: 1.4; }
-  .me-fila { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(56px, 1.4fr) auto;
+  .me-fila { display: grid; grid-template-columns: fit-content(45%) minmax(56px, 1fr) fit-content(40%);
     gap: .5rem; align-items: center; padding: .42rem 0; border-bottom: 1px solid var(--linea-2); }
   .me-fila:last-child { border-bottom: 0; }
+  /* ⚠️ P418 · CUANDO NO ENTRAN LAS TRES COLUMNAS, EL RIEL VA ABAJO. Nombre + riel + valor piden ~16rem; con menos (320 px,
+     o 375 con «Muy grande») el valor se apilaba palabra por palabra («3.9 / de / 6», verificador) y, sin dejarlo envolver,
+     «4.0 sin referencia» se salía del panel. La consulta es del CONTENEDOR y en `rem`, que acá sí sigue la letra elegida
+     (en un `@media`, `rem` es la del navegador y no se entera): con letra Normal pasa a dos renglones por debajo de
+     256 px, con «Muy grande» por debajo de 346. Arriba: el nombre y el valor; abajo, el riel a todo el ancho. */
+  @container (max-width: 16rem) {
+    .me-fila { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom val" "riel riel"; row-gap: .3rem; }
+    .me-fila > .me-nom { grid-area: nom; }
+    .me-fila > .me-riel { grid-area: riel; }
+    .me-fila > .me-val { grid-area: val; }
+  }
   /* Apagar un indicador en la leyenda lo saca del GRÁFICO, no de acá: se apaga para desamontonar
      las barras, no para dejar de poder leer un número. Se atenúa y se queda. */
   .me-off { opacity: .45; }
   .me-nom { font-size: .82rem; font-weight: 700; color: var(--text-soft);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    white-space: normal; overflow-wrap: break-word; }   /* P418: la columna mide lo que la palabra más larga (`fit-content`) */
   .me-riel { position: relative; height: 12px; border-radius: 6px; background: var(--pista); }
   /* La barra va ABSOLUTA y no como hijo en flujo: el riel no lleva overflow:hidden porque la marca
      de la referencia sobresale 3 px arriba y abajo a propósito (si no, se pierde adentro del riel). */
   .me-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 6px; display: block; }
   .me-marca { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px;
     background: var(--ch-ref); opacity: .85; }
-  .me-val { font-size: .82rem; font-weight: 800; color: var(--text); white-space: nowrap;
-    font-variant-numeric: tabular-nums; }
+  .me-val { font-size: .82rem; font-weight: 800; color: var(--text); text-align: right; line-height: 1.3;
+    font-variant-numeric: tabular-nums; }   /* P418: «4.0 sin referencia» baja de renglón con letra grande, no se sale */
   .me-val i { font-style: normal; font-weight: 600; color: var(--text-muted); }
   /* ⚠️ P111 · `-txt` Y NO `-alt`. Medido en A7: `--sem-rojo-alt` (#d63031) sobre
      `--sem-rojo-bg` da 4,26:1 y R13 pide 4,5. Los `--sem-*` y sus `-alt` están calibrados como
@@ -1711,15 +1749,15 @@
   .heat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -.2rem; }
   .heat { border-collapse: separate; border-spacing: 3px; width: 100%; min-width: 330px; }
   .heat th, .heat td { padding: .5rem .35rem; text-align: center; font-size: .82rem; }
-  .heat thead th { font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: .68rem; letter-spacing: .02em; }
-  .heat td.hname, .heat th.hname { text-align: left; font-weight: 700; color: var(--text); white-space: nowrap; max-width: 132px; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--card); z-index: 1; }
+  .heat thead th { font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: .75rem; letter-spacing: .02em; }
+  .heat td.hname, .heat th.hname { text-align: left; font-weight: 700; color: var(--text); white-space: normal; overflow-wrap: break-word; max-width: 132px; position: sticky; left: 0; background: var(--card); z-index: 1; }
   .heat td.cell { font-weight: 800; border-radius: 7px; color: var(--sobre-claro); min-width: 36px; font-size: .86rem; }
 
   /* Tabla estadística */
   .stat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .stat-table { border-collapse: collapse; width: 100%; min-width: 360px; }
   .stat-table th, .stat-table td { padding: .55rem .6rem; font-size: .84rem; text-align: right; border-bottom: 1px solid var(--linea-2); font-variant-numeric: tabular-nums; }
-  .stat-table th { color: var(--text-muted); font-weight: 700; font-size: .7rem; text-transform: uppercase; letter-spacing: .02em; }
+  .stat-table th { color: var(--text-muted); font-weight: 700; font-size: .75rem; text-transform: uppercase; letter-spacing: .02em; }
   .stat-table td.metric, .stat-table th.metric { text-align: left; font-weight: 700; color: var(--text); }
   .stat-table td.over { color: var(--sem-rojo-alt); font-weight: 800; }
 
@@ -1733,8 +1771,8 @@
   .lc-empty { font-size: .8rem; color: var(--text-muted); padding: 1rem 0; text-align: center; }
 
   .alert-item { display: flex; align-items: center; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid var(--linea-2); font-size: .88rem; }
-  .al-tag { font-size: .64rem; font-weight: 700; background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); padding: .14rem .42rem; border-radius: 6px; text-transform: uppercase; flex-shrink: 0; }
-  .al-name { flex: 1; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .al-tag { font-size: .75rem; font-weight: 700; background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); padding: .14rem .42rem; border-radius: 6px; text-transform: uppercase; flex-shrink: 0; }
+  .al-name { flex: 1; min-width: 0; font-weight: 700; color: var(--text); white-space: normal; overflow-wrap: break-word; }
   .al-metric { font-size: .8rem; color: var(--text-soft); flex-shrink: 0; }
   .al-val { font-weight: 800; color: var(--sem-rojo-alt); flex-shrink: 0; }
   .al-val small { color: var(--text-muted); font-weight: 600; }
@@ -1801,7 +1839,7 @@
     font-family: inherit; font-size: .84rem; font-weight: 800; cursor: pointer; }
   .rank-item { display: grid; grid-template-columns: 24px 1fr auto 16px; gap: .55rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
   .rank-pos { font-size: .82rem; font-weight: 800; color: var(--text-muted); text-align: center; font-variant-numeric: tabular-nums; }
-  .rank-name { font-size: .9rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-name { font-size: .9rem; font-weight: 700; color: var(--text); min-width: 0; white-space: normal; overflow-wrap: break-word; }
   .rank-sub { font-size: .76rem; font-weight: 600; color: var(--text-muted); }
   .rank-val { font-size: .94rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
   .rank-val.over { color: var(--sem-rojo-txt); }
@@ -1847,7 +1885,7 @@
   .pie-legend .rl-item b { color: var(--text); margin-left: .1rem; }
 
   /* Alertas compactas */
-  .db-sub2 { font-size: .72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin: .8rem 0 .4rem; }
+  .db-sub2 { font-size: .75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin: .8rem 0 .4rem; }
   .alert-card { padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
   .ac-name { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: .35rem; }
   .ac-badges { display: flex; flex-wrap: wrap; gap: .3rem; }
@@ -1855,13 +1893,15 @@
      con `--sem-rojo`, que como relleno está bien. */
   .ac-badge { font-size: .76rem; font-weight: 600; background: var(--sem-rojo-bg); color: var(--sem-rojo-txt); border: 1px solid var(--sem-rojo); padding: .14rem .46rem; border-radius: 6px; }
   .ac-badge b { font-weight: 800; margin-left: .15rem; }
-  .ac-badge i { color: var(--sem-rojo-txt); font-style: normal; font-size: .68rem; }
+  .ac-badge i { color: var(--sem-rojo-txt); font-style: normal; font-size: .75rem; }
 
   /* Comentarios */
   .cmt-item { padding: .65rem 0; border-bottom: 1px solid var(--linea-2); }
-  .cmt-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .2rem; }
-  .cmt-name { font-size: .86rem; font-weight: 700; color: var(--text); }
-  .cmt-date { font-size: .76rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+  /* P418 · con un nombre largo y letra grande, el nombre y «19 Nov 2026 · Somnolencia» no entraban en una fila y la fecha
+     se pasaba del panel (recortada 4 px a 375). La fila envuelve: si no hay lugar, la fecha baja, a la derecha. */
+  .cmt-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .1rem .5rem; margin-bottom: .2rem; }
+  .cmt-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: break-word; font-size: .86rem; font-weight: 700; color: var(--text); }
+  .cmt-date { margin-left: auto; font-size: .76rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
   .cmt-text { font-size: .9rem; color: var(--text-soft); line-height: 1.5; }
 
   .rank-item { cursor: pointer; }
@@ -1921,7 +1961,7 @@
   .pvt-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .55rem; margin: 1rem 0 .4rem; }
   .pvt-stat { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .55rem .4rem; }
   .pvt-stat .v { font-size: 1.1rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-  .pvt-stat .k { font-size: .62rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .02em; margin-top: .1rem; }
+  .pvt-stat .k { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: .02em; margin-top: .1rem; }
 
   /* Informe IA */
   .informe-btn { max-width: 340px; margin: 0 auto 1rem; display: block; }
@@ -1938,7 +1978,7 @@
   .informe-box ul { margin: .3rem 0 .6rem 1.1rem; }
   .informe-box li { font-size: .85rem; line-height: 1.55; color: var(--text-soft); margin: .2rem 0; }
   .informe-box b { color: var(--text); }
-  .informe-meta { font-size: .68rem; color: var(--text-muted); text-align: right; margin-top: .5rem; }
+  .informe-meta { font-size: .75rem; color: var(--text-muted); text-align: right; margin-top: .5rem; }
 
   /* Historial de informes (colapsable) */
   .inf-hist { display: flex; flex-direction: column; gap: .5rem; }
@@ -1948,7 +1988,7 @@
   .inf-head:hover { background: var(--sem-azul-bg); }
   .inf-headtx { flex: 1; min-width: 0; }
   .inf-date { font-size: .82rem; font-weight: 800; color: var(--text); }
-  .inf-prev { font-size: .76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; margin-top: .12rem; }
+  .inf-prev { font-size: .76rem; color: var(--text-muted); white-space: normal; overflow-wrap: break-word; line-height: 1.35; margin-top: .12rem; }
   .inf-caret { font-size: .76rem; font-weight: 700; color: var(--orange-legible); flex-shrink: 0; }
   .inf-body { padding: .8rem; }
   .inf-share { margin-top: .7rem; width: 100%; padding: .65rem; border: 1.5px solid var(--orange); background: var(--orange-bg);
@@ -2002,7 +2042,7 @@
   .jor-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: .5rem; margin: .7rem 0; }
   .jor-kpi { background: var(--chip-bg); border-radius: var(--radius-sm); padding: .6rem .5rem; text-align: center; }
   .jor-kpi .jk-n { display: block; font-size: 1.15rem; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
-  .jor-kpi .jk-l { display: block; font-size: .68rem; color: var(--text-muted); margin-top: .15rem; line-height: 1.2; }
+  .jor-kpi .jk-l { display: block; font-size: .75rem; color: var(--text-muted); margin-top: .15rem; line-height: 1.2; }
   /* El bloque de quienes están adentro AHORA y ya se pasaron: es lo único accionable hoy. */
   /* Mismo padding y radio que las otras siete cajas de aviso del panel: dentro de la misma tarjeta,
      una con las esquinas más filosas se lee como si fuera otro componente. */
@@ -2022,15 +2062,15 @@
     font-variant-numeric: tabular-nums; }
   .jor-tabla tr.jor-mal td { background: var(--sem-rojo-bg); }
   .jor-evs { min-width: 12rem; }
-  .jor-ev { display: flex; justify-content: space-between; gap: .6rem; white-space: nowrap; font-size: .74rem; color: var(--text-soft); }
+  .jor-ev { display: flex; justify-content: space-between; gap: .6rem; white-space: nowrap; font-size: .75rem; color: var(--text-soft); }
   .jor-ev-h { color: var(--text); font-variant-numeric: tabular-nums; }
-  .jor-chip { display: inline-block; font-size: .64rem; font-weight: 700; padding: .05rem .3rem;
+  .jor-chip { display: inline-block; font-size: .75rem; font-weight: 700; padding: .05rem .3rem;
     border-radius: 6px; background: var(--chip-bg); color: var(--text-muted); }
   .jor-chip-detenido { color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); }   /* P186 */
   .jor-hist { display: flex; align-items: flex-end; gap: 3px; height: 76px; margin: .4rem 0 .2rem; overflow-x: auto; }
   .jor-barra { flex: 0 0 18px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
   .jor-barra i { display: block; width: 100%; background: var(--sem-rojo); border-radius: 3px 3px 0 0; min-height: 2px; }
-  .jor-barra span { font-size: .68rem; color: var(--text-muted); margin-top: .15rem; }   /* .58rem daba 9,28 px: ilegible a distancia de brazo */
+  .jor-barra span { font-size: .75rem; color: var(--text-muted); margin-top: .15rem; }   /* .58rem daba 9,28 px: ilegible a distancia de brazo */
   .dash-aviso { font-size: .76rem; color: var(--text-muted); background: var(--chip-bg);
     border-radius: var(--radius-xs); padding: .45rem .6rem; margin: .4rem 0; line-height: 1.35; }
 
@@ -2059,7 +2099,7 @@
                        -webkit-tap-highlight-color: transparent; }
   .apt-det > summary::-webkit-details-marker { display: none; }
   .apt-det > summary::after { content: '▾'; margin-left: auto; flex: 0 0 auto;
-                              font-size: .7rem; color: var(--text-muted); }
+                              font-size: .75rem; color: var(--text-muted); }
   .apt-det[open] > summary::after { content: '▴'; }
   /* Dentro del summary la línea ya no lleva su propio margen: lo pone el summary. */
   .apt-det > summary .apt-sem { margin: 0; flex: 1 1 auto; min-width: 0; }
@@ -2117,20 +2157,20 @@
   .mov-t { margin: 0; font-size: .95rem; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
   /* El alcance: qué se está mirando. `margin-right:auto` lo deja pegado al título y empuja el ⓘ
      al extremo, que es donde está en el resto del panel. */
-  .mov-scope { margin-right: auto; font-size: .72rem; font-weight: 700; color: var(--text-muted);
+  .mov-scope { margin-right: auto; font-size: .75rem; font-weight: 700; color: var(--text-muted);
                background: var(--chip-bg); border-radius: 999px; padding: .17rem .55rem;
-               max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+               max-width: 15rem; white-space: normal; overflow-wrap: break-word; }
   .mov .dash-help { margin: 0; }
   /* ── La cobertura de la nómina ── */
   .mov-cob { margin: .55rem 0 .35rem; padding: .55rem .7rem .5rem; background: var(--sup-suave);
              border: 1px solid var(--linea); border-radius: var(--radius-sm); }
-  .mov-cob-t { font-size: .72rem; font-weight: 800; color: var(--text-muted);
+  .mov-cob-t { font-size: .75rem; font-weight: 800; color: var(--text-muted);
                text-transform: uppercase; letter-spacing: .04em; margin: 0 0 .4rem; }
   .mov-cifras { display: flex; gap: 1.3rem; flex-wrap: wrap; align-items: baseline; }
   .mov-cif { display: flex; flex-direction: column; line-height: 1.1; }
   .mov-cif b { font-size: 1.35rem; font-weight: 800; color: var(--text);
                font-variant-numeric: tabular-nums; }
-  .mov-cif small { font-size: .68rem; font-weight: 700; color: var(--text-muted);
+  .mov-cif small { font-size: .75rem; font-weight: 700; color: var(--text-muted);
                    text-transform: uppercase; letter-spacing: .03em; margin-top: .1rem; }
   /* La cifra que pide acción se distingue por COLOR DE TEXTO, no por un fondo: es un número, no
      una alarma, y el naranja de marca ya está medido en los dos temas. */
@@ -2147,7 +2187,7 @@
   .mov-nota-err { color: var(--orange-legible); }
   .mov-retry { margin-left: .3rem; min-height: 32px; border: 1.5px solid var(--orange);
                background: var(--orange-bg); color: var(--orange-legible); border-radius: var(--radius-xs);
-               padding: .15rem .55rem; font-family: inherit; font-weight: 800; font-size: .74rem; cursor: pointer; }
+               padding: .15rem .55rem; font-family: inherit; font-weight: 800; font-size: .75rem; cursor: pointer; }
   .mov-list { list-style: none; margin: .35rem 0 0; padding: 0; }
   /* Teléfono: DOS líneas por movimiento, no tres. Medido a 375 px: con `cuando | que` en la
      primera fila del grid y `quien | emp` en la segunda, cada ítem ocupaba 66 px y diez de ellos
@@ -2178,7 +2218,7 @@
                         vertical-align: .1rem; }
   .mov-quien { font-size: .8rem; color: var(--text-soft); min-width: 0; overflow-wrap: anywhere; }
   .mov-quien i { color: var(--text-muted); font-style: italic; }
-  .mov-emp { font-size: .72rem; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
+  .mov-emp { font-size: .75rem; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
   /* `dashVerMas` inserta un `<details>` como hermano de los `<li>`: se le da el mismo respiro que
      una fila para que no quede pegado al último movimiento. */
   .mov-list .ver-mas { border-top: 1px solid var(--linea-2); padding-top: .3rem; margin-top: .1rem; }
@@ -2477,7 +2517,7 @@
     .db-sub, .dash-help { font-size: .94rem; }
     .kpi .kv { font-size: 1.8rem; }
     .kpi .km { font-size: .8rem; }
-    .kpi .kref { font-size: .74rem; }
+    .kpi .kref { font-size: .75rem; }
     .bar-lbl, .bar-val { font-size: .92rem; }
     .bar-track { height: 22px; }
     .stat-table th, .stat-table td { font-size: .92rem; padding: .65rem .7rem; }
@@ -2876,7 +2916,7 @@
        `.dash-refresh`, y con la misma especificidad ganaría la última. `.dash-top .dash-ir` suma
        un selector más, así que gana esté donde esté, y además se lee en orden. */
     .dash-top .dash-ir { width: auto; min-width: 44px; gap: .42rem; padding: 0 .72rem; }
-    .dash-top .dash-ir .dash-ir-lbl { display: inline; font-size: .74rem; font-weight: 700;
+    .dash-top .dash-ir .dash-ir-lbl { display: inline; font-size: .75rem; font-weight: 700;
       letter-spacing: .01em; white-space: nowrap; }
     /* El menú/filtros TAMBIÉN se despliega en escritorio (antes quedaba fijo abierto): expandido
        se comía ~180 px de alto entre pestañas, rango y selectores, y encima dejaba al Glosario en
@@ -3328,7 +3368,7 @@
      lo primero que se ve tiene que ser quién es la app, no un control de idioma. */
   /* La credencial normativa: cierra la pantalla, debajo de las láminas. Discreta y centrada — es
      lo que mira un auditor, no la persona que va a reportar su fatiga. */
-  .splash-norma { font-size:.72rem; line-height:1.45; color:var(--entrada-tenue);
+  .splash-norma { font-size:.75rem; line-height:1.45; color:var(--entrada-tenue);
     margin:.6rem auto 0; max-width:34rem; text-align:center; padding:0 1rem;
     position:relative; z-index:2; }
 
@@ -3381,7 +3421,7 @@
      corrida. Con `.425rem`, 3,67 px. Franco eligió separarla: la pista baja, no se achica ni se mueve
      de lado. */
   .splash-lang-hint { position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:.425rem;
-    font-size:.66rem; font-weight:700; letter-spacing:.02em; line-height:1.2; white-space:nowrap;
+    font-size:.75rem; font-weight:700; letter-spacing:.02em; line-height:1.2; white-space:nowrap;
     text-align:center; color:var(--entrada-chip-ink); pointer-events:none; }
   /* ⚠️ `position:static` con `z-index` a secas, y no `position:relative`. El logo se ancla con
      `position:absolute` a la esquina superior izquierda, y su contenedor es el ancestro POSICIONADO
@@ -3638,10 +3678,10 @@
      pastilla se leía como un sticker pegado encima y no como una etiqueta. Y cambiaba de peso entre
      temas: en oscuro el borde saltaba a 5.31 y el texto a 7.06, o sea al revés.
      Con el borde al 45% del mismo naranja, el contorno acompaña en vez de competir. */
-  .spl-chip { align-self: flex-start; font-size: .66rem; font-weight: 700; letter-spacing: .04em;
+  .spl-chip { align-self: flex-start; font-size: .75rem; font-weight: 700; letter-spacing: .04em;
     color: var(--orange-legible); background: var(--orange-bg);
     border: 1px solid color-mix(in srgb, var(--spl-tinta) 45%, transparent);
-    border-radius: 999px; padding: .22rem .6rem; }
+    border-radius: 999px; padding: .22rem .6rem; line-height: 1.1; }   /* P418: a 12 px y el mismo alto que a 10,6 (`p046`: no pisa el texto) */
   .spl-activa .spl-chip { animation: splChip .5s var(--ease-app, ease) calc(var(--spl-in) + .35s) both; }
   @keyframes splChip { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -3797,7 +3837,7 @@
     50%      { box-shadow: 0 0 0 8px var(--orange-bg); } }
 
   /* 3 · Enfoque científico. Las cuatro variables entran de a una, como si se fueran midiendo. */
-  .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .3rem; }
+  .spl-mon { display: flex; flex-direction: column; justify-content: center; gap: .15rem; }
   .spl-mon span { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
   .spl-activa .spl-mon span { animation: splFila .45s cubic-bezier(.22,1.1,.36,1) var(--spl-in) both; }
   .spl-activa .spl-mon span:nth-child(2){ animation-delay: calc(var(--spl-in) + .13s) }
@@ -3811,10 +3851,14 @@
   .spl-activa .spl-mon span:nth-child(3) u { animation-delay: calc(var(--spl-in) + .44s) }
   .spl-activa .spl-mon span:nth-child(4) u { animation-delay: calc(var(--spl-in) + .57s) }
   @keyframes splPildora { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: none; } }
-  .spl-mon i { font-style: normal; font-size: .6rem; font-weight: 800; letter-spacing: .05em;
+  /* P418 · 12 px y con tope en px, como el resto de la tira («la tira es ILUSTRACIÓN de portada», ver `.spl-p-tx`): iba a
+     .6rem (9,6 px). Más grande, las cuatro filas no entraban en la tarjeta de alto fijo (7 px a 375x667, 31 a 1366x768 con
+     letra Grande, medido por `m5`); con el tope y las filas más juntas (.15rem en vez de .3rem, la píldora con menos
+     relleno vertical) entran en todas las ventanas de `PRUEBAS.VENTANAS`. */
+  .spl-mon i { font-style: normal; font-size: min(.75rem, 12px); line-height: 1.2; font-weight: 800; letter-spacing: .05em;
     color: var(--text-muted); }
-  .spl-mon u { text-decoration: none; font-size: .6rem; font-weight: 800; border-radius: 999px;
-    padding: .1rem .45rem; }
+  .spl-mon u { text-decoration: none; font-size: min(.75rem, 12px); line-height: 1.2; font-weight: 800; border-radius: 999px;
+    padding: .04rem .45rem; }
   .spl-mon u.ok  { color: var(--sem-verde-txt);  background: var(--sem-verde-bg); }
   .spl-mon u.alt { color: var(--sem-ambar-txt);  background: var(--sem-ambar-bg); }
   /* ⚠️ `--sev-txt-5` y no `--sem-rojo-alt`: medido, el segundo daba 4.26 sobre el fondo de la
@@ -3993,7 +4037,7 @@
     .splash-pie { gap:.15rem; margin-top:.5rem; }
     .splash-link { padding:.4rem .5rem; font-size:.82rem; }
     .splash-link--admin { font-size:.82rem; }
-    .splash-norma { font-size:.7rem; margin-top:.35rem; }
+    .splash-norma { font-size:.75rem; margin-top:.35rem; }
   }
   @media (max-width:340px){ .splash-sub{ margin-bottom:18px; }   /* el ancho del logo lo resuelve el min() de arriba */
     /* En pantalla baja el aire se recorta, pero SIGUE derivándose del logo: nunca puede volver a
@@ -4508,7 +4552,7 @@
   /* Piso de 6rem: con `flex: 1` a secas el título colapsaba a 0 desde el 118 % de letra y la fila se
      leía vacía antes de envolver. */
   .gest-title { flex: 1 1 6rem; min-width: 0; font-weight: 800; font-size: 1.02rem; color: var(--text);
-    text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    text-align: center; white-space: normal; overflow-wrap: break-word; }
   .gest-new { border: none; background: var(--orange-txt); color: #fff; min-height: 44px;
     border-radius: 10px; padding: .5rem .85rem; font-family: inherit; font-weight: 800; font-size: .86rem;
     cursor: pointer; flex-shrink: 0; box-shadow: var(--shadow-sm); }
@@ -4521,7 +4565,7 @@
   .gest-quick-in:focus { border-color: var(--orange); }
   .gest-quick-btn { flex-shrink: 0; width: 44px; min-height: 44px; border: none; border-radius: 11px; cursor: pointer;
     background: var(--orange-txt); color: #fff; font-size: 1.25rem; font-weight: 800; line-height: 1; }
-  .gest-sync { font-size: .72rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
+  .gest-sync { font-size: .75rem; font-weight: 700; line-height: 1.35; margin-bottom: .5rem; }
   .gest-sync:empty { margin-bottom: 0; }
   .gest-sync.on { color: var(--text-muted); }
   .gest-sync.ok { color: var(--sem-verde); }
@@ -4530,7 +4574,7 @@
   /* Resumen compacto: una tira de chips, no 5 tarjetas grandes */
   .gest-sum { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
   .gest-sum:empty { margin-bottom: 0; }
-  .gs-chip { font-size: .72rem; font-weight: 800; padding: .22rem .55rem; border-radius: 999px; font-variant-numeric: tabular-nums;
+  .gs-chip { font-size: .75rem; font-weight: 800; padding: .22rem .55rem; border-radius: 999px; font-variant-numeric: tabular-nums;
     background: var(--linea); color: var(--text-soft); }
   .gs-ab { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); } .gs-seg { background: var(--sem-ambar-bg); color: var(--sem-ambar); }
   .gs-res { background: var(--sem-verde-bg); color: var(--sem-verde); } .gs-venc { background: var(--sem-rojo-bg); color: var(--sem-rojo-alt); }
@@ -4560,29 +4604,30 @@
   .gest-line1 { display: flex; align-items: center; gap: .4rem; min-width: 0; }
   .gest-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .gest-prio-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; opacity: .85; }
-  .gest-t { font-size: .92rem; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .gest-t { font-size: .92rem; font-weight: 800; color: var(--text); white-space: normal; overflow-wrap: break-word; min-width: 0; }
   .gest-untitled { color: var(--text-muted); font-style: italic; font-weight: 700; }
-  .gest-sub2 { font-size: .72rem; color: var(--text-muted); font-weight: 600; overflow: hidden;
-    text-overflow: ellipsis; white-space: nowrap; }
+  .gest-sub2 { font-size: .75rem; color: var(--text-muted); font-weight: 600;
+    white-space: normal; overflow-wrap: break-word; }
   .gest-caret { flex-shrink: 0; color: var(--text-muted); font-size: .8rem; padding: .2rem; }
 
   .gest-body { padding: 0 .7rem .8rem; border-top: 1px solid var(--linea); }
-  .gest-fl { display: block; font-size: .68rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
+  .gest-fl { display: block; font-size: .75rem; font-weight: 800; color: var(--text-soft); margin: .65rem 0 .25rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-in { width: 100%; padding: .5rem .65rem; border: 1.5px solid var(--sup-borde); border-radius: var(--radius-xs);
     font-family: inherit; font-size: .88rem; background: var(--sup-campo); color: var(--text); }
   .gest-in:focus { border-color: var(--orange); background: var(--card); }
   select.gest-in { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aab' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .7rem center; padding-right: 2rem; }
-  .gest-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .gest-row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: .6rem; }
+  .gest-row2 > div { min-width: 0; }   /* P418: con letra Muy grande a 375, «Próxima revisión» y su fecha no entraban en media fila: bajan a otra */
   .gest-fl-hint { font-weight: 700; color: var(--text-muted); text-transform: none; letter-spacing: 0; }
   .gest-personas { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
   .gest-ptag { display: inline-flex; align-items: center; gap: .3rem; background: var(--sem-azul-bg); color: var(--sem-azul);
     border-radius: 999px; padding: .28rem .3rem .28rem .7rem; font-size: .82rem; font-weight: 800; }
   .gest-ptag button { border: none; background: rgba(45,91,184,.14); color: var(--sem-azul); width: 18px; height: 18px;
-    border-radius: 50%; cursor: pointer; font-size: .7rem; line-height: 1; display: flex; align-items: center; justify-content: center; }
+    border-radius: 50%; cursor: pointer; font-size: .75rem; line-height: 1; display: flex; align-items: center; justify-content: center; }
   .gest-ptag button:hover { background: rgba(45,91,184,.28); }
 
   /* Checklist de tareas (se tildan a medida que se hacen) */
-  .gest-tcount { font-weight: 800; color: var(--text-muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
+  .gest-tcount { font-weight: 800; color: var(--text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
   .gest-tareas { display: flex; flex-direction: column; gap: .1rem; margin-bottom: .35rem; }
   .gest-tarea { display: flex; align-items: center; gap: .5rem; padding: .3rem .1rem; cursor: pointer; font-size: .88rem; color: var(--text); }
   .gest-tarea input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--orange); cursor: pointer; }
@@ -4631,7 +4676,7 @@
     font-weight: 800; font-size: .82rem; color: var(--text-muted); cursor: pointer; transition: border-color .15s, color .15s, box-shadow .15s; }
   .gpp.active { border-color: var(--gpp); color: var(--gpp); box-shadow: inset 0 0 0 1px var(--gpp); }
   /* "Guardado ✓" al cambiar algo */
-  .gest-flash { position: absolute; top: .55rem; right: 2.5rem; background: var(--sem-verde-bg); color: var(--sem-verde); border: 1px solid var(--sem-verde); font-size: .66rem;
+  .gest-flash { position: absolute; top: .55rem; right: 2.5rem; background: var(--sem-verde-bg); color: var(--sem-verde); border: 1px solid var(--sem-verde); font-size: .75rem;
     font-weight: 800; padding: .2rem .5rem; border-radius: 999px; opacity: 0; transform: translateY(-4px);
     pointer-events: none; transition: opacity .2s, transform .2s; z-index: 2; }
   .gest-flash.show { opacity: 1; transform: translateY(0); }
@@ -4646,7 +4691,7 @@
     border-radius: 10px; font-family: inherit; font-size: .9rem; line-height: 1.5; background: var(--sup-campo); color: var(--text); }
   .gest-ta:focus { border-color: var(--orange); background: var(--card); }
 
-  .gest-seg-head { font-size: .74rem; font-weight: 800; color: var(--text); margin: .8rem 0 .35rem; text-transform: uppercase; letter-spacing: .02em; }
+  .gest-seg-head { font-size: .75rem; font-weight: 800; color: var(--text); margin: .8rem 0 .35rem; text-transform: uppercase; letter-spacing: .02em; }
   .gest-seg-add { display: flex; gap: .4rem; }
   .gest-seg-add .gest-in { flex: 1; }
   .gest-seg-btn { border: none; background: var(--navy); color: #fff; border-radius: var(--radius-xs); padding: .5rem .75rem;
@@ -4656,7 +4701,7 @@
   .gest-tl-item { position: relative; display: flex; align-items: flex-start; gap: .5rem; padding: 0 0 .6rem .9rem; }
   .gest-tl-dot { position: absolute; left: -5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px #fff; }
   .gest-tl-c { flex: 1; min-width: 0; }
-  .gest-tl-date { font-size: .72rem; font-weight: 800; color: var(--text-muted); }
+  .gest-tl-date { font-size: .75rem; font-weight: 800; color: var(--text-muted); }
   .gest-tl-txt { font-size: .88rem; color: var(--text); line-height: 1.45; margin-top: .1rem; white-space: pre-wrap; word-break: break-word; }
   .gest-tl-x { border: none; background: none; color: var(--text-muted); cursor: pointer; font-size: .8rem; padding: .1rem .3rem; flex-shrink: 0; }
   .gest-tl-x:hover { color: var(--sem-rojo); }
@@ -4667,7 +4712,7 @@
   .gest-guardar:active { transform: scale(.99); }
   .gest-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-top: .55rem;
     padding-top: .55rem; border-top: 1px solid var(--linea); }
-  .gest-created { font-size: .7rem; color: var(--text-muted); font-weight: 600; }
+  .gest-created { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
   .gest-del { border: 1px solid var(--sem-rojo); background: var(--card); color: var(--sem-rojo-alt); border-radius: var(--radius-xs); padding: .45rem .8rem;
     font-family: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
   .gest-empty { text-align: center; color: var(--text-soft); font-size: .9rem; line-height: 1.6; padding: 2.4rem 1rem; }
@@ -4684,8 +4729,8 @@
   /* I6: `--ac` trae el --sem-* CRUDO, que está calibrado como relleno: como texto da 2.81 en
      claro. `--act` es su variante -txt (la que G1 creó justamente para esto). El respaldo a
      `--ac` deja la regla a salvo si algún grupo todavía no define la suya. */
-  .apt-sum-l { font-size: .7rem; font-weight: 800; color: var(--act, var(--ac)); margin-top: .3rem; line-height: 1.25; }
-  .apt-sum-hint { font-size: .72rem; color: var(--text-muted); margin-top: .6rem; }
+  .apt-sum-l { font-size: .75rem; font-weight: 800; color: var(--act, var(--ac)); margin-top: .3rem; line-height: 1.25; }
+  .apt-sum-hint { font-size: .75rem; color: var(--text-muted); margin-top: .6rem; }
   .apt-t-n { font-weight: 700; color: var(--text-muted); font-size: .9rem; }
   /* Insignia chiquita ("›" en un círculo) que marca que ese cuadro/fila se toca — sin ella, los
      contadores y los items de la cola se leen como texto informativo, no como controles. */
@@ -4743,23 +4788,23 @@
   .apt-eq-v.rojo { color: var(--sem-rojo-txt); }
   .apt-eq-v.amarillo { color: var(--sem-ambar-txt); }
   .apt-eq-v.gris { color: var(--text-muted); }
-  .apt-eq-nota { font-size: .72rem; color: var(--text-muted); line-height: 1.45; margin-top: .8rem;
+  .apt-eq-nota { font-size: .75rem; color: var(--text-muted); line-height: 1.45; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid var(--linea); }
   /* En celular las dos columnas se apilan (el layout de 2 columnas es sólo escritorio) */
   .apt-layout > .apt-col { min-width: 0; }
   .apt-leyenda { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin-bottom: .9rem; }
-  .apt-lg { display: inline-flex; align-items: center; gap: .3rem; font-size: .74rem; font-weight: 700; color: var(--text-muted); }
+  .apt-lg { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; font-weight: 700; color: var(--text-muted); }
   .apt-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .apt-card { border: 1px solid var(--sup-borde); border-radius: 14px; padding: .8rem .85rem; margin-bottom: .6rem; background: var(--card); }
   .apt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; margin-bottom: .6rem; }
   .apt-id { min-width: 0; }
   .apt-name { font-size: .95rem; font-weight: 800; color: var(--text); }
-  .apt-dep { font-size: .74rem; font-weight: 600; color: var(--text-muted); margin-top: .1rem; }
+  .apt-dep { font-size: .75rem; font-weight: 600; color: var(--text-muted); margin-top: .1rem; }
   /* Nivel de riesgo del PUESTO. Es información laboral (qué tarea hace), no dato médico:
      por eso puede verla el supervisor sin romper el cortafuegos. */
   /* I6: heredaba el color de nivel, que es de relleno (3.78 como texto). */
   .apt-nivel { color:var(--text-soft); display:inline-block; margin-left:.4rem; padding:.05rem .38rem; border-radius:999px;
-    font-size:.66rem; font-weight:800; letter-spacing:.01em; white-space:nowrap;
+    font-size:.75rem; font-weight:800; letter-spacing:.01em; white-space:nowrap;
     border:1px solid currentColor; opacity:.95; }
   .apt-nivel-1 { color:var(--niv-1); }
   .apt-nivel-2 { color:var(--niv-2); }
@@ -4782,12 +4827,12 @@
   .apt-ciclo { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; margin:.45rem 0 0; padding:.35rem .5rem; border:1px solid var(--linea); border-radius:var(--radius-sm); background:transparent; color:var(--text); font:inherit; font-size:.78rem; cursor:pointer; width:100%; text-align:left; }
   .apt-ciclo-lleva { color:var(--text-soft); }
   .apt-ciclo-lleva b { color:var(--text); font-variant-numeric:tabular-nums; }
-  .cic-apt { display:inline-flex; align-items:center; gap:.3rem; margin:.35rem 0 0; padding:.22rem .55rem; border-radius:999px; font-size:.74rem; color:var(--anct); background:var(--anbg); }
-  .apt-restr-top { font-size:.68rem; font-weight:800; color:var(--sem-azul); text-transform:uppercase; letter-spacing:.03em; }
+  .cic-apt { display:inline-flex; align-items:center; gap:.3rem; margin:.35rem 0 0; padding:.22rem .55rem; border-radius:999px; font-size:.75rem; color:var(--anct); background:var(--anbg); }
+  .apt-restr-top { font-size:.75rem; font-weight:800; color:var(--sem-azul); text-transform:uppercase; letter-spacing:.03em; }
   .apt-restr-tarea { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.2rem; }
   .apt-restr-mit { font-size:.76rem; font-weight:700; color:var(--sem-azul-int); margin-top:.15rem; }
   .apt-restr-nota { font-size:.76rem; color:var(--text-soft); margin-top:.18rem; line-height:1.4; }
-  .apt-restr-hasta { font-size:.72rem; font-weight:700; color:var(--sem-azul-int); margin-top:.25rem; }
+  .apt-restr-hasta { font-size:.75rem; font-weight:700; color:var(--sem-azul-int); margin-top:.25rem; }
   .apt-restr-pie { font-style:italic; opacity:.9; }
   .apt-con-restr { box-shadow:inset 3px 0 0 rgba(45,108,223,.35), var(--shadow-sm); }
   .apt-acciones { margin-top:.6rem; display:flex; gap:.45rem; flex-wrap:wrap; }
@@ -4802,7 +4847,7 @@
   .restr-quien { font-size:1.05rem; font-weight:800; color:var(--text); }
   .restr-sub { font-size:.78rem; font-weight:600; color:var(--text-muted); margin-top:.1rem; }
   .restr-tope { display:inline-block; margin-left:.3rem; padding:.05rem .4rem; border-radius:999px; font-variant-numeric: tabular-nums;
-    background:var(--sem-gris-bg); font-size:.7rem; font-weight:700; }
+    background:var(--sem-gris-bg); font-size:.75rem; font-weight:700; }
   .restr-aviso { margin:.7rem 0; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sem-azul-bg); border-left:3px solid var(--sem-azul); font-size:.78rem; color:var(--text-soft); line-height:1.45; }
   .restr-lbl { display:block; font-size:.76rem; font-weight:800; color:var(--text); margin:.75rem 0 .3rem; }
@@ -4816,7 +4861,7 @@
     border:1.5px solid var(--sup-borde); background: var(--card); color:var(--text-soft);
     font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
   .restr-mit.active, .restr-dur.active { border-color:var(--sem-azul); background:var(--sem-azul-bg); color:var(--sem-azul-int); }
-  .restr-tope-nota { font-size:.72rem; color:var(--text-muted); margin-top:.35rem; line-height:1.4; }
+  .restr-tope-nota { font-size:.75rem; color:var(--text-muted); margin-top:.35rem; line-height:1.4; }
   .restr-actions { display:flex; gap:.5rem; margin-top:1rem; }
   .restr-actions > button { flex:1; }
 
@@ -4831,7 +4876,7 @@
      ⚠️ `--sem-azul-txt` NO EXISTÍA, y yo lo escribí igual con una medición al lado que no pude haber
      hecho. Un token inexistente no cae a la regla anterior: computa a `inherit` y se lleva el color
      del padre, en silencio. Los tokens azules reales son `--sem-azul` y `--sem-azul-int`. */
-  .sf-restr-pie { font-size:.71rem; color:var(--sem-azul-int); font-weight:700; margin-top:.25rem; }
+  .sf-restr-pie { font-size:.75rem; color:var(--sem-azul-int); font-weight:700; margin-top:.25rem; }
 
   .sf-turno-paso { padding:.6rem 0; border-top:1px solid var(--sup-linea); }
   .sf-turno-paso:first-child { border-top:none; }
@@ -5008,13 +5053,13 @@
   .doc-t th { text-align:left; padding:.4rem .5rem; background:var(--sup-suave); color:var(--text);
     font-weight:800; border-bottom:1.5px solid var(--sup-borde); white-space:nowrap; }
   .doc-t td { padding:.4rem .5rem; border-bottom:1px solid var(--sup-linea); vertical-align:top; }
-  .doc-chip { display:inline-block; padding:.1rem .45rem; border-radius:999px; font-size:.72rem; font-weight:800; }
-  .doc-niv { display:inline-block; padding:.05rem .35rem; border-radius:4px; border:1px solid currentColor; font-size:.74rem; }
+  .doc-chip { display:inline-block; padding:.1rem .45rem; border-radius:999px; font-size:.75rem; font-weight:800; }
+  .doc-niv { display:inline-block; padding:.05rem .35rem; border-radius:4px; border:1px solid currentColor; font-size:.75rem; }
   .doc-niv-1 { color:var(--niv-1); } .doc-niv-2 { color:var(--niv-2); } .doc-niv-3 { color:var(--niv-3); }
   .doc-niv-4 { color:var(--niv-4); } .doc-niv-5 { color:var(--niv-5); }
   .doc-ej { padding:.55rem .65rem; border-radius:var(--radius-sm); background:var(--sem-ambar-bg);
     border-left:3px solid var(--sem-ambar); }
-  .doc-pie { text-align:center; font-size:.74rem; color:var(--text-muted); margin:1rem 0 2rem; }
+  .doc-pie { text-align:center; font-size:.75rem; color:var(--text-muted); margin:1rem 0 2rem; }
   @media (min-width: 700px){
     .doc-body { max-width:760px; margin:0 auto; width:100%; }
     /* P387 · `.adm-roles` ya no cambia de columnas acá: seis desde 430 px y una por debajo (ver arriba). */
@@ -5029,14 +5074,14 @@
      que queda ocupa el ancho entero, en vez de media columna con un hueco al lado. */
   .hs-duo--solo { grid-template-columns:1fr; }
   .hs-duo-c { text-align:center; padding:.5rem .3rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
-  .hs-duo-c .hs-cap small { font-size:.72rem; color:var(--text-muted); font-weight:600; }
+  .hs-duo-c .hs-cap small { font-size:.75rem; color:var(--text-muted); font-weight:600; }
   .hs-duo-flojo .hs-pct-big { color:var(--text-muted); }        /* poca cobertura: no es dato confiable */
   /* Y5 · nota de a quién no se le contó el día. Discreta pero legible: es un dato de control, no
      una alarma, pero tiene que poder leerse para que una ausencia mal cargada se note. */
   /* Y5 · el interruptor de la nómina. 44 px de alto: se toca con guantes. */
   .nomlist-aus { min-height:44px; padding:.3rem .55rem; border:1px solid var(--linea-2);
     background:transparent; color:var(--text-muted); border-radius:var(--radius-xs);
-    font-family:inherit; font-size:.7rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+    font-family:inherit; font-size:.75rem; font-weight:700; cursor:pointer; white-space:nowrap; }
   .nomlist-aus.on { background:var(--chip-bg); color:var(--text); border-color:var(--linea); }
   /* P174 · la llave, al lado del de ausencia: mismo alto de toque, ancho mínimo (es un ícono). */
   .nomlist-pass { display:inline-flex; align-items:center; justify-content:center; min-width:44px; padding:.3rem; }
@@ -5062,12 +5107,12 @@
   .hs-row:first-of-type { border-top:none; }
   .hs-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
   .hs-k { flex:1 1 auto; font-size:.83rem; font-weight:700; color:var(--text); min-width:0; }
-  .hs-n { display:block; font-size:.72rem; font-weight:500; color:var(--text-muted); margin-top:.1rem; }
+  .hs-n { display:block; font-size:.75rem; font-weight:500; color:var(--text-muted); margin-top:.1rem; }
   .hs-v { flex:0 0 auto; font-size:.95rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
   .hs-pct { flex:0 0 3rem; text-align:right; font-size:.78rem; font-weight:700; color:var(--text-muted); }
   /* I6: heredaba el color semántico de RELLENO (3.78 como texto). El borde usa currentColor,
      así que al pasar a un gris de texto la insignia entera queda coherente. */
-  .hs-niv { font-size:.7rem; padding:.05rem .3rem; border-radius:4px; border:1px solid currentColor; color:var(--text-soft); }
+  .hs-niv { font-size:.75rem; padding:.05rem .3rem; border-radius:4px; border:1px solid currentColor; color:var(--text-soft); }
   .hs-niv-1 { color:var(--niv-1); } .hs-niv-2 { color:var(--niv-2); } .hs-niv-3 { color:var(--niv-3); }
   .hs-niv-4 { color:var(--niv-4); } .hs-niv-5 { color:var(--niv-5); }
   .hs-grid { display:grid; grid-template-columns:1fr; gap:.45rem; }
@@ -5076,7 +5121,7 @@
   .hs-cell-top { display:flex; align-items:baseline; justify-content:space-between; gap:.5rem; }
   .hs-cell-dep { font-size:.86rem; font-weight:800; color:var(--text); }
   .hs-cell-pct { font-size:1.05rem; font-weight:800; color:var(--hc); font-variant-numeric:tabular-nums; }
-  .hs-cell-sub { font-size:.72rem; color:var(--text-muted); font-weight:600; margin-top:.15rem; }
+  .hs-cell-sub { font-size:.75rem; color:var(--text-muted); font-weight:600; margin-top:.15rem; }
   .hs-cell-bar { height:5px; border-radius:999px; background:rgba(0,0,0,0.07); overflow:hidden; margin-top:.35rem; }
   .hs-cell-bar > i { display:block; height:100%; background:var(--hc); }
   .hs-agregado { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
@@ -5085,22 +5130,22 @@
   .hs-senal { font-size:.8rem; padding:.3rem .55rem; border-radius:999px; background:var(--chip-bg); color:var(--text); }
   .hs-senal b { font-weight:800; }
   .hs-senal-dep { background:var(--sem-morado-bg); color:var(--sem-morado); }
-  .hs-agregado-n { font-size:.72rem; color:var(--text-muted); margin-top:.2rem; }
+  .hs-agregado-n { font-size:.75rem; color:var(--text-muted); margin-top:.2rem; }
   .hs-nota { margin-top:.6rem; font-size:.78rem; color:var(--text-soft); line-height:1.45;
     padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--sup-suave); }
   .hs-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--sup-suave); margin-bottom:.35rem; }
   .hs-ev-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
   .hs-ev-acc { font-size:.8rem; font-weight:800; color:var(--text); }
-  .hs-ev-fecha { font-size:.71rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+  .hs-ev-fecha { font-size:.75rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
   .hs-ev-sub { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; }
-  .hs-ev-um { font-size:.7rem; color:var(--text-muted); margin-top:.2rem; font-variant-numeric:tabular-nums; }
+  .hs-ev-um { font-size:.75rem; color:var(--text-muted); margin-top:.2rem; font-variant-numeric:tabular-nums; }
   .hs-exp { margin-top:.6rem; min-height:44px; padding:.5rem 1rem; border-radius:var(--radius-sm);
     border:1.5px solid var(--sup-borde); background: var(--card); color:var(--text-soft);
     font-size:.83rem; font-weight:700; cursor:pointer; font-family:inherit; }
   .hs-falta { padding:.45rem .1rem; border-top:1px solid var(--sup-linea); }
   .hs-falta:first-of-type { border-top:none; }
   .hs-falta-t { display:block; font-size:.83rem; font-weight:700; color:var(--text); }
-  .hs-falta-d { display:block; font-size:.73rem; color:var(--text-muted); margin-top:.1rem; }
+  .hs-falta-d { display:block; font-size:.75rem; color:var(--text-muted); margin-top:.1rem; }
   .hs-supuestos { margin-top:.6rem; padding:.55rem .65rem; border-radius:var(--radius-sm);
     background:var(--sup-suave); font-size:.79rem; color:var(--text-soft); line-height:1.6; }
   .hs-supuestos b { display:block; color:var(--text); margin-bottom:.2rem; }
@@ -5123,7 +5168,7 @@
   .pred-t { font-size:.87rem; font-weight:800; color:var(--text); }
   /* El badge podía encogerse y envolver: con `0 0 auto` + `nowrap` era él quien empujaba la tarjeta
      fuera del contenedor. Medido: 51 px de desborde → 0. */
-  .pred-badge { flex:0 1 auto; min-width:0; font-size:.66rem; font-weight:800; padding:.15rem .45rem; border-radius:999px;
+  .pred-badge { flex:0 1 auto; min-width:0; font-size:.75rem; font-weight:800; padding:.15rem .45rem; border-radius:999px;
     background:var(--sup-borde); color:var(--text-soft); }
   .pred-mock { font-size:1.6rem; font-weight:800; color:var(--text-muted); margin:.35rem 0; font-variant-numeric:tabular-nums; }
   .pred-d { font-size:.78rem; color:var(--text-soft); line-height:1.45; }
@@ -5173,14 +5218,14 @@
   .rep-item:not(.rep-item-anon):active { transform:scale(.99); }
   .rep-top { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
   .rep-name { font-weight:800; color:var(--text); font-size:.86rem; }
-  .rep-anon-badge { font-weight:800; color:var(--sem-morado); font-size:.74rem; background:var(--sem-morado-badge-bg);
+  .rep-anon-badge { font-weight:800; color:var(--sem-morado); font-size:.75rem; background:var(--sem-morado-badge-bg);
     padding:.1rem .5rem; border-radius:999px; }
-  .rep-badge-nuevo { font-weight:800; color:var(--sem-rojo-int); font-size:.66rem; background:var(--sem-rojo-int-bg);
+  .rep-badge-nuevo { font-weight:800; color:var(--sem-rojo-int); font-size:.75rem; background:var(--sem-rojo-int-bg);
     padding:.05rem .4rem; border-radius:999px; text-transform:uppercase; letter-spacing:.03em; }
-  .rep-fecha { margin-left:auto; font-size:.71rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
+  .rep-fecha { margin-left:auto; font-size:.75rem; color:var(--text-muted); font-weight:600; white-space:nowrap; }
   .rep-op { font-size:.83rem; font-weight:700; color:var(--text); margin-top:.25rem; }
   .rep-coment { font-size:.79rem; color:var(--text-soft); margin-top:.2rem; line-height:1.45; }
-  .rep-dep { font-size:.72rem; color:var(--text-muted); font-weight:700; margin-top:.3rem; }
+  .rep-dep { font-size:.75rem; color:var(--text-muted); font-weight:700; margin-top:.3rem; }
   .rep-nuevo { box-shadow:0 0 0 1.5px var(--sem-rojo-bg) inset; }
   .rep-block-anon .db-title { color:var(--sem-morado); }
 
@@ -5265,7 +5310,7 @@
   }
 
   .cic-cfg-btn { width:100%; text-align:left; background:var(--chip-bg); border:1px solid var(--sup-linea);
-    border-radius:10px; padding:.5rem .7rem; min-height:44px; font-family:inherit; font-size:.74rem; font-weight:600;
+    border-radius:10px; padding:.5rem .7rem; min-height:44px; font-family:inherit; font-size:.75rem; font-weight:600;
     color:var(--text-soft); cursor:pointer; margin:.7rem 0 .2rem; line-height:1.5; }
 
   .cic-cfg-solo { cursor: default; }   /* P185 · el resumen de horas sin «Editar», en el visor */
@@ -5274,9 +5319,9 @@
   .cic-cfg { background:var(--chip-bg); border:1px solid var(--sup-linea); border-radius:12px;
     padding:.8rem .85rem; margin:.7rem 0 .2rem; }
   .cic-cfg-t { font-size:.82rem; font-weight:800; color:var(--text); }
-  .cic-cfg-p { font-size:.73rem; color:var(--text-soft); line-height:1.5; margin:.25rem 0 .7rem; }
+  .cic-cfg-p { font-size:.75rem; color:var(--text-soft); line-height:1.5; margin:.25rem 0 .7rem; }
   .cic-cfg-g { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:.5rem; }
-  .cic-cfg-f { display:flex; align-items:center; gap:.4rem; font-size:.74rem; font-weight:700;
+  .cic-cfg-f { display:flex; align-items:center; gap:.4rem; font-size:.75rem; font-weight:700;
     color:var(--text-soft); background:var(--card); border:1px solid var(--sup-borde);
     border-radius:var(--radius-xs); padding:.35rem .5rem; }
   .cic-cfg-f span { flex:1; min-width:0; }
@@ -5289,12 +5334,12 @@
     font-size:.78rem; font-weight:800; cursor:pointer; }
   .cic-cfg-no { background:none; border:none; color:var(--text-muted); font-family:inherit;
     font-size:.78rem; font-weight:700; cursor:pointer; padding:.5rem .6rem; }
-  .cic-cfg-err { font-size:.73rem; font-weight:700; color:var(--sem-rojo-txt); margin-top:.4rem; }
+  .cic-cfg-err { font-size:.75rem; font-weight:700; color:var(--sem-rojo-txt); margin-top:.4rem; }
   /* P057b · la jornada de una persona. El botón vive dentro de la tarjeta y es discreto a
      propósito: es una excepción, no la acción principal de la pantalla. */
   .cic-per-btn { display:block; width:100%; margin-top:.5rem; min-height:44px;
     background:var(--chip-bg); border:1px solid var(--sup-linea); border-radius:var(--radius-sm);
-    color:var(--text-muted); font-family:inherit; font-size:.72rem; font-weight:800; cursor:pointer; }
+    color:var(--text-muted); font-family:inherit; font-size:.75rem; font-weight:800; cursor:pointer; }
   .cic-per-btn:hover { color:var(--text); background:var(--chip-bg-h); }
   .cic-per-btn:active { transform:scale(.985); }
   /* Quien TIENE jornada propia se distingue sin abrir nada: es lo que un supervisor quiere ver de
@@ -5329,14 +5374,14 @@
      El aviso escrito de abajo dice por qué — el color solo nunca alcanza para explicar algo. */
   .prm-flojo { opacity:.72; }
   .prm-top { display:flex; align-items:baseline; justify-content:space-between; gap:.3rem; }
-  .prm-t { font-size:.72rem; font-weight:800; letter-spacing:.02em; color:var(--text-muted); }
+  .prm-t { font-size:.75rem; font-weight:800; letter-spacing:.02em; color:var(--text-muted); }
   .prm-v { font-size:1.05rem; font-weight:800; color:var(--text); line-height:1.25; }
-  .prm-n { font-size:.68rem; color:var(--text-muted); line-height:1.35; }
+  .prm-n { font-size:.75rem; color:var(--text-muted); line-height:1.35; }
   /* La diferencia contra lo previsto lleva flecha ADEMÁS de color. */
-  .prm-dif { font-size:.68rem; font-weight:800; white-space:nowrap; color:var(--text-muted); }
+  .prm-dif { font-size:.75rem; font-weight:800; white-space:nowrap; color:var(--text-muted); }
   .prm-mas   { color:var(--sev-txt-5); }
   .prm-menos { color:var(--sev-txt-1); }
-  .prm-fuera { font-size:.72rem; color:var(--text-muted); line-height:1.4; margin-top:.5rem; }
+  .prm-fuera { font-size:.75rem; color:var(--text-muted); line-height:1.4; margin-top:.5rem; }
 
   /* ── T2 · panel de miniaturas de evolución ─────────────────────────────────────────────────
      `auto-fit` otra vez, y por la misma razón que en la lista del ciclo: la cantidad de columnas
@@ -5355,7 +5400,7 @@
   .evo-v-sobre { color:var(--sev-txt-5); }
   .evo-v-bajo  { color:var(--sev-txt-1); }
   /* La tendencia lleva flecha ADEMÁS de color: una flecha se ve sin distinguir verde de rojo. */
-  .evo-tend { font-size:.7rem; font-weight:800; white-space:nowrap; }
+  .evo-tend { font-size:.75rem; font-weight:800; white-space:nowrap; }
   .evo-sube  { color:var(--sev-txt-5); }
   .evo-baja  { color:var(--sev-txt-1); }
   .evo-igual { color:var(--text-muted); }
@@ -5704,7 +5749,7 @@
   /* ── Ficha médica interna (exclusiva del servicio médico) ── */
   .fm-block { border-top:3px solid var(--sem-verde-int); }
   .fm-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin:.6rem 0 .2rem; }
-  .fm-chip { padding:.15rem .5rem; border-radius:999px; font-size:.72rem; font-weight:800; white-space:nowrap; }
+  .fm-chip { padding:.15rem .5rem; border-radius:999px; font-size:.75rem; font-weight:800; white-space:nowrap; }
   .fm-chip-gris { color:var(--text-soft); background:var(--sem-gris-bg); }
   .fm-chip-persist { color:var(--sem-violeta); background:var(--sem-violeta-bg); }
   .fm-chip-restr { color:var(--sem-azul-int); background:var(--sem-azul-bg); }
@@ -5722,7 +5767,7 @@
     border-radius:var(--radius-sm); background:var(--sup-suave); font-size:.8rem; }
   .fm-lb-m { flex:1 1 auto; display:flex; align-items:center; gap:.35rem; font-weight:700; color:var(--text); min-width:0; }
   .fm-lb-v { flex:0 0 auto; color:var(--text-soft); font-variant-numeric:tabular-nums; }
-  .fm-lb-ref { color:var(--text-muted); font-size:.72rem; }
+  .fm-lb-ref { color:var(--text-muted); font-size:.75rem; }
   .fm-lb-d { flex:0 0 1.4rem; text-align:center; font-weight:800; }
   .fm-lb-sube { color:var(--sem-rojo-alt); }
   .fm-lb-baja { color:var(--sem-verde); }
@@ -5730,15 +5775,15 @@
   .fm-ev { padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--anbg);
     border-left:3px solid var(--anc); margin-bottom:.35rem; }
   .fm-ev-top { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; flex-wrap:wrap; }
-  .fm-ev-tipo { font-size:.68rem; font-weight:800; color:var(--anct, var(--anc)); text-transform:uppercase; letter-spacing:.03em; }
-  .fm-ev-fecha { font-size:.7rem; color:var(--text-muted); font-weight:600; }
+  .fm-ev-tipo { font-size:.75rem; font-weight:800; color:var(--anct, var(--anc)); text-transform:uppercase; letter-spacing:.03em; }
+  .fm-ev-fecha { font-size:.75rem; color:var(--text-muted); font-weight:600; }
   .fm-ev-txt { font-size:.82rem; font-weight:600; color:var(--text); margin-top:.15rem; }
   .fm-ev-nota { font-size:.77rem; color:var(--text-soft); margin-top:.15rem; line-height:1.45; }
-  .fm-ev-pie { font-size:.71rem; color:var(--text-muted); font-weight:700; margin-top:.2rem; }
+  .fm-ev-pie { font-size:.75rem; color:var(--text-muted); font-weight:700; margin-top:.2rem; }
   .fm-nota { width:100%; min-height:74px; padding:.55rem .7rem; border-radius:var(--radius-sm);
     border:1.5px solid var(--sup-borde); font-size:.88rem; font-family:inherit; resize:vertical;
     background: var(--card); color:var(--text); }
-  .fm-nota-aviso { font-size:.73rem; color:var(--text-muted); margin-top:.3rem; line-height:1.4; }
+  .fm-nota-aviso { font-size:.75rem; color:var(--text-muted); margin-top:.3rem; line-height:1.4; }
   .fm-nota-btn { margin-top:.5rem; min-height:44px; padding:.5rem 1rem; border-radius:var(--radius-sm);
     /* ⚠️ Sin `#fff` a mano (R13): el par viejo (`--sem-verde-int` con blanco escrito) daba 4,35:1 en
        claro y 2,13:1 en oscuro. `--sem-verde-solid` es el relleno pensado para llevar texto encima y
@@ -5752,12 +5797,12 @@
   .fm-nota-btn:active { transform:scale(.98); }
   /* Los estados nuevos son más largos ("Pendiente de revisión", "Apto con condiciones"): la
      insignia puede envolver en dos líneas en vez de forzar nowrap y desbordar en celular. */
-  .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .72rem; font-weight: 800; padding: .25rem .6rem;
+  .apt-badge { flex-shrink: 0; max-width: 45%; font-size: .75rem; font-weight: 800; padding: .25rem .6rem;
     border-radius: 12px; text-align: center; line-height: 1.3; }
   .apt-boxes { display: flex; flex-wrap: wrap; gap: .4rem; }
   /* Cada cuadrito: color del semáforo + nombre del indicador. Nunca un valor. */
   .apt-box { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .55rem .3rem .4rem;
-    border-radius: var(--radius-xs); font-size: .72rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
+    border-radius: var(--radius-xs); font-size: .75rem; font-weight: 700; background: var(--sup-suave); color: var(--text-soft); }
   /* L4: el nivel de cada cuadrito (bien/cerca del límite/por encima) se comunicaba SÓLO por el
      color de fondo. `title` no alcanza: no funciona al tacto y no siempre lo lee un lector de
      pantalla. Se le suma un símbolo — mismo criterio que las tarjetas de estado, que ya nunca
@@ -5791,7 +5836,7 @@
   .apt-nota { font-size: .76rem; color: var(--text-muted); line-height: 1.5; margin-top: .8rem;
     padding-top: .7rem; border-top: 1px solid var(--linea); }
   /* Avisos dentro de la tarjeta: "llegó un test nuevo tras la indicación" / "dato no reciente" */
-  .apt-aviso { font-size: .74rem; font-weight: 700; line-height: 1.4; color: var(--sem-ambar-txt);
+  .apt-aviso { font-size: .75rem; font-weight: 700; line-height: 1.4; color: var(--sem-ambar-txt);
     background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .45rem .6rem; margin-bottom: .6rem; }
   .apt-aviso-gris { color: var(--text-muted); background: var(--sem-gris-bg); font-weight: 600; margin-bottom: 0; margin-top: .6rem; }
   /* Dato viejo: la tarjeta se atenúa para que se lea como "esto no es de hoy" sin ocultarla */
@@ -5800,7 +5845,7 @@
   .an-espejo { margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--sup-borde); }
   .an-espejo-t { font-size: .78rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;
     letter-spacing: .03em; margin-bottom: .55rem; }
-  .an-espejo-n { font-size: .74rem; color: var(--text-muted); line-height: 1.45; margin-top: .2rem; }
+  .an-espejo-n { font-size: .75rem; color: var(--text-muted); line-height: 1.45; margin-top: .2rem; }
   /* Campo "quién lo determina" (opcional) */
   /* ⚠️ `background` EXPLÍCITO, y no es decoración: sin él un campo hereda el blanco del navegador y
      en tema oscuro queda tinta casi blanca sobre blanco. Medido: 1,18:1 en los tres, contra 13,94:1
@@ -5810,7 +5855,7 @@
   .an-medico { width: 100%; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem;
     font-family: inherit; font-size: .86rem; color: var(--text); background: var(--card); box-sizing: border-box; }
   .an-medico:focus { border-color: var(--orange); }
-  .an-opt { font-size: .64rem; font-weight: 800; color: var(--text-soft); background: var(--sem-azul-bg);
+  .an-opt { font-size: .75rem; font-weight: 800; color: var(--text-soft); background: var(--sem-azul-bg);
     padding: .1rem .35rem; border-radius: 999px; margin-left: .3rem; text-transform: none; }
   /* ── Anotación del servicio médico para el supervisor (apto/no apto, con vigencia) ──
      Todo el bloque va dentro de un marco propio (borde + fondo) para que se lea como una
@@ -5820,8 +5865,8 @@
   .an-activa { border-radius: 12px; padding: .75rem .85rem; margin-bottom: .6rem;
     background: var(--card); border: 1px solid var(--anc); }
   .an-activa-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
-  .an-activa-badge { font-size: .74rem; font-weight: 800; color: #fff; background: var(--ansol); padding: .2rem .55rem; border-radius: 999px; }
-  .an-activa-hasta { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
+  .an-activa-badge { font-size: .75rem; font-weight: 800; color: #fff; background: var(--ansol); padding: .2rem .55rem; border-radius: 999px; }
+  .an-activa-hasta { font-size: .75rem; color: var(--text-muted); font-weight: 600; }
   .an-activa-nota { font-size: .84rem; color: var(--text); line-height: 1.45; margin-top: .5rem; white-space: pre-wrap; word-break: break-word; }
   .an-activa-quitar { margin-top: .55rem; border: none; background: none; color: var(--text-muted); font-size: .76rem;
     font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
@@ -5831,7 +5876,7 @@
   .an-btn { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
     padding: .7rem 1.1rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; background: var(--card);
     color: var(--text); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
-  .an-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .an-btn span { white-space: normal; overflow-wrap: break-word; }
   .an-btn:active { transform: scale(.99); }
   .an-btn-chevron { width: 15px; height: 15px; flex-shrink: 0; transition: transform .25s ease; }
   .an-btn.open .an-btn-chevron { transform: rotate(180deg); }
@@ -5864,7 +5909,7 @@
   .an-seg-btn { padding: .55rem .9rem; border-radius: 10px; border: 1.5px solid var(--sup-borde); background: var(--card);
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .82rem; cursor: pointer; }
   .an-seg-btn.active { border-color: var(--anc); background: var(--anbg); color: var(--anc); }
-  .an-dur-label { font-size: .74rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
+  .an-dur-label { font-size: .75rem; font-weight: 800; color: var(--text-muted); margin: .7rem 0 .35rem; }
   /* Vigencia: número libre + selector de unidad, en vez de chips fijos */
   .an-dur-row { display: flex; gap: .5rem; }
   .an-dur-num { width: 5.5rem; flex-shrink: 0; border: 1.5px solid var(--sup-borde); border-radius: 10px; padding: .55rem .7rem; font-variant-numeric: tabular-nums;
@@ -5875,7 +5920,7 @@
   .an-nota { width: 100%; margin-top: .7rem; border: 1.5px solid var(--sup-borde); border-radius: 12px; padding: .7rem .8rem;
     font-family: inherit; font-size: .86rem; color: var(--text); background: var(--card); resize: vertical; min-height: 70px; box-sizing: border-box; }
   .an-nota:focus { border-color: var(--orange); }
-  .an-aviso { font-size: .74rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
+  .an-aviso { font-size: .75rem; color: var(--sem-ambar-txt); background: var(--sem-ambar-bg); border-radius: var(--radius-xs); padding: .5rem .7rem; margin-top: .6rem; line-height: 1.4; }
   .an-actions { display: flex; gap: .6rem; margin-top: .7rem; }
   .an-cancel { flex: 1; padding: .7rem; border-radius: 11px; border: 1.5px solid var(--sup-borde); background: var(--card);
     color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .84rem; cursor: pointer; }
@@ -5886,28 +5931,33 @@
      recorta (prioridad); si no entra la fecha completa, la fecha es la que cede espacio — y si
      ni así entra entera, se desliza sola (marquee) para poder leerla completa en vez de quedar
      cortada con "…" sin que se note que había más texto. */
-  .an-res-item { display: flex; align-items: center; gap: .5rem; padding: .65rem .75rem; border-radius: 11px;
+  /* P418 · LA FILA ENVUELVE. Con un nombre largo y letra grande, insignia + nombre + fecha no entran en un teléfono: la
+     fecha se apilaba letra por letra (24 px de ancho) y, dándole un mínimo, el aplastado pasaba al nombre (22 px). Ahora
+     el nombre pide 9rem y, si no queda lugar, la fecha baja a otro renglón, a la derecha; con letra «Muy grande» puede
+     quedar insignia / nombre / fecha. Nada se recorta ni se mueve. */
+  .an-res-item { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; padding: .65rem .75rem; border-radius: 11px;
     background: var(--card); border: 1px solid var(--anc); cursor: pointer; margin-bottom: .5rem; }
   .an-res-item:last-child { margin-bottom: 0; }
   .an-res-item:active { transform: scale(.99); }
   /* Las etiquetas nuevas pueden ser largas ("Apto con condiciones"): se limita el ancho y se deja
      envolver, así nunca aplastan el nombre de la persona que va al lado. */
-  .an-res-badge { flex-shrink: 0; max-width: 40%; font-size: .7rem; font-weight: 800; color: #fff;
+  .an-res-badge { flex-shrink: 0; max-width: 40%; font-size: .75rem; font-weight: 800; color: #fff;
     background: var(--ansol); padding: .2rem .55rem; border-radius: 10px; line-height: 1.3; text-align: center; }
   /* flex-shrink:0 en el nombre = NUNCA se recorta (se banca empujar/arrugar lo de al lado);
      el que cede es el bloque de la fecha (flex-shrink:1 + max-width), que además se desliza
      solo si ni así entra completo. Antes el nombre tenía ellipsis puesto — ESE era el bug real:
      con ambos en flex normal, el nombre se recortaba igual aunque la fecha tuviera prioridad. */
-  .an-res-name { flex: 1 0 auto; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
+  .an-res-name { flex: 1 1 9rem; min-width: 0; font-size: .86rem; font-weight: 700; color: var(--text);
     white-space: normal; word-break: break-word; line-height: 1.3; }
-  .an-res-hasta { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: .7rem; color: var(--text-muted);
-    font-weight: 600; overflow: hidden; white-space: nowrap; position: relative; }
-  .an-res-hasta-in { display: inline-block; white-space: nowrap; }
+  .an-res-hasta { flex: 0 1 auto; min-width: min(6em, 100%); max-width: 100%; margin-left: auto; font-size: .75rem; color: var(--text-muted);
+    font-weight: 600; white-space: normal; overflow-wrap: break-word; text-align: right; line-height: 1.3; position: relative; }
+  /* P418 · la fecha ya no se desliza: baja de renglón dentro de su columna (en línea, `dashWireAnResMarquee` mide que entra). */
+  .an-res-hasta-in { display: inline; white-space: normal; }
   .an-res-hasta.an-res-pronto { color: var(--sem-rojo-int); font-weight: 800; }
   /* Variante de DOS líneas (cola de pendientes): insignia + nombre arriba, motivo abajo. */
   .an-res-item.an-res-col { flex-direction: column; align-items: stretch; gap: .35rem; }
   .an-res-col .an-res-top { display: flex; align-items: center; gap: .5rem; min-width: 0; }
-  .an-res-why { font-size: .72rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
+  .an-res-why { font-size: .75rem; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
   .an-res-hasta.marquee .an-res-hasta-in { animation: anResMarquee 5s ease-in-out infinite; }
   @keyframes anResMarquee {
     0%, 12% { transform: translateX(0); }
@@ -5937,22 +5987,25 @@
   /* Banner con la nota médica dentro de la tarjeta de Aptitud (supervisor) */
   .apt-med-nota { border-radius: 11px; padding: .65rem .75rem; margin-bottom: .6rem;
     background: var(--anbg); border: 1px solid var(--anc); }
-  .apt-med-top { font-size: .74rem; font-weight: 800; color: var(--anct, var(--anc)); }   /* I6: --anc es relleno (3.07 como tinta) */
+  .apt-med-top { font-size: .75rem; font-weight: 800; color: var(--anct, var(--anc)); }   /* I6: --anc es relleno (3.07 como tinta) */
   .apt-med-txt { font-size: .82rem; color: var(--text); line-height: 1.4; margin-top: .35rem; white-space: pre-wrap; word-break: break-word; }
-  .apt-med-hasta { font-size: .7rem; color: var(--text-soft); font-weight: 600; margin-top: .3rem; }   /* I6: 4.29 con --text-muted */
+  .apt-med-hasta { font-size: .75rem; color: var(--text-soft); font-weight: 600; margin-top: .3rem; }   /* I6: 4.29 con --text-muted */
   /* Con 3 pestañas ("Servicio médico" es larga), que no se apriete el texto en celular */
   .portal-tabs .ptab { font-size: .76rem; padding: .6rem .35rem; line-height: 1.25; }
 
   /* Acceso flotante FIJO a Gestiones (siempre visible aunque se scrollee el panel de estadísticas) */
   /* ── Nómina de sólo lectura (D2) ── */
   .nomlist-resumen { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.7rem; }
-  .nomlist-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+  /* P418 · con letra grande, la insignia, «ausente hoy» y la llave no entraban al lado del nombre y la llave se salía de
+     la pantalla. Ahora la fila envuelve: el nombre pide al menos 9rem y, si no queda lugar, los controles bajan a un
+     segundo renglón, a la derecha (`flex-end`). Con lugar de sobra se ve igual que antes: el nombre crece y empuja. */
+  .nomlist-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:.5rem .6rem;
     padding:.65rem .8rem; border:1.5px solid var(--sup-borde); border-radius:12px;
     background:var(--card); margin-bottom:.5rem; }
-  .nomlist-info { min-width:0; flex:1; }
+  .nomlist-info { min-width:0; flex:1 1 9rem; overflow-wrap:break-word; }
   .nomlist-info b { display:block; font-size:.9rem; color:var(--text); }
   .nomlist-sub { display:block; font-size:.76rem; color:var(--text-muted); margin-top:.1rem; }
-  .nomlist-pend { flex-shrink:0; font-size:.66rem; font-weight:800; text-transform:uppercase;
+  .nomlist-pend { flex-shrink:0; font-size:.75rem; font-weight:800; text-transform:uppercase;
     letter-spacing:.03em; color:var(--text-soft); background:var(--chip-bg);
     border-radius:999px; padding:.1rem .45rem; }
   /* ── P039 · T5 · gestión de departamentos ──────────────────────────────────────────────────
@@ -5964,7 +6017,7 @@
   .dep-alta-in { flex:1 1 auto; min-width:0; }
   .dep-sec { margin-top:1.1rem; }
   .dep-sec:first-of-type { margin-top:0; }
-  .dep-sec-t { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  .dep-sec-t { font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
     color:var(--text-soft); margin:0 0 .45rem; }
   .dep-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
     padding:.65rem .8rem; border:1.5px solid var(--sup-borde); border-radius:12px;
@@ -6002,7 +6055,7 @@
   .ops-aviso { font-size:.78rem; color:var(--text-muted); background:var(--chip-bg);
                border-radius:10px; padding:.55rem .7rem; margin-bottom:.8rem; }
   .ops-sec { margin-top:1.1rem; }
-  .ops-sec-t { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  .ops-sec-t { font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
                color:var(--text-soft); margin:0 0 .45rem; }
   .ops-item { border:1.5px solid var(--sup-borde); border-radius:13px; padding:.65rem .8rem;
               margin-bottom:.55rem; background:var(--card); }
@@ -6060,18 +6113,18 @@
   .hsi-cab { font-size: .78rem; color: var(--text-soft); line-height: 1.4; }
   .hsi-pilar { background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: 16px;
     padding: .85rem .65rem .75rem; box-shadow: var(--shadow-sm); }
-  .hsi-pt { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  .hsi-pt { font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
     color: var(--text-soft); margin: 0 .2rem .6rem; }
   .hsi-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
   .hsi-fila.hsi-fila-1 { grid-template-columns: minmax(0, 1fr); }
   .hsi .kpi { padding: .6rem .35rem .55rem; min-width: 0; }
-  .hsi .kpi .km { font-size: .6rem; letter-spacing: .03em; overflow-wrap: anywhere; }
+  .hsi .kpi .km { font-size: .75rem; letter-spacing: .03em; overflow-wrap: anywhere; }
   .hsi .kpi .kv { font-size: 1.3rem; }
-  .hsi .kpi .kref, .hsi .kpi .kconf, .hsi .kpi .ktrend { font-size: .64rem; }
+  .hsi .kpi .kref, .hsi .kpi .kconf, .hsi .kpi .ktrend { font-size: .75rem; }
   .kpi-arco { position: relative; width: 100%; max-width: 96px; margin: .1rem auto 0; }
   .kpi-arco svg { display: block; width: 100%; height: auto; }
   .kpi-arco .kv { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; }
-  .kpi-desc { font-size: .62rem; line-height: 1.35; color: var(--text-soft); margin-top: .2rem; }
+  .kpi-desc { font-size: .75rem; line-height: 1.35; color: var(--text-soft); margin-top: .2rem; }
   .kpi-div { height: 1px; background: var(--linea-2); margin: .4rem .2rem .3rem; }
   .spark.spark-alta { height: 49px; }
   /* P311 · CON POCOS DÍAS DE DATOS NO HAY LÍNEA QUE DIBUJAR, y cada tarjeta reservaba su alto: un hueco en blanco en el medio de
@@ -6103,17 +6156,19 @@
   .hseq-bar-info[aria-expanded="true"] { background: var(--navy); }
   .hseq-bar-sem { flex: 1; min-width: 0; border: none; border-radius: var(--radius-sm); padding: .85rem 1rem;
     background: var(--orange-solido); color: var(--sobre-marca); font-family: inherit; font-weight: 800; font-size: .88rem;
-    cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: var(--shadow-md); }
+    cursor: pointer; white-space: normal; overflow-wrap: break-word; line-height: 1.25; box-shadow: var(--shadow-md); }
   .hseq-bar button:active { transform: scale(.97); }
   .hseq-guia { margin-bottom: .6rem; background: var(--card); border: 1.5px solid var(--sup-borde); border-radius: 14px;
     box-shadow: var(--shadow-md); max-height: 50vh; overflow-y: auto; }
   .hseq-guia-in { padding: .9rem 1rem; font-size: .82rem; line-height: 1.5; color: var(--text); }
-  #portalDash.con-hseq-bar .dash-scroll { padding-bottom: 6.4rem; }
+  #portalDash.con-hseq-bar .dash-scroll { padding-bottom: max(6.4rem, calc(var(--hseq-bar-alto, 46px) + 2.6rem)); }
+  /* P418 · el lugar del botón de gestiones: su alto medido (`dashGestFabLugar`) + su distancia al borde (1.1rem) + aire. */
+  #portalDash.con-gest-fab .dash-scroll { padding-bottom: calc(var(--gest-fab-alto, 3.4rem) + 2.1rem); }
   /* El ⌂ del administrador y el ojo de la demo suben por encima de la botonera, y quedan DEBAJO de ella en el apilado:
      la guía ⓘ crece hacia arriba y los tapaba (z-index 31 contra 30, medido por el verificador a 375/768/1366). */
   #portalDash.con-hseq-bar .adm-fab { z-index: 29; }
   /* Se levanta sólo mientras la botonera ocupa todo el ancho; desde ~520 px queda compacta a la derecha y no lo pisa. */
-  @media (max-width: 519px) { #portalDash.con-hseq-bar .adm-fab { bottom: calc(1.1rem + 46px + .6rem); } }
+  @media (max-width: 519px) { #portalDash.con-hseq-bar .adm-fab { bottom: calc(1.1rem + var(--hseq-bar-alto, 46px) + .6rem); } }
   /* Con la botonera, el flotante del administrador («entrar como…») cambia de ícono: el ⌂ de la botonera vuelve al
      inicio del panel, y dos casas iguales que hacen cosas distintas se confunden (verificador, hallazgo 3a). */
   .adm-fab .adm-fab-gente { display: none; }
@@ -6122,7 +6177,7 @@
   .hsem-sub { font-size: .82rem; color: var(--text-soft); line-height: 1.45; margin: .1rem 0 .8rem; }
   .hsem-fila { display: flex; align-items: center; gap: .6rem; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
   .hsem-m { flex: 1; min-width: 0; font-weight: 700; font-size: .88rem; color: var(--text); }
-  .hsem-m small { display: block; font-weight: 500; font-size: .72rem; color: var(--text-soft); }
+  .hsem-m small { display: block; font-weight: 500; font-size: .75rem; color: var(--text-soft); }
   .hsem-v { font-weight: 800; font-size: 1rem; color: var(--text); font-variant-numeric: tabular-nums; }
   .hsem-v.hsem-bajo { font-weight: 600; font-size: .78rem; color: var(--text-soft); }
   .hsem-fila .ktrend { margin: 0; min-width: 4.2rem; text-align: right; }
@@ -6158,7 +6213,7 @@
     border: 1.5px solid var(--est-borde-chip); box-shadow: var(--shadow-md); }
   .hsc-ico { flex-shrink: 0; width: 22px; height: 22px; }
   .hsc-n { display: block; font-weight: 900; font-size: .95rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
-  .hsc-l { display: block; font-size: .66rem; font-weight: 600; color: var(--est-tenue); line-height: 1.2; }
+  .hsc-l { display: block; font-size: .75rem; font-weight: 600; color: var(--est-tenue); line-height: 1.2; }
   /* el menú y el glosario se abren debajo del header: el chip no se les monta encima */
   #portalDash:has(#dfmPanel.open) .hseq-chip, #portalDash:has(#glossPanel.open) .hseq-chip { visibility: hidden; }
   /* P171 · el ojo de la demostración: mismo lugar que el del administrador (nunca coinciden:
@@ -6256,7 +6311,7 @@
   .gest-fab-main { flex: 1; min-width: 0; border: none; border-radius: var(--radius-sm);
     padding: .85rem 1.1rem; font-family: inherit;
     font-weight: 800; font-size: .88rem; cursor: pointer;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
   /* Mismo estilo que el botón principal, pero CUADRADO (mismo alto que ancho) */
   .gest-fab-info { flex-shrink: 0; width: 46px; border: none; border-radius: 13px;
     background: var(--orange-txt); color: #fff; font-size: 1.25rem;
@@ -8383,7 +8438,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.73';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.74';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -17917,7 +17972,7 @@ function renderPerelliGrid(step){
   /* Sólo pantalla. La gemela que VIAJA es GRID_LABELS, en perelliAdvanceGrid(), y esa se
      queda en español siempre. Si algún día se agrega un valor hay que tocar las dos. */
   const GRID_HDRS   = [t('pf_g_nada'), t('pf_g_leve'), t('pf_g_moderado'), t('pf_g_alto'), t('pf_g_severo')];
-  const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_TINTAS[i]}">${h}</div>`).join('')}</div>`;
+  const headRow = `<div class="rtable-head"><div class="rtable-lbl"></div>${GRID_HDRS.map((h,i)=>`<div class="rtable-hcell" style="color:${GRID_TINTAS[i]}"><span>${h}</span></div>`).join('')}</div>`;
   const rows = step.items.map((item, ri) =>
     `<div class="rtable-row"><div class="rtable-lbl">${item}</div>${GRID_COLORS.map((color,v)=>
       `<button type="button" class="rtable-cell" id="pgb_${ri}_${v+1}" style="--cell-color:${color}" onclick="perelliRate(${ri},${v+1})"></button>`
@@ -17925,6 +17980,36 @@ function renderPerelliGrid(step){
   ).join('');
   document.getElementById('testOptions').innerHTML =
     `<div class="rtable">${headRow}${rows}</div><button type="button" class="test-next-btn" id="perelliNextBtn" disabled onclick="perelliAdvanceGrid()">${esc(t('test_siguiente'))} →</button>`;
+  perelliEscalonarRotulos();
+}
+/* P418 · reparte los rótulos de la escala en renglones para que ninguno pise al de al lado (ver `.rtable-hcell`). Se mide
+   al pintar, sin esperar un cuadro: el ancho de cada rótulo depende sólo de la letra y del idioma, no del ancho de la
+   pantalla (las columnas van en px), así que girar el teléfono no cambia el reparto. Cada rótulo va al primer renglón,
+   de abajo hacia arriba, donde no toca a ninguno de los ya puestos (con 6 px de aire); cada renglón sube lo que mide
+   el más alto de los de abajo (el primero, «No la afecta», va en dos líneas). */
+function perelliEscalonarRotulos(){
+  const cab = document.querySelector('#testOptions .rtable-head');
+  if (!cab) return;
+  const spans = [...cab.querySelectorAll('.rtable-hcell > span')];
+  if (!spans.length) return;
+  spans.forEach(s => s.style.removeProperty('--rt-abajo'));
+  /* Sin pintar (pantalla oculta) todo mide 0 y cada rótulo «pisaría» al anterior: cinco renglones vacíos. Se deja el
+     reparto por defecto y se vuelve a medir la próxima vez que se pinte el paso. */
+  if (spans.some(s => !s.getBoundingClientRect().width)) return;
+  const filas = [];   // por renglón: los tramos horizontales ocupados y el alto mayor
+  const deCada = spans.map(s => {
+    const r = s.getBoundingClientRect();
+    let f = 0;
+    while (filas[f] && filas[f].tramos.some(([a, b]) => r.left < b + 6 && r.right > a - 6)) f++;
+    if (!filas[f]) filas[f] = { tramos: [], alto: 0 };
+    filas[f].tramos.push([r.left, r.right]);
+    filas[f].alto = Math.max(filas[f].alto, r.height);
+    return f;
+  });
+  const base = []; let acum = 0;
+  filas.forEach((fila, i) => { base[i] = acum; acum += fila.alto + 2; });
+  spans.forEach((s, i) => s.style.setProperty('--rt-abajo', Math.round(base[deCada[i]]) + 'px'));
+  cab.style.setProperty('--rt-alto', Math.ceil(acum) + 'px');
 }
 function perelliRate(itemIdx, val){
   perelliState.currentGridRatings[itemIdx] = val;
@@ -22548,6 +22633,7 @@ function demoPintarBarra(){
   fab.style.display = hay ? '' : 'none';
   const dash = document.getElementById('portalDash');
   if (dash) dash.classList.toggle('con-demo-fab', hay);
+  dashGestFabLugar();   // P418 · `con-demo-fab` también le achica el ancho al botón de gestiones
   /* ⚠️ UNA SOLA SEÑAL, NUNCA DOS. Quien entra por Ajustes → Administrador → rol está simulando Y
      en la demostración a la vez (`simEntrar` pide `action:'demo'`): la barra de simulación se
      esconde y el ojo absorbe su aviso en la hoja. */
@@ -25232,6 +25318,7 @@ function dashRemedirMarquees(){
     dashWireMarquees();
     splMedirTrazo();
     dashDesplegablesAjustar();   // F089 · H3: al girar, el lugar debajo del header cambia
+    dashGestFabLugar();          // P418 · y el alto del botón de gestiones (envuelve distinto)
   });
 }
 /* ⚠️ Mide el largo REAL del trazo de la tira de presentación, en píxeles de pantalla, y lo deja en
@@ -25280,6 +25367,7 @@ function dashUpdateAdmFab(){
   const va = !!(esAdminSesion() && !DASH.demoMode);   // P185 · también en el visor
   fab.style.display = va ? '' : 'none';
   if (dash) dash.classList.toggle('con-adm-fab', va);
+  dashGestFabLugar();   // P418 · `con-adm-fab` le quita 56 px de ancho al botón de gestiones: puede envolver y crecer
 }
 function admAtajosPintar(){
   demoAppPintarEntrada();   // P346b · F116 · arriba de los atajos: no toca a nadie
@@ -25423,7 +25511,8 @@ function admAtajoIr(i){
 
 function dashUpdateGestFab(){
   const fab = document.getElementById('gestFab'); if (!fab) return;
-  if (!DASH || DASH.tabs.indexOf('gestiones') < 0){ fab.style.display = 'none'; return; }
+  const pd = document.getElementById('portalDash');
+  if (!DASH || DASH.tabs.indexOf('gestiones') < 0){ fab.style.display = 'none'; if (pd) pd.classList.remove('con-gest-fab'); return; }
   fab.style.display = '';
   const list = gestCasos();
   const abiertas = list.filter(g => g.estado !== 'resuelta').length;
@@ -25431,6 +25520,40 @@ function dashUpdateGestFab(){
   if (count) count.textContent = list.length
     ? t('gest_fab_count', { n: list.length, u: t(list.length===1?'n_gestion':'n_gestiones'), a: abiertas })
     : t('gest_sin_cargadas');
+  dashGestFabLugar();
+}
+/* ⚠️ P418 · EL PANEL LE DEJA ABAJO EL LUGAR QUE OCUPA EL BOTÓN. Medido en la 7.73 a 375 px: el botón tapaba los
+   últimos 27 px del panel con letra Normal y 39 con «Muy grande» (el botón «Ver quiénes» del ciclo quedaba debajo).
+   Con P418 el botón ya no corta su texto con «…»: con letra grande ocupa dos renglones y tapaba 61. El margen de abajo
+   del panel era fijo (2,2rem); ahora es el alto del botón, medido, más su distancia al borde y un respiro. Con el
+   panel oculto mide 0 y se queda con el último alto medido (o con el de por defecto, en el CSS). Al girar el teléfono
+   el botón cambia de ancho y de alto: lo vuelve a medir `dashRemedirMarquees`. */
+/* ⚠️ P418 · Y LA BOTONERA DE HSEQ, POR LO MISMO. Con letra grande, «Ver reporte semanal ›» ya no se corta: envuelve, la
+   botonera crece, y el ojo de la demostración (y el ⌂ del administrador), que subían una distancia FIJA pensada para un
+   renglón (46 px), quedaban debajo del ⌂ de la botonera: tocar el ojo volvía al inicio (verificador de P418, 375 y 390
+   con «Muy grande», 320 con Normal). Ahora suben lo que la botonera mide (`--hseq-bar-alto`).
+   ⚠️ Y SE VUELVE A MEDIR CUANDO APARECEN. Entrando desde el formulario, `renderDash` corre con el panel oculto y todo
+   mide 0: quedaba el alto de respaldo del CSS y, con el botón en tres renglones, tapaba 13 px (verificador). El
+   observador se dispara cuando cualquiera de los dos pasa de 0 a su alto real, al girar el teléfono o al cambiar el
+   texto. No hay bucle: lo que escribe (el margen del panel, la altura del ojo) no cambia el tamaño de lo observado. */
+var _flotantesRO;   // R16: sin asignar, para no pisar uno ya creado
+function dashGestFabLugar(){
+  const pd = document.getElementById('portalDash'); if (!pd) return;
+  const fab = document.getElementById('gestFab'), bar = document.getElementById('hseqBar');
+  if (fab) {
+    const visible = fab.style.display !== 'none';
+    pd.classList.toggle('con-gest-fab', visible);
+    const alto = visible ? fab.getBoundingClientRect().height : 0;
+    if (alto > 0) pd.style.setProperty('--gest-fab-alto', Math.ceil(alto) + 'px');
+  }
+  if (bar && !bar.hidden) {
+    const alto = bar.getBoundingClientRect().height;
+    if (alto > 0) pd.style.setProperty('--hseq-bar-alto', Math.ceil(alto) + 'px');
+  }
+  if (!_flotantesRO && typeof ResizeObserver === 'function') {
+    try { _flotantesRO = new ResizeObserver(() => dashGestFabLugar()); if (fab) _flotantesRO.observe(fab); if (bar) _flotantesRO.observe(bar); }
+    catch (e) {}
+  }
 }
 // El cuadradito ⓘ despliega/repliega la explicación hacia arriba, sin abrir el panel completo.
 function gestFabToggleInfo(){
@@ -27436,6 +27559,7 @@ function dashUpdateHseqUI(){
   const pd = document.getElementById('portalDash');
   if (pd){ pd.classList.toggle('dash-hseq', on); pd.classList.toggle('con-hseq-bar', on); }
   ['hseqMenuBtn', 'hseqGlosBtn', 'hseqBar', 'hseqEstadoFila'].forEach(id => { const e = document.getElementById(id); if (e) e.hidden = !on; });
+  dashGestFabLugar();   // P418 · el ojo de la demo y el ⌂ del administrador suben lo que la botonera mide
   /* Con la botonera, el flotante del administrador cambia de ícono (CSS) y también de NOMBRE: «Ir al inicio» al lado del
      ⌂ que vuelve al inicio del panel eran dos «inicio» para un lector de pantalla (verificador, 2.ª vuelta). La clave va
      también en `data-i18n-attr`, para que un cambio de idioma no le devuelva la vieja.

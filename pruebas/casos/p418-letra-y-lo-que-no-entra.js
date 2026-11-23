@@ -102,3 +102,97 @@ PRUEBAS.caso('la barra del ciclo: el rótulo de cada tramo, a 12 px y sin «…�
     });
   } finally { p418Limpiar(null); }
 });
+
+/* ── Fase 2 · lo de la persona que el barrido de la fase 1 no alcanzaba ─────────────────────── */
+
+PRUEBAS.caso('🔴 la grilla del Samn-Perelli: los rótulos de la escala a 12 px, enteros y sin pisarse (375, letra Normal y «Muy grande»)', () => {
+  /* Iban a .58rem (9,3 px) partidos adentro de columnas de 32 px. El derecho lo da `perelliEscalonarRotulos` (los sube de
+     renglón cuando se pisarían) y el CSS de `.rtable-hcell > span` (entero, sin partir). */
+  const foto = () => {
+    const sp = [...document.querySelectorAll('#testOptions .rtable-hcell > span')], rs = sp.map(s => s.getBoundingClientRect());
+    const pisan = [];
+    for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { const a = rs[i], c = rs[j];
+      if (a.left < c.right - .5 && a.right > c.left + .5 && a.top < c.bottom - .5 && a.bottom > c.top + .5) pisan.push(sp[i].textContent + '×' + sp[j].textContent); }
+    return { n: sp.length, fs: sp.length ? parseFloat(getComputedStyle(sp[0]).fontSize) : 0, pisan: pisan,
+             fuera: rs.filter(x => x.left < -1 || x.right > innerWidth + 1).length };
+  };
+  const pintar = (nivel, sinEscalonar) => {
+    const orig = window.perelliEscalonarRotulos;
+    p418Arrancar(P418_LARGO);
+    let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+    try {
+      fijarTamanoTexto(nivel);
+      if (sinEscalonar) window.perelliEscalonarRotulos = function () {};
+      return PRUEBAS.enVentana(375, 812, () => {
+        const it = seccionesApp().flatMap(s => s.items || []).find(i => i.testFlow === 'perelli');
+        abrirTest(it);
+        perelliState.stepIdx = PERELLI_STEPS.findIndex(s => s.type === 'rating-grid');
+        renderPerelliStep();
+        return foto();
+      });
+    } finally {
+      window.perelliEscalonarRotulos = orig;
+      try { cerrarTest(); } catch (e) {}
+      try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+      aplicarTamanoTexto(); p418Limpiar(null);
+    }
+  };
+  [1, 3].forEach(n => {
+    const r = pintar(n, false);
+    PRUEBAS.igual(r.n, 5, 'guarda: la grilla está pintada con sus cinco rótulos (letra ' + n + ')');
+    PRUEBAS.alMenos(r.fs, n === 1 ? 11.95 : 16, '🔴 a 12 px con la letra Normal (y más con la grande) · ' + r.fs.toFixed(1));
+    PRUEBAS.igual(r.pisan, [], '🔴 ninguno pisa al de al lado (letra ' + n + ')');
+    PRUEBAS.igual(r.fuera, 0, 'ninguno se sale de la pantalla (letra ' + n + ')');
+  });
+  /* DISCRIMINADOR: sin el reparto en renglones, se pisan. */
+  PRUEBAS.cierto(pintar(3, true).pisan.length > 0, 'DISCRIMINADOR · sin escalonar, los rótulos se pisan');
+});
+
+PRUEBAS.caso('el `<small>` sin regla propia no baja de 12 px con la letra Normal', () => {
+  /* El derecho lo da la regla `small { font-size: max(.75rem, .83em) }`. Encontrado en el panel: el rol entre paréntesis
+     de la bitácora, adentro de un texto de .78rem, daba 10,3 px. */
+  const caja = document.createElement('div');
+  caja.innerHTML = '<span style="font-size:.78rem">texto <small id="p418Small">(Supervisor)</small></span>';
+  document.body.appendChild(caja);
+  let sab = null;
+  try {
+    PRUEBAS.igual(getComputedStyle(document.documentElement).fontSize, '16px', 'guarda: la letra es la Normal');
+    const fs = () => parseFloat(getComputedStyle(document.getElementById('p418Small')).fontSize);
+    PRUEBAS.alMenos(fs(), 11.95, '🔴 el `<small>` a 12 px · era 10,3');
+    sab = document.createElement('style'); sab.textContent = 'small { font-size: smaller !important; }'; document.head.appendChild(sab);
+    PRUEBAS.cierto(fs() < 11.95, 'DISCRIMINADOR · con el `smaller` del navegador vuelve a quedar chico · ' + fs().toFixed(1));
+  } finally { if (sab) sab.remove(); caja.remove(); }
+});
+
+PRUEBAS.caso('🔴 el splash con la letra Normal: la tira, las etiquetas de estado, el monitor y el pie a 12 px para arriba (375×812)', () => {
+  /* Las etiquetas («Proyectando», «Analizando») iban a 10,6 px, el monitor de la lámina 6 a 9,6, «Idioma» a 10,6 y la nota
+     de la norma a 11,2. El monitor va con tope en px como el resto de la tira (`.spl-mon i/u`): que la lámina no se pase de
+     su tarjeta lo cuida `m5-coherencia-visual.js`. */
+  const ov = document.getElementById('splashOv');
+  const ya = ov.classList.contains('show'), sinAnim = document.documentElement.classList.contains('sin-animaciones');
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  let sab = null;
+  /* Sin mirar la opacidad: la tira entra con un fundido que en la pestaña oculta no corre. */
+  const textos = () => [...ov.querySelectorAll('*')].filter(el => !/^(SCRIPT|STYLE|OPTION)$/i.test(el.tagName) && !(el instanceof SVGElement) &&
+    [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && (() => { try { return el.checkVisibility({ checkVisibilityCSS: true }); } catch (e) { return true; } })() &&
+    el.getBoundingClientRect().width > 0.5);
+  const chicas = () => textos().filter(el => parseFloat(getComputedStyle(el).fontSize) < 11.95).map(el => p418Nombre(el) + ' ' + parseFloat(getComputedStyle(el).fontSize).toFixed(1));
+  try {
+    document.documentElement.classList.add('sin-animaciones');
+    fijarTamanoTexto(1);
+    PRUEBAS.enVentana(375, 812, () => {
+      ov.classList.add('show'); void document.body.offsetWidth;
+      const n = textos().length;
+      PRUEBAS.alMenos(n, 15, 'guarda: el splash está pintado con su tira · ' + n);
+      PRUEBAS.igual(chicas(), [], '🔴 nada por debajo de 12 px en el splash');
+      sab = document.createElement('style'); sab.textContent = '.spl-chip { font-size: 9px !important; }'; document.head.appendChild(sab);
+      PRUEBAS.cierto(chicas().some(x => /spl-chip/.test(x)), 'DISCRIMINADOR · una etiqueta de estado a 9 px se ve como chica');
+    });
+  } finally {
+    if (sab) sab.remove();
+    if (!ya) ov.classList.remove('show');
+    if (!sinAnim) document.documentElement.classList.remove('sin-animaciones');
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto();
+  }
+});

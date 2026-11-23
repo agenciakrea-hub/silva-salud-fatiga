@@ -27,7 +27,11 @@ const U4_INLINE = ['--anc','--gpp','--hc','--tc','--spl-traza','--marquee-dist',
                    '--anbg','--ansol','--anct',
                    /* F089 · el alto de los desplegables del header hasta el borde de la pantalla:
                       `dashDesplegablesAjustar` → `setProperty` en #dfmPanel y #glossPanel */
-                   '--dfm-alto','--gloss-alto'];
+                   '--dfm-alto','--gloss-alto',
+                   /* F121 · lo que ocupan la barra de abajo y el cartel de envíos: `navAltoSincronizar` y `offAltoPublicar`
+                      → `setProperty` en <html>. P418 · el reparto de los rótulos de la grilla del Samn-Perelli
+                      (`perelliEscalonarRotulos`) y el alto del botón de gestiones (`dashGestFabLugar`). */
+                   '--nav-alto','--off-alto','--rt-alto','--rt-abajo','--gest-fab-alto','--hseq-bar-alto'];
 
 /* ⚠️ EL TEXTO SIN COMENTARIOS, Y POR QUÉ ESTO ES UN HELPER Y NO CUATRO COPIAS. Los dos casos de
    abajo barrían `x.textContent` del `<style>` con la misma regex escrita dos veces cada una
