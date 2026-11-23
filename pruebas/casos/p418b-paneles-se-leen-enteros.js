@@ -406,3 +406,24 @@ PRUEBAS.caso('el PVT con un solo día no muestra «Cómo evolucionó la reacció
   } finally { window.dashGraf = orig; }
   PRUEBAS.cierto(sab.evo && !sab.svg, 'DISCRIMINADOR · si `dashGraf` envuelve el vacío, sale el título sin gráfico');
 });
+
+PRUEBAS.caso('🔴 la grilla de números del panel: dos columnas iguales si entran, una si no; ninguna tarjeta se pasa (320 a 430, tres letras)', () => {
+  if (p418pSaltea()) return;
+  /* Con `1fr 1fr` la primera columna crecía hasta su palabra más larga («SOMNOLENCIA», que no se parte) y la grilla se pasaba
+     de su caja 14–22 px con letra grande, y a 320 «Muy grande» 4 px fuera de la pantalla. El derecho lo da `.kpi-grid` con
+     `repeat(auto-fit, minmax(max(6.8rem, calc(50% - .3rem)), 1fr))`: nunca más de dos, y una cuando dos no entran. */
+  const mide = ovl => { const grs = [...ovl.querySelectorAll('#dashScroll .kpi-grid')].filter(g => g.getBoundingClientRect().width > 0), malas = [];
+    grs.forEach(gr => { const G = gr.getBoundingClientRect(); [...gr.children].forEach(k => { const q = k.getBoundingClientRect();
+      if (k.scrollWidth > k.clientWidth + 1 || q.right > G.right + 1) malas.push((k.querySelector('.km') || k).textContent.trim().slice(0, 14) + ' ' + Math.round(q.right - G.right) + 'px'); }); });
+    return { n: grs.length, cols: grs.map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length), malas }; };
+  [[320, 693, 1], [320, 693, 2], [320, 693, 3], [375, 812, 3], [393, 852, 3], [430, 932, 1]].forEach(([an, al, n]) => {
+    const r = p418pPanel('medico', { ancho: an, alto: al, nivel: n }, mide);
+    PRUEBAS.alMenos(r.n, 1, 'guarda: a ' + an + ' con letra ' + n + ' hay grilla de números');
+    PRUEBAS.igual(r.malas, [], '🔴 a ' + an + ' con letra ' + n + ', ninguna tarjeta se pasa de su grilla');
+    PRUEBAS.comoMucho(Math.max(...r.cols), 2, 'y nunca más de dos columnas · ' + r.cols.join(','));
+  });
+  const ancha = p418pPanel('medico', { ancho: 375, alto: 812, nivel: 1 }, mide);
+  PRUEBAS.igual(ancha.cols[0], 2, 'CONTROL · a 375 con letra Normal siguen siendo dos');
+  const sab = p418pPanel('medico', { ancho: 375, alto: 812, nivel: 3, sabotaje: '.kpi-grid { grid-template-columns: 1fr 1fr !important; }' }, mide);
+  PRUEBAS.alMenos(sab.malas.length, 1, 'DISCRIMINADOR · con `1fr 1fr`, a 375 «Muy grande» las tarjetas se pasan · ' + sab.malas.slice(0, 2).join(', '));
+});

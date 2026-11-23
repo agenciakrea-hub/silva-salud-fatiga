@@ -1566,7 +1566,12 @@
   .df input, .df select { width: 100%; padding: .62rem .7rem; border: 1.5px solid var(--sup-borde); border-radius: 10px; font-family: inherit; font-size: .92rem; color: var(--text); background: var(--sup-campo); }
 
   .dash-count { font-size: .82rem; font-weight: 700; color: var(--text-muted); margin-bottom: .8rem; }
-  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-bottom: 1.3rem; }
+  /* P418 · 2b · DOS iguales mientras entren, UNA cuando no. Con `1fr 1fr` la primera columna crecía hasta su palabra más
+     larga («SOMNOLENCIA», que no se parte: 6,8rem medidos) y la grilla se pasaba de su caja 14–22 px con letra grande
+     (320 «Grande», 375 y 393 «Muy grande»), y a 320 «Muy grande» 4 px fuera de la pantalla. El mínimo de cada columna es lo
+     más grande entre la mitad del ancho (así nunca son tres) y esos 6,8rem (así, si dos no entran, es una). En ≥760 px
+     siguen las cuatro de siempre. */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(max(6.8rem, calc(50% - .3rem)), 1fr)); gap: .55rem; margin-bottom: 1.3rem; }
   .kpi { background: var(--sup-suave); border: 1.5px solid var(--sup-borde); border-radius: 13px; padding: .75rem .5rem; text-align: center; }
   .kpi.over { background: var(--sem-rojo-bg); border-color: var(--sem-rojo-alt); }
   .kpi .km { font-size: .75rem; font-weight: 700; color: var(--text-soft); text-transform: uppercase; letter-spacing: .02em; }
@@ -4076,6 +4081,14 @@
     transition:transform var(--dur-mov) var(--ease-app); }
   .car-slide { width:20%; flex:none; display:flex; flex-direction:column; align-items:center;
     justify-content:center; text-align:center; padding:56px 30px 0; gap:14px; }
+  /* P418 · 2b · LAS CINCO LÁMINAS SE DESPLAZAN CUANDO NO ENTRAN (antes, sólo la del esquema, más abajo). Con letra grande en
+     un teléfono chico —y más con la barra de abajo en dos renglones— el último renglón quedaba cortado sin forma de verlo
+     (verificador de P418: a 320×520 con «Muy grande», la lámina 2 terminaba en «…funcionamiento sin»). Centradas con
+     márgenes automáticos y no con `safe center`: mientras entran quedan al medio y, cuando no, arrancan arriba y se bajan,
+     también en un Safari viejo. El aire de abajo es para que lo último no quede pegado a los puntos al bajar. */
+  .car-slide { overflow-y:auto; justify-content:flex-start; padding-bottom:12px; }
+  .car-slide > :first-child { margin-top:auto; }
+  .car-slide > :last-child { margin-bottom:auto; }
   .car-ic { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     color:var(--entrada-naranja-ink); background:color-mix(in srgb, var(--entrada-naranja) 16%, transparent);
     margin-bottom:6px; }
@@ -4149,7 +4162,11 @@
     font-size:.8rem; font-weight:700; color:var(--text-muted); cursor:pointer;
     padding:.6rem .7rem; min-height:44px; border-radius:var(--radius-sm); }
   .car-saltar:hover { color:var(--text); }
-  .car-nav { position:relative; display:flex; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
+  /* P418 · 2b · la barra ENVUELVE: si «Saltar», «Atrás» y «Siguiente» no entran en un renglón, «Siguiente» (o
+     «Registrarse») baja al suyo, a todo el ancho. Desde la 2.ª lámina, con «Atrás» a la vista, no entraban: con «Muy
+     grande» «Registrarse» quedaba 7 px fuera de la pantalla a 375 px (SE) y 62 a 320 (iPhone con «Zoom de pantalla»),
+     con el texto cortado. Ninguno de los tres se puede achicar más que su texto. */
+  .car-nav { position:relative; display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:14px 24px calc(env(safe-area-inset-bottom,0px) + 22px); }
   .car-atras { background:none; border:none; color:var(--text-soft); font-family:inherit; font-weight:700;
     font-size:.9rem; cursor:pointer; padding:.6rem .5rem; visibility:hidden; }
   .car-atras.on { visibility:visible; }
@@ -4161,7 +4178,7 @@
      Va con `:not(.on)` y no con una clase nueva puesta desde JS: el estado ya está en el DOM y
      agregar un segundo lugar donde decirlo es un lugar más donde puede quedar desincronizado. */
   .car-atras:not(.on) { position:absolute; }
-  .car-sig { flex:1; }
+  .car-sig { flex:1 1 auto; width:auto; }   /* P418 · 2b · base = su texto (no 0): así sabe cuándo no entra y baja */
   @media (max-width:340px){ .car-slide{ padding-top:40px; } .car-ic{ width:54px; height:54px; } .car-ic svg{ width:26px; height:26px; } }
   /* ⚠️ PANTALLA BAJA · el corte es 660 y NO 700 a propósito. A 375×667 —iPhone SE/8, de los más
      comunes— la lámina entra con el ícono puesto, y sacárselo dejaría a la cuarta lámina sin el
@@ -6246,8 +6263,12 @@
   .ini-baja b { display: block; margin-bottom: .2rem; }
   /* P171 · la ficha de «Mis datos» */
   .md-lista { margin: .4rem 0 .6rem; }
-  .md-fila { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
-  .md-k { flex: 0 0 auto; font-size: .8rem; color: var(--text-muted); font-weight: 700; }
+  /* P418 · 2b · LA FILA ENVUELVE: si el valor no entra al lado del nombre del dato, baja al renglón de abajo, entero. Sin
+     eso, a 320 px con «Muy grande» el nombre de la persona y la cédula se apilaban letra por letra en 32 px. El valor va con
+     su ancho de contenido (no con un piso fijo: con 8rem, «P-0» bajaba de renglón con lugar de sobra), y el nombre del dato
+     también puede achicarse partiendo en palabras (uno largo se pasaba de la fila 3 a 16 px, de antes). */
+  .md-fila { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem 1rem; padding: .6rem 0; border-bottom: 1px solid var(--linea-2); }
+  .md-k { flex: 0 1 auto; font-size: .8rem; color: var(--text-muted); font-weight: 700; }
   .md-v { flex: 1 1 auto; text-align: right; font-size: .95rem; color: var(--text); word-break: break-word; }
   .adm-atajos-sheet h2 { margin-top: 0; }
   .adm-atajos-lead { font-size: .85rem; color: var(--text-soft); line-height: 1.5; margin: .2rem 0 1rem; }
@@ -8449,7 +8470,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.75';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.76';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva

@@ -196,3 +196,88 @@ PRUEBAS.caso('🔴 el splash con la letra Normal: la tira, las etiquetas de esta
     aplicarTamanoTexto();
   }
 });
+
+/* ══ FASE 2b · 320 px: el iPhone con «Zoom de pantalla → Ampliado» (y lo que sólo se ve con letra grande) ══════════ */
+
+PRUEBAS.caso('🔴 el carrusel de bienvenida: en sus cinco láminas «Siguiente» y «Registrarse» entran enteros (375 y 320, letra grande)', () => {
+  /* Desde la 2.ª lámina aparece «Atrás» y la fila «Saltar · Atrás · Siguiente» no entraba: con «Muy grande», «Registrarse»
+     quedaba 7 px fuera de la pantalla a 375 (SE) y 62 a 320, con el texto cortado; con «Grande» a 320, 3 a 20. El derecho
+     lo da `.car-nav { flex-wrap: wrap }` con `.car-sig { flex: 1 1 auto; width: auto }`: si no entra, baja a su renglón.
+     Se pasa de lámina como lo hacen los puntos (`CAR_IDX = i; carruselPintar()`), sin `carruselMostrar`, que apila historial. */
+  const ov = document.getElementById('carruselOv');
+  const ya = ov.classList.contains('show'), idx0 = CAR_IDX, sinAnim = document.documentElement.classList.contains('sin-animaciones');
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  /* Y el TEXTO de cada lámina (verificador de P418): con la barra en dos renglones la lámina pierde 63 px, y como recortaba
+     sin dejar desplazar, a 320×520 «Muy grande» la lámina 2 terminaba en «…funcionamiento sin». Lo que pasa por abajo de la
+     lámina vale sólo si ella se desplaza (`overflow-y` real); lo que queda arriba de su borde no se alcanza nunca. */
+  const textoDe = s => { let top = Infinity, bot = -Infinity; const w = document.createTreeWalker(s, NodeFilter.SHOW_TEXT);
+    for (let t = w.nextNode(); t; t = w.nextNode()) { if (!t.textContent.trim() || getComputedStyle(t.parentElement).display === 'none') continue;
+      const rg = document.createRange(); rg.selectNodeContents(t); for (const c of rg.getClientRects()) { if (!c.width) continue; top = Math.min(top, c.top); bot = Math.max(bot, c.bottom); } }
+    return { top, bot }; };
+  const mirar = () => { const out = [], btn = document.getElementById('carSigBtn'), laminas = [...document.querySelectorAll('#carTrack .car-slide')];
+    for (let i = 0; i < 5; i++) { CAR_IDX = i; carruselPintar(); void document.body.offsetWidth;
+      const r = btn.getBoundingClientRect();
+      if (r.left < -1 || r.right > innerWidth + 1 || btn.scrollWidth > btn.clientWidth + 1)
+        out.push('lámina ' + (i + 1) + ' «' + btn.textContent.trim() + '» ' + Math.round(r.left) + '…' + Math.round(r.right) + ' de ' + innerWidth);
+      const s = laminas[i], S = s.getBoundingClientRect(), tx = textoDe(s), baja = /(auto|scroll)/.test(getComputedStyle(s).overflowY);
+      if (tx.top < S.top - 1) out.push('lámina ' + (i + 1) + ': texto cortado arriba ' + Math.round(S.top - tx.top) + ' px');
+      if (tx.bot > S.bottom + 1 && !baja) out.push('lámina ' + (i + 1) + ': texto cortado abajo ' + Math.round(tx.bot - S.bottom) + ' px, sin poder bajar'); }
+    return out; };
+  let sab = null;
+  try {
+    document.documentElement.classList.add('sin-animaciones');
+    ov.classList.add('show');
+    [[375, 667, 3], [320, 693, 2], [320, 693, 3], [320, 568, 3], [320, 520, 3]].forEach(([w, h, n]) => {   // 320×520: Safari con zoom y sus barras
+      fijarTamanoTexto(n);
+      PRUEBAS.enVentana(w, h, () => {
+        PRUEBAS.cierto(document.getElementById('carSigBtn').getBoundingClientRect().width > 0, 'guarda: a ' + w + '×' + h + ' el carrusel está a la vista');
+        PRUEBAS.igual(mirar(), [], '🔴 a ' + w + '×' + h + ' con letra ' + n + ', el botón principal entra entero en las cinco láminas');
+      });
+    });
+    sab = document.createElement('style'); sab.textContent = '.car-nav { flex-wrap: nowrap !important; }'; document.head.appendChild(sab);
+    fijarTamanoTexto(3);
+    const roto = PRUEBAS.enVentana(375, 667, mirar);
+    PRUEBAS.cierto(roto.some(x => /lámina 5 «/.test(x)), 'DISCRIMINADOR · con la barra en un solo renglón, «Registrarse» sale de la pantalla · ' + roto.join(' | '));
+    sab.textContent = '.car-slide { overflow-y: hidden !important; }';
+    const corto = PRUEBAS.enVentana(320, 520, mirar);
+    PRUEBAS.cierto(corto.some(x => /texto cortado/.test(x)), 'DISCRIMINADOR · con las láminas sin desplazar (como en la 7.75), el texto se corta · ' + corto.slice(0, 2).join(' | '));
+  } finally {
+    if (sab) sab.remove();
+    CAR_IDX = idx0; try { carruselPintar(); } catch (e) {}
+    if (!ya) ov.classList.remove('show');
+    if (!sinAnim) document.documentElement.classList.remove('sin-animaciones');
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock();
+  }
+});
+
+PRUEBAS.caso('🔴 «Mis datos» a 320 con «Muy grande»: el nombre y la cédula no se apilan letra por letra', () => {
+  /* El nombre del dato (`.md-k`) no se achicaba y el valor (`.md-v`) se quedaba con lo que sobraba: 32 px, el nombre de la
+     persona de 182 px de alto. El derecho lo da `.md-fila { flex-wrap: wrap }`: si el valor no entra al lado, baja entero al
+     renglón de abajo (y `.md-k` puede achicarse partiendo en palabras). Se pinta con `misDatosPintar` (lo que hace `misDatosAbrir`, sin
+     su entrada del historial). */
+  p418Arrancar(P418_LARGO);
+  const ov = document.getElementById('misDatosOv');
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  const apilados = () => [...ov.querySelectorAll('.md-v')].filter(p418Visible).filter(el => { const r = el.getBoundingClientRect(), fs = parseFloat(getComputedStyle(el).fontSize);
+    return el.textContent.trim().length > 4 && r.width < fs * 2.2 && r.height > fs * 3.2; }).map(el => p418Nombre(el) + ' ' + Math.round(el.getBoundingClientRect().width) + '×' + Math.round(el.getBoundingClientRect().height));
+  let sab = null;
+  try {
+    fijarTamanoTexto(3);
+    misDatosPintar(); ov.classList.add('show'); syncScrollLock();
+    [[320, 693], [320, 568], [375, 667]].forEach(([w, h]) => PRUEBAS.enVentana(w, h, () => {
+      PRUEBAS.alMenos([...ov.querySelectorAll('.md-v')].filter(p418Visible).length, 3, 'guarda: a ' + w + '×' + h + ' la ficha muestra sus datos');
+      PRUEBAS.cierto([...ov.querySelectorAll('.md-v')].some(el => /María Alejandra/.test(el.textContent)), 'guarda: con el nombre largo');
+      PRUEBAS.igual(apilados(), [], '🔴 a ' + w + '×' + h + ' con «Muy grande», ningún dato se apila letra por letra');
+    }));
+    // La regla de la 7.75 entera: la fila sin envolver Y el nombre del dato sin achicarse (desde 2b también puede achicarse).
+    sab = document.createElement('style'); sab.textContent = '.md-fila { flex-wrap: nowrap !important; } .md-k { flex: 0 0 auto !important; } .md-v { flex: 1 1 auto !important; }'; document.head.appendChild(sab);
+    const roto = PRUEBAS.enVentana(320, 693, apilados);
+    PRUEBAS.cierto(roto.length > 0, 'DISCRIMINADOR · con la fila sin envolver, el valor se apila · ' + roto.slice(0, 2).join(' | '));
+  } finally {
+    try { misDatosCerrar(); } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto();
+    p418Limpiar(sab);
+  }
+});
