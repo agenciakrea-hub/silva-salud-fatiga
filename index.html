@@ -3163,7 +3163,7 @@
   html.sin-animaciones *, html.sin-animaciones *::before, html.sin-animaciones *::after {
     animation: none !important; transition: none !important;
   }
-  html.sin-animaciones .anim-target, html.sin-animaciones .anim-target *,
+  html.sin-animaciones .anim-target,
   html.sin-animaciones .home-head, html.sin-animaciones .view,
   html.sin-animaciones .sheet, html.sin-animaciones .overlay, html.sin-animaciones .section,
   /* J5: los bloques del inicio se animan desde opacity:0 — si no se los fuerza acá, con la
@@ -3176,6 +3176,17 @@
   html.sin-animaciones .ent-logo-entra, html.sin-animaciones .ent-texto-entra {
     opacity: 1 !important; transform: none !important;
   }
+  /* ⚠️ P418 · ADENTRO DE UN SVG, SIN `transform: none`. En un SVG la propiedad `transform` de CSS le gana al ATRIBUTO
+     `transform`, que es donde los gráficos giran sus rótulos (`rotate(-60 …)` en las barras y las cajas, `rotate(-90 …)` en
+     el título del eje). Con `.anim-target *` de arriba, cualquiera con «reducir movimiento» (o la pestaña oculta al cargar)
+     veía los rótulos derechos y amontonados uno sobre otro, desde siempre: lo destapó la medición de P418 (fase 4). Las
+     animaciones de los gráficos no dependen de un `transform` fijo (las barras crecen con una animación, que ya se apaga),
+     así que al SVG le alcanza con la opacidad y el trazo completo.
+     ⚠️ En una regla APARTE y no en la lista de arriba: `:not(svg *)` es de Selectors 4, y un navegador que no lo entienda
+     descarta la regla entera, con `.view`, `.sheet`, `.overlay` y el inicio adentro (que quedarían invisibles con la
+     pestaña oculta al cargar). Así, en ese caso se pierde sólo esta. */
+  html.sin-animaciones .anim-target *:not(svg *) { opacity: 1 !important; transform: none !important; stroke-dashoffset: 0 !important; }
+  html.sin-animaciones .anim-target svg * { opacity: 1 !important; stroke-dashoffset: 0 !important; }
 
   /* ══════════════════════════════════════════════════════════════════════════════════════════
      PIEZAS REUTILIZABLES · pantallas de entrada (A2, 2026-08-25)
@@ -8438,7 +8449,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.74';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.75';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -25243,6 +25254,7 @@ function renderDash(){
   /* F089 · N1: el menú se queda abierto al elegir período o filtro, y el repintado puede cambiar el alto del header
      (en HSEQ, el estado global de «Semana» es más alto que el de «Rango»): el lugar que le queda se vuelve a medir. */
   dashDesplegablesAjustar();
+  dashGrafAjustar();   // P418 · fase 4 · la letra de los gráficos, con el ancho al que se ven de verdad
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
 // al lado), se desliza sola de un lado al otro para poder leerla entera en vez de cortarla con "…".
@@ -25319,6 +25331,7 @@ function dashRemedirMarquees(){
     splMedirTrazo();
     dashDesplegablesAjustar();   // F089 · H3: al girar, el lugar debajo del header cambia
     dashGestFabLugar();          // P418 · y el alto del botón de gestiones (envuelve distinto)
+    dashGrafAjustar();           // P418 · fase 4 · y la letra de los gráficos (cambió el ancho al que se ven)
   });
 }
 /* ⚠️ Mide el largo REAL del trazo de la tira de presentación, en píxeles de pantalla, y lo deja en
@@ -25535,7 +25548,8 @@ function dashUpdateGestFab(){
    ⚠️ Y SE VUELVE A MEDIR CUANDO APARECEN. Entrando desde el formulario, `renderDash` corre con el panel oculto y todo
    mide 0: quedaba el alto de respaldo del CSS y, con el botón en tres renglones, tapaba 13 px (verificador). El
    observador se dispara cuando cualquiera de los dos pasa de 0 a su alto real, al girar el teléfono o al cambiar el
-   texto. No hay bucle: lo que escribe (el margen del panel, la altura del ojo) no cambia el tamaño de lo observado. */
+   texto. No hay bucle: lo que escribe (el margen del panel, la altura del ojo) no cambia el tamaño de lo observado. El de
+   los gráficos (`_grafRO`) mira el panel por su BORDE por lo mismo: el margen le cambiaba el contenido. */
 var _flotantesRO;   // R16: sin asignar, para no pisar uno ya creado
 function dashGestFabLugar(){
   const pd = document.getElementById('portalDash'); if (!pd) return;
@@ -25553,6 +25567,112 @@ function dashGestFabLugar(){
   if (!_flotantesRO && typeof ResizeObserver === 'function') {
     try { _flotantesRO = new ResizeObserver(() => dashGestFabLugar()); if (fab) _flotantesRO.observe(fab); if (bar) _flotantesRO.observe(bar); }
     catch (e) {}
+  }
+}
+/* ══ P418 · FASE 4 · LA LETRA DE LOS GRÁFICOS ════════════════════════════════════════════════════════════════════════
+   Los ocho gráficos del panel (barras, cajas, dispersión, radar, líneas, PVT, línea de tiempo, histograma) dibujan en un
+   `viewBox` fijo de 280 a 340 unidades con la letra en esas unidades (7 a 11), y el CSS los estira al ancho de su tarjeta.
+   Medido con la demostración real (`docs/specs/P418/instrumento/medir-graficos.js`): en un teléfono se veían a 5,4–7,5 px,
+   67 textos chicos en el panel médico; en computadora con dos columnas, a 7,7; y la letra elegida no los movía. Además
+   «Somnolencia», girado, salía del dibujo y se cortaba.
+   Este ajuste corre sobre el gráfico YA PUESTO, sin tocar cómo se arma: mide a qué ancho se ve, lleva cada texto a la letra
+   que se vea a 12 px como mínimo (y lo que la letra elegida pida, hasta «Grande»: más allá no hay dónde ponerla en 286
+   px) y agranda el `viewBox` hasta que entre todo lo dibujado, así nada se recorta. Como agrandar el `viewBox` achica la
+   escala, se repite hasta que no cambia (dos o tres vueltas). Guarda la letra y el `viewBox` originales para volver a
+   calcular al girar el teléfono o cuando el panel aparece después de pintado (el observador). Un texto que ya era más
+   grande que el mínimo queda como estaba. */
+var _grafRO;   // R16: sin asignar
+function grafLetraPx(){
+  let raiz = 16;
+  try { raiz = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; } catch (e) {}
+  return 12 * Math.min(raiz / 16, 1.18);
+}
+/* La letra que necesita, en unidades del dibujo, un gráfico de `W` unidades para verse a 12 px, cuando todavía no está
+   puesto. Se calcula con el ancho más CHICO que puede tocarle —la tarjeta de 23rem de las dos columnas de computadora—,
+   así el lugar que el gráfico reserva para sus rótulos alcanza aunque después se vea más angosto de lo estimado; la letra
+   la corrige `grafLetraAjustar` con el ancho real. */
+function grafNec(W, anchoReal){
+  return grafLetraPx() * W / grafAncho(anchoReal);
+}
+// El ancho en px al que se va a ver el gráfico: el real si ya está puesto; si no, la estimación de arriba.
+function grafAncho(anchoReal){
+  if (anchoReal > 0) return anchoReal;
+  let raiz = 16;
+  try { raiz = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; } catch (e) {}
+  let ancho = 0;
+  try {
+    const sc = document.getElementById('dashScroll');
+    if (sc && sc.clientWidth) { const cs = getComputedStyle(sc); ancho = sc.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 32; }
+  } catch (e) {}
+  if (!(ancho > 0)) ancho = Math.min(innerWidth, 560) - 90;
+  return Math.max(200, Math.min(ancho, 23 * raiz));
+}
+function grafLetraAjustar(svg){
+  const vbTxt = svg.getAttribute('data-vb0') || svg.getAttribute('viewBox');
+  if (!vbTxt) return;
+  if (!svg.hasAttribute('data-vb0')) svg.setAttribute('data-vb0', vbTxt);
+  const vb0 = vbTxt.split(/[\s,]+/).map(Number);
+  if (vb0.length !== 4 || !(vb0[2] > 0)) return;
+  const textos = [...svg.querySelectorAll('text')];
+  if (!textos.length) return;
+  textos.forEach(t => { if (!t.hasAttribute('data-fs0')) t.setAttribute('data-fs0', t.getAttribute('font-size') || '10'); });
+  const px = grafLetraPx();
+  let vb = vb0.slice();
+  /* Cada vuelta acerca el dibujo a su tamaño final en una fracción fija: en un iPhone con el «Zoom de pantalla» (320 px) y
+     letra «Grande», el radar necesitaba más de cinco, y con cinco dos nombres quedaban afuera, recortados. */
+  for (let vuelta = 0; vuelta < 14; vuelta++) {
+    svg.setAttribute('viewBox', vb.map(n => +n.toFixed(2)).join(' '));
+    const ancho = svg.getBoundingClientRect().width;
+    if (!(ancho > 0)) return;                       // sin pintar: lo hará el observador cuando aparezca
+    const nec = px * vb[2] / ancho;                 // la letra mínima, en unidades del dibujo
+    textos.forEach(t => t.setAttribute('font-size', Math.max(parseFloat(t.getAttribute('data-fs0')) || 10, nec).toFixed(2)));
+    let bb; try { bb = svg.getBBox(); } catch (e) { return; }
+    const x0 = Math.min(vb0[0], bb.x - 2), y0 = Math.min(vb0[1], bb.y - 2);
+    const sig = [x0, y0, Math.max(vb0[0] + vb0[2], bb.x + bb.width + 2) - x0, Math.max(vb0[1] + vb0[3], bb.y + bb.height + 2) - y0];
+    if (sig.every((n, i) => Math.abs(n - vb[i]) < 0.5)) break;
+    vb = sig;
+  }
+}
+/* Los gráficos cuyo ARMADO depende de la letra (las barras agrupadas y las cajas: margen, giro de los rótulos, alto) se
+   registran con sus datos. Se arman con la tarjeta más angosta posible y, ya puestos, si el ancho real pide una letra
+   bastante distinta (más del 15 %), se vuelven a armar con ella: en computadora, el de cajas en una tarjeta de 760 px
+   crecía de 469 a 744 px de alto para nada. */
+var GRAF_REG, _grafN;   // R16: sin asignar
+function dashGraf(fn, args){
+  const html = fn.apply(null, args);
+  // ⚠️ Sin gráfico (pocos datos), vacío como antes: el que llama al PVT pregunta `if (grafico)` para mostrar o no el bloque.
+  if (!html) return html;
+  if (!GRAF_REG) GRAF_REG = {};
+  _grafN = (_grafN || 0) + 1;
+  const id = 'g' + _grafN;
+  GRAF_REG[id] = { fn: fn, args: args };
+  return '<div class="graf" data-graf="' + id + '">' + html + '</div>';
+}
+function dashGrafAjustar(){
+  const pd = document.getElementById('portalDash');
+  if (!pd) return;
+  if (GRAF_REG) {
+    pd.querySelectorAll('.graf[data-graf]').forEach(el => {
+      const r = GRAF_REG[el.getAttribute('data-graf')], svg = el.querySelector('svg[data-nec]');
+      if (!r || !svg) return;
+      const w = svg.getBoundingClientRect().width;
+      if (!(w > 0)) return;
+      const usado = parseFloat(svg.getAttribute('data-nec')), real = grafNec(parseFloat(svg.getAttribute('data-w')) || 340, w);
+      if (usado > 0 && Math.abs(real - usado) / usado > 0.15) { try { el.innerHTML = r.fn.apply(null, r.args.concat([{ ancho: w }])); } catch (e) {} }
+    });
+    Object.keys(GRAF_REG).forEach(id => { if (!pd.querySelector('[data-graf="' + id + '"]')) delete GRAF_REG[id]; });
+  }
+  pd.querySelectorAll('svg[viewBox]').forEach(svg => {
+    if (!svg.querySelector('text')) return;          // íconos y minigráficos sin rótulos
+    try { grafLetraAjustar(svg); } catch (e) {}
+  });
+  if (!_grafRO && typeof ResizeObserver === 'function') {
+    const sc = document.getElementById('dashScroll');
+    /* ⚠️ El BORDE, no el contenido: `dashGestFabLugar` escribe el margen de abajo del panel (`--gest-fab-alto`) desde su
+       propio observador, y con el contenido mirado eso era un aviso más en el mismo cuadro, que el navegador posterga y
+       reporta como «ResizeObserver loop completed with undelivered notifications» (verificador de P418: uno por cada
+       cambio de letra). El borde cambia sólo cuando cambia el panel: al girar o cuando aparece. */
+    try { if (sc) { _grafRO = new ResizeObserver(() => dashGrafAjustar()); _grafRO.observe(sc, { box: 'border-box' }); } } catch (e) {}
   }
 }
 // El cuadradito ⓘ despliega/repliega la explicación hacia arriba, sin abrir el panel completo.
@@ -31619,10 +31739,10 @@ function renderResumen(rows){
   // repite lo mismo dos veces). Así la vista personal queda más ordenada, sin perder información.
   const bars = single ? '' : ('<div class="dash-block"><div class="db-title">' + esc(t('db_grupo_normal')) + '</div>' +
     '<div class="db-sub">' + esc(t('sub_barra_ref')) + '</div>' +
-    dashGroupedBars(rows) + '</div>');
+    dashGraf(dashGroupedBars, [rows]) + '</div>');
   const series = [{ name:t(single?'lg_perfil':'lg_promedio'), color:'var(--orange)', get:m=>dashAvg(rows,m) }];
   const radar = '<div class="dash-block"><div class="db-title">' + esc(t('db_perfil_riesgo')) + '</div>' +
-    '<div class="db-sub">' + esc(t('sub_radar')) + '</div>' + dashRadar(series) + '</div>';
+    '<div class="db-sub">' + esc(t('sub_radar')) + '</div>' + dashGraf(dashRadar, [series]) + '</div>';
   // Los comentarios van en el Resumen SOLO si no hay pestaña propia de Comentarios (empleado);
   // para el supervisor que entra a una persona, ya están en su pestaña → no se repiten.
   const comentariosAqui = (DASH.tabs.indexOf('comentarios') < 0) ? dashPersonComments() : '';
@@ -32077,7 +32197,7 @@ function dashEvolucionPersonal(rows, esOtraPersona){
     html += '<div class="dash-block"><div class="db-title">' + esc(t('db_distribucion')) + '</div>' +
       '<div class="db-sub">' + esc(t(esOtraPersona ? 'evo_concentran_sus' : 'evo_concentran_tus', { m: (METRIC_LABELS[md]||md) })) + '</div>' +
       (conDatos.length > 1 ? dashMetricPickerFrom('pickDist', md, conDatos) : '') +
-      dashHistograma(rows, md) + '</div>';
+      dashGraf(dashHistograma, [rows, md]) + '</div>';
   }
   if (!html) html = dashWarn(t('evo_faltan'));
   return html;
@@ -32126,7 +32246,7 @@ function dashMonthsCount(rows){ const s={}; rows.forEach(r=>{ if(r.fecha) s[Stri
    ⚠️ LO QUE SE PIERDE AL NORMALIZAR es el número crudo: "1,50" no dice si el KSS es 4 o 7, y eso es
    justo lo que el médico necesita leer. Por eso debajo va `dashBarsEscalas()`, con cada indicador en
    su escala real. Los dos juntos, no uno u otro: el normalizado compara, el crudo informa. ── */
-function dashGroupedBars(rows){
+function dashGroupedBars(rows, opc){
   const ocultas = chartOcultas('bars');
   /* I3 sigue vigente y ahora pesa más: la referencia pasó de sumando a DIVISOR. Un `undefined` o un
      cero ahí no arruina una barra, arruina las siete — por eso se exige número finito y > 0. */
@@ -32154,24 +32274,58 @@ function dashGroupedBars(rows){
      externo recorta por defecto, asi que se comian medio pixel arriba a la izquierda y otro
      medio abajo. padL=39 y padB=58 le dan el aire que faltaba SIN achicar el area del grafico
      (ih queda en los mismos 144). */
-  const W=340, H=218, padL=39, padR=10, padT=16, padB=58, iw=W-padL-padR, ih=H-padT-padB;
+  /* P418 · fase 4 · EL LUGAR SALE DE LA LETRA QUE SE VA A VER (`grafNec`): el margen de la izquierda, del título del eje y
+     los números; el de abajo, del rótulo más largo y de su giro; y el alto del dibujo crece con la letra, para que «1.2» y
+     «1.0» no se junten. Con letra chica, todo como antes. Medido con el rectángulo girado de cada texto
+     (`docs/specs/P418/instrumento/medir-graficos.js`), de 360 a 1366 px con las tres letras: ningún texto pisa a otro. */
+  const nec = grafNec(340, opc && opc.ancho);
+  const fT = Math.max(9, nec), fV = Math.max(8.5, nec), fC = Math.max(11, nec);
+  const largoC = Math.max.apply(null, items.map(it => String(it.label).length)) * 0.56 * fC;
+  const W = 340, padR = 10;
   /* La escala se recalcula sólo con lo VISIBLE (si se aísla el más alto, los que quedan vuelven a
      llenar el gráfico en vez de achatarse contra la escala vieja), pero nunca baja de 1,2: la
      punteada del 1,0 tiene que entrar SIEMPRE con aire arriba, incluso con todo el grupo por debajo
      del límite. Si el 1,0 quedara pegado al borde, el gráfico perdería su única referencia. */
   const maxV = Math.max(1.2, Math.max.apply(null, items.map(i => i.norm)) * 1.18);
-  const n = items.length, gw = iw/n, bw = Math.min(24, gw*0.46);
+  /* El título del eje va girado −90°: ocupa ~0,97 de su letra a la IZQUIERDA de su `x` (y 0,24 a la derecha), así que su
+     `x` tiene que dejarle ese lugar dentro del dibujo (P098 lo mide contra el `viewBox`: el <svg> recorta). A su derecha,
+     los números del eje, alineados contra `padL - 5`: el margen sale del más largo («1.2», o «15.3» con un promedio
+     absurdo), con 3 de aire entre los dos. Con letra chica da los 10 y 39 de siempre. */
+  const xT = Math.max(10, Math.round(fV + 1.5));
+  const anchoNum = Math.max(3, maxV.toFixed(1).length) * 0.6 * fT;
+  const padL = Math.max(39, Math.round(xT + 0.24 * fV + 3 + anchoNum + 5));
+  const padT = Math.max(16, Math.round(fV * 1.5));
+  const iw = W - padL - padR, gw = iw / items.length;
+  /* El giro de los rótulos de abajo: el más suave que deja aire entre dos vecinos, porque un rótulo menos empinado se lee
+     mejor. Girados un ángulo θ, dos rótulos separados por `gw` quedan a gw·sen θ uno del otro, y cada uno ocupa su caja:
+     1,31 de la letra en DM Sans (medido: 1,27–1,31), más el 15 % que le puede sumar `grafLetraAjustar`, más aire. Nunca
+     menos de 40°, que es como estaba; más empinado sólo si no entra (letra grande, teléfono angosto, muchas barras), hasta
+     75°: a 320 px con «Muy grande» hacen falta 71. A 40° fijos, con «Muy grande» a 360 px, seis pares se pisaban. */
+  const senMin = Math.min(1, (1.31 * fC * 1.15 + 3) / gw);
+  const ang = Math.max(40, Math.min(75, Math.ceil(Math.asin(senMin) * 180 / Math.PI / 5) * 5)), rad = ang * Math.PI / 180;
+  /* Los valores sobre las barras («0.66») se ubican de izquierda a derecha: si uno se pisaría con el anterior (barras
+     vecinas de alto parecido y valores más anchos que la barra, con letra grande), sube hasta quedar arriba de él. Lo que
+     sobresale por arriba lo absorbe `grafLetraAjustar`, que agranda el `viewBox`. Caja con margen: ~1,34 de la letra, y el
+     ajuste posterior puede agrandarla hasta un 15 %. */
+  const anchoV = 4 * 0.62 * fV, altoV = 1.55 * fV;
+  let previo = null;
+  const ih = Math.max(144, Math.round(144 * fT / 9));
+  const padB = Math.max(58, Math.round(largoC * Math.sin(rad) + fC * 1.3 + 10));
+  const H = padT + ih + padB;
+  const bw = Math.min(24, gw*0.46);
   const y = v => padT + (1 - v/maxV)*ih, base = padT + ih, y1 = padT + (1 - 1/maxV)*ih;
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="linechart" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
   /* El rótulo del eje no es decoración: sin él, el número de arriba se lee como un puntaje —que es
      exactamente el malentendido que este cambio vino a arreglar— en vez de como un múltiplo. */
-  svg += '<text x="10" y="'+(padT+ih/2).toFixed(1)+'" font-size="8.5" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle" transform="rotate(-90 10 '+(padT+ih/2).toFixed(1)+')">'+esc(t('eje_veces_ref'))+'</text>';
-  svg += '<text x="'+(padL-5)+'" y="'+(padT+6)+'" font-size="9" fill="var(--ch-label)" text-anchor="end">'+maxV.toFixed(1)+'</text>';
+  svg += '<text x="'+xT+'" y="'+(padT+ih/2).toFixed(1)+'" font-size="'+fV.toFixed(1)+'" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle" transform="rotate(-90 '+xT+' '+(padT+ih/2).toFixed(1)+')">'+esc(t('eje_veces_ref'))+'</text>';
+  svg += '<text x="'+(padL-5)+'" y="'+(padT+fT*0.4).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)" text-anchor="end">'+maxV.toFixed(1)+'</text>';
   // El "0" se calla si la punteada del 1,0 le caería encima (sólo con promedios absurdos, más de ~15
   // veces la referencia). Dos números pisados son ilegibles los dos, y el que importa es el del 1,0.
-  if (base - y1 > 12)
-    svg += '<text x="'+(padL-5)+'" y="'+(base+3)+'" font-size="9" fill="var(--ch-label)" text-anchor="end">0</text>';
+  // ⚠️ Su línea de base apenas debajo del eje (0,1 de la letra, no 0,3): más abajo, a 320 px con «Muy grande», tocaba al
+  // primer rótulo girado (−0,01 px de aire, medido). La guarda deja lugar para la caja entera de los dos números.
+  if (base - y1 > fT * 1.7 + 2)
+    svg += '<text x="'+(padL-5)+'" y="'+(base+fT*0.1).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)" text-anchor="end">0</text>';
   items.forEach((it,i) => {
     const cx = padL + gw*i + gw/2, over = it.norm > 1;
     const col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[it.m]||'var(--ch-neutro)');
@@ -32179,17 +32333,21 @@ function dashGroupedBars(rows){
     // pasarse nunca, pero una barra que se sale del viewBox se dibuja igual y tapa el título.
     const alto = Math.max(1.5, base - y(Math.min(it.norm, maxV)));
     svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+(base-alto).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+alto.toFixed(1)+'" rx="2" fill="'+col+'"/>';
-    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base-alto-3.5).toFixed(1)+'" font-size="8.5" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+it.norm.toFixed(2)+'</text>';
+    let yV = base - alto - 3.5;
+    if (previo && Math.abs(cx - previo.x) < anchoV + 2 && Math.abs(yV - previo.y) < altoV) yV = Math.min(yV, previo.y - altoV);
+    previo = { x: cx, y: yV };
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+yV.toFixed(1)+'" font-size="'+fV.toFixed(1)+'" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+it.norm.toFixed(2)+'</text>';
     /* ⚠️ Estas etiquetas estaban en `font-size: 7.5` unidades de viewBox: con el viewBox de 340
        escalado al ancho real de un teléfono de 375 px se rasterizan a ~5,5 px — ilegibles justo en
        el dispositivo donde se mira el panel. A 11, el nombre más largo ("Somnolencia") ocupa unas
        41 unidades de alto rotado a 40° y padB es 54: entra sin recortarse. */
-    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+10)+'" font-size="11" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-40 '+cx.toFixed(1)+' '+(base+10)+')">'+esc(it.label)+'</text>';
+    const yC = base + Math.round(fC * 0.9);
+    svg += '<text x="'+cx.toFixed(1)+'" y="'+yC+'" font-size="'+fC.toFixed(1)+'" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-'+ang+' '+cx.toFixed(1)+' '+yC+')">'+esc(it.label)+'</text>';
   });
   /* La punteada del 1,0 se dibuja DESPUÉS de las barras y a opacidad plena: es el umbral, y es lo
      último que puede perderse de este gráfico. Mismo criterio que hizo invertir --ch-ref en oscuro. */
   svg += '<line x1="'+padL+'" y1="'+y1.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y1.toFixed(1)+'" stroke="var(--ch-ref)" stroke-width="1.4" stroke-dasharray="5 3"/>';
-  svg += '<text x="'+(padL-5)+'" y="'+(y1+3).toFixed(1)+'" font-size="9" font-weight="700" fill="var(--ch-ref)" text-anchor="end">1.0</text>';
+  svg += '<text x="'+(padL-5)+'" y="'+(y1+fT*0.3).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" font-weight="700" fill="var(--ch-ref)" text-anchor="end">1.0</text>';
   svg += '</svg>';
   return '<div class="radar-wrap">' + svg + abajo + '</div>';
 }
@@ -32253,7 +32411,7 @@ function dashBarsLegend(all, ocultas){
    Caja = Q1 a Q3 (el 50% central) · línea dentro = mediana · bigotes = mínimo y máximo.
    Se necesitan 3+ registros por grupo para que la caja tenga sentido; se cortan los primeros MAXG
    grupos calificados (mismo criterio que el radar comparado) para no desbordar en 375px. ── */
-function dashBoxPlot(rows, metric, groupKey){
+function dashBoxPlot(rows, metric, groupKey, opc){
   let g;
   if (groupKey === 'nivel'){
     g = {};
@@ -32271,13 +32429,37 @@ function dashBoxPlot(rows, metric, groupKey){
      TODAS las coordenadas de TODAS las cajas salían NaN y no se dibujaba nada. */
   const ref = DASH.ref[metric];
   const hayRef = (typeof ref === 'number') && isFinite(ref);
-  const W=340, H=210, padL=28, padR=10, padT=14, padB=52, iw=W-padL-padR, ih=H-padT-padB;
+  /* P418 · fase 4 · como en `dashGroupedBars`: el lugar sale de la letra que se va a ver (`grafNec`). */
+  const nec = grafNec(340, opc && opc.ancho);
+  const fT = Math.max(8, nec), fC = Math.max(7.5, nec);
+  const etiq = box.map(b => String(b.name) + ' (' + b.vals.length + ')');
+  const largoC = Math.max.apply(null, etiq.map(s => s.length)) * 0.56 * fC, largo0 = etiq[0].length * 0.56 * fC;
+  const W = 340, padR = 10, padL = Math.max(28, Math.round(fT * 2.2 + 6)), padT = Math.max(14, Math.round(fT * 1.2));
+  /* El área de las cajas se queda en sus 144: adentro no hay rótulos (el máximo va arriba y el 0 abajo, lejos uno del otro),
+     así que la letra grande no le pide lugar. Crecía con la letra y en un teléfono el gráfico doblaba su alto para nada. */
+  const ih = 144, iw = W - padL - padR, gw = iw / box.length;
+  /* LOS NOMBRES. Girados, el más suave que cumpla las tres: no tocar al vecino (a gw·sen θ, ~1,25 de la letra más el 15 % del
+     ajuste); que el PRIMERO, que sale hacia la izquierda ~largo·cos θ desde el centro de su caja, no pase el borde del dibujo
+     en más del 15 % (lo que el ajuste absorbe agrandando el `viewBox`); y que no sean más altos que el gráfico. Si ningún
+     ángulo entre 40° y 60° cumple (un departamento de cuarenta letras), los nombres van en una CLAVE de texto debajo, que
+     envuelve, y bajo cada caja su número: girados, el ajuste agrandaba el dibujo sin terminar nunca, las cajas quedaban de
+     27 px y los nombres se pisaban o salían cortados (verificador de P418, nombres largos a 320 y 375 con «Muy grande»). */
+  let ang = 0;
+  for (let a = (fC > 11 ? 40 : 38); a <= 60; a += 5) {
+    const r = a * Math.PI / 180;
+    if (gw * Math.sin(r) >= 1.25 * fC * 1.15 + 2 &&
+        largo0 * Math.cos(r) + 1.2 * fC * Math.sin(r) - (padL + gw / 2) <= 0.15 * W &&
+        largoC * Math.sin(r) <= 1.2 * ih) { ang = a; break; }
+  }
+  const conClave = !ang, rad = ang * Math.PI / 180;
+  const padB = conClave ? Math.max(30, Math.round(fC * 1.6 + 8)) : Math.max(52, Math.round(largoC * Math.sin(rad) + fC * 1.3 + 8));
+  const H = padT + ih + padB;
   const maxV = Math.max.apply(null, box.map(b=>b.max).concat(hayRef?[ref]:[])) * 1.1;
-  const n = box.length, gw = iw/n, bw = Math.min(26, gw*0.5);
+  const bw = Math.min(26, gw*0.5);
   const y = v => padT + (1 - v/maxV)*ih, base = padT+ih;
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="linechart" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
-  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="8" fill="var(--ch-label)">0</text>';
+  svg += '<text x="3" y="'+(padT+fT*0.4).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text><text x="3" y="'+base+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">0</text>';
   if (hayRef) svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
   box.forEach((b,i) => {
     const cx = padL + gw*i + gw/2, over = hayRef && b.med > ref, col = over ? 'var(--sem-rojo)' : (METRIC_COLORS[metric]||'var(--sem-azul)');
@@ -32287,11 +32469,17 @@ function dashBoxPlot(rows, metric, groupKey){
     svg += '<line x1="'+(cx-bw/4).toFixed(1)+'" y1="'+y(b.max).toFixed(1)+'" x2="'+(cx+bw/4).toFixed(1)+'" y2="'+y(b.max).toFixed(1)+'" stroke="'+col+'" stroke-width="1.4"/>';
     svg += '<rect x="'+(cx-bw/2).toFixed(1)+'" y="'+y(b.q3).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,(y(b.q1)-y(b.q3))).toFixed(1)+'" fill="'+col+'" fill-opacity="0.22" stroke="'+col+'" stroke-width="1.4" rx="1.5"/>';
     svg += '<line x1="'+(cx-bw/2).toFixed(1)+'" y1="'+y(b.med).toFixed(1)+'" x2="'+(cx+bw/2).toFixed(1)+'" y2="'+y(b.med).toFixed(1)+'" stroke="'+col+'" stroke-width="2"/>';
-    svg += '<text x="'+cx.toFixed(1)+'" y="'+(base+9)+'" font-size="7.5" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-38 '+cx.toFixed(1)+' '+(base+9)+')">'+esc(b.name)+' ('+b.vals.length+')</text>';
+    if (conClave) {
+      svg += '<text x="'+cx.toFixed(1)+'" y="'+(base + Math.round(fC * 1.25))+'" font-size="'+fC.toFixed(1)+'" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+(i + 1)+'</text>';
+    } else {
+      const yC = base + Math.round(fC * 0.9);
+      svg += '<text x="'+cx.toFixed(1)+'" y="'+yC+'" font-size="'+fC.toFixed(1)+'" fill="var(--ch-label-2)" text-anchor="end" transform="rotate(-'+ang+' '+cx.toFixed(1)+' '+yC+')">'+esc(b.name)+' ('+b.vals.length+')</text>';
+    }
   });
   svg += '</svg>';
+  const clave = conClave ? '<div class="radar-legend">' + box.map((b, i) => '<span class="rl-item"><b>' + (i + 1) + '</b>' + esc(b.name) + ' (' + b.vals.length + ')</span>').join('') + '</div>' : '';
   const nota = califican.length > MAXG ? '<div class="db-sub">' + esc(t('med_mostrando_primeros', { n: MAXG, total: califican.length })) + '</div>' : '';
-  return '<div class="radar-wrap">' + svg + '</div>' + nota;
+  return '<div class="radar-wrap">' + svg + clave + '</div>' + nota;
 }
 
 /* ── Dispersión: cruza dos indicadores. Un punto por persona (promedio de sus tests de cada uno). ── */
@@ -32356,7 +32544,7 @@ function renderComparar(rows){
 
   const series = names.slice(0,5).map((n,i) => ({ name:n, color:PIE_PALETTE[i%PIE_PALETTE.length], get:m=>dashAvg(g[n],m) }));
   const radar = series.length ? ('<div class="dash-block"><div class="db-title">' + esc(t('db_perfil_comparado')) + '</div>' +
-    '<div class="db-sub">' + esc(t('med_primeros_g', { n: series.length, g: grupoLabelPl(groupKey) })) + '</div>' + dashRadar(series) + '</div>') : '';
+    '<div class="db-sub">' + esc(t('med_primeros_g', { n: series.length, g: grupoLabelPl(groupKey) })) + '</div>' + dashGraf(dashRadar, [series]) + '</div>') : '';
 
   const pieItems = names.map((n,i) => ({ label:n, value:g[n].length, color:PIE_PALETTE[i%PIE_PALETTE.length] }));
   const pie = '<div class="dash-block"><div class="db-title">' + esc(t('med_registros_por', { g: grupoLabel(groupKey) })) + '</div>' + dashPie(pieItems, {}) + '</div>';
@@ -32377,7 +32565,7 @@ function renderComparar(rows){
     '<button type="button" class="pchip' + (boxGroupKey==='nivel'?' active':'') + '" onclick="dashPick(\'pickBoxGroup\',\'nivel\')">' + esc(t('med_por_nivel')) + '</button></div>';
   const box = boxHelp + '<div class="dash-block"><div class="db-title">' + esc(t('db_dist_grupo')) + '</div>' +
     '<div class="db-sub">' + esc(t('med_caja_de', { m: (METRIC_LABELS[boxMetric]||boxMetric), r: DASH.ref[boxMetric] })) + '</div>' +
-    boxToggle + dashMetricPicker('pickBox', boxMetric, false) + dashBoxPlot(rows, boxMetric, boxGroupKey) + '</div>';
+    boxToggle + dashMetricPicker('pickBox', boxMetric, false) + dashGraf(dashBoxPlot, [rows, boxMetric, boxGroupKey]) + '</div>';
 
   // Dispersión: cruza dos indicadores, un punto por persona. Necesita 2+ métricas activas.
   let dispersion = '';
@@ -32458,14 +32646,14 @@ function renderEvolucion(rows){
   rows.forEach(r => { if (r[m]!=null && r.fecha){ const k = r.fecha.slice(0,7); (buckets[k]=buckets[k]||[]).push(r[m]); } });
   const keys = Object.keys(buckets).sort();
   const points = keys.map(k => ({ label:k, value:dashMean(buckets[k]), n:buckets[k].length }));
-  const chart = points.length ? dashLineChart(points, ref) : '<div class="lc-empty">' + esc(t('evo_sin_fechas')) + '</div>';
+  const chart = points.length ? dashGraf(dashLineChart, [points, ref]) : '<div class="lc-empty">' + esc(t('evo_sin_fechas')) + '</div>';
   const help = dashHelp(t('hlp_evo_metrica', { m: (METRIC_LABELS[m]||m), r: refTxt }));
   return help + '<div class="dash-block"><div class="db-title">' + esc(t('db_evolucion')) + '</div>' +
     '<div class="db-sub">' + esc(t('evo_prom_mensual_de', { m: (METRIC_LABELS[m]||m), r: refTxt })) + '</div>' + picker + chart + '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_linea_tiempo')) + '</div>' +
     '<div class="db-sub">' + esc(t('evo_cada_reg', { m: (METRIC_LABELS[m]||m) })) + '</div>' + dashLineaTiempo(rows, m) + '</div>' +
     '<div class="dash-block"><div class="db-title">' + esc(t('db_distribucion')) + '</div>' +
-    '<div class="db-sub">' + esc(t('evo_concentran_los', { m: (METRIC_LABELS[m]||m) })) + '</div>' + dashHistograma(rows, m) + '</div>';
+    '<div class="db-sub">' + esc(t('evo_concentran_los', { m: (METRIC_LABELS[m]||m) })) + '</div>' + dashGraf(dashHistograma, [rows, m]) + '</div>';
 }
 
 /* ── COMENTARIOS adicionales ── */
@@ -32581,7 +32769,7 @@ function renderPVT(){
       dashVerMas(pvtCards, 3) + '</div>';   // 3 y "Ver más"
   }
   let evo = '';
-  const grafico = dashPvtEvolucion(pv);
+  const grafico = dashGraf(dashPvtEvolucion, [pv]);
   if (grafico){
     evo = '<div class="dash-block"><div class="db-title">' + esc(t('db_evo_reaccion')) + '</div>' +
       '<div class="db-sub">' + esc(t('sub_cada_punto')) + '</div>' +
@@ -32593,7 +32781,7 @@ function renderPVT(){
 
 /* Evolución del PVT: un punto por test (no promedios mensuales) sobre franjas de color,
    para que se entienda de un vistazo sin saber de milisegundos. */
-function dashPvtEvolucion(pv){
+function dashPvtEvolucion(pv, opc){
   // Igual que la línea de tiempo: se agrupa por DÍA y, si hubo varios tests el mismo día, se toma
   // el PEOR (el tiempo de reacción más alto). Con un solo día no hay evolución que mostrar.
   const peorPorDia = {}, cuentaPorDia = {};
@@ -32607,27 +32795,45 @@ function dashPvtEvolucion(pv){
   const pvtDiasVarios = diasPvt.filter(d => cuentaPorDia[d] > 1).length;
   if (diasPvt.length < 2) return '';
   const pts = diasPvt.map(d => ({ f:d, v:peorPorDia[d] }));
-  const W=340,H=205,padL=30,padR=42,padT=14,padB=34,iw=W-padL-padR,ih=H-padT-padB;
   const maxV = Math.max(520, Math.max.apply(null, pts.map(p=>p.v)) * 1.1);
+  /* P418 · fase 4 · EL LUGAR SALE DE LA LETRA QUE SE VA A VER (`grafNec`), como en las barras. En un iPhone con el «Zoom de
+     pantalla» (320 px) y letra «Grande», «0 ms» se metía debajo de la primera fecha y las dos fechas se pisaban entre sí:
+     el margen de la izquierda sale de los números del eje, el de la derecha de los nombres de las franjas, y si las dos
+     fechas no entran en un renglón la última va en el de abajo. Con letra chica queda como estaba (340 × 205). */
+  const nec = grafNec(340, opc && opc.ancho), fT = Math.max(8, nec), fZ = Math.max(7.5, nec);
+  const zonas = [t('pvt_ax_bien'), t('pvt_ax_medio'), t('pvt_ax_fatiga')];
+  const fechaA = dashFechaLinda(pts[0].f), fechaB = dashFechaLinda(pts[pts.length-1].f);
+  const W = 340, ih = 157, padT = Math.max(14, Math.round(fT * 1.1));
+  const padL = Math.max(30, Math.round(Math.max(String(Math.round(maxV)).length, 4) * 0.58 * fT + 6));
+  const padR = Math.max(42, Math.round(Math.max.apply(null, zonas.map(z => String(z).length)) * 0.64 * fZ + 6));
+  const iw = W - padL - padR;
+  const anchoF = s => String(s).length * 0.58 * fT * 1.15;   // con el 15 % que le puede sumar `grafLetraAjustar`
+  const yF1 = padT + ih + Math.max(26, Math.round(fT * 1.5 + 4));
+  const yF2 = (anchoF(fechaA) + anchoF(fechaB) + 8 > iw) ? yF1 + Math.round(fT * 1.55) : yF1;   // el renglón: la caja de una letra en DM Sans mide 1,31
+  const padB = Math.max(34, yF2 - padT - ih + Math.round(fT * 0.3) + 6), H = padT + ih + padB;
   const x = i => pts.length > 1 ? padL + i/(pts.length-1)*iw : padL + iw/2;
   const y = v => padT + (1 - Math.min(v, maxV)/maxV)*ih;
   const banda = (v1,v2,color) => '<rect x="'+padL+'" y="'+y(v2).toFixed(1)+'" width="'+iw+'" height="'+Math.max(0,(y(v1)-y(v2))).toFixed(1)+'" fill="'+color+'"/>';
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="linechart" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += banda(0,300,'var(--sem-verde-bg)') + banda(300,400,'var(--sem-ambar-bg)') + banda(400,maxV,'var(--sem-rojo-bg)');
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(150)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-verde)">' + esc(t('pvt_ax_bien')) + '</text>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(350)+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-ambar)">' + esc(t('pvt_ax_medio')) + '</text>';
-  svg += '<text x="'+(W-padR+3)+'" y="'+(y(Math.min(maxV-40,470))+3).toFixed(1)+'" font-size="7.5" font-weight="700" fill="var(--sem-rojo-alt)">' + esc(t('pvt_ax_fatiga')) + '</text>';
+  /* Los nombres de las franjas, cada uno en la suya; «Fatiga» y «Bien» se apartan de «Medio» si la letra no les deja aire
+     (con tiempos de reacción altos la franja del medio queda finita). */
+  const yMedio = y(350) + fZ * 0.4;
+  const yBien = Math.max(y(150) + fZ * 0.4, yMedio + 1.32 * fZ + 2), yFatiga = Math.min(y(Math.min(maxV-40,470)) + fZ * 0.4, yMedio - 1.32 * fZ - 2);
+  svg += '<text x="'+(W-padR+3)+'" y="'+yBien.toFixed(1)+'" font-size="'+fZ.toFixed(1)+'" font-weight="700" fill="var(--sem-verde)">' + esc(zonas[0]) + '</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+yMedio.toFixed(1)+'" font-size="'+fZ.toFixed(1)+'" font-weight="700" fill="var(--sem-ambar)">' + esc(zonas[1]) + '</text>';
+  svg += '<text x="'+(W-padR+3)+'" y="'+yFatiga.toFixed(1)+'" font-size="'+fZ.toFixed(1)+'" font-weight="700" fill="var(--sem-rojo-alt)">' + esc(zonas[2]) + '</text>';
   const d = pts.map((p,i) => (i?'L':'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
   svg += '<path d="'+d+'" fill="none" stroke="var(--ch-ref)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
   pts.forEach((p,i) => {
     const c = p.v < 300 ? 'var(--sem-verde)' : (p.v < 400 ? '#e8a400' : 'var(--sem-rojo)');
     svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.v).toFixed(1)+'" r="3.6" fill="'+c+'" stroke="#fff" stroke-width="1.2"><title>'+esc(dashFechaLinda(p.f))+': '+p.v+' ms</title></circle>';
   });
-  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+Math.round(maxV)+'</text>';
-  svg += '<text x="3" y="'+(padT+ih)+'" font-size="8" fill="var(--ch-label)">0 ms</text>';
-  svg += '<text x="'+padL+'" y="'+(H-8)+'" font-size="8" fill="var(--ch-label)">'+esc(dashFechaLinda(pts[0].f))+'</text>';
-  svg += '<text x="'+(W-padR)+'" y="'+(H-8)+'" font-size="8" fill="var(--ch-label)" text-anchor="end">'+esc(dashFechaLinda(pts[pts.length-1].f))+'</text>';
+  svg += '<text x="3" y="'+(padT+fT*0.75).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">'+Math.round(maxV)+'</text>';
+  svg += '<text x="3" y="'+(padT+ih)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">0 ms</text>';
+  svg += '<text x="'+padL+'" y="'+yF1+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">'+esc(fechaA)+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+yF2+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)" text-anchor="end">'+esc(fechaB)+'</text>';
   svg += '</svg>';
   const leyenda = '<div class="radar-legend">' +
     '<span class="rl-item"><span class="rl-dot" style="background:var(--sem-verde)"></span>' + esc(t('pvt_lg_bien')) + '</span>' +
@@ -33124,13 +33330,41 @@ function dashStatsTable(rows){
 }
 
 /* ── Radar SVG (perfil multi-métrica normalizado a la referencia) ── */
-function dashRadar(series){
+function dashRadar(series, opc){
   const M = DASH.metrics, N = M.length;
   if (N < 3) return '<div class="lc-empty">' + esc(t('dw_radar_3')) + '</div>';
   const W=280, H=240, cx=W/2, cy=H/2+4, R=76, MAXN=2;
   const ang = i => -Math.PI/2 + i*2*Math.PI/N;
   const rad = norm => Math.max(0, Math.min(MAXN, norm))/MAXN * R;
-  let svg = '<div class="radar-wrap"><svg class="svg-radar" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  /* P418 · fase 4 · LOS NOMBRES ALREDEDOR DEL RADAR. `grafLetraAjustar` los lleva a 12 px y agranda el dibujo para que
+     entren, y eso achica el radar, que entonces pide letra más grande todavía. En un iPhone con el «Zoom de pantalla»
+     (320 px) y letra «Grande», el nombre de arriba quedaba más ancho que el lugar entre sus dos vecinos y se les montaba
+     encima. Acá se calcula de antemano la letra con la que va a terminar (la misma cuenta, repetida hasta que no cambia)
+     y, con ella, cuánto tiene que subir el nombre de arriba —y bajar el de abajo, si hay un eje para abajo— para no tocar
+     a sus vecinos. Con letra chica, cada nombre queda donde estaba. */
+  const nombres = M.map(m => String(METRIC_LABELS[m] || m));
+  const ancla = i => Math.abs(Math.cos(ang(i))) < 0.3 ? 'middle' : (Math.cos(ang(i)) > 0 ? 'start' : 'end');
+  const lx = i => cx + (R + 15) * Math.cos(ang(i));
+  const anchoV = grafAncho(opc && opc.ancho), px = grafLetraPx(), nec = px * W / anchoV;
+  const largo = (i, f) => nombres[i].length * 0.62 * f;   // en negrita, ~0,62 de la letra por carácter (con margen)
+  const izq = (i, f) => ancla(i) === 'start' ? lx(i) : (ancla(i) === 'end' ? lx(i) - largo(i, f) : lx(i) - largo(i, f) / 2);
+  const anchoDibujo = f => { let a = 0, b = W; M.forEach((m, i) => { a = Math.min(a, izq(i, f) - 2); b = Math.max(b, izq(i, f) + largo(i, f) + 2); }); return b - a; };
+  let fL = Math.max(8.5, nec);
+  for (let k = 0; k < 40; k++) { const sig = Math.min(nec * 4, Math.max(8.5, px * anchoDibujo(fL) / anchoV)); if (Math.abs(sig - fL) < 0.02) { fL = sig; break; } fL = sig; }
+  const lineaBase = M.map((m, i) => cy + (R + 15) * Math.sin(ang(i)) + 3);
+  M.forEach((m, i) => {
+    if (ancla(i) !== 'middle') return;
+    const arriba = Math.sin(ang(i)) < 0;
+    [(i + N - 1) % N, (i + 1) % N].forEach(j => {
+      if (ancla(j) === 'middle') return;
+      const a1 = izq(i, fL), b1 = a1 + largo(i, fL), a2 = izq(j, fL), b2 = a2 + largo(j, fL);
+      if (b1 + 2 <= a2 || b2 + 2 <= a1) return;                     // a lo ancho no se tocan
+      // La caja de un texto en DM Sans mide 1,31 de la letra (medido); 1,45 más 3 le deja ~2 px de aire con el vecino.
+      if (arriba) lineaBase[i] = Math.min(lineaBase[i], lineaBase[j] - 1.45 * fL - 3);
+      else lineaBase[i] = Math.max(lineaBase[i], lineaBase[j] + 1.45 * fL + 3);
+    });
+  });
+  let svg = '<div class="radar-wrap"><svg class="svg-radar" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   [0.5,1].forEach(fr => {
     const pts = M.map((m,i)=>{ const rr=R*fr; return (cx+rr*Math.cos(ang(i))).toFixed(1)+','+(cy+rr*Math.sin(ang(i))).toFixed(1); }).join(' ');
     const isRef = fr===0.5;
@@ -33139,9 +33373,7 @@ function dashRadar(series){
   M.forEach((m,i) => {
     const ex=cx+R*Math.cos(ang(i)), ey=cy+R*Math.sin(ang(i));
     svg += '<line x1="'+cx+'" y1="'+cy+'" x2="'+ex.toFixed(1)+'" y2="'+ey.toFixed(1)+'" stroke="var(--ch-eje)"/>';
-    const lx=cx+(R+15)*Math.cos(ang(i)), ly=cy+(R+15)*Math.sin(ang(i));
-    const anchor = Math.abs(Math.cos(ang(i)))<0.3 ? 'middle' : (Math.cos(ang(i))>0?'start':'end');
-    svg += '<text x="'+lx.toFixed(1)+'" y="'+(ly+3).toFixed(1)+'" font-size="8.5" font-weight="700" fill="var(--ch-label-2)" text-anchor="'+anchor+'">'+(METRIC_LABELS[m]||m)+'</text>';
+    svg += '<text x="'+lx(i).toFixed(1)+'" y="'+lineaBase[i].toFixed(1)+'" font-size="'+fL.toFixed(2)+'" font-weight="700" fill="var(--ch-label-2)" text-anchor="'+ancla(i)+'">'+nombres[i]+'</text>';
   });
   series.forEach(s => {
     const pts = M.map((m,i)=>{ const a=s.get(m), ref=DASH.ref[m], norm=(a!=null&&ref)?a/ref:0, rr=rad(norm); return (cx+rr*Math.cos(ang(i))).toFixed(1)+','+(cy+rr*Math.sin(ang(i))).toFixed(1); }).join(' ');
@@ -33155,8 +33387,12 @@ function dashRadar(series){
 }
 
 /* ── Line chart SVG ── */
-function dashLineChart(points, ref){
-  const W=320, H=180, padL=26, padR=12, padT=12, padB=30;
+function dashLineChart(points, ref, opc){
+  /* P418 · fase 4 · con la letra a 12 px la primera fecha pisaba el «0» del eje y seis fechas no entran a lo ancho: el margen
+     de abajo y cada cuántos puntos va una fecha salen de la letra que se va a ver (`grafNec`). El alto del dibujo, igual. */
+  const nec = grafNec(320, opc && opc.ancho), fT = Math.max(8, nec);
+  const W=320, padL=Math.max(26, Math.round(fT * 1.9)), padR=12, padT=Math.max(12, Math.round(fT * 0.9)), padB=Math.max(30, Math.round(fT * 1.95 + 6));
+  const H = padT + 138 + padB;
   const iw=W-padL-padR, ih=H-padT-padB;
   /* I3: sin referencia `y(ref)` daba NaN y la punteada salía con y1="NaN" — no se dibujaba y
      el gráfico quedaba a medio hacer. Sin referencia no hay línea, y ningún punto es "por
@@ -33166,20 +33402,22 @@ function dashLineChart(points, ref){
   const x = i => points.length>1 ? padL + i/(points.length-1)*iw : padL+iw/2;
   const y = v => padT + (1 - v/maxV)*ih;
   const path = points.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.value).toFixed(1)).join(' ');
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  let svg = '<svg class="linechart" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-padR)+'" y2="'+(padT+ih)+'" stroke="var(--ch-eje)"/>';
   if (hayRef) svg += '<line x1="'+padL+'" y1="'+y(ref).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y(ref).toFixed(1)+'" stroke="var(--ch-ref)" stroke-dasharray="4 3" opacity="0.5"/>';
   svg += '<path d="'+path+'" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
   points.forEach((p,i)=>{ svg += '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(p.value).toFixed(1)+'" r="3.4" fill="'+((hayRef && p.value>ref)?'var(--sem-rojo)':'var(--orange)')+'"/>'; });
-  const step = Math.ceil(points.length/6);
-  points.forEach((p,i)=>{ if(points.length<=6 || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+(H-10)+'" font-size="8" fill="var(--ch-label)" text-anchor="middle">'+p.label.slice(2)+'</text>'; });
-  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text>';
-  svg += '<text x="3" y="'+(padT+ih)+'" font-size="8" fill="var(--ch-label)">0</text>';
+  const cabe = Math.max(1, Math.floor(iw / (5 * 0.6 * fT + 6)));          // cuántas fechas («26-08») entran a lo ancho
+  const step = Math.max(Math.ceil(points.length / 6), Math.ceil(points.length / cabe));
+  const yX = padT + ih + Math.max(20, Math.round(fT * 1.6));   // a 1,35 la primera fecha quedaba a menos de 1 px del «0»
+  points.forEach((p,i)=>{ if((points.length<=6 && points.length<=cabe) || i%step===0) svg += '<text x="'+x(i).toFixed(1)+'" y="'+yX+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)" text-anchor="middle">'+p.label.slice(2)+'</text>'; });
+  svg += '<text x="3" y="'+(padT+fT*0.4).toFixed(1)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">'+maxV.toFixed(0)+'</text>';
+  svg += '<text x="3" y="'+(padT+ih-2)+'" font-size="'+fT.toFixed(1)+'" fill="var(--ch-label)">0</text>';
   return svg + '</svg>';
 }
 
 /* ── HISTOGRAMA: cuántos registros cayeron en cada rango de valores ── */
-function dashHistograma(rows, m){
+function dashHistograma(rows, m, opc){
   const vals = dashVals(rows, m);
   if (vals.length < 3) return '<div class="lc-empty">' + esc(t('hist_min_3')) + '</div>';
   /* I3: mismo `|| 1` que la línea de tiempo. Acá el efecto era peor: con un umbral inventado
@@ -33191,17 +33429,27 @@ function dashHistograma(rows, m){
   const NB = 6, paso = ((max - min) / NB) || 1;
   const bins = new Array(NB).fill(0);
   vals.forEach(v => { let i = Math.floor((v - min) / paso); if (i >= NB) i = NB - 1; if (i < 0) i = 0; bins[i]++; });
-  const W=340,H=195,padL=26,padR=10,padT=14,padB=44,iw=W-padL-padR,ih=H-padT-padB;
-  const maxC = Math.max.apply(null, bins) || 1, bw = iw/NB, base = padT+ih;
-  let svg = '<svg class="linechart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
+  /* P418 · fase 4 · el lugar sale de la letra que se va a ver (`grafNec`), como en las barras. Con letra grande el rango de
+     abajo («5–6») subía por encima del eje y pisaba el número de una barra baja (verificador de P418, 320 px «Muy grande»);
+     y si los rangos no entran a lo ancho, van en dos renglones, uno sí y uno no. Con letra chica queda como estaba. */
+  const nec = grafNec(340, opc && opc.ancho), fR = Math.max(7, nec), fN = Math.max(8, nec);
+  const maxC = Math.max.apply(null, bins) || 1;
+  const rangos = bins.map((c, i) => (min+paso*i).toFixed(0)+'–'+(min+paso*(i+1)).toFixed(0));
+  const W = 340, padR = 10, ih = 137;
+  const padL = Math.max(26, Math.round(String(maxC).length * 0.6 * fN + 9)), padT = Math.max(14, Math.round(fN * 1.3));
+  const iw = W - padL - padR, bw = iw/NB;
+  const dosFilas = Math.max.apply(null, rangos.map(r => r.length)) * 0.58 * fR * 1.15 + 4 > bw;   // con el 15 % del ajuste
+  const yR1 = Math.max(12, Math.round(fR + 3)), yR2 = yR1 + Math.round(fR * 1.45);
+  const padB = Math.max(44, (dosFilas ? yR2 : yR1) + Math.round(fR * 0.3) + 8), H = padT + ih + padB, base = padT + ih;
+  let svg = '<svg class="linechart" data-nec="'+nec.toFixed(2)+'" data-w="'+W+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">';
   svg += '<line x1="'+padL+'" y1="'+base+'" x2="'+(W-padR)+'" y2="'+base+'" stroke="var(--ch-eje)"/>';
-  svg += '<text x="3" y="'+(padT+6)+'" font-size="8" fill="var(--ch-label)">'+maxC+'</text><text x="3" y="'+base+'" font-size="8" fill="var(--ch-label)">0</text>';
+  svg += '<text x="3" y="'+(padT+fN*0.75).toFixed(1)+'" font-size="'+fN.toFixed(1)+'" fill="var(--ch-label)">'+maxC+'</text><text x="3" y="'+base+'" font-size="'+fN.toFixed(1)+'" fill="var(--ch-label)">0</text>';
   bins.forEach((c,i) => {
     const h = (c/maxC)*ih, x = padL + i*bw + bw*0.12, w = bw*0.76, centro = min + paso*(i+0.5);
     const col = centro > ref ? 'var(--sem-rojo)' : (METRIC_COLORS[m]||'var(--sem-azul)');
     svg += '<rect x="'+x.toFixed(1)+'" y="'+(base-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
-    svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base+12)+'" font-size="7" fill="var(--ch-label)" text-anchor="middle">'+(min+paso*i).toFixed(0)+'–'+(min+paso*(i+1)).toFixed(0)+'</text>';
-    if (c) svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base-h-3).toFixed(1)+'" font-size="8" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+c+'</text>';
+    svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base + ((dosFilas && i % 2) ? yR2 : yR1))+'" font-size="'+fR.toFixed(1)+'" fill="var(--ch-label)" text-anchor="middle">'+rangos[i]+'</text>';
+    if (c) svg += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(base-h-3).toFixed(1)+'" font-size="'+fN.toFixed(1)+'" font-weight="700" fill="var(--ch-label-2)" text-anchor="middle">'+c+'</text>';
   });
   svg += '</svg>';
   return '<div class="radar-wrap">'+svg+'<div class="radar-legend"><span class="rl-item">'+esc(t('lg_cant_rango', { m: (METRIC_LABELS[m]||m) }))+'</span></div></div>';
