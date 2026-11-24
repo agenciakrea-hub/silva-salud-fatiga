@@ -1249,6 +1249,15 @@
      letras blancas, para que se note que es la barra "de mando" fija (mismo peso visual que el
      botón de Gestiones). */
   #portalDash { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  /* P418 · 2c · LA CABECERA SE ESCONDE AL BAJAR Y VUELVE AL SUBIR (Franco, panel del 2026-11-23). El panel sube lo que mide su
+     cabecera (`--cab-alto`, la pone `dashCabAjustar`) con un margen negativo: como es un ítem flexible de la hoja, ese margen le
+     DA el alto a `#dashScroll`, y la hoja (`overflow: hidden`) recorta la cabecera. Escondida no se ve ni se puede enfocar
+     (`visibility`). Sólo donde ocupa más del 25 % de la hoja (`.cab-movil`): con letra Normal en un iPhone común no cambia
+     nada. SIN transición, a propósito: el JS compensa el desplazamiento en el mismo cuadro y el contenido no se mueve
+     (con transición, lo que se leía saltaba: verificador de P418). */
+  #portalDash.cab-oculta { margin-top: calc(-1 * var(--cab-alto, 0px)); }
+  #portalDash.cab-oculta > .sim-bar, #portalDash.cab-oculta > .dash-top,
+  #portalDash.cab-oculta > .visor, #portalDash.cab-oculta > .dfm-wrap { visibility: hidden; }
   .dash-top { flex-shrink: 0; display: flex; align-items: center; gap: .6rem; padding: 1rem 1.2rem .85rem;
     background: var(--navy); flex-shrink: 0; }
   /* 44, como sus dos hermanos de la misma barra, que ya lo medían. La barra los centra, así que no
@@ -8470,7 +8479,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.76';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.77';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -23764,6 +23773,12 @@ function onDashData(d, scopeLabel, params, vista, fInicial){
   updateDashUpdated();
   document.getElementById('portalGate').style.display = 'none';
   document.getElementById('portalDash').style.display = '';
+  /* P418 · 2c · CON EL PANEL YA A LA VISTA: el `scrollTop = 0` de arriba corre con el panel oculto cuando se entra desde el
+     gate y no hacía nada (un panel nuevo abría donde había quedado el anterior: de antes de P418), y la cabecera, que pudo
+     quedar escondida en el panel anterior, vuelve (el «atrás» del teléfono cierra la capa, no `#portalDash`: el observador
+     de su `display` no se entera). Acá pasa TODA entrada y todo cambio de vista; el refresco no (`dashRefresh`). */
+  if (_ds) _ds.scrollTop = 0;
+  dashCabReiniciar();
   startDashAutoRefresh();
   /* R14 · si la empresa que se acaba de abrir tiene OTRO sector, se repinta todo lo que depende de
      idioma × sector. Va al final y sólo cuando cambió de verdad: `aplicarIdioma()` rehace el panel
@@ -25276,6 +25291,7 @@ function renderDash(){
      (en HSEQ, el estado global de «Semana» es más alto que el de «Rango»): el lugar que le queda se vuelve a medir. */
   dashDesplegablesAjustar();
   dashGrafAjustar();   // P418 · fase 4 · la letra de los gráficos, con el ancho al que se ven de verdad
+  dashCabAjustar(true);   // P418 · 2c · la cabecera que se esconde: su alto y si corresponde en este equipo
 }
 // Si la fecha de "Anotaciones de servicio médico" no entra completa en su espacio (nombre largo
 // al lado), se desliza sola de un lado al otro para poder leerla entera en vez de cortarla con "…".
@@ -25353,6 +25369,7 @@ function dashRemedirMarquees(){
     dashDesplegablesAjustar();   // F089 · H3: al girar, el lugar debajo del header cambia
     dashGestFabLugar();          // P418 · y el alto del botón de gestiones (envuelve distinto)
     dashGrafAjustar();           // P418 · fase 4 · y la letra de los gráficos (cambió el ancho al que se ven)
+    dashCabAjustar();            // P418 · 2c · y la cabecera: al girar cambia lo que ocupa
   });
 }
 /* ⚠️ Mide el largo REAL del trazo de la tira de presentación, en píxeles de pantalla, y lo deja en
@@ -25696,6 +25713,125 @@ function dashGrafAjustar(){
     try { if (sc) { _grafRO = new ResizeObserver(() => dashGrafAjustar()); _grafRO.observe(sc, { box: 'border-box' }); } } catch (e) {}
   }
 }
+/* ══ P418 · FASE 2c · LA CABECERA SE ESCONDE AL BAJAR Y VUELVE AL SUBIR ══════════════════════════════════════════════
+   Pedido de Franco (panel del 2026-11-23): *«Se esconde al bajar, vuelve al subir»*. Medido con la demostración real: con
+   letra «Muy grande» en un iPhone SE la cabecera ocupaba el 44 % de la pantalla y en el panel del médico quedaba el 40 % para
+   leer; a 320 px (iPhone con «Zoom de pantalla»), el 24–38 %; en el visor del administrador, del 2 al 20 %. Con letra Normal
+   en un iPhone de 393 px, el 22 %: ahí no se mueve nada (umbral del 25 % de la hoja, `.cab-movil`).
+   Al bajar más de 32 px seguidos (y ya pasado el alto de la cabecera), se esconde; al subir 24, vuelve entera; arriba de todo,
+   siempre a la vista. Nunca se esconde con «Menú y filtros», el glosario o el visor abiertos, ni con el foco de TECLADO en
+   ella (`:focus-visible`): al abrirse, el panel lleva el foco a lo primero enfocable («Nómina», `ovFocoAbrir`), y tras un
+   toque eso no cuenta como teclado; con teclado, sí, y se queda a la vista mientras se recorre. Después de cada cambio, 350 ms de calma: el panel cambió de alto y el navegador corre el desplazamiento solo (al
+   final de la página lo recorta), y eso no lo hizo la persona. CSS: `#portalDash.cab-oculta`. */
+var _cabUltY, _cabAcum, _cabCalmaHasta, _cabAlto, _cabRO, _cabMO, _cabDisplay;   // R16: sin asignar
+function dashCabPiezas(){
+  const pd = document.getElementById('portalDash');
+  return pd ? [...pd.querySelectorAll(':scope > .sim-bar, :scope > .dash-top, :scope > .visor, :scope > .dfm-wrap')] : [];
+}
+/* El alto de la cabecera, en `--cab-alto` sobre la HOJA (lo hereda `#portalDash`; puesto en el panel, cada escritura
+   despertaba al observador de su `display`). Igual escondida o no: se mueven juntos. */
+function dashCabMedir(){
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'), hoja = pd && pd.closest('.sheet');
+  if (!pd || !sc || !hoja) return false;
+  const alto = Math.round(sc.getBoundingClientRect().top - pd.getBoundingClientRect().top), altoHoja = hoja.getBoundingClientRect().height;
+  if (!(alto > 0) || !(altoHoja > 0)) return false;               // panel oculto
+  _cabAlto = alto;
+  hoja.style.setProperty('--cab-alto', alto + 'px');
+  pd.classList.toggle('cab-movil', alto / altoHoja > 0.25);
+  return true;
+}
+/* ⚠️ VERIFICADOR DE P418 (2c) · LA CABECERA SE QUEDABA ESCONDIDA AL CERRAR EL PANEL, y el próximo abría sin ✕, sin ← y sin
+   menú. Hay al menos seis caminos que abren o cierran el panel (`openPortalGate`, `portalBackToGate`, la sesión guardada, la
+   simulación, la demostración, el «atrás» del teléfono): en vez de tocarlos uno por uno, este observador mira el `display` de
+   `#portalDash` y, cada vez que cambia, la cabecera vuelve a estar a la vista. Al APARECER, además, el panel arranca arriba de
+   todo: el `scrollTop = 0` de la entrada corre con el panel todavía oculto y no hacía nada (un panel nuevo abría donde había
+   quedado el anterior; de antes de P418). Y el observador de tamaño mantiene `--cab-alto` al día mientras está escondida (el
+   rótulo de «Menú y filtros» cambia al bajar y puede pasar a dos renglones: quedaba una franja vacía o se cortaba). */
+function dashCabVigilar(){
+  const pd = document.getElementById('portalDash');
+  if (!pd) return;
+  if (!_cabMO && typeof MutationObserver === 'function') {
+    _cabDisplay = pd.style.display;
+    try { _cabMO = new MutationObserver(() => {
+      if (pd.style.display === _cabDisplay) return;
+      _cabDisplay = pd.style.display;
+      const sc = document.getElementById('dashScroll');
+      if (sc && pd.style.display !== 'none') sc.scrollTop = 0;
+      dashCabReiniciar();
+    }); _cabMO.observe(pd, { attributes: true, attributeFilter: ['style'] }); } catch (e) {}
+  }
+  if (!_cabRO && typeof ResizeObserver === 'function') {
+    try { _cabRO = new ResizeObserver(() => { if (pd.classList.contains('cab-oculta')) dashCabMedir(); });
+      dashCabPiezas().forEach(p => _cabRO.observe(p)); } catch (e) {}
+  }
+}
+function dashCabReiniciar(){   // panel nuevo o cargando: la cabecera a la vista y la cuenta en cero
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
+  if (pd) pd.classList.remove('cab-oculta');
+  _cabAcum = 0; _cabCalmaHasta = 0; _cabUltY = sc ? sc.scrollTop : 0;
+}
+function dashCabAjustar(repintado){
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
+  if (!pd || !sc) return;
+  dashCabVigilar();
+  if (repintado) _cabCalmaHasta = 0;   // contenido nuevo: la calma de un cambio anterior ya no corresponde
+  if (!dashCabMedir()) return;          // panel oculto: lo corrige el próximo repintado
+  if (sc.scrollTop <= 4) dashCabMostrar(false);
+  else if (!pd.classList.contains('cab-movil')) dashCabMostrar(true);
+  _cabUltY = sc.scrollTop; _cabAcum = 0;
+}
+/* ⚠️ VERIFICADOR DE P418 (2c) · SIN SALTO. El margen negativo mueve `#dashScroll` entero: sin compensar, lo que se estaba
+   leyendo saltaba el alto de la cabecera (333 px a 375×667 con «Muy grande») y quien lee despacio perdía el renglón. Ahora el
+   cambio es instantáneo (sin transición: con una, el contenido se movía igual mientras duraba, y además cada cuadro
+   rearmaba los gráficos y el menú se medía a mitad de camino) y el desplazamiento se corrige en el mismo cuadro en lo que
+   mide la cabecera: el contenido queda exactamente donde estaba. Arriba de todo vuelve SIN compensar, para que se vea el
+   principio. */
+function dashCabMostrar(compensar){
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
+  if (!pd || !pd.classList.contains('cab-oculta')) return;
+  const y = sc ? sc.scrollTop : 0;
+  pd.classList.remove('cab-oculta');
+  if (sc && compensar) sc.scrollTop = y + (_cabAlto || 0);
+  _cabUltY = sc ? sc.scrollTop : 0; _cabCalmaHasta = Date.now() + 350;
+}
+function dashCabEsconder(){
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
+  if (!pd || !sc || pd.classList.contains('cab-oculta')) return;
+  const y = sc.scrollTop;
+  pd.classList.add('cab-oculta');
+  sc.scrollTop = Math.max(0, y - (_cabAlto || 0));
+  _cabUltY = sc.scrollTop; _cabCalmaHasta = Date.now() + 350;
+}
+function dashCabPuedeEsconder(){
+  const pd = document.getElementById('portalDash');
+  if (!pd || !pd.classList.contains('cab-movil')) return false;
+  const m = document.getElementById('dfmPanel'), g = document.getElementById('glossPanel'), v = document.getElementById('visorCuerpo');
+  if ((m && m.classList.contains('open')) || (g && g.classList.contains('open')) || (v && !v.hidden)) return false;
+  const a = document.activeElement;   // el foco de TECLADO; el de un toque (↻, por ejemplo) no la retiene
+  try { if (a && a !== document.body && a.matches(':focus-visible') && dashCabPiezas().some(p => p.contains(a))) return false; } catch (e) {}
+  return true;
+}
+function dashCabDesplazar(){
+  const sc = _dashScrollEl || document.getElementById('dashScroll'), pd = document.getElementById('portalDash');
+  if (!sc || !pd) return;
+  /* Acotado a lo que se puede desplazar: en un iPhone, al llegar al final la página REBOTA y `scrollTop` pasa del máximo y
+     vuelve; esa vuelta sería un «subir» que no hizo la persona y traería la cabecera. Arriba, el rebote da negativo: 0. */
+  const y = Math.min(Math.max(sc.scrollTop, 0), Math.max(0, sc.scrollHeight - sc.clientHeight)), dy = y - (_cabUltY || 0);
+  _cabUltY = y;
+  if (y <= 4) { dashCabMostrar(false); _cabAcum = 0; return; }
+  if ((_cabCalmaHasta && Date.now() < _cabCalmaHasta) || _dashSpyLock) { _cabAcum = 0; return; }   // no lo movió la persona
+  if (dy === 0) return;
+  if ((dy > 0) !== ((_cabAcum || 0) > 0)) _cabAcum = 0;          // cambió de dirección: se cuenta de nuevo
+  _cabAcum = (_cabAcum || 0) + dy;
+  const oculta = pd.classList.contains('cab-oculta');
+  if (!oculta && _cabAcum > 32) {
+    dashCabAjustar();                                             // el alto de AHORA (el visor o el menú pudieron cambiarlo)
+    /* Pasado el alto de la cabecera Y 30 más: compensado, el desplazamiento queda arriba de 30 y no cae en «arriba de todo»
+       (con 1–4 px de sobra se escondía y volvía en el mismo instante: verificador). */
+    if (y > (_cabAlto || 0) + 30 && dashCabPuedeEsconder()) dashCabEsconder();
+    _cabAcum = 0;
+  } else if (oculta && _cabAcum < -24) { dashCabMostrar(true); _cabAcum = 0; }
+}
 // El cuadradito ⓘ despliega/repliega la explicación hacia arriba, sin abrir el panel completo.
 function gestFabToggleInfo(){
   const panel = document.getElementById('gestFabInfoPanel'); const btn = document.getElementById('gestFabInfoBtn');
@@ -25770,7 +25906,7 @@ function dashWireScrollspy(){
   _dashScrollEl = scroll;
   _dashActiveTab = null;                                 // fuerza recomputar tras el re-render
   if (!_dashOnScroll){                                   // un solo listener para toda la vida del panel
-    _dashOnScroll = function(){ if (!_dashSpyRaf) _dashSpyRaf = requestAnimationFrame(dashComputeSpy); };
+    _dashOnScroll = function(){ dashCabDesplazar(); if (!_dashSpyRaf) _dashSpyRaf = requestAnimationFrame(dashComputeSpy); };   // P418 · 2c
     scroll.addEventListener('scroll', _dashOnScroll, { passive:true });
   }
   // Estado inicial DIFERIDO: renderDash corre mientras el panel puede seguir display:none (rects en 0);
@@ -31841,6 +31977,7 @@ function dashEsqueleto(){
     bloque(140) + bloque(170);
 }
 function dashMostrarEsqueleto(){
+  try { dashCabReiniciar(); } catch (e) {}   // P418 · 2c · el «Cargando…» con la cabecera a la vista (verificador)
   const body = document.getElementById('dashBody');
   if (body) body.innerHTML = dashEsqueleto();
 }
@@ -35095,8 +35232,11 @@ function ovFocoSelector(){
     'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 }
 function ovFocoEnfocables(ov){
+  /* P418 · 2c · `offsetParent` no excluye lo que tiene `visibility: hidden` (la cabecera escondida del panel, el «Atrás» de la
+     primera lámina del carrusel): la trampa cancelaba el Tab y le daba el foco a algo que no lo puede tomar, y el teclado
+     quedaba trabado (verificador de P418). */
   return [...ov.querySelectorAll(ovFocoSelector())]
-    .filter(el => el.offsetParent !== null || el === document.activeElement);  // visibles
+    .filter(el => (el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden') || el === document.activeElement);
 }
 /* ⚠️ EL INERT SE SINCRONIZA ACÁ, ANTES DE MOVER EL FOCO, y es explícito a propósito. Son DOS
    MutationObserver mirando la misma clase —éste y el de `syncScrollLock`— y el orden en que corren

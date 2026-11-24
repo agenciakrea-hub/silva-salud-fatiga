@@ -427,3 +427,157 @@ PRUEBAS.caso('🔴 la grilla de números del panel: dos columnas iguales si entr
   const sab = p418pPanel('medico', { ancho: 375, alto: 812, nivel: 3, sabotaje: '.kpi-grid { grid-template-columns: 1fr 1fr !important; }' }, mide);
   PRUEBAS.alMenos(sab.malas.length, 1, 'DISCRIMINADOR · con `1fr 1fr`, a 375 «Muy grande» las tarjetas se pasan · ' + sab.malas.slice(0, 2).join(', '));
 });
+
+/* ══ FASE 2c · LA CABECERA SE ESCONDE AL BAJAR Y VUELVE AL SUBIR (Franco, panel del 2026-11-23) ══════════════════════
+   El derecho lo dan `dashCabDesplazar` (lo llama el escucha de desplazamiento de `#dashScroll`), `dashCabAjustar` (al
+   final de `renderDash`: el alto y si corresponde, `.cab-movil`, más del 25 % de la hoja) y el CSS de
+   `#portalDash.cab-oculta` (un margen negativo que le da el alto a `#dashScroll`). Con la pestaña oculta el evento de
+   desplazamiento no llega: se pone `scrollTop` y se llama al manejador, que es lo que hace el evento. Antes de bajar se
+   saca el foco: al abrir el panel `ovFocoAbrir` lo pone en «Nómina», y sin un toque de por medio el navegador lo toma
+   como foco de teclado (que, a propósito, la retiene). */
+function p418pPanelAsync(vista, opc, fn) {
+  opc = opc || {};
+  const demo = p418pDemo(), ovl = document.getElementById('portalOverlay'), marco = window.frameElement;
+  const antes = { ovl: ovl.className, DASH: (typeof DASH !== 'undefined') ? DASH : null,
+                  sinAnim: document.documentElement.classList.contains('sin-animaciones'),
+                  w: marco ? marco.style.width : '', h: marco ? marco.style.height : '' };
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  const estilo = opc.sabotaje ? document.createElement('style') : null;
+  return Promise.resolve().then(() => {
+    CTX.resetear(); localStorage.clear(); syncScrollLock();
+    fijarTamanoTexto(opc.nivel === undefined ? 1 : opc.nivel);
+    document.documentElement.classList.add('sin-animaciones');
+    if (marco) { marco.style.width = (opc.ancho || 375) + 'px'; marco.style.height = (opc.alto || 812) + 'px'; }
+    void document.body.offsetWidth;
+    ovl.classList.add('show'); syncScrollLock();
+    onDashData(demoPayloadDeVista(JSON.parse(JSON.stringify(demo.d)), vista), 'Empresa Demo', { action: 'demo' }, demoVistaReal(vista));
+    if (estilo) { estilo.textContent = opc.sabotaje; document.head.appendChild(estilo); }
+    void document.body.offsetWidth;
+    return fn(ovl);
+  }).finally(() => {
+    try { dashCabMostrar(false); } catch (e) {}   // con la función de la app (sacar la clase a mano tapaba que al cerrar quedaba puesta)
+    try { if (estilo) estilo.remove(); } catch (e) {}
+    try { ovl.className = antes.ovl; } catch (e) {}
+    try { if (!antes.sinAnim) document.documentElement.classList.remove('sin-animaciones'); } catch (e) {}
+    try { DASH = antes.DASH; } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    try { if (marco) { marco.style.width = antes.w; marco.style.height = antes.h; void document.body.offsetWidth; } } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock();
+  });
+}
+const p418pEspera = ms => new Promise(r => setTimeout(r, ms));
+function p418pCab() {   // el estado de la cabecera y cuánto de la hoja queda para leer
+  const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'), hoja = pd.closest('.sheet');
+  const H = hoja.getBoundingClientRect(), S = sc.getBoundingClientRect();
+  return { movil: pd.classList.contains('cab-movil'), oculta: pd.classList.contains('cab-oculta'),
+    leer: Math.round(100 * (Math.min(S.bottom, H.bottom) - Math.max(S.top, H.top)) / H.height),
+    invisibles: dashCabPiezas().filter(p => p.getBoundingClientRect().height > 0).every(p => getComputedStyle(p).visibility === 'hidden') };
+}
+function p418pBajar(y) { const sc = document.getElementById('dashScroll'); sc.scrollTop = 0; dashCabDesplazar(); sc.scrollTop = y; dashCabDesplazar(); void document.body.offsetWidth; }
+
+PRUEBAS.caso('🔴 la cabecera del panel, con letra grande en un teléfono: se esconde al bajar (el contenido gana su lugar) y vuelve al subir', () => {
+  if (p418pSaltea()) return;
+  const sinFoco = () => { try { document.activeElement && document.activeElement.blur(); } catch (e) {} };
+  return p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, async () => {
+    const r0 = p418pCab();
+    PRUEBAS.cierto(r0.movil, 'guarda: en un SE con «Muy grande» la cabecera ocupa más del 25 % y se mueve');
+    sinFoco(); p418pBajar(600);
+    const r1 = p418pCab();
+    PRUEBAS.cierto(r1.oculta, '🔴 al bajar, se esconde');
+    PRUEBAS.alMenos(r1.leer, 95, '🔴 y el contenido usa la hoja · ' + r0.leer + ' % → ' + r1.leer + ' %');
+    PRUEBAS.cierto(r1.invisibles, 'escondida no se ve ni se puede enfocar (`visibility: hidden`)');
+    await p418pEspera(420);   // la calma después de cada cambio
+    const sc = document.getElementById('dashScroll'); sc.scrollTop -= 40; dashCabDesplazar();
+    PRUEBAS.falso(p418pCab().oculta, '🔴 al subir un poco, vuelve');
+    p418pBajar(600); await p418pEspera(420); sc.scrollTop = 0; dashCabDesplazar();
+    PRUEBAS.falso(p418pCab().oculta, 'arriba de todo, siempre a la vista');
+  }).then(() => p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3, sabotaje: '#portalDash.cab-oculta { margin-top: 0 !important; }' }, async () => {
+    sinFoco(); p418pBajar(600);
+    const r = p418pCab();
+    PRUEBAS.cierto(r.oculta && r.leer < 70, 'DISCRIMINADOR · sin el margen negativo, escondida no le da lugar al contenido · ' + r.leer + ' %');
+  }));
+});
+
+PRUEBAS.caso('la cabecera NO se mueve donde no hace falta, ni con el menú abierto, ni con el foco de teclado adentro', () => {
+  if (p418pSaltea()) return;
+  return p418pPanelAsync('medico', { ancho: 393, alto: 852, nivel: 1 }, async () => {
+    const r = p418pCab();
+    PRUEBAS.falso(r.movil, 'CONTROL · con letra Normal en un iPhone de 393 px la cabecera es fija (ocupa menos del 25 %)');
+    try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+    p418pBajar(600);
+    PRUEBAS.falso(p418pCab().oculta, 'y al bajar no se esconde');
+  }).then(() => p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, async () => {
+    try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+    dfmToggle();
+    PRUEBAS.cierto(document.getElementById('dfmPanel').classList.contains('open'), 'guarda: «Menú y filtros» abierto');
+    p418pBajar(600);
+    PRUEBAS.falso(p418pCab().oculta, '🔴 con el menú abierto no se esconde');
+    dfmClose();
+    await p418pEspera(20);
+    document.getElementById('dfmToggle').focus();   // foco programático sin toque: el navegador lo toma como de teclado
+    PRUEBAS.cierto(document.activeElement.matches(':focus-visible'), 'guarda: el foco cuenta como de teclado');
+    p418pBajar(600);
+    PRUEBAS.falso(p418pCab().oculta, 'con el foco de teclado en la cabecera no se esconde');
+    document.activeElement.blur(); await p418pEspera(380);
+    p418pBajar(600);
+    PRUEBAS.cierto(p418pCab().oculta, 'CONTROL · sin el foco, sí');
+  }));
+});
+
+PRUEBAS.caso('🔴 sin salto: al esconderse y al volver la cabecera, lo que se está leyendo queda en el mismo lugar', () => {
+  if (p418pSaltea()) return;
+  /* El margen negativo mueve `#dashScroll` entero: sin compensar, un renglón del medio saltaba el alto de la cabecera
+     (333 px a 375×667 «Muy grande»: verificador de P418). El derecho lo dan `dashCabEsconder` y `dashCabMostrar(true)`,
+     que corrigen `scrollTop` en el mismo cuadro. */
+  const renglon = () => { const sc = document.getElementById('dashScroll'), S = sc.getBoundingClientRect();   // lo que está en el centro de la ventana
+    const e = document.elementFromPoint(S.left + S.width / 2, S.top + S.height / 2); return e && sc.contains(e) ? e : null; };
+  const salto = async () => { try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+    const sc = document.getElementById('dashScroll'); sc.scrollTop = 0; dashCabDesplazar(); sc.scrollTop = 900;
+    const el = renglon(); if (!el) return null; const y0 = el.getBoundingClientRect().top;
+    dashCabDesplazar(); void document.body.offsetWidth;
+    const oculta = document.getElementById('portalDash').classList.contains('cab-oculta'), y1 = el.getBoundingClientRect().top;
+    await p418pEspera(420); sc.scrollTop -= 40; const y2 = el.getBoundingClientRect().top;
+    dashCabDesplazar(); void document.body.offsetWidth;
+    return { oculta, esconder: Math.round(y1 - y0), volvio: !document.getElementById('portalDash').classList.contains('cab-oculta'), mostrar: Math.round(el.getBoundingClientRect().top - y2) }; };
+  return p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, salto).then(r => {
+    PRUEBAS.cierto(!!r && r.oculta && r.volvio, 'guarda: hay un renglón a la vista, la cabecera se escondió y volvió');
+    PRUEBAS.comoMucho(Math.abs(r.esconder), 1, '🔴 al esconderse, el renglón no se mueve · ' + r.esconder + ' px');
+    PRUEBAS.comoMucho(Math.abs(r.mostrar), 1, '🔴 al volver, tampoco · ' + r.mostrar + ' px');
+    const orig = window.dashCabEsconder;
+    window.dashCabEsconder = function () { document.getElementById('portalDash').classList.add('cab-oculta'); _cabCalmaHasta = Date.now() + 350; };
+    return p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, salto).finally(() => { window.dashCabEsconder = orig; });
+  }).then(sab => {
+    PRUEBAS.alMenos(Math.abs(sab.esconder), 100, 'DISCRIMINADOR · sin compensar, el renglón salta el alto de la cabecera · ' + sab.esconder + ' px');
+  });
+});
+
+PRUEBAS.caso('🔴 al cerrar el panel y volver a entrar, la cabecera está a la vista y el panel arranca arriba de todo', () => {
+  if (p418pSaltea()) return;
+  /* Nada sacaba `cab-oculta` al cerrar: el próximo panel abría sin ✕, sin ← y sin menú (verificador de P418). Y abría donde
+     había quedado el anterior, porque el `scrollTop = 0` de la entrada corre con el panel oculto (de antes de P418). El derecho
+     lo dan `dashCabReiniciar` en `onDashData` (toda entrada y cambio de vista pasa por ahí) y el observador del `display` de
+     `#portalDash` (`dashCabVigilar`). Se cierra como varios caminos de la app (`display: none`) y se entra por `onDashData`,
+     con otra vista; el «atrás» del teléfono, que cierra la capa y no el panel, lo midió `silvaAtras` con eventos reales. */
+  const demo = p418pDemo();
+  const vuelta = async () => { try { document.activeElement && document.activeElement.blur(); } catch (e) {}
+    p418pBajar(900);
+    const pd = document.getElementById('portalDash'), escondida = pd.classList.contains('cab-oculta');
+    pd.style.display = 'none'; await Promise.resolve();   // el observador es una microtarea: se mira ANTES de que corra otra cosa
+    onDashData(demoPayloadDeVista(JSON.parse(JSON.stringify(demo.d)), 'supervisor'), 'Empresa Demo', { action: 'demo' }, demoVistaReal('supervisor'));
+    await Promise.resolve(); void document.body.offsetWidth;
+    return { escondida, oculta: pd.classList.contains('cab-oculta'), visible: pd.style.display !== 'none', y: document.getElementById('dashScroll').scrollTop,
+      cruz: getComputedStyle(document.querySelector('#portalDash > .dash-top')).visibility }; };
+  return p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, vuelta).then(r => {
+    PRUEBAS.cierto(r.escondida, 'guarda: antes de cerrar, la cabecera estaba escondida');
+    PRUEBAS.cierto(r.visible, 'guarda: el panel nuevo está a la vista');
+    PRUEBAS.falso(r.oculta, '🔴 el panel nuevo abre con la cabecera a la vista');
+    PRUEBAS.igual(r.cruz, 'visible', 'con la ✕ y el ← a mano');
+    PRUEBAS.igual(r.y, 0, 'y arriba de todo (de antes de P418: abría donde había quedado el anterior)');
+    /* DISCRIMINADOR: sin el reinicio (lo usan el observador del `display`, `onDashData` y el esqueleto de carga). */
+    const origR = window.dashCabReiniciar;
+    window.dashCabReiniciar = function () {};
+    return p418pPanelAsync('medico', { ancho: 375, alto: 667, nivel: 3 }, vuelta).finally(() => { window.dashCabReiniciar = origR; });
+  }).then(sab => {
+    PRUEBAS.cierto(sab.oculta, 'DISCRIMINADOR · sin el reinicio, el panel nuevo abre con la cabecera escondida');
+  });
+});
