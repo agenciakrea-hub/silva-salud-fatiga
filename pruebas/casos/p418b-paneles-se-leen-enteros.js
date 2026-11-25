@@ -581,3 +581,63 @@ PRUEBAS.caso('🔴 al cerrar el panel y volver a entrar, la cabecera está a la 
     PRUEBAS.cierto(sab.oculta, 'DISCRIMINADOR · sin el reinicio, el panel nuevo abre con la cabecera escondida');
   });
 });
+
+/* ── Fase 3 · el panel con el cartel de envíos a la vista, acostado y con letra grande ─────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 con el cartel de envíos, el panel acostado con letra grande se puede leer: se desplaza, se llega a lo que se lee, y el renglón no salta al esconderse la cabecera', () => {
+  if (p418pSaltea()) return;
+  /* Lo encontró el verificador de la fase 3 con el panel cargado (el instrumento y mi caso lo abrían vacío y de pie): acostado
+     con «Zoom de pantalla» (568×320) y letra Grande o Muy grande, la cabecera del panel mide más que la hoja que el cartel
+     acorta, y `.sheet.portal` recortaba (`overflow: hidden`): lo que se lee quedaba entero debajo del borde (0 puntos tocables;
+     522 en la 7.77), la cabecera de la 2c no podía esconderse y el menú abría afuera. El derecho: con el cartel, `#portalDash`
+     se desplaza (`overflow-y: auto`), y la cabecera compensa por lo que se movió DE VERDAD (`dashCabEsconder/Mostrar` miden el
+     borde de `#dashScroll` antes y después, no suponen el alto de la cabecera). Se usa el panel del visor: no es la
+     demostración, que esconde el cartel. */
+  const medir = (hoja, pd, sc, ob, sabotaje) => {
+    const alFinal = () => { const H = hoja.getBoundingClientRect(), S = sc.getBoundingClientRect(), c = ob.getBoundingClientRect();
+      return Math.max(0, Math.round(Math.min(S.bottom, H.bottom, innerHeight, c.top) - Math.max(S.top, H.top, 0))); };
+    pd.scrollTop = pd.scrollHeight; void document.body.offsetWidth;
+    const r = { desplazable: /(auto|scroll)/.test(getComputedStyle(pd).overflowY) || pd.scrollHeight <= pd.clientHeight + 1, leer: alFinal() };
+    // El renglón de arriba de lo que se ve: queda quieto al esconderse y al volver la cabecera.
+    sc.scrollTop = 400; try { dashCabAjustar(); } catch (e) {}
+    const H = hoja.getBoundingClientRect(), S = sc.getBoundingClientRect();
+    const el = document.elementFromPoint(innerWidth / 2, Math.max(S.top, H.top, 0) + 6);
+    if (el && sc.contains(el)) {
+      const top = () => Math.round(el.getBoundingClientRect().top), a = top();
+      dashCabEsconder(); r.salto1 = top() - a; dashCabMostrar(true); r.salto2 = top() - a;
+    } else { r.salto1 = r.salto2 = null; }
+    return r;
+  };
+  const orig = { esc: window.dashCabEsconder, mos: window.dashCabMostrar };
+  const caso = (sabotaje) => p418pPanel('medico', { visor: true, ancho: 568, alto: 320, nivel: 3, sabotaje }, () => {
+    const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'), hoja = pd.closest('.sheet'), ob = document.getElementById('offBar');
+    empColaSave({ p418: { accion: 'opinion_guardar', payload: {}, creada: 1, trabado: true } }); offPintar(); void document.body.offsetWidth;
+    try {
+      const r = medir(hoja, pd, sc, ob);
+      r.cartel = getComputedStyle(ob).display !== 'none' && ob.getBoundingClientRect().height > 0;
+      r.demo = !!(typeof DASH !== 'undefined' && DASH && DASH.demoMode);
+      return r;
+    } finally { empColaSave({}); offPintar(); pd.scrollTop = 0; }
+  });
+  try {
+    const r = caso();
+    PRUEBAS.cierto(r.cartel && !r.demo, 'guarda: el cartel está a la vista y el panel no es la demostración');
+    PRUEBAS.cierto(r.desplazable, '🔴 a 568×320 con letra «Muy grande» y el cartel, el panel se puede desplazar');
+    PRUEBAS.cierto(r.leer >= 60, '🔴 y se llega a lo que se lee: quedan ' + r.leer + ' px de lectura al desplazar hasta el final (en la primera 7.78, 0)');
+    PRUEBAS.cierto(r.salto1 !== null, 'guarda: hay un renglón que seguir');
+    PRUEBAS.igual(r.salto1, 0, '🔴 al esconderse la cabecera el renglón que se lee no se mueve · ' + r.salto1 + ' px');
+    PRUEBAS.igual(r.salto2, 0, '🔴 ni al volver · ' + r.salto2 + ' px (con el alto de la cabecera supuesto saltaba lo desplazado: 131 px)');
+    /* DISCRIMINADORES: (1) el panel recortado como en la primera 7.78; (2) la compensación de la 7.77 (el alto supuesto). */
+    const d1 = caso('body.off-visible #portalOverlay #portalDash { overflow-y: hidden !important; }');
+    PRUEBAS.cierto(!d1.desplazable, 'DISCRIMINADOR · con el panel recortado, la persona no puede desplazarlo');
+    window.dashCabEsconder = function () { const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'); if (!pd || !sc || pd.classList.contains('cab-oculta')) return;
+      const y = sc.scrollTop; pd.classList.add('cab-oculta'); sc.scrollTop = Math.max(0, y - (_cabAlto || 0)); };
+    window.dashCabMostrar = function (c) { const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'); if (!pd || !pd.classList.contains('cab-oculta')) return;
+      const y = sc ? sc.scrollTop : 0; pd.classList.remove('cab-oculta'); if (sc && c) sc.scrollTop = y + (_cabAlto || 0); };
+    const d2 = caso();
+    PRUEBAS.cierto(d2.salto1 !== 0 || d2.salto2 !== 0, 'DISCRIMINADOR · con la compensación por el alto supuesto, el renglón salta lo que se desplazó · ' + d2.salto1 + ' / ' + d2.salto2 + ' px');
+  } finally {
+    window.dashCabEsconder = orig.esc; window.dashCabMostrar = orig.mos;
+    try { empColaSave({}); offPintar(); } catch (e) {}
+  }
+});

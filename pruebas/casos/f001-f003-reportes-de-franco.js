@@ -196,8 +196,12 @@ PRUEBAS.caso('🔴 F005 · en escritorio las hojas no se estiran a todo el ancho
      aparición en el archivo es `.gest-sheet, .dash-scroll, #portalDash, …` dentro de `@media print`,
      así que el caso leía las reglas de impresión y fallaba sin que hubiera nada roto. Un barrido que
      corta por un texto que aparece en varios lugares lee el equivocado. */
+  /* ⚠️ Y LA REGLA CUYO SELECTOR ES `.gest-sheet` A SECAS, al principio de su renglón. Desde P418 (fase 3) hay antes otra
+     regla que TERMINA en `> .gest-sheet {` (la que la acorta cuando el cartel de envíos está a la vista), y `indexOf` la
+     agarraba a ella: el caso falló sin que el tope de 960 px se hubiera movido. Mismo defecto que el de `@media print`. */
   const src = document.documentElement.outerHTML;
-  const i = src.indexOf('.gest-sheet {');
+  const mm = /\n[ \t]*\.gest-sheet\s*\{/.exec(src);
+  const i = mm ? mm.index + 1 : -1;
   PRUEBAS.alMenos(i, 0, 'guarda: la regla propia de `.gest-sheet` está en el CSS');
   const tramo = src.slice(i, i + 2600);
   PRUEBAS.cierto(/@media \(min-width: 900px\)[^}]*\{[^}]*\.gest-sheet\s*\{[^}]*max-width:\s*960px/.test(tramo.replace(/\s+/g, ' ')),

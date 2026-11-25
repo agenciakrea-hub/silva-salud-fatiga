@@ -136,6 +136,12 @@
            registrado, así que tiene que revelarla — sin esto todo se mide en 0 y media suite da
            rojo por una razón que no existe en la app real. */
         try { appRevelar(true); } catch(e){}
+        /* ⚠️ P418 · Y EL CARTEL DE ENVÍOS, CON LA COLA RECIÉN VACIADA. `localStorage.clear()` deja la cola vacía, pero el
+           cartel (`#offBar`) seguía a la vista con lo del caso anterior: cualquier caso que mande algo con la red cerrada
+           deja ítems en cola. Desde la fase 3 de P418, con el cartel a la vista las ventanas le reservan su alto, y eso
+           corría la ventana del caso siguiente (en el borrador del 2026-11-23, U2c y P312 fallaban en la suite y pasaban
+           solos). Repintarlo acá deja al cartel diciendo lo mismo que la cola: nada. */
+        try { if (typeof offPintar === 'function') offPintar(); } catch(e){}
       },
       /* Contraste WCAG. Está acá y no en cada caso porque ya lo escribí a mano cuatro veces en
          esta sesión y una de esas veces con un detector que miraba mal el fondo. */

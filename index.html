@@ -1155,6 +1155,10 @@
   .ios-card { background: var(--card); color: var(--text); width: 100%; max-width: 410px; border-radius: 22px; padding: 1.5rem 1.4rem;
     position: relative; box-shadow: 0 14px 44px rgba(0,0,0,0.3); animation: slideUp .3s ease; }
   .stack .ios-card { max-width: none; }   /* dentro de .stack debe igualar el ancho del botón de arriba */
+  /* P418 · fase 3 · si la tarjeta no entra, se desplaza: acostado con «Zoom de pantalla» (320 px de alto) y letra «Muy grande»
+     se salía por ARRIBA (la ✕ se veía 15 o 4 de 30 px; verificador, ya en la 7.77), y con el cartel de envíos reservando su
+     lugar, también a 393 de alto. Cuando entra, no cambia nada. */
+  .ios-modal.show > .ios-card { max-height: 100%; overflow-y: auto; }
   .ios-card .x { position: absolute; top: 1rem; right: 1rem; width: 30px; height: 30px; border: none; border-radius: 50%;
     background: var(--chip-bg); color: var(--text-soft); font-weight: 700; cursor: pointer; }
   .ios-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
@@ -2635,19 +2639,75 @@
   /* F121 · el área segura va UNA vez. `--nav-alto` se mide desde el pie de la pantalla, así que ya la incluye; sumarla
      otra vez dejaba el cartel flotando 41 px sobre el disco en un iPhone con barra de inicio (7 en uno sin ella). Sólo
      el respaldo, que es un número fijo, la necesita. */
-  .off-bar { position: fixed; left: 0; right: 0; z-index: 1005;
+  /* P418 · fase 3 · `transition: bottom .22s`, los mismos .22 s del velo de las ventanas (`.overlay`): el cartel pasa del borde
+     (con una ventana abierta) a su lugar sobre la barra (sin ventana) en el instante en que se saca `.show`, y como la capa
+     sigue pintada mientras se desvanece, saltaba 92–100 px a la vista (verificador). Con «Reducir movimiento» o con la
+     pestaña oculta, `html.sin-animaciones` apaga toda transición: ahí no se mueve. */
+  .off-bar { position: fixed; left: 0; right: 0; z-index: 1005; transition: bottom .22s ease;
     bottom: calc(var(--nav-alto, calc(64px + env(safe-area-inset-bottom))) + .45rem);
     max-width: 560px; margin: 0 auto;
     background: var(--sem-ambar-bg); color: var(--sem-ambar-txt);
     border-top: 1px solid var(--sem-ambar); text-align: center;
     padding: .45rem .8rem; font-size: .76rem; font-weight: 700; line-height: 1.35; }
-  /* ⚠️ F121 · CON UNA VENTANA ABIERTA, LA POSICIÓN DE ANTES. Desde P190 el cartel va por ENCIMA de las ventanas, pero
-     se sigue ubicando contra la barra inferior, que la ventana tapa. Ahí el área segura sumada dos veces lo subía 34 px
-     en el iPhone por accidente, y sacarla lo bajaba sobre los botones de abajo de la hoja: «Sí, recordar» quedaba
-     tapado 5 px con letra Normal y 30 con Muy grande (lo midió el verificador de F121 con el área segura por CDP; en
-     7.71, 0). Acá se conserva la fórmula de 7.71 hasta decidir dónde va el cartel sobre una ventana: en un teléfono sin
-     barra de inicio ya tapaba 32 de los 44 px de esos botones, en las dos versiones. */
-  body.modal-open .off-bar { bottom: calc(var(--nav-alto, 64px) + .45rem + env(safe-area-inset-bottom)); }
+  /* ⚠️ P418 · FASE 3 · CON UNA VENTANA ABIERTA, EL CARTEL VA AL BORDE DE ABAJO Y LA VENTANA LE DEJA SU LUGAR. Desde P190
+     el cartel va por ENCIMA de las ventanas (la persona tiene que ver qué pasa con lo que está escribiendo), pero se seguía
+     ubicando contra la barra de abajo, que la ventana tapa: flotaba a ~99 px del borde, sobre lo que hubiera ahí. Medido en
+     la 7.77 con `docs/specs/P418/instrumento/medir-cartel-todas.js` (las 32 ventanas, 7 tamaños, letra Normal y «Muy
+     grande»): tapaba algo en 27 — «Enviar» de la opinión, «Continuar», «Ahora no», «Atrás», «Cerrar», el último paso de
+     las guías de instalación, la documentación, el panel entero. Ahora va al borde (sobre la barra de inicio del iPhone) y
+     `--off-reserva` —lo que ocupa desde el borde, con 8 px de aire— se le descuenta a la ventana. Sólo con el cartel a la
+     vista (`body.off-visible`, lo pone `offAltoPublicar`): sin él, cada ventana queda exactamente como antes.
+     ⚠️ R24 · UNA REGLA POR FAMILIA, NO UNA PARA TODAS. El primer intento (borrador del 2026-11-23, sin publicar) era una sola
+     regla y el verificador la encontró fallando en cinco familias armadas distinto. El inventario de las 32 (CSS calculado,
+     `instrumento/inventario-ventanas.js`, en `plan.md` 3.2) da siete familias, y cuál es cuál CAMBIA con el ancho: */
+  :root { --off-reserva: calc(max(.45rem, env(safe-area-inset-bottom)) + var(--off-alto, 0px)); }
+  body.modal-open .off-bar { bottom: max(.45rem, env(safe-area-inset-bottom)); }
+  /* ⚠️ LA RESERVA DEPENDE SÓLO DE QUE EL CARTEL SE VEA, NO DE QUE LA VENTANA ESTÉ ABIERTA. Al cerrar una ventana, `.show` y
+     `modal-open` se van en el acto pero la capa sigue pintada .22 s mientras se desvanece: atada a ellas, la reserva se iba
+     antes y la hoja saltaba 14–61 px a la vista (verificador de la fase 3). En una capa oculta la reserva no hace nada.
+     Todas las familias que reservan, el relleno de abajo de su capa. Los tres `:not(#…)` son la familia 6 —contraseña, z
+     1010, POR ENCIMA del cartel: reservar les dejaba una franja vacía— y, de paso, le dan a la regla la especificidad de un id:
+     la portada, el carrusel, el panel y la demostración ponen `padding: 0` por id, y una regla de clase no les ganaba (en el
+     primer intento, por eso el cartel tapaba «Siguiente» del carrusel). La familia 7 (test y PVT) esconde el cartel, así
+     que no llega a tener la clase. */
+  body.off-visible .overlay:not(#loginOv):not(#claveOv):not(#recuperarOv) { padding-bottom: var(--off-reserva); }
+  /* 1 · Centradas comunes: la hoja tiene tope de 90vh; con el relleno nuevo, además, no pasa de lo que queda. Las de las
+     familias 2 y 3 tienen su propio alto y quedan afuera POR NOMBRE (pisarles el tope achicaba la demostración), y las de
+     contraseña también: con letra grande 1.2rem de relleno más 90vh ya no entran, y el tope nuevo las corría 2–6 px aunque
+     no reservaran nada (medido a 320 y acostado). */
+  body.off-visible .overlay:not(#loginOv):not(#claveOv):not(#recuperarOv) > .sheet:not(.portal):not(.gest-sheet):not(.demo-app-sheet) { max-height: min(90vh, 100%); }
+  /* 2 · Pantalla completa bajo la barra del sistema: su alto es `100dvh − arriba`, que no ve el relleno; el tope al 100 %
+     de lo que queda la corta justo sobre el cartel (en el ancho intermedio, donde el panel va centrado a 88–90vh, igual). */
+  body.off-visible #portalOverlay > .sheet.portal,
+  body.off-visible .gest-overlay > .gest-sheet { max-height: 100%; }
+  /* ⚠️ Y SI LA CABECERA DEL PANEL NO ENTRA, EL PANEL ENTERO SE DESPLAZA (verificador de la fase 3). Acostado con «Zoom de
+     pantalla» (320 px de alto) y letra Grande o Muy grande, la cabecera mide más que la hoja acortada: lo que se lee quedaba
+     entero debajo del borde (568×320 «Muy grande»: 0 puntos tocables; 522 en la 7.77), la cabecera de la fase 2c no podía
+     esconderse (se esconde al desplazar) y el menú abría afuera. Con el cartel, `#portalDash` —la cabecera y lo que se lee—
+     se desplaza si no entra; sin desborde no cambia nada. Y es `#portalDash` y NO la hoja: la caja de «¿recordar este
+     dispositivo?» es hija de la hoja y escondida queda corrida 150 % hacia abajo; con la hoja desplazable eso contaba como
+     contenido, y el panel entero se podía arrastrar ~150 px en vacío, también de pie. Los botones flotantes (`.gest-fab`,
+     `.adm-fab`) cuelgan de la hoja (`#portalDash` no está posicionado): no se desplazan ni se recortan con él. */
+  body.off-visible #portalOverlay #portalDash { overflow-x: hidden; overflow-y: auto; }
+  /* 3 · Pantalla completa con su propio armado: el hijo va estirado pero con `min-height: 100dvh`, que no lo dejaba
+     achicarse. Y el área segura de su relleno de abajo ya está dentro de la reserva (el cartel va sobre ella). */
+  body.off-visible #splashOv > .splash-wrap { min-height: 0; padding-bottom: 14px; }
+  body.off-visible #carruselOv > .car-wrap { min-height: 0; }
+  body.off-visible #carruselOv .car-nav { padding-bottom: 22px; }
+  body.off-visible #demoAppOv > .demo-app-sheet { max-height: min(94dvh, 960px, 100%); }
+  @media (max-width: 480px) {   /* hasta 480 la demostración ocupa la pantalla (`height: 100dvh`): llena lo que queda */
+    body.off-visible #demoAppOv > .demo-app-sheet { max-height: 100%; padding-bottom: .7rem; }
+  }
+  /* El aviso de la demostración va sobre «Salir de la demostración» (F117), y «Salir» sube lo que sube la hoja. */
+  body.modal-open.off-visible:has(#demoAppOv.show) .toast { bottom: calc(6rem + var(--off-reserva)); }
+  /* Y con cualquier otra ventana abierta, el aviso va ARRIBA del cartel: al borde de abajo lo tapaba (45–90 % del cartel
+     durante los 4 s de «Deshacer», verificador de la fase 3). Sin ventana, el cartel va sobre la barra y el aviso no lo toca. */
+  body.modal-open.off-visible .toast { bottom: calc(var(--off-reserva) + .6rem); }
+  /* 4 · Fija por adentro: la documentación es `position: fixed; inset: 0`, el relleno de su capa no la toca. */
+  body.off-visible #docOverlay > .doc-win { bottom: var(--off-reserva); }
+  /* 5 · Hoja de abajo que no es `.overlay` (las guías de instalación): reserva como las demás; que su tarjeta se desplace si
+     no entra está en `.ios-modal.show > .ios-card` (vale también sin cartel). */
+  body.off-visible .ios-modal { padding-bottom: var(--off-reserva); }
   .off-bar.off-bar-sync { background: var(--sem-azul-bg); color: var(--sem-azul-int); border-top-color: var(--sem-azul); }
   /* P190 · durante un test o el PVT no hay nada que enviar y el cartel taparía las respuestas de abajo */
   body:has(#testOverlay.show) .off-bar, body:has(#pvtOverlay.show) .off-bar { display: none !important; }
@@ -6299,7 +6359,11 @@
   .adm-demo-sec:focus-visible, .demo-app-sec:focus-visible, .demo-app-x:focus-visible, .demo-app-salir:focus-visible { outline: 2px solid var(--orange-legible); outline-offset: 2px; }
   .demo-app-ic { flex: 0 0 2.25rem; width: 2.25rem; height: 2.25rem; border-radius: 10px; display: grid; place-items: center; }
   .demo-app-ic svg { width: 1.25rem; height: 1.25rem; }
-  .demo-app-sheet { max-width: 440px; max-height: min(94dvh, 960px); display: flex; flex-direction: column; overflow: hidden; padding: 1.1rem 1rem 1rem; }
+  /* P418 · fase 3 · `overflow-y: auto` y no `hidden`: si lo de arriba no entra (acostado con letra grande), «Salir de la
+     demostración» quedaba debajo del borde de la hoja, sin forma de llegar (a 568×320 con letra Grande se veían 8 de sus 48 px
+     ya en la 7.77, y con el cartel de envíos reservando su lugar, 0 a 667×375). Ahora se alcanza desplazando la hoja. Cuando
+     entra —siempre de pie— no cambia nada: el marco del medio se encoge primero. */
+  .demo-app-sheet { max-width: 440px; max-height: min(94dvh, 960px); display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; padding: 1.1rem 1rem 1rem; }
   .demo-app-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin: 0 0 .3rem; }
   .demo-app-top h2 { margin: 0; font-size: 1.1rem; line-height: 1.25; }
   .demo-app-x { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--linea); background: var(--card); color: var(--text); display: grid; place-items: center; cursor: pointer; }
@@ -8479,7 +8543,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.77';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.78';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -14808,6 +14872,44 @@ function offAltoPublicar(){
     /* + 8 px: el cartel va a `.45rem` del disco (ver `.off-bar`). Oculto mide 0 y no suma nada. */
     const alto = (r && r.height) ? Math.round(r.height) + 8 : 0;
     document.documentElement.style.setProperty('--off-alto', alto + 'px');
+    /* P418 · fase 3 · con el cartel a la vista, las ventanas abiertas le dejan su lugar (`--off-reserva`, en el CSS). */
+    if (document.body) document.body.classList.toggle('off-visible', alto > 0);
+    /* ⚠️ Y LO QUE EL PANEL MIDIÓ CONTRA EL ALTO DE SU HOJA SE VUELVE A MEDIR. El menú y el glosario llevan el alto que había
+       hasta el piso de la hoja cuando se abrieron (`dashAltoHastaElPiso`): si el cartel aparece con el menú abierto, la hoja
+       se acorta y el final del menú quedaba recortado — medido a 375×667 con «Muy grande», 96 px que no se alcanzaban ni
+       desplazando. La cabecera decide si se esconde según la parte de la hoja que ocupa: también cambia. En el momento y
+       no en el próximo cuadro: con la pestaña oculta (la suite) un cuadro no llega nunca. */
+    if (alto !== _offAltoUlt){
+      _offAltoUlt = alto;
+      const po = document.getElementById('portalOverlay');
+      if (po && po.classList.contains('show')){
+        try { dashDesplegablesAjustar(); } catch(e){}
+        try { dashCabAjustar(); } catch(e){}
+      }
+      /* Y la barra de «versión nueva» (P392), que se ubica arriba de la pregunta de «¿recordar este dispositivo?»: la reserva
+         sube la pregunta, y con la barra ya ubicada la tapaba entera (375×667: barra en 363–423, pregunta en 383–417;
+         verificador de la fase 3). Ella sola mira la clase del cartel de recordar y del portal, no la del cartel de envíos. */
+      try { versionBarraUbicar(); } catch(e){}
+    }
+  } catch(e){}
+  offVigilar();
+}
+var _offAltoUlt;   // R16 · sin asignar: el último alto publicado, para no volver a medir el panel si no cambió
+/* ⚠️ P418 · fase 3 · EL CARTEL TAMBIÉN CAMBIA SIN QUE NADIE LO PINTE. `body:has(#testOverlay.show) .off-bar` lo esconde
+   desde el CSS, y su texto pasa de uno a tres renglones al girar o al cambiar la letra: si su alto se publicara sólo al
+   pintarlo, una ventana abierta seguiría reservando el lugar de un cartel que ya no está, o el de uno más bajo que el
+   que la tapa. Un observador de tamaño lo sigue en todos los casos (oculto mide 0). Con la pestaña oculta no dispara
+   (la suite): ahí lo cubren `offPintar` y `syncScrollLock`, que lo publican al momento.
+   R16 · declarada sin asignar: `offAltoPublicar` corre en el arranque, antes de que el intérprete llegue acá. */
+var _offRO;
+function offVigilar(){
+  if (_offRO !== undefined) return;
+  _offRO = null;
+  try {
+    const el = document.getElementById('offBar');
+    if (!el || typeof ResizeObserver !== 'function') return;
+    _offRO = new ResizeObserver(function(){ offAltoPublicar(); });
+    _offRO.observe(el);
   } catch(e){}
 }
 function offPintarEstado_(){
@@ -25733,7 +25835,9 @@ function dashCabPiezas(){
 function dashCabMedir(){
   const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll'), hoja = pd && pd.closest('.sheet');
   if (!pd || !sc || !hoja) return false;
-  const alto = Math.round(sc.getBoundingClientRect().top - pd.getBoundingClientRect().top), altoHoja = hoja.getBoundingClientRect().height;
+  /* `+ pd.scrollTop`: con el cartel, en una pantalla muy baja `#portalDash` se desplaza entero (fase 3) y la distancia que se
+     ve entre los dos bordes es la cabecera MENOS lo desplazado. Sin eso, `--cab-alto` salía corto y la cabecera no se iba entera. */
+  const alto = Math.round(sc.getBoundingClientRect().top - pd.getBoundingClientRect().top + pd.scrollTop), altoHoja = hoja.getBoundingClientRect().height;
   if (!(alto > 0) || !(altoHoja > 0)) return false;               // panel oculto
   _cabAlto = alto;
   hoja.style.setProperty('--cab-alto', alto + 'px');
@@ -25786,20 +25890,26 @@ function dashCabAjustar(repintado){
    rearmaba los gráficos y el menú se medía a mitad de camino) y el desplazamiento se corrige en el mismo cuadro en lo que
    mide la cabecera: el contenido queda exactamente donde estaba. Arriba de todo vuelve SIN compensar, para que se vea el
    principio. */
+/* P418 · fase 3 · LA COMPENSACIÓN ES LO QUE SE MOVIÓ DE VERDAD, NO EL ALTO DE LA CABECERA. Son lo mismo mientras `#portalDash`
+   no se desplace; con el cartel, en una pantalla muy baja, se desplaza entero (la cabecera sola no entra) y lo que se lee
+   se movía menos que la cabecera: el renglón saltaba lo desplazado (hasta 131 px a 568×320). Se mide el borde de arriba de
+   `#dashScroll` antes y después. Y al volver la cabecera con el panel así, `#portalDash` baja hasta el final para que lo que
+   se leía siga a la vista (si no, quedaba entero debajo del borde y había que buscarlo). */
 function dashCabMostrar(compensar){
   const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
   if (!pd || !pd.classList.contains('cab-oculta')) return;
-  const y = sc ? sc.scrollTop : 0;
+  const y = sc ? sc.scrollTop : 0, t0 = sc ? sc.getBoundingClientRect().top : 0;
   pd.classList.remove('cab-oculta');
-  if (sc && compensar) sc.scrollTop = y + (_cabAlto || 0);
+  if (compensar && pd.scrollHeight > pd.clientHeight + 1) pd.scrollTop = pd.scrollHeight;
+  if (sc && compensar) sc.scrollTop = y + (sc.getBoundingClientRect().top - t0);
   _cabUltY = sc ? sc.scrollTop : 0; _cabCalmaHasta = Date.now() + 350;
 }
 function dashCabEsconder(){
   const pd = document.getElementById('portalDash'), sc = document.getElementById('dashScroll');
   if (!pd || !sc || pd.classList.contains('cab-oculta')) return;
-  const y = sc.scrollTop;
+  const y = sc.scrollTop, t0 = sc.getBoundingClientRect().top;
   pd.classList.add('cab-oculta');
-  sc.scrollTop = Math.max(0, y - (_cabAlto || 0));
+  sc.scrollTop = Math.max(0, y - (t0 - sc.getBoundingClientRect().top));
   _cabUltY = sc.scrollTop; _cabCalmaHasta = Date.now() + 350;
 }
 function dashCabPuedeEsconder(){
@@ -36731,6 +36841,7 @@ offPintar();      // muestra el estado de envío si quedó algo de una sesión a
 function syncScrollLock(){
   document.body.classList.toggle('modal-open', !!document.querySelector('.overlay.show, .ios-modal.show'));
   sincronizarInert();
+  offAltoPublicar();   // P418 · fase 3 · abrir el test o el PVT esconde el cartel: la reserva de las ventanas, al momento
 }
 
 /* ⚠️ Q4c · LO QUE ESTÁ TAPADO NO SE TABULA. Medido: con el login de persona abierto encima de la

@@ -281,3 +281,204 @@ PRUEBAS.caso('🔴 «Mis datos» a 320 con «Muy grande»: el nombre y la cédul
     p418Limpiar(sab);
   }
 });
+
+/* ── Fase 3 · el cartel de envíos con una ventana abierta ─────────────────────────────────────── */
+
+PRUEBAS.caso('🔴 con una ventana abierta, el cartel de envíos va al borde de abajo y la ventana le deja su lugar: una de cada familia (375×667 y 320×568, letra Normal y «Muy grande»)', () => {
+  /* Medido en la 7.77 (`docs/specs/P418/instrumento/medir-cartel-todas.js`, fuera del repo, las 32 ventanas en 7 tamaños):
+     el cartel flotaba a la altura de la barra de abajo —que la ventana tapa— y tapaba algo en 27: «Enviar» de la opinión,
+     «Siguiente» del carrusel, el último paso de las guías de instalación, la documentación, el panel. Lo que da el derecho:
+     `body.modal-open .off-bar` (el cartel al borde) y, con `body.off-visible` —lo pone `offAltoPublicar`, que corre desde
+     `offPintar` y `syncScrollLock`—, UNA REGLA POR FAMILIA de ventana que le descuenta `--off-reserva` (R24: el inventario
+     de las siete familias está en `docs/specs/P418/plan.md` 3.2). Se abre una de cada familia y se mide su SUPERFICIE (lo
+     que dibuja: la hoja, la tarjeta, la documentación), que tiene que terminar arriba del cartel. Las de pantalla completa,
+     además, siguen llenando lo que queda —el borrador del 2026-11-23 achicaba la de la demostración—; la de contraseña,
+     que va POR ENCIMA del cartel, no se corre (dejaba una franja vacía); y con el test abierto el cartel se esconde y nada
+     reserva. El cartel se prende por su camino real: un envío trabado en la cola (rojo, dos o tres renglones).
+     Se abren con su clase y `syncScrollLock`, sin los `abrir` que apilan historial (la suite tiene tope de 50 entradas). */
+  const SUP = { opinionOv: '#opinionOv > .sheet', nominaListOv: '#nominaListOv > .gest-sheet', portalOverlay: '#portalOverlay > .sheet.portal',
+                carruselOv: '#carruselOv > .car-wrap', docOverlay: '#docOverlay > .doc-win', iosModal: '#iosModal > .ios-card', claveOv: '#claveOv > .sheet' };
+  const LLENAN = ['nominaListOv', 'portalOverlay', 'carruselOv', 'docOverlay'];   // a 375 y 320 son de pantalla completa
+  const RESERVAN = ['opinionOv', 'nominaListOv', 'portalOverlay', 'carruselOv', 'docOverlay', 'iosModal'];
+  const idx0 = CAR_IDX;
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  const cartel = on => { empColaSave(on ? { p418: { accion: 'opinion_guardar', payload: {}, creada: 1, trabado: true } } : {}); offPintar(); };
+  const abrir = id => { document.getElementById(id).classList.add('show'); if (id === 'carruselOv') { CAR_IDX = 1; carruselPintar(); } syncScrollLock(); };
+  const cerrar = id => { document.getElementById(id).classList.remove('show'); syncScrollLock(); };
+  const medir = id => {
+    abrir(id); cartel(false); void document.body.offsetWidth;
+    const s = document.querySelector(SUP[id]), sin = s.getBoundingClientRect();
+    cartel(true); void document.body.offsetWidth;
+    const ob = document.getElementById('offBar'), b = ob.getBoundingClientRect(), con = s.getBoundingClientRect();
+    const r = { id, cartel: getComputedStyle(ob).display !== 'none' && b.height > 0, alBorde: Math.round(innerHeight - b.bottom),
+                hueco: Math.round(b.top - con.bottom), arriba: Math.round(con.top - sin.top), subio: Math.round(sin.bottom - con.bottom) };
+    cartel(false); cerrar(id);
+    return r;
+  };
+  const todas = () => Object.keys(SUP).map(medir);
+  let sab = null;
+  try {
+    p418Arrancar();
+    [[375, 667], [320, 568]].forEach(([w, h]) => [1, 3].forEach(n => {
+      fijarTamanoTexto(n);
+      PRUEBAS.enVentana(w, h, () => {
+        const rs = todas(), tag = w + '×' + h + ' letra ' + n;
+        PRUEBAS.cierto(rs.every(r => r.cartel), 'guarda: a ' + tag + ' el cartel está a la vista con cada ventana');
+        rs.filter(r => r.id !== 'claveOv').forEach(r => PRUEBAS.comoMucho(r.alBorde, 12, 'a ' + tag + ', con #' + r.id + ' abierta el cartel va al borde de abajo · a ' + r.alBorde + ' px (antes ~99)'));
+        RESERVAN.forEach(id => { const r = rs.find(x => x.id === id);
+          PRUEBAS.cierto(r.hueco >= 7, '🔴 a ' + tag + ', #' + id + ' termina arriba del cartel · hueco ' + r.hueco + ' px (antes, el cartel la pisaba)'); });
+        LLENAN.forEach(id => { const r = rs.find(x => x.id === id);
+          PRUEBAS.cierto(r.arriba === 0 && Math.abs(r.hueco - 8) <= 1.5, '🔴 a ' + tag + ', #' + id + ' sigue llenando la pantalla · arriba se movió ' + r.arriba + ', hueco ' + r.hueco); });
+        const c = rs.find(x => x.id === 'claveOv');
+        PRUEBAS.igual(c.subio, 0, '🔴 a ' + tag + ', la de contraseña (por encima del cartel) no se corre · ' + c.subio + ' px');
+      });
+    }));
+    /* Con el test abierto el cartel se esconde (`body:has(#testOverlay.show)`) y `syncScrollLock` lo publica: nada reserva. */
+    fijarTamanoTexto(1);
+    PRUEBAS.enVentana(375, 667, () => {
+      cartel(true); abrir('opinionOv'); abrir('testOverlay');
+      const ob = document.getElementById('offBar');
+      PRUEBAS.cierto(getComputedStyle(ob).display === 'none' && !document.body.classList.contains('off-visible'),
+        '🔴 con el test abierto el cartel se esconde y ninguna ventana le reserva lugar');
+      cerrar('testOverlay'); cerrar('opinionOv'); cartel(false);
+    });
+    /* DISCRIMINADORES: (1) sin la reserva, las seis familias quedan bajo el cartel; (2) si la de contraseña reservara, se
+       correría (la franja); (3) una hoja de pantalla completa con tope de más deja de llenar. */
+    sab = document.createElement('style'); document.head.appendChild(sab);
+    fijarTamanoTexto(1);
+    sab.textContent = ':root { --off-reserva: 0px !important; }';
+    const d1 = PRUEBAS.enVentana(375, 667, todas);
+    PRUEBAS.igual(RESERVAN.filter(id => d1.find(x => x.id === id).hueco < 7), RESERVAN, 'DISCRIMINADOR · sin la reserva, las seis familias quedan bajo el cartel');
+    sab.textContent = 'body.modal-open.off-visible #claveOv.show { padding-bottom: var(--off-reserva) !important; }';
+    const d2 = PRUEBAS.enVentana(375, 667, () => medir('claveOv'));
+    PRUEBAS.cierto(d2.subio > 0, 'DISCRIMINADOR · si la de contraseña reservara, se correría · ' + d2.subio + ' px');
+    sab.textContent = 'body.modal-open.off-visible .gest-overlay.show > .gest-sheet { max-height: min(80vh, 100%) !important; }';
+    const d3 = PRUEBAS.enVentana(375, 667, () => medir('nominaListOv'));
+    PRUEBAS.cierto(d3.arriba !== 0 || Math.abs(d3.hueco - 8) > 1.5, 'DISCRIMINADOR · con un tope de más, la de pantalla completa deja de llenar · arriba ' + d3.arriba + ', hueco ' + d3.hueco);
+  } finally {
+    try { if (sab) sab.remove(); } catch (e) {}
+    try { Object.keys(SUP).concat('testOverlay').forEach(id => document.getElementById(id).classList.remove('show')); } catch (e) {}
+    try { CAR_IDX = idx0; carruselPintar(); } catch (e) {}
+    try { empColaSave({}); offPintar(); } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock(); p418Limpiar(null);
+  }
+});
+
+/* ── Fase 3 · lo que encontró el verificador: el aviso, la barra de versión y la demostración, con el cartel a la vista ─────────── */
+
+function p418Cartel(on) { empColaSave(on ? { p418: { accion: 'opinion_guardar', payload: {}, creada: 1, trabado: true } } : {}); offPintar(); }
+
+PRUEBAS.caso('🔴 con una ventana abierta y el cartel de envíos a la vista, el aviso («Deshacer») va ARRIBA del cartel y no lo tapa (375×667 y 393×852, letra Normal y «Muy grande»)', () => {
+  /* El aviso (`.toast`, z 1100) se ubica a 1.4rem del borde; con el cartel ahora al borde le caía encima: 45–90 % del cartel
+     durante los 4 s de «Deshacer» (verificador de la fase 3). El derecho lo da `body.modal-open.off-visible .toast { bottom:
+     calc(var(--off-reserva) + .6rem) }`. Sin ventana abierta el cartel va sobre la barra y el aviso no lo toca (regla aparte). */
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  let sab = null;
+  const medir = (id) => {
+    document.getElementById(id).classList.add('show'); syncScrollLock(); p418Cartel(true); void document.body.offsetWidth;
+    showToastAccion('Ausencia marcada para hoy', 'Deshacer', () => {}, 8000); void document.body.offsetWidth;
+    const ob = document.getElementById('offBar'), b = ob.getBoundingClientRect(), tq = document.getElementById('toast').getBoundingClientRect();
+    const alto = Math.max(0, Math.min(b.bottom, tq.bottom) - Math.max(b.top, tq.top)), ancho = Math.max(0, Math.min(b.right, tq.right) - Math.max(b.left, tq.left));
+    const c = document.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+    const r = { cartel: getComputedStyle(ob).display !== 'none' && b.height > 0, solape: Math.round(alto * (ancho > 0 ? 1 : 0)), enElCentro: c ? (c.closest('#toast') ? 'aviso' : c.closest('#offBar') ? 'cartel' : (c.id || c.className)) : null };
+    hideToast(); document.getElementById(id).classList.remove('show'); syncScrollLock(); p418Cartel(false);
+    return r;
+  };
+  try {
+    p418Arrancar();
+    [[375, 667], [393, 852]].forEach(([w, h]) => [1, 3].forEach(n => { fijarTamanoTexto(n);
+      PRUEBAS.enVentana(w, h, () => ['opinionOv', 'portalOverlay'].forEach(id => { const r = medir(id), tag = w + '×' + h + ' letra ' + n + ' con #' + id;
+        PRUEBAS.cierto(r.cartel, 'guarda: a ' + tag + ' el cartel está a la vista');
+        PRUEBAS.igual(r.solape, 0, '🔴 a ' + tag + ', el aviso no se superpone con el cartel · ' + r.solape + ' px');
+        PRUEBAS.igual(r.enElCentro, 'cartel', 'y en el centro del cartel lo que se toca es el cartel · ' + r.enElCentro); })); }));
+    sab = document.createElement('style'); sab.textContent = 'body.modal-open.off-visible .toast { bottom: 1.4rem !important; }'; document.head.appendChild(sab);
+    fijarTamanoTexto(3);
+    const d = PRUEBAS.enVentana(375, 667, () => medir('opinionOv'));
+    PRUEBAS.cierto(d.solape > 0 || d.enElCentro === 'aviso', 'DISCRIMINADOR · con el aviso a 1.4rem del borde, le cae encima al cartel · ' + d.solape + ' px, en su centro: ' + d.enElCentro);
+  } finally {
+    try { if (sab) sab.remove(); } catch (e) {}
+    try { hideToast(); ['opinionOv', 'portalOverlay'].forEach(id => document.getElementById(id).classList.remove('show')); p418Cartel(false); } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock(); p418Limpiar(null);
+  }
+});
+
+PRUEBAS.caso('🔴 la barra de «versión nueva» no tapa la pregunta de «¿recordar este dispositivo?» cuando el cartel de envíos aparece DESPUÉS de ubicarla (375×667, 393×852)', () => {
+  /* P392 ubica la barra arriba de la pregunta de recordar, pero sólo cuando cambia la clase de esa caja o del portal, o al girar.
+     El cartel de envíos, que ahora sube esa pregunta con su reserva, no dispara nada de eso: con la barra ya puesta la tapaba
+     entera (34 de 34 px a 375×667; verificador de la fase 3). El derecho: `offAltoPublicar` llama `versionBarraUbicar` cuando
+     el alto del cartel cambia. Dos órdenes: barra puesta sin cartel y el cartel aparece (el que falló), y cartel primero. */
+  const po = document.getElementById('portalOverlay'), dr = document.getElementById('dashRemember');
+  const original = versionBarraUbicar;
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  const medir = (orden, sabotaje) => {
+    p418Cartel(false);
+    if (orden === 'B') p418Cartel(true);
+    po.classList.add('show'); syncScrollLock(); dr.classList.add('show');
+    versionNuevaAvisar(); void document.body.offsetWidth;   // la barra queda bien ubicada al crearla: lo que se mide es lo que pasa DESPUÉS
+    if (sabotaje) window.versionBarraUbicar = function () {};
+    if (orden === 'A') { p418Cartel(true); void document.body.offsetWidth; }
+    const vb = document.getElementById('verNuevaBar'), a = vb.getBoundingClientRect(), q = dr.querySelector('span').getBoundingClientRect();
+    const tapa = Math.max(0, Math.min(a.bottom, q.bottom) - Math.max(a.top, q.top));
+    const c = document.elementFromPoint(q.left + 6, q.top + q.height / 2);
+    const r = { barra: vb.getBoundingClientRect().height > 0, tapa: Math.round(tapa), enLaPregunta: c ? (c.closest('#verNuevaBar') ? 'barra' : c.closest('#dashRemember') ? 'recordar' : (c.id || c.className)) : null };
+    try { vb.remove(); } catch (e) {} dr.classList.remove('show'); po.classList.remove('show'); syncScrollLock(); p418Cartel(false);
+    return r;
+  };
+  try {
+    p418Arrancar();
+    [[375, 667], [393, 852]].forEach(([w, h]) => [1, 3].forEach(n => { fijarTamanoTexto(n);
+      PRUEBAS.enVentana(w, h, () => ['A', 'B'].forEach(o => { const r = medir(o), tag = w + '×' + h + ' letra ' + n + ' orden ' + o;
+        PRUEBAS.cierto(r.barra, 'guarda: a ' + tag + ' la barra de versión está a la vista');
+        PRUEBAS.igual(r.tapa, 0, '🔴 a ' + tag + ', la barra no tapa la pregunta · ' + r.tapa + ' px');
+        PRUEBAS.igual(r.enLaPregunta, 'recordar', 'y sobre la pregunta lo que se toca es la pregunta · ' + r.enLaPregunta); })); }));
+    fijarTamanoTexto(1);   // DISCRIMINADOR: ubicada la barra, el cartel no la vuelve a ubicar (como en la primera 7.78)
+    const d = PRUEBAS.enVentana(375, 667, () => medir('A', true));
+    PRUEBAS.cierto(d.tapa > 0, 'DISCRIMINADOR · si el cartel no hace volver a ubicar la barra, tapa la pregunta · ' + d.tapa + ' px');
+  } finally {
+    window.versionBarraUbicar = original;
+    try { const vb = document.getElementById('verNuevaBar'); if (vb) vb.remove(); dr.classList.remove('show'); po.classList.remove('show'); p418Cartel(false); } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock(); p418Limpiar(null);
+  }
+});
+
+PRUEBAS.caso('🔴 «La app de la persona» acostada con letra grande y el cartel de envíos: «Salir de la demostración» se alcanza desplazando la hoja', () => {
+  /* El cartel le saca su lugar a la hoja, y la hoja recortaba (`overflow: hidden`): acostado con letra Grande o Muy grande
+     «Salir» quedaba debajo del borde, sin forma de llegar (a 667×375 con «Grande»: 48 de 48 px en la 7.77, 0 en la primera 7.78;
+     verificador de la fase 3). El derecho lo da `.demo-app-sheet { overflow-y: auto }`: lo que no entra se alcanza desplazando.
+     La ✕ de arriba queda como salida en todo caso. Se abre sin `demoAppAbrir`, que apila historial. */
+  const ov = document.getElementById('demoAppOv');
+  let txt = null; try { txt = localStorage.getItem(K_TEXTO); } catch (e) {}
+  let sab = null;
+  const medir = () => {
+    DEMO_APP_SECTOR = 'general'; demoAppPintar(); ov.classList.add('show'); syncScrollLock(); p418Cartel(true); void document.body.offsetWidth;
+    const hoja = ov.querySelector('.demo-app-sheet'), salir = ov.querySelector('.demo-app-salir'), ob = document.getElementById('offBar');
+    const visto = () => { const H = hoja.getBoundingClientRect(), q = salir.getBoundingClientRect(), c = ob.getBoundingClientRect(), cartel = getComputedStyle(ob).display !== 'none' && c.height > 0;
+      return Math.max(0, Math.round(Math.min(q.bottom, H.bottom, innerHeight, cartel ? c.top : 1e9) - Math.max(q.top, H.top, 0))); };
+    const r = { cartel: getComputedStyle(ob).display !== 'none', alto: Math.round(salir.getBoundingClientRect().height), alInicio: visto(),
+                /* «se puede desplazar» es lo que la PERSONA puede hacer con el dedo: `overflow-y` auto o scroll. Con `hidden`,
+                   `scrollTop = …` igual mueve la hoja por código, así que mirar sólo dónde queda «Salir» no discrimina. */
+                desplazable: /(auto|scroll)/.test(getComputedStyle(hoja).overflowY) || hoja.scrollHeight <= hoja.clientHeight + 1 };
+    hoja.scrollTop = hoja.scrollHeight; void document.body.offsetWidth; r.alFinal = visto();
+    hoja.scrollTop = 0; demoAppCerrar(); p418Cartel(false);
+    return r;
+  };
+  try {
+    p418Arrancar();
+    [[667, 375, 2], [667, 375, 3], [568, 320, 2], [568, 320, 3], [852, 393, 3]].forEach(([w, h, n]) => { fijarTamanoTexto(n);
+      const r = PRUEBAS.enVentana(w, h, medir), tag = w + '×' + h + ' letra ' + n;
+      PRUEBAS.cierto(r.cartel, 'guarda: a ' + tag + ' el cartel está a la vista');
+      PRUEBAS.cierto(r.desplazable && r.alFinal >= r.alto - 1, '🔴 a ' + tag + ', «Salir de la demostración» se alcanza y se ve entero al desplazar la hoja · desplazable ' + r.desplazable + ', ' + r.alFinal + ' de ' + r.alto + ' px (al inicio, ' + r.alInicio + ')'); });
+    sab = document.createElement('style'); sab.textContent = '.demo-app-sheet { overflow-y: hidden !important; }'; document.head.appendChild(sab);
+    fijarTamanoTexto(3);
+    const d = PRUEBAS.enVentana(667, 375, medir);
+    PRUEBAS.cierto(!d.desplazable, 'DISCRIMINADOR · con la hoja recortada (como en la primera 7.78) la persona no puede desplazarla y «Salir» no se alcanza · desplazable ' + d.desplazable);
+  } finally {
+    try { if (sab) sab.remove(); } catch (e) {}
+    try { demoAppCerrar(); p418Cartel(false); } catch (e) {}
+    try { localStorage.clear(); if (txt !== null) localStorage.setItem(K_TEXTO, txt); } catch (e) {}
+    aplicarTamanoTexto(); syncScrollLock(); p418Limpiar(null);
+  }
+});
