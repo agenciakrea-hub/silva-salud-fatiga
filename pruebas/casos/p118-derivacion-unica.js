@@ -187,7 +187,7 @@ PRUEBAS.caso('🔴 `login` repone el perfil TAMBIÉN de quien no está en Nómin
      la fila de la Nómina, que es una hoja que edita a mano. */
   const api = p118Env(['accionCredencialCrear','accionLogin']);
   const c = p118Json(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
-    persona:'Ana Suárez', pass:'miClave123', dispositivoId:'d' }));
+    usuario:'Ana Suárez', pass:'miClave123', dispositivoId:'d' }));
   PRUEBAS.igual(c.ok, true, 'se crea la credencial · ' + (c.error || ''));
   const shNom = api.__env.__libro.getSheetByName('Nómina');
   shNom.getRange(2, 1, 1, P118_CAB_NOM.length).setValues([P118_CAB_NOM.map(() => '')]);
@@ -206,7 +206,7 @@ PRUEBAS.caso('🔴 el rol se REFRESCA desde la Nómina al entrar con contraseña
      Se entra por el camino real: la credencial se crea con la columna VACÍA (así queda "empleado"
      congelado) y recién después RRHH escribe "Supervisor" en la hoja. */
   const api = p118Env(['accionCredencialCrear','accionLogin'], { rolNom:'' });
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   const sh = api.__env.__libro.getSheetByName('Nómina');
   sh.getRange(2, 12, 1, 1).setValues([['Supervisor']]);   // RRHH la asciende DESPUÉS
@@ -222,7 +222,7 @@ PRUEBAS.caso('🔒 pero una celda VACÍA no degrada al que ya tenía rol — el 
   /* El riesgo de refrescar es que un borrado accidental en la hoja le saque el rol a alguien. Lo
      contiene la regla de P118: la celda vacía no viaja, así que gana el de la credencial. */
   const api = p118Env(['accionCredencialCrear','accionLogin'], { rolNom:'Supervisor' });
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   const sh = api.__env.__libro.getSheetByName('Nómina');
   sh.getRange(2, 12, 1, 1).setValues([['']]);   // alguien vacía la celda sin querer
@@ -253,7 +253,7 @@ PRUEBAS.caso('🔴 `login` devuelve los consentimientos ya firmados', () => {
     ['Fecha','IdConsentimiento','Persona','Empresa','Cedula','Versiones','AppVersion'],
     ['01/01/2026','c1','Ana Suárez','Helitec','V-111','{"datos":3,"fatiga":2}','6.00']
   ]});
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   const r = p118Json(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'miClave123',
                                        dispositivoId:'d2' }));

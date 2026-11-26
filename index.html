@@ -973,6 +973,8 @@
   .field select { appearance: none; background-image: var(--flecha-select); background-repeat: no-repeat;
     background-position: right 0.9rem center; padding-right: 2.2rem; }
   .field .err { color: var(--sem-rojo-alt); font-size: .75rem; margin-top: 0.3rem; display: none; }
+  /* P394b · por qué un campo no se puede editar (el nombre que carga la empresa en la nómina) */
+  .field .campo-nota { color: var(--text-soft); font-size: .75rem; line-height: 1.4; margin-top: 0.3rem; }
   .field.invalid input, .field.invalid select { border-color: var(--sem-rojo-alt); }
   .field.invalid .err { display: block; }
   .save-btn { width: 100%; margin-top: 1.4rem; padding: 0.9rem; border: none; border-radius: 13px;
@@ -8543,7 +8545,7 @@
 
 <script>
 /* ════════════════ CONFIG ════════════════ */
-const APP_VERSION = '7.78';                 // ← Subí este número en cada actualización
+const APP_VERSION = '7.79';                 // ← Subí este número en cada actualización
 const EVA_PHONE   = '584129089379';        // WhatsApp de EVA
 const SHEETS_DASHBOARD_URL = 'https://script.google.com/macros/s/AKfycbwAM6BtyPn6pAC1D8OzlbkX1PGGWStngBQNGW9TLGOU0LtlUyHudhxcYeR5Wa2s5Uuy/exec';
 const WEB_SILVA = 'https://www.aeroambulanciasilva.com/';   // web de Aeroambulancias Silva
@@ -8703,6 +8705,7 @@ const I18N = {
       err_m_codigo_frenado:'Demasiados intentos con el código. Espera unos minutos.',
       err_m_codigo_ambiguo:'Ese código no identifica a una sola empresa. Pídeselo de nuevo a tu supervisor.',
       err_m_sin_codigo:'Tu empresa todavía no tiene un código de registro. Pídeselo a tu supervisor.',
+      err_m_crear_clave:'Para ver tus resultados necesitas crear tu contraseña.',
       err_m_alta_cerrada:'Para registrarte necesitas el código de tu empresa. Pídeselo a tu supervisor.',
       err_m_camino_cerrado:'Para volver a entrar usa tu contraseña, o el código de tu empresa si no la creaste.',
       err_m_ya_tiene:'Esta persona ya tiene contraseña. Inicia sesión con ella.',
@@ -9270,6 +9273,12 @@ const I18N = {
       clv_r_largo:'Al menos {n} caracteres', clv_r_numeros:'Que no sea sólo números',
       clv_r_iguales:'Las dos veces iguales',
       clv_guardar:'Crear mi contraseña', clv_luego:'Más tarde',
+      /* P394b · el aviso de cada apertura (antes y después de la fecha), «Mi contraseña» cuando falta y el nombre del alta fijo */
+      clv_pedir_lead:'Crea tu contraseña para que sólo tú puedas ver tus resultados. Desde el {fecha} la necesitarás para verlos.',
+      clv_pedir_lead_sin:'Crea tu contraseña para que sólo tú puedas ver tus resultados.',
+      clv_exigida_lead:'Para ver tus resultados necesitas crear tu contraseña. Mientras tanto, la aplicación sigue guardando tus registros.',
+      mi_clave_d_falta:'Pendiente: créala para que sólo tú veas tus resultados.',
+      f_nombre_fijo:'Lo carga tu empresa en su nómina. Si no está bien, avísale a quien la administra.',
       clv_actual:'Tu contraseña actual', clv_c_nueva:'Tu contraseña nueva',
       clv_c_titulo:'Cambiar mi contraseña',
       clv_c_lead:'Escribe la que usas hoy y la que quieres usar desde ahora. No cierras sesión en este teléfono.',
@@ -11083,6 +11092,7 @@ const I18N = {
       err_m_codigo_frenado:'Too many attempts with the code. Wait a few minutes.',
       err_m_codigo_ambiguo:'That code does not match a single company. Ask your supervisor for it again.',
       err_m_sin_codigo:'Your company does not have a registration code yet. Ask your supervisor for it.',
+      err_m_crear_clave:'To see your results you need to create your password.',
       err_m_alta_cerrada:'To sign up you need your company code. Ask your supervisor for it.',
       err_m_camino_cerrado:'To sign in again use your password, or your company code if you never created one.',
       err_m_ya_tiene:'This person already has a password. Sign in with it.',
@@ -11626,6 +11636,11 @@ const I18N = {
       clv_r_largo:'At least {n} characters', clv_r_numeros:'Not only numbers',
       clv_r_iguales:'Both entries match',
       clv_guardar:'Create my password', clv_luego:'Later',
+      clv_pedir_lead:'Create your password so only you can see your results. From {fecha} you will need it to see them.',
+      clv_pedir_lead_sin:'Create your password so only you can see your results.',
+      clv_exigida_lead:'To see your results you need to create your password. Meanwhile, the app keeps saving your records.',
+      mi_clave_d_falta:'Pending: create it so only you can see your results.',
+      f_nombre_fijo:'Your company enters it in its staff list. If it is wrong, tell whoever manages that list.',
       clv_actual:'Your current password', clv_c_nueva:'Your new password',
       clv_c_titulo:'Change my password',
       clv_c_lead:'Enter the one you use today and the one you want from now on. You stay signed in on this phone.',
@@ -13441,6 +13456,7 @@ const ERR_MOTIVO = {
   muchos_envios:'err_m_muchos_envios', codigo_invalido:'err_m_codigo_invalido', codigo_frenado:'err_m_codigo_frenado',
   codigo_ambiguo:'err_m_codigo_ambiguo', alta_cerrada:'err_m_alta_cerrada', camino_cerrado:'err_m_camino_cerrado',
   sin_codigo:'err_m_sin_codigo',   // P394a · `credencial_crear` y `tiene_clave` en una empresa sin código de registro
+  crear_clave:'err_m_crear_clave',   // P394b · `empleado` desde `claveExigidaDesde`, a quien está en una nómina sin contraseña
   ya_tiene:'err_m_ya_tiene', necesita_clave:'err_m_necesita_clave', clave_reiniciada:'err_m_clave_reiniciada',
   clave_debil:'err_m_clave_debil', sin_credencial:'err_m_sin_credencial', falta_cedula:'err_m_falta_cedula',
   cedula_mal:'err_m_cedula_mal', no_en_nomina:'err_m_no_en_nomina', sin_nomina:'err_m_sin_nomina',
@@ -13576,6 +13592,9 @@ function aplicarIdioma(){
      abierta la deja en el idioma anterior, y peor: si estaba en «cambiar», el barrido no la toca y
      queda mitad y mitad. */
   try { clvPintarModo(CLV_MODO); } catch(e){}
+  /* P394b · y la línea de «Mi contraseña» en «Más»: lleva `data-i18n` con el texto de siempre, así que el barrido le pisaba el que
+     pone `miClavePintar` («Ya tienes…», «Pendiente…») hasta volver a abrir «Más». */
+  try { miClavePintar(); } catch(e){}
   /* ⚠️ P174 · Y LA INSIGNIA DEL ENCABEZADO, que no lleva `data-i18n`: la escribe sólo
      `paintProfile()`. Con la app en inglés seguía diciendo «Piloto», y —lo caro, R14— para un
      operario de planta cuya empresa cambió de sector, `sectorRefrescar()` repinta todo con la
@@ -16889,12 +16908,25 @@ function cicloMiHistorialTodo(btn, intento){
   if (!offHayConexion()){ btnSpin(btn, false); if (intento) _cicloHistDias = 0; showToast(t('sin_conexion')); return; }
   btnSpin(btn, true, t('cargando'));
   _cicloHistDias = 400;
+  /* P394b · segunda vuelta del verificador, hallazgo 6 · el motivo se mira sólo si lo trajo ESTE pedido: con una sincronización en
+     vuelo, `misSincronizar` devuelve `false` sin preguntar nada, y el motivo de la anterior (un `crear_clave` ya resuelto) cortaba el
+     reintento con un aviso falso. */
+  _misUltimoMotivo = '';
   misSincronizar(400).then(ok => {
     /* ⚠️ P174 · `misSincronizar` devuelve `false` TAMBIÉN cuando ya hay una sincronización en curso
        —la del arranque— y eso no es un fallo de red. Quien tocaba «Ver todo el historial» en los
        primeros segundos leía «no hay conexión, intenta de nuevo» con conexión perfecta, y encima se
        perdía el pedido de los 400 días. Se distingue mirando la conexión de verdad. */
     if (!ok){
+      /* ⚠️ P394b · VERIFICADOR, HALLAZGO 5 · LO QUE EL SERVIDOR YA CONTESTÓ NO SE REINTENTA. Con `crear_clave`, esto pedía 26 veces en 32 s
+         y terminaba en un error genérico. Las tres respuestas de la contraseña no cambian esperando: la persona tiene que hacer algo
+         (crearla, escribirla, elegir una nueva), y la sincronización ya le abrió esa pantalla. */
+      if (['crear_clave', 'necesita_clave', 'clave_reiniciada', 'baja'].indexOf(_misUltimoMotivo) >= 0){   // P394b · y `baja` (segunda vuelta, 8)
+        btnSpin(btn, false); _cicloHistDias = 0;
+        if (_misUltimoMotivo === 'crear_clave') showToast(t('err_m_crear_clave'));
+        else if (_misUltimoMotivo === 'baja') showToast(t('err_m_baja'));
+        return;
+      }
       /* P187 · el cargador se QUEDA durante la espera: apagarlo dejaba el botón vivo 1,2 s y un segundo
          toque disparaba otra cadena (dos pedidos de 400 días). Y con tope: 25 esperas (30 s) y se avisa. */
       if (offHayConexion() && (intento || 0) < 25){ setTimeout(() => { try { cicloMiHistorialTodo(btn, (intento || 0) + 1); } catch(e){} }, 1200); return; }
@@ -17144,6 +17176,7 @@ var _misRecuperando = false;
    Se declaran SIN asignar (R16): el arranque las lee y una asignación tardía pisaría lo que ya hay. */
 var _misRecuperarError;
 var _misUltimoSync;
+var _misUltimoMotivo;   // R16 · P394b · el motivo de la última respuesta con `ok:false` ('' si no lo hubo): reintentar no lo cambia
 function misRecuperarHistorial(){
   const p = getProfile();
   if (!p || !p.nombre || !p.empresa) return;
@@ -17289,6 +17322,12 @@ function misSincronizar(dias){
       if (d && !d.ok && d.motivo === 'clave_reiniciada'){
         try { if (!document.getElementById('claveOv').classList.contains('show')) clvReiniciadaAtender(); } catch(e){}
       }
+      /* P394b · pasada la fecha, sin contraseña el servidor no entrega nada: se le pide crearla. Lo del teléfono no se toca (el
+         `return false` de abajo va antes de fundir nada), y los tests se siguen registrando (van por otro lado). */
+      if (d && !d.ok && d.motivo === 'crear_clave'){
+        try { clvFaltaRecordar({ falta: true, exigidaDesde: d.exigidaDesde, exigida: true }, p.cedula); clvPedirSiFalta(); miClavePintar(); } catch(e){}
+      }
+      _misUltimoMotivo = (d && !d.ok && d.motivo) ? String(d.motivo) : '';   // P394b
       if (!d || !d.ok){ _misUltimoSync = 'fallo'; return false; }   // P208 · el motivo, para quien recupera el historial
       const local = misDatos();
       const srv = Array.isArray(d.registros) ? d.registros : [];
@@ -17334,6 +17373,8 @@ function misSincronizar(dias){
                        metrics: (Array.isArray(d.metricas) && d.metricas.length) ? d.metricas : local.metrics,
                        actualizado: Date.now() };
       misDatosSave(merged);
+      /* P394b · el servidor dice si le falta la contraseña (y desde cuándo se le exige); sin `clave`, no falta: se borra la marca. */
+      try { clvFaltaRecordar(d.clave || null, p.cedula); clvPedirSiFalta(); miClavePintar(); } catch(e){}
       /* Y1: los eventos del ciclo que el servidor tiene de esta persona. Es lo que le devuelve su
          historia más allá de las ~48 h que guarda el teléfono, y lo que hace que ya no la pierda
          al cambiar de equipo. Si el endpoint todavía no está publicado no viene el campo y no se
@@ -20079,6 +20120,7 @@ function openSetup(isEdit){
     const _p = getProfile() || {};
     const _porNomina = !!(_p.nombre && _p.cedula && _p.empresa);
     setupModoFaltantes(!editing && _porNomina);
+    setupNombreFijar(!editing && _porNomina);   // P394b
     pasoPintar('#setup .sheet', editing ? 0 : 4);
   } catch(e){}
 }
@@ -20741,6 +20783,24 @@ function loadSetupLists(){
    llegó por el código y la nómina tiene su empresa determinada por el servidor; poder editarla ahí
    sólo servía para mudarse a otro cliente. Quien se dio de alta a mano SÍ la puede escribir: si no,
    queda trabado sin poder completar su perfil. */
+/* ⚠️ P394b · EL NOMBRE QUE VIENE DE LA NÓMINA NO SE EDITA EN EL ALTA (ADR 021, actualización del 2026-11-12; ficha de P394b).
+   Desde la GS 2026-11-12.1 el servidor guarda el nombre de la nómina aunque la persona escriba otro (el nombre es de la empresa,
+   ADR 013), así que editarlo acá la dejaba con un nombre en el teléfono y otro en el CH: `empleado` le contestaba vacío y no
+   recibía NADA del servidor (pasó con 1 de 28). Queda de sólo lectura, con el porqué a la vista. Si está mal, lo corrige la
+   empresa en su nómina. Con el formulario vacío (alta a mano, «No estoy en la lista») se escribe como siempre. */
+function setupNombreFijar(fijo){
+  const inp = document.getElementById('inName');
+  if (!inp) return;
+  inp.readOnly = !!fijo;
+  inp.classList.toggle('campo-fijo', !!fijo);
+  let nota = document.getElementById('inNameNota');
+  if (fijo && !nota){
+    nota = document.createElement('div');
+    nota.id = 'inNameNota'; nota.className = 'campo-nota';
+    inp.insertAdjacentElement('afterend', nota);
+  }
+  if (nota){ nota.hidden = !fijo; nota.textContent = fijo ? t('f_nombre_fijo') : ''; }
+}
 function setupEmpresaFijar(){
   const inp = document.getElementById('inEmp');
   if (!inp) return;
@@ -22514,6 +22574,14 @@ function portalAutoLoginEmpleado(){
       }
       if (d && !d.ok && d.motivo === 'clave_reiniciada'){   // P174
         if (clvReiniciadaAtender()) return;
+      }
+      /* ⚠️ P394b · VERIFICADOR, HALLAZGO 4 · PASADA LA FECHA, «MIS ESTADÍSTICAS» ERA UN CALLEJÓN: el error y un «Reintentar» que repetía
+         el mismo pedido. Ahora el error queda a la vista (por si la persona elige «Más tarde») y encima se abre la hoja de crearla;
+         al crearla entra con ella y esta pantalla se vuelve a cargar. */
+      if (d && !d.ok && d.motivo === 'crear_clave'){
+        dashMostrarError(tError(d), portalAutoLoginEmpleado);
+        try { clvFaltaRecordar({ falta: true, exigidaDesde: d.exigidaDesde, exigida: true }, p.cedula); if (clvPedirAbrir(clvFaltaDe(p.cedula), portalAutoLoginEmpleado)) _clvPedidaApertura = true; } catch(e){}
+        return;
       }
       if (!d || !d.ok) { dashMostrarError(tError(d), portalAutoLoginEmpleado); return; }
       onDashData(d, p.nombre || t('hist_mis_reg'), params); })
@@ -37455,7 +37523,8 @@ function miClavePintar(){
   btn.style.display = (p && p.cedula && p.empresa && SHEETS_DASHBOARD_URL && !simulando()) ? '' : 'none';
   const tiene = !!sesPersonaGuardada();
   const ds = document.getElementById('miClaveDs');
-  if (ds) ds.textContent = tiene ? t('mi_clave_d_si') : t('mi_clave_d');
+  const falta = !tiene && p && p.cedula && clvFaltaDe(p.cedula);   // P394b · el servidor dijo que le falta
+  if (ds) ds.textContent = tiene ? t('mi_clave_d_si') : (falta ? t('mi_clave_d_falta') : t('mi_clave_d'));
 }
 function miClaveTocar(){
   /* Si ya tiene sesión abierta en este dispositivo, lo que necesita es cambiarla; si no, ponerla o
@@ -37494,6 +37563,9 @@ function clvPintarModo(modo){
   /* El código de empresa no se pide para CAMBIAR: quien escribe su contraseña actual ya demostró
      quién es, y pedirle además el código sería una barrera sin nada detrás. */
   if (cambio){ const cod = document.getElementById('clvCodigoCampo'); if (cod) cod.hidden = true; }
+  /* P394b · en el aviso de cada apertura la bajada es otra (dice la fecha); `aplicarIdioma` llega por acá al cambiar de idioma
+     con la hoja abierta, y sin esto la devolvía a la del alta. */
+  if (!cambio && CLV_MODO_PEDIR){ const lead = document.getElementById('clvLead'); if (lead) lead.textContent = clvPedirTexto(_clvPedirF); }
 }
 function clvCambiarAbrir(){
   const p = getProfile() || {};
@@ -37501,6 +37573,7 @@ function clvCambiarAbrir(){
   const ov = document.getElementById('claveOv'); if (!ov) return false;
   ['clvActual','clvPass','clvPass2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('clvErr').textContent = '';
+  CLV_MODO_PEDIR = '';   // P394b · ver `clvAbrir`
   clvPintarModo('cambiar');
   clvValidar();
   ov.classList.add('show');
@@ -37518,6 +37591,9 @@ function clvAbrir(){
   document.getElementById('clvPass2').value = '';
   const _act = document.getElementById('clvActual'); if (_act) _act.value = '';
   document.getElementById('clvErr').textContent = '';
+  /* ⚠️ P394b · SE SALE DEL MODO DEL AVISO. Si el aviso terminó por un camino que no lo apaga (`ya_tiene` entra con la que tipeó),
+     el modo quedaba puesto y esta hoja —que en el alta es un PASO— cerraba con «Más tarde» sin encadenar el paso siguiente. */
+  CLV_MODO_PEDIR = '';
   clvPintarModo('crear');   // P175 · la misma hoja sirve para las dos cosas: hay que decir cuál es
   clvCodigoPreparar();
   clvValidar();
@@ -37558,9 +37634,11 @@ function clvCodigoPreparar(){
   /* Se prellena con el código que la persona ya escribió, venga de donde venga: no se le pide dos
      veces algo que acaba de escribir. */
   input.value = altaCodigoVigente();
-  const perfil = empresaPerfilGuardado();
-  const pide = !!(perfil && perfil.pideCodigo);
-  campo.hidden = !pide;
+  /* ⚠️ P394b · EL CÓDIGO YA NO SE PIDE PARA CREAR LA CONTRASEÑA (decisión de Franco del 2026-11-25, «No pedir el código»; ADR 023):
+     el servidor lo dejó de exigir desde la GS 2026-11-25.1, y pedirlo dejaba a quien se registró hace meses sin forma de crearla
+     sin ir a buscar el código a su supervisor. El campo queda en el HTML por si un servidor viejo lo pide (`clvCodigoRevelar`
+     lo abre con `codigo_invalido`), y el código del alta, si lo hay, viaja igual: no molesta. */
+  campo.hidden = true;
 }
 /* Lo abre cuando el servidor dice que el código hace falta o está mal. Es la red del camino de
    arriba: aunque el perfil guardado esté viejo o no exista, la persona termina viendo el campo. */
@@ -37588,6 +37666,119 @@ function clvMarcarOfrecida(){
     lsSet(K_CLV_OFRECIDA, JSON.stringify(o));
   } catch(e){}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   P394b · LA CONTRASEÑA SE PIDE AL ABRIR, Y SE EXIGE DESDE UNA FECHA
+   ══════════════════════════════════════════════════════════════════════════════════════════════
+   Decisiones de Franco (panel del 2026-11-25): «Pedirla al abrir, con plazo», «14 días», «No pedir el código» y «Cada vez que
+   abre la app». Hasta acá se ofrecía UNA vez, al final del alta, y «Más tarde» era «nunca más»: 13 personas con cédula en la
+   nómina seguían sin contraseña, y cualquiera que supiera su nombre y su cédula veía sus resultados (ADR 021, decisión 2).
+   ⚠️ R21 · A QUIÉN Y DESDE CUÁNDO LO DICE EL SERVIDOR, no una cuenta de acá: `empleado` manda `clave: { falta, exigidaDesde }` a
+   quien le falta y, pasada la fecha, `crear_clave` sin datos. Se guarda por cédula (el teléfono se comparte) para la próxima
+   apertura; la sincronización siguiente lo confirma o lo borra.
+   ⚠️ NO ES UN PASO DEL ALTA. Se abre con su propia entrada del historial (`navPush`, como «cambiar contraseña») y «Más tarde»
+   cierra y ya: encadenar el alta mandaría a alguien registrado hace meses al paso siguiente de un recorrido terminado.
+   ⚠️ R7 · sin señal no se pide: crearla necesita el servidor. Y no se apila sobre otra ventana (un test, el alta, el panel). */
+const K_CLV_FALTA = 'silva_fatiga_clave_falta_v1';
+var _clvPedidaApertura;   // R16 · sin asignar: si ya se pidió en esta apertura de la app
+var _clvOcultaDesde;      // R16 · cuándo pasó al fondo: volver después de un rato cuenta como abrirla otra vez
+var CLV_MODO_PEDIR;       // R16 · '' fuera del aviso; 'pedir' antes de la fecha; 'exigida' después
+var _clvPedirF;           // R16 · lo que dijo el servidor al abrirlo (para repintar la bajada en otro idioma)
+var _clvPedirDespues;     // R16 · qué hacer al crearla, si la pidió una pantalla («Mis estadísticas» la vuelve a cargar)
+var _clvPedirEspera;      // R16 · el temporizador que espera a que se cierre la ventana que tapaba el aviso
+var CLV_APERTURA_MIN = 10;   // minutos en el fondo que cuentan como cerrarla y volver a abrirla
+function clvFaltaMapa(){ try { return JSON.parse(localStorage.getItem(K_CLV_FALTA)) || {}; } catch(e){ return {}; } }
+function clvFaltaRecordar(c, ced){
+  const k = dashNorm(ced != null ? ced : ((getProfile() || {}).cedula || ''));
+  if (!k) return;
+  const o = clvFaltaMapa();
+  if (c && c.falta) o[k] = { falta: true, exigidaDesde: String(c.exigidaDesde || ''), exigida: !!c.exigida };
+  else delete o[k];
+  try { lsSet(K_CLV_FALTA, JSON.stringify(o)); } catch(e){}
+}
+function clvFaltaDe(ced){
+  const k = dashNorm(ced != null ? ced : ((getProfile() || {}).cedula || ''));
+  return k ? (clvFaltaMapa()[k] || null) : null;
+}
+/* «9 de diciembre» / «December 9». La fecha llega del servidor como AAAA-MM-DD (el día de Caracas): se arma en UTC para que el
+   huso del teléfono no la corra un día. */
+function clvFechaTexto(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return '';
+  try {
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString(idiomaActual() === 'en' ? 'en-US' : 'es-VE',
+      { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  } catch(e){ return iso; }
+}
+function clvPedirTexto(f){
+  if (f && f.exigida) return t('clv_exigida_lead');
+  const fecha = clvFechaTexto(f && f.exigidaDesde);
+  return fecha ? t('clv_pedir_lead', { fecha: fecha }) : t('clv_pedir_lead_sin');
+}
+/* Se llama al terminar cada sincronización y al volver del fondo. Devuelve si la abrió. */
+function clvPedirSiFalta(){
+  try {
+    if (_clvPedidaApertura) return false;
+    const p = getProfile() || {};
+    if (!p.cedula || !p.empresa || !SHEETS_DASHBOARD_URL || simulando()) return false;
+    if (ALTA_EN_CURSO) return false;                       // el alta tiene su propio paso de la contraseña
+    if (sesPersonaToken(p)) return false;                  // con sesión de ESTA persona, la tiene (la guardada puede ser de otra)
+    const f = clvFaltaDe(p.cedula);
+    if (!f || !f.falta) return false;
+    if (!offHayConexion()) return false;                   // R7
+    /* ⚠️ VERIFICADOR DE P394b, HALLAZGO 3 · SI HAY UNA VENTANA ENCIMA, SE ESPERA A QUE SE CIERRE. La apertura más común es abrir la
+       app para hacer el test: la respuesta llegaba con el cuestionario abierto, esto se cortaba y nada lo volvía a llamar en toda la
+       apertura. No se puede colgar de `syncScrollLock`: `cerrarTest` no la llama. */
+    if (document.querySelector('.overlay.show, .ios-modal.show')){ clvPedirEsperar(); return false; }
+    if (!clvPedirAbrir(f)) return false;
+    _clvPedidaApertura = true;
+    return true;
+  } catch(e){ return false; }
+}
+/* Mira cada 1,5 s si ya no hay ninguna ventana abierta y entonces lo pide. Se apaga solo: si ya se pidió, si dejó de faltar, o al
+   pedirlo. Con la app en el fondo no hace nada (al volver, el `visibilitychange` de abajo decide). */
+function clvPedirEsperar(){
+  if (_clvPedirEspera) return;
+  _clvPedirEspera = setInterval(function(){
+    try {
+      if (_clvPedidaApertura || !clvFaltaDe()){ clearInterval(_clvPedirEspera); _clvPedirEspera = 0; return; }
+      if (document.hidden || document.querySelector('.overlay.show, .ios-modal.show')) return;
+      clearInterval(_clvPedirEspera); _clvPedirEspera = 0;
+      clvPedirSiFalta();
+    } catch(e){ try { clearInterval(_clvPedirEspera); } catch(_){} _clvPedirEspera = 0; }
+  }, 1500);
+}
+function clvPedirAbrir(f, despues){
+  const p = getProfile() || {};
+  if (!p.cedula || !p.empresa) return false;
+  const ov = document.getElementById('claveOv'); if (!ov) return false;
+  ['clvPass','clvPass2','clvActual'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('clvErr').textContent = '';
+  CLV_MODO_PEDIR = (f && f.exigida) ? 'exigida' : 'pedir';
+  _clvPedirF = f;
+  _clvPedirDespues = (typeof despues === 'function') ? despues : null;
+  clvPintarModo('crear');   // pinta la bajada del aviso (con la fecha)
+  clvCodigoPreparar();
+  clvValidar();
+  ov.classList.add('show');
+  navPush();          // no es una pantalla del alta: su propia entrada, como «cambiar contraseña»
+  syncScrollLock();
+  return true;
+}
+document.addEventListener('visibilitychange', function(){
+  try {
+    if (document.hidden){ _clvOcultaDesde = Date.now(); return; }
+    const estuvo = _clvOcultaDesde ? Date.now() - _clvOcultaDesde : 0;
+    _clvOcultaDesde = 0;
+    if (estuvo < CLV_APERTURA_MIN * 60000) return;
+    _clvPedidaApertura = false;
+    /* ⚠️ R21 · SE LE PREGUNTA AL SERVIDOR, no a la marca guardada: pudo haberla creado en otro teléfono, o pudo haber llegado la
+       fecha. La sincronización vuelve a llamar a `clvPedirSiFalta` con lo que conteste. Sólo a quien le faltaba: al resto, nada
+       cambia al volver del fondo. */
+    const f = clvFaltaDe();
+    if (f && f.falta && offHayConexion()) misSincronizar();
+  } catch(e){}
+});
 
 function clvReglas(){
   const a = document.getElementById('clvPass').value || '';
@@ -37667,6 +37858,11 @@ function clvGuardar(btn){
       if (d && d.ok){
         clvMarcarOfrecida();
         tieneClaveMarcar(true);   // P166c · la creó
+        clvFaltaRecordar(null);   // P394b · ya no falta
+        /* P394b · DESDE EL AVISO, ENTRA CON ELLA EN EL ACTO. Sin esto la sincronización siguiente recibía `necesita_clave` y abría el
+           login: a quien acaba de crearla se le pedía escribirla otra vez. `clvEntrarConClaveRecien` (P173) entra con la que tipeó,
+           guarda la sesión del dispositivo y cierra la hoja; si algo falla, abre el login con la cédula puesta. */
+        if (CLV_MODO_PEDIR){ CLV_MODO_PEDIR = ''; const pc = getProfile() || {}; const dsp = _clvPedirDespues; _clvPedirDespues = null; clvEntrarConClaveRecien(pc.empresa || '', pc.cedula || '', claveTipeada, btn, dsp); return; }
         showToast(t('clv_listo'));
         altaEncadenar(function(){   // P175 · ídem
           document.getElementById('claveOv').classList.remove('show');
@@ -37683,12 +37879,16 @@ function clvGuardar(btn){
       /* P166 · «ya tienes contraseña» no puede ser un callejón: se abre el login con lo que ya se
          sabe. Antes sólo se pintaba el texto y no había dónde entrar. */
       if (d && d.motivo === 'ya_tiene'){
+        /* P394b · la hoja se cierra por acá también; y lo que pidió la pantalla que la abrió («Mis estadísticas» se vuelve a cargar)
+           viaja igual que en el `ok`: es el caso de P173, la primera vuelta la creó y la respuesta se perdió (segunda vuelta, 7). */
+        const dspYa = CLV_MODO_PEDIR ? _clvPedirDespues : null;
+        CLV_MODO_PEDIR = ''; _clvPedirDespues = null;
         tieneClaveMarcar(true);
         const pc = getProfile() || {};
         /* P173 · «ya tiene contraseña» justo después de que la persona la tipeó acá casi siempre
            significa que el PRIMER intento SÍ la creó y la respuesta se perdió en la red. Se prueba
            entrar con la que acaba de escribir: si es la suya, entra sin ver nada raro. */
-        clvEntrarConClaveRecien(pc.empresa || '', pc.cedula || '', claveTipeada, btn);
+        clvEntrarConClaveRecien(pc.empresa || '', pc.cedula || '', claveTipeada, btn, dspYa);
         return;
       }
       /* Se muestra el mensaje del SERVIDOR cuando lo hay: es el que sabe por qué —clave débil,
@@ -37745,12 +37945,13 @@ function clvCerrarUI(){
 /* P173 · intenta el login con la contraseña que la persona acaba de tipear en «Crear contraseña».
    Si entra, aplica la sesión y cierra el alta (transparente). Si no, abre el login manual —la
    contraseña vieja era otra— con la empresa y la cédula ya puestas. */
-function clvEntrarConClaveRecien(empresa, cedula, clave, btn){
+function clvEntrarConClaveRecien(empresa, cedula, clave, btn, despues){   // P394b · `despues`: lo que pidió la pantalla que abrió el aviso
   /* P192 · el login se abre ENCIMA de `claveOv` y los dos tienen z-index 1010: `claveOv` va después en el DOM y tapaba
      al login (se veía la hoja de contraseña sin error, con el login invisible debajo). Se cierra antes de abrir; el
      login reusa su entrada. */
   const cerrarClave = () => { try { document.getElementById('claveOv').classList.remove('show'); syncScrollLock(); } catch(e){} navConsumir(); };
-  if (!empresa || !cedula || !clave){ cerrarClave(); lgnAbrir(null, empresa, cedula); return; }
+  const dsp = (typeof despues === 'function') ? despues : null;
+  if (!empresa || !cedula || !clave){ cerrarClave(); lgnAbrir(dsp, empresa, cedula); return; }
   btnSpin(btn, true, t('lgn_entrando'));
   conBloqueo('#claveOv .sheet',
     fetchConReloj(SHEETS_DASHBOARD_URL, { method:'POST',
@@ -37766,11 +37967,12 @@ function clvEntrarConClaveRecien(empresa, cedula, clave, btn){
         cerrarClave();
         showToast(t('clv_listo'));
         lgnAplicarEntrada(d, cedula, empresa);
+        if (dsp){ try { dsp(); } catch(e){} }   // P394b · p. ej. «Mis estadísticas», que se vuelve a cargar ya con la sesión
         return;
       }
-      cerrarClave(); lgnAbrir(null, empresa, cedula);   // la de antes no era ésta: que la escriba (P192: sin la hoja de contraseña encima)
+      cerrarClave(); lgnAbrir(dsp, empresa, cedula);   // la de antes no era ésta: que la escriba (P192: sin la hoja de contraseña encima)
     })
-    .catch(() => { btnSpin(btn, false); cerrarClave(); lgnAbrir(null, empresa, cedula); }));
+    .catch(() => { btnSpin(btn, false); cerrarClave(); lgnAbrir(dsp, empresa, cedula); }));
 }
 function clvPosponer(desdeAtras){
   /* P175 · en modo CAMBIO este botón dice «Cancelar» y no es un paso del alta: cierra y ya. Marcar
@@ -37779,6 +37981,9 @@ function clvPosponer(desdeAtras){
      recorrido que terminó hace meses. */
   /* P192 · desde «atrás» el navegador ya sacó la entrada: cerrar sin consumir (`clvCerrarUI` consumía una ajena) */
   if (clvEsCambio()){ if (desdeAtras){ try { document.getElementById('claveOv').classList.remove('show'); } catch(e){} syncScrollLock(); } else clvCerrarUI(); return; }
+  /* P394b · desde el aviso de cada apertura, «Más tarde» tampoco es un paso del alta: cierra y ya. Vuelve a pedirse en la próxima
+     apertura (decisión de Franco: «Cada vez que abre la app»). */
+  if (CLV_MODO_PEDIR){ CLV_MODO_PEDIR = ''; _clvPedirDespues = null; if (desdeAtras){ try { document.getElementById('claveOv').classList.remove('show'); } catch(e){} syncScrollLock(); } else clvCerrarUI(); return; }
   clvMarcarOfrecida();
   /* P153c · el cierre y el paso siguiente van juntos, traspasando la entrada del historial. */
   altaEncadenar(function(){

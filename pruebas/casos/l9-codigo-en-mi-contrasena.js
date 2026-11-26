@@ -47,12 +47,16 @@ PRUEBAS.caso('⚠️ nace OCULTO · quien no lo necesita no ve un campo de más'
   PRUEBAS.cierto(campo.hidden, '⚠️ y con una empresa que NO pide código, también');
 });
 
-PRUEBAS.caso('🔴 aparece cuando la empresa SÍ pide código', () => {
+PRUEBAS.caso('P394b · aunque la empresa pida código, para crear la contraseña ya no se muestra', () => {
+  /* ⚠️ P394b (2026-11-25) · este caso afirmaba lo contrario («con `pideCodigo` se muestra»), y lo cambió una decisión de Franco: «No
+     pedir el código» para crear la contraseña (ADR 023). El campo queda en la hoja para un servidor viejo que lo pida: lo abre
+     `clvCodigoRevelar` con `codigo_invalido` (el caso siguiente). El discriminador de este aserto (devolverle a
+     `clvCodigoPreparar` el `pideCodigo`) está en `p394b-app-pide-la-contrasena.js`. */
   CTX.resetear();
   empresaPerfilGuardar({ empresa:'E', nombre:'E', pideCodigo:true });
   clvCodigoPreparar();
-  PRUEBAS.falso(document.getElementById('clvCodigoCampo').hidden,
-    '⚠️ con `pideCodigo` se muestra · es el caso del día que se cargue el código');
+  PRUEBAS.cierto(document.getElementById('clvCodigoCampo').hidden,
+    'con `pideCodigo`, igual oculto: crearla ya no pide el código');
 });
 
 PRUEBAS.caso('🔴 y el ERROR del servidor lo abre igual · la red del camino de arriba', () => {
@@ -151,10 +155,12 @@ PRUEBAS.caso('⚠️ abrir la pantalla NO depende de la red (R7)', () => {
     localStorage.setItem(K_EMPRESA_PERFIL, JSON.stringify({ empresa: 'Consorcio HELITEC', pideCodigo: true, nombre: 'Consorcio HELITEC' }));
     clvCodigoPreparar();
     PRUEBAS.igual(pedidos, 0, '⚠️ abrir la pantalla no pide nada a la red (R7)');
-    PRUEBAS.cierto(campo.hidden === false, 'y el campo aparece porque el perfil GUARDADO dice que la empresa pide código');
+    /* P394b · antes el campo aparecía si el guardado decía que la empresa pide código; desde la decisión de Franco (ADR 023) queda
+       oculto igual. Lo que este caso mide sigue en pie: preparar la pantalla no sale a la red. */
+    PRUEBAS.cierto(campo.hidden === true, 'y el campo queda oculto aunque el guardado diga que la empresa pide código (P394b)');
     localStorage.setItem(K_EMPRESA_PERFIL, JSON.stringify({ empresa: 'Consorcio HELITEC', pideCodigo: false, nombre: 'Consorcio HELITEC' }));
     clvCodigoPreparar();
-    PRUEBAS.cierto(campo.hidden === true, 'DISCRIMINADOR · si el guardado dice que no pide, el campo no aparece');
+    PRUEBAS.cierto(campo.hidden === true, 'y con el guardado que dice que no pide, también');
     PRUEBAS.igual(pedidos, 0, 'y sigue sin pedidos');
   } finally {
     window.fetchConReloj = oFetch; window.fetch = oFetch2; window.dashRequest = oDash; campo.hidden = true;

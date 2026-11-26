@@ -61,7 +61,7 @@ function p085EntornoClave(config) {
      `GS.conCodigoDeAlta`. */
   api.__crearLaDeAna = function () {
     return JSON.parse(api.accionCredencialCrear({
-      empresa: 'Helitec', cedula: 'V-111', pass: 'LaDeAna2026',
+      empresa: 'Helitec', cedula: 'V-111', usuario:'Ana Suárez', pass: 'LaDeAna2026',
       dispositivoId: 'alta', codigo: (config || []).length ? 'HELI-2026' : GS.CODIGO_ALTA
     }).getContent());
   };

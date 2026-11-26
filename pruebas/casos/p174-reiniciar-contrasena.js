@@ -52,7 +52,7 @@ function p174Env(fns){
   api.__reiniciar = (extra) => api.__json(api.manejar(Object.assign(
     { action:'credencial_reiniciar', usuario:'helitec', pass:'clave-sup', cedula:'V-111', dispositivoId:'d-sup', _post:true }, extra || {})));
   api.__crearClave = (ced, pass) => api.__json(api.accionCredencialCrear({
-    empresa:'Helitec', cedula:ced, persona:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
+    empresa:'Helitec', cedula:ced, usuario:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
   api.__login = (ced, pass) => api.__json(api.accionLogin({
     empresa:'Helitec', cedula:ced, pass:pass, dispositivoId:'d2', _post:true }));
   return api;
@@ -97,7 +97,7 @@ PRUEBAS.caso('🔒 con la contraseña de UNA empresa no se reinicia a alguien de
   const api = p174Env();
   /* Carla es de «Otra Empresa SA». El supervisor de Helitec manda su cédula y, de yapa, miente la
      empresa en el POST: la empresa sale de la CUENTA (`ausScope`), así que no la encuentra. */
-  api.__json(api.accionCredencialCrear({ empresa:'Otra Empresa SA', cedula:'V-333', persona:'Carla Díaz', pass:'ClaveCarla1', dispositivoId:'d9', _post:true }));
+  api.__json(api.accionCredencialCrear({ empresa:'Otra Empresa SA', cedula:'V-333', usuario:'Carla Díaz', pass:'ClaveCarla1', dispositivoId:'d9', _post:true }));
   const antes = JSON.stringify(api.__cred());
   const r = api.__reiniciar({ cedula:'V-333', empresa:'Otra Empresa SA' });
   PRUEBAS.igual(r.ok, false, '🔒 no la toca');

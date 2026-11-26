@@ -260,7 +260,7 @@ PRUEBAS.caso('🔴 una persona de baja desaparece de la nómina que ve todo el m
 PRUEBAS.caso('🔴 con contraseña y todo, una persona de baja NO entra, y sus sesiones se cerraron al darla de baja', () => {
   if (p172Sin()) return;
   const api = p172Env();
-  const cr = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez', pass:'miClave123', codigo:'HEL-2026', dispositivoId:'d', _post:true }).getContent());
+  const cr = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'miClave123', codigo:'HEL-2026', dispositivoId:'d', _post:true }).getContent());
   PRUEBAS.igual(cr.ok, true, 'precondición · Ana creó su contraseña · ' + (cr.error || cr.motivo || ''));
   const l1 = JSON.parse(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'miClave123', dispositivoId:'d2', _post:true }).getContent());
   PRUEBAS.igual(l1.ok, true, 'precondición · entra · ' + (l1.error || ''));
@@ -446,7 +446,7 @@ PRUEBAS.caso('🔴 REVISIÓN · una fila repetida en el CH marcada «Baja» no b
   const anas = api.__ch('Nómina').filter(f => f[1] === 'Ana Suárez');
   PRUEBAS.igual(anas.length, 2, 'las dos filas siguen');
   PRUEBAS.cierto(anas.some(f => f[13] === 'Baja') && anas.some(f => !f[13]), 'la repetida quedó de baja, la buena activa');
-  const cr = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez', pass:'miClave123', codigo:'HEL-2026', dispositivoId:'d', _post:true }).getContent());
+  const cr = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'miClave123', codigo:'HEL-2026', dispositivoId:'d', _post:true }).getContent());
   PRUEBAS.igual(cr.ok, true, 'puede crear su contraseña · ' + (cr.error || cr.motivo || ''));
   const l = JSON.parse(api.accionLogin({ empresa:'Helitec', cedula:'V-111', pass:'miClave123', dispositivoId:'d2', _post:true }).getContent());
   PRUEBAS.igual(l.ok, true, '🔴 y entra: una fila duplicada de baja no es una baja');

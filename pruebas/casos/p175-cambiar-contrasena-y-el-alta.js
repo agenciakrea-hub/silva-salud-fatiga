@@ -41,7 +41,7 @@ function p175Env(fns){
   api.__json = r => JSON.parse(r.getContent ? r.getContent() : r);
   api.__cred = () => env.__libro.getSheetByName('Credenciales').__volcado();
   api.__crear = pass => api.__json(api.accionCredencialCrear({
-    empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
+    empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
   api.__login = pass => api.__json(api.accionLogin({
     empresa:'Helitec', cedula:'V-111', pass:pass, dispositivoId:'d2', _post:true }));
   /* R17 · se entra por `manejar`, que es lo que corre doPost. */

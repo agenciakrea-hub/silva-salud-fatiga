@@ -46,7 +46,7 @@ function p174bEnv(fns, hojas){
   api.__json = r => JSON.parse(r.getContent ? r.getContent() : r);
   api.__hoja = n => env.__libro.getSheetByName(n).__volcado();
   api.__crearClave = (ced, pass) => api.__json(api.accionCredencialCrear({
-    empresa:'Helitec', cedula:ced, persona:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
+    empresa:'Helitec', cedula:ced, usuario:'Ana Suárez', pass:pass, dispositivoId:'d1', _post:true }));
   api.__empleado = (ced, pass) => api.__json(api.accionEmpleado({
     empresa:'Helitec', persona:'Ana Suárez', cedula:ced, pass:pass || '', dispositivoId:'d9', _post:true }));
   return api;

@@ -31,7 +31,7 @@ PRUEBAS.caso('⚠️ ROBO DE CUENTA · no se puede pisar la contraseña de algui
   const yaTiene = [['helitec','V-111','ana', base.credHash('LaDeAna2026', sal, 100), sal, '100',
                     'sha256-sal-vueltas-v1','empleado','activo','2026-09-01','']];
   const api = z4Endpoint(Z4_NOMINA, yaTiene);
-  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
+  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
                         pass:'ClaveDelLadron9', dispositivoId:'d' }).getContent());
   PRUEBAS.falso(r.ok, '⚠️ no puede crear una credencial sobre una que ya existe');
   PRUEBAS.igual(r.motivo, 'ya_tiene', 'y lo dice, para que la app la mande a iniciar sesión');
@@ -70,7 +70,7 @@ PRUEBAS.caso('⚠️ sólo quien está en la nómina de esa empresa puede crear 
                         pass:'ClaveInventada1', dispositivoId:'d' }).getContent());
   PRUEBAS.falso(inventada.ok, 'una cédula que no está en la lista no crea nada');
   PRUEBAS.igual(inventada.motivo, 'no_esta', 'y se dice cuál es el problema');
-  const real = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
+  const real = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
                         pass:'ClaveDeAna2026', dispositivoId:'d2' }).getContent());
   PRUEBAS.cierto(real.ok, 'quien sí está, puede');
 });
@@ -80,7 +80,7 @@ PRUEBAS.caso('⚠️ sin nómina cargada NO se crean credenciales', () => {
      comprobación viene a impedir. Es preferible que esa empresa no pueda migrar todavía. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = z4Endpoint([], []);
-  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
+  const r = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
                         pass:'ClaveCualquiera1', dispositivoId:'d' }).getContent());
   PRUEBAS.falso(r.ok, 'sin nómina no se crea');
   PRUEBAS.igual(r.motivo, 'sin_nomina', 'y se explica, porque no es culpa de la persona');
@@ -90,7 +90,7 @@ PRUEBAS.caso('⚠️ sin nómina cargada NO se crean credenciales', () => {
      mientras los otros cinco fallaban. Con nómina cargada tiene que crear; si no, esta prueba
      volvió a no medir nada. */
   const conNomina = z4Endpoint(Z4_NOMINA, []);
-  const r2 = JSON.parse(conNomina.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
+  const r2 = JSON.parse(conNomina.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
                         pass:'ClaveCualquiera1', dispositivoId:'d2' }).getContent());
   PRUEBAS.cierto(r2.ok,
     'con la nómina cargada SÍ se crea — si esto fallara, la comprobación de arriba estaría ' +
@@ -103,10 +103,10 @@ PRUEBAS.caso('⚠️ la contraseña débil se rechaza EN EL SERVIDOR', () => {
      Y se decide acá y no en el navegador, porque el navegador es público y se puede saltear. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = z4Endpoint(Z4_NOMINA, []);
-  const corta = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'abc12', dispositivoId:'d' }).getContent());
+  const corta = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'abc12', dispositivoId:'d' }).getContent());
   PRUEBAS.falso(corta.ok, 'una clave corta no se acepta');
   PRUEBAS.igual(corta.detalle, 'corta', 'y se dice por qué');
-  const numeros = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'12345678', dispositivoId:'d' }).getContent());
+  const numeros = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'12345678', dispositivoId:'d' }).getContent());
   PRUEBAS.falso(numeros.ok, '⚠️ ni una que sea sólo números: una cédula o una fecha no son contraseñas');
   PRUEBAS.igual(numeros.detalle, 'solo_numeros', 'y también se dice');
 });
@@ -120,7 +120,7 @@ PRUEBAS.caso('⚠️ el barrido de cédulas se frena', () => {
   PRUEBAS.falso(frenado.ok, 'después de varios intentos fallidos se corta');
   /* El freno es por (empresa, cédula) + dispositivo, así que barrer cédulas distintas no acumula
      sobre una sola llave — se comprueba que el barredor igual no entre en la que sí existe. */
-  const real = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'ClaveDeAna2026', dispositivoId:'limpio' }).getContent());
+  const real = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'ClaveDeAna2026', dispositivoId:'limpio' }).getContent());
   PRUEBAS.cierto(real.ok, '⚠️ y otro dispositivo no queda castigado por lo que hizo el barredor');
 });
 
@@ -140,7 +140,7 @@ PRUEBAS.caso('⚠️ crear la credencial queda registrado en la bitácora', () =
   });
   const api = GS.conCodigoDeAlta(env, GS.cargarGs(CTX.gs, env, ['accionCredencialCrear']), ['Helitec']);   // P394a · sin código de empresa no se crea ninguna contraseña: este archivo prueba otra cosa, así que la empresa lo tiene y los pedidos lo mandan, como la app
   const antes = env.SpreadsheetApp.openById('x').getSheetByName('Bitácora').getDataRange().getValues().length;
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'ClaveDeAna2026', dispositivoId:'d' });
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'ClaveDeAna2026', dispositivoId:'d' });
   const despues = env.SpreadsheetApp.openById('x').getSheetByName('Bitácora').getDataRange().getValues();
   PRUEBAS.alMenos(despues.length, antes + 1, 'tiene que quedar una fila nueva');
   const ultima = despues[despues.length - 1].join('|');
@@ -153,8 +153,8 @@ PRUEBAS.caso('⚠️ dos altas simultáneas no crean dos credenciales', () => {
      `credBuscar` devuelve la primera, que puede no ser la de la persona. */
   if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
   const api = z4Endpoint(Z4_NOMINA, []);
-  const a = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'ClaveDeAna2026', dispositivoId:'d1' }).getContent());
-  const b = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', pass:'OtraDistinta26', dispositivoId:'d2' }).getContent());
+  const a = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'ClaveDeAna2026', dispositivoId:'d1' }).getContent());
+  const b = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez', pass:'OtraDistinta26', dispositivoId:'d2' }).getContent());
   PRUEBAS.cierto(a.ok, 'la primera crea');
   PRUEBAS.falso(b.ok, '⚠️ la segunda NO: si creara, habría dos credenciales para la misma persona');
   PRUEBAS.igual(b.motivo, 'ya_tiene', 'y por el motivo correcto');

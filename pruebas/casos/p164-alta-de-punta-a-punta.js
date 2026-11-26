@@ -27,6 +27,9 @@ PRUEBAS.caso('🔴 «Crear mi contraseña» viene con el código que la persona 
      que la deja el alta: `NOM.codigo` en memoria y el progreso guardado YA BORRADO por
      `nominaConfirmar`. Ése es el estado que dejaba el campo vacío. */
   /* `NOM` es `const`: se muta y se restaura, no se reasigna. */
+  /* P394b · `CTX.resetear()` primero: `clvAbrir` no abre sin cédula y empresa en el perfil, y este caso dependía de que el archivo
+     anterior dejara uno puesto (solo, o con la suite partida en tandas, daba "" también en la 7.78). */
+  CTX.resetear();
   const antesCod = NOM.codigo;
   const ov = document.getElementById('claveOv');
   const tenia = ov.classList.contains('show');

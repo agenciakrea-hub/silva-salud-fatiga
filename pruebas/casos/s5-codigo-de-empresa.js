@@ -79,19 +79,11 @@ PRUEBAS.caso('una empresa SIN código configurado sigue abierta para todos', () 
   PRUEBAS.falso(r.motivo === 'codigo_invalido', 'sin código configurado no se pide ninguno');
 });
 
-PRUEBAS.caso('⚠️ el código sigue pidiéndose para CREAR una contraseña', () => {
-  /* La exención es para recuperar el perfil de quien ya estaba, no para crear credenciales. Crear
-     una contraseña es justamente el momento en que alguien se queda con una identidad de forma
-     permanente (Z4): ahí la barrera tiene que seguir. */
-  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea'); return; }
-  const api = s5Endpoint(S5_YA, S5_CODIGO);
-  const sinCodigo = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
-                        pass:'ClaveDeAna2026', dispositivoId:'d' }).getContent());
-  PRUEBAS.falso(sinCodigo.ok, '⚠️ sin el código no se crea la credencial, aunque ya estuviera registrada');
-  const conCodigo = JSON.parse(api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111',
-                        codigo:'SILVA2026', pass:'ClaveDeAna2026', dispositivoId:'d2' }).getContent());
-  PRUEBAS.cierto(conCodigo.ok, 'con el código sí');
-});
+/* ⚠️ P394b (2026-11-25) · ACÁ HABÍA UN CASO, «el código sigue pidiéndose para CREAR una contraseña», y lo que afirmaba lo cambió una
+   decisión de Franco: «No pedir el código» para crearla (panel del 2026-11-25, confirmado con «Sin código, como elegí» después de ver
+   el riesgo; ADR 023). Desde la GS 2026-11-25.1 `credencial_crear` no pide el código y, a cambio, exige el nombre de esa persona, con
+   la misma respuesta que a una cédula que no está y un freno por dispositivo. Sus casos están en `p394b-la-contrasena-se-exige.js`.
+   El código sigue pidiéndose para el ALTA (los casos de arriba y de abajo). */
 
 PRUEBAS.caso('⚠️ el código equivocado se frena, y por empresa+dispositivo', () => {
   /* "Código equivocado tres veces seguidas: mismo freno que ya existe" (caso borde del plan). El

@@ -873,6 +873,11 @@ var ZONA_DEL_LIBRO = 'America/Caracas';
      · Las empresas van explícitas: un caso que prueba «sin nómina» o una empresa ajena no recibe código por estar en el mismo archivo.
      · Un pedido que ya trae `codigo` (uno malo, o ninguno con `codigo: ''`) no se toca: así se sigue probando el código mismo.
      · Envuelve las `accion*` y `manejar`, que reciben el pedido como primer argumento; las demás funciones quedan igual. */
+  /* ⚠️ P394b · Y DESDE LA 2026-11-25.1 `credencial_crear` NO PIDE EL CÓDIGO PERO SÍ EL NOMBRE (ADR 023): el de la nómina o el
+     registrado para esa cédula, en `usuario`, que es como lo manda la app (`clvGuardar`: `usuario: p.nombre`). Varios armados lo
+     mandaban en `persona`, un campo que esa acción nunca leyó: se cambiaron a `usuario`, y los que no mandaban nombre llevan el de la
+     nómina del armado. Esto NO lo inyecta este envoltorio a propósito: un nombre que se agrega solo taparía al caso que prueba un
+     nombre equivocado. */
   const CODIGO_ALTA = 'COD-ALTA-PRUEBA';
   function conCodigoDeAlta(env, api, empresas, codigo) {
     const cod = codigo || CODIGO_ALTA;

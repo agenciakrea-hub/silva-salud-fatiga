@@ -69,7 +69,7 @@ function a11bJson(r) { return JSON.parse(r.getContent ? r.getContent() : r); }
 PRUEBAS.caso('la credencial se crea con la forma CANÓNICA aunque se pida con la variante', () => {
   const api = a11bEnv(['accionCredencialCrear', 'credBuscar', 'construirAlias']);
   const r = a11bJson(api.accionCredencialCrear({ empresa:'Consorcio Helitec C.A.', cedula:'V-111',
-    persona:'Ana Suárez', pass:'miClave123', dispositivoId:'d' }));
+    usuario:'Ana Suárez', pass:'miClave123', dispositivoId:'d' }));
   PRUEBAS.igual(r.ok, true, 'se crea · ' + (r.error || ''));
   const f = api.__hoja('Credenciales');
   PRUEBAS.igual(f.length, 1, 'una fila');
@@ -79,7 +79,7 @@ PRUEBAS.caso('la credencial se crea con la forma CANÓNICA aunque se pida con la
 
 PRUEBAS.caso('🔒 con la variante, el login ENCUENTRA la credencial', () => {
   const api = a11bEnv(['accionCredencialCrear', 'accionLogin']);
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   /* La persona tiene la variante guardada en su perfil: es lo que manda la app. */
   const r = a11bJson(api.accionLogin({ empresa:'Consorcio Helitec C.A.', cedula:'V-111',
@@ -91,7 +91,7 @@ PRUEBAS.caso('🔒 con la variante, el login ENCUENTRA la credencial', () => {
 PRUEBAS.caso('🔒 y una contraseña equivocada sigue sin entrar', () => {
   /* El discriminador: sin esto, un arreglo que dejara pasar a cualquiera daría verde arriba. */
   const api = a11bEnv(['accionCredencialCrear', 'accionLogin']);
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   const r = a11bJson(api.accionLogin({ empresa:'Consorcio Helitec C.A.', cedula:'V-111',
     pass:'otraCosa', dispositivoId:'d2' }));
@@ -112,7 +112,7 @@ PRUEBAS.caso('🔴 el candado Z2 SE APLICA aunque la empresa venga en variante',
     'Respuestas de formulario 1': [['A'], ['B']],
     'Registrados Fatiga': [['A', 'Fecha y hora', 'Nombre', 'Email', 'Cedula']]
   });
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
 
   /* La app manda la empresa que la persona tiene guardada en su perfil: la VARIANTE. */
@@ -131,7 +131,7 @@ PRUEBAS.caso('y con SU contraseña entra, aunque la empresa venga en variante', 
     'Respuestas de formulario 1': [['A'], ['B']],
     'Registrados Fatiga': [['A', 'Fecha y hora', 'Nombre', 'Email', 'Cedula']]
   });
-  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', persona:'Ana Suárez',
+  api.accionCredencialCrear({ empresa:'Helitec', cedula:'V-111', usuario:'Ana Suárez',
     pass:'miClave123', dispositivoId:'d' });
   const r = a11bJson(api.accionEmpleado({ persona:'Ana Suárez', cedula:'V-111',
     empresa:'Consorcio Helitec C.A.', dispositivoId:'d2', pass:'miClave123' }));

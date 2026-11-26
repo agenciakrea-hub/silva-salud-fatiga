@@ -7,7 +7,8 @@ PRUEBAS.grupo('P394a · la puerta `empleado`, del lado del servidor');
    · `registro` no cambia el nombre de una fila: renombrarse con el de otro abría sus tests (V4).
    · una fila nueva de `registro` lleva el nombre de la nómina si el escrito es otro (V4, «alta nueva con la cédula de otro»).
    · `tareas_mias` no entrega ninguna tarea sin identidad verificada (V5: las que no eran del médico salían con el nombre solo).
-   · `credencial_crear` y `tiene_clave` contestan `sin_codigo` en una empresa sin código de registro (H1).
+   · `tiene_clave` contesta `sin_codigo` en una empresa sin código de registro (H1). (`credencial_crear` también lo hacía hasta P394b:
+     Franco decidió que crear la contraseña no pida el código; ver `p394b-la-contrasena-se-exige.js`.)
 
    Cada caso entra por el `.gs` REAL en el emulador (R17), dice qué función niega lo que afirma (R19) y tiene su discriminador: el
    mismo pedido con el `.gs` parchado de vuelta a como estaba en la 2026-11-06.1.
@@ -93,8 +94,6 @@ const P394A_SIN_CEDULA_CERO = [['  var ced = cedulaNorm(p.cedula == null ? "" : 
 const P394A_SIN_V4_ALTA = [['    var nomAlta = regMismoNombre_(p.nombre, enNomina.nombre) ? p.nombre : enNomina.nombre;',
                             '    var nomAlta = p.nombre;']];
 const P394A_SIN_V5 = [['    if (!verificada) continue;', '    if (!verificada && filaTarea.origen === "medico") continue;']];
-/* En `credencial_crear` el cierre es un bloque: `sin_nomina` primero (verificador de P394a, 6) y después `sin_codigo`. Se saca sólo el segundo. */
-const P394A_SIN_CODIGO_CRED = [['    return json(credSinCodigo_());\n  }\n\n  var freno = "__altacred__"', '  }\n\n  var freno = "__altacred__"']];
 const P394A_SIN_CODIGO_TIENE = [['  if (!codigoRegistroDe(empCanon)) return json(credSinCodigo_());\n\n  var freno = "__tieneclave__";',
                                  '\n  var freno = "__tieneclave__";']];
 
@@ -179,31 +178,11 @@ PRUEBAS.caso('🔒 P394a · V5 · `tareas_mias` no entrega ninguna tarea sin ide
   }
 });
 
-PRUEBAS.caso('🔒 P394a · H1 · `credencial_crear` no crea ninguna contraseña en una empresa sin código, y contesta lo mismo esté o no la cédula', () => {
-  /* R19 · lo que lo NIEGA: `accionCredencialCrear`, `codigoRegistroDe` antes de mirar la cédula. Lo que lo CONCEDE en Helitec: el código. */
-  if (!CTX.hayGs) { PRUEBAS.cierto(true, 'se saltea (sin .gs)'); return; }
-  const w = p394aMundo();
-  PRUEBAS.igual(w.faltan, undefined, 'guarda: el mundo se armó');
-  if (w.faltan) return;
-  const [, cedS] = P394A.sincod;
-  const r = w.cred({ empresa: 'Sin Codigo SA', cedula: cedS, usuario: 'Pedro Sincodigo', pass: 'ClaveLarga2026' });
-  PRUEBAS.igual([r.ok, r.motivo], [false, 'sin_codigo'], '🔒 sin código, ninguna');
-  PRUEBAS.igual(w.credenciales(cedS), 0, '🔒 y no queda ninguna fila');
-  const x = w.cred({ empresa: 'Sin Codigo SA', cedula: '10101010', pass: 'ClaveLarga2026' });
-  PRUEBAS.igual([x.ok, x.motivo, x.error], [r.ok, r.motivo, r.error], '🔒 una cédula que no está recibe exactamente lo mismo');
-  PRUEBAS.igual(w.cred({ empresa: 'Otra SA', cedula: P394A.otroAtac[1], pass: 'ClaveLarga2026' }).motivo, 'sin_nomina',
-                'sin nómina, dice eso: pedirle un código que tampoco le serviría era mentirle (verificador de P394a, 6)');
-  PRUEBAS.igual(w.cred({ empresa: 'Helitec', cedula: P394A.atac[1], pass: 'ClaveLarga2026' }).motivo, 'codigo_invalido',
-                'CONTROL · con código cargado y sin mandarlo, como siempre');
-  const c = w.cred({ empresa: 'Helitec', cedula: P394A.rosa[1], codigo: P394A_COD, pass: 'ClaveLarga2026' });
-  PRUEBAS.igual(c.ok, true, 'CONTROL · con el código, se crea');
-  /* DISCRIMINADOR · la 2026-11-06.1: sin código, la puerta quedaba abierta */
-  const s = p394aMundo(P394A_SIN_CODIGO_CRED);
-  PRUEBAS.igual(s.faltan, undefined, 'guarda: el sabotaje entró');
-  if (!s.faltan) {
-    PRUEBAS.igual(s.cred({ empresa: 'Sin Codigo SA', cedula: cedS, pass: 'ClaveLarga2026' }).ok, true, '⚠️ discriminador · así se creaba la de otro');
-  }
-});
+/* ⚠️ P394b (2026-11-25) · ACÁ HABÍA UN CASO DE `credencial_crear` («no crea ninguna contraseña en una empresa sin código»), y lo
+   que afirmaba lo cambió una decisión de Franco: «No pedir el código» para crear la contraseña (panel del 2026-11-25, confirmado con
+   «Sin código, como elegí» después de ver el riesgo; ADR 023). Desde la GS 2026-11-25.1 `credencial_crear` no pide el código en
+   ninguna empresa y, a cambio, exige el nombre de esa persona. Los casos de la regla nueva están en `p394b-la-contrasena-se-exige.js`.
+   `tiene_clave` no cambió: su caso sigue abajo. */
 
 PRUEBAS.caso('🔒 P394a · H1 · `tiene_clave` no dice quién no creó su contraseña en una empresa sin código', () => {
   /* R19 · lo que lo NIEGA: `accionTieneClave`, `codigoRegistroDe` antes de mirar la cédula. */

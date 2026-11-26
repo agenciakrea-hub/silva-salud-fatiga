@@ -296,7 +296,9 @@ PRUEBAS.caso('🔒 P311 · V2 · no resolver no es estar fuera del padrón: el h
   PRUEBAS.igual(kss(w.emp({ persona: 'Jose Rodriguez', empresa: 'Helitec', cedula: OTRA })), [], '🔒 con la cédula del otro, nada');
   PRUEBAS.igual(kss(w.emp({ persona: 'Nombre Inventado', empresa: 'Helitec', cedula: P311_CED })), [], '🔒 con un nombre inventado y su cédula, nada');
   /* DISCRIMINADOR · sin el par */
-  const s = armar([['    if (!padronSabe && cedPedida) {\n      var empPar', '    if (false) {\n      var empPar']]);
+  /* P394b · el par exacto se extrajo sin cambios a `nominaParExacto_` (para que `credencial_crear` acepte lo mismo, R21): el sabotaje
+     es el mismo, «sin el par», sobre la línea nueva. */
+  const s = armar([['nominaParExacto_(RESv.alias, p.persona, p.empresa, cedPedida)) {', 'false) {']]);
   PRUEBAS.igual(s.faltan, undefined, 'guarda: el sabotaje entró');
   if (!s.faltan) PRUEBAS.igual(kss(s.emp({ persona: 'Jose Rodriguez', empresa: 'Helitec', cedula: P311_CED })), [], '⚠️ discriminador · sin el par, recibía vacío: el aserto de arriba lo ve');
 });
